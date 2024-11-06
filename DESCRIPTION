@@ -6,7 +6,7 @@ Author: Aydin Sareff-Hibbert
 Maintainer: Aydin Sareff-Hibbert <aydin.hibbert@sydney.edu.au>
 Description: More about what it does (maybe more than one line)
     Use four spaces when indenting paragraphs within the Description.
-Imports: gamlss, VineCopula, moments, latex2exp, ggplot2, ggpubr, Rcpp
+Depends: gamlss, VineCopula, moments, latex2exp, ggplot2, ggpubr, Rcpp, Matrix
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true
