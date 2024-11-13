@@ -647,7 +647,7 @@ calc_Fx2_derivatives = function(eta_inv, mm, margin_dist,response,testing=FALSE,
 
 calc_true_SE_numderiv_only = function(eta_inv, mm, margin_dist,response,testing=FALSE,response_margin=NA,response_subject=NA) {
 
-  adj_fac=.01
+  adj_fac=.001
   nd_impact=rep(0,length(names(eta_inv)))
   names(nd_impact)=margin_par_names=names(eta_inv)#[names(eta_inv) %in% c("mu","sigma","nu","tau")]
 
@@ -693,7 +693,7 @@ calc_true_SE_numderiv_only = function(eta_inv, mm, margin_dist,response,testing=
 
 calc_true_SE_numderiv_only_rowwise = function(eta_inv, mm, margin_dist,response,testing=FALSE,response_margin=NA,response_subject=NA) {
 
-  adj_fac=.01
+  adj_fac=.00001
   nd_impact_m=nd_impact_c=list()
 
   for (eta_par_names_nd in margin_par_names) {
@@ -759,7 +759,7 @@ coef.gamlss.longitudinal=function(object) {
 #' @export
 vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE) {
 
-  #object=w_dl; dataset=NA
+  #object=no_dl; dataset=NA; par=NA; numderiv=TRUE; sep_d2=TRUE
   #object=out[[i]][[j]]
 
   include_dlcopdpar=TRUE
@@ -800,9 +800,7 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE) {
 
   if(numderiv==TRUE) {
     nd2_joint_lik=calc_true_SE_numderiv_only(eta_inv,mm,margin_dist,response,testing=TRUE,response_margin,response_subject)
-  }
-
-  else {
+  } else {
 
   #######to delete############
   nd_impact_C2=calc_Fx2_derivatives(eta_inv,mm,margin_dist,response,testing=TRUE,response_margin,response_subject)[[2]]
@@ -901,7 +899,8 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE) {
 
   d2_mat_diag=d2_all_mean[endsWith(names(d2_all_mean),"2")]
   d2_mat_cross=d2_all_mean[!endsWith(names(d2_all_mean),"2")]
-  d2_mat=matrix(nrow=length(input_par),ncol=length(input_par))
+  d2_mat=matrix(nrow=length(eta),ncol=length(eta))
+  #print(d2_mat);print(names(eta))
   colnames(d2_mat)=rownames(d2_mat)=names(eta)
 
   copula_deriv_subnames=c("th","z")
@@ -937,6 +936,9 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE) {
   } else {
     vcov_final = -(solve((d2_mat)))/(length(response))
   }
+
+  #print(vcov_final)
+
   rownames(vcov_final)=colnames(vcov_final)=names(eta)
 
   vcov_covariates=list()
@@ -952,7 +954,7 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE) {
     W=diag((eta_dr[[par_name]]^2)/var_yi)
     X=as.matrix(mm[[par_name]])
 
-    vcov_covariates[[par_name]]=(solve(t(X)%*%W%*%X))
+    vcov_covariates[[par_name]]=diag((solve(t(X)%*%W%*%X)))
 
   }
 

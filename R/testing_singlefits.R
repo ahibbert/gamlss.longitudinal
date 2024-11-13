@@ -2,9 +2,9 @@ source("R/common_functions.R");source("R/link_functions.R"); library("gamlss"); 
 #library(gamlss.longitudinal)
 
 #########DATASET
-n=1000; d=2
+n=100; d=2
 
-copula_dist="C";margin_dist=GA(); mu=2; sigma=2;nu=NA; tau=NA; theta=5; zeta=NA; simOption=5;#    min_par=c(1,1,2);       max_par=c(10,10,10)
+copula_dist="C";margin_dist=GA(); mu=20; sigma=2;nu=NA; tau=NA; theta=5; zeta=NA; simOption=5;#    min_par=c(1,1,2);       max_par=c(10,10,10)
 #copula_dist="N";margin_dist=NO(); mu=1; sigma=2;nu=NA; tau=NA; theta=.5; zeta=NA; simOption=5;#    min_par=c(1,1,2);       max_par=c(10,10,10)
 #copula_dist="C";margin_dist=BE(); mu=0.4; sigma=0.6;nu=NA; tau=NA; theta=2; zeta=NA; simOption=7;  #Note these can be times by 2 or half as start parameters so be careful
 #copula_dist="C";margin_dist=PO(); mu=0.5; sigma=NA;nu=NA; tau=NA; theta=2; zeta=NA; simOption=7;  #Note these can be times by 2 or half as start parameters so be careful
@@ -18,12 +18,12 @@ copula_dist="C";margin_dist=GA(); mu=2; sigma=2;nu=NA; tau=NA; theta=5; zeta=NA;
 
 dataset=loadDataset(simOption=simOption, n=n,d=d, copula_dist=copula_dist, margin_dist=margin_dist
                     , par.margin=c(mu,sigma,nu,tau), par.copula=c(theta),covariates_input=NA)
-#plotDist(dataset,margin_dist)
+plotDist(dataset,margin_dist)
 
 ##########FIT
 #source("R/common_functions.R")
 no_dl=fit_jointreg(dataset, margin_dist,copula_dist
-                   , mu.formula = ("response ~ 1")
+                   , mu.formula = ("response ~ -1+as.factor(time)")
                    , sigma.formula = ("~1")
                    , nu.formula = ("~ 1")
                    , tau.formula = ("~ 1")
@@ -35,7 +35,7 @@ no_dl=fit_jointreg(dataset, margin_dist,copula_dist
 )
 
 w_dl=fit_jointreg(dataset, margin_dist, copula_dist
-                  , mu.formula = ("response ~ 1")
+                  , mu.formula = ("response ~ -1+as.factor(time)")
                   , sigma.formula = ("~ 1")
                   , nu.formula = ("~ 1")
                   , tau.formula = ("~ 1")
@@ -48,14 +48,15 @@ w_dl=fit_jointreg(dataset, margin_dist, copula_dist
 
 
 input_par=c(mu,sigma,nu,tau,theta,zeta); names(input_par)=c("mu","sigma","nu","tau","theta","zeta")
-true_par=par_to_eta(input_par,margin_dist=margin_dist,copula_dist=copula_dist)
-names(true_par)=names((w_dl$par))
+#true_par=par_to_eta(input_par,margin_dist=margin_dist,copula_dist=copula_dist)
+#names(true_par)=names((w_dl$par))
 
 library(gee);
-gee_model=(gee(response~1,family=Gamma(link="log"),corstr="exchangeable",id=subject,data=dataset[order(dataset$subject,dataset$time),]))
+gee_model=(gee(response~-1+as.factor(time),family=Gamma(link="log"),corstr="exchangeable",id=subject,data=dataset[order(dataset$subject,dataset$time),]))
 #gee_model=(gee(response~1,family=gaussian,corstr="exchangeable",id=subject,data=dataset[order(dataset$subject,dataset$time),]))
 
-plot_true=TRUE
+results_table=NA
+plot_true=FALSE
 if(plot_true==TRUE) {
   results_table=cbind(true_par
                       ,unlist(coef(w_dl))
@@ -71,11 +72,12 @@ if(plot_true==TRUE) {
   results_table=cbind(unlist(coef(w_dl))
                       ,unlist(coef(no_dl))
                       ,c(gee_model$coefficients,0,0)
-                      ,sqrt(diag(vcov(w_dl,numderiv = TRUE))[[1]])
-                      ,sqrt(diag(vcov(no_dl,numderiv = TRUE))[[1]])
-                      ,c(sqrt(gee_model$robust.variance),0,0)
+                      ,sqrt(vcov(w_dl,numderiv = TRUE)[[2]])*sqrt(n*d)
+                      ,sqrt(vcov(no_dl,numderiv = TRUE)[[2]])*sqrt(n*d)
+                      ,c(sqrt(diag(gee_model$robust.variance)),0,0)
   )
   colnames(results_table)=c("Joint Est","Sep Est", "GEE Est","Joint SE","Sep SE","GEE SE")
+  rownames(results_table)=names(w_dl$par)
 }
 print(round(results_table,4))
 
