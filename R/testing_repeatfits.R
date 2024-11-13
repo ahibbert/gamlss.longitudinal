@@ -11,12 +11,12 @@ set.seed(1000)
 library("parallel"); library("foreach"); library("doParallel")
 
 #1. Choose distribution and simulation parameters
-n=20; d=100; sims=100 #simulation parameters
+n=1000; d=2; sims=100 #simulation parameters
 #copula_dist="C";margin_dist=EXP(); mu=10; sigma=NA;nu=NA; tau=NA; theta=5; zeta=NA; simOption=5;  #Note these can be times by 2 or half as start parameters so be careful
 #copula_dist="C";margin_dist=PO(); mu=10; sigma=NA;nu=NA; tau=NA; theta=2; zeta=NA; simOption=5;  #Note these can be times by 2 or half as start parameters so be careful
-copula_dist="C";margin_dist=GA(); mu=.5; sigma=2;nu=NA; tau=NA; theta=15; zeta=NA; simOption=5;#    min_par=c(1,1,2);       max_par=c(10,10,10)
+#copula_dist="C";margin_dist=GA(); mu=20; sigma=10;nu=NA; tau=NA; theta=5; zeta=NA; simOption=5;#    min_par=c(1,1,2);       max_par=c(10,10,10)
 #copula_dist="C";margin_dist=NO(); mu=3; sigma=2;nu=NA; tau=NA; theta=5; zeta=NA; simOption=5;#    min_par=c(1,1,2);       max_par=c(10,10,10)
-#copula_dist="N";margin_dist=NO(); mu=2; sigma=2;nu=NA; tau=NA; theta=0.75; zeta=NA; simOption=5;#    min_par=c(1,1,2);       max_par=c(10,10,10)
+copula_dist="N";margin_dist=NO(); mu=2; sigma=2;nu=NA; tau=NA; theta=.25; zeta=NA; simOption=5;#    min_par=c(1,1,2);       max_par=c(10,10,10)
 #copula_dist="C";margin_dist=NBI(); mu=3; sigma=1;nu=NA; tau=NA; theta=5; zeta=NA; simOption=5#    min_par=c(1,1,2);       max_par=c(10,10,10)
 #copula_dist="N";margin_dist=NBI(); mu=3; sigma=1;nu=NA; tau=NA; theta=5; zeta=NA; simOption=5#    min_par=c(1,1,2);       max_par=c(10,10,10)
 #copula_dist="C"; margin_dist=ST1(); mu=5;sigma=exp(1);nu=10;tau=2;theta=5;zeta=NA; simOption=5;
@@ -34,6 +34,8 @@ covariates_input=NA
 
 
 #simOption=6; margin_dist=JSU(); copula_dist="N"
+
+mu_formula="response ~ as.factor(time)"
 
 ########################################## 3. SIMULATION LOOP - GENERATE, FIT, REPEAT ##########################################
 input_par=c(mu,sigma,nu,tau,theta,zeta); names(input_par)=c("mu","sigma","nu","tau","theta","zeta")
@@ -55,8 +57,6 @@ out=foreach(run_counter=1:sims,.packages = c("VineCopula","gamlss","moments","ge
                       , covariates_input=covariates_input)
 
   #plotDist(dataset,margin_dist)
-
-  mu_formula="response ~1"
 
   #3. Fit model with and without joint component
   no_dl=fit_jointreg(dataset, margin_dist,copula_dist,
@@ -129,16 +129,26 @@ out=foreach(run_counter=1:sims,.packages = c("VineCopula","gamlss","moments","ge
 }
 stopCluster(cl)
 
-
 ######################################### 4. PLOTTING ############################################
 plot_true=TRUE
 ########TAKE OUT RESULTS
 par_results_list=list()
-if(plot_true==TRUE) {
-  input=out[[1]][[1]]
-  true_par=par_to_eta(input_par,margin_dist=margin_dist,copula_dist=copula_dist)
-  names(true_par)=names((input$par))
-}
+#if(plot_true==TRUE) {
+#  input=out[[1]][[1]]
+#  true_par=par_to_eta(input_par,margin_dist=margin_dist,copula_dist=copula_dist)
+#  names(true_par)=names((input$par))
+#}
+
+#true_par=c(rep(mu,d),log(sigma),logit(theta)) #Means
+true_par=c(c(mu,0),log(sigma),logit(theta)) #Time parameter
+
+names(true_par)=names((coef(out[[1]][[2]])))
+
+
+#source("R/common_functions.R");
+#sqrt(vcov(no_dl,numderiv = FALSE)[[2]])*sqrt(n*d)
+#sqrt(vcov(no_dl,numderiv = TRUE)[[2]])*sqrt(n*d)
+
 # Calculate variance / covariance for parameters to show
 for (i in 1:length(out)) {
 
@@ -155,20 +165,21 @@ for (i in 1:length(out)) {
     results_table=cbind(true_par
                         ,unlist(coef(w_dl))
                         ,unlist(coef(no_dl))
-                        ,c(gee_model$coefficients,0,0)
-                        ,sqrt(vcov(w_dl,par=true_par,numderiv = TRUE)[[2]])*sqrt(n*d)
+                        ,c(gee_model$coefficients,log( sqrt(gee_model$scale)),logit(gee_model$working.correlation[2]))
+                        ,c(rep(sigma/sqrt(n),1),sqrt((2*sigma^2-2*theta*sigma*sigma))/sqrt(n),NA)     #sqrt(vcov(w_dl,par=true_par,numderiv = TRUE)[[2]])*sqrt(n*d)
+                        #,c(rep(sigma/sqrt(n),d),NA)     #sqrt(vcov(w_dl,par=true_par,numderiv = TRUE)[[2]])*sqrt(n*d)
                         ,sqrt(vcov(w_dl,numderiv = TRUE)[[2]])*sqrt(n*d)
                         ,sqrt(vcov(no_dl,numderiv = TRUE)[[2]])*sqrt(n*d)
-                        ,c(sqrt(gee_model$robust.variance),0,0)
+                        ,c(sqrt(diag(gee_model$robust.variance)),0,0)
     )
     colnames(results_table)=c("True Est","Joint Est","Sep Est","GEE Est","True SE", "Joint SE", "Sep SE","GEE SE")
   } else {
     results_table=cbind(unlist(coef(w_dl))
                         ,unlist(coef(no_dl))
-                        ,c(gee_model$coefficients,0,0)
-                        ,sqrt(diag(vcov(w_dl,numderiv = TRUE))[[1]])
-                        ,sqrt(diag(vcov(no_dl,numderiv = TRUE))[[1]])
-                        ,c(sqrt(gee_model$robust.variance),0,0)
+                        ,c(gee_model$coefficients,log(sqrt( gee_model$scale)),logit(gee_model$working.correlation[2]))
+                        ,sqrt(vcov(w_dl,numderiv = TRUE)[[2]])*sqrt(n*d)
+                        ,sqrt(vcov(no_dl,numderiv = TRUE)[[2]])*sqrt(n*d)
+                        ,c(sqrt(diag(gee_model$robust.variance)),0,0)
     )
     colnames(results_table)=c("Joint Est","Sep Est", "GEE Est","Joint SE","Sep SE","GEE SE")
   }
@@ -190,22 +201,27 @@ for (i in 1:length(out)) {
 plot.new()
 par(mfrow=c(2,length(par_results_list)))
 for (i in 1:length(par_results_list)) {
-  if(i==1) {
-    boxplot(par_results_list[[i]][,c("Joint Est","Sep Est","GEE Est")],main=names(par_results_list)[i],ylim=c(-2,1));
-  } else {
-    boxplot(par_results_list[[i]][,c("Joint Est","Sep Est")],main=names(par_results_list)[i]);
-  }
+  #if(grepl("mu",names(par_results_list)[i])) {
+    boxplot(par_results_list[[i]][,c("Joint Est","Sep Est","GEE Est")],main=names(par_results_list)[i]);
+  #} else {
+  #  boxplot(par_results_list[[i]][,c("Joint Est","Sep Est")],main=names(par_results_list)[i]);
+  #}
   if(plot_true==TRUE){abline(h=mean(par_results_list[[i]][,"True Est"]),col="red")}
 }
 for (i in 1:length(par_results_list)) {
-  if(i==1) {
-    boxplot(par_results_list[[i]][,c("Joint SE","Sep SE","GEE SE")],main=paste(names(par_results_list)[i],"SE"),ylim=c(0,.5))
+  if(grepl("mu",names(par_results_list)[i])) {
+    boxplot(par_results_list[[i]][,c("Joint SE","Sep SE","GEE SE")],main=paste(names(par_results_list)[i],"SE"))
   } else {
     boxplot(par_results_list[[i]][,c("Joint SE","Sep SE")],main=paste(names(par_results_list)[i],"SE"))
   }
   if(plot_true==TRUE){abline(h=mean(par_results_list[[i]][!(is.na(par_results_list[[i]][,"True SE"])),"True SE"]),col="red")}
 }
 
+
+plot.new(); par(mfrow=c(1,3))
+plot(par_results_list[[1]][,c("True SE","Joint SE")],xlim=c(0,1),ylim=c(0,1))
+plot(par_results_list[[1]][,c("True SE","Sep SE")],xlim=c(0,1),ylim=c(0,1))
+plot(par_results_list[[1]][,c("True SE","GEE SE")],xlim=c(0,1),ylim=c(0,1))
 
 
 
@@ -290,6 +306,28 @@ colnames(w_dl_outer_comb)=colnames(no_dl_outer_comb)=c("iterations",names((out[[
 
 #no_dl_outer_comb=no_dl_outer_comb[-6,]
 #w_dl_outer_comb=w_dl_outer_comb[-6,]
+
+
+true_val=log(input_par[!is.na(input_par)]); i=1
+par(mfrow=c(4,4))
+boxplot(c(no_dl_outer_comb[,"iterations"], w_dl_outer_comb[,"iterations"])~c(rep("Separate",nrow(no_dl_outer_comb)),rep("Joint",nrow(w_dl_outer_comb))),ylab="Iterations",xlab="Optimisation Method",main="Iterations")
+for (par_name in par_names) {
+  #if(par_name %in% c("theta","zeta")) {
+  #  true=get_copula_dist(copula_dist)$copula_link[[paste(par_name,".linkfun",sep="")]](input_par[par_name])
+  #} else {
+  #  true=margin_dist[[paste(par_name,".linkfun",sep="")]](input_par[par_name])
+  #}
+  boxplot(c(no_dl_outer_comb[,par_name], w_dl_outer_comb[,par_name])~c(rep("Separate",nrow(no_dl_outer_comb)),rep("Joint",nrow(w_dl_outer_comb))),ylab="Parameter value",xlab="Optimisation Method",main=par_name
+          ,ylim=range(c(no_dl_outer_comb[,par_name], w_dl_outer_comb[,par_name]))) #,true
+
+  abline(h=true_val[i],col="red"); i=i+1
+}
+boxplot(c(no_dl_outer_comb[,"ll margin"], w_dl_outer_comb[,"ll margin"])~c(rep("Separate",nrow(no_dl_outer_comb)),rep("Joint",nrow(w_dl_outer_comb))),ylab="Parameter value",xlab="Optimisation Method",main="LogLik - Margin")
+boxplot(c(no_dl_outer_comb[,"ll copula"], w_dl_outer_comb[,"ll copula"])~c(rep("Separate",nrow(no_dl_outer_comb)),rep("Joint",nrow(w_dl_outer_comb))),ylab="Parameter value",xlab="Optimisation Method",main="LogLik - Copula")
+boxplot(c(no_dl_outer_comb[,"ll total"], w_dl_outer_comb[,"ll total"])~c(rep("Separate",nrow(no_dl_outer_comb)),rep("Joint",nrow(w_dl_outer_comb))),ylab="Parameter value",xlab="Optimisation Method",main="LogLik - Overall")
+
+diff_ll=(w_dl_outer_comb[,"ll total"]-no_dl_outer_comb[,"ll total"])
+hist(diff_ll,xlab="Change in LL",ylab="No. Simualtions",main=paste("Change in overall LogLik",round(mean(w_dl_outer_comb[,"ll total"]-no_dl_outer_comb[,"ll total"]),2)))
 
 
 true_val=log(input_par[!is.na(input_par)]); i=1
