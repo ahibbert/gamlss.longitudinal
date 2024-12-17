@@ -2,7 +2,7 @@ source("R/common_functions.R");source("R/link_functions.R"); library("gamlss"); 
 #library(gamlss.longitudinal)
 
 #########DATASET
-n=1000; d=5
+n=1000; d=2
 
 #copula_dist="C";margin_dist=GA(); mu=20; sigma=2;nu=NA; tau=NA; theta=5; zeta=NA; simOption=5;#    min_par=c(1,1,2);       max_par=c(10,10,10)
 #copula_dist="N";margin_dist=NO(); mu=1; sigma=2;nu=NA; tau=NA; theta=.5; zeta=NA; simOption=5;#    min_par=c(1,1,2);       max_par=c(10,10,10)
@@ -14,7 +14,9 @@ n=1000; d=5
 #copula_dist="C"; margin_dist=ZISICHEL(); simOption
 #copula_dist="C"; margin_dist=GA(); simOption=8; input_par=NA
 
-copula_dist="N";margin_dist=NO(); mu=2; sigma=2;nu=NA; tau=NA; theta=.75; zeta=NA; simOption=9;
+copula_dist="N";margin_dist=NO(); mu=2; sigma=2;nu=NA; tau=NA; theta=.75; zeta=NA; simOption=9; #MU TIME VARIANT
+copula_dist="N";margin_dist=NO(); mu=2; sigma=2;nu=NA; tau=NA; theta=.75; zeta=NA; simOption=10; #MU AND SIGMA TIME VARIANT
+
 
 #copula_dist="C";margin_dist=GA(); mu=1; sigma=0.2;nu=NA; tau=NA; theta=.5; zeta=NA; simOption=7;
 #covariates_input=list(mu.time=0,sigma.time=.2,nu.time=1,tau.time=1,theta.time=.5,zeta.time=1
@@ -70,9 +72,9 @@ library(gee);
 gee_model=gee(mu_formula,family=gaussian
                ,corstr="AR-M",id=subject,data=dataset[order(dataset$subject,dataset$time),],Mv=1)
 
-
-
-
+source("R/common_functions.R");
+true_var_b0_bt=bvt_norm_true_SE_B0_Bt(sigma_x=sigma,sigma_y=sigma,rho=theta,n=n,d=d)
+true_se_b0_bt=sqrt(true_var_b0_bt)/sqrt(n)
 
 plot_true=TRUE
 if(plot_true==TRUE) {
@@ -101,5 +103,3 @@ if(plot_true==TRUE) {
 print(round(results_table,4))
 round(results_table,6)
 
-
-gee_model
