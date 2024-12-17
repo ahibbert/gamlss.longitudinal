@@ -2284,7 +2284,7 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
 
       response = as.data.frame(margin)
     }
-  } else if (simOption==9) { ########TIME VARIANT
+  } else if (simOption==9) { ########TIME VARIANT MU
 
     copula_input=get_copula_dist(copula_dist)
     copula.family=copula_input$copula_dist
@@ -2339,7 +2339,7 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
 
       response = as.data.frame(margin)
     }
-  }  else if (simOption==10) { ########TIME VARIANT
+  }  else if (simOption==10) { ########TIME VARIANT SIGMA AND MU
 
     copula_input=get_copula_dist(copula_dist)
     copula.family=copula_input$copula_dist
