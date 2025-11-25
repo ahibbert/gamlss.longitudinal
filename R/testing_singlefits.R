@@ -4,7 +4,7 @@ library("ggplot2"); library("latex2exp"); library("ggpubr"); library("Matrix")
 library(gamlss2); library(gamlss)
 set.seed(100)
 #########DATASET
-n=500; d=3
+n=1000; d=4
 
 #copula_dist="C";margin_dist=GA(); mu=20; sigma=2;nu=NA; tau=NA; theta=5; zeta=NA; simOption=5;#    min_par=c(1,1,2);       max_par=c(10,10,10)
 #copula_dist="N";margin_dist=NO(); mu=1; sigma=2;nu=NA; tau=NA; theta=.5; zeta=NA; simOption=9;#    min_par=c(1,1,2);       max_par=c(10,10,10)
@@ -136,9 +136,9 @@ no_dl=fit_jointreg(dataset, margin_dist,copula_dist
                    , use_Rcpp=FALSE, start_step_size=0.5, step_adjustment = 0.5, inner_stop_crit=0.01, outer_stop_crit=0.005
 )
 par(mfrow=c(2,2))
-plot(dataset$age,no_dl$model_matrix$s$mu$'s(age)'%*%no_dl$par_s$mu$'s(age)',main="mu age smooth")
-plot(dataset$age,no_dl$model_matrix$s$sigma$'s(age)'%*%no_dl$par_s$sigma$'s(age)', main="sigma age smooth")
-plot(dataset$age[1:(n*(d-1))],no_dl$model_matrix$s$theta$'s(age)'%*%no_dl$par_s$theta$'s(age)', main="sigma age smooth")
+plot(dataset$age,no_dl$model_matrix$s$mu$'s(age)'%*%no_dl$par_s$mu$'s(age)',main="mu age smooth",ylab="coefficient",xlab="age")
+plot(dataset$age,no_dl$model_matrix$s$sigma$'s(age)'%*%no_dl$par_s$sigma$'s(age)', main="sigma age smooth",ylab="coefficient",xlab="age")
+plot(dataset$age[1:(n*(d-1))],no_dl$model_matrix$s$theta$'s(age)'%*%no_dl$par_s$theta$'s(age)', main="theta age smooth",ylab="coefficient",xlab="age")
 
 
 w_dl=fit_jointreg(dataset, margin_dist, copula_dist
