@@ -117,7 +117,7 @@ ggarrange(p1, p2, p3, ncol=1, nrow=3, common.legend=FALSE)
 
 ##########FIT
 source("R/common_functions.R")
-mu_formula="response ~ time + s(age,bs=\"ps\")"
+mu_formula="response ~ time + s(age,bs=\"ps\",k=10)"
 sigma_formula="time + s(age,bs=\"ps\")"
 nu_formula="time"
 tau_formula="time"
@@ -134,12 +134,22 @@ no_dl=fit_jointreg(dataset, margin_dist,copula_dist
                    , include_dlcopdpar=FALSE
                    , verbose=3, plot_results=FALSE,  true_val=par_to_eta(input_par,copula_dist,margin_dist)
                    , use_Rcpp=FALSE, start_step_size=0.5, step_adjustment = 0.5, inner_stop_crit=0.01, outer_stop_crit=0.005
+                   , lambda_start = 5
 )
 par(mfrow=c(2,2))
 plot(dataset$age,no_dl$model_matrix$s$mu$'s(age)'%*%no_dl$par_s$mu$'s(age)',main="mu age smooth",ylab="coefficient",xlab="age")
 plot(dataset$age,no_dl$model_matrix$s$sigma$'s(age)'%*%no_dl$par_s$sigma$'s(age)', main="sigma age smooth",ylab="coefficient",xlab="age")
 plot(dataset$age[1:(n*(d-1))],no_dl$model_matrix$s$theta$'s(age)'%*%no_dl$par_s$theta$'s(age)', main="theta age smooth",ylab="coefficient",xlab="age")
 
+
+###########TO DELETE
+
+
+########### TO DELETE
+
+
+# gamlss no random effect
+gamlss(response ~ time + ps(age), sigma.formula = ~ time + ps(age), data=dataset, family=NO)
 
 w_dl=fit_jointreg(dataset, margin_dist, copula_dist
                   , mu.formula = mu_formula
