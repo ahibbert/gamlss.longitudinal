@@ -1941,8 +1941,9 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     # transform to R-vine matrix notatio
     
     RVM=list()
+    
     for (i in 1:n) {
-      RVM[[i]] = D2RVine(order, rep(1,dd), par=c(theta_inv[i,],0))
+      RVM[[i]] = D2RVine(order, rep(1,dd), par=c(theta_inv[i,],rep(0,dd-(length(theta_inv[i,])))), par2=c(theta_inv[i,],rep(0,dd-(length(theta_inv[i,])))))
     }
     #RVM <- D2RVine(order, rep(family[1],nrow(theta_inv)), theta_inv, theta_inv*0)
     #contour(RVM)
