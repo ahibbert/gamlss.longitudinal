@@ -60,10 +60,11 @@ fit_jointreg=function(  dataset,
                         method="RS",
                         max_outer_iter=20,
                         max_inner_iter=20,
-                        use_Rcpp=FALSE
+                        use_Rcpp=FALSE,
+                        lambda_start=1
                       )
 {
-  #mu.formula="response ~ time + s(age)";  sigma.formula="time";  nu.formula="time";  tau.formula="time";  theta.formula="time";  zeta.formula="time";
+  #mu.formula="response ~ time + s(age)";  sigma.formula="time";  nu.formula="time";  tau.formula="time";  theta.formula="time+s(age)";  zeta.formula="time";
 
   #Setup model matrix from given formulas
   copula_link=get_copula_dist(copula_dist)$copula_link
@@ -111,6 +112,7 @@ fit_jointreg=function(  dataset,
   par_history=matrix(ncol=length(par_cov),nrow=0); colnames(par_history)=names(par_cov)
   outer_run_counter=1; outer_only_run_counter=1
   step_size=start_step_size
+  lambda=lambda_start
 
   #OUTER ITERATION (MAIN LOOP)
   while ((first_outer_run==TRUE | (abs(outer_log_lik_change)>outer_stop_crit)) & outer_only_run_counter < max_outer_iter) {
@@ -140,8 +142,11 @@ fit_jointreg=function(  dataset,
         eta_out=calc_eta(par_cov,mm,margin_dist,copula_link,par_s=if(first_inner_run) {NA} else {par_s})
         eta=eta_out$eta; eta_dr=eta_out$eta_dr; eta_inv=eta_out$eta_inv
 
-        calc_lik_out=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=FALSE,response=dataset$response,response_margin=(dataset$time),response_subject = dataset$subject)
-        log_lik=calc_lik_out$log_lik; margin_d=calc_lik_out$margin_d; margin_p=calc_lik_out$margin_p; margin_deriv=calc_lik_out$margin_deriv; copula_d=calc_lik_out$copula_d; copula_p=calc_lik_out$copula_p; Fx_1_2=calc_lik_out$Fx_1_2;order_copula=calc_lik_out$order_copula
+        calc_lik_out=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=FALSE
+          ,response=dataset$response,response_margin=(dataset$time),response_subject = dataset$subject)
+        log_lik=calc_lik_out$log_lik; margin_d=calc_lik_out$margin_d; margin_p=calc_lik_out$margin_p; 
+        margin_deriv=calc_lik_out$margin_deriv; copula_d=calc_lik_out$copula_d; copula_p=calc_lik_out$copula_p; 
+        Fx_1_2=calc_lik_out$Fx_1_2;order_copula=calc_lik_out$order_copula
 
         if(first_outer_run==TRUE) {
           outer_start_log_lik=log_lik["joint"]; first_outer_run=FALSE
@@ -246,51 +251,60 @@ fit_jointreg=function(  dataset,
         timer=c(timer,difftime(Sys.time(),timer_start,units="secs"))
         names(timer)[length(timer)]=paste("Backfitting")
 
-        #OK NOW IS THE DIFFICULT PART - UPDATING THE PARAMETERS USING SMOOTHS
-
-        #SO
-        #Iterate this until no change in deviance
-          # for each smooth term
-            # First fit an unpenalised least squares to get starting values for smooth
-            # Then iterate with a penalised least squares until no change in global deviance or basis coefficients
-
-        #if(first_inner_run==TRUE) {
-          X=as.matrix(mm$x[[par_name]])
-          W=diag(as.vector(score$w_k))
-          z_k=score$z_k
-          for (s_name in names(mm$s[[par_name]])) {
-            B=mm$s[[par_name]][[s_name]]
-            #par_s[[par_name]][[s_name]]=c(par_s[[par_name]][[s_name]],rep(10,ncol(B)))
-            colnames(B)=paste(par_name,s_name,1:ncol(B),sep=".")
-            X=cbind(X,B)
-          }
-          if(length(par_s[[par_name]])==0) {
-            paste("No smooths found for parameter; running basic IRLS",par_name)
-            beta_start=c(par_cov[paste(paste(par_name,sep=" "),colnames(mm$x[[par_name]]),sep=".")])
-          } else {
+        # Setup model matrices
+        X=as.matrix(mm$x[[par_name]])
+        W=diag(as.vector(score$w_k))
+        z_k=score$z_k
+        for (s_name in names(mm$s[[par_name]])) {
+          B=mm$s[[par_name]][[s_name]]
+          #par_s[[par_name]][[s_name]]=c(par_s[[par_name]][[s_name]],rep(10,ncol(B)))
+          colnames(B)=paste(par_name,s_name,1:ncol(B),sep=".")
+          X=cbind(X,B)
+        }
+        if(length(par_s[[par_name]])==0) {
+          paste("No smooths found for parameter; running basic IRLS",par_name)
+          beta_start=c(par_cov[paste(paste(par_name,sep=" "),colnames(mm$x[[par_name]]),sep=".")])
+        } else {
             ############# UNPENALISED VERSION
-            temp_par_s_unlisted=unlist(par_s[[par_name]],use.names=TRUE)
-            names(temp_par_s_unlisted)=colnames(X)[(ncol(mm$x[[par_name]])+1):ncol(X)]
-            beta_start=c(par_cov[paste(paste(par_name,sep=" "),colnames(mm$x[[par_name]]),sep=".")],temp_par_s_unlisted)
-          }
+          temp_par_s_unlisted=unlist(par_s[[par_name]],use.names=TRUE)
+          names(temp_par_s_unlisted)=colnames(X)[(ncol(mm$x[[par_name]])+1):ncol(X)]
+          beta_start=c(par_cov[paste(paste(par_name,sep=" "),colnames(mm$x[[par_name]]),sep=".")],temp_par_s_unlisted)
+        }
+        if(first_inner_run==TRUE | (is.null(mm$s[[par_name]]) | length(mm$s[[par_name]])==0)) {
 
-          
-          
           library(MASS)
           beta_update=as.vector(ginv(t(X)%*%W%*%X)%*%t(X)%*%W%*%z_k)
           beta_change_inner=beta_update-beta_start
           beta_new=beta_start*(1-step_size) + (step_size)*(beta_update)
           
-        #} else {
-        #  if(is.null(mm$s[[par_name]])) {
-        #    paste("No smooths found for parameter; running basic IRLS",par_name)
-        #  } else {
-        #   ############# PENALISED VERSION
-        #  }
-        #}
+        } else {
+          ############ PENALISED VERSION
 
+          #Calculate the penalty term for each smooth
+          pen_mat=matrix(0,nrow=ncol(X),ncol=ncol(X))
 
-        ######### OK WORKING UP TO HERE 
+          if(length(par_s[[par_name]])>0) {
+            start_idx=ncol(mm$x[[par_name]])+1
+            for (s_name in names(mm$s[[par_name]])) {
+              B=mm$s[[par_name]][[s_name]]
+              n_B=ncol(B)
+              idx=start_idx:(start_idx+n_B-1)
+              D=diff(diag(n_B),differences=2)
+              S=t(D)%*%D
+              G=par_s[[par_name]][[s_name]]
+              #pen_val=lambda%*% t(G)%*%S%*%G
+              pen_mat[idx,idx]=S*lambda
+              start_idx=start_idx+n_B
+            }
+          }
+
+          library(MASS)
+          beta_update=as.vector(ginv(t(X)%*%W%*%X + pen_mat)%*%t(X)%*%W%*%z_k)
+          beta_change_inner=beta_update-beta_start
+          beta_new=beta_start*(1-step_size) + (step_size)*(beta_update)
+          beta_new
+        }
+
         ###Maybe back into other bit
 
         temp_par_cov_new=beta_new[grepl(par_name,names(beta_new))]
@@ -300,7 +314,6 @@ fit_jointreg=function(  dataset,
         #Select all beta_new which have names corresponding to s_name
         par_s_new=par_s
         for(s_name in names(par_s[[par_name]])) {
-          print(s_name)  
           par_s_new[[par_name]][[s_name]]=temp_par_s_new[grepl(s_name,names(temp_par_s_new),fixed=TRUE)]
         }
 
@@ -310,7 +323,8 @@ fit_jointreg=function(  dataset,
         par_cov=par_cov_new
         par_s=par_s_new
 
-        calc_lik_out_end=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=FALSE,response=dataset$response,response_margin=(dataset$time),response_subject = dataset$subject)        
+        calc_lik_out_end=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=FALSE
+          ,response=dataset$response,response_margin=(dataset$time),response_subject = dataset$subject)        
  
         if (verbose>2) {
 
@@ -389,8 +403,8 @@ fit_jointreg=function(  dataset,
   p_mar=par_cov[!(grepl("theta",names(par_cov))|grepl("zeta",names(par_cov)))]
 
   aics=rbind(t(calc_lik_out_end$log_lik),
-             t(calc_lik_out_end$log_lik)-2*c(length(p_mar),length(p_cop),length(par_cov)),
-             t(calc_lik_out_end$log_lik)-c(length(p_mar),length(p_cop),length(par_cov))*log(nrow(dataset)))
+             t(-calc_lik_out_end$log_lik*2)+2*c(length(p_mar),length(p_cop),length(par_cov)),
+             t(-calc_lik_out_end$log_lik*2)+c(length(p_mar),length(p_cop),length(par_cov))*log(nrow(dataset)))
 
   rownames(aics)=c("LogLik","AIC","BIC")
   print(aics)
@@ -555,7 +569,7 @@ calc_eta=function(par_cov,mm,margin_dist,copula_link,par_s=NA) {
 #' \item{order_copula}{A matrix indicating the order of margins and subjects for copula calculations.}
 #' 
 #' @export
-calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=FALSE,response,response_margin,response_subject) {
+calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=FALSE,response,response_margin,response_subject,penalize_smooth=FALSE,par_s=NA) {
   #Setup input matrix of response and parameters
   #response=dataset$response; response_subject=dataset$subject; response_margin=dataset$time; dataset=NA
   margin_names=unique(response_margin)
@@ -627,6 +641,7 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
 
   log_lik=c(sum(log(margin_d)),sum(log(copula_d)),sum(log(margin_d))+sum(log(copula_d)))
   names(log_lik)=c("marginal","copula","joint")
+
   return_list=list(log_lik,margin_d,copula_d,margin_p,Fx_1_2,order_copula,margin_deriv,order_copula)
   names(return_list)=c("log_lik","margin_d","copula_d","margin_p","Fx_1_2","order_copula","margin_deriv","order_copula")
   return(return_list)
