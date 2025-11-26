@@ -559,7 +559,7 @@ create_model_matrices<-function(
   m_temp[["mu"]]=gamlss2(formula=as.formula(mu.formula), family=NO(), data=dataset,  control=gamlss2_control(maxit=1))
   for (parameter in included_parameters[2:length(included_parameters)]) {
     formulas[[parameter]]<-as.formula(paste(as.formula(mu.formula)[[2]],formulas[[parameter]],sep="~"))
-    print(formulas[[parameter]])
+    #print(formulas[[parameter]])
     m_temp[[parameter]]=gamlss2(formula=formulas[[parameter]], family=NO() #margin.family
       , data=if(parameter %in% c("theta","zeta")) (dataset[dataset$time %in% unique(dataset$time)[1:(length(unique(dataset$time))-1)],]) else dataset,  control=gamlss2_control(maxit=1))
   }
@@ -574,7 +574,7 @@ create_model_matrices<-function(
     }
     if(length(m$sterms$mu)==0) { mm_s[[parameter]]=NULL} else {
       for (s in m$sterms$mu) {
-        print(s)
+        #print(s)
         mm_s[[parameter]]=list()
         mm_s[[parameter]][[s]]=m$specials[[s]]$X
       }
