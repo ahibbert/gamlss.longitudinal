@@ -1,35 +1,18 @@
 source("R/common_functions.R");source("R/link_functions.R"); library("VineCopula");library("moments"); 
-library("ggplot2"); library("latex2exp"); library("ggpubr"); library("Matrix")
+library("ggplot2"); library("latex2exp"); library("ggpubr"); library("Matrix"); library("MASS")
 #library(gamlss.longitudinal); 
 library(gamlss2); library(gamlss)
 set.seed(100)
 #########DATASET
 n=1000; d=4
 
-#copula_dist="C";margin_dist=GA(); mu=20; sigma=2;nu=NA; tau=NA; theta=5; zeta=NA; simOption=5;#    min_par=c(1,1,2);       max_par=c(10,10,10)
-#copula_dist="N";margin_dist=NO(); mu=1; sigma=2;nu=NA; tau=NA; theta=.5; zeta=NA; simOption=9;#    min_par=c(1,1,2);       max_par=c(10,10,10)
-#copula_dist="C";margin_dist=BE(); mu=0.4; sigma=0.6;nu=NA; tau=NA; theta=2; zeta=NA; simOption=7;  #Note these can be times by 2 or half as start parameters so be careful
-#copula_dist="C";margin_dist=PO(); mu=0.5; sigma=NA;nu=NA; tau=NA; theta=2; zeta=NA; simOption=7;  #Note these can be times by 2 or half as start parameters so be careful
-#copula_dist="N";margin_dist=PO(); mu=0.5; sigma=NA;nu=NA; tau=NA; theta=.75; zeta=NA; simOption=5;  #Note these can be times by 2 or half as start parameters so be careful
-#input_par=c(mu,sigma,nu,tau,theta,zeta); names(input_par)=c("mu","sigma","nu","tau","theta","zeta")
-#copula_dist="C"; margin_dist=ZISICHEL(); mu=3;sigma=exp(1);nu=-2;tau=.2;theta=5;zeta=NA;simOption=5;
-#copula_dist="C"; margin_dist=ZISICHEL(); simOption
-#copula_dist="C"; margin_dist=GA(); simOption=8; input_par=NA
-
-#copula_dist="N";margin_dist=NO(); mu=2; sigma=2;nu=NA; tau=NA; theta=.75; zeta=NA; simOption=9; #MU TIME VARIANT
-#copula_dist="N";margin_dist=NO(); mu=2; sigma=2;nu=NA; tau=NA; theta=.75; zeta=NA; simOption=10; #MU AND SIGMA TIME VARIANT
-
+#copula_dist="N"; margin_dist=NO(); mu=0; sigma=1;nu=NA; tau=NA; theta=-1; zeta=NA; simOption=7;
 #copula_dist="C";margin_dist=GA(); mu=1; sigma=0.2;nu=NA; tau=NA; theta=.5; zeta=NA; simOption=7;
-#covariates_input=list(mu.time=0,sigma.time=.2,nu.time=1,tau.time=1,theta.time=.5,zeta.time=1
-#                      , mu.age=0,sigma.age=0,nu.age=1,tau.age=1,theta.age=0,zeta.age=1
-#                      , mu.gender=0, sigma.gender=0, nu.gender=0,tau.gender=0,theta.gender=0, zeta.gender=0)
-#    min_par=c(1,1,2);       max_par=c(10,10,10)
-
-copula_dist="N"; margin_dist=NO(); mu=0; sigma=1;nu=NA; tau=NA; theta=-1; zeta=NA; simOption=7;
-# copula_dist="N"; margin_dist=BE(); mu=0.4; sigma=0.6;nu=NA; tau=NA; theta=.5; zeta=NA; simOption=7;
+#copula_dist="C"; margin_dist=PE(); mu=0.4; sigma=0.6;nu=1; tau=NA; theta=-0.5; zeta=NA; simOption=7;
+copula_dist="N"; margin_dist=ST1(); mu=1; sigma=1;nu=1; tau=1; theta=-0.5; zeta=NA; simOption=7;
 # USE THIS WITH SIMOPTION 7
-covariates_input=list( mu.time=1   ,sigma.time=.1   ,nu.time=0    ,tau.time=0   ,theta.time=.1  ,zeta.time=0
-                        ,mu.age=10    ,sigma.age=10     ,nu.age=0     ,tau.age=0    ,theta.age=10    ,zeta.age=0
+covariates_input=list( mu.time=.1   ,sigma.time=.1   ,nu.time=.1    ,tau.time=.1   ,theta.time=.1  ,zeta.time=0
+                        ,mu.age=10    ,sigma.age=10     ,nu.age=10     ,tau.age=10    ,theta.age=10    ,zeta.age=0
                         ,mu.gender=0 ,sigma.gender=0  ,nu.gender=0  ,tau.gender=0 ,theta.gender=0 ,zeta.gender=0)
 
 #simOption=6; margin_dist=JSU(); copula_dist="N"
@@ -40,6 +23,7 @@ dataset=loadDataset(simOption=simOption, n=n,d=d, copula_dist=copula_dist, margi
                     , par.margin=c(mu,sigma,nu,tau), par.copula=c(theta=theta),covariates_input=covariates_input)
 plotDist(dataset,margin_dist)
 
+#########PLOTTING#############
 #Group dataset by age categories in buckets of 10 years then calculate the correlation in each bucket and plot
 library(dplyr)
 # Create age groups with extended range and filter out any remaining NAs
@@ -111,20 +95,55 @@ p3 = ggplot(age_sd, aes(x=age_group, y=sd_response, color=time, group=time)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-# Combine all three plots
+# Calculate kurtosis by age group and time
+library(moments)
+age_kurtosis = dataset %>%
+  group_by(age_group, time) %>%
+  summarise(kurtosis_response = kurtosis(response), .groups='drop') %>%
+  mutate(time = as.factor(time)) %>%
+  filter(!is.na(age_group))
+
+p4 = ggplot(age_kurtosis, aes(x=age_group, y=kurtosis_response, color=time, group=time)) +
+  geom_point() +
+  geom_line() +
+  labs(title="Kurtosis of Response by Age Group",
+       x="Age Group",
+       y="Kurtosis",
+       color="Time") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Calculate skewness by age group and time
+age_skewness = dataset %>%
+  group_by(age_group, time) %>%
+  summarise(skewness_response = skewness(response), .groups='drop') %>%
+  mutate(time = as.factor(time)) %>%
+  filter(!is.na(age_group))
+
+p5 = ggplot(age_skewness, aes(x=age_group, y=skewness_response, color=time, group=time)) +
+  geom_point() +
+  geom_line() +
+  labs(title="Skewness of Response by Age Group",
+       x="Age Group",
+       y="Skewness",
+       color="Time") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Combine all five plots
 library(ggpubr)
-ggarrange(p1, p2, p3, ncol=1, nrow=3, common.legend=FALSE)
+ggarrange(p1, p2, p3, p4, p5, ncol=2, nrow=3, common.legend=FALSE)
 
 ##########FIT
 source("R/common_functions.R")
 mu_formula="response ~ time + s(age,bs=\"ps\",k=10)"
 sigma_formula="time + s(age,bs=\"ps\")"
-nu_formula="time"
-tau_formula="time"
+nu_formula="time + s(age,bs=\"ps\")"
+tau_formula="time + s(age,bs=\"ps\")"
 theta_formula="time + s(age,bs=\"ps\")"
 zeta_formula="time"
 
-no_dl=fit_jointreg(dataset, margin_dist,copula_dist
+no_dl=gamlss.longitudinal(dataset, margin_dist,copula_dist
                    , mu.formula = mu_formula
                    , sigma.formula = sigma_formula
                    , nu.formula = nu_formula
@@ -133,35 +152,42 @@ no_dl=fit_jointreg(dataset, margin_dist,copula_dist
                    , zeta.formula=zeta_formula
                    , include_dlcopdpar=FALSE
                    , verbose=3, plot_results=FALSE,  true_val=par_to_eta(input_par,copula_dist,margin_dist)
-                   , use_Rcpp=FALSE, start_step_size=0.5, step_adjustment = 0.5, inner_stop_crit=0.01, outer_stop_crit=0.005
+                   , use_Rcpp=FALSE, start_step_size=0.5, step_adjustment = 0.5, inner_stop_crit=.1, outer_stop_crit=.1
                    , lambda_start = 5
+                   , lambda_penalty_K = 2 #Optimising for AIC
 )
-par(mfrow=c(2,2))
+par(mfrow=c(3,2))
 plot(dataset$age,no_dl$model_matrix$s$mu$'s(age)'%*%no_dl$par_s$mu$'s(age)',main="mu age smooth",ylab="coefficient",xlab="age")
 plot(dataset$age,no_dl$model_matrix$s$sigma$'s(age)'%*%no_dl$par_s$sigma$'s(age)', main="sigma age smooth",ylab="coefficient",xlab="age")
 plot(dataset$age[1:(n*(d-1))],no_dl$model_matrix$s$theta$'s(age)'%*%no_dl$par_s$theta$'s(age)', main="theta age smooth",ylab="coefficient",xlab="age")
-
-
-###########TO DELETE
-
-
-########### TO DELETE
+plot(dataset$age,no_dl$model_matrix$s$nu$'s(age)'%*%no_dl$par_s$nu$'s(age)', main="nu age smooth",ylab="coefficient",xlab="age")
+plot(dataset$age,no_dl$model_matrix$s$tau$'s(age)'%*%no_dl$par_s$tau$'s(age)', main="tau age smooth",ylab="coefficient",xlab="age")
 
 
 # gamlss no random effect
-gamlss(response ~ time + ps(age), sigma.formula = ~ time + ps(age), data=dataset, family=NO)
+gamlss(response ~ time + ps(age), sigma.formula = ~ time + ps(age), nu.formula = ~ time + ps(age), data=dataset, family=margin_dist)
 
-w_dl=fit_jointreg(dataset, margin_dist, copula_dist
+
+w_dl=gamlss.longitudinal(dataset, margin_dist, copula_dist
                   , mu.formula = mu_formula
                   , sigma.formula = sigma_formula
-                  , nu.formula = ("~ 1")
-                  , tau.formula = ("~ 1")
+                  , nu.formula = nu_formula
+                  , tau.formula = tau_formula
                   , theta.formula=theta_formula
-                  , zeta.formula=("~1")
+                  , zeta.formula=zeta_formula
                   , include_dlcopdpar=TRUE
                   , verbose=3,plot_results=FALSE, true_val=par_to_eta(input_par,copula_dist,margin_dist)
-                  , use_Rcpp=FALSE, start_step_size=.25, step_adjustment = 0.5, inner_stop_crit=0.01, outer_stop_crit=0.005
+                  , use_Rcpp=FALSE, start_step_size=1, step_adjustment = 0.5, inner_stop_crit=.1, outer_stop_crit=.1
+                  , lambda_start = 5
+                  , lambda_penalty_K = 2 #Optimising for AIC
 )
+
+par(mfrow=c(3,2))
+plot(dataset$age,w_dl$model_matrix$s$mu$'s(age)'%*%w_dl$par_s$mu$'s(age)',main="mu age smooth",ylab="coefficient",xlab="age")
+plot(dataset$age,w_dl$model_matrix$s$sigma$'s(age)'%*%w_dl$par_s$sigma$'s(age)', main="sigma age smooth",ylab="coefficient",xlab="age")
+plot(dataset$age,w_dl$model_matrix$s$nu$'s(age)'%*%w_dl$par_s$nu$'s(age)', main="nu age smooth",ylab="coefficient",xlab="age")
+plot(dataset$age,w_dl$model_matrix$s$tau$'s(age)'%*%w_dl$par_s$tau$'s(age)', main="tau age smooth",ylab="coefficient",xlab="age")
+plot(dataset$age[1:(n*(d-1))],w_dl$model_matrix$s$theta$'s(age)'%*%w_dl$par_s$theta$'s(age)', main="theta age smooth",ylab="coefficient",xlab="age")
 
 
 input_par=c(mu,sigma,nu,tau,theta,zeta); names(input_par)=c("mu","sigma","nu","tau","theta","zeta")
