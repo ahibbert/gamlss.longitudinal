@@ -1,4 +1,4 @@
-# gamlss.longitudinal: A simple to use, easy to inrepret  and highly flexible framework for regression of longitudinal data
+# gamlss.longitudinal: A simple to use, easy to interpret, and highly flexible framework for regression of longitudinal data
   
 ## Overview of the approach
 The purpose of the gamlss.longitudinal package is to provide a simple to use and easily interpretable modelling approach for longitudinal data. It allows users to fit longitudinal datasets with any gamlss marginal distributions with parameters relying on any parametric or smooth covariates, and simultaneously model the correlation structure of the data using copulas. Any copulas available in the VineCopula package can be used, and, unique to this longitudinal modelling approach, the correlation parameter can also be made to rely on any number of parametric or smooth covariates.
