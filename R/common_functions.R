@@ -48,14 +48,14 @@ gamlss.longitudinal=function(  dataset,
                         theta.formula=("1"),
                         zeta.formula=("1"),
                         include_dlcopdpar=FALSE,
-                        inner_stop_crit=.01,
-                        outer_stop_crit=.0001,
+                        inner_stop_crit=.1,
+                        outer_stop_crit=.1,
                         start_step_size=.5,
                         step_adjustment=.5,
                         max_steps=5,
                         start_from=NA,
-                        verbose=TRUE,
-                        plot_results=TRUE,
+                        verbose=3,
+                        plot_results=FALSE,
                         true_val=NA,
                         method="RS",
                         max_outer_iter=20,
@@ -371,8 +371,8 @@ gamlss.longitudinal=function(  dataset,
           loglik <- backfitting_iteration_results$calc_lik_out_end$log_lik["joint"]
           df_total <- sum(unlist(backfitting_iteration_results$df_s[[par_name]]))
           gaic_val <- backfitting_iteration_results$GAIC_lambda_k
-          print(sprintf("λ=%.3f | LogLik=%.2f | DF=%.2f | GAIC=%.2f\n", 
-                     lambda_val, loglik, df_total, gaic_val))
+          #print(sprintf("λ=%.3f | LogLik=%.2f | DF=%.2f | GAIC=%.2f\n", 
+          #           lambda_val, loglik, df_total, gaic_val))
 
           return(backfitting_iteration_results$GAIC_lambda_k)
         }
@@ -396,7 +396,9 @@ gamlss.longitudinal=function(  dataset,
                   method="L-BFGS-B",lower=1,upper=1e3,control = list(factr=1,pgtol=.1)
               )
               lambda_s[[par_name]][[smooth_name]]=optim_lambda_out$par
-              print(paste("Chosen lambda:" ,round(lambda_s[[par_name]][[smooth_name]],2), "| Penalty K =", K))
+              if(verbose>2) {
+                print(paste("Chosen lambda:" ,round(lambda_s[[par_name]][[smooth_name]],2), "| Penalty K =", K))
+              }
             } #end if inner_run_counter
           } #end for smooth_name
         } #end if num_smooths
