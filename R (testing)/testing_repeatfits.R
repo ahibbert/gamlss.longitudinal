@@ -5,12 +5,12 @@
   options(scipen=999);set.seed(1000)
 
   #1. Choose distribution and simulation parameters
-  n=100; d=10; sims=100 #simulation parameters
+  n=100; d=20; sims=100 #simulation parameters
   #copula_dist="C";margin_dist=EXP(); mu=10; sigma=NA;nu=NA; tau=NA; theta=5; zeta=NA; simOption=5;  #Note these can be times by 2 or half as start parameters so be careful
   #copula_dist="C";margin_dist=PO(); mu=10; sigma=NA;nu=NA; tau=NA; theta=2; zeta=NA; simOption=5;  #Note these can be times by 2 or half as start parameters so be careful
   #copula_dist="C";margin_dist=GA(); mu=20; sigma=10;nu=NA; tau=NA; theta=5; zeta=NA; simOption=5;#    min_par=c(1,1,2);       max_par=c(10,10,10)
   #copula_dist="C";margin_dist=NO(); mu=3; sigma=2;nu=NA; tau=NA; theta=5; zeta=NA; simOption=5;#    min_par=c(1,1,2);       max_par=c(10,10,10)
-  #copula_dist="N";margin_dist=NO(); mu=2; sigma=.2;nu=NA; tau=NA; theta=.25; zeta=NA; simOption=5;#    min_par=c(1,1,2);       max_par=c(10,10,10)
+  #copula_dist="N";margin_dist=NO(); mu=2; sigma=.2;nu=NA; tau=NA; theta=.25; zeta=NA; simOption=7;#    min_par=c(1,1,2);       max_par=c(10,10,10)
   #copula_dist="C";margin_dist=NBI(); mu=3; sigma=1;nu=NA; tau=NA; theta=5; zeta=NA; simOption=5#    min_par=c(1,1,2);       max_par=c(10,10,10)
   #copula_dist="N";margin_dist=NBI(); mu=3; sigma=1;nu=NA; tau=NA; theta=5; zeta=NA; simOption=5#    min_par=c(1,1,2);       max_par=c(10,10,10)
   #copula_dist="C"; margin_dist=ST1(); mu=5;sigma=exp(1);nu=10;tau=2;theta=5;zeta=NA; simOption=5;
@@ -18,18 +18,21 @@
   #copula_dist="C"; margin_dist=ZISICHEL(); mu=3;sigma=exp(1);nu=-2;tau=.2;theta=5;zeta=NA;simOption=5;
   #copula_dist="N"; margin_dist=ZISICHEL(); simOption=1
   #copula_dist="C"; margin_dist=GA(); simOption=8; input_par=NA; mu=sigma=nu=tau=theta=zeta=NA;
-  covariates_input=NA
+  #covariates_input=NA
+
+  ###TIME VARIANT MU (plus 1 per time in link form)
+  #copula_dist="N";margin_dist=NO(); mu=2; sigma=2;nu=NA; tau=NA; theta=.5; zeta=NA; simOption=9;
 
   ###TIME VARIANT MU AND SIGMA (plus 1 per time in link form)
-  #copula_dist="N";margin_dist=NO(); mu=2; sigma=4;nu=NA; tau=NA; theta=.75; zeta=NA; simOption=9;
-
-  ###TIME VARIANT MU AND SIGMA (plus 1 per time in link form)
-  copula_dist="N";margin_dist=NO(); mu=2; sigma=2;nu=NA; tau=NA; theta=.75; zeta=NA; simOption=10;
+  #copula_dist="N";margin_dist=NO(); mu=2; sigma=2;nu=NA; tau=NA; theta=.5; zeta=NA; simOption=10;
 
   #copula_dist="C";margin_dist=GA(); mu=1; sigma=0.2;nu=NA; tau=NA; theta=.5; zeta=NA; simOption=7;
-  #covariates_input=list(mu.time=0,sigma.time=.2,nu.time=1,tau.time=1,theta.time=.5,zeta.time=1
-  #                      , mu.age=0,sigma.age=0,nu.age=1,tau.age=1,theta.age=0,zeta.age=1
-  #                      , mu.gender=0, sigma.gender=0, nu.gender=0,tau.gender=0,theta.gender=0, zeta.gender=0)
+  copula_dist="N";margin_dist=NO(); mu=2; sigma=2;nu=NA; tau=NA; theta=.5; zeta=NA; simOption=7;
+  copula_dist="N";margin_dist=ST1(); mu=2; sigma=2;nu=10; tau=10; theta=.5; zeta=NA; simOption=7;
+  # USE THIS WITH SIMOPTION 7
+  covariates_input=list( mu.time=1   ,sigma.time=.1   ,nu.time=0    ,tau.time=0   ,theta.time=.1  ,zeta.time=0
+                        ,mu.age=0    ,sigma.age=0     ,nu.age=0     ,tau.age=0    ,theta.age=0    ,zeta.age=0
+                        ,mu.gender=0 ,sigma.gender=0  ,nu.gender=0  ,tau.gender=0 ,theta.gender=0 ,zeta.gender=0)
   #    min_par=c(1,1,2);       max_par=c(10,10,10)
 
 
@@ -38,8 +41,9 @@
 
   ############################# 2. CHOOSE MODEL FORMULAS
 
-  mu_formula="response ~ (time)"
+  mu_formula="response ~ time"
   sigma_formula="~ time"
+  theta_formula="~ time"
 
   ########################################## 3. SIMULATION LOOP - GENERATE, FIT, REPEAT ##########################################
   input_par=c(mu,sigma,nu,tau,theta,zeta); names(input_par)=c("mu","sigma","nu","tau","theta","zeta")
@@ -48,12 +52,12 @@
 
   cl <- makeCluster(detectCores() - 1)
   registerDoParallel(cl, cores = detectCores() - 1)
-  out=foreach(run_counter=1:sims,.packages = c("VineCopula","gamlss","moments","gee"),.errorhandling = 'remove') %dopar% {
+  out=foreach(run_counter=1:sims,.packages = c("VineCopula","gamlss","moments","gee"),.errorhandling = 'pass') %dopar% {
 
     plot_runs=FALSE;
     no_dl_outer=w_dl_outer=matrix(nrow=0,ncol=4+length(input_par[!is.na(input_par)]))
 
-    #source("common_functions.R")
+    source("R/common_functions.R"); source("R/link_functions.R")
 
     #Generate dataset
     dataset=loadDataset(simOption=simOption,n=n,d=d, copula_dist=copula_dist, margin_dist=margin_dist
@@ -65,14 +69,14 @@
     #3. Fit model with and without joint component
     no_dl=fit_jointreg(dataset, margin_dist,copula_dist,
                        mu.formula = mu_formula, sigma.formula = sigma_formula, nu.formula = ("~ 1"), tau.formula = ("~ 1"),
-                       theta.formula=("~1"), zeta.formula=("~1"),
+                       theta.formula=theta_formula, zeta.formula=("~1"),
                        include_dlcopdpar=FALSE,
                        verbose=3, plot_results=FALSE#,  true_val=par_to_eta(input_par,copula_dist,margin_dist)
                        , use_Rcpp=FALSE, start_step_size=0.5, step_adjustment = 0.5, inner_stop_crit=.01, outer_stop_crit=.005
     )
     w_dl=fit_jointreg(dataset, margin_dist, copula_dist,
                       mu.formula = mu_formula, sigma.formula = sigma_formula, nu.formula = ("~ 1"), tau.formula = ("~ 1"),
-                      theta.formula=("~1"), zeta.formula=("~1"),
+                      theta.formula=theta_formula, zeta.formula=("~1"),
                       include_dlcopdpar=TRUE,
                       verbose=3,plot_results=FALSE#, true_val=par_to_eta(input_par,copula_dist,margin_dist)
                       , use_Rcpp=FALSE, start_step_size=.25, step_adjustment = 0.5, inner_stop_crit=.01, outer_stop_crit=.005
@@ -134,6 +138,15 @@
   }
   stopCluster(cl)
 
+  # Check how many simulations succeeded
+  n_errors <- sum(sapply(out, inherits, "error"))
+  n_success <- length(out) - n_errors
+  cat(paste("\nSimulations completed:", n_success, "succeeded,", n_errors, "failed\n"))
+  
+  if(n_success == 0) {
+    stop("All simulations failed! Cannot proceed with analysis.")
+  }
+
   ######################################### 4. PLOTTING ############################################
   plot_true=FALSE
   ########TAKE OUT RESULTS
@@ -147,19 +160,25 @@
   #true_par=c(rep(mu,d),log(sigma),logit(theta)) #Means
 
   if(simOption==9) {
-    true_par=c(c(mu-1,1),c(log(sigma),0),logit(theta)) #Time parameter for mu
+    true_par=c(c(mu-1,1),c(log(sigma)),logit(theta)) #Time parameter for mu
   } else if (simOption==10) {
     true_par=c(c(mu-1,1),log(sigma)-1,1,logit(theta)) #Time parameter for mu and sigma
   }
 
   names(true_par)=names((coef(out[[1]][[2]])))
 
-  source("R/common_functions.R");
-  true_var_b0_bt=bvt_norm_true_SE_B0_Bt(sigma_x=(true_par[3]),sigma_y=true_par[3]+true_par[4],rho=theta,n=n,d=d)
-  true_se_b0_bt=sqrt(true_var_b0_bt)/sqrt(n)
+  #source("R/common_functions.R");
+  #true_var_b0_bt=bvt_norm_true_SE_B0_Bt(sigma_x=(true_par[3]),sigma_y=true_par[3]+true_par[4],rho=theta,n=n,d=d)
+  #true_se_b0_bt=sqrt(true_var_b0_bt)/sqrt(n)
 
   # Calculate variance / covariance for parameters to show
   for (i in 1:length(out)) {
+
+    # Skip if this iteration resulted in an error
+    if(inherits(out[[i]], "error")) {
+      warning(paste("Simulation", i, "failed with error:", out[[i]]$message))
+      next
+    }
 
     #input=out[[i]][[1]]
 
@@ -173,7 +192,12 @@
       results_table=cbind(true_par
                           ,unlist(coef(w_dl))
                           ,unlist(coef(no_dl))
-                          ,c(gee_model$coefficients,log( sqrt(gee_model$scale)),NA,logit(gee_model$working.correlation[2]))
+                          ,c(gee_model$coefficients
+                            ,log( sqrt(gee_model$scale))
+                            ,rep(NA,sum(grepl('sigma',names(unlist(coef(no_dl)))))-1)
+                            ,logit(gee_model$working.correlation[2])
+                            ,rep(NA,sum(grepl('theta',names(unlist(coef(no_dl)))))-1)
+                            )
                           ,c(true_se_b0_bt,NA,NA,NA)
                           ,(vcov(w_dl,par=true_par,numderiv = TRUE)[[2]])
                           ,(vcov(w_dl,numderiv = TRUE)[[2]])#*sqrt(n*d)
@@ -185,15 +209,20 @@
       results_table=cbind(true_par
                           ,unlist(coef(w_dl))
                           ,unlist(coef(no_dl))
-                          ,c(gee_model$coefficients,log( sqrt(gee_model$scale)),logit(gee_model$working.correlation[2]))
+                          ,c(gee_model$coefficients
+                            ,log( sqrt(gee_model$scale))
+                            ,rep(NA,sum(grepl('sigma',names(unlist(coef(no_dl)))))-1)
+                            ,logit(gee_model$working.correlation[2])
+                            ,rep(NA,sum(grepl('theta',names(unlist(coef(no_dl)))))-1)
+                            )
                           #,c(true_se_b0_bt,NA,NA,NA)
-                          ,(vcov(w_dl,par=true_par,numderiv = TRUE)[[2]])
+                          #,(vcov(w_dl,par=true_par,numderiv = TRUE)[[2]])
                           #,c(rep(sigma/sqrt(n),d),NA,NA)     #sqrt(vcov(w_dl,par=true_par,numderiv = TRUE)[[2]])*sqrt(n*d)
                           ,(vcov(w_dl,numderiv = TRUE)[[2]])#*sqrt(n*d)
                           ,(vcov(no_dl,numderiv = TRUE)[[2]])#*sqrt(n*d)
-                          ,c(sqrt(diag(gee_model$robust.variance)),0,0)
+                          ,c(sqrt(diag(gee_model$robust.variance)),rep(NA,length(unlist(coef(no_dl)))-length(gee_model$coefficients)))
       )
-      colnames(results_table)=c("True Est","Joint Est","Sep Est","GEE Est","ND True SE", "Joint SE", "Sep SE","GEE SE")
+      colnames(results_table)=c("True Est","Joint Est","Sep Est","GEE Est", "Joint SE", "Sep SE","GEE SE")
     }
     print(round(results_table,4))
     round(results_table,6)
@@ -209,8 +238,8 @@
 
   }
 
-  filename=paste("results/charts/",margin_dist$family[1],copula_dist,"n",n,"d",d,"sims",sims,"simOption",simOption,mu,sigma,nu,tau,theta,format(Sys.Date(),"%Y-%m-%d"),".svg",sep="_")
-  svg(file=filename,width=14, height=9)
+  filename=paste("results/charts/",margin_dist$family[1],copula_dist,"n",n,"d",d,"sims",sims,"simOption",simOption,mu,sigma,nu,tau,theta,format(Sys.Date(),"%Y-%m-%d"),".png",sep="_")
+  png(file=filename,width=1800, height=1000, res=150)
 
   # Plot means and standard errors for parameters
   plot.new()
@@ -225,12 +254,12 @@
   }
   for (i in 1:length(par_results_list)) {
     if(grepl("mu",names(par_results_list)[i])) {
-      boxplot(par_results_list[[i]][,c("Joint SE","Sep SE","GEE SE")],main=paste(names(par_results_list)[i],"SE"),
-              ylim=range(par_results_list[[i]][,c("Joint SE","Sep SE")],mean(par_results_list[[i]][,"ND True SE"])))
+      boxplot(par_results_list[[i]][,c("Joint SE","Sep SE","GEE SE")],main=paste(names(par_results_list)[i],"SE"))
+      #,ylim=range(par_results_list[[i]][,c("Joint SE","Sep SE")],mean(par_results_list[[i]][,"ND True SE"])))
 
     } else {
-      boxplot(par_results_list[[i]][,c("Joint SE","Sep SE")],main=paste(names(par_results_list)[i],"SE"),
-              ylim=range(par_results_list[[i]][,c("Joint SE","Sep SE")],mean(par_results_list[[i]][,"ND True SE"])))
+      boxplot(par_results_list[[i]][,c("Joint SE","Sep SE")],main=paste(names(par_results_list)[i],"SE"))
+              #,ylim=range(par_results_list[[i]][,c("Joint SE","Sep SE")],mean(par_results_list[[i]][,"ND True SE"])))
     }
 
     if(plot_true==TRUE){
@@ -238,8 +267,7 @@
 
       #legend("bottomright",legend=c("Exact","Numerical"),col=c("red","blue"),lty=c(1,2))
     }
-    abline(h=mean(par_results_list[[i]][,"ND True SE"],trim=.1),col="blue",lty=2)
-
+    #abline(h=mean(par_results_list[[i]][,"ND True SE"],trim=.1),col="blue",lty=2)
   }
 
   dev.off()

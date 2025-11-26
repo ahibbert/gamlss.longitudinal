@@ -38,7 +38,7 @@
 #' @return Returns matrix of log likleihoods, margin parameters and copula parameters
 #' by iteration of the optimisation.
 #' @export
-fit_jointreg=function(  dataset,
+gamlss.longitudinal=function(  dataset,
                         margin_dist,
                         copula_dist,
                         mu.formula = ("response ~ 1"),
@@ -61,10 +61,16 @@ fit_jointreg=function(  dataset,
                         max_outer_iter=20,
                         max_inner_iter=20,
                         use_Rcpp=FALSE,
-                        lambda_start=1
+                        lambda_start=5,
+                        lambda_penalty_K=2
                       )
 {
-  #mu.formula="response ~ time + s(age)";  sigma.formula="time";  nu.formula="time";  tau.formula="time";  theta.formula="time+s(age)";  zeta.formula="time";
+  #include_dlcopdpar=FALSE;      inner_stop_crit=.01;                        outer_stop_crit=.0001;                        start_step_size=.5;                        step_adjustment=.5;
+  #                      max_steps=5;                        start_from=NA;                        verbose=TRUE;                        plot_results=TRUE;
+  #                      true_val=NA;                        method="RS";
+  #                      max_outer_iter=20;                        max_inner_iter=20;                        use_Rcpp=FALSE;
+  #                      lambda_start=1;                        lambda_penalty_K=4
+  #mu.formula=mu_formula;  sigma.formula=sigma_formula;  nu.formula=nu_formula;  tau.formula=tau_formula;  theta.formula=theta_formula;  zeta.formula=zeta_formula;
 
   #Setup model matrix from given formulas
   copula_link=get_copula_dist(copula_dist)$copula_link
@@ -94,13 +100,20 @@ fit_jointreg=function(  dataset,
   } else {
     par_cov=start_from
   }
-  par_s=list(names=names(mm$x))
+  par_s=list()
+  df_s=list()
+  lambda_s=list()
+  #names(par_s)=names(df_s)=names(lambda_s)=names(mm$x)
   for (par_name in names(mm$x)) {
     par_s[[par_name]]=list()
+    df_s[[par_name]]=list()
+    lambda_s[[par_name]]=list()
     for (s_name in names(mm$s[[par_name]])) {
       B=mm$s[[par_name]][[s_name]]
       par_s[[par_name]][[s_name]]=c(par_s[[par_name]][[s_name]],rep(0,ncol(B)))
-      names(par_s[[par_name]][[s_name]])=paste(par_name,1:ncol(B),sep=".")
+      names(par_s[[par_name]][[s_name]])=paste(par_name,s_name,1:ncol(B),sep=".")
+      df_s[[par_name]][[s_name]]=0; lambda_s[[par_name]][[s_name]]=lambda_start
+      names(df_s[[par_name]][[s_name]])=names(lambda_s[[par_name]][[s_name]])=s_name
    }
   }
   #Starting parameters for fixed parameters: par_cov
@@ -112,7 +125,6 @@ fit_jointreg=function(  dataset,
   par_history=matrix(ncol=length(par_cov),nrow=0); colnames(par_history)=names(par_cov)
   outer_run_counter=1; outer_only_run_counter=1
   step_size=start_step_size
-  lambda=lambda_start
 
   #OUTER ITERATION (MAIN LOOP)
   while ((first_outer_run==TRUE | (abs(outer_log_lik_change)>outer_stop_crit)) & outer_only_run_counter < max_outer_iter) {
@@ -270,22 +282,30 @@ fit_jointreg=function(  dataset,
           names(temp_par_s_unlisted)=colnames(X)[(ncol(mm$x[[par_name]])+1):ncol(X)]
           beta_start=c(par_cov[paste(paste(par_name,sep=" "),colnames(mm$x[[par_name]]),sep=".")],temp_par_s_unlisted)
         }
-        if(first_inner_run==TRUE | (is.null(mm$s[[par_name]]) | length(mm$s[[par_name]])==0)) {
 
-          library(MASS)
-          beta_update=as.vector(ginv(t(X)%*%W%*%X)%*%t(X)%*%W%*%z_k)
-          beta_change_inner=beta_update-beta_start
-          beta_new=beta_start*(1-step_size) + (step_size)*(beta_update)
+        backfitting_iteration <- function(
+          par_s,
+          par_cov,
+          beta_start,
+          lambda_s,
+          first_inner_run,
+          K,
+          margin_dist,
+          copula_dist,
+          dataset,
+          mm,
+          copula_link,
+          df_s,
+          step_size,
+          par_name
+        ) {
           
-        } else {
-          ############ PENALISED VERSION
-
-          #Calculate the penalty term for each smooth
+          ############# Backfitting with penalisation
           pen_mat=matrix(0,nrow=ncol(X),ncol=ncol(X))
-
           if(length(par_s[[par_name]])>0) {
             start_idx=ncol(mm$x[[par_name]])+1
             for (s_name in names(mm$s[[par_name]])) {
+              #print(lambda_s[[par_name]])
               B=mm$s[[par_name]][[s_name]]
               n_B=ncol(B)
               idx=start_idx:(start_idx+n_B-1)
@@ -293,44 +313,104 @@ fit_jointreg=function(  dataset,
               S=t(D)%*%D
               G=par_s[[par_name]][[s_name]]
               #pen_val=lambda%*% t(G)%*%S%*%G
-              pen_mat[idx,idx]=S*lambda
+              if(first_inner_run==TRUE) {
+                pen_mat[idx,idx]=S*0
+              } else {
+                pen_mat[idx,idx]=S*lambda_s[[par_name]][[s_name]]
+              }
+              df_s[[par_name]][[s_name]]=sum(diag(B%*%ginv(t(B)%*%B+pen_mat[idx,idx])%*%t(B)))
               start_idx=start_idx+n_B
             }
           }
 
-          library(MASS)
           beta_update=as.vector(ginv(t(X)%*%W%*%X + pen_mat)%*%t(X)%*%W%*%z_k)
           beta_change_inner=beta_update-beta_start
           beta_new=beta_start*(1-step_size) + (step_size)*(beta_update)
           beta_new
+
+          temp_par_cov_new=beta_new[grepl(par_name,names(beta_new))]
+          par_cov_new=c(beta_new[names(par_cov)[grepl(par_name,names(par_cov))]],par_cov[!names(par_cov) %in% names(temp_par_cov_new)])
+          #par_cov_new[names(beta)]=beta
+          temp_par_s_new=beta_new[!names(beta_new) %in% names(par_cov_new)]
+          #Select all beta_new which have names corresponding to s_name
+          par_s_new=par_s
+          for(s_name in names(par_s[[par_name]])) {
+            par_s_new[[par_name]][[s_name]]=temp_par_s_new[grepl(s_name,names(temp_par_s_new),fixed=TRUE)]
+          }
+
+          eta_out=calc_eta(par_cov_new,mm,margin_dist,copula_link,par_s=par_s_new)
+
+          eta=eta_out$eta; eta_dr=eta_out$eta_dr; eta_inv=eta_out$eta_inv
+          par_cov=par_cov_new
+          par_s=par_s_new
+
+          calc_lik_out_end=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=FALSE
+            ,response=dataset$response,response_margin=(dataset$time),response_subject = dataset$subject)      
+          
+
+          #print(sum(unlist(df_s[[par_name]])))
+          GAIC_lambda_k=-2*calc_lik_out_end$log_lik["joint"]+ K*sum(unlist(df_s[[par_name]]))
+
+          #print(paste("K*DF_S",K*sum(unlist(df_s[[par_name]]))))
+          
+          return_list=list(par_cov,par_s,calc_lik_out_end,GAIC_lambda_k,df_s)
+          names(return_list)=c("par_cov","par_s","calc_lik_out_end","GAIC_lambda_k","df_s")
+          return(return_list)
+        }
+        
+        optim_lambda <- function(lambda_val,smooth_name,
+        par_s,par_cov, beta_start, lambda_s, first_inner_run=FALSE,K=K,
+                margin_dist, copula_dist, dataset, mm, copula_link,df_s,step_size,par_name) {
+          lambda_s_temp=lambda_s
+          lambda_s_temp[[par_name]][[smooth_name]]=lambda_val
+          backfitting_iteration_results=backfitting_iteration(par_s=par_s,par_cov=par_cov, beta_start=beta_start, lambda_s=lambda_s_temp, first_inner_run=FALSE,K=K,
+                margin_dist=margin_dist, copula_dist=copula_dist, dataset=dataset, mm=mm, copula_link=copula_link
+                ,df_s=df_s,step_size=step_size,par_name=par_name)
+          
+          # Debug output
+          loglik <- backfitting_iteration_results$calc_lik_out_end$log_lik["joint"]
+          df_total <- sum(unlist(backfitting_iteration_results$df_s[[par_name]]))
+          gaic_val <- backfitting_iteration_results$GAIC_lambda_k
+          print(sprintf("λ=%.3f | LogLik=%.2f | DF=%.2f | GAIC=%.2f\n", 
+                     lambda_val, loglik, df_total, gaic_val))
+
+          return(backfitting_iteration_results$GAIC_lambda_k)
         }
 
-        ###Maybe back into other bit
+        K=lambda_penalty_K
+        num_smooths=length(lambda_s[[par_name]])
+        if(num_smooths==0|outer_only_run_counter==1) {
+          backfitting_iteration_results=backfitting_iteration(par_s=par_s,par_cov=par_cov, beta_start=beta_start, lambda_s=lambda_s, first_inner_run=TRUE,K=K,
+                margin_dist=margin_dist, copula_dist=copula_dist, dataset=dataset, mm=mm, copula_link=copula_link
+                ,df_s=df_s,step_size=step_size,par_name=par_name)
+        } else {
+          for (smooth_name in names(lambda_s[[par_name]])) {
+           #Optimize lambda for each smooth
+           if(inner_run_counter==1) {
+             cat(paste("\nOptimising smoothing parameter for",par_name,"-",smooth_name))
+              optim_lambda_out=optim(par=lambda_s[[par_name]][[smooth_name]],fn=optim_lambda,
+                smooth_name=smooth_name,
+                par_s=par_s,par_cov=par_cov, beta_start=beta_start, lambda_s=lambda_s, first_inner_run=FALSE,K=K,
+                  margin_dist=margin_dist, copula_dist=copula_dist, dataset=dataset, mm=mm, copula_link=copula_link
+                  ,df_s=df_s,step_size=step_size,par_name=par_name,
+                  method="L-BFGS-B",lower=1,upper=1e3,control = list(factr=1,pgtol=.1)
+              )
+              lambda_s[[par_name]][[smooth_name]]=optim_lambda_out$par
+              print(paste("Chosen lambda:" ,round(lambda_s[[par_name]][[smooth_name]],2), "| Penalty K =", K))
+            } #end if inner_run_counter
+          } #end for smooth_name
+        } #end if num_smooths
+        
+        backfitting_iteration_results=backfitting_iteration(par_s=par_s,par_cov=par_cov, beta_start=beta_start, lambda_s=lambda_s, first_inner_run=FALSE,K=K,
+          margin_dist=margin_dist, copula_dist=copula_dist, dataset=dataset, mm=mm, copula_link=copula_link,df_s=df_s,step_size=step_size,par_name=par_name)
+        par_cov=backfitting_iteration_results$par_cov
+        par_s=backfitting_iteration_results$par_s
+        calc_lik_out_end=backfitting_iteration_results$calc_lik_out_end
+        df_s=backfitting_iteration_results$df_s
 
-        temp_par_cov_new=beta_new[grepl(par_name,names(beta_new))]
-        par_cov_new=c(beta_new[names(par_cov)[grepl(par_name,names(par_cov))]],par_cov[!names(par_cov) %in% names(temp_par_cov_new)])
-        #par_cov_new[names(beta)]=beta
-        temp_par_s_new=beta_new[!names(beta_new) %in% names(par_cov_new)]
-        #Select all beta_new which have names corresponding to s_name
-        par_s_new=par_s
-        for(s_name in names(par_s[[par_name]])) {
-          par_s_new[[par_name]][[s_name]]=temp_par_s_new[grepl(s_name,names(temp_par_s_new),fixed=TRUE)]
-        }
-
-        eta_out=calc_eta(par_cov_new,mm,margin_dist,copula_link,par_s=par_s_new)
-
-        eta=eta_out$eta; eta_dr=eta_out$eta_dr; eta_inv=eta_out$eta_inv
-        par_cov=par_cov_new
-        par_s=par_s_new
-
-        calc_lik_out_end=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=FALSE
-          ,response=dataset$response,response_margin=(dataset$time),response_subject = dataset$subject)        
- 
         if (verbose>2) {
-
           cat("\nLogLik:\n")
           print(calc_lik_out_end$log_lik)
-
         }
 
         if(plot_results==TRUE) {
@@ -377,9 +457,12 @@ fit_jointreg=function(  dataset,
     cat("\n")
     print(out_temp)
 
+
     if(abs(outer_log_lik_change)<=outer_stop_crit) {
+      print(c(outer_end_log_lik-outer_start_log_lik))
       cat("\nOUTER CONVERGED")
     }
+    
   }
 
   cat("\n\n############ MODEL FIT ############\n")
@@ -402,11 +485,23 @@ fit_jointreg=function(  dataset,
   p_cop=par_cov[grepl("theta",names(par_cov))|grepl("zeta",names(par_cov))]
   p_mar=par_cov[!(grepl("theta",names(par_cov))|grepl("zeta",names(par_cov)))]
 
-  aics=rbind(t(calc_lik_out_end$log_lik),
-             t(-calc_lik_out_end$log_lik*2)+2*c(length(p_mar),length(p_cop),length(par_cov)),
-             t(-calc_lik_out_end$log_lik*2)+c(length(p_mar),length(p_cop),length(par_cov))*log(nrow(dataset)))
+  df_s_total=df_s_cop_total=df_s_margin_total=0
+  for(par_name in names(par_s)) {
+    if(par_name %in% c("theta","zeta")) 
+      df_s_cop_total=df_s_cop_total+sum(unlist(df_s[[par_name]]))
+    else {
+      df_s_margin_total=df_s_margin_total+sum(unlist(df_s[[par_name]]))
+    }
+    df_s_total=df_s_total+sum(unlist(df_s[[par_name]]))
+  }
 
-  rownames(aics)=c("LogLik","AIC","BIC")
+  aics=rbind(t(calc_lik_out_end$log_lik),
+             t(-calc_lik_out_end$log_lik*2)+2*c(length(p_mar)+df_s_margin_total,length(p_cop)+df_s_cop_total,length(par_cov)+df_s_total),
+             t(-calc_lik_out_end$log_lik*2)+c(length(p_mar)+df_s_margin_total,length(p_cop)+df_s_cop_total,length(par_cov)+df_s_total)*log(nrow(dataset)),
+             t(c(length(p_mar)+df_s_margin_total,length(p_cop)+df_s_cop_total,length(par_cov)+df_s_total))
+             )
+
+  rownames(aics)=c("LogLik","AIC","BIC","EDF")
   print(aics)
 
   cat("\n####################################\n")
@@ -1600,6 +1695,8 @@ get_copula_dist=function(copula_dist) {
     copula_link=list(logit,logit_inv,dlogit_inv,log_2plus,log_2plus_inv,dlog_2plus_inv); two_par_cop=TRUE
     copula_dist=BiCopName(copula_dist)
     parameters=c("theta","zeta")
+  } else {
+    stop("ERROR: COPULA DIST LINK FUNCTIONS NOT YET IMPLEMENTED: DEFINE MANUALLY WITH copula_link ARGUMENT.")
   }
 
   if(two_par_cop) {names(copula_link)=c("theta.linkfun","theta.linkinv","theta.dr","zeta.linkfun","zeta.linkinv","zeta.dr")} else {names(copula_link)=c("theta.linkfun","theta.linkinv","theta.dr")}
@@ -1958,7 +2055,7 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     RVM=list()
     
     for (i in 1:n) {
-      RVM[[i]] = D2RVine(order, rep(1,dd), par=c(theta_inv[i,],rep(0,dd-(length(theta_inv[i,])))), par2=c(theta_inv[i,],rep(0,dd-(length(theta_inv[i,])))))
+      RVM[[i]] = D2RVine(order, c(rep(copula.family,length(theta_inv[i,])),rep(0,dd-(length(theta_inv[i,])))), par=c(theta_inv[i,],rep(0,dd-(length(theta_inv[i,])))), par2=c(theta_inv[i,],rep(0,dd-(length(theta_inv[i,])))))
     }
     #RVM <- D2RVine(order, rep(family[1],nrow(theta_inv)), theta_inv, theta_inv*0)
     #contour(RVM)
@@ -1971,8 +2068,8 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
       input_list=list(p=copsim[,i]
                       ,mu=   if("mu.linkfun" %in% names(margin_dist))    {margin_dist$mu.linkinv(   rep(par.margin[1],n) +covariates_input$mu.time*covariates[[2]][,i]    + ((covariates_input$mu.age    ))*((covariates[[1]]-50)/100)^2    + covariates_input$mu.gender*covariates[[3]])} else {rep(0,n)}
                       ,sigma=if("sigma.linkfun" %in% names(margin_dist)) {margin_dist$sigma.linkinv(rep(par.margin[2],n) +covariates_input$sigma.time*covariates[[2]][,i] + ((covariates_input$sigma.age ))*((covariates[[1]]-50)/100)^3 + covariates_input$sigma.gender*covariates[[3]])} else {rep(0,n)}
-                      ,nu=   if("nu.linkfun" %in% names(margin_dist))    {margin_dist$nu.linkinv(   rep(par.margin[3],n) +covariates_input$nu.time*covariates[[2]][,i]    + ((covariates_input$nu.age    ))*(covariates[[1]])    + covariates_input$nu.gender*covariates[[3]])} else {rep(0,n)}
-                      ,tau=  if("tau.linkfun" %in% names(margin_dist))   {margin_dist$tau.linkinv(  rep(par.margin[4],n) +covariates_input$tau.time*covariates[[2]][,i]   + ((covariates_input$tau.age   ))*(covariates[[1]])   + covariates_input$tau.gender*covariates[[3]])} else {rep(0,n)}
+                      ,nu=   if("nu.linkfun" %in% names(margin_dist))    {margin_dist$nu.linkinv(   rep(par.margin[3],n) +covariates_input$nu.time*covariates[[2]][,i]    + ((covariates_input$nu.age    ))*(((covariates[[1]]-50)/100)^2)    + covariates_input$nu.gender*covariates[[3]])} else {rep(0,n)}
+                      ,tau=  if("tau.linkfun" %in% names(margin_dist))   {margin_dist$tau.linkinv(  rep(par.margin[4],n) +covariates_input$tau.time*covariates[[2]][,i]   + ((covariates_input$tau.age   ))*(((covariates[[1]]-50)/100)^2)   + covariates_input$tau.gender*covariates[[3]])} else {rep(0,n)}
       )
       args=names(input_list)[names(input_list)%in%formalArgs(qFUN)]
 

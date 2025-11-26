@@ -1,0 +1,12 @@
+{
+    // Enable code folding
+    "editor.folding": true,
+    "editor.foldingStrategy": "auto",
+    "editor.showFoldingControls": "always",
+    
+    // R-specific settings
+    "[r]": {
+        "editor.folding": true,
+        "editor.foldingStrategy": "indentation"
+    }
+}
