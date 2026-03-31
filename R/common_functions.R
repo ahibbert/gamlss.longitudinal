@@ -755,14 +755,29 @@ create_model_matrices<-function(
   mm_s=list()
   for(parameter in included_parameters) {
     m=m_temp[[parameter]]
-    mm_x[[parameter]]=m$model[m$xterms$mu[m$xterms$mu!="(Intercept)"]]
-    if(m$model[m$xterms$mu=="(Intercept)"] %>% length()>0) {
-      mm_x[[parameter]]=cbind(intercept=1,mm_x[[parameter]])
+    formula_terms = stats::terms(formulas[[parameter]])
+    has_intercept = as.integer(attr(formula_terms, "intercept")) == 1L
+
+    # Use formula term labels (not xterms) so factor bases like "gender"
+    # are retained even when xterms contains expanded names like "gender1".
+    fixed_terms = attr(formula_terms, "term.labels")
+    fixed_terms = fixed_terms[!grepl("^\\s*s\\(", fixed_terms)]
+    fixed_terms = intersect(fixed_terms, names(m$model))
+
+    if(length(fixed_terms) > 0 || has_intercept) {
+      fixed_formula = stats::reformulate(termlabels = fixed_terms, intercept = has_intercept)
+      X_fixed = stats::model.matrix(fixed_formula, data = m$model)
+      colnames(X_fixed) = sub("^\\(Intercept\\)$", "intercept", colnames(X_fixed))
+      mm_x[[parameter]] = as.data.frame(X_fixed, check.names = FALSE)
+    } else {
+      mm_x[[parameter]] = data.frame(row.names = seq_len(nrow(m$model)))
     }
-    if(length(m$sterms$mu)==0) { mm_s[[parameter]]=NULL} else {
+
+    if(length(m$sterms$mu)==0) {
+      mm_s[[parameter]]=NULL
+    } else {
+      mm_s[[parameter]]=list()
       for (s in m$sterms$mu) {
-        #print(s)
-        mm_s[[parameter]]=list()
         mm_s[[parameter]][[s]]=m$specials[[s]]$X
       }
     }
@@ -1375,7 +1390,7 @@ calc_true_SE_numderiv_only_covariates = function(object, par, mm, margin_dist,re
   nd_impact=rep(0,length(names(input_par)))
   names(nd_impact)=names(input_par)#[names(eta_inv) %in% c("mu","sigma","nu","tau")]
 
-  print("Calculating numerical first derivates for Hessian matrix...")
+  cat("Calculating numerical first derivates for Hessian matrix...\n")
   for (par_names_nd in names(input_par)) {
 
     #print(par_names_nd)
@@ -1403,7 +1418,7 @@ calc_true_SE_numderiv_only_covariates = function(object, par, mm, margin_dist,re
     #print(c(change,nd_impact[eta_par_names_nd]))
   }
 
-  print("Calculating numerical second derivates for Hessian matrix... this may take a while")
+  cat("Calculating numerical second derivates for Hessian matrix... this may take a while\n")
   nd_cross=matrix(0,nrow=length(names(input_par)),ncol=length(names(input_par)))
   colnames(nd_cross)=rownames(nd_cross)=names(input_par)
   for (name1 in names(input_par)) {
@@ -1649,6 +1664,12 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE) {
     residuals = response - fitted_response
     sigma2_est = var(residuals, na.rm = TRUE)
   }
+
+  # Ensure scalar numeric to avoid deprecated array recycling warnings.
+  sigma2_est = as.numeric(sigma2_est)[1]
+  if(!is.finite(sigma2_est)) {
+    sigma2_est = 1
+  }
   
   # Process each parameter that has smooth terms
   for(par_name in names(object$par_s)) {
@@ -1694,7 +1715,7 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE) {
         
         # Variance-covariance matrix for this smooth: (X'WX + λP)^(-1) * σ²
         tryCatch({
-          smooth_vcov = solve(penalized_precision) * matrix(sigma2_est,nrow=nrow(penalized_precision),ncol=ncol(penalized_precision))
+          smooth_vcov = solve(penalized_precision) * sigma2_est
           smooth_se = sqrt((diag(smooth_vcov)))
           
           # Store results
@@ -1704,7 +1725,7 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE) {
           # Also calculate the smoother matrix for fitted values variance
           # A = X(X'WX + λP)^(-1)X'W
           smoother_matrix = B %*% solve(penalized_precision) %*% t(B) %*% W
-          fitted_se = sqrt(abs(diag(smoother_matrix)) * sigma2_est)
+          fitted_se = sqrt(abs(as.vector(diag(smoother_matrix))) * sigma2_est)
           
           cat(sprintf("\nSmooth term variance estimates for %s:%s\n", par_name, s_name))
           cat(sprintf("  Basis coefficients SE: min=%.4f, max=%.4f, mean=%.4f\n", 
@@ -1739,6 +1760,873 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE) {
 
   return(list(vcov=vcov_final_with_smooth, se=se_final_with_smooth))
 
+}
+
+#' Summarize a fitted gamlss.longitudinal model
+#'
+#' Creates a compact summary of key model diagnostics and coefficient estimates
+#' for a fitted `gamlss.longitudinal` object. By default it wraps
+#' `vcov.gamlss.longitudinal()` to provide standard errors and confidence
+#' intervals for fixed effects.
+#'
+#' @param object A fitted object of class `gamlss.longitudinal`.
+#' @param include_vcov Logical; if `TRUE`, compute and include variance-covariance
+#'   output via `vcov.gamlss.longitudinal()`.
+#' @param numderiv Logical passed to `vcov.gamlss.longitudinal()`.
+#' @param ci_level Confidence level for coefficient intervals.
+#' @param ... Additional arguments passed to `vcov.gamlss.longitudinal()`.
+#'
+#' @return An object of class `summary.gamlss.longitudinal` containing:
+#' - model dimensions and parameter counts,
+#' - likelihood and information criteria,
+#' - fixed-effect coefficient table,
+#' - optional `vcov` output.
+#' @export
+summary.gamlss.longitudinal = function(
+  object,
+  include_vcov = TRUE,
+  numderiv = TRUE,
+  ci_level = 0.95,
+  ...
+) {
+  if(!inherits(object, "gamlss.longitudinal")) {
+    stop("'object' must be of class 'gamlss.longitudinal'.")
+  }
+
+  n_obs = length(object$response)
+  n_subjects = length(unique(object$response_subject))
+  n_timepoints = length(unique(object$response_margin))
+
+  n_fixed = length(object$par)
+  n_smooth_terms = 0
+  if(!is.null(object$par_s)) {
+    n_smooth_terms = sum(vapply(object$par_s, length, integer(1)))
+  }
+
+  edf_smooth = NA_real_
+  if(!is.null(object$df_s) && length(object$df_s) > 0) {
+    df_vals = suppressWarnings(as.numeric(unlist(object$df_s, use.names = FALSE)))
+    df_vals = df_vals[is.finite(df_vals)]
+    if(length(df_vals) > 0) {
+      edf_smooth = sum(df_vals)
+    }
+  }
+
+  loglik_joint = NA_real_
+  if(!is.null(object$calc_lik_out_end) && !is.null(object$calc_lik_out_end$log_lik)) {
+    if("joint" %in% names(object$calc_lik_out_end$log_lik)) {
+      loglik_joint = as.numeric(object$calc_lik_out_end$log_lik["joint"])
+    }
+  }
+
+  k_total = n_fixed + ifelse(is.finite(edf_smooth), edf_smooth, 0)
+  aic = if(is.finite(loglik_joint)) -2 * loglik_joint + 2 * k_total else NA_real_
+  bic = if(is.finite(loglik_joint)) -2 * loglik_joint + log(max(1, n_obs)) * k_total else NA_real_
+
+  coef_tbl = data.frame(
+    term = names(object$par),
+    estimate = as.numeric(object$par),
+    std_error = NA_real_,
+    p_value = NA_real_,
+    signif = NA_character_,
+    stringsAsFactors = FALSE
+  )
+
+  vcov_out = NULL
+  if(isTRUE(include_vcov)) {
+    vcov_out = do.call(
+      vcov.gamlss.longitudinal,
+      c(list(object = object, numderiv = numderiv), list(...))
+    )
+
+    if(!is.null(vcov_out$vcov) && !is.null(vcov_out$vcov$overall)) {
+      V = vcov_out$vcov$overall
+      se = NULL
+      if(!is.null(vcov_out$se) && !is.null(vcov_out$se$overall)) {
+        se = as.numeric(vcov_out$se$overall)
+        se_names = names(vcov_out$se$overall)
+      } else {
+        se = sqrt(pmax(0, diag(V)))
+        se_names = names(diag(V))
+      }
+
+      if(is.null(se_names) && !is.null(rownames(V)) && length(rownames(V)) == length(se)) {
+        se_names = rownames(V)
+      }
+
+      if(!is.null(se_names)) {
+        names(se) = se_names
+      }
+
+      if(!is.null(names(se))) {
+        idx = match(coef_tbl$term, names(se))
+        coef_tbl$std_error = se[idx]
+      } else if(length(se) == nrow(coef_tbl)) {
+        coef_tbl$std_error = se
+      }
+
+      z_abs = abs(coef_tbl$estimate / coef_tbl$std_error)
+      coef_tbl$p_value = 2 * stats::pnorm(z_abs, lower.tail = FALSE)
+      coef_tbl$signif = ifelse(
+        is.na(coef_tbl$p_value),
+        NA_character_,
+        ifelse(coef_tbl$p_value < 0.001, "***",
+               ifelse(coef_tbl$p_value < 0.01, "**",
+                      ifelse(coef_tbl$p_value < 0.05, "*",
+                             ifelse(coef_tbl$p_value < 0.1, ".", " "))))
+      )
+    }
+  }
+
+  out = list(
+    model = list(
+      margin_dist = if(!is.null(object$margin_dist$family[1])) as.character(object$margin_dist$family[1]) else NA_character_,
+      copula_dist = object$copula_dist,
+      n_obs = n_obs,
+      n_subjects = n_subjects,
+      n_timepoints = n_timepoints,
+      n_fixed = n_fixed,
+      n_smooth_terms = n_smooth_terms,
+      edf_smooth = edf_smooth
+    ),
+    fit = list(
+      logLik = loglik_joint,
+      AIC = aic,
+      BIC = bic,
+      ci_level = ci_level,
+      vcov_included = isTRUE(include_vcov),
+      vcov_numderiv = isTRUE(numderiv)
+    ),
+    smooth_terms = {
+      st = list()
+      if(!is.null(object$par_s) && length(object$par_s) > 0) {
+        for(par_name in names(object$par_s)) {
+          if(length(object$par_s[[par_name]]) == 0) next
+          for(s_name in names(object$par_s[[par_name]])) {
+            st[[length(st) + 1]] = data.frame(
+              parameter = par_name,
+              smooth_term = s_name,
+              stringsAsFactors = FALSE
+            )
+          }
+        }
+      }
+      if(length(st) == 0) {
+        data.frame(parameter = character(0), smooth_term = character(0), stringsAsFactors = FALSE)
+      } else {
+        do.call(rbind, st)
+      }
+    },
+    coefficients = coef_tbl,
+    vcov = vcov_out
+  )
+  class(out) = "summary.gamlss.longitudinal"
+  out
+}
+
+#' @export
+print.summary.gamlss.longitudinal = function(x, digits = max(3, getOption("digits") - 3), ...) {
+  cat("\nGAMLSS Longitudinal Model Summary\n")
+  cat("--------------------------------\n")
+  cat("Margin distribution:", x$model$margin_dist, "\n")
+  cat("Copula distribution:", x$model$copula_dist, "\n")
+  cat("Observations:", x$model$n_obs,
+      " | Subjects:", x$model$n_subjects,
+      " | Time points:", x$model$n_timepoints, "\n")
+  cat("Fixed coefficients:", x$model$n_fixed,
+      " | Smooth terms:", x$model$n_smooth_terms,
+      " | Smooth EDF:", format(round(x$model$edf_smooth, digits), nsmall = 2), "\n")
+
+  cat("\nFixed coefficients:\n")
+  cat("--------------------\n")
+  coef_tbl = x$coefficients
+  coef_tbl$estimate = round(coef_tbl$estimate, digits)
+  coef_tbl$std_error = round(coef_tbl$std_error, digits)
+  coef_tbl$p_value = round(coef_tbl$p_value, digits + 1)
+  print(coef_tbl, row.names = FALSE)
+
+  cat("Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1\n")
+
+  
+  cat("\nSmooth terms:\n")
+  cat("--------------------\n")
+  if(!is.null(x$smooth_terms) && nrow(x$smooth_terms) > 0) {
+    print(x$smooth_terms, row.names = FALSE)
+    cat("Use plot(object) to visualize smooth and fixed terms with confidence bands.\n")
+  } else {
+    cat("None\n")
+  }
+
+  cat("\nFit statistics:\n")
+  cat("--------------------\n")
+  fit_tbl = data.frame(
+    metric = c("logLik", "AIC", "BIC"),
+    value = c(x$fit$logLik, x$fit$AIC, x$fit$BIC),
+    stringsAsFactors = FALSE
+  )
+  print(fit_tbl, row.names = FALSE, digits = digits)
+  cat("--------------------------------\n")
+
+  invisible(x)
+}
+
+#' Plot all smooth terms with confidence bands
+#'
+#' This utility plots every smooth term in a fitted `gamlss.longitudinal` object
+#' and computes pointwise confidence bands using the smooth coefficient
+#' covariance matrices returned by `vcov.gamlss.longitudinal()`.
+#'
+#' @param object A fitted `gamlss.longitudinal` object.
+#' @param vcov_obj Optional output from `vcov(object, ...)`. If `NULL`, this is
+#' computed internally with `vcov(object, numderiv = TRUE)`.
+#' @param data Optional data frame containing original covariates used for the
+#' x-axis variable of each smooth.
+#' @param ci_level Confidence level for pointwise intervals.
+#' @param ncol Number of plot columns (defaults to 2 or fewer if needed).
+#' @param ci_col Color for confidence bands.
+#' @param fit_col Color for fitted smooth line.
+#' @param ci_lty Line type for confidence bands.
+#' @param fit_lwd Line width for fitted smooth.
+#' @param sort_x Logical; sort points by x before plotting lines.
+#' @param fallback_to_index Logical; if x variable cannot be inferred, plot
+#' against row index.
+#' @param setup_mfrow Logical; if TRUE (default), configure par(mfrow) inside
+#' this function. Set FALSE when caller configures layout.
+#' @param show_legend Logical; if TRUE, draw a small legend in each panel.
+#'
+#' @return Invisibly returns a nested list with x, fitted values, standard
+#' errors, and confidence limits for each smooth term.
+#' @export
+plot_smooth_terms = function(
+  object,
+  vcov_obj = NULL,
+  data = NULL,
+  ci_level = 0.95,
+  ncol = NULL,
+  ci_col = "red",
+  fit_col = "black",
+  ci_lty = 2,
+  fit_lwd = 2,
+  sort_x = TRUE,
+  fallback_to_index = TRUE,
+  setup_mfrow = TRUE,
+  show_legend = TRUE
+) {
+  if(!inherits(object, "gamlss.longitudinal")) {
+    stop("'object' must be of class 'gamlss.longitudinal'.")
+  }
+
+  if(is.null(vcov_obj)) {
+    vcov_obj = vcov(object, numderiv = TRUE)
+  }
+
+  if(!is.list(vcov_obj) || is.null(vcov_obj$vcov)) {
+    stop("'vcov_obj' must be the output of vcov.gamlss.longitudinal().")
+  }
+
+  smooth_vcov_list = vcov_obj$vcov$smooth_vcov
+  smooth_se_list = vcov_obj$vcov$smooth_se
+
+  extract_smooth_var = function(s_name) {
+    out = sub("^s\\(([^,\\)]+).*$", "\\1", s_name)
+    out = trimws(out)
+    out = gsub("`", "", out, fixed = TRUE)
+    out
+  }
+
+  get_x_for_smooth = function(par_name, s_name, B) {
+    x_var = extract_smooth_var(s_name)
+    x = NULL
+
+    if(!is.null(data) && is.data.frame(data)) {
+      data_names = names(data)
+      # Prefer exact match, then case-insensitive match, then make.names match.
+      idx_exact = which(data_names == x_var)
+      idx_ci = which(tolower(data_names) == tolower(x_var))
+      idx_mn = which(make.names(data_names) == make.names(x_var))
+      idx = c(idx_exact, idx_ci, idx_mn)
+      idx = idx[!duplicated(idx)]
+      if(length(idx) > 0) {
+        matched_name = data_names[idx[1]]
+        x = data[[matched_name]]
+        x_var = matched_name
+      }
+    }
+
+    if(is.null(x) && !is.null(object$model_matrix$x[[par_name]]) && x_var %in% colnames(object$model_matrix$x[[par_name]])) {
+      x = object$model_matrix$x[[par_name]][, x_var]
+    }
+
+    if(is.null(x) && fallback_to_index) {
+      x = seq_len(nrow(B))
+      x_var = "index"
+      warning("Falling back to index for smooth term '", s_name,
+              "' because covariate was not found in supplied data/model matrix.")
+    }
+
+    if(is.null(x)) {
+      stop("Could not infer x-axis for smooth term '", s_name, "'. Provide 'data' with the smooth covariate columns.")
+    }
+
+    if(length(x) != nrow(B)) {
+      if(length(x) > nrow(B)) {
+        x = x[seq_len(nrow(B))]
+      } else {
+        stop("Length mismatch for smooth term '", s_name, "': length(x)=", length(x), " but nrow(B)=", nrow(B), ".")
+      }
+    }
+
+    list(x = as.numeric(x), x_var = x_var)
+  }
+
+  z = qnorm((1 + ci_level) / 2)
+  smooth_index = list()
+
+  for(par_name in names(object$par_s)) {
+    if(length(object$par_s[[par_name]]) == 0) next
+    for(s_name in names(object$par_s[[par_name]])) {
+      B = object$model_matrix$s[[par_name]][[s_name]]
+      beta_s = object$par_s[[par_name]][[s_name]]
+      if(is.null(B) || is.null(beta_s)) next
+
+      smooth_index[[length(smooth_index) + 1]] = list(par_name = par_name, s_name = s_name)
+    }
+  }
+
+  n_plots = length(smooth_index)
+  if(n_plots == 0) {
+    warning("No smooth terms found to plot.")
+    return(invisible(list()))
+  }
+
+  if(is.null(ncol)) {
+    ncol = min(2, n_plots)
+  }
+  nrow = ceiling(n_plots / ncol)
+
+  if(setup_mfrow) {
+    old_par = par(no.readonly = TRUE)
+    on.exit(par(old_par), add = TRUE)
+    par(mfrow = c(nrow, ncol))
+  }
+
+  out = list()
+  for(i in seq_len(n_plots)) {
+    par_name = smooth_index[[i]]$par_name
+    s_name = smooth_index[[i]]$s_name
+
+    B = object$model_matrix$s[[par_name]][[s_name]]
+    beta_s = object$par_s[[par_name]][[s_name]]
+    x_info = get_x_for_smooth(par_name, s_name, B)
+    x = x_info$x
+
+    fitted_smooth = as.numeric(B %*% beta_s)
+
+    smooth_vcov = NULL
+    smooth_se = NULL
+    if(!is.null(smooth_vcov_list) && !is.null(smooth_vcov_list[[par_name]])) {
+      smooth_vcov = smooth_vcov_list[[par_name]][[s_name]]
+    }
+    if(!is.null(smooth_se_list) && !is.null(smooth_se_list[[par_name]])) {
+      smooth_se = smooth_se_list[[par_name]][[s_name]]
+    }
+
+    if(!is.null(smooth_vcov) && all(dim(smooth_vcov) == c(ncol(B), ncol(B)))) {
+      smooth_fit_se = sqrt(pmax(0, diag(B %*% smooth_vcov %*% t(B))))
+    } else if(!is.null(smooth_se) && length(smooth_se) == ncol(B)) {
+      beta_var_diag = as.numeric(smooth_se)^2
+      smooth_fit_se = sqrt(pmax(0, rowSums((B^2) * rep(beta_var_diag, each = nrow(B)))))
+    } else {
+      smooth_fit_se = rep(NA_real_, nrow(B))
+    }
+
+    ci_lower = fitted_smooth - z * smooth_fit_se
+    ci_upper = fitted_smooth + z * smooth_fit_se
+    ord = if(sort_x) order(x) else seq_along(x)
+
+    main_title = paste(par_name, s_name, sep = ": ")
+    ylab_text = paste("smooth(", x_info$x_var, ")", sep = "")
+
+    y_vals = c(fitted_smooth, ci_lower, ci_upper)
+    y_vals = y_vals[is.finite(y_vals)]
+    if(length(y_vals) > 0) {
+      y_rng = range(y_vals)
+      y_pad = 0.05 * max(1e-8, diff(y_rng))
+      y_lim = c(y_rng[1] - y_pad, y_rng[2] + y_pad)
+    } else {
+      y_lim = NULL
+    }
+
+    plot(x[ord], fitted_smooth[ord], type = "l", lwd = fit_lwd, col = fit_col,
+         main = main_title, xlab = x_info$x_var, ylab = ylab_text, ylim = y_lim)
+
+    if(any(is.finite(smooth_fit_se))) {
+      lines(x[ord], ci_lower[ord], col = ci_col, lty = ci_lty)
+      lines(x[ord], ci_upper[ord], col = ci_col, lty = ci_lty)
+    }
+
+    if(show_legend) {
+      legend("topright",
+             legend = c("fit", paste0(round(ci_level * 100), "% CI")),
+             col = c(fit_col, ci_col),
+             lty = c(1, ci_lty),
+             lwd = c(fit_lwd, 1),
+             bty = "n",
+             cex = 0.8)
+    }
+
+    if(is.null(out[[par_name]])) out[[par_name]] = list()
+    out[[par_name]][[s_name]] = list(
+      x = x,
+      fitted = fitted_smooth,
+      se = smooth_fit_se,
+      ci_lower = ci_lower,
+      ci_upper = ci_upper
+    )
+  }
+
+  invisible(out)
+}
+
+#' Plot all fixed terms with confidence bands
+#'
+#' This utility plots fixed-effect term contributions for a fitted
+#' `gamlss.longitudinal` object using coefficient uncertainty from
+#' `vcov.gamlss.longitudinal()`.
+#'
+#' For each fixed-effect design-matrix column $x_j$, it plots
+#' $x_j \hat\beta_j$ with pointwise confidence bands
+#' $x_j \hat\beta_j \pm z_{\alpha/2}\sqrt{x_j^2 \mathrm{Var}(\hat\beta_j)}$.
+#'
+#' @param object A fitted `gamlss.longitudinal` object.
+#' @param vcov_obj Optional output from `vcov(object, ...)`. If `NULL`, this is
+#' computed internally with `vcov(object, numderiv = TRUE)`.
+#' @param ci_level Confidence level for pointwise intervals.
+#' @param ncol Number of plot columns (defaults to 2 or fewer if needed).
+#' @param include_intercept Logical; include intercept columns in plots.
+#' @param ci_col Color for confidence bands.
+#' @param fit_col Color for fitted fixed-term line.
+#' @param ci_lty Line type for confidence bands.
+#' @param fit_lwd Line width for fitted fixed-term line.
+#' @param sort_x Logical; sort x-values before drawing lines.
+#' @param fallback_to_index Logical; if x has one unique value, use index on x-axis.
+#' @param setup_mfrow Logical; if TRUE (default), configure par(mfrow) inside
+#' this function. Set FALSE when caller configures layout.
+#' @param data Optional data frame used to detect factor columns and show
+#' factor levels on x-axis for categorical fixed terms.
+#' @param factor_pch Point symbol for factor-level estimates.
+#' @param factor_cex Point size for factor-level estimates.
+#' @param show_legend Logical; if TRUE, draw a small legend in each panel.
+#'
+#' @return Invisibly returns a nested list with x, fitted values, standard
+#' errors, and confidence limits for each fixed term.
+#' @export
+plot_fixed_terms = function(
+  object,
+  vcov_obj = NULL,
+  ci_level = 0.95,
+  ncol = NULL,
+  include_intercept = FALSE,
+  ci_col = "red",
+  fit_col = "black",
+  ci_lty = 2,
+  fit_lwd = 2,
+  sort_x = TRUE,
+  fallback_to_index = TRUE,
+  setup_mfrow = TRUE,
+  data = NULL,
+  factor_pch = 16,
+  factor_cex = 1.2,
+  show_legend = TRUE
+) {
+  if(!inherits(object, "gamlss.longitudinal")) {
+    stop("'object' must be of class 'gamlss.longitudinal'.")
+  }
+
+  if(is.null(vcov_obj)) {
+    vcov_obj = vcov(object, numderiv = TRUE)
+  }
+
+  if(!is.list(vcov_obj) || is.null(vcov_obj$vcov) || is.null(vcov_obj$vcov$overall)) {
+    stop("'vcov_obj' must be the output of vcov.gamlss.longitudinal() with vcov$overall present.")
+  }
+
+  V = vcov_obj$vcov$overall
+  if(is.null(rownames(V)) || is.null(colnames(V))) {
+    stop("vcov$overall must have row and column names matching fixed coefficients.")
+  }
+
+  z = qnorm((1 + ci_level) / 2)
+  build_factor_groups = function(X, data) {
+    groups = list()
+    if(is.null(data) || !is.data.frame(data) || is.null(X) || ncol(X) == 0) return(groups)
+
+    x_cols = colnames(X)
+    for(var_name in names(data)) {
+      v = data[[var_name]]
+      if(!is.factor(v)) next
+      levs = levels(v)
+      if(length(levs) < 2) next
+
+      level_col_map = list()
+      matched_cols = character(0)
+      for(lev in levs[-1]) {
+        candidates = unique(c(
+          paste0(var_name, lev),
+          paste0(var_name, make.names(lev)),
+          paste0(var_name, "_", lev),
+          paste0(var_name, "_", make.names(lev))
+        ))
+        hit = candidates[candidates %in% x_cols]
+        if(length(hit) > 0) {
+          level_col_map[[lev]] = hit[1]
+          matched_cols = c(matched_cols, hit[1])
+        }
+      }
+
+      if(length(matched_cols) == 0 && length(levs) == 2 && var_name %in% x_cols) {
+        level_col_map[[levs[2]]] = var_name
+        matched_cols = var_name
+      }
+
+      if(length(level_col_map) > 0) {
+        groups[[var_name]] = list(
+          var_name = var_name,
+          levels = levs,
+          ref_level = levs[1],
+          level_col_map = level_col_map,
+          matched_cols = unique(matched_cols)
+        )
+      }
+    }
+    groups
+  }
+
+  plot_specs = list()
+  for(par_name in names(object$model_matrix$x)) {
+    X = object$model_matrix$x[[par_name]]
+    if(is.null(X) || ncol(X) == 0) next
+
+    factor_groups = build_factor_groups(X, data)
+    grouped_cols = unique(unlist(lapply(factor_groups, function(g) g$matched_cols), use.names = FALSE))
+    if(length(grouped_cols) == 0) grouped_cols = character(0)
+
+    for(var_name in names(factor_groups)) {
+      fg = factor_groups[[var_name]]
+      has_valid_coef = FALSE
+      for(lev in names(fg$level_col_map)) {
+        coef_name = paste(par_name, fg$level_col_map[[lev]], sep = ".")
+        if(coef_name %in% names(object$par) && coef_name %in% rownames(V) && coef_name %in% colnames(V)) {
+          has_valid_coef = TRUE
+          break
+        }
+      }
+      if(has_valid_coef) {
+        plot_specs[[length(plot_specs) + 1]] = list(
+          type = "factor",
+          par_name = par_name,
+          var_name = var_name,
+          group = fg
+        )
+      }
+    }
+
+    for(col_name in colnames(X)) {
+      if(col_name %in% grouped_cols) next
+      if(!include_intercept && col_name == "intercept") next
+      coef_name = paste(par_name, col_name, sep = ".")
+      if(!coef_name %in% names(object$par)) next
+      if(!coef_name %in% rownames(V) || !coef_name %in% colnames(V)) next
+
+      plot_specs[[length(plot_specs) + 1]] = list(
+        type = "continuous",
+        par_name = par_name,
+        col_name = col_name,
+        coef_name = coef_name
+      )
+    }
+  }
+
+  n_plots = length(plot_specs)
+  if(n_plots == 0) {
+    warning("No fixed terms found to plot with matching vcov entries.")
+    return(invisible(list()))
+  }
+
+  if(is.null(ncol)) {
+    ncol = min(2, n_plots)
+  }
+  nrow = ceiling(n_plots / ncol)
+
+  if(setup_mfrow) {
+    old_par = par(no.readonly = TRUE)
+    on.exit(par(old_par), add = TRUE)
+    par(mfrow = c(nrow, ncol))
+  }
+
+  out = list()
+  for(i in seq_len(n_plots)) {
+    spec = plot_specs[[i]]
+    par_name = spec$par_name
+
+    if(identical(spec$type, "factor")) {
+      fg = spec$group
+      levs = fg$levels
+      x_plot = seq_along(levs)
+      fitted_term = rep(NA_real_, length(levs))
+      term_se = rep(NA_real_, length(levs))
+
+      for(j in seq_along(levs)) {
+        lev = levs[j]
+        if(identical(lev, fg$ref_level)) {
+          fitted_term[j] = 0
+          term_se[j] = 0
+        } else if(lev %in% names(fg$level_col_map)) {
+          col_name_lev = fg$level_col_map[[lev]]
+          coef_name_lev = paste(par_name, col_name_lev, sep = ".")
+          if(coef_name_lev %in% names(object$par) && coef_name_lev %in% rownames(V) && coef_name_lev %in% colnames(V)) {
+            fitted_term[j] = as.numeric(object$par[coef_name_lev])
+            term_se[j] = sqrt(pmax(0, as.numeric(V[coef_name_lev, coef_name_lev])))
+          }
+        }
+      }
+
+      keep = is.finite(fitted_term) & is.finite(term_se)
+      ci_lower = fitted_term - z * term_se
+      ci_upper = fitted_term + z * term_se
+
+      y_vals = c(fitted_term[keep], ci_lower[keep], ci_upper[keep])
+      if(length(y_vals) > 0) {
+        y_rng = range(y_vals)
+        y_pad = 0.05 * max(1e-8, diff(y_rng))
+        y_lim = c(y_rng[1] - y_pad, y_rng[2] + y_pad)
+      } else {
+        y_lim = NULL
+      }
+
+      plot(x_plot[keep], fitted_term[keep],
+           type = "p",
+           pch = factor_pch,
+           cex = factor_cex,
+           col = fit_col,
+           xaxt = "n",
+           main = paste(par_name, fg$var_name, sep = ": "),
+           xlab = fg$var_name,
+           ylab = paste("fixed contribution:", paste(par_name, fg$var_name, sep = ".")),
+           ylim = y_lim)
+      axis(1, at = x_plot, labels = as.character(levs))
+      arrows(x_plot[keep], ci_lower[keep], x_plot[keep], ci_upper[keep],
+             angle = 90, code = 3, length = 0.05, col = ci_col, lty = ci_lty)
+      abline(h = 0, col = "grey70", lty = 3)
+
+      if(show_legend) {
+        legend("topright",
+               legend = c("estimate", paste0(round(ci_level * 100), "% CI")),
+               col = c(fit_col, ci_col),
+               pch = c(factor_pch, NA),
+               lty = c(NA, ci_lty),
+               bty = "n",
+               cex = 0.8)
+      }
+
+      if(is.null(out[[par_name]])) out[[par_name]] = list()
+      out[[par_name]][[fg$var_name]] = list(
+        coefficient = paste(par_name, fg$var_name, sep = "."),
+        x = x_plot,
+        levels = levs,
+        fitted = fitted_term,
+        se = term_se,
+        ci_lower = ci_lower,
+        ci_upper = ci_upper
+      )
+    } else {
+      col_name = spec$col_name
+      coef_name = spec$coef_name
+      X = object$model_matrix$x[[par_name]]
+      x_raw = as.numeric(X[, col_name])
+      beta_hat = as.numeric(object$par[coef_name])
+      var_beta = as.numeric(V[coef_name, coef_name])
+
+      fitted_term = x_raw * beta_hat
+      term_se = sqrt(pmax(0, (x_raw^2) * var_beta))
+      ci_lower = fitted_term - z * term_se
+      ci_upper = fitted_term + z * term_se
+
+      if(length(unique(x_raw)) <= 1 && fallback_to_index) {
+        x_plot = seq_along(x_raw)
+        xlab_text = paste(col_name, "(index)")
+        ord = seq_along(x_plot)
+      } else {
+        x_plot = x_raw
+        xlab_text = col_name
+        ord = if(sort_x) order(x_plot) else seq_along(x_plot)
+      }
+
+      main_title = paste(par_name, col_name, sep = ": ")
+      ylab_text = paste("fixed contribution:", coef_name)
+
+      y_vals = c(fitted_term, ci_lower, ci_upper)
+      y_vals = y_vals[is.finite(y_vals)]
+      if(length(y_vals) > 0) {
+        y_rng = range(y_vals)
+        y_pad = 0.05 * max(1e-8, diff(y_rng))
+        y_lim = c(y_rng[1] - y_pad, y_rng[2] + y_pad)
+      } else {
+        y_lim = NULL
+      }
+
+      plot(x_plot[ord], fitted_term[ord], type = "l", lwd = fit_lwd, col = fit_col,
+           main = main_title, xlab = xlab_text, ylab = ylab_text, ylim = y_lim)
+      lines(x_plot[ord], ci_lower[ord], col = ci_col, lty = ci_lty)
+      lines(x_plot[ord], ci_upper[ord], col = ci_col, lty = ci_lty)
+
+      if(show_legend) {
+        legend("topright",
+               legend = c("fit", paste0(round(ci_level * 100), "% CI")),
+               col = c(fit_col, ci_col),
+               lty = c(1, ci_lty),
+               lwd = c(fit_lwd, 1),
+               bty = "n",
+               cex = 0.8)
+      }
+      if(is.null(out[[par_name]])) out[[par_name]] = list()
+      out[[par_name]][[col_name]] = list(
+        coefficient = coef_name,
+        x = x_plot,
+        fitted = fitted_term,
+        se = term_se,
+        ci_lower = ci_lower,
+        ci_upper = ci_upper
+      )
+    }
+  }
+
+  invisible(out)
+}
+
+#' Plot method for fitted gamlss.longitudinal objects
+#'
+#' This S3 plot method generates diagnostic plots for a fitted
+#' `gamlss.longitudinal` object, including both fixed-effect terms and
+#' smooth terms with confidence bands. If the total number of plots
+#' exceeds `max_plots_per_page`, the user is prompted to advance pages.
+#'
+#' @param x A fitted `gamlss.longitudinal` object.
+#' @param y Unused; included for S3 generic compatibility.
+#' @param ci_level Confidence level for pointwise intervals (default: 0.95).
+#' @param max_plots_per_page Maximum number of plots before pagination prompt
+#' (default: 6). Set to 0 or negative to disable pagination.
+#' @param ncol Number of columns in each plot frame (default: 2).
+#' @param include_intercept Logical; include intercept terms in fixed plots
+#' (default: FALSE).
+#' @param data Optional data frame containing original covariates used to infer
+#' smooth-term x-axis variables. If omitted, smooth terms may fall back to index.
+#' @param ci_col Color for confidence bands (default: "red").
+#' @param fit_col Color for fitted lines (default: "black").
+#' @param show_legend Logical; if TRUE, draw a legend in each panel.
+#' @param ... Additional arguments passed to plotting functions (unused).
+#'
+#' @return Invisibly returns a list with elements:
+#' - `smooth_terms`: output from `plot_smooth_terms()`
+#' - `fixed_terms`: output from `plot_fixed_terms()`
+#'
+#' @export
+plot.gamlss.longitudinal = function(
+  x,
+  y,
+  data = NULL,
+  ci_level = 0.95,
+  max_plots_per_page = 6,
+  ncol = 2,
+  include_intercept = FALSE,
+  ci_col = "red",
+  fit_col = "black",
+  show_legend = TRUE,
+  ...
+) {
+  cat("\n=== Plotting gamlss.longitudinal object ===\n")
+  cat("Computing variance-covariance matrix...\n\n")
+
+  vcov_obj = vcov(x, numderiv = TRUE)
+
+  count_plot_terms = function(obj) {
+    n_smooth = 0
+    n_fixed = 0
+
+    for(par_name in names(obj$par_s)) {
+      if(length(obj$par_s[[par_name]]) > 0) {
+        n_smooth = n_smooth + length(obj$par_s[[par_name]])
+      }
+    }
+
+    for(par_name in names(obj$model_matrix$x)) {
+      X = obj$model_matrix$x[[par_name]]
+      if(!is.null(X) && ncol(X) > 0) {
+        n_cols = ncol(X)
+        if(!include_intercept && "intercept" %in% colnames(X)) {
+          n_cols = n_cols - 1
+        }
+        coef_names = paste(par_name, colnames(X), sep = ".")
+        coef_names = coef_names[!(colnames(X) == "intercept" & !include_intercept)]
+        n_valid = sum(coef_names %in% names(obj$par))
+        n_fixed = n_fixed + n_valid
+      }
+    }
+
+    list(smooth = n_smooth, fixed = n_fixed, total = n_smooth + n_fixed)
+  }
+
+  counts = count_plot_terms(x)
+  cat(sprintf("Found %d smooth terms and %d fixed terms (total: %d plots).\n\n",
+              counts$smooth, counts$fixed, counts$total))
+
+  smooth_results = fixed_results = list()
+
+  if(counts$total == 0) {
+    warning("No plots to display.")
+    return(invisible(list(smooth_terms = list(), fixed_terms = list())))
+  }
+
+  nrow_total = ceiling(counts$total / ncol)
+  old_par = par(no.readonly = TRUE)
+  on.exit(par(old_par), add = TRUE)
+  par(mfrow = c(nrow_total, ncol))
+
+  cat("Plotting all terms...\n")
+  if(counts$smooth > 0) {
+    smooth_results = plot_smooth_terms(
+      object = x,
+      vcov_obj = vcov_obj,
+      data = data,
+      ci_level = ci_level,
+      ncol = ncol,
+      ci_col = ci_col,
+      fit_col = fit_col,
+      setup_mfrow = FALSE,
+      show_legend = show_legend
+    )
+  }
+
+  if(counts$fixed > 0) {
+    fixed_results = plot_fixed_terms(
+      object = x,
+      vcov_obj = vcov_obj,
+      ci_level = ci_level,
+      ncol = ncol,
+      include_intercept = include_intercept,
+      ci_col = ci_col,
+      fit_col = fit_col,
+      setup_mfrow = FALSE,
+      data = data,
+      show_legend = show_legend
+    )
+  }
+
+  cat("\n")
+  invisible(list(
+    smooth_terms = smooth_results,
+    fixed_terms = fixed_results
+  ))
 }
 
 #' @export
@@ -2494,29 +3382,29 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     covariates=list()
     covariates[[1]] = as.data.frame(round(runif(n,0,100),0)) #Age
     covariates[[2]] = t(t(matrix(1,ncol=t,nrow=n))*(1:t)) #Time
-    covariates[[3]] = as.data.frame(round(runif(n,0,1),0)) #Gender
+    covariates[[3]] = as.data.frame(round(runif(n,0,2),0)) #Gender
 
     copula_input=get_copula_dist(copula_dist)
     copula.family=copula_input$copula_dist
 
     mu_out=par.margin[1]+matrix(rep(covariates_input$mu.time*1:(d),n),ncol=d,byrow=TRUE) + 
       matrix(rep(as.matrix(covariates_input$mu.age*((covariates[[1]]-50)/100)^2),d),ncol=d) + 
-      matrix(rep(covariates_input$mu.gender*(covariates[[3]]==1),d),ncol=d,byrow=TRUE)
+      matrix(rep(as.matrix(covariates_input$mu.gender*(covariates[[3]])),d),ncol=d)
     sigma_out=exp(par.margin[2]+matrix(rep(covariates_input$sigma.time*1:(d),n),ncol=d,byrow=TRUE) + 
       matrix(rep(as.matrix(covariates_input$sigma.age*((covariates[[1]]-50)/100)^2),d),ncol=d)) +
-      matrix(rep(covariates_input$sigma.gender*(covariates[[3]]==1),d),ncol=d,byrow=TRUE)
+      matrix(rep(as.matrix(covariates_input$sigma.gender*(covariates[[3]])),d),ncol=d)
     nu_out=par.margin[3]+matrix(rep(covariates_input$nu.time*1:(d),n),ncol=d,byrow=TRUE) + 
       matrix(rep(as.matrix(covariates_input$nu.age*((covariates[[1]]-50)/100)^2),d),ncol=d) + 
-      matrix(rep(covariates_input$nu.gender*(covariates[[3]]==1),d),ncol=d,byrow=TRUE)
-    tau_out=exp(par.margin[4]+matrix(rep(covariates_input$tau.time*1:(d),n),ncol=d,byrow=TRUE) +
+      matrix(rep(as.matrix(covariates_input$nu.gender*(covariates[[3]])),d),ncol=d)
+    tau_out=(par.margin[4]+matrix(rep(covariates_input$tau.time*1:(d),n),ncol=d,byrow=TRUE) +
       matrix(rep(as.matrix(covariates_input$tau.age*((covariates[[1]]-50)/100)^2),d),ncol=d)) +
-      matrix(rep(covariates_input$tau.gender*(covariates[[3]]==1),d),ncol=d,byrow=TRUE)
+      matrix(rep(as.matrix(covariates_input$tau.gender*(covariates[[3]])),d),ncol=d)
     theta_out=par.copula[1]+matrix(rep(covariates_input$theta.time*1:(d-1),n),ncol=d-1,byrow=TRUE) + 
       matrix(rep(as.matrix(covariates_input$theta.age*((covariates[[1]]-50)/100)^2),d-1),ncol=d-1) +
-      matrix(rep(covariates_input$theta.gender*(covariates[[3]]==1),d-1),ncol=d-1,byrow=TRUE)
+      matrix(rep(as.matrix(covariates_input$theta.gender*(covariates[[3]])),d-1),ncol=d-1)
     zeta_out=par.copula[2]+matrix(rep(covariates_input$zeta.time*1:(d-1),n),ncol=d-1,byrow=TRUE) + 
       matrix(rep(as.matrix(covariates_input$zeta.age*((covariates[[1]]-50)/100)^2),d-1),ncol=d-1) + 
-      matrix(rep(covariates_input$zeta.gender*(covariates[[3]]==1),d-1),ncol=d-1,byrow=TRUE)
+      matrix(rep(as.matrix(covariates_input$zeta.gender*(covariates[[3]])),d-1),ncol=d-1)
     
     #Print the ranges for all the variables in one simple output
     print(paste("MU RANGE: ", round(range(mu_out),2), " | SIGMA RANGE: ", round(range(sigma_out),2), " | NU RANGE: ", round(range(nu_out),2), " | TAU RANGE: ", round(range(tau_out),2), " | THETA RANGE: ", round(range(theta_out),2), " | ZETA RANGE: ", round(range(zeta_out),2)))

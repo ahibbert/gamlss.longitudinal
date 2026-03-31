@@ -4,19 +4,19 @@ library("ggplot2"); library("latex2exp"); library("ggpubr"); library("Matrix"); 
 library(gamlss2); library(gamlss)
 set.seed(100)
 #########DATASET
-n=200; d=4
+n=500; d=4
 
 #copula_dist="N"; margin_dist=NO(); mu=0; sigma=1;nu=NA; tau=NA; theta=-1; zeta=NA; simOption=7;
 #copula_dist="C";margin_dist=GA(); mu=1; sigma=0.2;nu=NA; tau=NA; theta=.5; zeta=NA; simOption=7;
 #copula_dist="C"; margin_dist=PE(); mu=0.4; sigma=0.6;nu=1; tau=NA; theta=-0.5; zeta=NA; simOption=7;
 #copula_dist="N"; margin_dist=ST1(); mu=1; sigma=1;nu=1; tau=1; theta=-0.5; zeta=NA; simOption=7;
 
-copula_dist="N"; margin_dist=BCPEo(); mu=1; sigma=1;nu=1; tau=1; theta=0.25; zeta=NA; simOption=10;
+copula_dist="N"; margin_dist=BCPEo(); mu=1; sigma=.1;nu=1; tau=1; theta=0; zeta=NA; simOption=10;
 
-# USE THIS WITH SIMOPTION 7
-covariates_input=list( mu.time=.1   ,sigma.time=.1   ,nu.time=.1    ,tau.time=.1   ,theta.time=.1  ,zeta.time=0
-                        ,mu.age=3    ,sigma.age=3     ,nu.age=1     ,tau.age=3    ,theta.age=1.5    ,zeta.age=0
-                        ,mu.gender=0 ,sigma.gender=0  ,nu.gender=0  ,tau.gender=0 ,theta.gender=0 ,zeta.gender=0)
+# USE THIS WITH SIMOPTION 10
+covariates_input=list( mu.time=1   ,sigma.time=1   ,nu.time=1    ,tau.time=1   ,theta.time=.1  ,zeta.time=0
+                        ,mu.age=3    ,sigma.age=3     ,nu.age=0     ,tau.age=0    ,theta.age=.5    ,zeta.age=0
+                        ,mu.gender=1 ,sigma.gender=1  ,nu.gender=0  ,tau.gender=0 ,theta.gender=.25 ,zeta.gender=0)
 
 #simOption=6; margin_dist=JSU(); copula_dist="N"
 
@@ -140,19 +140,18 @@ ggarrange(p1, p2, p3, p4, p5, ncol=2, nrow=3, common.legend=FALSE)
 
 ########## FIT ###########
 source("R/common_functions.R")
-mu_formula="random_name ~ time_of_observation_random_name + s(age_new_name,bs='ps',k=10)"
-sigma_formula="~ time_of_observation_random_name + s(age_new_name,bs='ps')"
-nu_formula="~ time_of_observation_random_name + s(age_new_name,bs='ps')"
-tau_formula="~ time_of_observation_random_name + s(age_new_name,bs='ps')"
+mu_formula="random_name ~ time_of_observation_random_name + s(age_new_name,bs='ps') + gender"
+sigma_formula="~ time_of_observation_random_name + gender + s(age_new_name,bs='ps')"
+nu_formula="~ time_of_observation_random_name"
+tau_formula="~ time_of_observation_random_name"
 theta_formula="~ time_of_observation_random_name + s(age_new_name,bs='ps')"
 zeta_formula="~ time_of_observation_random_name"
 
 ### FOR TESTING DATASETS WITH NON STANDARD NAMING
-if(!exists("data_in") || !is.data.frame(data_in)) {
-  colnames(dataset)=c("person","time_of_observation_random_name","random_name","age_new_name","year","gender")
-  data_in=dataset
-  rm(dataset)
-}
+if("age_group" %in% names(dataset)) dataset$age_group = NULL
+colnames(dataset)=c("person","time_of_observation_random_name","random_name","age_new_name","year","gender")
+data_in=dataset; data_in$gender=as.factor(data_in$gender)
+rm(dataset)
 
 fit=gamlss.longitudinal(dataset=data_in
                    , margin_dist=margin_dist
@@ -169,104 +168,19 @@ fit=gamlss.longitudinal(dataset=data_in
                    , verbose=3, plot_results=FALSE,  true_val=par_to_eta(input_par,copula_dist,margin_dist)
                    , use_Rcpp=FALSE, start_step_size=0.5, step_adjustment = 0.5, inner_stop_crit=.1, outer_stop_crit=.1
                    , lambda_start = 5
-                   , lambda_penalty_K = 1 #Optimising for AIC
-)
-par(mfrow=c(3,2))
-plot(dataset$age,fit$model_matrix$s$mu$'s(age)'%*%fit$par_s$mu$'s(age)',main="mu age smooth",ylab="coefficient",xlab="age")
-points(dataset$age,fit$model_matrix$s$mu$'s(age)'%*%(fit$par_s$mu$'s(age)'-1.96*smooth_se_list$mu$'s(age)'),main="mu age smooth",ylab="coefficient",xlab="age",col="red")
-points(dataset$age,fit$model_matrix$s$mu$'s(age)'%*%(fit$par_s$mu$'s(age)'+1.96*smooth_se_list$mu$'s(age)'),main="mu age smooth",ylab="coefficient",xlab="age",col="red")
-
-plot(dataset$age,fit$model_matrix$s$sigma$'s(age)'%*%fit$par_s$sigma$'s(age)', main="sigma age smooth",ylab="coefficient",xlab="age")
-points(dataset$age,fit$model_matrix$s$sigma$'s(age)'%*%(fit$par_s$sigma$'s(age)'-1.96*smooth_se_list$sigma$'s(age)'),main="mu age smooth",ylab="coefficient",xlab="age",col="red")
-points(dataset$age,fit$model_matrix$s$sigma$'s(age)'%*%(fit$par_s$sigma$'s(age)'+1.96*smooth_se_list$sigma$'s(age)'),main="mu age smooth",ylab="coefficient",xlab="age",col="red")
-
-plot(dataset$age[1:(n*(d-1))],fit$model_matrix$s$theta$'s(age)'%*%fit$par_s$theta$'s(age)', main="theta age smooth",ylab="coefficient",xlab="age")
-plot(dataset$age,fit$model_matrix$s$nu$'s(age)'%*%fit$par_s$nu$'s(age)', main="nu age smooth",ylab="coefficient",xlab="age")
-plot(dataset$age,fit$model_matrix$s$tau$'s(age)'%*%fit$par_s$tau$'s(age)', main="tau age smooth",ylab="coefficient",xlab="age")
-
-
-vcov_out=vcov(fit, numderiv=TRUE)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-########################################### DELETE?
-
-# gamlss no random effect
-gamlss(response ~ time + ps(age), sigma.formula = ~ time + ps(age), nu.formula = ~ time + ps(age), data=dataset, family=margin_dist)
-
-
-w_dl=gamlss.longitudinal(dataset, margin_dist, copula_dist
-                  , mu.formula = mu_formula
-                  , sigma.formula = sigma_formula
-                  , nu.formula = nu_formula
-                  , tau.formula = tau_formula
-                  , theta.formula=theta_formula
-                  , zeta.formula=zeta_formula
-                  , include_dlcopdpar=TRUE
-                  , verbose=3,plot_results=FALSE, true_val=par_to_eta(input_par,copula_dist,margin_dist)
-                  , use_Rcpp=FALSE, start_step_size=1, step_adjustment = 0.5, inner_stop_crit=.1, outer_stop_crit=.1
-                  , lambda_start = 5
-                  , lambda_penalty_K = 2 #Optimising for AIC
+                   , lambda_penalty_K = 2 #Optimising for AIC
 )
 
-par(mfrow=c(3,2))
-plot(dataset$age,w_dl$model_matrix$s$mu$'s(age)'%*%w_dl$par_s$mu$'s(age)',main="mu age smooth",ylab="coefficient",xlab="age")
-plot(dataset$age,w_dl$model_matrix$s$sigma$'s(age)'%*%w_dl$par_s$sigma$'s(age)', main="sigma age smooth",ylab="coefficient",xlab="age")
-plot(dataset$age,w_dl$model_matrix$s$nu$'s(age)'%*%w_dl$par_s$nu$'s(age)', main="nu age smooth",ylab="coefficient",xlab="age")
-plot(dataset$age,w_dl$model_matrix$s$tau$'s(age)'%*%w_dl$par_s$tau$'s(age)', main="tau age smooth",ylab="coefficient",xlab="age")
-plot(dataset$age[1:(n*(d-1))],w_dl$model_matrix$s$theta$'s(age)'%*%w_dl$par_s$theta$'s(age)', main="theta age smooth",ylab="coefficient",xlab="age")
+#vcov_fit=vcov.gamlss.longitudinal(fit, numderiv=TRUE)
 
-
-input_par=c(mu,sigma,nu,tau,theta,zeta); names(input_par)=c("mu","sigma","nu","tau","theta","zeta")
-true_par=par_to_eta(input_par,margin_dist=margin_dist,copula_dist=copula_dist)
-names(true_par)=names((w_dl$par))
-
-library(gee);
-#gee_model=(gee(response~-1+as.factor(time),family=Gamma(link="log"),corstr="exchangeable",id=subject,data=dataset[order(dataset$subject,dataset$time),]))
-gee_model=gee(mu_formula,family=gaussian
-               ,corstr="AR-M",id=subject,data=dataset[order(dataset$subject,dataset$time),],Mv=1)
-
-source("R/common_functions.R");
-true_var_b0_bt=bvt_norm_true_SE_B0_Bt(sigma_x=sigma,sigma_y=sigma,rho=theta,n=n,d=d)
-true_se_b0_bt=sqrt(true_var_b0_bt)/sqrt(n)
-
-plot_true=FALSE
-if(plot_true==TRUE) {
-  results_table=cbind(true_par
-                      ,unlist(coef(w_dl))
-                      ,unlist(coef(no_dl))
-                      ,c(gee_model$coefficients,log( sqrt(gee_model$scale)),NA,logit(gee_model$working.correlation[2]))
-                      ,c(true_se_b0_bt,NA,NA,NA)
-                      #,(vcov(w_dl,par=true_par,numderiv = TRUE)[[2]])
-                      #,c(rep(sigma/sqrt(n),d),NA,NA)     #sqrt(vcov(w_dl,par=true_par,numderiv = TRUE)[[2]])*sqrt(n*d)
-                      ,(vcov(w_dl,numderiv = TRUE)[[2]])#*sqrt(n*d)
-                      ,(vcov(no_dl,numderiv = TRUE)[[2]])#*sqrt(n*d)
-                      ,c(sqrt(diag(gee_model$robust.variance)),0,0,0)
-  )
-  colnames(results_table)=c("True Est","Joint Est","Sep Est","GEE Est","True SE","ND True SE", "Joint SE", "Sep SE","GEE SE")
-} else {
-  results_table=cbind(unlist(coef(w_dl))
-                      ,unlist(coef(no_dl))
-                      ,c(gee_model$coefficients,log(sqrt( gee_model$scale)),logit(gee_model$working.correlation[2]))
-                      ,(vcov(w_dl,numderiv = TRUE)[[2]])#*sqrt(n*d)
-                      ,(vcov(no_dl,numderiv = TRUE)[[2]])#*sqrt(n*d)
-                      ,c(sqrt(diag(gee_model$robust.variance)),0,0)
-  )
-  colnames(results_table)=c("Joint Est","Sep Est", "GEE Est","Joint SE","Sep SE","GEE SE")
-}
-print(round(results_table,4))
-round(results_table,6)
-
+#################### PLOT METHOD ####################
+source("R/common_functions.R")
+summary(fit)
+plot(
+  fit,
+  data = data_in,
+  ci_level=0.90,
+  max_plots_per_page=9,
+  ncol=3,
+  include_intercept=FALSE
+)
