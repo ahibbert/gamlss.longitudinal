@@ -2339,6 +2339,7 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
 
     copsim=RVineSim(n,RVM)
 
+
     margin=matrix(0,ncol=ncol(copsim),nrow=nrow(copsim))
     for ( i in 1:ncol(copsim)) {
 
@@ -2406,6 +2407,7 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
 
     t=d
     copsim=RVineSim(n,RVM)
+    
 
     covariates=list()
     covariates[[1]] = as.data.frame(round(runif(n,0,100),0)) #Age
@@ -2483,9 +2485,43 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     }
   }  else if (simOption==10) { ########TIME VARIANT SIGMA AND MU
 
+    print("WARNING: SIMULATION IS IMPLEMENTED WITHOUT LINK FUNCTIONS FOR COVARIATES SO MAY NOT BE APPROPRIATE FOR ALL PARAMETER RANGES, ERRORS LIKELY")
+
+    t=d
+
+    # Setup covariates from covariates_input
+
+    covariates=list()
+    covariates[[1]] = as.data.frame(round(runif(n,0,100),0)) #Age
+    covariates[[2]] = t(t(matrix(1,ncol=t,nrow=n))*(1:t)) #Time
+    covariates[[3]] = as.data.frame(round(runif(n,0,1),0)) #Gender
+
     copula_input=get_copula_dist(copula_dist)
     copula.family=copula_input$copula_dist
 
+    mu_out=par.margin[1]+matrix(rep(covariates_input$mu.time*1:(d),n),ncol=d,byrow=TRUE) + 
+      matrix(rep(as.matrix(covariates_input$mu.age*((covariates[[1]]-50)/100)^2),d),ncol=d) + 
+      matrix(rep(covariates_input$mu.gender*(covariates[[3]]==1),d),ncol=d,byrow=TRUE)
+    sigma_out=exp(par.margin[2]+matrix(rep(covariates_input$sigma.time*1:(d),n),ncol=d,byrow=TRUE) + 
+      matrix(rep(as.matrix(covariates_input$sigma.age*((covariates[[1]]-50)/100)^2),d),ncol=d)) +
+      matrix(rep(covariates_input$sigma.gender*(covariates[[3]]==1),d),ncol=d,byrow=TRUE)
+    nu_out=par.margin[3]+matrix(rep(covariates_input$nu.time*1:(d),n),ncol=d,byrow=TRUE) + 
+      matrix(rep(as.matrix(covariates_input$nu.age*((covariates[[1]]-50)/100)^2),d),ncol=d) + 
+      matrix(rep(covariates_input$nu.gender*(covariates[[3]]==1),d),ncol=d,byrow=TRUE)
+    tau_out=exp(par.margin[4]+matrix(rep(covariates_input$tau.time*1:(d),n),ncol=d,byrow=TRUE) +
+      matrix(rep(as.matrix(covariates_input$tau.age*((covariates[[1]]-50)/100)^2),d),ncol=d)) +
+      matrix(rep(covariates_input$tau.gender*(covariates[[3]]==1),d),ncol=d,byrow=TRUE)
+    theta_out=par.copula[1]+matrix(rep(covariates_input$theta.time*1:(d-1),n),ncol=d-1,byrow=TRUE) + 
+      matrix(rep(as.matrix(covariates_input$theta.age*((covariates[[1]]-50)/100)^2),d-1),ncol=d-1) +
+      matrix(rep(covariates_input$theta.gender*(covariates[[3]]==1),d-1),ncol=d-1,byrow=TRUE)
+    zeta_out=par.copula[2]+matrix(rep(covariates_input$zeta.time*1:(d-1),n),ncol=d-1,byrow=TRUE) + 
+      matrix(rep(as.matrix(covariates_input$zeta.age*((covariates[[1]]-50)/100)^2),d-1),ncol=d-1) + 
+      matrix(rep(covariates_input$zeta.gender*(covariates[[3]]==1),d-1),ncol=d-1,byrow=TRUE)
+    
+    #Print the ranges for all the variables in one simple output
+    print(paste("MU RANGE: ", round(range(mu_out),2), " | SIGMA RANGE: ", round(range(sigma_out),2), " | NU RANGE: ", round(range(nu_out),2), " | TAU RANGE: ", round(range(tau_out),2), " | THETA RANGE: ", round(range(theta_out),2), " | ZETA RANGE: ", round(range(zeta_out),2)))
+
+    #Define margin distribution
     qFUN=paste("q",margin_dist$family[1],sep="")
 
     # set up D-vine copula model with mixed pair-copulas
@@ -2494,33 +2530,22 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     order <- 1:d
     family <- c(rep(copula.family,d-1), rep(0,dd-(d-1)))
 
+    # OK now for each row in theta_out and zeta_out, we need to create a new RVM and simulate from it, then apply the qFUN with the appropriate parameters to get the margin values for that row. This is going to be computationally intensive but should work.
 
-    if(length(par.copula)==1){
-      par=c(rep(par.copula,d-1),rep(0,dd-(d-1)))
-      par2=par*0
-    } else {
-      par <- c(rep(par.copula["theta"],d-1), rep(0,dd-(d-1))) #+1*1:(d-1)
-      par2 <- c(rep(par.copula["zeta"],d-1),rep(0,dd-(d-1))) #+0.5*1:(d-1)
+    # row-specific copula simulation from theta_out / zeta_out
+    copsim <- matrix(NA_real_, nrow = n, ncol = d)
+    for (r in 1:n) {
+      par_r  <- c(as.numeric(theta_out[r, ]), rep(0, dd - (d - 1)))
+      par2_r <- c(if (length(par.copula) > 1 && all(is.finite(zeta_out[r, ]))) as.numeric(zeta_out[r, ]) else rep(0, d - 1),
+                  rep(0, dd - (d - 1)))
+      copsim[r, ] <- as.numeric(RVineSim(1, D2RVine(order, family, par_r, par2_r)))
     }
-
-    # transform to R-vine matrix notation
-
-    RVM <- D2RVine(order, family, par, par2)
-    #contour(RVM)
-
-    t=d
-    copsim=RVineSim(n,RVM)
-
-    covariates=list()
-    covariates[[1]] = as.data.frame(round(runif(n,0,100),0)) #Age
-    covariates[[2]] = t(t(matrix(1,ncol=t,nrow=n))*(1:t)) #Time
-    covariates[[3]] = as.data.frame(round(runif(n,0,1),0)) #Gender
 
     margin=matrix(0,ncol=ncol(copsim),nrow=nrow(copsim))
     for ( i in 1:ncol(copsim)) {
 
       input_list=list(p=copsim[,i]
-                      ,mu=par.margin[1],sigma=par.margin[2],nu=par.margin[3],tau=par.margin[4])
+                      ,mu=mu_out[,i],sigma=sigma_out[,i],nu=nu_out[,i],tau=tau_out[,i])
       args=names(input_list)[names(input_list)%in%formalArgs(qFUN)]
       qFunOutput_1=do.call(qFUN,args=(input_list[args]))
       #input_list=list(p=copsim[,i],mu=par.margin[1],sigma=exp(0.3+0.2*i+0.1),nu=-0.8,tau=0.1)
