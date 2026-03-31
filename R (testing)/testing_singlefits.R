@@ -9,20 +9,22 @@ n=200; d=4
 #copula_dist="N"; margin_dist=NO(); mu=0; sigma=1;nu=NA; tau=NA; theta=-1; zeta=NA; simOption=7;
 #copula_dist="C";margin_dist=GA(); mu=1; sigma=0.2;nu=NA; tau=NA; theta=.5; zeta=NA; simOption=7;
 #copula_dist="C"; margin_dist=PE(); mu=0.4; sigma=0.6;nu=1; tau=NA; theta=-0.5; zeta=NA; simOption=7;
-copula_dist="N"; margin_dist=ST1(); mu=1; sigma=1;nu=1; tau=1; theta=-0.5; zeta=NA; simOption=7;
+#copula_dist="N"; margin_dist=ST1(); mu=1; sigma=1;nu=1; tau=1; theta=-0.5; zeta=NA; simOption=7;
+
+copula_dist="N"; margin_dist=BCPEo(); mu=1; sigma=1;nu=1; tau=1; theta=0.25; zeta=NA; simOption=10;
+
 # USE THIS WITH SIMOPTION 7
 covariates_input=list( mu.time=.1   ,sigma.time=.1   ,nu.time=.1    ,tau.time=.1   ,theta.time=.1  ,zeta.time=0
-                        ,mu.age=10    ,sigma.age=10     ,nu.age=10     ,tau.age=10    ,theta.age=10    ,zeta.age=0
+                        ,mu.age=3    ,sigma.age=3     ,nu.age=1     ,tau.age=3    ,theta.age=1.5    ,zeta.age=0
                         ,mu.gender=0 ,sigma.gender=0  ,nu.gender=0  ,tau.gender=0 ,theta.gender=0 ,zeta.gender=0)
 
 #simOption=6; margin_dist=JSU(); copula_dist="N"
 
 #########Generate dataset
 
+rm(dataset)
 dataset=loadDataset(simOption=simOption, n=n,d=d, copula_dist=copula_dist, margin_dist=margin_dist
                     , par.margin=c(mu,sigma,nu,tau), par.copula=c(theta=theta),covariates_input=covariates_input)
-
-
 
 plotDist(dataset,margin_dist)
 
@@ -56,7 +58,6 @@ age_corrs = bind_rows(age_corrs_list) %>% filter(!is.na(age_group))
 p1 = ggplot(age_corrs, aes(x=age_group, y=cor, color=time_pair, group=time_pair)) + 
   geom_point() + 
   geom_line() + 
-  ylim(0,1) +
   labs(title="Correlation by Age Group", 
        x="Age Group", 
        y="Correlation",
@@ -137,26 +138,26 @@ p5 = ggplot(age_skewness, aes(x=age_group, y=skewness_response, color=time, grou
 library(ggpubr)
 ggarrange(p1, p2, p3, p4, p5, ncol=2, nrow=3, common.legend=FALSE)
 
-##########FIT
+########## FIT ###########
 source("R/common_functions.R")
-mu_formula="chol ~ time_of_observation + s(age,bs='ps',k=10)"
-sigma_formula="~ time_of_observation + s(age,bs='ps')"
-nu_formula="~ time_of_observation + s(age,bs='ps')"
-tau_formula="~ time_of_observation + s(age,bs='ps')"
-theta_formula="~ time_of_observation + s(age,bs='ps')"
-zeta_formula="~ time_of_observation"
+mu_formula="random_name ~ time_of_observation_random_name + s(age_new_name,bs='ps',k=10)"
+sigma_formula="~ time_of_observation_random_name + s(age_new_name,bs='ps')"
+nu_formula="~ time_of_observation_random_name + s(age_new_name,bs='ps')"
+tau_formula="~ time_of_observation_random_name + s(age_new_name,bs='ps')"
+theta_formula="~ time_of_observation_random_name + s(age_new_name,bs='ps')"
+zeta_formula="~ time_of_observation_random_name"
 
 ### FOR TESTING DATASETS WITH NON STANDARD NAMING
 if(!exists("data_in") || !is.data.frame(data_in)) {
-  colnames(dataset)=c("person","time_of_observation","chol","age","year","gender")
+  colnames(dataset)=c("person","time_of_observation_random_name","random_name","age_new_name","year","gender")
   data_in=dataset
-  dataset=NA
+  rm(dataset)
 }
 
 fit=gamlss.longitudinal(dataset=data_in
                    , margin_dist=margin_dist
                    , copula_dist=copula_dist
-                   , time_var="time_of_observation"
+                   , time_var="time_of_observation_random_name"
                    , subject_var="person"
                    , mu.formula = mu_formula
                    , sigma.formula = sigma_formula
