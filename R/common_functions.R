@@ -116,6 +116,10 @@ gamlss.longitudinal=function(dataset,
   names(dataset)[names(dataset) == subject_var] <- "subject"
   names(dataset)[names(dataset) == response_var] <- "response"
 
+  if (any(is.na(dataset$time)) || any(is.na(dataset$subject))) {
+    stop("ERROR: time and subject variables cannot contain NA values.")
+  }
+
   # Robust formula normalizer:
   # - accepts formula objects
   # - accepts strings without "~" (e.g. "time + s(age)")
@@ -194,6 +198,91 @@ gamlss.longitudinal=function(dataset,
   if(verbose > 1) {
     cat("Subject/time uniqueness check passed.\n")
     cat("Unique subject/time combinations:", length(unique(subject_time_combo)), "\n\n")
+  }
+
+  # Missingness summary by time and consecutive time pairs.
+  time_levels <- sort(unique(dataset$time))
+  n_time_levels <- length(time_levels)
+
+  miss_by_time <- do.call(rbind, lapply(time_levels, function(ti) {
+    idx <- dataset$time == ti
+    n_total <- sum(idx)
+    n_na <- sum(is.na(dataset$response[idx]))
+    c(time = ti, n_total = n_total, n_na_response = n_na, n_observed_response = n_total - n_na)
+  }))
+  miss_by_time <- as.data.frame(miss_by_time)
+  rownames(miss_by_time) <- NULL
+
+  pair_summary <- data.frame(
+    time1 = numeric(0),
+    time2 = numeric(0),
+    complete_pairs = integer(0),
+    total_pairs = integer(0),
+    total_observations = integer(0)
+  )
+
+  if (n_time_levels > 1) {
+    for (i in seq_len(n_time_levels - 1)) {
+      t1 <- time_levels[i]
+      t2 <- time_levels[i + 1]
+      d1 <- dataset[dataset$time == t1, c("subject", "response")]
+      d2 <- dataset[dataset$time == t2, c("subject", "response")]
+      names(d1) <- c("subject", "response_t1")
+      names(d2) <- c("subject", "response_t2")
+      merged_pair <- merge(d1, d2, by = "subject", all = FALSE)
+
+      total_pairs <- nrow(merged_pair)
+      complete_pairs <- sum(!is.na(merged_pair$response_t1) & !is.na(merged_pair$response_t2))
+
+      pair_summary <- rbind(
+        pair_summary,
+        data.frame(
+          time1 = t1,
+          time2 = t2,
+          complete_pairs = complete_pairs,
+          total_pairs = total_pairs,
+          total_observations = nrow(dataset)
+        )
+      )
+    }
+  }
+
+  if (verbose > 0) {
+    cat("Missingness Summary (by time):\n")
+    print(miss_by_time)
+    cat("\nConsecutive Pair Completeness:\n")
+    if (nrow(pair_summary) > 0) {
+      print(pair_summary)
+    } else {
+      cat("No consecutive time pairs available.\n")
+    }
+    cat("\n")
+  }
+
+  # Hard stop if any margin is 100% missing.
+  margin_all_missing <- miss_by_time$n_observed_response == 0
+  if (any(margin_all_missing)) {
+    bad_times <- miss_by_time$time[margin_all_missing]
+    stop(
+      "ERROR: 100% missing response values detected for margin time point(s): ",
+      paste(bad_times, collapse = ", "),
+      "\nModel fitting stopped because at least one margin has no observed outcomes."
+    )
+  }
+
+  # Hard stop if any consecutive copula pair has 0 complete pairs while pairs exist.
+  if (nrow(pair_summary) > 0) {
+    pair_all_missing <- pair_summary$total_pairs > 0 & pair_summary$complete_pairs == 0
+    if (any(pair_all_missing)) {
+      bad_pairs <- apply(pair_summary[pair_all_missing, c("time1", "time2"), drop = FALSE], 1, function(x) {
+        paste0("(", x[1], ",", x[2], ")")
+      })
+      stop(
+        "ERROR: 100% missing complete copula pairs detected for consecutive time pair(s): ",
+        paste(bad_pairs, collapse = ", "),
+        "\nModel fitting stopped because at least one copula pair contributes no complete observations."
+      )
+    }
   }
 
   #Setup model matrix from given formulas
@@ -282,6 +371,21 @@ gamlss.longitudinal=function(dataset,
         eta_out=calc_eta(par_cov,mm,margin_dist,copula_link,par_s=if(first_inner_run) {NA} else {par_s})
         eta=eta_out$eta; eta_dr=eta_out$eta_dr; eta_inv=eta_out$eta_inv
 
+        # Guard against silent row dropping in matrix construction when response has NAs.
+        n_resp <- length(dataset$response)
+        margin_params <- intersect(names(mm$x), c("mu", "sigma", "nu", "tau"))
+        bad_lengths <- margin_params[sapply(margin_params, function(pn) length(eta_inv[[pn]]) != n_resp)]
+        if (length(bad_lengths) > 0) {
+          detail <- paste(sapply(bad_lengths, function(pn) {
+            paste0(pn, "=", length(eta_inv[[pn]]), " vs response=", n_resp)
+          }), collapse = ", ")
+          stop(
+            "ERROR: Parameter vector lengths do not match response length. ",
+            detail,
+            ".\nThis usually indicates model-matrix rows were dropped (often due to NA handling)."
+          )
+        }
+
         calc_lik_out=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=FALSE
           ,response=dataset$response,response_margin=(dataset$time),response_subject = dataset$subject)
         log_lik=calc_lik_out$log_lik; margin_d=calc_lik_out$margin_d; margin_p=calc_lik_out$margin_p; 
@@ -306,7 +410,14 @@ gamlss.longitudinal=function(dataset,
         Fx_1_2[Fx_1_2>1]=1;Fx_1_2[Fx_1_2<0]=0
 
         ########CALCULATE COPULA DERIVATIVES
-        copula_derivatives=calc_copula_derivatives(eta_inv, Fx_1_2, copula_dist)
+        copula_derivatives=calc_copula_derivatives(
+          eta_inv,
+          Fx_1_2,
+          copula_dist,
+          par1 = calc_lik_out$copula_par1,
+          par2 = calc_lik_out$copula_par2,
+          pair_complete = calc_lik_out$pair_complete
+        )
         dldth=copula_derivatives$dldth; dcdth=copula_derivatives$dcdth; dcdu1=copula_derivatives$dcdu1; dcdu2=copula_derivatives$dcdu2
         if("zeta" %in% names(eta_inv)) {dldz=copula_derivatives$dldz; dcdz=copula_derivatives$dcdz}
 
@@ -315,12 +426,16 @@ gamlss.longitudinal=function(dataset,
 
         ### Calculate copula derivatives w.r.t margin parameters
         if(!par_name %in% c("mu","sigma","nu","tau")) {
-          if(!"zeta" %in% names(eta_inv)) {
-            d1=dldth
+          if(par_name == "theta") {
+            d1=as.matrix(dldth)
+            colnames(d1)="dldtheta"
             #d2=d2ldth2
+          } else if(par_name == "zeta") {
+            d1=as.matrix(dldz)
+            colnames(d1)="dldzeta"
+            #d2=d2ldz2
           } else {
-            d1=cbind(dldth,dldz)
-            #d2=cbind(d2ldth2,d2ldz2)
+            stop("Unexpected copula parameter in optimisation: ", par_name)
           }
         } else {
 
@@ -680,6 +795,13 @@ create_model_matrices<-function(
     quiet_gamlss2=TRUE
 ) {
 
+  dataset_mm <- dataset
+  if ("response" %in% names(dataset_mm) && any(is.na(dataset_mm$response))) {
+    obs_resp <- dataset_mm$response[!is.na(dataset_mm$response)]
+    fill_val <- if (length(obs_resp) > 0) mean(obs_resp) else 0
+    dataset_mm$response[is.na(dataset_mm$response)] <- fill_val
+  }
+
   run_gamlss2 <- function(...) {
     if (isTRUE(quiet_gamlss2)) {
       fit <- NULL
@@ -725,7 +847,7 @@ create_model_matrices<-function(
   m_temp[["mu"]] <- run_gamlss2(
     formula = as.formula(mu.formula),
     family = NO(),
-    data = dataset,
+    data = dataset_mm,
     control = gamlss2_control(maxit = 1)
   )
 
@@ -735,8 +857,8 @@ create_model_matrices<-function(
       formula = formulas[[parameter]],
       family = NO(), # margin.family
       data = if(parameter %in% c("theta","zeta")) {
-        dataset[dataset$time %in% unique(dataset$time)[1:(length(unique(dataset$time))-1)], ]
-      } else dataset,
+        dataset_mm[dataset_mm$time %in% unique(dataset_mm$time)[1:(length(unique(dataset_mm$time))-1)], ]
+      } else dataset_mm,
       control = gamlss2_control(maxit = 1)
     )
   }
@@ -863,8 +985,11 @@ calc_eta=function(par_cov,mm,margin_dist,copula_link,par_s=NA) {
 calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=FALSE,response,response_margin,response_subject,penalize_smooth=FALSE,par_s=NA) {
   #Setup input matrix of response and parameters
   #response=dataset$response; response_subject=dataset$subject; response_margin=dataset$time; dataset=NA
-  margin_names=unique(response_margin)
+  margin_names=sort(unique(response_margin))
   num_margins=length(margin_names)
+  n_obs=length(response)
+
+  obs_response=!is.na(response)
 
   order_margin=cbind(response_margin,response_subject)
   colnames(order_margin)=c("time","subject")
@@ -893,48 +1018,146 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
   for (deriv_name in margin_deriv_names) {
     FUN=margin_dist[[deriv_name]]
     FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%formalArgs(FUN)]
-    margin_deriv[[deriv_name]]=do.call(FUN,args=margin_deriv_input[FUN_args])
+    deriv_val=do.call(FUN,args=margin_deriv_input[FUN_args])
+    if(length(deriv_val)==n_obs) {
+      deriv_val[!obs_response]=0
+      deriv_val[!is.finite(deriv_val)]=0
+    }
+    margin_deriv[[deriv_name]]=deriv_val
   }
 
   margin_pFUN=eval(parse( text=paste("p",margin_dist$family[1],sep="") ))
   FUN=margin_pFUN
   FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%formalArgs(FUN)]
   margin_p=do.call(FUN,args=margin_deriv_input[FUN_args])
+  margin_p[!obs_response]=NA
+  margin_p[!is.finite(margin_p)]=NA
 
   margin_dFUN=eval(parse( text=paste("d",margin_dist$family[1],sep="") ))
   FUN=margin_dFUN
   FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%formalArgs(FUN)]
   margin_d=do.call(FUN,args=margin_deriv_input[FUN_args])
+  margin_d[!obs_response]=NA
+  margin_d[!is.finite(margin_d) | margin_d<=0]=NA
 
   ################COPULA DERIVATIVES
   #First calculate margin F(x1), F(x2) as inputs to copula
 
-  Fx_1_2=matrix(ncol=2,nrow=0)
-  order_copula=matrix(ncol=4,nrow=0)
-  for (i in 1:(num_margins-1)) {
-    Fx_1_2=rbind(Fx_1_2,cbind(margin_p[response_margin == margin_names[i]],margin_p[response_margin == margin_names[i+1]]))
-    order_copula=rbind(order_copula,cbind(order_margin[response_margin == margin_names[i],c("time","subject")],order_margin[response_margin == margin_names[i+1],c("time","subject")]))
+  pair_df_all=list()
+  base_df=data.frame(
+    row_id=seq_len(n_obs),
+    time=response_margin,
+    subject=response_subject,
+    u=margin_p,
+    observed=obs_response,
+    stringsAsFactors = FALSE
+  )
+
+  if(num_margins>1) {
+    for (i in seq_len(num_margins-1)) {
+      t1=margin_names[i]
+      t2=margin_names[i+1]
+
+      left=base_df[base_df$time==t1,c("row_id","subject","time","u","observed")]
+      right=base_df[base_df$time==t2,c("row_id","subject","time","u","observed")]
+      names(left)=c("row_id1","subject","time1","u1","observed1")
+      names(right)=c("row_id2","subject","time2","u2","observed2")
+
+      pair_i=merge(left,right,by="subject",all=FALSE)
+      if(nrow(pair_i)>0) {
+        pair_df_all[[length(pair_df_all)+1]]=pair_i
+      }
+    }
   }
+
+  if(length(pair_df_all)==0) {
+    pair_df=data.frame(
+      subject=response_subject[0],
+      row_id1=integer(0),
+      time1=response_margin[0],
+      u1=numeric(0),
+      observed1=logical(0),
+      row_id2=integer(0),
+      time2=response_margin[0],
+      u2=numeric(0),
+      observed2=logical(0)
+    )
+  } else {
+    pair_df=do.call(rbind,pair_df_all)
+  }
+
+  order_copula=as.matrix(pair_df[,c("time1","subject","time2","subject")])
   colnames(order_copula)=c("time1","subject1","time2","subject2")
 
-  Fx_1_2[Fx_1_2>1]=1;Fx_1_2[Fx_1_2<0]=0
+  Fx_1_2=as.matrix(pair_df[,c("u1","u2")])
+  if(nrow(Fx_1_2)==0) {
+    Fx_1_2=matrix(numeric(0),ncol=2)
+  }
+  colnames(Fx_1_2)=c("u1","u2")
 
-  par1=eta_inv[["theta"]]
-  if(!"zeta" %in% names(eta_inv)) {par2=eta_inv[["theta"]]*0} else {par2=eta_inv[["zeta"]]}
-
-  if(copula_dist=="C") {
-    par1[par1>=28]=27.9
+  pair_complete=rep(FALSE,nrow(pair_df))
+  if(nrow(pair_df)>0) {
+    pair_complete=pair_df$observed1 & pair_df$observed2 & is.finite(pair_df$u1) & is.finite(pair_df$u2)
   }
 
-  copula_d=BiCopPDF(  Fx_1_2[,1],Fx_1_2[,2],family = as.numeric(BiCopName(copula_dist)),par=par1,par2=par2)
+  par1=rep(NA_real_,nrow(pair_df))
+  par2=rep(NA_real_,nrow(pair_df))
+  if(nrow(pair_df)>0) {
+    theta_rows = which(response_margin %in% margin_names[seq_len(max(1, num_margins-1))])
+    theta_index_map=rep(NA_integer_,n_obs)
+    theta_index_map[theta_rows]=seq_along(theta_rows)
+    theta_idx=theta_index_map[pair_df$row_id1]
+
+    par1=eta_inv[["theta"]][theta_idx]
+    if("zeta" %in% names(eta_inv)) {
+      par2=eta_inv[["zeta"]][theta_idx]
+    } else {
+      par2=rep(0,length(par1))
+    }
+  }
+
+  pair_complete=pair_complete & is.finite(par1) & is.finite(par2)
+
+  Fx_eval=Fx_1_2
+  if(nrow(Fx_eval)>0) {
+    Fx_eval[!is.finite(Fx_eval)]=0.5
+    Fx_eval[Fx_eval>1]=1
+    Fx_eval[Fx_eval<0]=0
+  }
+
+  par1_eval=par1
+  par2_eval=par2
+  par1_eval[!is.finite(par1_eval)]=0
+  par2_eval[!is.finite(par2_eval)]=0
+
+  if(copula_dist=="C") {
+    par1_eval[par1_eval>=28]=27.9
+  }
+
+  if(length(par1_eval)==0) {
+    copula_d=numeric(0)
+  } else {
+    copula_d=BiCopPDF(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval)
+  }
+  if(length(copula_d)>0) {
+    copula_d[!is.finite(copula_d) | copula_d<=0]=1
+    copula_d[!pair_complete]=1
+  }
 
   ########COMBINE MARGINS AND COPULA DERVIATIVES
 
-  log_lik=c(sum(log(margin_d)),sum(log(copula_d)),sum(log(margin_d))+sum(log(copula_d)))
+  margin_loglik_terms=log(margin_d[!is.na(margin_d)])
+  margin_loglik_terms=margin_loglik_terms[is.finite(margin_loglik_terms)]
+  copula_loglik_terms=log(copula_d[pair_complete])
+  copula_loglik_terms=copula_loglik_terms[is.finite(copula_loglik_terms)]
+
+  log_lik=c(sum(margin_loglik_terms),sum(copula_loglik_terms),sum(margin_loglik_terms)+sum(copula_loglik_terms))
   names(log_lik)=c("marginal","copula","joint")
 
-  return_list=list(log_lik,margin_d,copula_d,margin_p,Fx_1_2,order_copula,margin_deriv,order_copula)
-  names(return_list)=c("log_lik","margin_d","copula_d","margin_p","Fx_1_2","order_copula","margin_deriv","order_copula")
+  copula_p=rep(NA_real_,length(copula_d))
+
+  return_list=list(log_lik,margin_d,copula_d,margin_p,copula_p,Fx_1_2,order_copula,margin_deriv,pair_complete,par1,par2)
+  names(return_list)=c("log_lik","margin_d","copula_d","margin_p","copula_p","Fx_1_2","order_copula","margin_deriv","pair_complete","copula_par1","copula_par2")
   return(return_list)
 }
 
@@ -1114,60 +1337,109 @@ calc_deriv_copula_wrt_margin = function(input,margin_par,par_name,calc_d2=FALSE)
 
 }
 
-calc_copula_derivatives = function(eta_inv, Fx_1_2, copula_dist, calc_d2=FALSE, calc_d2_marginal=FALSE) {
+calc_copula_derivatives = function(eta_inv, Fx_1_2, copula_dist, calc_d2=FALSE, calc_d2_marginal=FALSE, par1=NULL, par2=NULL, pair_complete=NULL) {
 
-  par1=eta_inv[["theta"]]
-
-  if("zeta" %in% names(eta_inv)) {
-    par2=eta_inv[["zeta"]]
-  } else {
-    par2=eta_inv[["theta"]]*0
+  if(is.null(par1)) {
+    par1=eta_inv[["theta"]]
   }
+
+  if(is.null(par2)) {
+    if("zeta" %in% names(eta_inv)) {
+      par2=eta_inv[["zeta"]]
+    } else {
+      par2=eta_inv[["theta"]]*0
+    }
+  }
+
+  if(is.null(pair_complete)) {
+    pair_complete=rep(TRUE,length(par1))
+  }
+
+  if(length(par1)==0) {
+    if("zeta" %in% names(eta_inv)) {
+      if(calc_d2==TRUE) {
+        return(list(dldth=numeric(0),dcdth=numeric(0),dldz=numeric(0),dcdz=numeric(0),dcdu1=numeric(0),dcdu2=numeric(0),d2ldth2=numeric(0),d2ldz2=numeric(0),d2ldthdz=numeric(0),d2cdu12=numeric(0),d2cdu22=numeric(0)))
+      }
+      return(list(dldth=numeric(0),dcdth=numeric(0),dldz=numeric(0),dcdz=numeric(0),dcdu1=numeric(0),dcdu2=numeric(0)))
+    }
+    if(calc_d2==TRUE) {
+      return(list(dldth=numeric(0),dcdth=numeric(0),dcdu1=numeric(0),dcdu2=numeric(0),d2ldth2=numeric(0),d2cdu12=numeric(0),d2cdu22=numeric(0)))
+    }
+    return(list(dldth=numeric(0),dcdth=numeric(0),dcdu1=numeric(0),dcdu2=numeric(0)))
+  }
+
+  Fx_eval=as.matrix(Fx_1_2)
+  Fx_eval[!is.finite(Fx_eval)]=0.5
+  Fx_eval[Fx_eval>1]=1
+  Fx_eval[Fx_eval<0]=0
+
+  par1_eval=par1
+  par2_eval=par2
+  par1_eval[!is.finite(par1_eval)]=0
+  par2_eval[!is.finite(par2_eval)]=0
 
   if(copula_dist=="C") {
-    par1[par1>=28]=27.9
+    par1_eval[par1_eval>=28]=27.9
   }
 
-  copula_d=BiCopPDF(   Fx_1_2[,1],Fx_1_2[,2],family = as.numeric(BiCopName(copula_dist)),par=par1,par2=par2)
+  copula_d=BiCopPDF(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval)
+  copula_d[!is.finite(copula_d) | copula_d<=0]=1
+  copula_d[!pair_complete]=1
 
-  if(!"zeta" %in% names(eta_inv)) {par2=eta_inv[["theta"]]*0} else {par2=eta_inv[["zeta"]]}
-  dldth=BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = as.numeric(BiCopName(copula_dist)),par=par1,par2=par2,deriv="par",log=TRUE)
-  dcdth=BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = as.numeric(BiCopName(copula_dist)),par=par1,par2=par2,deriv="par",log=FALSE)
+  dldth=BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par",log=TRUE)
+  dcdth=BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par",log=FALSE)
 
   if(calc_d2==TRUE) {
-    d2cdth=BiCopDeriv2( Fx_1_2[,1],Fx_1_2[,2],family = as.numeric(BiCopName(copula_dist)),par=par1,par2=par2,deriv="par")
+    d2cdth=BiCopDeriv2(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par")
     d2ldth2=(1/(copula_d^2))*(copula_d*d2cdth-dcdth^2)
   }
 
   if("zeta" %in% names(eta_inv)) {
-    dldz=BiCopDeriv(    Fx_1_2[,1],Fx_1_2[,2],family = as.numeric(BiCopName(copula_dist)),par=par1,par2=par2,deriv="par2",log=TRUE)
-    dcdz=BiCopDeriv(    Fx_1_2[,1],Fx_1_2[,2],family = as.numeric(BiCopName(copula_dist)),par=par1,par2=par2,deriv="par2",log=FALSE)
+    dldz=BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par2",log=TRUE)
+    dcdz=BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par2",log=FALSE)
 
     if(calc_d2==TRUE) {
-      d2cdz=BiCopDeriv2(  Fx_1_2[,1],Fx_1_2[,2],family = as.numeric(BiCopName(copula_dist)),par=par1,par2=par2,deriv="par2")
+      d2cdz=BiCopDeriv2(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par2")
       d2ldz2=(1/(copula_d^2))*(copula_d*d2cdz-dcdz^2)
 
-      d2cdthdz=BiCopDeriv2(  Fx_1_2[,1],Fx_1_2[,2],family = as.numeric(BiCopName(copula_dist)),par=par1,par2=par2,deriv="par1par2")
+      d2cdthdz=BiCopDeriv2(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par1par2")
       d2ldthdz=(d2cdthdz*copula_d-dcdth*dcdz)/(copula_d^2)
     }
 
   }
-  dcdu1=BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = as.numeric(BiCopName(copula_dist)),par=par1,par2=par2,deriv="u1",log=FALSE)
-  dcdu2=BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = as.numeric(BiCopName(copula_dist)),par=par1,par2=par2,deriv="u2",log=FALSE)
+  dcdu1=BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="u1",log=FALSE)
+  dcdu2=BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="u2",log=FALSE)
 
   dldth[!is.finite(dldth)]=0; if(calc_d2==TRUE) {d2ldth2[!is.finite(d2ldth2)]=0  }
+  dldth[!pair_complete]=0
+  dcdth[!pair_complete]=0
+  dcdu1[!pair_complete]=0
+  dcdu2[!pair_complete]=0
 
   if(calc_d2==TRUE) {
-    d2cdu12=BiCopDeriv2( Fx_1_2[,1],Fx_1_2[,2],family = as.numeric(BiCopName(copula_dist)),par=par1,par2=par2,deriv="u1")
-    d2cdu22=BiCopDeriv2( Fx_1_2[,1],Fx_1_2[,2],family = as.numeric(BiCopName(copula_dist)),par=par1,par2=par2,deriv="u2")
+    d2cdu12=BiCopDeriv2(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="u1")
+    d2cdu22=BiCopDeriv2(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="u2")
+    d2cdu12[!is.finite(d2cdu12)]=0
+    d2cdu22[!is.finite(d2cdu22)]=0
+    d2cdu12[!pair_complete]=0
+    d2cdu22[!pair_complete]=0
   }
 
   if("zeta" %in% names(eta_inv)) {
     dldz[!is.finite(dldz)]=0
+    dcdz[!is.finite(dcdz)]=0
+    dldz[!pair_complete]=0
+    dcdz[!pair_complete]=0
     if(calc_d2==TRUE) {
       d2ldz2[!is.finite(d2ldz2)]=0
       d2ldthdz[!is.finite(d2ldthdz)]=0
+      d2ldz2[!pair_complete]=0
+      d2ldthdz[!pair_complete]=0
     }
+  }
+
+  if(calc_d2==TRUE) {
+    d2ldth2[!pair_complete]=0
   }
 
   ############# RETURN LIST
