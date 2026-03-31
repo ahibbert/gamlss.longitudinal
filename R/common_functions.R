@@ -308,7 +308,7 @@ gamlss.longitudinal=function(dataset,
         ########CALCULATE COPULA DERIVATIVES
         copula_derivatives=calc_copula_derivatives(eta_inv, Fx_1_2, copula_dist)
         dldth=copula_derivatives$dldth; dcdth=copula_derivatives$dcdth; dcdu1=copula_derivatives$dcdu1; dcdu2=copula_derivatives$dcdu2
-        if(!"zeta" %in% names(eta_inv)) {dldz=copula_derivatives$dldz; dcdz=copula_derivatives$dcdz}
+        if("zeta" %in% names(eta_inv)) {dldz=copula_derivatives$dldz; dcdz=copula_derivatives$dcdz}
 
         timer=c(timer,difftime(Sys.time(),timer_start,units="secs"))
         names(timer)[length(timer)]=paste("Copula Derivatives")
@@ -343,7 +343,7 @@ gamlss.longitudinal=function(dataset,
           if(include_dlcopdpar==TRUE) {
 
             #Calculate numerical derivatives for F(x) - also used as a reference for overall likelihood derivative
-            nd_impact_F=calc_Fx_derivatives(eta_inv,mm,margin_dist,response=dataset$response)
+            nd_impact_F=calc_Fx_derivatives(eta_inv,mm$x,margin_dist,response=dataset$response)
 
             ### COPULA LIKELIHOOD DERIVATIVES
             order_margin=dataset[,c("time","subject")]
@@ -1194,6 +1194,11 @@ calc_copula_derivatives = function(eta_inv, Fx_1_2, copula_dist, calc_d2=FALSE, 
 }
 
 calc_Fx_derivatives = function(eta_inv, mm, margin_dist,response) {
+  # Allow callers to pass full model matrix object; we only need fixed-effect blocks.
+  if (is.list(mm) && all(c("x", "s") %in% names(mm))) {
+    mm = mm$x
+  }
+
   nd_impact=nd_impact_m=nd_impact_c=rep(0,length(names(eta_inv)))
   nd_impact_F=list() ###### WE DON"T NEED TO BE CALCULATING THIS FOR ALL PARAMETERS EVERY TIME
 
