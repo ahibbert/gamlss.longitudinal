@@ -1832,12 +1832,23 @@ summary.gamlss.longitudinal = function(
     stringsAsFactors = FALSE
   )
 
+  coef_tbl$.original_order = seq_len(nrow(coef_tbl))
+  coef_tbl$parameter = sub("\\..*$", "", coef_tbl$term)
+
+  param_order = c("mu", "sigma", "nu", "tau", "theta", "zeta")
+  coef_tbl$.param_rank = match(coef_tbl$parameter, param_order)
+  coef_tbl$.param_rank[is.na(coef_tbl$.param_rank)] = length(param_order) + 1L
+
   vcov_out = NULL
   if(isTRUE(include_vcov)) {
-    vcov_out = do.call(
-      vcov.gamlss.longitudinal,
-      c(list(object = object, numderiv = numderiv), list(...))
-    )
+    cat("Calculating variance-covariance matrix...\n")
+    vcov_out = NULL
+    invisible(utils::capture.output({
+      vcov_out = do.call(
+        vcov.gamlss.longitudinal,
+        c(list(object = object, numderiv = numderiv), list(...))
+      )
+    }, type = "output"))
 
     if(!is.null(vcov_out$vcov) && !is.null(vcov_out$vcov$overall)) {
       V = vcov_out$vcov$overall
@@ -1878,6 +1889,9 @@ summary.gamlss.longitudinal = function(
     }
   }
 
+  coef_tbl = coef_tbl[order(coef_tbl$.param_rank, coef_tbl$.original_order), , drop = FALSE]
+  rownames(coef_tbl) = NULL
+
   out = list(
     model = list(
       margin_dist = if(!is.null(object$margin_dist$family[1])) as.character(object$margin_dist$family[1]) else NA_character_,
@@ -1917,7 +1931,10 @@ summary.gamlss.longitudinal = function(
         do.call(rbind, st)
       }
     },
-    coefficients = coef_tbl,
+    coefficients = within(coef_tbl, {
+      .original_order = NULL
+      .param_rank = NULL
+    }),
     vcov = vcov_out
   )
   class(out) = "summary.gamlss.longitudinal"
@@ -1943,9 +1960,63 @@ print.summary.gamlss.longitudinal = function(x, digits = max(3, getOption("digit
   coef_tbl$estimate = round(coef_tbl$estimate, digits)
   coef_tbl$std_error = round(coef_tbl$std_error, digits)
   coef_tbl$p_value = round(coef_tbl$p_value, digits + 1)
-  print(coef_tbl, row.names = FALSE)
 
-  cat("Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1\n")
+  fmt_num = function(v, d) ifelse(is.na(v), "NA", formatC(v, format = "f", digits = d))
+  coef_disp = data.frame(
+    term = as.character(coef_tbl$term),
+    estimate = fmt_num(coef_tbl$estimate, digits),
+    std_error = fmt_num(coef_tbl$std_error, digits),
+    p_value = fmt_num(coef_tbl$p_value, digits + 1),
+    signif = ifelse(is.na(coef_tbl$signif), "", as.character(coef_tbl$signif)),
+    parameter = as.character(coef_tbl$parameter),
+    stringsAsFactors = FALSE
+  )
+
+  w_term = max(nchar("term"), nchar(coef_disp$term, type = "width"), na.rm = TRUE)
+  w_est = max(nchar("estimate"), nchar(coef_disp$estimate, type = "width"), na.rm = TRUE)
+  w_se = max(nchar("std_error"), nchar(coef_disp$std_error, type = "width"), na.rm = TRUE)
+  w_p = max(nchar("p_value"), nchar(coef_disp$p_value, type = "width"), na.rm = TRUE)
+  w_sig = max(nchar("signif"), nchar(coef_disp$signif, type = "width"), na.rm = TRUE)
+
+  format_row = function(term, estimate, std_error, p_value, signif) {
+    sprintf(
+      "%-*s  %*s  %*s  %*s  %-*s",
+      w_term, term,
+      w_est, estimate,
+      w_se, std_error,
+      w_p, p_value,
+      w_sig, signif
+    )
+  }
+
+  print_coef_block = function(block, prefix = "    ") {
+    hdr = format_row("term", "estimate", "std_error", "p_value", "signif")
+    cat(prefix, hdr, "\n", sep = "")
+    for(ii in seq_len(nrow(block))) {
+      row_txt = format_row(
+        block$term[ii],
+        block$estimate[ii],
+        block$std_error[ii],
+        block$p_value[ii],
+        block$signif[ii]
+      )
+      cat(prefix, row_txt, "\n", sep = "")
+    }
+  }
+
+  param_order = c("mu", "sigma", "nu", "tau", "theta", "zeta")
+  params_present = unique(coef_tbl$parameter)
+  params_print = c(param_order[param_order %in% params_present], setdiff(params_present, param_order))
+
+  for(k in seq_along(params_print)) {
+    p = params_print[k]
+    block = coef_disp[coef_disp$parameter == p, c("term", "estimate", "std_error", "p_value", "signif"), drop = FALSE]
+    cat(sprintf("  [%s]\n", p))
+    print_coef_block(block, prefix = "    ")
+    if(k < length(params_print)) cat("  --------------------\n")
+  }
+
+  cat("  Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1\n")
 
   
   cat("\nSmooth terms:\n")
