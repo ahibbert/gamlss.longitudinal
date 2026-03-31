@@ -4,7 +4,7 @@ library("ggplot2"); library("latex2exp"); library("ggpubr"); library("Matrix"); 
 library(gamlss2); library(gamlss)
 set.seed(100)
 #########DATASET
-n=1000; d=4
+n=200; d=4
 
 #copula_dist="N"; margin_dist=NO(); mu=0; sigma=1;nu=NA; tau=NA; theta=-1; zeta=NA; simOption=7;
 #copula_dist="C";margin_dist=GA(); mu=1; sigma=0.2;nu=NA; tau=NA; theta=.5; zeta=NA; simOption=7;
@@ -21,6 +21,9 @@ covariates_input=list( mu.time=.1   ,sigma.time=.1   ,nu.time=.1    ,tau.time=.1
 
 dataset=loadDataset(simOption=simOption, n=n,d=d, copula_dist=copula_dist, margin_dist=margin_dist
                     , par.margin=c(mu,sigma,nu,tau), par.copula=c(theta=theta),covariates_input=covariates_input)
+
+
+
 plotDist(dataset,margin_dist)
 
 #########PLOTTING#############
@@ -136,14 +139,25 @@ ggarrange(p1, p2, p3, p4, p5, ncol=2, nrow=3, common.legend=FALSE)
 
 ##########FIT
 source("R/common_functions.R")
-mu_formula="response ~ time + s(age,bs=\"ps\",k=10)"
-sigma_formula="time + s(age,bs=\"ps\")"
-nu_formula="time + s(age,bs=\"ps\")"
-tau_formula="time + s(age,bs=\"ps\")"
-theta_formula="time + s(age,bs=\"ps\")"
-zeta_formula="time"
+mu_formula="chol ~ time_of_observation + s(age,bs='ps',k=10)"
+sigma_formula="~ time_of_observation + s(age,bs='ps')"
+nu_formula="~ time_of_observation + s(age,bs='ps')"
+tau_formula="~ time_of_observation + s(age,bs='ps')"
+theta_formula="~ time_of_observation + s(age,bs='ps')"
+zeta_formula="~ time_of_observation"
 
-no_dl=gamlss.longitudinal(dataset, margin_dist,copula_dist
+### FOR TESTING DATASETS WITH NON STANDARD NAMING
+if(!exists("data_in") || !is.data.frame(data_in)) {
+  colnames(dataset)=c("person","time_of_observation","chol","age","year","gender")
+  data_in=dataset
+  dataset=NA
+}
+
+fit=gamlss.longitudinal(dataset=data_in
+                   , margin_dist=margin_dist
+                   , copula_dist=copula_dist
+                   , time_var="time_of_observation"
+                   , subject_var="person"
                    , mu.formula = mu_formula
                    , sigma.formula = sigma_formula
                    , nu.formula = nu_formula
@@ -154,15 +168,40 @@ no_dl=gamlss.longitudinal(dataset, margin_dist,copula_dist
                    , verbose=3, plot_results=FALSE,  true_val=par_to_eta(input_par,copula_dist,margin_dist)
                    , use_Rcpp=FALSE, start_step_size=0.5, step_adjustment = 0.5, inner_stop_crit=.1, outer_stop_crit=.1
                    , lambda_start = 5
-                   , lambda_penalty_K = 2 #Optimising for AIC
+                   , lambda_penalty_K = 1 #Optimising for AIC
 )
 par(mfrow=c(3,2))
-plot(dataset$age,no_dl$model_matrix$s$mu$'s(age)'%*%no_dl$par_s$mu$'s(age)',main="mu age smooth",ylab="coefficient",xlab="age")
-plot(dataset$age,no_dl$model_matrix$s$sigma$'s(age)'%*%no_dl$par_s$sigma$'s(age)', main="sigma age smooth",ylab="coefficient",xlab="age")
-plot(dataset$age[1:(n*(d-1))],no_dl$model_matrix$s$theta$'s(age)'%*%no_dl$par_s$theta$'s(age)', main="theta age smooth",ylab="coefficient",xlab="age")
-plot(dataset$age,no_dl$model_matrix$s$nu$'s(age)'%*%no_dl$par_s$nu$'s(age)', main="nu age smooth",ylab="coefficient",xlab="age")
-plot(dataset$age,no_dl$model_matrix$s$tau$'s(age)'%*%no_dl$par_s$tau$'s(age)', main="tau age smooth",ylab="coefficient",xlab="age")
+plot(dataset$age,fit$model_matrix$s$mu$'s(age)'%*%fit$par_s$mu$'s(age)',main="mu age smooth",ylab="coefficient",xlab="age")
+points(dataset$age,fit$model_matrix$s$mu$'s(age)'%*%(fit$par_s$mu$'s(age)'-1.96*smooth_se_list$mu$'s(age)'),main="mu age smooth",ylab="coefficient",xlab="age",col="red")
+points(dataset$age,fit$model_matrix$s$mu$'s(age)'%*%(fit$par_s$mu$'s(age)'+1.96*smooth_se_list$mu$'s(age)'),main="mu age smooth",ylab="coefficient",xlab="age",col="red")
 
+plot(dataset$age,fit$model_matrix$s$sigma$'s(age)'%*%fit$par_s$sigma$'s(age)', main="sigma age smooth",ylab="coefficient",xlab="age")
+points(dataset$age,fit$model_matrix$s$sigma$'s(age)'%*%(fit$par_s$sigma$'s(age)'-1.96*smooth_se_list$sigma$'s(age)'),main="mu age smooth",ylab="coefficient",xlab="age",col="red")
+points(dataset$age,fit$model_matrix$s$sigma$'s(age)'%*%(fit$par_s$sigma$'s(age)'+1.96*smooth_se_list$sigma$'s(age)'),main="mu age smooth",ylab="coefficient",xlab="age",col="red")
+
+plot(dataset$age[1:(n*(d-1))],fit$model_matrix$s$theta$'s(age)'%*%fit$par_s$theta$'s(age)', main="theta age smooth",ylab="coefficient",xlab="age")
+plot(dataset$age,fit$model_matrix$s$nu$'s(age)'%*%fit$par_s$nu$'s(age)', main="nu age smooth",ylab="coefficient",xlab="age")
+plot(dataset$age,fit$model_matrix$s$tau$'s(age)'%*%fit$par_s$tau$'s(age)', main="tau age smooth",ylab="coefficient",xlab="age")
+
+
+vcov_out=vcov(fit, numderiv=TRUE)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+########################################### DELETE?
 
 # gamlss no random effect
 gamlss(response ~ time + ps(age), sigma.formula = ~ time + ps(age), nu.formula = ~ time + ps(age), data=dataset, family=margin_dist)
