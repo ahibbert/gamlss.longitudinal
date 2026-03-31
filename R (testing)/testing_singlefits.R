@@ -15,10 +15,8 @@ copula_dist="N"; margin_dist=BCPEo(); mu=1; sigma=.1;nu=1; tau=1; theta=0; zeta=
 
 # USE THIS WITH SIMOPTION 10
 covariates_input=list( mu.time=1   ,sigma.time=1   ,nu.time=1    ,tau.time=1   ,theta.time=.1  ,zeta.time=0
-                        ,mu.age=3    ,sigma.age=3     ,nu.age=0     ,tau.age=0    ,theta.age=.5    ,zeta.age=0
+                        ,mu.age=5    ,sigma.age=5     ,nu.age=0     ,tau.age=0    ,theta.age=.5    ,zeta.age=0
                         ,mu.gender=1 ,sigma.gender=1  ,nu.gender=0  ,tau.gender=0 ,theta.gender=.25 ,zeta.gender=0)
-
-#simOption=6; margin_dist=JSU(); copula_dist="N"
 
 #########Generate dataset
 
@@ -165,7 +163,7 @@ fit=gamlss.longitudinal(dataset=data_in
                    , theta.formula=theta_formula
                    , zeta.formula=zeta_formula
                    , include_dlcopdpar=FALSE
-                   , verbose=3, plot_results=FALSE,  true_val=par_to_eta(input_par,copula_dist,margin_dist)
+                   , verbose=1, plot_results=FALSE,  true_val=par_to_eta(input_par,copula_dist,margin_dist)
                    , use_Rcpp=FALSE, start_step_size=0.5, step_adjustment = 0.5, inner_stop_crit=.1, outer_stop_crit=.1
                    , lambda_start = 5
                    , lambda_penalty_K = 2 #Optimising for AIC
