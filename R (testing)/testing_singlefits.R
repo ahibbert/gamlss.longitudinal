@@ -24,6 +24,18 @@ rm(dataset)
 dataset=loadDataset(simOption=simOption, n=n,d=d, copula_dist=copula_dist, margin_dist=margin_dist
                     , par.margin=c(mu,sigma,nu,tau), par.copula=c(theta=theta),covariates_input=covariates_input)
 
+# Inject time-dependent missingness into response.
+# First time point: 1/(T+1), later time points: i/T where i is ordered time index.
+time_points_missing = sort(unique(dataset$time))
+T_missing = length(time_points_missing)
+for (i in seq_along(time_points_missing)) {
+  t_val = time_points_missing[i]
+  p_miss = if (i == 1) 1 / (T_missing + 1) else i / T_missing
+  idx_t = which(dataset$time == t_val)
+  miss_flags = runif(length(idx_t)) < p_miss
+  dataset$response[idx_t[miss_flags]] = NA
+}
+
 plotDist(dataset,margin_dist)
 
 #########PLOTTING#############
@@ -45,7 +57,7 @@ for(i in 1:(length(time_points)-1)) {
   t2 = time_points[i+1]
   temp_corrs = dataset %>% 
     group_by(age_group) %>% 
-    summarise(cor = cor(response[time==t1], response[time==t2]), .groups='drop') %>%
+    summarise(cor = cor(response[time==t1], response[time==t2], use = "pairwise.complete.obs"), .groups='drop') %>%
     mutate(time_pair = paste0("T", t1, " vs T", t2)) %>%
     filter(!is.na(cor))
   age_corrs_list[[i]] = temp_corrs
@@ -66,7 +78,7 @@ p1 = ggplot(age_corrs, aes(x=age_group, y=cor, color=time_pair, group=time_pair)
 # Calculate mean response by age group and time
 age_response = dataset %>%
   group_by(age_group, time) %>%
-  summarise(mean_response = mean(response), .groups='drop') %>%
+  summarise(mean_response = mean(response, na.rm = TRUE), .groups='drop') %>%
   mutate(time = as.factor(time)) %>%
   filter(!is.na(age_group))
 
@@ -83,7 +95,7 @@ p2 = ggplot(age_response, aes(x=age_group, y=mean_response, color=time, group=ti
 # Calculate standard deviation by age group and time
 age_sd = dataset %>%
   group_by(age_group, time) %>%
-  summarise(sd_response = sd(response), .groups='drop') %>%
+  summarise(sd_response = sd(response, na.rm = TRUE), .groups='drop') %>%
   mutate(time = as.factor(time)) %>%
   filter(!is.na(age_group))
 
@@ -101,7 +113,7 @@ p3 = ggplot(age_sd, aes(x=age_group, y=sd_response, color=time, group=time)) +
 library(moments)
 age_kurtosis = dataset %>%
   group_by(age_group, time) %>%
-  summarise(kurtosis_response = kurtosis(response), .groups='drop') %>%
+  summarise(kurtosis_response = kurtosis(response, na.rm = TRUE), .groups='drop') %>%
   mutate(time = as.factor(time)) %>%
   filter(!is.na(age_group))
 
@@ -118,7 +130,7 @@ p4 = ggplot(age_kurtosis, aes(x=age_group, y=kurtosis_response, color=time, grou
 # Calculate skewness by age group and time
 age_skewness = dataset %>%
   group_by(age_group, time) %>%
-  summarise(skewness_response = skewness(response), .groups='drop') %>%
+  summarise(skewness_response = skewness(response, na.rm = TRUE), .groups='drop') %>%
   mutate(time = as.factor(time)) %>%
   filter(!is.na(age_group))
 
@@ -149,6 +161,7 @@ zeta_formula="~ time_of_observation_random_name"
 if("age_group" %in% names(dataset)) dataset$age_group = NULL
 colnames(dataset)=c("person","time_of_observation_random_name","random_name","age_new_name","year","gender")
 data_in=dataset; data_in$gender=as.factor(data_in$gender)
+
 rm(dataset)
 
 fit=gamlss.longitudinal(dataset=data_in
@@ -162,7 +175,7 @@ fit=gamlss.longitudinal(dataset=data_in
                    , tau.formula = tau_formula
                    , theta.formula=theta_formula
                    , zeta.formula=zeta_formula
-                   , include_dlcopdpar=FALSE
+                   , include_dlcopdpar=TRUE
                    , verbose=1, plot_results=FALSE,  true_val=par_to_eta(input_par,copula_dist,margin_dist)
                    , use_Rcpp=FALSE, start_step_size=0.5, step_adjustment = 0.5, inner_stop_crit=.1, outer_stop_crit=.1
                    , lambda_start = 5
