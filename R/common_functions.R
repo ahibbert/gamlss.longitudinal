@@ -67,9 +67,10 @@ gamlss.longitudinal=function(dataset,
                         lambda_penalty_K=2
                       )
 {
+  fit_start_time <- Sys.time()
+
   ##################### DATA CHECKS AND VALIDATION #####################
-  
-  cat("Starting data validation...\n")
+
   # Save original dataset
   dataset_original <- dataset
 
@@ -169,14 +170,6 @@ gamlss.longitudinal=function(dataset,
   tau.formula.int   <- translate_formula_vars(tau.formula,   var_map, response_name = "response", require_lhs = FALSE)
   theta.formula.int <- translate_formula_vars(theta.formula, var_map, response_name = "response", require_lhs = FALSE)
   zeta.formula.int  <- translate_formula_vars(zeta.formula,  var_map, response_name = "response", require_lhs = FALSE)
-
-  print("Formulas after variable translation:")
-  print(mu.formula.int)
-  print(sigma.formula.int)
-  print(nu.formula.int)
-  print(tau.formula.int)
-  print(theta.formula.int)
-  print(zeta.formula.int)
 
   if(verbose > 1) {
     cat("Input validation successful.\n")
@@ -612,7 +605,8 @@ gamlss.longitudinal=function(dataset,
   cat(paste("\nObservations:",nrow(dataset)))
   cat(paste("\nMargins:",length(unique(dataset$time))))
   cat("\n")
-  cat(paste("\nTotal time:",round(max(timer),2)))
+  total_fit_time <- as.numeric(difftime(Sys.time(), fit_start_time, units = "secs"))
+  cat(paste("\nTotal time (seconds):",round(total_fit_time,2)))
   cat("\n\n")
   par_mat_out_temp=t(t((par_cov)))
   colnames(par_mat_out_temp) = c("estimate")
@@ -727,8 +721,6 @@ create_model_matrices<-function(
     formulas[[parameter]]=get(paste(parameter,"formula",sep="."))
   }
 
-  print(formulas)
-
   m_temp=list()
   m_temp[["mu"]] <- run_gamlss2(
     formula = as.formula(mu.formula),
@@ -749,7 +741,7 @@ create_model_matrices<-function(
     )
   }
 
-  print(m_temp)
+  # print(m_temp)
 
   mm_x=list()
   mm_s=list()
@@ -2721,8 +2713,6 @@ get_starting_values = function(copula_dist,margin_dist,dataset,eta_transform=FAL
   margin_names=unique(dataset$time)
   num_margins=length(margin_names)
 
-  print(head(dataset)); print(margin_names); print(num_margins)
-
   tau_start=cor(dataset[dataset$time%in%(margin_names[1:(num_margins-1)]),"response"]
                 ,dataset[dataset$time%in%(margin_names[2:(num_margins)]),"response"],method="kendall",use="complete.obs")
   if(!is.finite(tau_start)) {
@@ -2756,8 +2746,11 @@ get_starting_values = function(copula_dist,margin_dist,dataset,eta_transform=FAL
       sd(dataset$response)/mean(dataset$response)
     )
   } else {
-    print("ERROR: MARGIN DISTRIBUTION STARTING VALUES NOT DEFINED, STARTING FROM GAMLSS START")
-    start_fit=gamlss(dataset$response~1, family=margin_dist,method=RS(1))
+    cat("Fitting initial GAMLSS model for margin to obtain starting values...\n")
+    # Deliberately low-iteration startup fit; silence expected convergence warnings.
+    start_fit=suppressWarnings(suppressMessages(
+      gamlss(dataset$response~1, family=margin_dist,method=RS(1))
+    ))
     margin_par=unlist(coefAll(start_fit))
     names(margin_par)=names(margin_dist$parameters)
     #margin_par=eta_to_par(margin_par_temp,margin_dist,get_copula_dist(copula_dist))

@@ -4,6 +4,13 @@
     "editor.foldingStrategy": "auto",
     "editor.showFoldingControls": "always",
     
+    // Multi-cursor and column selection settings (RStudio-like Alt+click)
+    "editor.multiCursorModifier": "alt",
+    "editor.columnSelection": false,
+    "editor.multiCursorLimit": 10000,
+    "editor.find.addExtraSpaceOnTop": false,
+    "editor.find.autoFindInSelection": "multiline",
+    
     // R-specific settings
     "[r]": {
         "editor.folding": true,
