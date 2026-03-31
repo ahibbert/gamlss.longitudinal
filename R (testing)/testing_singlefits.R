@@ -9,7 +9,7 @@ n=500; d=4
 # Missingness configuration:
 # - "increasing_time": p_miss(i) = i/(T+1) by ordered time index i.
 # - "mar": missing completely at random across all rows at mar_missing_rate.
-missingness_mode = "increasing_time"
+missingness_mode = "mar"
 mar_missing_rate = 0.5
 
 #copula_dist="N"; margin_dist=NO(); mu=0; sigma=1;nu=NA; tau=NA; theta=-1; zeta=NA; simOption=7;
