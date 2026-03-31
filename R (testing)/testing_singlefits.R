@@ -6,6 +6,12 @@ set.seed(100)
 #########DATASET
 n=500; d=4
 
+# Missingness configuration:
+# - "increasing_time": p_miss(i) = i/(T+1) by ordered time index i.
+# - "mar": missing completely at random across all rows at mar_missing_rate.
+missingness_mode = "increasing_time"
+mar_missing_rate = 0.5
+
 #copula_dist="N"; margin_dist=NO(); mu=0; sigma=1;nu=NA; tau=NA; theta=-1; zeta=NA; simOption=7;
 #copula_dist="C";margin_dist=GA(); mu=1; sigma=0.2;nu=NA; tau=NA; theta=.5; zeta=NA; simOption=7;
 #copula_dist="C"; margin_dist=PE(); mu=0.4; sigma=0.6;nu=1; tau=NA; theta=-0.5; zeta=NA; simOption=7;
@@ -24,16 +30,22 @@ rm(dataset)
 dataset=loadDataset(simOption=simOption, n=n,d=d, copula_dist=copula_dist, margin_dist=margin_dist
                     , par.margin=c(mu,sigma,nu,tau), par.copula=c(theta=theta),covariates_input=covariates_input)
 
-# Inject time-dependent missingness into response.
-# First time point: 1/(T+1), later time points: i/T where i is ordered time index.
-time_points_missing = sort(unique(dataset$time))
-T_missing = length(time_points_missing)
-for (i in seq_along(time_points_missing)) {
-  t_val = time_points_missing[i]
-  p_miss = if (i == 1) 1 / (T_missing + 1) else i / T_missing
-  idx_t = which(dataset$time == t_val)
-  miss_flags = runif(length(idx_t)) < p_miss
-  dataset$response[idx_t[miss_flags]] = NA
+# Inject missingness into response using selected mode.
+if (missingness_mode == "increasing_time") {
+  time_points_missing = sort(unique(dataset$time))
+  T_missing = length(time_points_missing)
+  for (i in seq_along(time_points_missing)) {
+    t_val = time_points_missing[i]
+    p_miss = i / (T_missing + 1)
+    idx_t = which(dataset$time == t_val)
+    miss_flags = runif(length(idx_t)) < p_miss
+    dataset$response[idx_t[miss_flags]] = NA
+  }
+} else if (missingness_mode == "mar") {
+  miss_flags = runif(nrow(dataset)) < mar_missing_rate
+  dataset$response[miss_flags] = NA
+} else {
+  stop("Invalid missingness_mode. Use 'increasing_time' or 'mar'.")
 }
 
 plotDist(dataset,margin_dist)
@@ -161,9 +173,9 @@ zeta_formula="~ time_of_observation_random_name"
 if("age_group" %in% names(dataset)) dataset$age_group = NULL
 colnames(dataset)=c("person","time_of_observation_random_name","random_name","age_new_name","year","gender")
 data_in=dataset; data_in$gender=as.factor(data_in$gender)
-
 rm(dataset)
 
+source("R/common_functions.R")
 fit=gamlss.longitudinal(dataset=data_in
                    , margin_dist=margin_dist
                    , copula_dist=copula_dist
@@ -175,7 +187,7 @@ fit=gamlss.longitudinal(dataset=data_in
                    , tau.formula = tau_formula
                    , theta.formula=theta_formula
                    , zeta.formula=zeta_formula
-                   , include_dlcopdpar=TRUE
+                   , include_dlcopdpar=FALSE
                    , verbose=1, plot_results=FALSE,  true_val=par_to_eta(input_par,copula_dist,margin_dist)
                    , use_Rcpp=FALSE, start_step_size=0.5, step_adjustment = 0.5, inner_stop_crit=.1, outer_stop_crit=.1
                    , lambda_start = 5
