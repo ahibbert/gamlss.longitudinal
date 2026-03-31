@@ -38,9 +38,11 @@
 #' @return Returns matrix of log likleihoods, margin parameters and copula parameters
 #' by iteration of the optimisation.
 #' @export
-gamlss.longitudinal=function(  dataset,
+gamlss.longitudinal=function(dataset,
                         margin_dist,
                         copula_dist,
+                        time_var=NA,
+                        subject_var=NA,
                         mu.formula = ("response ~ 1"),
                         sigma.formula = ("1"),
                         nu.formula = ("1"),
@@ -65,28 +67,160 @@ gamlss.longitudinal=function(  dataset,
                         lambda_penalty_K=2
                       )
 {
-  #include_dlcopdpar=FALSE;      inner_stop_crit=.01;                        outer_stop_crit=.0001;                        start_step_size=.5;                        step_adjustment=.5;
-  #                      max_steps=5;                        start_from=NA;                        verbose=TRUE;                        plot_results=TRUE;
-  #                      true_val=NA;                        method="RS";
-  #                      max_outer_iter=20;                        max_inner_iter=20;                        use_Rcpp=FALSE;
-  #                      lambda_start=1;                        lambda_penalty_K=4
-  #mu.formula=mu_formula;  sigma.formula=sigma_formula;  nu.formula=nu_formula;  tau.formula=tau_formula;  theta.formula=theta_formula;  zeta.formula=zeta_formula;
+  ##################### DATA CHECKS AND VALIDATION #####################
+  
+  cat("Starting data validation...\n")
+  # Save original dataset
+  dataset_original <- dataset
+
+  # Force plain data.frame (safe for tibble/data.table too)
+  if (!is.data.frame(dataset)) {
+    dataset <- as.data.frame(dataset, stringsAsFactors = FALSE)
+  } else {
+    dataset <- as.data.frame(dataset, stringsAsFactors = FALSE)
+  }
+
+  # Validate and prepare input data
+  if(all(is.na(time_var)) || all(is.na(subject_var))) {
+    stop("ERROR: Required input variables not specified.\n",
+         "Please specify:\n",
+         "  - time_var: column name for time/margin variable (e.g., 'time')\n",
+         "  - subject_var: column name for subject ID variable (e.g., 'subject')\n",
+         "Example: gamlss.longitudinal(..., time_var='time', subject_var='subject')")
+  }
+
+  # Validate dataset contains required columns
+  if(!time_var %in% colnames(dataset)) {
+    stop("ERROR: time_var='", time_var, "' not found in dataset.\n",
+         "Available columns: ", paste(colnames(dataset), collapse=", "))
+  }
+  if(!subject_var %in% colnames(dataset)) {
+    stop("ERROR: subject_var='", subject_var, "' not found in dataset.\n",
+         "Available columns: ", paste(colnames(dataset), collapse=", "))
+  }
+
+  # Extract response variable name from mu formula
+  mu_formula_obj <- as.formula(mu.formula)
+  response_var <- all.vars(mu_formula_obj)[1]
+  if (verbose > 1) print(paste("Identified response variable:", response_var))
+
+  # Validate response variable exists
+  if(!response_var %in% names(dataset)) {
+    stop("ERROR: response variable '", response_var, "' not found in dataset.\n",
+         "Available columns: ", paste(names(dataset), collapse=", "))
+  }
+
+  # Rename columns for internal use
+  names(dataset)[names(dataset) == time_var] <- "time"
+  names(dataset)[names(dataset) == subject_var] <- "subject"
+  names(dataset)[names(dataset) == response_var] <- "response"
+
+  # Robust formula normalizer:
+  # - accepts formula objects
+  # - accepts strings without "~" (e.g. "time + s(age)")
+  # - for mu, adds response on LHS if missing
+  normalize_formula <- function(fml, response_name = "response", require_lhs = FALSE) {
+    if (inherits(fml, "formula")) {
+      return(fml)
+    }
+    if (!is.character(fml) || length(fml) != 1 || is.na(fml) || nchar(trimws(fml)) == 0) {
+      stop("ERROR: Invalid formula input: ", deparse(fml))
+    }
+
+    txt <- trimws(fml)
+
+    if (!grepl("~", txt, fixed = TRUE)) {
+      txt <- if (require_lhs) paste0(response_name, " ~ ", txt) else paste0("~ ", txt)
+    } else if (require_lhs) {
+      parts <- strsplit(txt, "~", fixed = TRUE)[[1]]
+      lhs <- trimws(parts[1])
+      rhs <- trimws(parts[2])
+      if (nchar(lhs) == 0) txt <- paste0(response_name, " ~ ", rhs)
+    }
+
+    as.formula(txt, env = parent.frame())
+  }
+
+  # Variable-name translation from user names -> internal names
+  translate_formula_vars <- function(fml, var_map, response_name = "response", require_lhs = FALSE) {
+    f_obj <- normalize_formula(fml, response_name = response_name, require_lhs = require_lhs)
+    f_txt <- paste(deparse(f_obj), collapse = " ")
+
+    for (old_name in names(var_map)) {
+      new_name <- var_map[[old_name]]
+      if (!identical(old_name, new_name)) {
+        old_esc <- gsub("([][{}()+*^$|\\\\.?])", "\\\\\\1", old_name)
+        f_txt <- gsub(paste0("`", old_esc, "`"), new_name, f_txt, perl = TRUE)
+        f_txt <- gsub(paste0("\\b", old_esc, "\\b"), new_name, f_txt, perl = TRUE)
+      }
+    }
+
+    as.formula(f_txt, env = environment(f_obj))
+  }
+
+  var_map <- c()
+  var_map[[time_var]] <- "time"
+  var_map[[subject_var]] <- "subject"
+  var_map[[response_var]] <- "response"
+
+  mu.formula.int    <- translate_formula_vars(mu.formula,    var_map, response_name = "response", require_lhs = TRUE)
+  sigma.formula.int <- translate_formula_vars(sigma.formula, var_map, response_name = "response", require_lhs = FALSE)
+  nu.formula.int    <- translate_formula_vars(nu.formula,    var_map, response_name = "response", require_lhs = FALSE)
+  tau.formula.int   <- translate_formula_vars(tau.formula,   var_map, response_name = "response", require_lhs = FALSE)
+  theta.formula.int <- translate_formula_vars(theta.formula, var_map, response_name = "response", require_lhs = FALSE)
+  zeta.formula.int  <- translate_formula_vars(zeta.formula,  var_map, response_name = "response", require_lhs = FALSE)
+
+  print("Formulas after variable translation:")
+  print(mu.formula.int)
+  print(sigma.formula.int)
+  print(nu.formula.int)
+  print(tau.formula.int)
+  print(theta.formula.int)
+  print(zeta.formula.int)
+
+  if(verbose > 1) {
+    cat("Input validation successful.\n")
+    cat("Data dimensions:", nrow(dataset), "x", ncol(dataset), "\n")
+    cat("Response variable:", response_var, "-> renamed to 'response'\n")
+    cat("Time variable:", time_var, "-> renamed to 'time'\n")
+    cat("Subject variable:", subject_var, "-> renamed to 'subject'\n")
+    cat("Time points:", length(unique(dataset$time)), "\n")
+    cat("Subjects:", length(unique(dataset$subject)), "\n")
+  }
+
+  # Validate that all subject/time combinations are unique
+  subject_time_combo <- paste(dataset$subject, dataset$time, sep="_")
+  if(length(subject_time_combo) != length(unique(subject_time_combo))) {
+    duplicate_combos <- subject_time_combo[duplicated(subject_time_combo)]
+    stop("ERROR: Duplicate subject/time combinations found.\n",
+         "Each subject must have exactly one observation per time point.\n",
+         "Duplicate combinations (first 10): ", 
+         paste(unique(duplicate_combos)[1:min(10, length(unique(duplicate_combos)))], collapse=", "))
+  }
+
+  if(verbose > 1) {
+    cat("Subject/time uniqueness check passed.\n")
+    cat("Unique subject/time combinations:", length(unique(subject_time_combo)), "\n\n")
+  }
 
   #Setup model matrix from given formulas
   copula_link=get_copula_dist(copula_dist)$copula_link
   mm=suppressWarnings(create_model_matrices(
-    mu.formula,
-    sigma.formula,
-    nu.formula,
-    tau.formula,
-    theta.formula,
-    zeta.formula,
-    margin.family=margin_dist,copula.family=copula_dist,copula.link=copula_link
+    mu.formula.int,
+    sigma.formula.int,
+    nu.formula.int,
+    tau.formula.int,
+    theta.formula.int,
+    zeta.formula.int,
+    margin.family = margin_dist,
+    copula.family = copula_dist,
+    copula.link = copula_link,
+    dataset = dataset
   ))
 
   #Create vector of starting covariate values, currently starting at zero before first fit with the intercept as the mean
   if(all(is.na(start_from))) {
-    par_eta=get_starting_values(copula_dist,margin_dist,dataset,eta_transform=TRUE)
+    par_eta=get_starting_values(copula_dist,margin_dist,dataset=dataset,eta_transform=TRUE)
     par_cov=as.numeric(vector())
     for (par_name in names(mm$x)) {
       par_cov_single=as.numeric(vector(length=length(colnames(mm$x[[par_name]]))))
@@ -125,6 +259,7 @@ gamlss.longitudinal=function(  dataset,
   par_history=matrix(ncol=length(par_cov),nrow=0); colnames(par_history)=names(par_cov)
   outer_run_counter=1; outer_only_run_counter=1
   step_size=start_step_size
+  weights_final=list()
 
   #OUTER ITERATION (MAIN LOOP)
   while ((first_outer_run==TRUE | (abs(outer_log_lik_change)>outer_stop_crit)) & outer_only_run_counter < max_outer_iter) {
@@ -266,6 +401,7 @@ gamlss.longitudinal=function(  dataset,
         # Setup model matrices
         X=as.matrix(mm$x[[par_name]])
         W=diag(as.vector(score$w_k))
+
         z_k=score$z_k
         for (s_name in names(mm$s[[par_name]])) {
           B=mm$s[[par_name]][[s_name]]
@@ -447,6 +583,7 @@ gamlss.longitudinal=function(  dataset,
         inner_run_counter=inner_run_counter+1
 
       }
+      weights_final[[par_name]]=score$w_k
     }
 
     step_size = (step_adjustment^min(outer_only_run_counter,max_steps))*start_step_size
@@ -508,8 +645,8 @@ gamlss.longitudinal=function(  dataset,
 
   cat("\n####################################\n")
 
-  return_list=list(par_cov,log_lik_history,par_history,calc_lik_out_end,mm,margin_dist,copula_dist,include_dlcopdpar,dataset$response,dataset$time,dataset$subject,par_s)
-  names(return_list)=c("par","log_lik_history","par_history","calc_lik_out_end","model_matrix","margin_dist","copula_dist","include_dlcopdpar","response","response_margin","response_subject","par_s")
+  return_list=list(par_cov,log_lik_history,par_history,calc_lik_out_end,mm,margin_dist,copula_dist,include_dlcopdpar,dataset$response,dataset$time,dataset$subject,par_s,lambda_s,df_s,weights_final)
+  names(return_list)=c("par","log_lik_history","par_history","calc_lik_out_end","model_matrix","margin_dist","copula_dist","include_dlcopdpar","response","response_margin","response_subject","par_s","lambda_s","df_s","weights")
   class(return_list)="gamlss.longitudinal"
   return(return_list)
 }
@@ -536,16 +673,51 @@ gamlss.longitudinal=function(  dataset,
 #' 
 #' @export
 create_model_matrices<-function(
-    mu.formula = ("response ~ 1"),#mu.formula = formula("response ~ as.factor(time)+as.factor(gender)+age")
-    sigma.formula = ("1"),#sigma.formula = formula("~ as.factor(time)+age")
-    nu.formula = ("1"),#nu.formula = formula("~ as.factor(time)+as.factor(gender)")
-    tau.formula = ("1"),#tau.formula = formula("~ age")
-    theta.formula=("1"),#theta.formula=formula("response~as.factor(gender)")
-    zeta.formula=("1"),#zeta.formula=formula("response~1")
+    mu.formula = ("response ~ 1"),
+    sigma.formula = ("1"),
+    nu.formula = ("1"),
+    tau.formula = ("1"),
+    theta.formula=("1"),
+    zeta.formula=("1"),
     margin.family=NO(),
     copula.family="N",
-    copula.link=NA
+    copula.link=NA,
+    dataset=NA,
+    quiet_gamlss2=TRUE
 ) {
+
+  run_gamlss2 <- function(...) {
+    if (isTRUE(quiet_gamlss2)) {
+      fit <- NULL
+      invisible(utils::capture.output({
+        fit <- suppressMessages(suppressWarnings(gamlss2(...)))
+      }, type = "output"))
+      return(fit)
+    }
+    gamlss2(...)
+  }
+
+  to_response_formula <- function(fml, response_name = "response") {
+    if (inherits(fml, "formula")) {
+      rhs_txt <- if (length(fml) == 3L) {
+        paste(deparse(fml[[3]]), collapse = " ")
+      } else {
+        paste(deparse(fml[[2]]), collapse = " ")
+      }
+    } else if (is.character(fml) && length(fml) == 1L) {
+      txt <- trimws(fml)
+      if (grepl("~", txt, fixed = TRUE)) {
+        parts <- strsplit(txt, "~", fixed = TRUE)[[1]]
+        rhs_txt <- trimws(parts[length(parts)])
+      } else {
+        rhs_txt <- txt
+      }
+    } else {
+      stop("Invalid formula input: ", deparse(fml))
+    }
+
+    as.formula(paste(response_name, "~", rhs_txt), env = parent.frame())
+  }
 
   if(copula.family %in% c("t")){two_par_cop=TRUE} else {two_par_cop=FALSE}
   included_parameters <- c(names(margin.family$parameters), if(two_par_cop) c("theta","zeta") else c("theta"))
@@ -555,14 +727,29 @@ create_model_matrices<-function(
     formulas[[parameter]]=get(paste(parameter,"formula",sep="."))
   }
 
+  print(formulas)
+
   m_temp=list()
-  m_temp[["mu"]]=gamlss2(formula=as.formula(mu.formula), family=NO(), data=dataset,  control=gamlss2_control(maxit=1))
+  m_temp[["mu"]] <- run_gamlss2(
+    formula = as.formula(mu.formula),
+    family = NO(),
+    data = dataset,
+    control = gamlss2_control(maxit = 1)
+  )
+
   for (parameter in included_parameters[2:length(included_parameters)]) {
-    formulas[[parameter]]<-as.formula(paste(as.formula(mu.formula)[[2]],formulas[[parameter]],sep="~"))
-    #print(formulas[[parameter]])
-    m_temp[[parameter]]=gamlss2(formula=formulas[[parameter]], family=NO() #margin.family
-      , data=if(parameter %in% c("theta","zeta")) (dataset[dataset$time %in% unique(dataset$time)[1:(length(unique(dataset$time))-1)],]) else dataset,  control=gamlss2_control(maxit=1))
+    formulas[[parameter]] <- to_response_formula(formulas[[parameter]], response_name = "response")
+    m_temp[[parameter]] <- run_gamlss2(
+      formula = formulas[[parameter]],
+      family = NO(), # margin.family
+      data = if(parameter %in% c("theta","zeta")) {
+        dataset[dataset$time %in% unique(dataset$time)[1:(length(unique(dataset$time))-1)], ]
+      } else dataset,
+      control = gamlss2_control(maxit = 1)
+    )
   }
+
+  print(m_temp)
 
   mm_x=list()
   mm_s=list()
@@ -732,7 +919,7 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
     par1[par1>=28]=27.9
   }
 
-  copula_d=BiCopPDF(  Fx_1_2[,1],Fx_1_2[,2],family = as.numeric(BiCopName(copula_dist)),par=as.vector(par1),par2=as.vector(par2))
+  copula_d=BiCopPDF(  Fx_1_2[,1],Fx_1_2[,2],family = as.numeric(BiCopName(copula_dist)),par=par1,par2=par2)
 
   ########COMBINE MARGINS AND COPULA DERVIATIVES
 
@@ -1166,9 +1353,8 @@ calc_true_SE_numderiv_only_rowwise = function(eta_inv, mm, margin_dist,response,
 
 calc_true_SE_numderiv_only_covariates = function(object, par, mm, margin_dist,response,testing=FALSE,response_margin=NA,response_subject=NA,h=.0001) {
 
-  #object=no_dl; dataset=NA; par=NA; numderiv=TRUE; sep_d2=TRUE
+  #object=fit; par=NA; numderiv=TRUE; sep_d2=TRUE
 
-  #include_dlcopdpar=TRUE
   response=object$response
   response_margin=object$response_margin
   response_subject=object$response_subject
@@ -1180,36 +1366,44 @@ calc_true_SE_numderiv_only_covariates = function(object, par, mm, margin_dist,re
   margin_dist=object$margin_dist; copula_dist=object$copula_dist; copula_link=get_copula_dist(copula_dist)$copula_link
   mm=object$model_matrix
 
-  input_par=par
+  par_cov=object$par
+  par_s=object$par_s
+
+  input_par=par_cov
 
   adj_fac=h
   nd_impact=rep(0,length(names(input_par)))
   names(nd_impact)=names(input_par)#[names(eta_inv) %in% c("mu","sigma","nu","tau")]
 
+  print("Calculating numerical first derivates for Hessian matrix...")
   for (par_names_nd in names(input_par)) {
 
+    #print(par_names_nd)
     change=rep(0,length(names(input_par)))
     i=1
     for (adj in c(-1*adj_fac,adj_fac)) {
 
-      par=input_par
-      par[[par_names_nd]]=par[[par_names_nd]]+adj
+      par_cov=input_par
+      par_cov[[par_names_nd]]=par_cov[[par_names_nd]]+adj
 
-      eta_out=calc_eta(par_cov=par,mm=mm,margin_dist,copula_link)
+      eta_out=calc_eta(par_cov=par_cov,mm=mm,margin_dist,copula_link,par_s)
       eta_inv=eta_out$eta_inv#; eta_dr=eta_out$eta_dr; eta=eta_out$eta; eta_dr=eta_out$eta_dr
-      change[i]=calc_likelihood_minimal(eta_inv,mm,margin_dist,copula_dist,calc_d2 = FALSE,response,response_margin,response_subject)$log_lik["joint"]
+      change[i]=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=TRUE
+        ,response=response,response_margin=response_margin,response_subject = response_subject)$log_lik["joint"]
       i=i+1
     }
-    par=input_par
-    eta_out=calc_eta(par_cov=par,mm=mm,margin_dist,copula_link)
+    par_cov=input_par
+    eta_out=calc_eta(par_cov=par_cov,mm=mm,margin_dist,copula_link,par_s)
     eta_inv=eta_out$eta_inv#; eta_dr=eta_out$eta_dr; eta=eta_out$eta; eta_dr=eta_out$eta_dr
 
-    change[3]=calc_likelihood_minimal(eta_inv,mm,margin_dist,copula_dist,calc_d2 = FALSE,response,response_margin,response_subject)$log_lik["joint"]
+        change[3]=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=TRUE
+          ,response=response,response_margin=response_margin,response_subject = response_subject)$log_lik["joint"]
     nd_impact[par_names_nd]=(change[2]+change[1]-2*change[3])/(adj_fac^2)
 
     #print(c(change,nd_impact[eta_par_names_nd]))
   }
 
+  print("Calculating numerical second derivates for Hessian matrix... this may take a while")
   nd_cross=matrix(0,nrow=length(names(input_par)),ncol=length(names(input_par)))
   colnames(nd_cross)=rownames(nd_cross)=names(input_par)
   for (name1 in names(input_par)) {
@@ -1222,10 +1416,11 @@ calc_true_SE_numderiv_only_covariates = function(object, par, mm, margin_dist,re
             par[[name1]]=par[[name1]]+adj1
             par[[name2]]=par[[name2]]+adj2
 
-            eta_out=calc_eta(par_cov=par,mm=mm,margin_dist,copula_link)
+            eta_out=calc_eta(par_cov=par,mm=mm,margin_dist,copula_link,par_s)
             eta_inv=eta_out$eta_inv#; eta_dr=eta_out$eta_dr; eta=eta_out$eta; eta_dr=eta_out$eta_dr
 
-            change=calc_likelihood_minimal(eta_inv,mm,margin_dist,copula_dist,calc_d2 = FALSE,response,response_margin,response_subject)$log_lik["joint"]
+            change=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=TRUE
+            ,response=response,response_margin=response_margin,response_subject = response_subject)$log_lik["joint"]
             nd_cross[name1,name2]=nd_cross[name1,name2]+change*if(adj1==adj2){1} else {-1}
           }
         }
@@ -1255,10 +1450,8 @@ coef.gamlss.longitudinal=function(object) {
 #' @export
 vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE) {
 
-  #object=no_dl; dataset=NA; par=NA; numderiv=TRUE; sep_d2=TRUE
-  #object=w_dl; dataset=NA; par=NA; numderiv=TRUE; sep_d2=TRUE
-  #object=out[[i]][[j]]
-
+  #object=fit; par=NA; numderiv=TRUE; sep_d2=TRUE
+  
   include_dlcopdpar=TRUE
   response=object$response
   response_margin=object$response_margin
@@ -1272,32 +1465,33 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE) {
   mm=object$model_matrix
 
   if(all(is.na(par))) {
-    input_par=object$par
+    par_cov=object$par
+    par_s=object$par_s
   } else {
-    input_par=par
+    par_cov=par$par
+    par_s=par$par_s
   }
 
-  eta_out=calc_eta(par_cov=input_par,mm=mm,margin_dist,copula_link)
+  eta_out=calc_eta(par_cov,mm,margin_dist,copula_link,par_s=par_s)
   eta_inv=eta_out$eta_inv; eta_dr=eta_out$eta_dr; eta=eta_out$eta; eta_dr=eta_out$eta_dr
 
   #if(!all(is.na(par))) {response=eta_inv[["mu"]]}
-  calc_lik_out=calc_likelihood_minimal(eta_inv=eta_inv,mm=mm,margin_dist,copula_dist,calc_d2=TRUE,response=response,response_margin=object$response_margin,response_subject=object$response_subject)
+  calc_lik_out=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=TRUE
+            ,response=response,response_margin=response_margin,response_subject = response_subject)
+
   Fx_1_2=calc_lik_out$Fx_1_2; margin_p=calc_lik_out$margin_p; margin_d=calc_lik_out$margin_d; copula_d=calc_lik_out$copula_d
 
   ###Calculate derivaties: margin and copula d1 and d2
   margin_derivatives=calc_lik_out$margin_deriv
-
   copula_derivatives=calc_copula_derivatives(eta_inv, Fx_1_2, copula_dist,calc_d2 = TRUE)
 
-  nd_impact_F=calc_Fx_derivatives(eta_inv,mm,margin_dist,response)
-
   #Calculate numerical derivatives for F(x) - also used as a reference for overall likelihood derivative
-  nd_impact_F=calc_Fx_derivatives(eta_inv,mm,margin_dist,response)
-  nd_impact_F2=calc_Fx2_derivatives(eta_inv,mm,margin_dist,response)
+  nd_impact_F=calc_Fx_derivatives(eta_inv,mm$x,margin_dist,response)
+  nd_impact_F2=calc_Fx2_derivatives(eta_inv,mm$x,margin_dist,response)
 
   if(numderiv==TRUE) {
     #nd2_joint_lik=calc_true_SE_numderiv_only(eta_inv,mm,margin_dist,response,testing=TRUE,response_margin,response_subject)
-    hessian_nd=calc_true_SE_numderiv_only_covariates(object,par=input_par, mm, margin_dist,response,testing=FALSE,response_margin=NA,response_subject=NA)
+    hessian_nd=calc_true_SE_numderiv_only_covariates(object=object,par=par_cov,mm=mm$x,margin_dist=margin_dist,response=response,testing=FALSE,response_margin=response_margin,response_subject=response_subject)
   } else {
 
     #######to delete############
@@ -1438,38 +1632,112 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE) {
     se_final=sqrt(abs(diag(vcov_final)))
   }
 
-  # rownames(vcov_final)=colnames(vcov_final)=names(eta)
-  #
-  # vcov_covariates=list()
-  # vcov_diag=diag(vcov_final)
-  # names(vcov_diag)=rownames(vcov_final)
-  # for (par_name in names(eta)) {
-  #
-  #   vcov_diag[par_name]
-  #   eta_dr[[par_name]]
-  #
-  #   #var_yi=rep(vcov_diag[par_name],length(eta_dr[[par_name]]))
-  #
-  #   deriv_name_temp=paste("d2ld",sub_names_in[par_name],"2",sep="")
-  #
-  #   #print(d2_all[[deriv_name_temp]])
-  #
-  #   #W=diag((eta_dr[[par_name]]^2)/var_yi)
-  #   W=diag((eta_dr[[par_name]]^2)*-d2_all[[deriv_name_temp]])
-  #
-  #   X=as.matrix(mm[[par_name]])
-  #
-  #   #if(par_name=="sigma") {print(eta_dr[[par_name]]);print(d2_all[[deriv_name_temp]])}
-  #
-  #   print(t(X)%*%W%*%X)
-  #   print(solve(t(X)%*%W%*%X))
-  #
-  #   vcov_covariates[[par_name]]=diag((solve(t(X)%*%W%*%X)))
-  #   #print(vcov_covariates)
-  #
-  # }
+  ###########TESTING APPROACH FOR ESTIMATING SMOOTHER VARIANCE
+  
+  # Method 1: Bayesian/Mixed Model Approach for Smoother Variance
+  # Calculate variance-covariance matrix for smooth terms using: Var(β) = (X'WX + λP)^(-1) * σ²
+  
+  smooth_vcov_list = list()
+  smooth_se_list = list()
+  
+  # Extract residual variance estimate (using reciprocal of mean weights as proxy for σ²)
+  if(!is.null(object$weights) && length(object$weights) > 0 && is.numeric(object$weights)) {
+    sigma2_est = 1 / mean(object$weights, na.rm = TRUE)
+  } else {
+    # Fallback: estimate from residuals if weights not available
+    fitted_response = eta_inv[["mu"]]
+    residuals = response - fitted_response
+    sigma2_est = var(residuals, na.rm = TRUE)
+  }
+  
+  # Process each parameter that has smooth terms
+  for(par_name in names(object$par_s)) {
+    if(length(object$par_s[[par_name]]) > 0) {
+      
+      smooth_vcov_list[[par_name]] = list()
+      smooth_se_list[[par_name]] = list()
+      
+      # Process each smooth term for this parameter
+      for(s_name in names(object$par_s[[par_name]])) {
+        
+        # Get the B-spline basis matrix
+        B = object$model_matrix$s[[par_name]][[s_name]]
+        
+        # Get the smoothing parameter
+        lambda = object$lambda_s[[par_name]][[s_name]]
+        
+        # Create difference penalty matrix (2nd order differences)
+        # This assumes B-splines with difference penalty
+        k = ncol(B)  # number of basis functions
+        if(k > 2) {
+          # Create second difference penalty matrix
+          D2 = diff(diag(k), differences = 2)
+          P = t(D2) %*% D2
+        } else {
+          # For very small basis, use identity penalty
+          P = diag(k)
+        }
+        
+        # Get working weights (diagonal of W matrix)
+        # Use weights from the score function calculation
+        if(!is.null(object$weights) && length(object$weights) == nrow(B)) {
+          w_diag = object$weights
+        } else {
+          # Fallback: use unit weights
+          w_diag = rep(1, nrow(B))
+        }
+        W = diag(w_diag)
+        
+        # Calculate the penalized precision matrix: X'WX + λP
+        XWX = t(B) %*% W %*% B
+        penalized_precision = XWX + lambda * P
+        
+        # Variance-covariance matrix for this smooth: (X'WX + λP)^(-1) * σ²
+        tryCatch({
+          smooth_vcov = solve(penalized_precision) * matrix(sigma2_est,nrow=nrow(penalized_precision),ncol=ncol(penalized_precision))
+          smooth_se = sqrt((diag(smooth_vcov)))
+          
+          # Store results
+          smooth_vcov_list[[par_name]][[s_name]] = smooth_vcov
+          smooth_se_list[[par_name]][[s_name]] = smooth_se
+          
+          # Also calculate the smoother matrix for fitted values variance
+          # A = X(X'WX + λP)^(-1)X'W
+          smoother_matrix = B %*% solve(penalized_precision) %*% t(B) %*% W
+          fitted_se = sqrt(abs(diag(smoother_matrix)) * sigma2_est)
+          
+          cat(sprintf("\nSmooth term variance estimates for %s:%s\n", par_name, s_name))
+          cat(sprintf("  Basis coefficients SE: min=%.4f, max=%.4f, mean=%.4f\n", 
+                     min(smooth_se), max(smooth_se), mean(smooth_se)))
+          cat(sprintf("  Fitted values SE: min=%.4f, max=%.4f, mean=%.4f\n", 
+                     min(fitted_se), max(fitted_se), mean(fitted_se)))
+          cat(sprintf("  Effective DF: %.2f (trace of smoother matrix)\n", 
+                     sum(diag(smoother_matrix))))
+          cat(sprintf("  Smoothing parameter λ: %.4f\n", lambda))
+          
+        }, error = function(e) {
+          warning(sprintf("Could not calculate variance for smooth %s:%s - %s", 
+                         par_name, s_name, e$message))
+          smooth_vcov_list[[par_name]][[s_name]] = NULL
+          smooth_se_list[[par_name]][[s_name]] = NULL
+        })
+      }
+    }
+  }
+  
+  # Add smooth variance results to return list
+  vcov_final_with_smooth = list(
+    overall = vcov_final,
+    smooth_vcov = smooth_vcov_list,
+    smooth_se = smooth_se_list
+  )
+  
+  se_final_with_smooth = list(
+    overall = se_final,
+    smooth_se = smooth_se_list
+  )
 
-  return(list(vcov_final,se_final))
+  return(list(vcov=vcov_final_with_smooth, se=se_final_with_smooth))
 
 }
 
@@ -1494,9 +1762,17 @@ get_starting_values = function(copula_dist,margin_dist,dataset,eta_transform=FAL
   margin_names=unique(dataset$time)
   num_margins=length(margin_names)
 
-  cop_par=BiCopTau2Par(family=as.numeric(BiCopName(copula_dist))
-                       ,tau=cor(dataset[dataset$time%in%(margin_names[1:(num_margins-1)]),"response"]
-                                ,dataset[dataset$time%in%(margin_names[2:(num_margins)]),"response"],method="kendall"))
+  print(head(dataset)); print(margin_names); print(num_margins)
+
+  tau_start=cor(dataset[dataset$time%in%(margin_names[1:(num_margins-1)]),"response"]
+                ,dataset[dataset$time%in%(margin_names[2:(num_margins)]),"response"],method="kendall",use="complete.obs")
+  if(!is.finite(tau_start)) {
+    warning("Non-finite Kendall tau in get_starting_values(); using tau = 0 for copula initialisation.")
+    tau_start=0
+  }
+  tau_start=max(min(tau_start,0.9999),-0.9999)
+
+  cop_par=BiCopTau2Par(family=as.numeric(BiCopName(copula_dist)),tau=tau_start)
   names(cop_par)=get_copula_dist(copula_dist)$parameters
 
   if(margin_dist$family[1]=="GA" | margin_dist$family[1]=="EXP") {
@@ -1877,21 +2153,20 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     margin=matrix(0,ncol=ncol(copsim),nrow=nrow(copsim))
     for ( i in 1:ncol(copsim)) {
 
-      input_list=list(p=copsim[,i],mu=exp(par.margin[1]+par.margin[2]*i),sigma=exp(1),nu=1,tau=0.1)
+      input_list=list(p=copsim[,i]
+                      ,mu=par.margin[1],sigma=par.margin[2],nu=par.margin[3],tau=par.margin[4])
       args=names(input_list)[names(input_list)%in%formalArgs(qFUN)]
       qFunOutput_1=do.call(qFUN,args=(input_list[args]))
-      input_list=list(p=copsim[,i],mu=exp(par.margin[1]+par.margin[2]*i+par.margin[3]),sigma=exp(1),nu=1,tau=0.1)
-      args=names(input_list)[names(input_list)%in%formalArgs(qFUN)]
-      qFunOutput_2=do.call(qFUN,args=(input_list[args]))
+      #input_list=list(p=copsim[,i],mu=par.margin[1],sigma=exp(0.3+0.2*i+0.1),nu=-0.8,tau=0.1)
+      #args=names(input_list)[names(input_list)%in%formalArgs(qFUN)]
+      #qFunOutput_2=do.call(qFUN,args=(input_list[args]))
 
-      margin[covariates[[3]]==0,i]=qFunOutput_1[covariates[[3]]==0]#Update to i*mu/sigma as needed
-      margin[covariates[[3]]==1,i]=qFunOutput_2[covariates[[3]]==1]#Update to i*mu/sigma as needed
+      margin[,i]=qFunOutput_1#Update to i*mu/sigma as needed
+      #margin[covariates[[3]]==0,i]=qFunOutput_1[covariates[[3]]==0]#Update to i*mu/sigma as needed
+      #margin[covariates[[3]]==1,i]=qFunOutput_2[covariates[[3]]==1]#Update to i*mu/sigma as needed
+
+      response = as.data.frame(margin)
     }
-
-    response = as.data.frame(margin)
-
-    dataset<-create_longitudinal_dataset(response,covariates,labels=c("subject","time","response","age","year","gender"))
-
   }
   else if (simOption==4) {
 
@@ -1903,60 +2178,6 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
 
 
     if(length(par.copula)==d-1){
-      par=c(copula.link$theta.linkinv(par.copula),rep(0,dd-(d-1)))
-      par2=par*0
-    } else {
-      par <- c(copula.link$theta.linkinv(par.copula[1:(length(par.copula)/2)]), rep(0,dd-(d-1))) #+1*1:(d-1)
-      par2 <- c(copula.link$zeta.linkinv(par.copula[(length(par.copula)/2+1):(length(par.copula))]),rep(0,dd-(d-1))) #+0.5*1:(d-1)
-    }
-
-    # transform to R-vine matrix notation
-
-    RVM <- D2RVine(order, family, par, par2)
-    #contour(RVM)
-
-    t=d
-    copsim=RVineSim(n,RVM)
-
-    covariates=list()
-    covariates[[1]] = as.data.frame(round(runif(n,0,100),0)) #Age
-    covariates[[2]] = t(t(matrix(1,ncol=t,nrow=n))*(1:t)) #Time
-    covariates[[3]] = as.data.frame(round(runif(n,0,1),0)) #Gender
-
-    margin=matrix(0,ncol=ncol(copsim),nrow=nrow(copsim))
-    for ( i in 1:ncol(copsim)) {
-
-      input_list=list(p=copsim[,i],mu=exp(par.margin[1]),sigma=exp(par.margin[2]),nu=par.margin[3],tau=logit_inv(par.margin[4]))
-      args=names(input_list)[names(input_list)%in%formalArgs(qFUN)]
-      qFunOutput_1=do.call(qFUN,args=(input_list[args]))
-      input_list=list(p=copsim[,i],mu=exp(par.margin[1]),sigma=exp(par.margin[2]),nu=par.margin[3],tau=logit_inv(par.margin[4]))
-      args=names(input_list)[names(input_list)%in%formalArgs(qFUN)]
-      qFunOutput_2=do.call(qFUN,args=(input_list[args]))
-
-      margin[covariates[[3]]==0,i]=qFunOutput_1[covariates[[3]]==0]#Update to i*mu/sigma as needed
-      margin[covariates[[3]]==1,i]=qFunOutput_2[covariates[[3]]==1]#Update to i*mu/sigma as needed
-    }
-
-    response = as.data.frame(margin)
-
-    dataset<-create_longitudinal_dataset(response,covariates,labels=c("subject","time","response","age","year","gender"))
-
-  }
-  else if (simOption==5) {
-
-    copula_input=get_copula_dist(copula_dist)
-    copula.family=copula_input$copula_dist
-
-    qFUN=paste("q",margin_dist$family[1],sep="")
-
-    # set up D-vine copula model with mixed pair-copulas
-    d <- d
-    dd <- d*(d-1)/2
-    order <- 1:d
-    family <- c(rep(copula.family,d-1), rep(0,dd-(d-1)))
-
-
-    if(length(par.copula)==1){
       par=c(rep(par.copula,d-1),rep(0,dd-(d-1)))
       par2=par*0
     } else {
@@ -1980,7 +2201,61 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     margin=matrix(0,ncol=ncol(copsim),nrow=nrow(copsim))
     for ( i in 1:ncol(copsim)) {
 
-      input_list=list(p=copsim[,i],mu=par.margin[1],sigma=par.margin[2],nu=par.margin[3],tau=par.margin[4])
+      input_list=list(p=copsim[,i]
+                      ,mu=par.margin[1],sigma=par.margin[2],nu=par.margin[3],tau=par.margin[4])
+      args=names(input_list)[names(input_list)%in%formalArgs(qFUN)]
+      qFunOutput_1=do.call(qFUN,args=(input_list[args]))
+      #input_list=list(p=copsim[,i],mu=par.margin[1],sigma=exp(0.3+0.2*i+0.1),nu=-0.8,tau=0.1)
+      #args=names(input_list)[names(input_list)%in%formalArgs(qFUN)]
+      #qFunOutput_2=do.call(qFUN,args=(input_list[args]))
+
+      margin[,i]=qFunOutput_1#Update to i*mu/sigma as needed
+      #margin[covariates[[3]]==0,i]=qFunOutput_1[covariates[[3]]==0]#Update to i*mu/sigma as needed
+      #margin[covariates[[3]]==1,i]=qFunOutput_2[covariates[[3]]==1]#Update to i*mu/sigma as needed
+
+      response = as.data.frame(margin)
+    }
+  }
+  else if (simOption==5) {
+
+    copula_input=get_copula_dist(copula_dist)
+    copula.family=copula_input$copula_dist
+
+    qFUN=paste("q",margin_dist$family[1],sep="")
+
+    # set up D-vine copula model with mixed pair-copulas
+    d <- d
+    dd <- d*(d-1)/2
+    order <- 1:d
+    family <- c(rep(copula.family,d-1), rep(0,dd-(d-1)))
+
+
+    if(length(par.copula)==d-1){
+      par=c(rep(par.copula,d-1),rep(0,dd-(d-1)))
+      par2=par*0
+    } else {
+      par <- c(rep(par.copula["theta"],d-1), rep(0,dd-(d-1))) #+1*1:(d-1)
+      par2 <- c(rep(par.copula["zeta"],d-1),rep(0,dd-(d-1))) #+0.5*1:(d-1)
+    }
+
+    # transform to R-vine matrix notation
+
+    RVM <- D2RVine(order, family, par, par2)
+    #contour(RVM)
+
+    t=d
+    copsim=RVineSim(n,RVM)
+
+    covariates=list()
+    covariates[[1]] = as.data.frame(round(runif(n,0,100),0)) #Age
+    covariates[[2]] = t(t(matrix(1,ncol=t,nrow=n))*(1:t)) #Time
+    covariates[[3]] = as.data.frame(round(runif(n,0,1),0)) #Gender
+
+    margin=matrix(0,ncol=ncol(copsim),nrow=nrow(copsim))
+    for ( i in 1:ncol(copsim)) {
+
+      input_list=list(p=copsim[,i]
+                      ,mu=par.margin[1],sigma=par.margin[2],nu=par.margin[3],tau=par.margin[4])
       args=names(input_list)[names(input_list)%in%formalArgs(qFUN)]
       qFunOutput_1=do.call(qFUN,args=(input_list[args]))
       #input_list=list(p=copsim[,i],mu=par.margin[1],sigma=exp(0.3+0.2*i+0.1),nu=-0.8,tau=0.1)
@@ -2068,24 +2343,9 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     for ( i in 1:ncol(copsim)) {
 
       input_list=list(p=copsim[,i]
-                      ,mu=   if("mu.linkfun" %in% names(margin_dist))    {margin_dist$mu.linkinv(   rep(par.margin[1],n) +covariates_input$mu.time*covariates[[2]][,i]    + ((covariates_input$mu.age    ))*((covariates[[1]]-50)/100)^2    + covariates_input$mu.gender*covariates[[3]])} else {rep(0,n)}
-                      ,sigma=if("sigma.linkfun" %in% names(margin_dist)) {margin_dist$sigma.linkinv(rep(par.margin[2],n) +covariates_input$sigma.time*covariates[[2]][,i] + ((covariates_input$sigma.age ))*((covariates[[1]]-50)/100)^3 + covariates_input$sigma.gender*covariates[[3]])} else {rep(0,n)}
-                      ,nu=   if("nu.linkfun" %in% names(margin_dist))    {margin_dist$nu.linkinv(   rep(par.margin[3],n) +covariates_input$nu.time*covariates[[2]][,i]    + ((covariates_input$nu.age    ))*(((covariates[[1]]-50)/100)^2)    + covariates_input$nu.gender*covariates[[3]])} else {rep(0,n)}
-                      ,tau=  if("tau.linkfun" %in% names(margin_dist))   {margin_dist$tau.linkinv(  rep(par.margin[4],n) +covariates_input$tau.time*covariates[[2]][,i]   + ((covariates_input$tau.age   ))*(((covariates[[1]]-50)/100)^2)   + covariates_input$tau.gender*covariates[[3]])} else {rep(0,n)}
-      )
+                      ,mu=par.margin[1],sigma=par.margin[2],nu=par.margin[3],tau=par.margin[4])
       args=names(input_list)[names(input_list)%in%formalArgs(qFUN)]
-
-      qFunOutput_1=matrix(0,ncol=1,nrow=n)
-      for ( j in 1:n) {
-        input_list_one_item=list()
-        for (item in names(input_list)) {
-          input_list_one_item=append(input_list_one_item,as.matrix(input_list[[item]])[j,])
-        }
-        names(input_list_one_item)=names(input_list)
-        qFunOutput_1[j,]=do.call(qFUN,args=(input_list_one_item[args]))
-      }
-
-      #qFunOutput_1=do.call(qFUN,args=(input_list[args]))
+      qFunOutput_1=do.call(qFUN,args=(input_list[args]))
       #input_list=list(p=copsim[,i],mu=par.margin[1],sigma=exp(0.3+0.2*i+0.1),nu=-0.8,tau=0.1)
       #args=names(input_list)[names(input_list)%in%formalArgs(qFUN)]
       #qFunOutput_2=do.call(qFUN,args=(input_list[args]))
@@ -2156,10 +2416,7 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     for ( i in 1:ncol(copsim)) {
 
       input_list=list(p=copsim[,i]
-                      ,mu=margin_dist$mu.linkinv(margin_dist$mu.linkfun(par.margin[1])+(i-1))
-                      ,sigma=par.margin[2]#margin_dist$sigma.linkinv(margin_dist$sigma.linkfun(par.margin[2])+(i-1))
-                      ,nu=par.margin[3]
-                      ,tau=par.margin[4])
+                      ,mu=par.margin[1],sigma=par.margin[2],nu=par.margin[3],tau=par.margin[4])
       args=names(input_list)[names(input_list)%in%formalArgs(qFUN)]
       qFunOutput_1=do.call(qFUN,args=(input_list[args]))
       #input_list=list(p=copsim[,i],mu=par.margin[1],sigma=exp(0.3+0.2*i+0.1),nu=-0.8,tau=0.1)
@@ -2211,10 +2468,7 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     for ( i in 1:ncol(copsim)) {
 
       input_list=list(p=copsim[,i]
-                      ,mu=margin_dist$mu.linkinv(margin_dist$mu.linkfun(par.margin[1])+(i-1))
-                      ,sigma=par.margin[2]#margin_dist$sigma.linkinv(margin_dist$sigma.linkfun(par.margin[2])+(i-1))
-                      ,nu=par.margin[3]
-                      ,tau=par.margin[4])
+                      ,mu=par.margin[1],sigma=par.margin[2],nu=par.margin[3],tau=par.margin[4])
       args=names(input_list)[names(input_list)%in%formalArgs(qFUN)]
       qFunOutput_1=do.call(qFUN,args=(input_list[args]))
       #input_list=list(p=copsim[,i],mu=par.margin[1],sigma=exp(0.3+0.2*i+0.1),nu=-0.8,tau=0.1)
@@ -2266,10 +2520,7 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     for ( i in 1:ncol(copsim)) {
 
       input_list=list(p=copsim[,i]
-                      ,mu=margin_dist$mu.linkinv(margin_dist$mu.linkfun(par.margin[1])+(i-1))
-                      ,sigma=margin_dist$sigma.linkinv(margin_dist$sigma.linkfun(par.margin[2])+(((i-1)/10)))
-                      ,nu=par.margin[3]
-                      ,tau=par.margin[4])
+                      ,mu=par.margin[1],sigma=par.margin[2],nu=par.margin[3],tau=par.margin[4])
       args=names(input_list)[names(input_list)%in%formalArgs(qFUN)]
       qFunOutput_1=do.call(qFUN,args=(input_list[args]))
       #input_list=list(p=copsim[,i],mu=par.margin[1],sigma=exp(0.3+0.2*i+0.1),nu=-0.8,tau=0.1)
@@ -2582,26 +2833,24 @@ optim_outer <- function(par,dataset,margin_dist,copula_dist,
   score_eta=score*par_eta_dr
   #par_end=par*(1-step_size) + step_size*(par+par_change)
 
-  par_eta_end=(1-step_size)*par_eta+step_size*(par_eta+weights_eta%*%score_eta)
-
   par_end=par*0
   names(par_end)=names(par_eta_end)=names(par)
   #Get end paraemters re-transformed
   #for (par_name in names(par)) {
   #  if(par_name %in% names(margin_par)) {
-  #    par_eta_end[par_name]=margin_dist[[paste(par_name,".linkfun",sep="")]](par_end[par_name])
+  #    par_end[par_name]=margin_dist[[paste(par_name,".linkinv",sep="")]](par_end[par_name])
   #  }
   #  if(par_name %in% names(copula_par)) {
-  #    par_eta_end[par_name]=copula_link[[paste(par_name,".linkfun",sep="")]](par_end[par_name])
+  #    par_end[par_name]=copula_link[[paste(par_name,".linkinv",sep="")]](par_end[par_name])
   #  }
   #}
   ###If calculating for eta
   for (par_name in names(par)) {
     if(par_name %in% names(margin_par)) {
-      par_end[par_name]=margin_dist[[paste(par_name,".linkinv",sep="")]](par_eta_end[par_name])
+      par_end[par_name]=margin_dist[[paste(par_name,".linkinv",sep="")]](par_end[par_name])
     }
     if(par_name %in% names(copula_par)) {
-      par_end[par_name]=copula_link[[paste(par_name,".linkinv",sep="")]](par_eta_end[par_name])
+      par_end[par_name]=copula_link[[paste(par_name,".linkinv",sep="")]](par_end[par_name])
     }
   }
 
