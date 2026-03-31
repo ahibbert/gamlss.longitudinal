@@ -285,6 +285,10 @@ gamlss.longitudinal=function(dataset,
     }
   }
 
+  ##################### END OF DATA CHECKS AND VALIDATION #####################
+
+  ##################### MODEL SETUP #####################
+
   #Setup model matrix from given formulas
   copula_link=get_copula_dist(copula_dist)$copula_link
   mm=suppressWarnings(create_model_matrices(
