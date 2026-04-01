@@ -818,6 +818,41 @@ create_model_matrices<-function(
 ) {
 
   dataset_mm <- dataset
+  mode_value <- function(x) {
+    x_non_na <- x[!is.na(x)]
+    if (length(x_non_na) == 0) return(NA)
+    tab <- table(x_non_na)
+    names(tab)[which.max(tab)]
+  }
+
+  # Build model matrices from an NA-free proxy dataset.
+  # This does not alter likelihood calculations (which still use original dataset).
+  for (nm in names(dataset_mm)) {
+    if (!any(is.na(dataset_mm[[nm]]))) next
+    if (nm %in% c("time", "subject")) next
+
+    col <- dataset_mm[[nm]]
+    if (is.numeric(col) || is.integer(col)) {
+      obs <- col[!is.na(col)]
+      fill_val <- if (length(obs) > 0) mean(obs) else 0
+      col[is.na(col)] <- fill_val
+      dataset_mm[[nm]] <- col
+    } else if (is.factor(col)) {
+      fill_val <- mode_value(col)
+      if (is.na(fill_val)) {
+        fill_val <- if (length(levels(col)) > 0) levels(col)[1] else "missing"
+      }
+      col <- as.character(col)
+      col[is.na(col)] <- fill_val
+      dataset_mm[[nm]] <- factor(col)
+    } else {
+      fill_val <- mode_value(col)
+      if (is.na(fill_val)) fill_val <- "missing"
+      col[is.na(col)] <- fill_val
+      dataset_mm[[nm]] <- col
+    }
+  }
+
   if ("response" %in% names(dataset_mm) && any(is.na(dataset_mm$response))) {
     obs_resp <- dataset_mm$response[!is.na(dataset_mm$response)]
     fill_val <- if (length(obs_resp) > 0) mean(obs_resp) else 0
