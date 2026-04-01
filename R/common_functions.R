@@ -200,6 +200,24 @@ gamlss.longitudinal=function(dataset,
     cat("Unique subject/time combinations:", length(unique(subject_time_combo)), "\n\n")
   }
 
+  # Expand to full subject x time grid so structurally missing combinations
+  # are represented explicitly as NA rows.
+  observed_n <- nrow(dataset)
+  full_grid <- expand.grid(
+    subject = sort(unique(dataset$subject)),
+    time = sort(unique(dataset$time)),
+    KEEP.OUT.ATTRS = FALSE,
+    stringsAsFactors = FALSE
+  )
+  dataset <- merge(full_grid, dataset, by = c("subject", "time"), all.x = TRUE, sort = FALSE)
+  dataset <- dataset[order(dataset$subject, dataset$time), , drop = FALSE]
+  rownames(dataset) <- NULL
+
+  inserted_n <- nrow(dataset) - observed_n
+  if (verbose > 0 && inserted_n > 0) {
+    cat("Inserted", inserted_n, "missing subject/time rows as NA entries.\n\n")
+  }
+
   # Missingness summary by time and consecutive time pairs.
   time_levels <- sort(unique(dataset$time))
   n_time_levels <- length(time_levels)
