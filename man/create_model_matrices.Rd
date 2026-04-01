@@ -13,7 +13,9 @@ create_model_matrices(
   zeta.formula = ("1"),
   margin.family = NO(),
   copula.family = "N",
-  copula.link = NA
+  copula.link = NA,
+  dataset = NA,
+  quiet_gamlss2 = TRUE
 )
 }
 \arguments{
