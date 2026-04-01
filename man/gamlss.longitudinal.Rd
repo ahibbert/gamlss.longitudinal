@@ -8,6 +8,8 @@ gamlss.longitudinal(
   dataset,
   margin_dist,
   copula_dist,
+  time_var = NA,
+  subject_var = NA,
   mu.formula = ("response ~ 1"),
   sigma.formula = ("1"),
   nu.formula = ("1"),

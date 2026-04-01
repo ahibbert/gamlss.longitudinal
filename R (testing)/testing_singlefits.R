@@ -9,7 +9,7 @@ n=500; d=4
 # Missingness configuration:
 # - "increasing_time": p_miss(i) = i/(T+1) by ordered time index i.
 # - "mar": missing completely at random across all rows at mar_missing_rate.
-missingness_mode = "mar"
+missingness_mode = "increasing_time"
 mar_missing_rate = 0.5
 
 #copula_dist="N"; margin_dist=NO(); mu=0; sigma=1;nu=NA; tau=NA; theta=-1; zeta=NA; simOption=7;
@@ -17,12 +17,12 @@ mar_missing_rate = 0.5
 #copula_dist="C"; margin_dist=PE(); mu=0.4; sigma=0.6;nu=1; tau=NA; theta=-0.5; zeta=NA; simOption=7;
 #copula_dist="N"; margin_dist=ST1(); mu=1; sigma=1;nu=1; tau=1; theta=-0.5; zeta=NA; simOption=7;
 
-copula_dist="N"; margin_dist=BCPEo(); mu=1; sigma=.1;nu=1; tau=1; theta=0; zeta=NA; simOption=10;
+copula_dist="N"; margin_dist=BCPEo(); mu=1; sigma=.1;nu=1; tau=1; theta=.2; zeta=NA; simOption=10;
 
 # USE THIS WITH SIMOPTION 10
-covariates_input=list( mu.time=1   ,sigma.time=1   ,nu.time=1    ,tau.time=1   ,theta.time=.1  ,zeta.time=0
-                        ,mu.age=5    ,sigma.age=5     ,nu.age=0     ,tau.age=0    ,theta.age=.5    ,zeta.age=0
-                        ,mu.gender=1 ,sigma.gender=1  ,nu.gender=0  ,tau.gender=0 ,theta.gender=.25 ,zeta.gender=0)
+covariates_input=list( mu.time=1   ,sigma.time=1   ,nu.time=1    ,tau.time=1   ,theta.time=.2  ,zeta.time=0
+                        ,mu.age=5    ,sigma.age=5     ,nu.age=0     ,tau.age=0    ,theta.age=0    ,zeta.age=0
+                        ,mu.gender=1 ,sigma.gender=1  ,nu.gender=0  ,tau.gender=0 ,theta.gender=0 ,zeta.gender=0)
 
 #########Generate dataset
 
@@ -166,7 +166,7 @@ mu_formula="random_name ~ time_of_observation_random_name + s(age_new_name,bs='p
 sigma_formula="~ time_of_observation_random_name + gender + s(age_new_name,bs='ps')"
 nu_formula="~ time_of_observation_random_name"
 tau_formula="~ time_of_observation_random_name"
-theta_formula="~ time_of_observation_random_name + s(age_new_name,bs='ps')"
+theta_formula="~ time_of_observation_random_name"
 zeta_formula="~ time_of_observation_random_name"
 
 ### FOR TESTING DATASETS WITH NON STANDARD NAMING
