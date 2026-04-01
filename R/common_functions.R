@@ -870,6 +870,41 @@ create_model_matrices<-function(
     gamlss2(...)
   }
 
+  sanitize_for_gamlss2 <- function(data_in, fml) {
+    vars_needed <- unique(all.vars(stats::as.formula(fml)))
+    vars_needed <- vars_needed[vars_needed %in% names(data_in)]
+    data_out <- data_in[, vars_needed, drop = FALSE]
+
+    for (nm in names(data_out)) {
+      col <- data_out[[nm]]
+      if (is.factor(col)) {
+        data_out[[nm]] <- droplevels(col)
+      } else if (is.numeric(col) || is.integer(col)) {
+        col[!is.finite(col)] <- NA
+        if (any(is.na(col))) {
+          obs <- col[!is.na(col)]
+          fill_val <- if (length(obs) > 0) mean(obs) else 0
+          col[is.na(col)] <- fill_val
+        }
+        data_out[[nm]] <- col
+      } else {
+        if (any(is.na(col))) {
+          x_non_na <- col[!is.na(col)]
+          fill_val <- if (length(x_non_na) > 0) {
+            tab <- table(x_non_na)
+            names(tab)[which.max(tab)]
+          } else {
+            "missing"
+          }
+          col[is.na(col)] <- fill_val
+        }
+        data_out[[nm]] <- col
+      }
+    }
+
+    data_out
+  }
+
   to_response_formula <- function(fml, response_name = "response") {
     if (inherits(fml, "formula")) {
       rhs_txt <- if (length(fml) == 3L) {
@@ -900,56 +935,60 @@ create_model_matrices<-function(
     formulas[[parameter]]=get(paste(parameter,"formula",sep="."))
   }
 
-  m_temp=list()
-  m_temp[["mu"]] <- run_gamlss2(
-    formula = as.formula(mu.formula),
-    family = NO(),
-    data = dataset_mm,
-    control = gamlss2_control(maxit = 1)
-  )
-
-  for (parameter in included_parameters[2:length(included_parameters)]) {
-    formulas[[parameter]] <- to_response_formula(formulas[[parameter]], response_name = "response")
-    m_temp[[parameter]] <- run_gamlss2(
-      formula = formulas[[parameter]],
-      family = NO(), # margin.family
-      data = if(parameter %in% c("theta","zeta")) {
-        dataset_mm[dataset_mm$time %in% unique(dataset_mm$time)[1:(length(unique(dataset_mm$time))-1)], ]
-      } else dataset_mm,
-      control = gamlss2_control(maxit = 1)
-    )
+  if (!requireNamespace("mgcv", quietly = TRUE)) {
+    stop("Package 'mgcv' is required to construct smooth-term model matrices.")
   }
 
-  # print(m_temp)
+  formulas[["mu"]] <- as.formula(mu.formula)
+  for (parameter in included_parameters[2:length(included_parameters)]) {
+    formulas[[parameter]] <- to_response_formula(formulas[[parameter]], response_name = "response")
+  }
 
   mm_x=list()
   mm_s=list()
+
+  smooth_eval_env <- new.env(parent = baseenv())
+  smooth_eval_env$s <- mgcv::s
+
   for(parameter in included_parameters) {
-    m=m_temp[[parameter]]
-    formula_terms = stats::terms(formulas[[parameter]])
-    has_intercept = as.integer(attr(formula_terms, "intercept")) == 1L
-
-    # Use formula term labels (not xterms) so factor bases like "gender"
-    # are retained even when xterms contains expanded names like "gender1".
-    fixed_terms = attr(formula_terms, "term.labels")
-    fixed_terms = fixed_terms[!grepl("^\\s*s\\(", fixed_terms)]
-    fixed_terms = intersect(fixed_terms, names(m$model))
-
-    if(length(fixed_terms) > 0 || has_intercept) {
-      fixed_formula = stats::reformulate(termlabels = fixed_terms, intercept = has_intercept)
-      X_fixed = stats::model.matrix(fixed_formula, data = m$model)
-      colnames(X_fixed) = sub("^\\(Intercept\\)$", "intercept", colnames(X_fixed))
-      mm_x[[parameter]] = as.data.frame(X_fixed, check.names = FALSE)
+    data_for_par <- if(parameter %in% c("theta","zeta")) {
+      dataset_mm[dataset_mm$time %in% unique(dataset_mm$time)[1:(length(unique(dataset_mm$time))-1)], , drop = FALSE]
     } else {
-      mm_x[[parameter]] = data.frame(row.names = seq_len(nrow(m$model)))
+      dataset_mm
     }
 
-    if(length(m$sterms$mu)==0) {
-      mm_s[[parameter]]=NULL
+    data_for_par <- sanitize_for_gamlss2(data_for_par, formulas[[parameter]])
+    formula_terms <- stats::terms(formulas[[parameter]])
+    has_intercept <- as.integer(attr(formula_terms, "intercept")) == 1L
+    term_labels <- attr(formula_terms, "term.labels")
+
+    fixed_terms <- term_labels[!grepl("^\\s*s\\(", term_labels)]
+    fixed_terms <- intersect(fixed_terms, names(data_for_par))
+
+    if(length(fixed_terms) > 0 || has_intercept) {
+      fixed_formula <- stats::reformulate(termlabels = fixed_terms, intercept = has_intercept)
+      X_fixed <- stats::model.matrix(fixed_formula, data = data_for_par)
+      colnames(X_fixed) <- sub("^\\(Intercept\\)$", "intercept", colnames(X_fixed))
+      mm_x[[parameter]] <- as.data.frame(X_fixed, check.names = FALSE)
     } else {
-      mm_s[[parameter]]=list()
-      for (s in m$sterms$mu) {
-        mm_s[[parameter]][[s]]=m$specials[[s]]$X
+      mm_x[[parameter]] <- data.frame(row.names = seq_len(nrow(data_for_par)))
+    }
+
+    smooth_terms <- term_labels[grepl("^\\s*s\\(", term_labels)]
+    if(length(smooth_terms) == 0) {
+      mm_s[[parameter]] <- NULL
+    } else {
+      mm_s[[parameter]] <- list()
+      for (s_label in smooth_terms) {
+        s_txt <- trimws(s_label)
+        s_obj <- eval(parse(text = s_txt), envir = smooth_eval_env)
+        s_con <- mgcv::smoothCon(s_obj, data = data_for_par, knots = NULL)
+        if (length(s_con) > 0 && !is.null(s_con[[1]]$X)) {
+          mm_s[[parameter]][[s_txt]] <- s_con[[1]]$X
+        }
+      }
+      if(length(mm_s[[parameter]]) == 0) {
+        mm_s[[parameter]] <- NULL
       }
     }
   }
