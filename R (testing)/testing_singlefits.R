@@ -9,20 +9,18 @@ n=500; d=4
 # Missingness configuration:
 # - "increasing_time": p_miss(i) = i/(T+1) by ordered time index i.
 # - "mar": missing completely at random across all rows at mar_missing_rate.
-missingness_mode = "increasing_time"
-mar_missing_rate = 0.5
+# mar_missing_rate controls the overall target missingness level for both modes.
+missingness_mode = "mar" # or "mar"
+mar_missing_rate = 0.1
 
-#copula_dist="N"; margin_dist=NO(); mu=0; sigma=1;nu=NA; tau=NA; theta=-1; zeta=NA; simOption=7;
-#copula_dist="C";margin_dist=GA(); mu=1; sigma=0.2;nu=NA; tau=NA; theta=.5; zeta=NA; simOption=7;
-#copula_dist="C"; margin_dist=PE(); mu=0.4; sigma=0.6;nu=1; tau=NA; theta=-0.5; zeta=NA; simOption=7;
-#copula_dist="N"; margin_dist=ST1(); mu=1; sigma=1;nu=1; tau=1; theta=-0.5; zeta=NA; simOption=7;
+copula_dist="N"; margin_dist=BCPEo(); mu=1; sigma=0.5;nu=-1; tau=1; theta=-0.5; zeta=NA; simOption=10;
+copula_dist="C"; margin_dist=BCPEo(); mu=1; sigma=0.5;nu=-1; tau=1; theta=-2; zeta=NA; simOption=10;
 
-copula_dist="N"; margin_dist=BCPEo(); mu=1; sigma=.1;nu=1; tau=1; theta=.2; zeta=NA; simOption=10;
 
 # USE THIS WITH SIMOPTION 10
-covariates_input=list( mu.time=1   ,sigma.time=1   ,nu.time=1    ,tau.time=1   ,theta.time=.2  ,zeta.time=0
-                        ,mu.age=5    ,sigma.age=5     ,nu.age=0     ,tau.age=0    ,theta.age=0    ,zeta.age=0
-                        ,mu.gender=1 ,sigma.gender=1  ,nu.gender=0  ,tau.gender=0 ,theta.gender=0 ,zeta.gender=0)
+covariates_input=list( mu.time=0.1   ,sigma.time=0.1   ,nu.time=1    ,tau.time=0.1   ,theta.time=1  ,zeta.time=0
+                        ,mu.age=1    ,sigma.age=0.5     ,nu.age=0     ,tau.age=0    ,theta.age=0    ,zeta.age=0
+                        ,mu.gender=0.1 ,sigma.gender=0.1  ,nu.gender=0  ,tau.gender=0 ,theta.gender=0 ,zeta.gender=0)
 
 #########Generate dataset
 
@@ -34,9 +32,19 @@ dataset=loadDataset(simOption=simOption, n=n,d=d, copula_dist=copula_dist, margi
 if (missingness_mode == "increasing_time") {
   time_points_missing = sort(unique(dataset$time))
   T_missing = length(time_points_missing)
+
+  # Base increasing probabilities by time rank.
+  base_p_by_time = seq_along(time_points_missing) / (T_missing + 1)
+
+  # Scale to target mar_missing_rate on average while preserving the trend.
+  n_by_time = sapply(time_points_missing, function(t_val) sum(dataset$time == t_val))
+  base_mean_p = sum(base_p_by_time * n_by_time) / sum(n_by_time)
+  scale_factor = ifelse(base_mean_p > 0, mar_missing_rate / base_mean_p, 1)
+  p_by_time = pmin(base_p_by_time * scale_factor, 1)
+
   for (i in seq_along(time_points_missing)) {
     t_val = time_points_missing[i]
-    p_miss = i / (T_missing + 1)
+    p_miss = p_by_time[i]
     idx_t = which(dataset$time == t_val)
     miss_flags = runif(length(idx_t)) < p_miss
     dataset$response[idx_t[miss_flags]] = NA
@@ -48,7 +56,7 @@ if (missingness_mode == "increasing_time") {
   stop("Invalid missingness_mode. Use 'increasing_time' or 'mar'.")
 }
 
-plotDist(dataset,margin_dist)
+plotDist(dataset, margin_dist, offdiag_scale = "pseudo")
 
 #########PLOTTING#############
 #Group dataset by age categories in buckets of 10 years then calculate the correlation in each bucket and plot
@@ -198,8 +206,14 @@ fit=gamlss.longitudinal(dataset=data_in
 
 #################### PLOT METHOD ####################
 source("R/common_functions.R")
-summary(fit)
-plot(
+source("R/diagnostics_topmodels.R")
+source("R (testing)/plot_copula_v2.R")
+#summary(fit)
+plot(fit)
+plot(fit, time_stratified = TRUE)
+plot.copula(fit, contour_bins=5, time_stratified = TRUE, plot2_cuts=10)
+plot.copula_contour_compare(fit, time_stratified = TRUE, transform="normal", diff_scale_limit=.1)
+plot.terms(
   fit,
   data = data_in,
   ci_level=0.90,
