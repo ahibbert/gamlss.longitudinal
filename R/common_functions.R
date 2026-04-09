@@ -33,6 +33,8 @@
 #' @param method Optimisation method to use, RS() is the default
 #' @param max_outer_iter Maximum number of outer iterations
 #' @param max_inner_iter Maximum number of inner iterations
+#' @param max_negative_outer_streak Maximum number of consecutive negative outer
+#' log-likelihood changes allowed before stopping.
 #' @param use_Rcpp Use Rcpp for matrix operations
 #'
 #' @return Returns matrix of log likleihoods, margin parameters and copula parameters
@@ -62,6 +64,7 @@ gamlss.longitudinal=function(dataset,
                         method="RS",
                         max_outer_iter=20,
                         max_inner_iter=20,
+                        max_negative_outer_streak=3,
                         use_Rcpp=FALSE,
                         lambda_start=5,
                         lambda_penalty_K=2
@@ -362,6 +365,7 @@ gamlss.longitudinal=function(dataset,
   log_lik_history=matrix(ncol=3,nrow=0)
   par_history=matrix(ncol=length(par_cov),nrow=0); colnames(par_history)=names(par_cov)
   outer_run_counter=1; outer_only_run_counter=1
+  outer_negative_streak=0
   step_size=start_step_size
   weights_final=list()
 
@@ -449,11 +453,23 @@ gamlss.longitudinal=function(dataset,
         ### Calculate copula derivatives w.r.t margin parameters
         if(!par_name %in% c("mu","sigma","nu","tau")) {
           if(par_name == "theta") {
-            d1=as.matrix(dldth)
+            d1_full=matrix(0,nrow=length(dataset$response),ncol=1)
+            row_id1 <- calc_lik_out$copula_row_id1
+            if(length(row_id1)>0) {
+              valid_idx <- is.finite(row_id1) & row_id1 >= 1 & row_id1 <= nrow(d1_full)
+              d1_full[row_id1[valid_idx],1] <- dldth[valid_idx]
+            }
+            d1=as.matrix(d1_full)
             colnames(d1)="dldtheta"
             #d2=d2ldth2
           } else if(par_name == "zeta") {
-            d1=as.matrix(dldz)
+            d1_full=matrix(0,nrow=length(dataset$response),ncol=1)
+            row_id1 <- calc_lik_out$copula_row_id1
+            if(length(row_id1)>0) {
+              valid_idx <- is.finite(row_id1) & row_id1 >= 1 & row_id1 <= nrow(d1_full)
+              d1_full[row_id1[valid_idx],1] <- dldz[valid_idx]
+            }
+            d1=as.matrix(d1_full)
             colnames(d1)="dldzeta"
             #d2=d2ldz2
           } else {
@@ -520,10 +536,37 @@ gamlss.longitudinal=function(dataset,
 
         ### INNER ITERATION / BACKFITTING STEP
 
+        # Ensure score inputs have consistent lengths (prevents silent recycling).
+        eta_len <- length(eta[[par_name]])
+        d1 <- as.numeric(d1)
+        eta_dr_vec <- as.numeric(eta_dr[[par_name]])
+
+        if (length(d1) != eta_len) {
+          if (length(d1) < eta_len) {
+            d1 <- c(d1, rep(0, eta_len - length(d1)))
+          } else {
+            d1 <- d1[seq_len(eta_len)]
+          }
+          if (verbose > 1) {
+            cat(paste0("\nAdjusted derivative length for ", par_name, ": d1 -> ", eta_len, "\n"))
+          }
+        }
+
+        if (length(eta_dr_vec) != eta_len) {
+          if (length(eta_dr_vec) < eta_len) {
+            eta_dr_vec <- c(eta_dr_vec, rep(0, eta_len - length(eta_dr_vec)))
+          } else {
+            eta_dr_vec <- eta_dr_vec[seq_len(eta_len)]
+          }
+          if (verbose > 1) {
+            cat(paste0("\nAdjusted link-derivative length for ", par_name, ": eta_dr -> ", eta_len, "\n"))
+          }
+        }
+
         # 1. Calculate y_k, w_k
 
         ########### FIRST ITERATION CALCULATES B_k without smooths
-        score=score_function_v2(eta=eta[[par_name]],dldpar=d1,d2ldpar=-(d1*d1),dpardeta=eta_dr[[par_name]])
+        score=score_function_v2(eta=eta[[par_name]],dldpar=d1,d2ldpar=-(d1*d1),dpardeta=eta_dr_vec)
 
         timer=c(timer,difftime(Sys.time(),timer_start,units="secs"))
         names(timer)[length(timer)]=paste("Backfitting")
@@ -726,6 +769,22 @@ gamlss.longitudinal=function(dataset,
     cat("\n")
     print(out_temp)
 
+    if(is.finite(outer_log_lik_change) && outer_log_lik_change < 0) {
+      outer_negative_streak = outer_negative_streak + 1
+    } else {
+      outer_negative_streak = 0
+    }
+
+    if(outer_negative_streak >= max_negative_outer_streak) {
+      msg = paste0(
+        "Optimization stopped after ", max_negative_outer_streak, " consecutive negative outer log-likelihood changes. ",
+        "We believe the model may be misspecified and the likelihood may be malformed. ",
+        "Try different starting parameters or covariate combinations. Other options include switching between joint and separate optimisation."
+      )
+      warning(msg, call. = FALSE)
+      stop(msg, call. = FALSE)
+    }
+
 
     if(abs(outer_log_lik_change)<=outer_stop_crit) {
       print(c(outer_end_log_lik-outer_start_log_lik))
@@ -778,6 +837,15 @@ gamlss.longitudinal=function(dataset,
 
   return_list=list(par_cov,log_lik_history,par_history,calc_lik_out_end,mm,margin_dist,copula_dist,include_dlcopdpar,dataset$response,dataset$time,dataset$subject,par_s,lambda_s,df_s,weights_final)
   names(return_list)=c("par","log_lik_history","par_history","calc_lik_out_end","model_matrix","margin_dist","copula_dist","include_dlcopdpar","response","response_margin","response_subject","par_s","lambda_s","df_s","weights")
+  return_list$formulas_int <- list(
+    mu = mu.formula.int,
+    sigma = sigma.formula.int,
+    nu = nu.formula.int,
+    tau = tau.formula.int,
+    theta = theta.formula.int,
+    zeta = zeta.formula.int
+  )
+  return_list$var_map <- var_map
   class(return_list)="gamlss.longitudinal"
   return(return_list)
 }
@@ -984,7 +1052,14 @@ create_model_matrices<-function(
         s_obj <- eval(parse(text = s_txt), envir = smooth_eval_env)
         s_con <- mgcv::smoothCon(s_obj, data = data_for_par, knots = NULL)
         if (length(s_con) > 0 && !is.null(s_con[[1]]$X)) {
-          mm_s[[parameter]][[s_txt]] <- s_con[[1]]$X
+          B_s <- s_con[[1]]$X
+          x_var <- trimws(sub("^s\\(([^,\\)]+).*$", "\\1", s_txt))
+          x_var <- gsub("`", "", x_var, fixed = TRUE)
+          if (x_var %in% names(data_for_par) && length(data_for_par[[x_var]]) == nrow(B_s)) {
+            attr(B_s, "smooth_x") <- as.numeric(data_for_par[[x_var]])
+            attr(B_s, "smooth_var") <- x_var
+          }
+          mm_s[[parameter]][[s_txt]] <- B_s
         }
       }
       if(length(mm_s[[parameter]]) == 0) {
@@ -1199,10 +1274,15 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
   par1=rep(NA_real_,nrow(pair_df))
   par2=rep(NA_real_,nrow(pair_df))
   if(nrow(pair_df)>0) {
-    theta_rows = which(response_margin %in% margin_names[seq_len(max(1, num_margins-1))])
-    theta_index_map=rep(NA_integer_,n_obs)
-    theta_index_map[theta_rows]=seq_along(theta_rows)
-    theta_idx=theta_index_map[pair_df$row_id1]
+    theta_len <- length(eta_inv[["theta"]])
+    if(theta_len == n_obs) {
+      theta_idx <- pair_df$row_id1
+    } else {
+      theta_rows = which(response_margin %in% margin_names[seq_len(max(1, num_margins-1))])
+      theta_index_map=rep(NA_integer_,n_obs)
+      theta_index_map[theta_rows]=seq_along(theta_rows)
+      theta_idx=theta_index_map[pair_df$row_id1]
+    }
 
     par1=eta_inv[["theta"]][theta_idx]
     if("zeta" %in% names(eta_inv)) {
@@ -1252,8 +1332,8 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
 
   copula_p=rep(NA_real_,length(copula_d))
 
-  return_list=list(log_lik,margin_d,copula_d,margin_p,copula_p,Fx_1_2,order_copula,margin_deriv,pair_complete,par1,par2)
-  names(return_list)=c("log_lik","margin_d","copula_d","margin_p","copula_p","Fx_1_2","order_copula","margin_deriv","pair_complete","copula_par1","copula_par2")
+  return_list=list(log_lik,margin_d,copula_d,margin_p,copula_p,Fx_1_2,order_copula,margin_deriv,pair_complete,par1,par2,pair_df$row_id1,pair_df$row_id2)
+  names(return_list)=c("log_lik","margin_d","copula_d","margin_p","copula_p","Fx_1_2","order_copula","margin_deriv","pair_complete","copula_par1","copula_par2","copula_row_id1","copula_row_id2")
   return(return_list)
 }
 
@@ -2424,6 +2504,9 @@ print.summary.gamlss.longitudinal = function(x, digits = max(3, getOption("digit
 #' @param ci_lty Line type for confidence bands.
 #' @param fit_lwd Line width for fitted smooth.
 #' @param sort_x Logical; sort points by x before plotting lines.
+#' @param even_grid Logical; if TRUE, plot smooths on an evenly spaced x-grid
+#' built over observed x-range.
+#' @param grid_n Number of grid points when `even_grid = TRUE`.
 #' @param fallback_to_index Logical; if x variable cannot be inferred, plot
 #' against row index.
 #' @param setup_mfrow Logical; if TRUE (default), configure par(mfrow) inside
@@ -2444,6 +2527,8 @@ plot_smooth_terms = function(
   ci_lty = 2,
   fit_lwd = 2,
   sort_x = TRUE,
+  even_grid = TRUE,
+  grid_n = 200,
   fallback_to_index = TRUE,
   setup_mfrow = TRUE,
   show_legend = TRUE
@@ -2474,7 +2559,17 @@ plot_smooth_terms = function(
     x_var = extract_smooth_var(s_name)
     x = NULL
 
-    if(!is.null(data) && is.data.frame(data)) {
+    # Prefer x saved with the smooth basis because it is guaranteed row-aligned.
+    x_basis = attr(B, "smooth_x")
+    x_basis_var = attr(B, "smooth_var")
+    if(!is.null(x_basis) && length(x_basis) == nrow(B)) {
+      x = x_basis
+      if(!is.null(x_basis_var) && nzchar(x_basis_var)) {
+        x_var = x_basis_var
+      }
+    }
+
+    if(is.null(x) && !is.null(data) && is.data.frame(data)) {
       data_names = names(data)
       # Prefer exact match, then case-insensitive match, then make.names match.
       idx_exact = which(data_names == x_var)
@@ -2484,7 +2579,15 @@ plot_smooth_terms = function(
       idx = idx[!duplicated(idx)]
       if(length(idx) > 0) {
         matched_name = data_names[idx[1]]
-        x = data[[matched_name]]
+        x_candidate = data[[matched_name]]
+        if(length(x_candidate) == nrow(B)) {
+          x = x_candidate
+        } else if(!is.null(rownames(B)) && !is.null(rownames(data))) {
+          row_idx = match(rownames(B), rownames(data))
+          if(all(!is.na(row_idx))) {
+            x = x_candidate[row_idx]
+          }
+        }
         x_var = matched_name
       }
     }
@@ -2505,11 +2608,7 @@ plot_smooth_terms = function(
     }
 
     if(length(x) != nrow(B)) {
-      if(length(x) > nrow(B)) {
-        x = x[seq_len(nrow(B))]
-      } else {
-        stop("Length mismatch for smooth term '", s_name, "': length(x)=", length(x), " but nrow(B)=", nrow(B), ".")
-      }
+      stop("Length mismatch for smooth term '", s_name, "': length(x)=", length(x), " but nrow(B)=", nrow(B), ".")
     }
 
     list(x = as.numeric(x), x_var = x_var)
@@ -2535,18 +2634,8 @@ plot_smooth_terms = function(
     return(invisible(list()))
   }
 
-  if(is.null(ncol)) {
-    ncol = min(2, n_plots)
-  }
-  nrow = ceiling(n_plots / ncol)
-
-  if(setup_mfrow) {
-    old_par = par(no.readonly = TRUE)
-    on.exit(par(old_par), add = TRUE)
-    par(mfrow = c(nrow, ncol))
-  }
-
   out = list()
+  plot_objects = list()
   for(i in seq_len(n_plots)) {
     par_name = smooth_index[[i]]$par_name
     s_name = smooth_index[[i]]$s_name
@@ -2578,38 +2667,74 @@ plot_smooth_terms = function(
 
     ci_lower = fitted_smooth - z * smooth_fit_se
     ci_upper = fitted_smooth + z * smooth_fit_se
-    ord = if(sort_x) order(x) else seq_along(x)
-
     main_title = paste(par_name, s_name, sep = ": ")
     ylab_text = paste("smooth(", x_info$x_var, ")", sep = "")
 
-    y_vals = c(fitted_smooth, ci_lower, ci_upper)
+    if(isTRUE(even_grid)) {
+      x_ok = is.finite(x)
+      df_obs = data.frame(
+        x = x[x_ok],
+        fitted = fitted_smooth[x_ok],
+        ci_lower = ci_lower[x_ok],
+        ci_upper = ci_upper[x_ok]
+      )
+
+      if(nrow(df_obs) >= 2 && length(unique(df_obs$x)) >= 2) {
+        agg_df = stats::aggregate(df_obs[, c("fitted", "ci_lower", "ci_upper")], by = list(x = df_obs$x), FUN = mean)
+        agg_df = agg_df[order(agg_df$x), , drop = FALSE]
+        n_grid_use = max(20, as.integer(grid_n))
+        x_grid = seq(min(agg_df$x), max(agg_df$x), length.out = n_grid_use)
+
+        plot_df = data.frame(
+          x = x_grid,
+          fitted = stats::approx(agg_df$x, agg_df$fitted, xout = x_grid, method = "linear", rule = 2)$y,
+          ci_lower = stats::approx(agg_df$x, agg_df$ci_lower, xout = x_grid, method = "linear", rule = 2)$y,
+          ci_upper = stats::approx(agg_df$x, agg_df$ci_upper, xout = x_grid, method = "linear", rule = 2)$y
+        )
+      } else {
+        ord = if(sort_x) order(x) else seq_along(x)
+        plot_df = data.frame(
+          x = x[ord],
+          fitted = fitted_smooth[ord],
+          ci_lower = ci_lower[ord],
+          ci_upper = ci_upper[ord]
+        )
+      }
+    } else {
+      ord = if(sort_x) order(x) else seq_along(x)
+      plot_df = data.frame(
+        x = x[ord],
+        fitted = fitted_smooth[ord],
+        ci_lower = ci_lower[ord],
+        ci_upper = ci_upper[ord]
+      )
+    }
+
+    y_vals = c(plot_df$fitted, plot_df$ci_lower, plot_df$ci_upper)
     y_vals = y_vals[is.finite(y_vals)]
+    y_lim = NULL
     if(length(y_vals) > 0) {
       y_rng = range(y_vals)
       y_pad = 0.05 * max(1e-8, diff(y_rng))
       y_lim = c(y_rng[1] - y_pad, y_rng[2] + y_pad)
-    } else {
-      y_lim = NULL
     }
 
-    plot(x[ord], fitted_smooth[ord], type = "l", lwd = fit_lwd, col = fit_col,
-         main = main_title, xlab = x_info$x_var, ylab = ylab_text, ylim = y_lim)
+    p = ggplot2::ggplot(plot_df, ggplot2::aes(x = x, y = fitted)) +
+      ggplot2::geom_ribbon(ggplot2::aes(ymin = ci_lower, ymax = ci_upper), fill = ci_col, alpha = 0.16) +
+      ggplot2::geom_line(color = fit_col, linewidth = fit_lwd) +
+      ggplot2::labs(title = main_title, x = x_info$x_var, y = ylab_text)
 
-    if(any(is.finite(smooth_fit_se))) {
-      lines(x[ord], ci_lower[ord], col = ci_col, lty = ci_lty)
-      lines(x[ord], ci_upper[ord], col = ci_col, lty = ci_lty)
+    if(!is.null(y_lim)) {
+      p = p + ggplot2::coord_cartesian(ylim = y_lim)
     }
 
     if(show_legend) {
-      legend("topright",
-             legend = c("fit", paste0(round(ci_level * 100), "% CI")),
-             col = c(fit_col, ci_col),
-             lty = c(1, ci_lty),
-             lwd = c(fit_lwd, 1),
-             bty = "n",
-             cex = 0.8)
+      p = p + ggplot2::labs(caption = paste("fit /", round(ci_level * 100), "% CI"))
     }
+
+    p = p + ggplot2::theme_minimal()
+
+    plot_objects[[length(plot_objects) + 1]] = p
 
     if(is.null(out[[par_name]])) out[[par_name]] = list()
     out[[par_name]][[s_name]] = list(
@@ -2617,8 +2742,22 @@ plot_smooth_terms = function(
       fitted = fitted_smooth,
       se = smooth_fit_se,
       ci_lower = ci_lower,
-      ci_upper = ci_upper
+      ci_upper = ci_upper,
+      plot = p
     )
+  }
+
+  if(length(plot_objects) > 0) {
+    if(is.null(ncol)) {
+      ncol = min(2, n_plots)
+    }
+    nrow = ceiling(n_plots / ncol)
+    dashboard = ggpubr::ggarrange(plotlist = plot_objects, ncol = ncol, nrow = nrow)
+    if(setup_mfrow) {
+      print(dashboard)
+    }
+    out$plots = plot_objects
+    out$dashboard = dashboard
   }
 
   invisible(out)
@@ -2704,15 +2843,28 @@ plot_fixed_terms = function(
       levs = levels(v)
       if(length(levs) < 2) next
 
+      var_tokens = strsplit(var_name, "_", fixed = TRUE)[[1]]
+      var_prefixes = unique(c(
+        var_name,
+        make.names(var_name),
+        if(length(var_tokens) > 0) var_tokens[1] else character(0),
+        if(length(var_tokens) > 0) make.names(var_tokens[1]) else character(0)
+      ))
+      var_prefixes = var_prefixes[nzchar(var_prefixes)]
+
       level_col_map = list()
       matched_cols = character(0)
       for(lev in levs[-1]) {
-        candidates = unique(c(
-          paste0(var_name, lev),
-          paste0(var_name, make.names(lev)),
-          paste0(var_name, "_", lev),
-          paste0(var_name, "_", make.names(lev))
-        ))
+        lev_plain = as.character(lev)
+        lev_mn = make.names(lev_plain)
+        candidates = unique(unlist(lapply(var_prefixes, function(pref) {
+          c(
+            paste0(pref, lev_plain),
+            paste0(pref, lev_mn),
+            paste0(pref, "_", lev_plain),
+            paste0(pref, "_", lev_mn)
+          )
+        }), use.names = FALSE))
         hit = candidates[candidates %in% x_cols]
         if(length(hit) > 0) {
           level_col_map[[lev]] = hit[1]
@@ -2789,18 +2941,8 @@ plot_fixed_terms = function(
     return(invisible(list()))
   }
 
-  if(is.null(ncol)) {
-    ncol = min(2, n_plots)
-  }
-  nrow = ceiling(n_plots / ncol)
-
-  if(setup_mfrow) {
-    old_par = par(no.readonly = TRUE)
-    on.exit(par(old_par), add = TRUE)
-    par(mfrow = c(nrow, ncol))
-  }
-
   out = list()
+  plot_objects = list()
   for(i in seq_len(n_plots)) {
     spec = plot_specs[[i]]
     par_name = spec$par_name
@@ -2840,29 +2982,32 @@ plot_fixed_terms = function(
         y_lim = NULL
       }
 
-      plot(x_plot[keep], fitted_term[keep],
-           type = "p",
-           pch = factor_pch,
-           cex = factor_cex,
-           col = fit_col,
-           xaxt = "n",
-           main = paste(par_name, fg$var_name, sep = ": "),
-           xlab = fg$var_name,
-           ylab = paste("fixed contribution:", paste(par_name, fg$var_name, sep = ".")),
-           ylim = y_lim)
-      axis(1, at = x_plot, labels = as.character(levs))
-      arrows(x_plot[keep], ci_lower[keep], x_plot[keep], ci_upper[keep],
-             angle = 90, code = 3, length = 0.05, col = ci_col, lty = ci_lty)
-      abline(h = 0, col = "grey70", lty = 3)
+      plot_df = data.frame(
+        x = factor(levs, levels = levs),
+        fitted = fitted_term,
+        ci_lower = ci_lower,
+        ci_upper = ci_upper,
+        keep = keep
+      )
+
+      p = ggplot2::ggplot(plot_df[plot_df$keep, , drop = FALSE], ggplot2::aes(x = x, y = fitted)) +
+        ggplot2::geom_hline(yintercept = 0, color = "grey70", linetype = 3) +
+        ggplot2::geom_point(color = fit_col, size = factor_cex) +
+        ggplot2::geom_errorbar(ggplot2::aes(ymin = ci_lower, ymax = ci_upper), color = ci_col, width = 0.15) +
+        ggplot2::scale_x_discrete(labels = levs) +
+        ggplot2::labs(
+          title = paste(par_name, fg$var_name, sep = ": "),
+          x = fg$var_name,
+          y = paste("fixed contribution:", paste(par_name, fg$var_name, sep = "."))
+        ) +
+        ggplot2::theme_minimal()
+
+      if(!is.null(y_lim)) {
+        p = p + ggplot2::coord_cartesian(ylim = y_lim)
+      }
 
       if(show_legend) {
-        legend("topright",
-               legend = c("estimate", paste0(round(ci_level * 100), "% CI")),
-               col = c(fit_col, ci_col),
-               pch = c(factor_pch, NA),
-               lty = c(NA, ci_lty),
-               bty = "n",
-               cex = 0.8)
+        p = p + ggplot2::labs(caption = paste("estimate /", round(ci_level * 100), "% CI"))
       }
 
       if(is.null(out[[par_name]])) out[[par_name]] = list()
@@ -2873,8 +3018,10 @@ plot_fixed_terms = function(
         fitted = fitted_term,
         se = term_se,
         ci_lower = ci_lower,
-        ci_upper = ci_upper
+        ci_upper = ci_upper,
+        plot = p
       )
+      plot_objects[[length(plot_objects) + 1]] = p
     } else {
       col_name = spec$col_name
       coef_name = spec$coef_name
@@ -2911,20 +3058,27 @@ plot_fixed_terms = function(
         y_lim = NULL
       }
 
-      plot(x_plot[ord], fitted_term[ord], type = "l", lwd = fit_lwd, col = fit_col,
-           main = main_title, xlab = xlab_text, ylab = ylab_text, ylim = y_lim)
-      lines(x_plot[ord], ci_lower[ord], col = ci_col, lty = ci_lty)
-      lines(x_plot[ord], ci_upper[ord], col = ci_col, lty = ci_lty)
+      plot_df = data.frame(
+        x = x_plot[ord],
+        fitted = fitted_term[ord],
+        ci_lower = ci_lower[ord],
+        ci_upper = ci_upper[ord]
+      )
+
+      p = ggplot2::ggplot(plot_df, ggplot2::aes(x = x, y = fitted)) +
+        ggplot2::geom_ribbon(ggplot2::aes(ymin = ci_lower, ymax = ci_upper), fill = ci_col, alpha = 0.16) +
+        ggplot2::geom_line(color = fit_col, linewidth = fit_lwd) +
+        ggplot2::labs(title = main_title, x = xlab_text, y = ylab_text) +
+        ggplot2::theme_minimal()
+
+      if(!is.null(y_lim)) {
+        p = p + ggplot2::coord_cartesian(ylim = y_lim)
+      }
 
       if(show_legend) {
-        legend("topright",
-               legend = c("fit", paste0(round(ci_level * 100), "% CI")),
-               col = c(fit_col, ci_col),
-               lty = c(1, ci_lty),
-               lwd = c(fit_lwd, 1),
-               bty = "n",
-               cex = 0.8)
+        p = p + ggplot2::labs(caption = paste("fit /", round(ci_level * 100), "% CI"))
       }
+
       if(is.null(out[[par_name]])) out[[par_name]] = list()
       out[[par_name]][[col_name]] = list(
         coefficient = coef_name,
@@ -2932,58 +3086,73 @@ plot_fixed_terms = function(
         fitted = fitted_term,
         se = term_se,
         ci_lower = ci_lower,
-        ci_upper = ci_upper
+        ci_upper = ci_upper,
+        plot = p
       )
+      plot_objects[[length(plot_objects) + 1]] = p
     }
+  }
+
+  if(length(plot_objects) > 0) {
+    if(is.null(ncol)) {
+      ncol = min(2, n_plots)
+    }
+    nrow = ceiling(n_plots / ncol)
+    dashboard = ggpubr::ggarrange(plotlist = plot_objects, ncol = ncol, nrow = nrow)
+    if(setup_mfrow) {
+      print(dashboard)
+    }
+    out$plots = plot_objects
+    out$dashboard = dashboard
   }
 
   invisible(out)
 }
 
-#' Plot method for fitted gamlss.longitudinal objects
+#' Plot term effects for a fitted `gamlss.longitudinal` object
 #'
-#' This S3 plot method generates diagnostic plots for a fitted
-#' `gamlss.longitudinal` object, including both fixed-effect terms and
-#' smooth terms with confidence bands. If the total number of plots
-#' exceeds `max_plots_per_page`, the user is prompted to advance pages.
+#' This is the original term-wise plotting behavior (smooth and fixed effects)
+#' that was previously exposed through `plot.gamlss.longitudinal()`.
 #'
 #' @param x A fitted `gamlss.longitudinal` object.
 #' @param y Unused; included for S3 generic compatibility.
-#' @param ci_level Confidence level for pointwise intervals (default: 0.95).
-#' @param max_plots_per_page Maximum number of plots before pagination prompt
-#' (default: 6). Set to 0 or negative to disable pagination.
-#' @param ncol Number of columns in each plot frame (default: 2).
-#' @param include_intercept Logical; include intercept terms in fixed plots
-#' (default: FALSE).
 #' @param data Optional data frame containing original covariates used to infer
 #' smooth-term x-axis variables. If omitted, smooth terms may fall back to index.
+#' @param ci_level Confidence level for pointwise intervals (default: 0.95).
+#' @param ncol Number of columns in each plot frame (default: 2).
+#' @param include_intercept Logical; include intercept terms in fixed plots.
 #' @param ci_col Color for confidence bands (default: "red").
 #' @param fit_col Color for fitted lines (default: "black").
 #' @param show_legend Logical; if TRUE, draw a legend in each panel.
-#' @param ... Additional arguments passed to plotting functions (unused).
+#' @param smooth_even_grid Logical; if TRUE, draw smooth terms on an evenly
+#' spaced x-grid.
+#' @param smooth_grid_n Number of x-grid points for smooth-term plots when
+#' `smooth_even_grid = TRUE`.
+#' @param ... Additional arguments (currently unused).
 #'
-#' @return Invisibly returns a list with elements:
-#' - `smooth_terms`: output from `plot_smooth_terms()`
-#' - `fixed_terms`: output from `plot_fixed_terms()`
-#'
+#' @return Invisibly returns a list with `smooth_terms` and `fixed_terms`.
 #' @export
-plot.gamlss.longitudinal = function(
+plot.terms = function(x, ...) {
+  UseMethod("plot.terms")
+}
+
+#' @export
+plot.terms.gamlss.longitudinal = function(
   x,
   y,
   data = NULL,
   ci_level = 0.95,
-  max_plots_per_page = 6,
   ncol = 2,
   include_intercept = FALSE,
   ci_col = "red",
   fit_col = "black",
   show_legend = TRUE,
+  smooth_even_grid = TRUE,
+  smooth_grid_n = 200,
   ...
 ) {
-  cat("\n=== Plotting gamlss.longitudinal object ===\n")
+  cat("\n=== Plotting term effects for gamlss.longitudinal object ===\n")
   cat("Computing variance-covariance matrix...\n\n")
-
-  vcov_obj = vcov(x, numderiv = TRUE)
 
   count_plot_terms = function(obj) {
     n_smooth = 0
@@ -2998,14 +3167,9 @@ plot.gamlss.longitudinal = function(
     for(par_name in names(obj$model_matrix$x)) {
       X = obj$model_matrix$x[[par_name]]
       if(!is.null(X) && ncol(X) > 0) {
-        n_cols = ncol(X)
-        if(!include_intercept && "intercept" %in% colnames(X)) {
-          n_cols = n_cols - 1
-        }
         coef_names = paste(par_name, colnames(X), sep = ".")
         coef_names = coef_names[!(colnames(X) == "intercept" & !include_intercept)]
-        n_valid = sum(coef_names %in% names(obj$par))
-        n_fixed = n_fixed + n_valid
+        n_fixed = n_fixed + sum(coef_names %in% names(obj$par))
       }
     }
 
@@ -3016,19 +3180,17 @@ plot.gamlss.longitudinal = function(
   cat(sprintf("Found %d smooth terms and %d fixed terms (total: %d plots).\n\n",
               counts$smooth, counts$fixed, counts$total))
 
-  smooth_results = fixed_results = list()
-
   if(counts$total == 0) {
-    warning("No plots to display.")
+    warning("No term plots to display.")
     return(invisible(list(smooth_terms = list(), fixed_terms = list())))
   }
 
-  nrow_total = ceiling(counts$total / ncol)
-  old_par = par(no.readonly = TRUE)
-  on.exit(par(old_par), add = TRUE)
-  par(mfrow = c(nrow_total, ncol))
+  vcov_obj = vcov(x, numderiv = TRUE)
 
-  cat("Plotting all terms...\n")
+  smooth_results = list()
+  fixed_results = list()
+  plot_objects = list()
+
   if(counts$smooth > 0) {
     smooth_results = plot_smooth_terms(
       object = x,
@@ -3038,9 +3200,14 @@ plot.gamlss.longitudinal = function(
       ncol = ncol,
       ci_col = ci_col,
       fit_col = fit_col,
+      even_grid = smooth_even_grid,
+      grid_n = smooth_grid_n,
       setup_mfrow = FALSE,
       show_legend = show_legend
     )
+    if(!is.null(smooth_results$plots)) {
+      plot_objects = c(plot_objects, smooth_results$plots)
+    }
   }
 
   if(counts$fixed > 0) {
@@ -3056,12 +3223,173 @@ plot.gamlss.longitudinal = function(
       data = data,
       show_legend = show_legend
     )
+    if(!is.null(fixed_results$plots)) {
+      plot_objects = c(plot_objects, fixed_results$plots)
+    }
   }
 
-  cat("\n")
+  dashboard = NULL
+  if(length(plot_objects) > 0) {
+    if(is.null(ncol)) {
+      ncol = min(2, length(plot_objects))
+    }
+    nrow = ceiling(length(plot_objects) / ncol)
+    dashboard = ggpubr::ggarrange(plotlist = plot_objects, ncol = ncol, nrow = nrow)
+    print(dashboard)
+  }
+
   invisible(list(
     smooth_terms = smooth_results,
-    fixed_terms = fixed_results
+    fixed_terms = fixed_results,
+    dashboard = dashboard
+  ))
+}
+
+#' Plot diagnostics dashboard for fitted `gamlss.longitudinal` objects
+#'
+#' Displays six ggplot-based panels by default:
+#' 1) PIT histogram
+#' 2) QQ residual plot
+#' 3) Worm plot
+#' 4) Rootogram
+#' 5) Fitted-data quantile forecast plot
+#' 6) Newdata quantile forecast plot (if `newdata` or `data` supplied)
+#'
+#' @param x A fitted `gamlss.longitudinal` object.
+#' @param y Unused; included for S3 generic compatibility.
+#' @param data Optional data frame used as fallback for `newdata` plotting.
+#' @param newdata Optional data frame for the newdata forecast panel.
+#' @param newdata_n Number of rows to use from `data` when `newdata` is NULL.
+#' @param quantiles Quantiles for forecast panels.
+#' @param randomize Logical; randomized PIT/residual diagnostics.
+#' @param time_stratified Logical; if TRUE, show time-stratified PIT and worm plots.
+#' @param ... Additional arguments (currently unused).
+#'
+#' @return Invisibly returns a list of generated plot/data objects.
+#' @export
+plot.gamlss.longitudinal = function(
+  x,
+  y,
+  data = NULL,
+  newdata = NULL,
+  newdata_n = 8,
+  quantiles = c(0.1, 0.5, 0.9),
+  randomize = TRUE,
+  time_stratified = FALSE,
+  ...
+) {
+  if(!inherits(x, "gamlss.longitudinal")) {
+    stop("'x' must be of class 'gamlss.longitudinal'.")
+  }
+
+  q_col_name = function(prob) {
+    paste0("q", gsub("^0\\.", "", format(prob, trim = TRUE)))
+  }
+
+  make_empty_plot = function(title_txt, msg_txt) {
+    ggplot2::ggplot(data.frame(x = 0, y = 0), ggplot2::aes(x = x, y = y)) +
+      ggplot2::geom_text(label = msg_txt) +
+      ggplot2::xlim(-1, 1) +
+      ggplot2::ylim(-1, 1) +
+      ggplot2::labs(title = title_txt) +
+      ggplot2::theme_void()
+  }
+
+  # 1-4: Standard diagnostics
+  p_diag1 = pithist(x, bins = 20, randomize = randomize, plot = TRUE, by_time = time_stratified)
+  p_diag2 = qqrplot(x, randomize = randomize, plot = TRUE, by_time = time_stratified)
+  p_diag3 = wormplot(x, randomize = randomize, plot = TRUE, by_time = time_stratified)
+  p_diag4 = rootogram(x, bins = 20, plot = TRUE)
+
+  # 5: Fitted-data forecast quantiles
+  fc_fit_q = procast(x, type = "quantile", at = quantiles)
+  fc_fit_q$idx = seq_len(nrow(fc_fit_q))
+
+  q_low = q_col_name(min(quantiles))
+  q_high = q_col_name(max(quantiles))
+  q_mid = q_col_name(if(0.5 %in% quantiles) 0.5 else quantiles[ceiling(length(quantiles) / 2)])
+
+  p_fit_quant = ggplot2::ggplot(fc_fit_q, ggplot2::aes(x = idx)) +
+    ggplot2::geom_ribbon(ggplot2::aes_string(ymin = q_low, ymax = q_high), fill = "#4e79a7", alpha = 0.25) +
+    ggplot2::geom_line(ggplot2::aes_string(y = q_mid), color = "#1f4e79", linewidth = 0.8) +
+    ggplot2::geom_point(ggplot2::aes(y = response), color = "black", alpha = 0.35, size = 0.9) +
+    ggplot2::labs(
+      title = "Fitted Forecast Quantiles",
+      x = "Observation Index",
+      y = "Response"
+    ) +
+    ggplot2::theme_minimal()
+
+  # 6: Newdata forecast quantiles
+  nd_use = newdata
+  if(is.null(nd_use) && !is.null(data) && is.data.frame(data)) {
+    nd_use = utils::head(data, newdata_n)
+    # ensure quantile-only mode (response optional)
+    if(is.null(x$var_map) || !"response" %in% x$var_map) {
+      nd_use$response = NA_real_
+    } else {
+      response_orig = names(x$var_map)[x$var_map == "response"][1]
+      if(!is.na(response_orig) && !response_orig %in% names(nd_use) && !"response" %in% names(nd_use)) {
+        nd_use[[response_orig]] = NA_real_
+      }
+    }
+  }
+
+  p_new_quant = NULL
+  fc_new_q = NULL
+  if(!is.null(nd_use) && is.data.frame(nd_use) && nrow(nd_use) > 0) {
+    fc_new_q = tryCatch(
+      procast.gamlss.longitudinal(x, type = "quantile", at = quantiles, newdata = nd_use),
+      error = function(e) NULL
+    )
+
+    if(!is.null(fc_new_q)) {
+      time_candidates = c("time", if(!is.null(x$var_map)) names(x$var_map)[x$var_map == "time"] else character(0))
+      person_candidates = c("subject", if(!is.null(x$var_map)) names(x$var_map)[x$var_map == "subject"] else character(0))
+      time_col = time_candidates[time_candidates %in% names(nd_use)][1]
+      person_col = person_candidates[person_candidates %in% names(nd_use)][1]
+
+      if(is.na(time_col) || is.null(time_col) || nchar(time_col) == 0) {
+        fc_new_q$time_plot = seq_len(nrow(fc_new_q))
+      } else {
+        fc_new_q$time_plot = nd_use[[time_col]]
+      }
+      if(is.na(person_col) || is.null(person_col) || nchar(person_col) == 0) {
+        fc_new_q$person_plot = factor(seq_len(nrow(fc_new_q)))
+      } else {
+        fc_new_q$person_plot = as.factor(nd_use[[person_col]])
+      }
+
+      p_new_quant = ggplot2::ggplot(fc_new_q, ggplot2::aes(x = time_plot, color = person_plot, group = person_plot)) +
+        ggplot2::geom_ribbon(ggplot2::aes_string(ymin = q_low, ymax = q_high, fill = "person_plot"), alpha = 0.14, color = NA, show.legend = FALSE) +
+        ggplot2::geom_line(ggplot2::aes_string(y = q_mid), linewidth = 0.8) +
+        ggplot2::geom_point(ggplot2::aes_string(y = q_mid), size = 1.7) +
+        ggplot2::labs(
+          title = "Newdata Forecast Quantiles",
+          x = "Time",
+          y = paste0("Predicted ", q_mid)
+        ) +
+        ggplot2::theme_minimal()
+    }
+  }
+
+  if(is.null(p_new_quant)) {
+    p_new_quant = make_empty_plot("Newdata Forecast Quantiles", "Provide 'newdata' or 'data' for this panel")
+  }
+
+  dashboard = ggpubr::ggarrange(
+    p_diag1, p_diag2, p_diag3, p_diag4, p_fit_quant, p_new_quant,
+    ncol = 2,
+    nrow = 3
+  )
+  print(dashboard)
+
+  invisible(list(
+    diagnostics = list(pithist = p_diag1, qqrplot = p_diag2, wormplot = p_diag3, rootogram = p_diag4),
+    forecasts = list(fitted_quantiles = p_fit_quant, newdata_quantiles = p_new_quant),
+    fitted_data = fc_fit_q,
+    newdata_data = fc_new_q,
+    dashboard = dashboard
   ))
 }
 
@@ -3291,11 +3619,11 @@ get_copula_dist=function(copula_dist) {
     parameters=c("theta")
   }
   else if(copula_dist=="N" | copula_dist=="Normal") {
-    copula_link=list(logit,logit_inv,dlogit_inv); two_par_cop=FALSE
+    copula_link=list(fisher_z,fisher_z_inv,dfisher_z_inv); two_par_cop=FALSE
     copula_dist=BiCopName(copula_dist)
     parameters=c("theta")
-  } else if(copula_dist=="t" | copula_dist=="Normal") {
-    copula_link=list(logit,logit_inv,dlogit_inv,log_2plus,log_2plus_inv,dlog_2plus_inv); two_par_cop=TRUE
+  } else if(copula_dist=="t" | copula_dist=="T" | copula_dist=="Student") {
+    copula_link=list(fisher_z,fisher_z_inv,dfisher_z_inv,log_2plus,log_2plus_inv,dlog_2plus_inv); two_par_cop=TRUE
     copula_dist=BiCopName(copula_dist)
     parameters=c("theta","zeta")
   } else {
@@ -3311,19 +3639,164 @@ get_copula_dist=function(copula_dist) {
 
   return(return_list)
 }
+
+#' Summarise fitted copula parameters by time
+#'
+#' @param object A fitted `gamlss.longitudinal` object.
+#' @param lags Integer lags to assess, measured in ordered time steps.
+#' @param stat Character summary statistic for fitted values, one of "mean" or "median".
+#'
+#' @return A data frame with fitted theta and tau summaries by time.
 #' @export
-plotDist <- function (dataset,dist) {
+copula_time_summary <- function(object, lags = 1, stat = c("mean", "median")) {
+  if (!inherits(object, "gamlss.longitudinal")) {
+    stop("'object' must be a fitted 'gamlss.longitudinal' object.")
+  }
+
+  stat <- match.arg(stat)
+  copula_info <- get_copula_dist(object$copula_dist)
+  has_zeta <- "zeta" %in% copula_info$parameters
+
+  fit_data <- .copula_v2_fit_data(object)
+  pair_data <- .copula_v2_pair_data(fit_data, lags = lags)
+
+  agg_fun <- if (stat == "median") stats::median else mean
+
+  time_summary <- do.call(rbind, lapply(split(fit_data, fit_data$time), function(x) {
+    out <- data.frame(
+      time = x$time[1],
+      n_obs = nrow(x),
+      theta_fit = agg_fun(x$theta_fit, na.rm = TRUE),
+      tau_fit = agg_fun(x$tau_fit, na.rm = TRUE),
+      stringsAsFactors = FALSE
+    )
+    if (has_zeta) {
+      out$zeta_fit <- agg_fun(x$zeta_fit, na.rm = TRUE)
+    }
+    out
+  }))
+
+  pair_summary <- do.call(rbind, lapply(split(pair_data, pair_data$time_pair), function(x) {
+    out <- data.frame(
+      time_pair = x$time_pair[1],
+      n_pairs = nrow(x),
+      theta_pair = agg_fun(x$theta_pair, na.rm = TRUE),
+      tau_pair = agg_fun(x$tau_fit, na.rm = TRUE),
+      stringsAsFactors = FALSE
+    )
+    if (has_zeta) {
+      out$zeta_pair <- agg_fun(x$zeta_pair, na.rm = TRUE)
+    }
+    out
+  }))
+
+  time_summary <- time_summary[order(time_summary$time), , drop = FALSE]
+
+  if (!has_zeta) {
+    # Keep the returned data tidy for one-parameter copulas.
+    if ("zeta_fit" %in% names(fit_data)) {
+      fit_data$zeta_fit <- NULL
+    }
+    if ("zeta_pair" %in% names(pair_data)) {
+      pair_data$zeta_pair <- NULL
+    }
+  }
+
+  list(
+    time_summary = time_summary,
+    pair_summary = pair_summary,
+    fit_data = fit_data,
+    pair_data = pair_data
+  )
+}
+
+#' Plot fitted copula trends by time
+#'
+#' @param object A fitted `gamlss.longitudinal` object.
+#' @param lags Integer lags to assess, measured in ordered time steps.
+#' @param stat Character summary statistic for fitted values, one of "mean" or "median".
+#' @param plot Logical; if TRUE, print the plot.
+#'
+#' @return Invisibly returns a list with the summary data and plot objects.
+#' @export
+plot.copula_time_summary <- function(object, lags = 1, stat = c("mean", "median"), plot = TRUE) {
+  summary_out <- copula_time_summary(object = object, lags = lags, stat = stat)
+  time_summary <- summary_out$time_summary
+
+  if (nrow(time_summary) == 0) {
+    stop("No fitted copula summaries are available for plotting.")
+  }
+
+  time_summary$time <- as.factor(time_summary$time)
+
+  p_theta <- ggplot2::ggplot(time_summary, ggplot2::aes(x = time, y = theta_fit, group = 1)) +
+    ggplot2::geom_line(color = "#1f4e79", linewidth = 0.8) +
+    ggplot2::geom_point(color = "#1f4e79", size = 2.5) +
+    ggplot2::labs(
+      title = "Fitted Copula Theta by Time",
+      x = "Time",
+      y = "Theta"
+    ) +
+    ggplot2::theme_minimal()
+
+  p_tau <- ggplot2::ggplot(time_summary, ggplot2::aes(x = time, y = tau_fit, group = 1)) +
+    ggplot2::geom_line(color = "#e41a1c", linewidth = 0.8) +
+    ggplot2::geom_point(color = "#e41a1c", size = 2.5) +
+    ggplot2::labs(
+      title = "Fitted Copula Kendall's Tau by Time",
+      x = "Time",
+      y = "Tau"
+    ) +
+    ggplot2::theme_minimal()
+
+  if ("zeta_fit" %in% names(time_summary)) {
+    p_zeta <- ggplot2::ggplot(time_summary, ggplot2::aes(x = time, y = zeta_fit, group = 1)) +
+      ggplot2::geom_line(color = "#4d4d4d", linewidth = 0.8) +
+      ggplot2::geom_point(color = "#4d4d4d", size = 2.5) +
+      ggplot2::labs(
+        title = "Fitted Copula Zeta by Time",
+        x = "Time",
+        y = "Zeta"
+      ) +
+      ggplot2::theme_minimal()
+  } else {
+    p_zeta <- NULL
+  }
+
+  dashboard <- if (is.null(p_zeta)) {
+    ggpubr::ggarrange(p_theta, p_tau, ncol = 1, nrow = 2)
+  } else {
+    ggpubr::ggarrange(p_theta, p_tau, p_zeta, ncol = 1, nrow = 3)
+  }
+
+  if (isTRUE(plot)) {
+    print(dashboard)
+  }
+
+  invisible(list(
+    summary = summary_out,
+    p_theta = p_theta,
+    p_tau = p_tau,
+    p_zeta = p_zeta,
+    dashboard = dashboard
+  ))
+}
+#' @export
+plotDist <- function (dataset,dist,offdiag_scale=c("response","pseudo"),show_cor_stats=TRUE) {
+
+  offdiag_scale <- match.arg(offdiag_scale)
 
   num_margins=length(unique(dataset[,"time"]))
 
   margin_data=list()
-  margin_unif=list()
-  margin_fit=list()
+  margin_pseudo=list()
+  for (i in seq_len(num_margins)) {
+    margin_data[[i]] <- dataset[dataset[,"time"] == i, c("subject", "response")]
 
-  for (i in 1:num_margins) {
-    margin_data[[i]]<-dataset[dataset[,"time"]==i,"response"]
-    margin_fit[[i]]<-gamlss(margin_data[[i]]~1,family=dist)
-    margin_unif[[i]]<-(margin_fit[[i]]$residuals)
+    r <- rank(margin_data[[i]]$response, ties.method = "average", na.last = "keep")
+    n_obs <- sum(!is.na(margin_data[[i]]$response))
+    u <- r / (n_obs + 1)
+    margin_pseudo[[i]] <- data.frame(subject = margin_data[[i]]$subject, u = u)
   }
 
   ##plot.new()
@@ -3335,22 +3808,59 @@ plotDist <- function (dataset,dist) {
   plots=list()
 
   z=1
-  for (i in 1:(num_margins)) {
-    for (j in 1:(num_margins)) {
+  for (i in seq_len(num_margins)) {
+    for (j in seq_len(num_margins)) {
       if(i==j) {
-        input_data=data.frame(margin_data[[i]])
-        colnames(input_data)<-"X1"
+        input_data=data.frame(X1 = margin_data[[i]]$response)
+        x_lab <- TeX(paste("$Y_",i,"$"))
+
         p <- ggplot(input_data, aes(x=X1)) +
-          geom_histogram() +
-          labs(x = TeX(paste("$Y_",i,"$")))
+          geom_histogram(bins=30, na.rm=TRUE) +
+          labs(x = x_lab)
       }
       if(i!=j) {
-        input_data=data.frame(cbind(margin_unif[[i]],margin_unif[[j]]))
+        if (offdiag_scale == "pseudo") {
+          input_data <- merge(
+            margin_pseudo[[i]],
+            margin_pseudo[[j]],
+            by = "subject",
+            suffixes = c(".i", ".j"),
+            all = FALSE
+          )
+          input_data <- input_data[complete.cases(input_data$u.i, input_data$u.j), c("u.i", "u.j")]
+          names(input_data) <- c("X1", "X2")
+          x_lab <- TeX(paste("$U_",i,"$"))
+          y_lab <- TeX(paste("$U_",j,"$"))
+        } else {
+          input_data <- merge(
+            margin_data[[i]],
+            margin_data[[j]],
+            by = "subject",
+            suffixes = c(".i", ".j"),
+            all = FALSE
+          )
+          input_data <- input_data[complete.cases(input_data$response.i, input_data$response.j), c("response.i", "response.j")]
+          names(input_data) <- c("X1", "X2")
+          x_lab <- TeX(paste("$Y_",i,"$"))
+          y_lab <- TeX(paste("$Y_",j,"$"))
+        }
+
         p=ggplot(data=input_data,aes(x=X1,y=X2)) +
-          #geom_point(size=0.25,color="black") +
+          geom_point(size=0.4, alpha=0.25, color="black", na.rm=TRUE) +
           geom_density_2d(contour_var="density",bins=10,color="black") +
-          scale_fill_brewer() +
-          labs(x = TeX(paste("$Y_",i,"$")), y=TeX(paste("$Y_",j,"$")),fill="density")
+          labs(x = x_lab, y = y_lab)
+
+        if (show_cor_stats) {
+          if (nrow(input_data) >= 3) {
+            pearson_r <- suppressWarnings(cor(input_data$X1, input_data$X2, method = "pearson", use = "complete.obs"))
+            kendall_tau <- suppressWarnings(cor(input_data$X1, input_data$X2, method = "kendall", use = "complete.obs"))
+            stats_lab <- sprintf("Pearson r = %.3f | Kendall tau = %.3f", pearson_r, kendall_tau)
+          } else {
+            stats_lab <- "Pearson r = NA | Kendall tau = NA"
+          }
+
+          p <- p + labs(subtitle = stats_lab)
+        }
       }
 
       plots[[z]]=p
@@ -3810,7 +4320,7 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     }
   }  else if (simOption==10) { ########TIME VARIANT SIGMA AND MU
 
-    print("WARNING: SIMULATION IS IMPLEMENTED WITHOUT LINK FUNCTIONS FOR COVARIATES SO MAY NOT BE APPROPRIATE FOR ALL PARAMETER RANGES, ERRORS LIKELY")
+    print("WARNING: SIMULATION MAPS MARGIN AND COPULA PARAMETERS THROUGH LINK-INVERSE FUNCTIONS AFTER ADDING COVARIATE EFFECTS.")
 
     t=d
 
@@ -3824,27 +4334,103 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     copula_input=get_copula_dist(copula_dist)
     copula.family=copula_input$copula_dist
 
-    mu_out=par.margin[1]+matrix(rep(covariates_input$mu.time*1:(d),n),ncol=d,byrow=TRUE) + 
-      matrix(rep(as.matrix(covariates_input$mu.age*((covariates[[1]]-50)/100)^2),d),ncol=d) + 
-      matrix(rep(as.matrix(covariates_input$mu.gender*(covariates[[3]])),d),ncol=d)
-    sigma_out=exp(par.margin[2]+matrix(rep(covariates_input$sigma.time*1:(d),n),ncol=d,byrow=TRUE) + 
-      matrix(rep(as.matrix(covariates_input$sigma.age*((covariates[[1]]-50)/100)^2),d),ncol=d)) +
-      matrix(rep(as.matrix(covariates_input$sigma.gender*(covariates[[3]])),d),ncol=d)
-    nu_out=par.margin[3]+matrix(rep(covariates_input$nu.time*1:(d),n),ncol=d,byrow=TRUE) + 
-      matrix(rep(as.matrix(covariates_input$nu.age*((covariates[[1]]-50)/100)^2),d),ncol=d) + 
-      matrix(rep(as.matrix(covariates_input$nu.gender*(covariates[[3]])),d),ncol=d)
-    tau_out=(par.margin[4]+matrix(rep(covariates_input$tau.time*1:(d),n),ncol=d,byrow=TRUE) +
-      matrix(rep(as.matrix(covariates_input$tau.age*((covariates[[1]]-50)/100)^2),d),ncol=d)) +
-      matrix(rep(as.matrix(covariates_input$tau.gender*(covariates[[3]])),d),ncol=d)
-    theta_out=par.copula[1]+matrix(rep(covariates_input$theta.time*1:(d-1),n),ncol=d-1,byrow=TRUE) + 
+    apply_margin_link <- function(par_name, par_value, eta_component) {
+      if (par_name %in% names(margin_dist$parameters)) {
+        linkfun_name <- paste0(par_name, ".linkfun")
+        linkinv_name <- paste0(par_name, ".linkinv")
+        par_eta_base <- eval(parse(text=paste0("margin_dist$", linkfun_name)))(par_value)
+        par_eta <- par_eta_base + eta_component
+        return(eval(parse(text=paste0("margin_dist$", linkinv_name)))(par_eta))
+      }
+
+      return(NULL)
+    }
+
+    mu_out = NULL
+    sigma_out = NULL
+    nu_out = NULL
+    tau_out = NULL
+
+    if ("mu" %in% names(margin_dist$parameters)) {
+      mu_eta = matrix(rep(covariates_input$mu.time * 1:(d), n), ncol = d, byrow = TRUE) + 
+        matrix(rep(as.matrix(covariates_input$mu.age * ((covariates[[1]] - 50) / 100)^2), d), ncol = d) + 
+        matrix(rep(as.matrix(covariates_input$mu.gender * (covariates[[3]])), d), ncol = d)
+      mu_out = apply_margin_link("mu", par.margin[1], mu_eta)
+    }
+
+    if ("sigma" %in% names(margin_dist$parameters)) {
+      sigma_eta = matrix(rep(covariates_input$sigma.time * 1:(d), n), ncol = d, byrow = TRUE) + 
+        matrix(rep(as.matrix(covariates_input$sigma.age * ((covariates[[1]] - 50) / 100)^2), d), ncol = d) +
+        matrix(rep(as.matrix(covariates_input$sigma.gender * (covariates[[3]])), d), ncol = d)
+      sigma_out = apply_margin_link("sigma", par.margin[2], sigma_eta)
+    }
+
+    if ("nu" %in% names(margin_dist$parameters)) {
+      nu_eta = matrix(rep(covariates_input$nu.time * 1:(d), n), ncol = d, byrow = TRUE) + 
+        matrix(rep(as.matrix(covariates_input$nu.age * ((covariates[[1]] - 50) / 100)^2), d), ncol = d) + 
+        matrix(rep(as.matrix(covariates_input$nu.gender * (covariates[[3]])), d), ncol = d)
+      nu_out = apply_margin_link("nu", par.margin[3], nu_eta)
+    }
+
+    if ("tau" %in% names(margin_dist$parameters)) {
+      tau_eta = matrix(rep(covariates_input$tau.time * 1:(d), n), ncol = d, byrow = TRUE) +
+        matrix(rep(as.matrix(covariates_input$tau.age * ((covariates[[1]] - 50) / 100)^2), d), ncol = d) +
+        matrix(rep(as.matrix(covariates_input$tau.gender * (covariates[[3]])), d), ncol = d)
+      tau_out = apply_margin_link("tau", par.margin[4], tau_eta)
+    }
+    theta_eta_out=par.copula[1]+matrix(rep(covariates_input$theta.time*1:(d-1),n),ncol=d-1,byrow=TRUE) + 
       matrix(rep(as.matrix(covariates_input$theta.age*((covariates[[1]]-50)/100)^2),d-1),ncol=d-1) +
       matrix(rep(as.matrix(covariates_input$theta.gender*(covariates[[3]])),d-1),ncol=d-1)
-    zeta_out=par.copula[2]+matrix(rep(covariates_input$zeta.time*1:(d-1),n),ncol=d-1,byrow=TRUE) + 
-      matrix(rep(as.matrix(covariates_input$zeta.age*((covariates[[1]]-50)/100)^2),d-1),ncol=d-1) + 
-      matrix(rep(as.matrix(covariates_input$zeta.gender*(covariates[[3]])),d-1),ncol=d-1)
+    theta_out = copula_input$copula_link$theta.linkinv(theta_eta_out)
+
+    if ("zeta" %in% copula_input$parameters) {
+      zeta_eta_out=par.copula[2]+matrix(rep(covariates_input$zeta.time*1:(d-1),n),ncol=d-1,byrow=TRUE) + 
+        matrix(rep(as.matrix(covariates_input$zeta.age*((covariates[[1]]-50)/100)^2),d-1),ncol=d-1) + 
+        matrix(rep(as.matrix(covariates_input$zeta.gender*(covariates[[3]])),d-1),ncol=d-1)
+      zeta_out = copula_input$copula_link$zeta.linkinv(zeta_eta_out)
+    } else {
+      zeta_out = matrix(0, nrow = n, ncol = d - 1)
+    }
+
+    if (!is.null(mu_out) && any(!is.finite(mu_out))) {
+      stop("simOption 10 generated non-finite mu values after link inverse transformation.")
+    }
+    if (!is.null(sigma_out) && any(!is.finite(sigma_out))) {
+      stop("simOption 10 generated non-finite sigma values after link inverse transformation.")
+    }
+    if (!is.null(nu_out) && any(!is.finite(nu_out))) {
+      stop("simOption 10 generated non-finite nu values after link inverse transformation.")
+    }
+    if (!is.null(tau_out) && any(!is.finite(tau_out))) {
+      stop("simOption 10 generated non-finite tau values after link inverse transformation.")
+    }
     
-    #Print the ranges for all the variables in one simple output
-    print(paste("MU RANGE: ", round(range(mu_out),2), " | SIGMA RANGE: ", round(range(sigma_out),2), " | NU RANGE: ", round(range(nu_out),2), " | TAU RANGE: ", round(range(tau_out),2), " | THETA RANGE: ", round(range(theta_out),2), " | ZETA RANGE: ", round(range(zeta_out),2)))
+    if (any(!is.finite(theta_out))) {
+      stop("simOption 10 generated non-finite theta values after link inverse transformation.")
+    }
+    if ("zeta" %in% copula_input$parameters && any(!is.finite(zeta_out))) {
+      stop("simOption 10 generated non-finite zeta values after link inverse transformation.")
+    }
+
+    # Print parameter ranges for quick simulation diagnostics.
+    range_str <- function(label, x) {
+      if (is.null(x)) return(paste0(label, ": [NA, NA]"))
+      sprintf("%s: [%.2f, %.2f]", label, min(x), max(x))
+    }
+    margin_range_msg <- paste(
+      c(
+        range_str("MU", mu_out),
+        range_str("SIGMA", sigma_out),
+        range_str("NU", nu_out),
+        range_str("TAU", tau_out)
+      ),
+      collapse = " | "
+    )
+    copula_range_msg <- paste0(
+      sprintf("THETA: [%.2f, %.2f]", min(theta_out), max(theta_out)),
+      if ("zeta" %in% copula_input$parameters) sprintf(" | ZETA: [%.2f, %.2f]", min(zeta_out), max(zeta_out)) else ""
+    )
+    print(paste("MARGIN RANGES ->", margin_range_msg, "| COPULA RANGES ->", copula_range_msg))
 
     #Define margin distribution
     qFUN=paste("q",margin_dist$family[1],sep="")
@@ -3861,8 +4447,10 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     copsim <- matrix(NA_real_, nrow = n, ncol = d)
     for (r in 1:n) {
       par_r  <- c(as.numeric(theta_out[r, ]), rep(0, dd - (d - 1)))
-      par2_r <- c(if (length(par.copula) > 1 && all(is.finite(zeta_out[r, ]))) as.numeric(zeta_out[r, ]) else rep(0, d - 1),
-                  rep(0, dd - (d - 1)))
+      par2_r <- c(
+        if ("zeta" %in% copula_input$parameters) as.numeric(zeta_out[r, ]) else rep(0, d - 1),
+        rep(0, dd - (d - 1))
+      )
       copsim[r, ] <- as.numeric(RVineSim(1, D2RVine(order, family, par_r, par2_r)))
     }
 
@@ -3946,21 +4534,43 @@ optim_outer <- function(par,dataset,margin_dist,copula_dist,
   ### Calculate margin derivatives w.r.t. margin parameters
 
   #Get names for margin derivatives from margin_dist
-  margin_deriv_names=names(margin_dist)[grepl("dld",names(margin_dist))|grepl("d2ld",names(margin_dist))]
+            n_par <- length(eta[[par_name]])
+            d1_full=matrix(0,nrow=n_par,ncol=1)
 
   #Get link transforms (eta) and derivatives w.r.t to link for parameters
-  par_eta_dr=par_eta=par*0
-  for (par_name in names(par)) {
+              if(n_par == length(dataset$response)) {
+                par_idx <- row_id1
+              } else {
+                margin_names = sort(unique(dataset$time))
+                theta_rows = which(dataset$time %in% margin_names[seq_len(max(1, length(margin_names)-1))])
+                theta_index_map=rep(NA_integer_,length(dataset$response))
+                theta_index_map[theta_rows]=seq_along(theta_rows)
+                par_idx <- theta_index_map[row_id1]
+              }
+
+              valid_idx <- is.finite(par_idx) & par_idx >= 1 & par_idx <= nrow(d1_full)
+              d1_full[par_idx[valid_idx],1] <- dldth[valid_idx]
     if(par_name %in% names(margin_par)) {
       par_eta[par_name]=margin_dist[[paste(par_name,".linkfun",sep="")]](par[par_name])
       par_eta_dr[par_name]=margin_dist[[paste(par_name,".dr",sep="")]](par_eta[par_name])
     }
     if(par_name %in% names(copula_par)) {
-      par_eta[par_name]=copula_link[[paste(par_name,".linkfun",sep="")]](par[par_name])
+            n_par <- length(eta[[par_name]])
+            d1_full=matrix(0,nrow=n_par,ncol=1)
       par_eta_dr[par_name]=copula_link[[paste(par_name,".dr",sep="")]](par_eta[par_name])
     }
-  }
+              if(n_par == length(dataset$response)) {
+                par_idx <- row_id1
+              } else {
+                margin_names = sort(unique(dataset$time))
+                theta_rows = which(dataset$time %in% margin_names[seq_len(max(1, length(margin_names)-1))])
+                theta_index_map=rep(NA_integer_,length(dataset$response))
+                theta_index_map[theta_rows]=seq_along(theta_rows)
+                par_idx <- theta_index_map[row_id1]
+              }
 
+              valid_idx <- is.finite(par_idx) & par_idx >= 1 & par_idx <= nrow(d1_full)
+              d1_full[par_idx[valid_idx],1] <- dldz[valid_idx]
   #Setup input matrix of response and parameters
   margin_deriv_input=list()
   margin_deriv_input[["y"]]=response

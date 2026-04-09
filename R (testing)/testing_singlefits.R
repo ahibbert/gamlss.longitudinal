@@ -180,7 +180,7 @@ zeta_formula="~ time_of_observation_random_name"
 ### FOR TESTING DATASETS WITH NON STANDARD NAMING
 if("age_group" %in% names(dataset)) dataset$age_group = NULL
 colnames(dataset)=c("person","time_of_observation_random_name","random_name","age_new_name","year","gender")
-data_in=dataset; data_in$gender=as.factor(data_in$gender)
+data_in=dataset; data_in$gender=as.factor(data_in$gender); data_in$time_of_observation_random_name=as.factor(data_in$time_of_observation_random_name)
 rm(dataset)
 
 source("R/common_functions.R")
