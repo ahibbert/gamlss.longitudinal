@@ -182,9 +182,22 @@ utils::globalVariables(c("u1", "u2", "quartile", "tau_emp", "tau_fit", "density"
 }
 
 .copula_v2_pair_data <- function(fit_data, lags = 1) {
-  time_levels <- sort(unique(fit_data$time))
+  time_vec <- fit_data$time
+  time_levels <- if (is.factor(time_vec)) {
+    lev <- levels(time_vec)
+    lev[lev %in% as.character(unique(time_vec))]
+  } else {
+    u <- unique(time_vec)
+    if (is.numeric(u) || is.integer(u)) sort(u) else sort(as.character(u))
+  }
   if (length(time_levels) < 2) {
     stop("Need at least two time points to build copula pair diagnostics.")
+  }
+
+  time_lookup <- setNames(seq_along(time_levels), as.character(time_levels))
+  fit_data$time_idx <- unname(time_lookup[as.character(fit_data$time)])
+  if (any(!is.finite(fit_data$time_idx))) {
+    stop("Could not map time values to an ordered index for copula pair diagnostics.")
   }
 
   lag_values <- sort(unique(as.integer(lags)))
@@ -199,7 +212,7 @@ utils::globalVariables(c("u1", "u2", "quartile", "tau_emp", "tau_fit", "density"
   for (lag_value in lag_values) {
     for (subject_id in unique(fit_data$subject)) {
       subject_rows <- fit_data[fit_data$subject == subject_id, , drop = FALSE]
-      subject_rows <- subject_rows[order(subject_rows$time), , drop = FALSE]
+      subject_rows <- subject_rows[order(subject_rows$time_idx), , drop = FALSE]
       if (nrow(subject_rows) < 2) next
 
       for (j in seq_len(nrow(subject_rows) - lag_value)) {
@@ -208,7 +221,9 @@ utils::globalVariables(c("u1", "u2", "quartile", "tau_emp", "tau_fit", "density"
 
         t1 <- subject_rows$time[j]
         t2 <- subject_rows$time[k]
-        if (abs(t2 - t1) != lag_value) next
+        t1_idx <- subject_rows$time_idx[j]
+        t2_idx <- subject_rows$time_idx[k]
+        if ((t2_idx - t1_idx) != lag_value) next
 
         row1 <- subject_rows[j, , drop = FALSE]
         row2 <- subject_rows[k, , drop = FALSE]
@@ -223,7 +238,7 @@ utils::globalVariables(c("u1", "u2", "quartile", "tau_emp", "tau_fit", "density"
 
         pair_list[[idx]] <- data.frame(
           subject = subject_id,
-          time_pair = paste0("T", t1, " vs T", t2),
+          time_pair = paste0("T", as.character(t1), " vs T", as.character(t2)),
           lag = lag_value,
           u1 = row1$u,
           u2 = row2$u,
