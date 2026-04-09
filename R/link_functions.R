@@ -66,6 +66,24 @@ dlog_inv <-function(x) {
 dlogit_inv <- function(x) {
   return(exp(x)/((1+exp(x))^2))
 }
+
+#' @export
+fisher_z <- function(x) {
+  x <- pmin(pmax(x, -0.999999), 0.999999)
+  return(atanh(x))
+}
+
+#' @export
+fisher_z_inv <- function(x) {
+  return(tanh(x))
+}
+
+#' @export
+dfisher_z_inv <- function(x) {
+  y <- tanh(x)
+  return(1 - y^2)
+}
+
 #' @export
 dlog_2plus_inv <- function(x) {
   return(exp(x))
