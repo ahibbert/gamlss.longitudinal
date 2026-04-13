@@ -86,10 +86,6 @@ log-likelihood changes allowed before stopping.}
 
 \item{use_Rcpp}{Use Rcpp for matrix operations}
 }
-\value{
-Returns matrix of log likleihoods, margin parameters and copula parameters
-by iteration of the optimisation.
-}
 \description{
 This function fits a longitudinal model to a dataset with gamlss margins
 and copula fit to dependence. Any linear or factor covariates can be fit
