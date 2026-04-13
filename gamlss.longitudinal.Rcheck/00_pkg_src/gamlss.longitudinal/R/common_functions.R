@@ -779,8 +779,7 @@ gamlss.longitudinal=function(dataset,
       msg = paste0(
         "Optimization stopped after ", max_negative_outer_streak, " consecutive negative outer log-likelihood changes. ",
         "We believe the model may be misspecified and the likelihood may be malformed. ",
-        "Try different starting parameters or covariate combinations. Other options include switching between joint and separate optimisation. In general, joint optimisation provides more stable convergence.",
-        "Alternatively, you can increase the max_negative_outer_streak parameter to allow more negative changes before stopping, but we recommend investigating the cause of the consecutive negative changes in likelihood."
+        "Try different starting parameters or covariate combinations. Other options include switching between joint and separate optimisation."
       )
       warning(msg, call. = FALSE)
       stop(msg, call. = FALSE)
@@ -1898,19 +1897,19 @@ calc_true_SE_numderiv_only_covariates = function(object, par, mm, margin_dist,re
 
 #' This function returns the log likelihood for a fitted gamlss.longitudinal object
 #' @export
-logLik.gamlss.longitudinal=function(object, ...) {
+logLik.gamlss.longitudinal=function(object) {
   return(object$calc_lik_out$log_lik)
 }
 
 # This function returns the coefficients for a fitted gamlss.longitudinal object
 #' @export
-coef.gamlss.longitudinal=function(object, ...) {
+coef.gamlss.longitudinal=function(object) {
   return(object$par)
 }
 
 # This function returns the variance-covariance matrix for a given gamlss longitudinal object
 #' @export
-vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE, ...) {
+vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE) {
 
   #object=fit; par=NA; numderiv=TRUE; sep_d2=TRUE
   
@@ -4534,7 +4533,7 @@ optim_outer <- function(par,dataset,margin_dist,copula_dist,
 
   #Set up parameter vector so names are consistent with the distributions
 
-  if(all(is.null(names(par))|is.na(names(par)))) {stop("ERROR: par vector must be named")}
+  if(all(is.null(names(par))|is.na(names(par)))) {print("ERROR: par vector must be named"); break}
   margin_par=par[names(par)%in%c("mu","sigma","nu","tau")]
   copula_par=par[!names(par)%in%c("mu","sigma","nu","tau")]
 
