@@ -69,7 +69,7 @@ This utility plots fixed-effect term contributions for a fitted
 `vcov.gamlss.longitudinal()`.
 }
 \details{
-For each fixed-effect design-matrix column x_j, it plots the fitted term
-contribution x_j * beta_j with pointwise confidence bands based on the
-coefficient variance.
+For each fixed-effect design-matrix column $x_j$, it plots
+$x_j \hat\beta_j$ with pointwise confidence bands
+$x_j \hat\beta_j \pm z_{\alpha/2}\sqrt{x_j^2 \mathrm{Var}(\hat\beta_j)}$.
 }
