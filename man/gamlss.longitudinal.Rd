@@ -36,17 +36,11 @@ gamlss.longitudinal(
 )
 }
 \arguments{
-\item{dataset}{Input data frame containing response, time, subject, and covariates.}
-
 \item{margin_dist}{Marginal distribution specified as a gamlss family object,
 e.g. GA(), NO(), PO(), NBI(), etc.}
 
 \item{copula_dist}{Copula distribution specified as a string in VineCopula style
 e.g. "t", "C" etc.}
-
-\item{time_var}{Column name for the time variable in `dataset`.}
-
-\item{subject_var}{Column name for the subject identifier in `dataset`.}
 
 \item{mu.formula}{Formula for the mean parameter of the marginal distribution}
 
@@ -91,10 +85,6 @@ to the margin parameters in the joint likelihood.}
 log-likelihood changes allowed before stopping.}
 
 \item{use_Rcpp}{Use Rcpp for matrix operations}
-
-\item{lambda_start}{Initial smoothing penalty value used in smooth-term fitting.}
-
-\item{lambda_penalty_K}{Penalty multiplier used for GAIC-based lambda selection.}
 }
 \value{
 Returns matrix of log likleihoods, margin parameters and copula parameters

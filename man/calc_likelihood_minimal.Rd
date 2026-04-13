@@ -33,10 +33,6 @@ calc_likelihood_minimal(
 \item{response_margin}{A numeric vector indicating the margin (time) for each response.}
 
 \item{response_subject}{A numeric vector indicating the subject for each response.}
-
-\item{penalize_smooth}{Logical; whether smooth-penalty contributions should be included in the likelihood output.}
-
-\item{par_s}{Optional smooth-term coefficient list used by penalty-aware likelihood components.}
 }
 \value{
 A list containing:

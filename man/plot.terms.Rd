@@ -2,23 +2,9 @@
 % Please edit documentation in R/common_functions.R
 \name{plot.terms}
 \alias{plot.terms}
-\alias{plot.terms.gamlss.longitudinal}
 \title{Plot term effects for a fitted `gamlss.longitudinal` object}
 \usage{
-\method{plot.terms}{gamlss.longitudinal}(
-	x,
-	y,
-	data = NULL,
-	ci_level = 0.95,
-	ncol = 2,
-	include_intercept = FALSE,
-	ci_col = "red",
-	fit_col = "black",
-	show_legend = TRUE,
-	smooth_even_grid = TRUE,
-	smooth_grid_n = 200,
-	...
-)
+plot.terms(x, ...)
 }
 \arguments{
 \item{x}{A fitted `gamlss.longitudinal` object.}
