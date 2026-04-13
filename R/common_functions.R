@@ -37,9 +37,6 @@
 #' log-likelihood changes allowed before stopping.
 #' @param use_Rcpp Use Rcpp for matrix operations
 #'
-#' @return Returns matrix of log likleihoods, margin parameters and copula parameters
-#' by iteration of the optimisation.
-#' @export
 gamlss.longitudinal=function(dataset,
                         margin_dist,
                         copula_dist,
@@ -505,7 +502,7 @@ gamlss.longitudinal=function(dataset,
 
             margin_components=cbind(order_margin,response,margin_p,margin_d,margin_deriv_1,mu,F_nd)
             margin_components_Ft_plus=margin_components
-            margin_components_Ft_plus$time=margin_components_Ft_plus$time-1
+            margin_components_Ft_plus$time=normalize_lag_time(margin_components_Ft_plus$time)
             margin_plus=merge(margin_components,margin_components_Ft_plus,by=c("time","subject"),all.x=TRUE)
 
             copula_components=cbind(order_copula,dcdu1,dcdu2,copula_d)
@@ -849,6 +846,20 @@ gamlss.longitudinal=function(dataset,
   return_list$var_map <- var_map
   class(return_list)="gamlss.longitudinal"
   return(return_list)
+}
+
+normalize_lag_time <- function(time) {
+  if (is.factor(time)) {
+    time <- as.character(time)
+  }
+  if (is.character(time)) {
+    time_numeric <- suppressWarnings(as.numeric(time))
+    if (anyNA(time_numeric)) {
+      stop("ERROR: time must be numeric or numeric-like when use_dlcopdpar=TRUE.")
+    }
+    time <- time_numeric
+  }
+  time - 1
 }
 
 #' Create model matrices for model fitting
@@ -1974,7 +1985,7 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE, ...)
     for (par_name in margin_par) {
       if(object$include_dlcopdpar==TRUE | include_dlcopdpar==TRUE) {
 
-        order_copula=matrix(ncol=4,nrow=0)
+        order_copula=data.frame()
         for (i in 1:(num_margins-1)) {
           order_copula=rbind(order_copula,cbind(order_margin[response_margin == margin_names[i],c("time","subject")],order_margin[response_margin == margin_names[i+1],c("time","subject")]))
         }
@@ -1993,7 +2004,7 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE, ...)
 
         margin_components=cbind(order_margin,response,margin_p,margin_d,margin_deriv_1,mu,F_nd,F_nd2)
         margin_components_Ft_plus=margin_components
-        margin_components_Ft_plus[,"time"]=margin_components_Ft_plus[,"time"]-1
+        margin_components_Ft_plus[,"time"]=normalize_lag_time(margin_components_Ft_plus[,"time"])
         margin_plus=merge(margin_components,margin_components_Ft_plus,by=c("time","subject"),all.x=TRUE)
 
         copula_components=cbind(order_copula,dcdu1,dcdu2,copula_d,d2cdu12,d2cdu22,c_nd2)
@@ -4683,7 +4694,7 @@ optim_outer <- function(par,dataset,margin_dist,copula_dist,
   #First calculate margin F(x1), F(x2) as inputs to copula
 
   Fx_1_2=matrix(ncol=2,nrow=0)
-  order_copula=matrix(ncol=4,nrow=0)
+  order_copula=data.frame()
   for (i in 1:(num_margins-1)) {
     Fx_1_2=rbind(Fx_1_2,cbind(margin_p[dataset$time == margin_names[i]],margin_p[dataset$time == margin_names[i+1]]))
     order_copula=rbind(order_copula,cbind(dataset[dataset$time == margin_names[i],c("time","subject")],dataset[dataset$time == margin_names[i+1],c("time","subject")]))
@@ -4738,7 +4749,7 @@ optim_outer <- function(par,dataset,margin_dist,copula_dist,
   order_margin=dataset[,c("time","subject")]
   margin_components=cbind(order_margin,response,margin_p,margin_d,margin_deriv_1,margin_deriv_2)
   margin_components_Ft_plus=margin_components
-  margin_components_Ft_plus$time=margin_components_Ft_plus$time-1
+  margin_components_Ft_plus$time=normalize_lag_time(margin_components_Ft_plus$time)
   margin_plus=merge(margin_components,margin_components_Ft_plus,by=c("time","subject"),all.x=TRUE)
 
   copula_components=cbind(order_copula,dcdu1,dcdu2,copula_d,d2cdu12,d2cdu22)
