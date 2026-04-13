@@ -116,6 +116,20 @@ gamlss.longitudinal=function(dataset,
   names(dataset)[names(dataset) == subject_var] <- "subject"
   names(dataset)[names(dataset) == response_var] <- "response"
 
+  if (is.factor(dataset$time)) {
+    dataset$time <- as.character(dataset$time)
+  }
+  if (is.character(dataset$time)) {
+    time_numeric <- suppressWarnings(as.numeric(dataset$time))
+    if (anyNA(time_numeric)) {
+      stop("ERROR: time must be numeric or numeric-like when use_dlcopdpar=TRUE.")
+    }
+    dataset$time <- time_numeric
+  }
+  if (is.factor(dataset$subject)) {
+    dataset$subject <- as.character(dataset$subject)
+  }
+
   if (any(is.na(dataset$time)) || any(is.na(dataset$subject))) {
     stop("ERROR: time and subject variables cannot contain NA values.")
   }
