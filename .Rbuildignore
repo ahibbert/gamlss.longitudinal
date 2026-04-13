@@ -2,5 +2,8 @@
 ^renv\.lock$
 ^.*\.Rproj$
 ^\.Rproj\.user$
-^\R\testing_repeatfits.R$
-^\R\testing_singlefits.R$
+^R \(testing\)$
+^Rplots\.pdf$
+^auto_open_plots\.sh$
+^start_httpgd\.R$
+^\.vscode$

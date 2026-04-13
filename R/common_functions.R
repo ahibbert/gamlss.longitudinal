@@ -680,7 +680,7 @@ gamlss.longitudinal=function(dataset,
           loglik <- backfitting_iteration_results$calc_lik_out_end$log_lik["joint"]
           df_total <- sum(unlist(backfitting_iteration_results$df_s[[par_name]]))
           gaic_val <- backfitting_iteration_results$GAIC_lambda_k
-          #print(sprintf("λ=%.3f | LogLik=%.2f | DF=%.2f | GAIC=%.2f\n", 
+          #print(sprintf("lambda=%.3f | LogLik=%.2f | DF=%.2f | GAIC=%.2f\n", 
           #           lambda_val, loglik, df_total, gaic_val))
 
           return(backfitting_iteration_results$GAIC_lambda_k)
@@ -779,7 +779,8 @@ gamlss.longitudinal=function(dataset,
       msg = paste0(
         "Optimization stopped after ", max_negative_outer_streak, " consecutive negative outer log-likelihood changes. ",
         "We believe the model may be misspecified and the likelihood may be malformed. ",
-        "Try different starting parameters or covariate combinations. Other options include switching between joint and separate optimisation."
+        "Try different starting parameters or covariate combinations. Other options include switching between joint and separate optimisation. In general, joint optimisation provides more stable convergence.",
+        "Alternatively, you can increase the max_negative_outer_streak parameter to allow more negative changes before stopping, but we recommend investigating the cause of the consecutive negative changes in likelihood."
       )
       warning(msg, call. = FALSE)
       stop(msg, call. = FALSE)
@@ -1897,19 +1898,19 @@ calc_true_SE_numderiv_only_covariates = function(object, par, mm, margin_dist,re
 
 #' This function returns the log likelihood for a fitted gamlss.longitudinal object
 #' @export
-logLik.gamlss.longitudinal=function(object) {
+logLik.gamlss.longitudinal=function(object, ...) {
   return(object$calc_lik_out$log_lik)
 }
 
 # This function returns the coefficients for a fitted gamlss.longitudinal object
 #' @export
-coef.gamlss.longitudinal=function(object) {
+coef.gamlss.longitudinal=function(object, ...) {
   return(object$par)
 }
 
 # This function returns the variance-covariance matrix for a given gamlss longitudinal object
 #' @export
-vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE) {
+vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE, ...) {
 
   #object=fit; par=NA; numderiv=TRUE; sep_d2=TRUE
   
@@ -2096,12 +2097,12 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE) {
   ###########TESTING APPROACH FOR ESTIMATING SMOOTHER VARIANCE
   
   # Method 1: Bayesian/Mixed Model Approach for Smoother Variance
-  # Calculate variance-covariance matrix for smooth terms using: Var(β) = (X'WX + λP)^(-1) * σ²
+  # Calculate variance-covariance matrix for smooth terms using: Var(beta) = (X'WX + lambda*P)^(-1) * sigma^2
   
   smooth_vcov_list = list()
   smooth_se_list = list()
   
-  # Extract residual variance estimate (using reciprocal of mean weights as proxy for σ²)
+  # Extract residual variance estimate (using reciprocal of mean weights as proxy for sigma^2)
   if(!is.null(object$weights) && length(object$weights) > 0 && is.numeric(object$weights)) {
     sigma2_est = 1 / mean(object$weights, na.rm = TRUE)
   } else {
@@ -2155,11 +2156,11 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE) {
         }
         W = diag(w_diag)
         
-        # Calculate the penalized precision matrix: X'WX + λP
+        # Calculate the penalized precision matrix: X'WX + lambda*P
         XWX = t(B) %*% W %*% B
         penalized_precision = XWX + lambda * P
         
-        # Variance-covariance matrix for this smooth: (X'WX + λP)^(-1) * σ²
+        # Variance-covariance matrix for this smooth: (X'WX + lambda*P)^(-1) * sigma^2
         tryCatch({
           smooth_vcov = solve(penalized_precision) * sigma2_est
           smooth_se = sqrt((diag(smooth_vcov)))
@@ -2169,7 +2170,7 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE) {
           smooth_se_list[[par_name]][[s_name]] = smooth_se
           
           # Also calculate the smoother matrix for fitted values variance
-          # A = X(X'WX + λP)^(-1)X'W
+          # A = X(X'WX + lambda*P)^(-1)X'W
           smoother_matrix = B %*% solve(penalized_precision) %*% t(B) %*% W
           fitted_se = sqrt(abs(as.vector(diag(smoother_matrix))) * sigma2_est)
           
@@ -2180,7 +2181,7 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE) {
                      min(fitted_se), max(fitted_se), mean(fitted_se)))
           cat(sprintf("  Effective DF: %.2f (trace of smoother matrix)\n", 
                      sum(diag(smoother_matrix))))
-          cat(sprintf("  Smoothing parameter λ: %.4f\n", lambda))
+          cat(sprintf("  Smoothing parameter lambda: %.4f\n", lambda))
           
         }, error = function(e) {
           warning(sprintf("Could not calculate variance for smooth %s:%s - %s", 
@@ -3451,7 +3452,7 @@ get_starting_values = function(copula_dist,margin_dist,dataset,eta_transform=FAL
     cat("Fitting initial GAMLSS model for margin to obtain starting values...\n")
     # Deliberately low-iteration startup fit; silence expected convergence warnings.
     start_fit=suppressWarnings(suppressMessages(
-      gamlss(dataset$response~1, family=margin_dist,method=RS(1))
+      gamlss(dataset$response~1, family=margin_dist)
     ))
     margin_par=unlist(coefAll(start_fit))
     names(margin_par)=names(margin_dist$parameters)
@@ -3703,25 +3704,32 @@ copula_time_summary <- function(object, lags = 1, stat = c("mean", "median")) {
     }
   }
 
-  list(
+  out <- list(
     time_summary = time_summary,
     pair_summary = pair_summary,
     fit_data = fit_data,
     pair_data = pair_data
   )
+  class(out) <- "copula_time_summary"
+  out
 }
 
 #' Plot fitted copula trends by time
 #'
-#' @param object A fitted `gamlss.longitudinal` object.
+#' @param x A `copula_time_summary` object or a fitted `gamlss.longitudinal` object.
+#' @param ... Additional arguments (currently unused).
 #' @param lags Integer lags to assess, measured in ordered time steps.
 #' @param stat Character summary statistic for fitted values, one of "mean" or "median".
 #' @param plot Logical; if TRUE, print the plot.
 #'
 #' @return Invisibly returns a list with the summary data and plot objects.
 #' @export
-plot.copula_time_summary <- function(object, lags = 1, stat = c("mean", "median"), plot = TRUE) {
-  summary_out <- copula_time_summary(object = object, lags = lags, stat = stat)
+plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"), plot = TRUE) {
+  summary_out <- if (inherits(x, "copula_time_summary")) {
+    x
+  } else {
+    copula_time_summary(object = x, lags = lags, stat = stat)
+  }
   time_summary <- summary_out$time_summary
 
   if (nrow(time_summary) == 0) {
@@ -4515,7 +4523,7 @@ optim_outer <- function(par,dataset,margin_dist,copula_dist,
 
   #Set up parameter vector so names are consistent with the distributions
 
-  if(all(is.null(names(par))|is.na(names(par)))) {print("ERROR: par vector must be named"); break}
+  if(all(is.null(names(par))|is.na(names(par)))) {stop("ERROR: par vector must be named")}
   margin_par=par[names(par)%in%c("mu","sigma","nu","tau")]
   copula_par=par[!names(par)%in%c("mu","sigma","nu","tau")]
 

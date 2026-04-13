@@ -15,6 +15,8 @@ plot_smooth_terms(
   ci_lty = 2,
   fit_lwd = 2,
   sort_x = TRUE,
+  even_grid = TRUE,
+  grid_n = 200,
   fallback_to_index = TRUE,
   setup_mfrow = TRUE,
   show_legend = TRUE
@@ -42,6 +44,11 @@ x-axis variable of each smooth.}
 \item{fit_lwd}{Line width for fitted smooth.}
 
 \item{sort_x}{Logical; sort points by x before plotting lines.}
+
+\item{even_grid}{Logical; if TRUE, plot smooths on an evenly spaced x-grid
+built over observed x-range.}
+
+\item{grid_n}{Number of grid points when `even_grid = TRUE`.}
 
 \item{fallback_to_index}{Logical; if x variable cannot be inferred, plot
 against row index.}

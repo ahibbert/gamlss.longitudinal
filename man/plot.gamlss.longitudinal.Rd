@@ -2,19 +2,17 @@
 % Please edit documentation in R/common_functions.R
 \name{plot.gamlss.longitudinal}
 \alias{plot.gamlss.longitudinal}
-\title{Plot method for fitted gamlss.longitudinal objects}
+\title{Plot diagnostics dashboard for fitted `gamlss.longitudinal` objects}
 \usage{
 \method{plot}{gamlss.longitudinal}(
   x,
   y,
   data = NULL,
-  ci_level = 0.95,
-  max_plots_per_page = 6,
-  ncol = 2,
-  include_intercept = FALSE,
-  ci_col = "red",
-  fit_col = "black",
-  show_legend = TRUE,
+  newdata = NULL,
+  newdata_n = 8,
+  quantiles = c(0.1, 0.5, 0.9),
+  randomize = TRUE,
+  time_stratified = FALSE,
   ...
 )
 }
@@ -23,35 +21,29 @@
 
 \item{y}{Unused; included for S3 generic compatibility.}
 
-\item{data}{Optional data frame containing original covariates used to infer
-smooth-term x-axis variables. If omitted, smooth terms may fall back to index.}
+\item{data}{Optional data frame used as fallback for `newdata` plotting.}
 
-\item{ci_level}{Confidence level for pointwise intervals (default: 0.95).}
+\item{newdata}{Optional data frame for the newdata forecast panel.}
 
-\item{max_plots_per_page}{Maximum number of plots before pagination prompt
-(default: 6). Set to 0 or negative to disable pagination.}
+\item{newdata_n}{Number of rows to use from `data` when `newdata` is NULL.}
 
-\item{ncol}{Number of columns in each plot frame (default: 2).}
+\item{quantiles}{Quantiles for forecast panels.}
 
-\item{include_intercept}{Logical; include intercept terms in fixed plots
-(default: FALSE).}
+\item{randomize}{Logical; randomized PIT/residual diagnostics.}
 
-\item{ci_col}{Color for confidence bands (default: "red").}
+\item{time_stratified}{Logical; if TRUE, show time-stratified PIT and worm plots.}
 
-\item{fit_col}{Color for fitted lines (default: "black").}
-
-\item{show_legend}{Logical; if TRUE, draw a legend in each panel.}
-
-\item{...}{Additional arguments passed to plotting functions (unused).}
+\item{...}{Additional arguments (currently unused).}
 }
 \value{
-Invisibly returns a list with elements:
-- `smooth_terms`: output from `plot_smooth_terms()`
-- `fixed_terms`: output from `plot_fixed_terms()`
+Invisibly returns a list of generated plot/data objects.
 }
 \description{
-This S3 plot method generates diagnostic plots for a fitted
-`gamlss.longitudinal` object, including both fixed-effect terms and
-smooth terms with confidence bands. If the total number of plots
-exceeds `max_plots_per_page`, the user is prompted to advance pages.
+Displays six ggplot-based panels by default:
+1) PIT histogram
+2) QQ residual plot
+3) Worm plot
+4) Rootogram
+5) Fitted-data quantile forecast plot
+6) Newdata quantile forecast plot (if `newdata` or `data` supplied)
 }

@@ -11,11 +11,11 @@ gamlss.longitudinal(
   time_var = NA,
   subject_var = NA,
   mu.formula = ("response ~ 1"),
-  sigma.formula = ("1"),
-  nu.formula = ("1"),
-  tau.formula = ("1"),
-  theta.formula = ("1"),
-  zeta.formula = ("1"),
+  sigma.formula = ("~ 1"),
+  nu.formula = ("~ 1"),
+  tau.formula = ("~ 1"),
+  theta.formula = ("~ 1"),
+  zeta.formula = ("~ 1"),
   include_dlcopdpar = FALSE,
   inner_stop_crit = 0.1,
   outer_stop_crit = 0.1,
@@ -23,23 +23,30 @@ gamlss.longitudinal(
   step_adjustment = 0.5,
   max_steps = 5,
   start_from = NA,
-  verbose = 3,
+  verbose = 1,
   plot_results = FALSE,
   true_val = NA,
   method = "RS",
   max_outer_iter = 20,
   max_inner_iter = 20,
+  max_negative_outer_streak = 10,
   use_Rcpp = FALSE,
   lambda_start = 5,
   lambda_penalty_K = 2
 )
 }
 \arguments{
+\item{dataset}{Input data frame containing response, time, subject, and covariates.}
+
 \item{margin_dist}{Marginal distribution specified as a gamlss family object,
 e.g. GA(), NO(), PO(), NBI(), etc.}
 
 \item{copula_dist}{Copula distribution specified as a string in VineCopula style
 e.g. "t", "C" etc.}
+
+\item{time_var}{Column name for the time variable in `dataset`.}
+
+\item{subject_var}{Column name for the subject identifier in `dataset`.}
 
 \item{mu.formula}{Formula for the mean parameter of the marginal distribution}
 
@@ -80,7 +87,14 @@ to the margin parameters in the joint likelihood.}
 
 \item{max_inner_iter}{Maximum number of inner iterations}
 
+\item{max_negative_outer_streak}{Maximum number of consecutive negative outer
+log-likelihood changes allowed before stopping.}
+
 \item{use_Rcpp}{Use Rcpp for matrix operations}
+
+\item{lambda_start}{Initial smoothing penalty value used in smooth-term fitting.}
+
+\item{lambda_penalty_K}{Penalty multiplier used for GAIC-based lambda selection.}
 }
 \value{
 Returns matrix of log likleihoods, margin parameters and copula parameters
