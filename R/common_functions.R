@@ -37,6 +37,7 @@
 #' log-likelihood changes allowed before stopping.
 #' @param use_Rcpp Use Rcpp for matrix operations
 #'
+#' @export
 gamlss.longitudinal=function(dataset,
                         margin_dist,
                         copula_dist,
