@@ -64,7 +64,7 @@ gamlss.longitudinal=function(dataset,
                         method="RS",
                         max_outer_iter=20,
                         max_inner_iter=20,
-                        max_negative_outer_streak=3,
+                        max_negative_outer_streak=10,
                         use_Rcpp=FALSE,
                         lambda_start=5,
                         lambda_penalty_K=2
@@ -1030,8 +1030,9 @@ create_model_matrices<-function(
     has_intercept <- as.integer(attr(formula_terms, "intercept")) == 1L
     term_labels <- attr(formula_terms, "term.labels")
 
+    # Keep all non-smooth RHS terms so model.matrix can expand interactions
+    # like `time*gender` into main effects + interaction columns.
     fixed_terms <- term_labels[!grepl("^\\s*s\\(", term_labels)]
-    fixed_terms <- intersect(fixed_terms, names(data_for_par))
 
     if(length(fixed_terms) > 0 || has_intercept) {
       fixed_formula <- stats::reformulate(termlabels = fixed_terms, intercept = has_intercept)

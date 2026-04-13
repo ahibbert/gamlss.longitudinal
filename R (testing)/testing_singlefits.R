@@ -170,7 +170,7 @@ ggarrange(p1, p2, p3, p4, p5, ncol=2, nrow=3, common.legend=FALSE)
 
 ########## FIT ###########
 source("R/common_functions.R")
-mu_formula="random_name ~ time_of_observation_random_name + s(age_new_name,bs='ps') + gender"
+mu_formula="random_name ~ time_of_observation_random_name + s(age_new_name,bs='ps') + gender + time_of_observation_random_name*gender"
 sigma_formula="~ time_of_observation_random_name + gender + s(age_new_name,bs='ps')"
 nu_formula="~ time_of_observation_random_name"
 tau_formula="~ time_of_observation_random_name"
