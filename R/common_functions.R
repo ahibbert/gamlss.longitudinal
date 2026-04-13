@@ -3234,6 +3234,7 @@ plot.terms = function(x, ...) {
   UseMethod("plot.terms")
 }
 
+#' @method plot.terms gamlss.longitudinal
 #' @export
 plot.terms.gamlss.longitudinal = function(
   x,
