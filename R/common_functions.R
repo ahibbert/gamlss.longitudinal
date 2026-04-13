@@ -2928,8 +2928,10 @@ plot_fixed_terms = function(
       if(!coef_name %in% names(object$par)) next
       if(!coef_name %in% rownames(V) || !coef_name %in% colnames(V)) next
 
+      term_type = if(grepl(":", col_name, fixed = TRUE)) "interaction_factor" else "continuous"
+
       plot_specs[[length(plot_specs) + 1]] = list(
-        type = "continuous",
+        type = term_type,
         par_name = par_name,
         col_name = col_name,
         coef_name = coef_name
@@ -3017,6 +3019,74 @@ plot_fixed_terms = function(
         coefficient = paste(par_name, fg$var_name, sep = "."),
         x = x_plot,
         levels = levs,
+        fitted = fitted_term,
+        se = term_se,
+        ci_lower = ci_lower,
+        ci_upper = ci_upper,
+        plot = p
+      )
+      plot_objects[[length(plot_objects) + 1]] = p
+    } else if(identical(spec$type, "interaction_factor")) {
+      col_name = spec$col_name
+      coef_name = spec$coef_name
+      X = object$model_matrix$x[[par_name]]
+      x_raw = as.numeric(X[, col_name])
+      beta_hat = as.numeric(object$par[coef_name])
+      var_beta = as.numeric(V[coef_name, coef_name])
+
+      x_levels = sort(unique(x_raw[is.finite(x_raw)]))
+      if(length(x_levels) == 0) next
+
+      fitted_term = x_levels * beta_hat
+      term_se = abs(x_levels) * sqrt(pmax(0, var_beta))
+      ci_lower = fitted_term - z * term_se
+      ci_upper = fitted_term + z * term_se
+
+      x_labels = as.character(signif(x_levels, 6))
+      x_factor = factor(x_labels, levels = x_labels)
+
+      y_vals = c(fitted_term, ci_lower, ci_upper)
+      y_vals = y_vals[is.finite(y_vals)]
+      if(length(y_vals) > 0) {
+        y_rng = range(y_vals)
+        y_pad = 0.05 * max(1e-8, diff(y_rng))
+        y_lim = c(y_rng[1] - y_pad, y_rng[2] + y_pad)
+      } else {
+        y_lim = NULL
+      }
+
+      plot_df = data.frame(
+        x = x_factor,
+        fitted = fitted_term,
+        ci_lower = ci_lower,
+        ci_upper = ci_upper,
+        stringsAsFactors = FALSE
+      )
+
+      p = ggplot2::ggplot(plot_df, ggplot2::aes(x = x, y = fitted)) +
+        ggplot2::geom_hline(yintercept = 0, color = "grey70", linetype = 3) +
+        ggplot2::geom_point(color = fit_col, size = factor_cex) +
+        ggplot2::geom_errorbar(ggplot2::aes(ymin = ci_lower, ymax = ci_upper), color = ci_col, width = 0.15) +
+        ggplot2::labs(
+          title = paste(par_name, col_name, sep = ": "),
+          x = paste(col_name, "(interaction level)"),
+          y = paste("fixed contribution:", coef_name)
+        ) +
+        ggplot2::theme_minimal()
+
+      if(!is.null(y_lim)) {
+        p = p + ggplot2::coord_cartesian(ylim = y_lim)
+      }
+
+      if(show_legend) {
+        p = p + ggplot2::labs(caption = paste("estimate /", round(ci_level * 100), "% CI"))
+      }
+
+      if(is.null(out[[par_name]])) out[[par_name]] = list()
+      out[[par_name]][[col_name]] = list(
+        coefficient = coef_name,
+        x = x_levels,
+        levels = x_labels,
         fitted = fitted_term,
         se = term_se,
         ci_lower = ci_lower,
