@@ -640,12 +640,12 @@ gamlss.longitudinal=function(dataset,
               } else {
                 pen_mat[idx,idx]=S*lambda_s[[par_name]][[s_name]]
               }
-              df_s[[par_name]][[s_name]]=sum(diag(B%*%ginv(t(B)%*%B+pen_mat[idx,idx])%*%t(B)))
+              df_s[[par_name]][[s_name]]=sum(diag(B%*%MASS::ginv(t(B)%*%B+pen_mat[idx,idx])%*%t(B)))
               start_idx=start_idx+n_B
             }
           }
 
-          beta_update=as.vector(ginv(t(X)%*%W%*%X + pen_mat)%*%t(X)%*%W%*%z_k)
+          beta_update=as.vector(MASS::ginv(t(X)%*%W%*%X + pen_mat)%*%t(X)%*%W%*%z_k)
           beta_change_inner=beta_update-beta_start
           beta_new=beta_start*(1-step_size) + (step_size)*(beta_update)
           beta_new
