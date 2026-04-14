@@ -641,7 +641,7 @@ gamlss.longitudinal=function(dataset,
             d1 <- d1[seq_len(eta_len)]
           }
           if (verbose > 1) {
-            cat(paste0("\nAdjusted derivative length for ", par_name, ": d1 -> ", eta_len, "\n"))
+            #cat(paste0("\nAdjusted derivative length for ", par_name, ": d1 -> ", eta_len, "\n"))
           }
         }
 
