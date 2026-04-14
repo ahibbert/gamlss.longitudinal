@@ -47,3 +47,45 @@ test_that("T004 dlcopdpar TRUE/FALSE parity smoke test", {
   expect_equal(length(fit_false$par), length(fit_true$par))
   expect_setequal(names(fit_false$par), names(fit_true$par))
 })
+
+test_that("T005 baseline fit fingerprint stays stable", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 24L)
+
+  fit <- fit_fixture_model(
+    dat,
+    include_dlcopdpar = FALSE,
+    max_outer_iter = 3L,
+    max_inner_iter = 3L,
+    outer_stop_crit = 0.5,
+    inner_stop_crit = 0.5,
+    verbose = 0
+  )
+
+  expected_par <- c(
+    "theta.intercept" = 1.5641422709077644,
+    "theta.time_covariate.L" = 0.00036952677386012129,
+    "sigma.intercept" = -1.4662507430579528,
+    "sigma.time_covariate.L" = 0.20867796595747662,
+    "sigma.time_covariate.Q" = 0.077153524488408259,
+    "sigma.genderM" = 0.3370667005163685,
+    "mu.intercept" = 2.4068416883317543,
+    "mu.time_covariate.L" = 0.30616664489726197,
+    "mu.time_covariate.Q" = 0.13587596959788967,
+    "mu.genderM" = 0.8220603720064974,
+    "mu.age" = 0.0011928517367271545,
+    "mu.time_covariate.L:genderM" = 0.25179058880563637,
+    "mu.time_covariate.Q:genderM" = -0.38387806349188175
+  )
+
+  expected_loglik <- c(
+    "marginal" = -5.6475829180525805,
+    "copula" = -164.58474063030087,
+    "joint" = -170.23232354835346
+  )
+
+  expect_identical(names(fit$par), names(expected_par))
+  expect_equal(unname(fit$par), unname(expected_par), tolerance = 1e-9)
+
+  ll <- fit$calc_lik_out_end$log_lik[c("marginal", "copula", "joint")]
+  expect_equal(unname(ll), unname(expected_loglik), tolerance = 1e-9)
+})
