@@ -2777,13 +2777,11 @@ plot_smooth_terms = function(
   }
 
   if(length(plot_objects) > 0) {
-    if(is.null(ncol)) {
-      ncol = min(2, n_plots)
-    }
-    nrow = ceiling(n_plots / ncol)
-    dashboard = ggpubr::ggarrange(plotlist = plot_objects, ncol = ncol, nrow = nrow)
+    dashboard = NULL
     if(setup_mfrow) {
-      print(dashboard)
+      for(p_obj in plot_objects) {
+        print(p_obj)
+      }
     }
     out$plots = plot_objects
     out$dashboard = dashboard
@@ -3205,13 +3203,11 @@ plot_fixed_terms = function(
   }
 
   if(length(plot_objects) > 0) {
-    if(is.null(ncol)) {
-      ncol = min(2, n_plots)
-    }
-    nrow = ceiling(n_plots / ncol)
-    dashboard = ggpubr::ggarrange(plotlist = plot_objects, ncol = ncol, nrow = nrow)
+    dashboard = NULL
     if(setup_mfrow) {
-      print(dashboard)
+      for(p_obj in plot_objects) {
+        print(p_obj)
+      }
     }
     out$plots = plot_objects
     out$dashboard = dashboard
@@ -3342,12 +3338,9 @@ plot.terms.gamlss.longitudinal = function(
 
   dashboard = NULL
   if(length(plot_objects) > 0) {
-    if(is.null(ncol)) {
-      ncol = min(2, length(plot_objects))
+    for(p_obj in plot_objects) {
+      print(p_obj)
     }
-    nrow = ceiling(length(plot_objects) / ncol)
-    dashboard = ggpubr::ggarrange(plotlist = plot_objects, ncol = ncol, nrow = nrow)
-    print(dashboard)
   }
 
   invisible(list(
