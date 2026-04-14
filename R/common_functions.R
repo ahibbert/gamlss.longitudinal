@@ -118,16 +118,35 @@ gamlss.longitudinal=function(dataset,
   names(dataset)[names(dataset) == subject_var] <- "subject"
   names(dataset)[names(dataset) == response_var] <- "response"
 
-  if (is.factor(dataset$time)) {
-    dataset$time <- as.character(dataset$time)
-  }
-  if (is.character(dataset$time)) {
-    time_numeric <- suppressWarnings(as.numeric(dataset$time))
+  # Preserve the user-facing time covariate (including factor type) for formulas,
+  # while keeping an internal numeric time index for optimisation logic.
+  dataset$time_covariate <- dataset$time
+  time_covariate_is_factor <- is.factor(dataset$time_covariate)
+  time_covariate_levels <- if (time_covariate_is_factor) levels(dataset$time_covariate) else NULL
+  time_covariate_ordered <- if (time_covariate_is_factor) is.ordered(dataset$time_covariate) else FALSE
+
+  if (is.factor(dataset$time_covariate)) {
+    time_chr <- as.character(dataset$time_covariate)
+    dataset$time <- match(time_chr, time_covariate_levels)
+    if (anyNA(dataset$time)) {
+      stop("ERROR: Failed to map factor time levels to internal numeric time index.")
+    }
+    dataset$time_covariate <- factor(time_chr, levels = time_covariate_levels, ordered = time_covariate_ordered)
+  } else if (is.numeric(dataset$time_covariate) || is.integer(dataset$time_covariate)) {
+    dataset$time <- as.numeric(dataset$time_covariate)
+  } else if (is.character(dataset$time_covariate)) {
+    time_numeric <- suppressWarnings(as.numeric(dataset$time_covariate))
     if (anyNA(time_numeric)) {
-      stop("ERROR: time must be numeric or numeric-like when use_dlcopdpar=TRUE.")
+      stop("ERROR: time must be numeric-like unless supplied as factor.\n",
+           "If time is categorical for formulas/interactions, convert it to factor before fitting.")
     }
     dataset$time <- time_numeric
+    dataset$time_covariate <- time_numeric
+  } else {
+    stop("ERROR: Unsupported time variable type: ", class(dataset$time_covariate)[1],
+         ". Use numeric/integer, numeric-like character, or factor.")
   }
+
   if (is.factor(dataset$subject)) {
     dataset$subject <- as.character(dataset$subject)
   }
@@ -184,18 +203,22 @@ gamlss.longitudinal=function(dataset,
   var_map[[subject_var]] <- "subject"
   var_map[[response_var]] <- "response"
 
-  mu.formula.int    <- translate_formula_vars(mu.formula,    var_map, response_name = "response", require_lhs = TRUE)
-  sigma.formula.int <- translate_formula_vars(sigma.formula, var_map, response_name = "response", require_lhs = FALSE)
-  nu.formula.int    <- translate_formula_vars(nu.formula,    var_map, response_name = "response", require_lhs = FALSE)
-  tau.formula.int   <- translate_formula_vars(tau.formula,   var_map, response_name = "response", require_lhs = FALSE)
-  theta.formula.int <- translate_formula_vars(theta.formula, var_map, response_name = "response", require_lhs = FALSE)
-  zeta.formula.int  <- translate_formula_vars(zeta.formula,  var_map, response_name = "response", require_lhs = FALSE)
+  # For formula parsing, map user time variable to preserved covariate column.
+  formula_var_map <- var_map
+  formula_var_map[[time_var]] <- "time_covariate"
+
+  mu.formula.int    <- translate_formula_vars(mu.formula,    formula_var_map, response_name = "response", require_lhs = TRUE)
+  sigma.formula.int <- translate_formula_vars(sigma.formula, formula_var_map, response_name = "response", require_lhs = FALSE)
+  nu.formula.int    <- translate_formula_vars(nu.formula,    formula_var_map, response_name = "response", require_lhs = FALSE)
+  tau.formula.int   <- translate_formula_vars(tau.formula,   formula_var_map, response_name = "response", require_lhs = FALSE)
+  theta.formula.int <- translate_formula_vars(theta.formula, formula_var_map, response_name = "response", require_lhs = FALSE)
+  zeta.formula.int  <- translate_formula_vars(zeta.formula,  formula_var_map, response_name = "response", require_lhs = FALSE)
 
   if(verbose > 1) {
     cat("Input validation successful.\n")
     cat("Data dimensions:", nrow(dataset), "x", ncol(dataset), "\n")
     cat("Response variable:", response_var, "-> renamed to 'response'\n")
-    cat("Time variable:", time_var, "-> renamed to 'time'\n")
+    cat("Time variable:", time_var, "-> internal index 'time' and covariate 'time_covariate'\n")
     cat("Subject variable:", subject_var, "-> renamed to 'subject'\n")
     cat("Time points:", length(unique(dataset$time)), "\n")
     cat("Subjects:", length(unique(dataset$subject)), "\n")
@@ -216,6 +239,10 @@ gamlss.longitudinal=function(dataset,
     cat("Unique subject/time combinations:", length(unique(subject_time_combo)), "\n\n")
   }
 
+  # One-to-one map from internal time index back to preserved covariate values.
+  time_lookup <- dataset[!duplicated(dataset$time), c("time", "time_covariate"), drop = FALSE]
+  time_lookup <- time_lookup[order(time_lookup$time), , drop = FALSE]
+
   # Expand to full subject x time grid so structurally missing combinations
   # are represented explicitly as NA rows.
   observed_n <- nrow(dataset)
@@ -226,6 +253,12 @@ gamlss.longitudinal=function(dataset,
     stringsAsFactors = FALSE
   )
   dataset <- merge(full_grid, dataset, by = c("subject", "time"), all.x = TRUE, sort = FALSE)
+  dataset$time_covariate <- time_lookup$time_covariate[match(dataset$time, time_lookup$time)]
+  if (time_covariate_is_factor) {
+    dataset$time_covariate <- factor(as.character(dataset$time_covariate),
+                                     levels = time_covariate_levels,
+                                     ordered = time_covariate_ordered)
+  }
   dataset <- dataset[order(dataset$subject, dataset$time), , drop = FALSE]
   rownames(dataset) <- NULL
 
