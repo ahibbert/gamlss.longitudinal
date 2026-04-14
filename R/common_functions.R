@@ -70,6 +70,10 @@
 #' @param max_inner_iter Maximum number of inner iterations
 #' @param max_negative_outer_streak Maximum number of consecutive negative outer
 #' log-likelihood changes allowed before stopping.
+#' @param compute_vcov Logical; if `TRUE` (default), compute and store the
+#' model variance-covariance output at the end of fitting.
+#' @param vcov_numderiv Logical; passed to `vcov.gamlss.longitudinal()` when
+#' `compute_vcov = TRUE`.
 #' @param use_Rcpp Use Rcpp for matrix operations
 #' @importFrom VineCopula BiCopName BiCopPDF BiCopDeriv BiCopDeriv2 BiCopTau2Par D2RVine RVineSim
 #'
@@ -85,7 +89,7 @@ gamlss.longitudinal=function(dataset,
                         tau.formula = ("~ 1"),
                         theta.formula=("~ 1"),
                         zeta.formula=("~ 1"),
-                        include_dlcopdpar=FALSE,
+                        include_dlcopdpar=TRUE,
                         inner_stop_crit=.1,
                         outer_stop_crit=.1,
                         start_step_size=.5,
@@ -99,6 +103,8 @@ gamlss.longitudinal=function(dataset,
                         max_outer_iter=20,
                         max_inner_iter=20,
                         max_negative_outer_streak=10,
+                        compute_vcov=TRUE,
+                        vcov_numderiv=TRUE,
                         use_Rcpp=FALSE,
                         lambda_start=5,
                         lambda_penalty_K=2
@@ -945,6 +951,40 @@ gamlss.longitudinal=function(dataset,
     zeta = zeta.formula.int
   )
   return_list$var_map <- var_map
+
+  # Store vcov metadata and optionally precompute vcov once at fit time.
+  return_list$vcov <- NULL
+  return_list$vcov_meta <- list(
+    precomputed = FALSE,
+    numderiv = isTRUE(vcov_numderiv)
+  )
+
+  if(isTRUE(compute_vcov)) {
+    if(verbose > 0) {
+      cat("Calculating variance-covariance matrix at fit completion...\n")
+    }
+    vcov_cached <- NULL
+    vcov_cached <- tryCatch({
+      vcov.gamlss.longitudinal(
+        return_list,
+        numderiv = isTRUE(vcov_numderiv),
+        progress = isTRUE(verbose > 0)
+      )
+    }, error = function(e) {
+      warning(
+        "Could not precompute variance-covariance matrix at fit completion: ",
+        conditionMessage(e),
+        call. = FALSE
+      )
+      NULL
+    })
+
+    if(!is.null(vcov_cached)) {
+      return_list$vcov <- vcov_cached
+      return_list$vcov_meta$precomputed <- TRUE
+    }
+  }
+
   class(return_list)="gamlss.longitudinal"
   return(return_list)
 }
@@ -1953,7 +1993,7 @@ calc_true_SE_numderiv_only_rowwise = function(eta_inv, mm, margin_dist,response,
   return(nd2)
 }
 
-calc_true_SE_numderiv_only_covariates = function(object, par, mm, margin_dist,response,testing=FALSE,response_margin=NA,response_subject=NA,h=.0001) {
+calc_true_SE_numderiv_only_covariates = function(object, par, mm, margin_dist,response,testing=FALSE,response_margin=NA,response_subject=NA,h=.0001, progress=interactive()) {
 
   #object=fit; par=NA; numderiv=TRUE; sep_d2=TRUE
 
@@ -1972,12 +2012,19 @@ calc_true_SE_numderiv_only_covariates = function(object, par, mm, margin_dist,re
   par_s=object$par_s
 
   input_par=par_cov
+  progress=isTRUE(progress)
 
   adj_fac=h
   nd_impact=rep(0,length(names(input_par)))
   names(nd_impact)=names(input_par)#[names(eta_inv) %in% c("mu","sigma","nu","tau")]
 
   cat("Calculating numerical first derivates for Hessian matrix...\n")
+  pb_first <- NULL
+  if(progress) {
+    pb_first <- utils::txtProgressBar(min=0, max=length(names(input_par)), style=3)
+    on.exit(close(pb_first), add=TRUE)
+  }
+  first_counter <- 0L
   for (par_names_nd in names(input_par)) {
 
     #print(par_names_nd)
@@ -2002,12 +2049,25 @@ calc_true_SE_numderiv_only_covariates = function(object, par, mm, margin_dist,re
           ,response=response,response_margin=response_margin,response_subject = response_subject)$log_lik["joint"]
     nd_impact[par_names_nd]=(change[2]+change[1]-2*change[3])/(adj_fac^2)
 
+    first_counter <- first_counter + 1L
+    if(progress) {
+      utils::setTxtProgressBar(pb_first, first_counter)
+    }
+
     #print(c(change,nd_impact[eta_par_names_nd]))
   }
+  if(progress) cat("\n")
 
   cat("Calculating numerical second derivates for Hessian matrix... this may take a while\n")
   nd_cross=matrix(0,nrow=length(names(input_par)),ncol=length(names(input_par)))
   colnames(nd_cross)=rownames(nd_cross)=names(input_par)
+  second_total <- length(names(input_par)) * max(length(names(input_par)) - 1, 0)
+  pb_second <- NULL
+  if(progress && second_total > 0) {
+    pb_second <- utils::txtProgressBar(min=0, max=second_total, style=3)
+    on.exit(close(pb_second), add=TRUE)
+  }
+  second_counter <- 0L
   for (name1 in names(input_par)) {
     for (name2 in names(input_par)) {
       for(adj1 in c(-1*adj_fac,adj_fac)) {
@@ -2027,8 +2087,15 @@ calc_true_SE_numderiv_only_covariates = function(object, par, mm, margin_dist,re
           }
         }
       }
+      if(name1!=name2) {
+        second_counter <- second_counter + 1L
+        if(progress && !is.null(pb_second)) {
+          utils::setTxtProgressBar(pb_second, second_counter)
+        }
+      }
     }
   }
+  if(progress && !is.null(pb_second)) cat("\n")
   nd_cross=nd_cross/(4*(adj_fac^2))
 
   nd2=(diag(nd_impact)+nd_cross)
@@ -2050,9 +2117,11 @@ coef.gamlss.longitudinal=function(object, ...) {
 
 # This function returns the variance-covariance matrix for a given gamlss longitudinal object
 #' @export
-vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE, ...) {
+vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE, progress=interactive(), ...) {
 
   #object=fit; par=NA; numderiv=TRUE; sep_d2=TRUE
+
+  progress = isTRUE(progress)
   
   include_dlcopdpar=TRUE
   response=object$response
@@ -2093,7 +2162,7 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE, ...)
 
   if(numderiv==TRUE) {
     #nd2_joint_lik=calc_true_SE_numderiv_only(eta_inv,mm,margin_dist,response,testing=TRUE,response_margin,response_subject)
-    hessian_nd=calc_true_SE_numderiv_only_covariates(object=object,par=par_cov,mm=mm$x,margin_dist=margin_dist,response=response,testing=FALSE,response_margin=response_margin,response_subject=response_subject)
+    hessian_nd=calc_true_SE_numderiv_only_covariates(object=object,par=par_cov,mm=mm$x,margin_dist=margin_dist,response=response,testing=FALSE,response_margin=response_margin,response_subject=response_subject,progress=progress)
   } else {
 
     #######to delete############
@@ -2349,6 +2418,30 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE, ...)
 
 }
 
+.can_use_cached_vcov <- function(object, numderiv = TRUE, extra_args = list()) {
+  if(!inherits(object, "gamlss.longitudinal")) return(FALSE)
+  if(!is.null(extra_args) && length(extra_args) > 0) return(FALSE)
+  if(is.null(object$vcov) || !is.list(object$vcov)) return(FALSE)
+  if(is.null(object$vcov$vcov) || is.null(object$vcov$vcov$overall)) return(FALSE)
+
+  if(!is.null(object$vcov_meta) && !is.null(object$vcov_meta$numderiv)) {
+    return(identical(isTRUE(object$vcov_meta$numderiv), isTRUE(numderiv)))
+  }
+
+  TRUE
+}
+
+.resolve_vcov <- function(object, numderiv = TRUE, extra_args = list()) {
+  if(.can_use_cached_vcov(object, numderiv = numderiv, extra_args = extra_args)) {
+    return(object$vcov)
+  }
+
+  do.call(
+    vcov.gamlss.longitudinal,
+    c(list(object = object, numderiv = numderiv), extra_args)
+  )
+}
+
 #' Summarize a fitted gamlss.longitudinal model
 #'
 #' Creates a compact summary of key model diagnostics and coefficient estimates
@@ -2399,16 +2492,46 @@ summary.gamlss.longitudinal = function(
     }
   }
 
-  loglik_joint = NA_real_
+  loglik_vec = c(marginal = NA_real_, copula = NA_real_, joint = NA_real_)
   if(!is.null(object$calc_lik_out_end) && !is.null(object$calc_lik_out_end$log_lik)) {
-    if("joint" %in% names(object$calc_lik_out_end$log_lik)) {
-      loglik_joint = as.numeric(object$calc_lik_out_end$log_lik["joint"])
+    ll_in = object$calc_lik_out_end$log_lik
+    for(nm in c("marginal", "copula", "joint")) {
+      if(nm %in% names(ll_in)) {
+        loglik_vec[nm] = as.numeric(ll_in[[nm]])
+      }
+    }
+  }
+  loglik_joint = as.numeric(loglik_vec["joint"])
+
+  p_cop = object$par[grepl("theta", names(object$par)) | grepl("zeta", names(object$par))]
+  p_mar = object$par[!(grepl("theta", names(object$par)) | grepl("zeta", names(object$par)))]
+
+  df_s_total = 0
+  df_s_cop_total = 0
+  df_s_margin_total = 0
+  if(!is.null(object$df_s) && length(object$df_s) > 0) {
+    for(par_name in names(object$df_s)) {
+      df_val = suppressWarnings(sum(as.numeric(unlist(object$df_s[[par_name]])), na.rm = TRUE))
+      if(!is.finite(df_val)) df_val = 0
+
+      if(par_name %in% c("theta", "zeta")) {
+        df_s_cop_total = df_s_cop_total + df_val
+      } else {
+        df_s_margin_total = df_s_margin_total + df_val
+      }
+      df_s_total = df_s_total + df_val
     }
   }
 
-  k_total = n_fixed + ifelse(is.finite(edf_smooth), edf_smooth, 0)
-  aic = if(is.finite(loglik_joint)) -2 * loglik_joint + 2 * k_total else NA_real_
-  bic = if(is.finite(loglik_joint)) -2 * loglik_joint + log(max(1, n_obs)) * k_total else NA_real_
+  edf_vec = c(
+    marginal = length(p_mar) + df_s_margin_total,
+    copula = length(p_cop) + df_s_cop_total,
+    joint = length(object$par) + df_s_total
+  )
+
+  aic_vec = -2 * loglik_vec + 2 * edf_vec
+  bic_vec = -2 * loglik_vec + log(max(1, n_obs)) * edf_vec
+  model_selection = rbind(LogLik = loglik_vec, AIC = aic_vec, BIC = bic_vec, EDF = edf_vec)
 
   coef_tbl = data.frame(
     term = names(object$par),
@@ -2428,14 +2551,11 @@ summary.gamlss.longitudinal = function(
 
   vcov_out = NULL
   if(isTRUE(include_vcov)) {
-    cat("Calculating variance-covariance matrix...\n")
-    vcov_out = NULL
-    invisible(utils::capture.output({
-      vcov_out = do.call(
-        vcov.gamlss.longitudinal,
-        c(list(object = object, numderiv = numderiv), list(...))
-      )
-    }, type = "output"))
+    vcov_out = .resolve_vcov(
+      object = object,
+      numderiv = numderiv,
+      extra_args = list(...)
+    )
 
     if(!is.null(vcov_out$vcov) && !is.null(vcov_out$vcov$overall)) {
       V = vcov_out$vcov$overall
@@ -2492,11 +2612,12 @@ summary.gamlss.longitudinal = function(
     ),
     fit = list(
       logLik = loglik_joint,
-      AIC = aic,
-      BIC = bic,
+      AIC = as.numeric(aic_vec["joint"]),
+      BIC = as.numeric(bic_vec["joint"]),
       ci_level = ci_level,
       vcov_included = isTRUE(include_vcov),
-      vcov_numderiv = isTRUE(numderiv)
+      vcov_numderiv = isTRUE(numderiv),
+      model_selection = model_selection
     ),
     smooth_terms = {
       st = list()
@@ -2615,14 +2736,18 @@ print.summary.gamlss.longitudinal = function(x, digits = max(3, getOption("digit
     cat("None\n")
   }
 
-  cat("\nFit statistics:\n")
+  cat("\nModel Selection Criteria:\n")
   cat("--------------------\n")
-  fit_tbl = data.frame(
-    metric = c("logLik", "AIC", "BIC"),
-    value = c(x$fit$logLik, x$fit$AIC, x$fit$BIC),
-    stringsAsFactors = FALSE
-  )
-  print(fit_tbl, row.names = FALSE, digits = digits)
+  if(!is.null(x$fit$model_selection)) {
+    print(round(x$fit$model_selection, digits))
+  } else {
+    fit_tbl = data.frame(
+      metric = c("logLik", "AIC", "BIC"),
+      value = c(x$fit$logLik, x$fit$AIC, x$fit$BIC),
+      stringsAsFactors = FALSE
+    )
+    print(fit_tbl, row.names = FALSE, digits = digits)
+  }
   cat("--------------------------------\n")
 
   invisible(x)
@@ -2680,7 +2805,7 @@ plot_smooth_terms = function(
   }
 
   if(is.null(vcov_obj)) {
-    vcov_obj = vcov(object, numderiv = TRUE)
+    vcov_obj = .resolve_vcov(object, numderiv = TRUE, extra_args = list())
   }
 
   if(!is.list(vcov_obj) || is.null(vcov_obj$vcov)) {
@@ -2968,7 +3093,7 @@ plot_fixed_terms = function(
   }
 
   if(is.null(vcov_obj)) {
-    vcov_obj = vcov(object, numderiv = TRUE)
+    vcov_obj = .resolve_vcov(object, numderiv = TRUE, extra_args = list())
   }
 
   if(!is.list(vcov_obj) || is.null(vcov_obj$vcov) || is.null(vcov_obj$vcov$overall)) {
@@ -3391,7 +3516,6 @@ plot.terms.gamlss.longitudinal = function(
   ...
 ) {
   cat("\n=== Plotting term effects for gamlss.longitudinal object ===\n")
-  cat("Computing variance-covariance matrix...\n\n")
 
   count_plot_terms = function(obj) {
     n_smooth = 0
@@ -3424,7 +3548,7 @@ plot.terms.gamlss.longitudinal = function(
     return(invisible(list(smooth_terms = list(), fixed_terms = list())))
   }
 
-  vcov_obj = vcov(x, numderiv = TRUE)
+  vcov_obj = .resolve_vcov(x, numderiv = TRUE, extra_args = list())
 
   smooth_results = list()
   fixed_results = list()
