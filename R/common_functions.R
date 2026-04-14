@@ -818,10 +818,88 @@ gamlss.longitudinal=function(dataset,
         
         backfitting_iteration_results=backfitting_iteration(par_s=par_s,par_cov=par_cov, beta_start=beta_start, lambda_s=lambda_s, first_inner_run=FALSE,K=K,
           margin_dist=margin_dist, copula_dist=copula_dist, dataset=dataset, mm=mm, copula_link=copula_link,df_s=df_s,step_size=step_size,par_name=par_name)
-        par_cov=backfitting_iteration_results$par_cov
-        par_s=backfitting_iteration_results$par_s
-        calc_lik_out_end=backfitting_iteration_results$calc_lik_out_end
-        df_s=backfitting_iteration_results$df_s
+
+        # Guard against downhill updates: if a proposed step lowers joint log-likelihood,
+        # try smaller step sizes before accepting.
+        start_joint_loglik <- as.numeric(calc_lik_out$log_lik["joint"])
+        accepted_results <- backfitting_iteration_results
+        accepted_step_size <- step_size
+        loglik_tol <- 1e-10
+        proposed_joint_loglik <- as.numeric(backfitting_iteration_results$calc_lik_out_end$log_lik["joint"])
+        theta_step_rejected <- FALSE
+
+        if(is.finite(start_joint_loglik) && is.finite(proposed_joint_loglik) && proposed_joint_loglik < (start_joint_loglik - loglik_tol)) {
+          max_backtrack <- 6
+          trial_step <- step_size
+          accepted <- FALSE
+
+          for(bt in seq_len(max_backtrack)) {
+            trial_step <- trial_step / 2
+            trial_results <- backfitting_iteration(
+              par_s=par_s,
+              par_cov=par_cov,
+              beta_start=beta_start,
+              lambda_s=lambda_s,
+              first_inner_run=FALSE,
+              K=K,
+              margin_dist=margin_dist,
+              copula_dist=copula_dist,
+              dataset=dataset,
+              mm=mm,
+              copula_link=copula_link,
+              df_s=df_s,
+              step_size=trial_step,
+              par_name=par_name
+            )
+
+            trial_joint_loglik <- as.numeric(trial_results$calc_lik_out_end$log_lik["joint"])
+            if(is.finite(trial_joint_loglik) && trial_joint_loglik >= (start_joint_loglik - loglik_tol)) {
+              accepted_results <- trial_results
+              accepted_step_size <- trial_step
+              accepted <- TRUE
+              break
+            }
+          }
+
+          if(!accepted) {
+            accepted_results <- list(
+              par_cov=par_cov,
+              par_s=par_s,
+              calc_lik_out_end=calc_lik_out,
+              GAIC_lambda_k=NA_real_,
+              df_s=df_s
+            )
+            accepted_step_size <- 0
+            theta_step_rejected <- TRUE
+          }
+
+          if(verbose > 1) {
+            cat(paste0(
+              "\nBacktracking applied for ", par_name,
+              ": step_size ", signif(step_size, 4),
+              " -> ", signif(accepted_step_size, 4),
+              "\n"
+            ))
+          }
+        }
+
+        accepted_joint_loglik <- as.numeric(accepted_results$calc_lik_out_end$log_lik["joint"])
+        if(par_name == "theta" && verbose > 2) {
+          cat(paste0(
+            "\nTheta step diagnostics: start=", signif(start_joint_loglik, 8),
+            ", proposed=", signif(proposed_joint_loglik, 8),
+            ", accepted=", signif(accepted_joint_loglik, 8),
+            ", step=", signif(step_size, 4),
+            ", accepted_step=", signif(accepted_step_size, 4),
+            ", rejected=", if(theta_step_rejected) "yes" else "no",
+            "\n"
+          ))
+        }
+
+        par_cov=accepted_results$par_cov
+        par_s=accepted_results$par_s
+        calc_lik_out_end=accepted_results$calc_lik_out_end
+        df_s=accepted_results$df_s
 
         if (verbose>2) {
           cat("\nLogLik:\n")
