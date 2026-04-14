@@ -2777,11 +2777,20 @@ plot_smooth_terms = function(
   }
 
   if(length(plot_objects) > 0) {
-    dashboard = NULL
+    if(is.null(ncol)) {
+      ncol = min(2, n_plots)
+    }
+    nrow = ceiling(length(plot_objects) / ncol)
+    dashboard = list(plotlist = plot_objects, ncol = ncol, nrow = nrow)
     if(setup_mfrow) {
-      for(p_obj in plot_objects) {
-        print(p_obj)
+      grid::grid.newpage()
+      grid::pushViewport(grid::viewport(layout = grid::grid.layout(nrow, ncol)))
+      for(i_plot in seq_along(plot_objects)) {
+        r = ((i_plot - 1) %/% ncol) + 1
+        c = ((i_plot - 1) %% ncol) + 1
+        print(plot_objects[[i_plot]], vp = grid::viewport(layout.pos.row = r, layout.pos.col = c))
       }
+      grid::popViewport()
     }
     out$plots = plot_objects
     out$dashboard = dashboard
@@ -3203,11 +3212,20 @@ plot_fixed_terms = function(
   }
 
   if(length(plot_objects) > 0) {
-    dashboard = NULL
+    if(is.null(ncol)) {
+      ncol = min(2, n_plots)
+    }
+    nrow = ceiling(length(plot_objects) / ncol)
+    dashboard = list(plotlist = plot_objects, ncol = ncol, nrow = nrow)
     if(setup_mfrow) {
-      for(p_obj in plot_objects) {
-        print(p_obj)
+      grid::grid.newpage()
+      grid::pushViewport(grid::viewport(layout = grid::grid.layout(nrow, ncol)))
+      for(i_plot in seq_along(plot_objects)) {
+        r = ((i_plot - 1) %/% ncol) + 1
+        c = ((i_plot - 1) %% ncol) + 1
+        print(plot_objects[[i_plot]], vp = grid::viewport(layout.pos.row = r, layout.pos.col = c))
       }
+      grid::popViewport()
     }
     out$plots = plot_objects
     out$dashboard = dashboard
@@ -3338,9 +3356,20 @@ plot.terms.gamlss.longitudinal = function(
 
   dashboard = NULL
   if(length(plot_objects) > 0) {
-    for(p_obj in plot_objects) {
-      print(p_obj)
+    if(is.null(ncol)) {
+      ncol = min(2, length(plot_objects))
     }
+    nrow = ceiling(length(plot_objects) / ncol)
+    dashboard = list(plotlist = plot_objects, ncol = ncol, nrow = nrow)
+
+    grid::grid.newpage()
+    grid::pushViewport(grid::viewport(layout = grid::grid.layout(nrow, ncol)))
+    for(i_plot in seq_along(plot_objects)) {
+      r = ((i_plot - 1) %/% ncol) + 1
+      c = ((i_plot - 1) %% ncol) + 1
+      print(plot_objects[[i_plot]], vp = grid::viewport(layout.pos.row = r, layout.pos.col = c))
+    }
+    grid::popViewport()
   }
 
   invisible(list(
