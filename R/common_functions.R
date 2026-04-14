@@ -2861,6 +2861,10 @@ plot_fixed_terms = function(
   }
 
   z = qnorm((1 + ci_level) / 2)
+  gg_add = function(plot, object, object_name = "") {
+    ggplot2::ggplot_add(object, plot, object_name)
+  }
+
   build_factor_groups = function(X, data) {
     groups = list()
     if(is.null(data) || !is.data.frame(data) || is.null(X) || ncol(X) == 0) return(groups)
@@ -3021,24 +3025,28 @@ plot_fixed_terms = function(
         keep = keep
       )
 
-      p = ggplot2::ggplot(plot_df[plot_df$keep, , drop = FALSE], ggplot2::aes(x = x, y = fitted)) +
-        ggplot2::geom_hline(yintercept = 0, color = "grey70", linetype = 3) +
-        ggplot2::geom_point(color = fit_col, size = factor_cex) +
-        ggplot2::geom_errorbar(ggplot2::aes(ymin = ci_lower, ymax = ci_upper), color = ci_col, width = 0.15) +
-        ggplot2::scale_x_discrete(labels = levs) +
+      p = ggplot2::ggplot(plot_df[plot_df$keep, , drop = FALSE], ggplot2::aes(x = x, y = fitted))
+      p = gg_add(p, ggplot2::geom_hline(yintercept = 0, color = "grey70", linetype = 3), "geom_hline")
+      p = gg_add(p, ggplot2::geom_point(color = fit_col, size = factor_cex), "geom_point")
+      p = gg_add(p, ggplot2::geom_errorbar(ggplot2::aes(ymin = ci_lower, ymax = ci_upper), color = ci_col, width = 0.15), "geom_errorbar")
+      p = gg_add(p, ggplot2::scale_x_discrete(labels = levs), "scale_x_discrete")
+      p = gg_add(
+        p,
         ggplot2::labs(
           title = paste(par_name, fg$var_name, sep = ": "),
           x = fg$var_name,
           y = paste("fixed contribution:", paste(par_name, fg$var_name, sep = "."))
-        ) +
-        ggplot2::theme_minimal()
+        ),
+        "labs"
+      )
+      p = gg_add(p, ggplot2::theme_minimal(), "theme_minimal")
 
       if(!is.null(y_lim)) {
-        p = p + ggplot2::coord_cartesian(ylim = y_lim)
+        p = gg_add(p, ggplot2::coord_cartesian(ylim = y_lim), "coord_cartesian")
       }
 
       if(show_legend) {
-        p = p + ggplot2::labs(caption = paste("estimate /", round(ci_level * 100), "% CI"))
+        p = gg_add(p, ggplot2::labs(caption = paste("estimate /", round(ci_level * 100), "% CI")), "labs")
       }
 
       if(is.null(out[[par_name]])) out[[par_name]] = list()
@@ -3090,23 +3098,27 @@ plot_fixed_terms = function(
         stringsAsFactors = FALSE
       )
 
-      p = ggplot2::ggplot(plot_df, ggplot2::aes(x = x, y = fitted)) +
-        ggplot2::geom_hline(yintercept = 0, color = "grey70", linetype = 3) +
-        ggplot2::geom_point(color = fit_col, size = factor_cex) +
-        ggplot2::geom_errorbar(ggplot2::aes(ymin = ci_lower, ymax = ci_upper), color = ci_col, width = 0.15) +
+      p = ggplot2::ggplot(plot_df, ggplot2::aes(x = x, y = fitted))
+      p = gg_add(p, ggplot2::geom_hline(yintercept = 0, color = "grey70", linetype = 3), "geom_hline")
+      p = gg_add(p, ggplot2::geom_point(color = fit_col, size = factor_cex), "geom_point")
+      p = gg_add(p, ggplot2::geom_errorbar(ggplot2::aes(ymin = ci_lower, ymax = ci_upper), color = ci_col, width = 0.15), "geom_errorbar")
+      p = gg_add(
+        p,
         ggplot2::labs(
           title = paste(par_name, col_name, sep = ": "),
           x = paste(col_name, "(interaction level)"),
           y = paste("fixed contribution:", coef_name)
-        ) +
-        ggplot2::theme_minimal()
+        ),
+        "labs"
+      )
+      p = gg_add(p, ggplot2::theme_minimal(), "theme_minimal")
 
       if(!is.null(y_lim)) {
-        p = p + ggplot2::coord_cartesian(ylim = y_lim)
+        p = gg_add(p, ggplot2::coord_cartesian(ylim = y_lim), "coord_cartesian")
       }
 
       if(show_legend) {
-        p = p + ggplot2::labs(caption = paste("estimate /", round(ci_level * 100), "% CI"))
+        p = gg_add(p, ggplot2::labs(caption = paste("estimate /", round(ci_level * 100), "% CI")), "labs")
       }
 
       if(is.null(out[[par_name]])) out[[par_name]] = list()
@@ -3164,18 +3176,18 @@ plot_fixed_terms = function(
         ci_upper = ci_upper[ord]
       )
 
-      p = ggplot2::ggplot(plot_df, ggplot2::aes(x = x, y = fitted)) +
-        ggplot2::geom_ribbon(ggplot2::aes(ymin = ci_lower, ymax = ci_upper), fill = ci_col, alpha = 0.16) +
-        ggplot2::geom_line(color = fit_col, linewidth = fit_lwd) +
-        ggplot2::labs(title = main_title, x = xlab_text, y = ylab_text) +
-        ggplot2::theme_minimal()
+      p = ggplot2::ggplot(plot_df, ggplot2::aes(x = x, y = fitted))
+      p = gg_add(p, ggplot2::geom_ribbon(ggplot2::aes(ymin = ci_lower, ymax = ci_upper), fill = ci_col, alpha = 0.16), "geom_ribbon")
+      p = gg_add(p, ggplot2::geom_line(color = fit_col, linewidth = fit_lwd), "geom_line")
+      p = gg_add(p, ggplot2::labs(title = main_title, x = xlab_text, y = ylab_text), "labs")
+      p = gg_add(p, ggplot2::theme_minimal(), "theme_minimal")
 
       if(!is.null(y_lim)) {
-        p = p + ggplot2::coord_cartesian(ylim = y_lim)
+        p = gg_add(p, ggplot2::coord_cartesian(ylim = y_lim), "coord_cartesian")
       }
 
       if(show_legend) {
-        p = p + ggplot2::labs(caption = paste("fit /", round(ci_level * 100), "% CI"))
+        p = gg_add(p, ggplot2::labs(caption = paste("fit /", round(ci_level * 100), "% CI")), "labs")
       }
 
       if(is.null(out[[par_name]])) out[[par_name]] = list()
