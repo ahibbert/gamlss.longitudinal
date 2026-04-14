@@ -70,6 +70,8 @@
 #' @param max_inner_iter Maximum number of inner iterations
 #' @param max_negative_outer_streak Maximum number of consecutive negative outer
 #' log-likelihood changes allowed before stopping.
+#' @param use_backtracking Logical; if `TRUE` (default), apply step-halving
+#' backtracking to reject downhill inner updates.
 #' @param compute_vcov Logical; if `TRUE` (default), compute and store the
 #' model variance-covariance output at the end of fitting.
 #' @param vcov_numderiv Logical; passed to `vcov.gamlss.longitudinal()` when
@@ -103,6 +105,7 @@ gamlss.longitudinal=function(dataset,
                         max_outer_iter=20,
                         max_inner_iter=20,
                         max_negative_outer_streak=10,
+                        use_backtracking=TRUE,
                         compute_vcov=TRUE,
                         vcov_numderiv=TRUE,
                         use_Rcpp=FALSE,
@@ -828,7 +831,7 @@ gamlss.longitudinal=function(dataset,
         proposed_joint_loglik <- as.numeric(backfitting_iteration_results$calc_lik_out_end$log_lik["joint"])
         theta_step_rejected <- FALSE
 
-        if(is.finite(start_joint_loglik) && is.finite(proposed_joint_loglik) && proposed_joint_loglik < (start_joint_loglik - loglik_tol)) {
+        if(isTRUE(use_backtracking) && is.finite(start_joint_loglik) && is.finite(proposed_joint_loglik) && proposed_joint_loglik < (start_joint_loglik - loglik_tol)) {
           max_backtrack <- 6
           trial_step <- step_size
           accepted <- FALSE
@@ -889,6 +892,7 @@ gamlss.longitudinal=function(dataset,
             "\nTheta step diagnostics: start=", signif(start_joint_loglik, 8),
             ", proposed=", signif(proposed_joint_loglik, 8),
             ", accepted=", signif(accepted_joint_loglik, 8),
+            ", backtracking=", if(isTRUE(use_backtracking)) "on" else "off",
             ", step=", signif(step_size, 4),
             ", accepted_step=", signif(accepted_step_size, 4),
             ", rejected=", if(theta_step_rejected) "yes" else "no",
@@ -2093,38 +2097,51 @@ calc_true_SE_numderiv_only_covariates = function(object, par, mm, margin_dist,re
   progress=isTRUE(progress)
 
   adj_fac=h
-  nd_impact=rep(0,length(names(input_par)))
-  names(nd_impact)=names(input_par)#[names(eta_inv) %in% c("mu","sigma","nu","tau")]
+  par_names=names(input_par)
+  nd_impact=rep(0,length(par_names))
+  names(nd_impact)=par_names#[names(eta_inv) %in% c("mu","sigma","nu","tau")]
+
+  # Reuse fixed copula pairing metadata across all numerical derivative evaluations.
+  pair_cache=build_copula_pair_cache(response,response_margin,response_subject)
+  eval_joint_loglik <- function(par_vec) {
+    eta_out=calc_eta(par_cov=par_vec,mm=mm,margin_dist,copula_link,par_s)
+    eta_inv=eta_out$eta_inv
+    calc_likelihood_minimal(
+      eta_inv,
+      mm=mm$x,
+      margin_dist,
+      copula_dist,
+      calc_d2=FALSE,
+      response=response,
+      response_margin=response_margin,
+      response_subject=response_subject,
+      pair_cache=pair_cache
+    )$log_lik["joint"]
+  }
+
+  base_loglik=eval_joint_loglik(input_par)
 
   cat("Calculating numerical first derivates for Hessian matrix...\n")
   pb_first <- NULL
   if(progress) {
-    pb_first <- utils::txtProgressBar(min=0, max=length(names(input_par)), style=3)
+    pb_first <- utils::txtProgressBar(min=0, max=length(par_names), style=3)
     on.exit(close(pb_first), add=TRUE)
   }
   first_counter <- 0L
-  for (par_names_nd in names(input_par)) {
+  for (par_names_nd in par_names) {
 
     #print(par_names_nd)
-    change=rep(0,length(names(input_par)))
+    change=rep(0,3)
     i=1
     for (adj in c(-1*adj_fac,adj_fac)) {
 
       par_cov=input_par
       par_cov[[par_names_nd]]=par_cov[[par_names_nd]]+adj
 
-      eta_out=calc_eta(par_cov=par_cov,mm=mm,margin_dist,copula_link,par_s)
-      eta_inv=eta_out$eta_inv#; eta_dr=eta_out$eta_dr; eta=eta_out$eta; eta_dr=eta_out$eta_dr
-      change[i]=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=TRUE
-        ,response=response,response_margin=response_margin,response_subject = response_subject)$log_lik["joint"]
+      change[i]=eval_joint_loglik(par_cov)
       i=i+1
     }
-    par_cov=input_par
-    eta_out=calc_eta(par_cov=par_cov,mm=mm,margin_dist,copula_link,par_s)
-    eta_inv=eta_out$eta_inv#; eta_dr=eta_out$eta_dr; eta=eta_out$eta; eta_dr=eta_out$eta_dr
-
-        change[3]=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=TRUE
-          ,response=response,response_margin=response_margin,response_subject = response_subject)$log_lik["joint"]
+    change[3]=base_loglik
     nd_impact[par_names_nd]=(change[2]+change[1]-2*change[3])/(adj_fac^2)
 
     first_counter <- first_counter + 1L
@@ -2137,35 +2154,35 @@ calc_true_SE_numderiv_only_covariates = function(object, par, mm, margin_dist,re
   if(progress) cat("\n")
 
   cat("Calculating numerical second derivates for Hessian matrix... this may take a while\n")
-  nd_cross=matrix(0,nrow=length(names(input_par)),ncol=length(names(input_par)))
-  colnames(nd_cross)=rownames(nd_cross)=names(input_par)
-  second_total <- length(names(input_par)) * max(length(names(input_par)) - 1, 0)
+  p=length(par_names)
+  nd_cross=matrix(0,nrow=p,ncol=p)
+  colnames(nd_cross)=rownames(nd_cross)=par_names
+  second_total <- if(p > 1) choose(p,2) else 0
   pb_second <- NULL
   if(progress && second_total > 0) {
     pb_second <- utils::txtProgressBar(min=0, max=second_total, style=3)
     on.exit(close(pb_second), add=TRUE)
   }
   second_counter <- 0L
-  for (name1 in names(input_par)) {
-    for (name2 in names(input_par)) {
-      for(adj1 in c(-1*adj_fac,adj_fac)) {
-        for(adj2 in c(-1*adj_fac,adj_fac)) {
-          if(name1!=name2) {
-
+  if(p > 1) {
+    for (i in 1:(p-1)) {
+      name1=par_names[i]
+      for (j in (i+1):p) {
+        name2=par_names[j]
+        cross_sum=0
+        for(adj1 in c(-1*adj_fac,adj_fac)) {
+          for(adj2 in c(-1*adj_fac,adj_fac)) {
             par=input_par
             par[[name1]]=par[[name1]]+adj1
             par[[name2]]=par[[name2]]+adj2
 
-            eta_out=calc_eta(par_cov=par,mm=mm,margin_dist,copula_link,par_s)
-            eta_inv=eta_out$eta_inv#; eta_dr=eta_out$eta_dr; eta=eta_out$eta; eta_dr=eta_out$eta_dr
-
-            change=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=TRUE
-            ,response=response,response_margin=response_margin,response_subject = response_subject)$log_lik["joint"]
-            nd_cross[name1,name2]=nd_cross[name1,name2]+change*if(adj1==adj2){1} else {-1}
+            change=eval_joint_loglik(par)
+            cross_sum=cross_sum+change*if(adj1==adj2){1} else {-1}
           }
         }
-      }
-      if(name1!=name2) {
+        nd_cross[name1,name2]=cross_sum
+        nd_cross[name2,name1]=cross_sum
+
         second_counter <- second_counter + 1L
         if(progress && !is.null(pb_second)) {
           utils::setTxtProgressBar(pb_second, second_counter)
