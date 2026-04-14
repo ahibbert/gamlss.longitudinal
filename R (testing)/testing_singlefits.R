@@ -195,7 +195,7 @@ fit=gamlss.longitudinal(dataset = data_in
                    , tau.formula = tau_formula
                    , theta.formula = theta_formula
                    , zeta.formula = zeta_formula
-                   , verbose = 3
+                   , verbose = 1
 )
 
 #vcov_fit=vcov.gamlss.longitudinal(fit, numderiv=TRUE)
@@ -204,10 +204,11 @@ fit=gamlss.longitudinal(dataset = data_in
 source("R/common_functions.R")
 source("R/diagnostics_topmodels.R")
 source("R (testing)/plot_copula_v2.R")
+plot.terms(fit,  data = data_in)
 summary(fit)
 plot(fit)
 plot(fit, time_stratified = TRUE)
 plot.copula(fit, contour_bins=5, time_stratified = TRUE, plot2_cuts=10)
 plot.copula_contour_compare(fit, time_stratified = TRUE, transform="normal", diff_scale_limit=.1)
-plot.terms(fit,  data = data_in)
+
 

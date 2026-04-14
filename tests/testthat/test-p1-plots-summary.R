@@ -13,6 +13,7 @@ test_that("T151 summary output contract is stable", {
 
 test_that("T152 plot.terms interaction rendering metadata includes factor levels", {
   dat <- make_fixture_factor_time_interaction(n_subject = 16L)
+  dat$time_raw <- factor(as.character(dat$time_raw), levels = levels(dat$time_raw), ordered = FALSE)
   fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
 
   suppressPackageStartupMessages(library(grid))
@@ -22,11 +23,12 @@ test_that("T152 plot.terms interaction rendering metadata includes factor levels
 
   mu_entries <- pf$mu
   entry_names <- names(mu_entries)
-  interaction_entries <- entry_names[grepl(":", entry_names, fixed = TRUE)]
+  interaction_entries <- entry_names[grepl(":", entry_names, fixed = TRUE) & grepl("|", entry_names, fixed = TRUE)]
 
-  expect_true(length(interaction_entries) >= 1)
-  expect_true(!is.null(mu_entries[[interaction_entries[1]]]$levels))
-  expect_true(length(mu_entries[[interaction_entries[1]]]$levels) >= 1)
+  expect_equal(length(interaction_entries), 2)
+  panel_levels <- vapply(mu_entries[interaction_entries], function(e) e$panel_level, character(1))
+  expect_setequal(panel_levels, levels(dat$gender))
+  expect_true(all(vapply(mu_entries[interaction_entries], function(e) length(e$levels), integer(1)) == length(levels(dat$time_raw))))
 })
 
 test_that("T153 plot methods smoke test return dashboard structures", {

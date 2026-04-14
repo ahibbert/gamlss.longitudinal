@@ -3223,6 +3223,10 @@ plot_fixed_terms = function(
         if(length(var_tokens) > 0) var_tokens[1] else character(0),
         if(length(var_tokens) > 0) make.names(var_tokens[1]) else character(0)
       ))
+      # Internal fitting often renames the user time variable to time_covariate.
+      if(grepl("time", var_name, ignore.case = TRUE) && any(grepl("^time_covariate", x_cols))) {
+        var_prefixes = unique(c(var_prefixes, "time_covariate", make.names("time_covariate")))
+      }
       var_prefixes = var_prefixes[nzchar(var_prefixes)]
 
       level_col_map = list()
@@ -3263,14 +3267,86 @@ plot_fixed_terms = function(
     groups
   }
 
+  build_factor_interaction_groups = function(X, factor_groups) {
+    groups = list()
+    if(is.null(X) || ncol(X) == 0 || length(factor_groups) == 0) return(groups)
+
+    x_cols = colnames(X)
+    fg_names = names(factor_groups)
+    if(length(fg_names) < 2) return(groups)
+
+    for(i in seq_len(length(fg_names) - 1)) {
+      for(j in (i + 1):length(fg_names)) {
+        g1 = factor_groups[[fg_names[i]]]
+        g2 = factor_groups[[fg_names[j]]]
+
+        if(length(g1$level_col_map) == 0 || length(g2$level_col_map) == 0) next
+
+        n1 = length(g1$levels)
+        n2 = length(g2$levels)
+        is_gender_1 = grepl("gender|sex", g1$var_name, ignore.case = TRUE)
+        is_gender_2 = grepl("gender|sex", g2$var_name, ignore.case = TRUE)
+        is_time_1 = grepl("time", g1$var_name, ignore.case = TRUE)
+        is_time_2 = grepl("time", g2$var_name, ignore.case = TRUE)
+
+        if(n1 < n2 || (n1 == n2 && is_gender_1 && !is_gender_2) || (n1 == n2 && !is_time_1 && is_time_2)) {
+          panel_group = g1
+          other_group = g2
+        } else {
+          panel_group = g2
+          other_group = g1
+        }
+
+        panel_level_col_map = panel_group$level_col_map
+        other_level_col_map = other_group$level_col_map
+
+        interaction_col_map = list()
+        matched_cols = character(0)
+        for(panel_lev in names(panel_level_col_map)) {
+          panel_col = panel_level_col_map[[panel_lev]]
+          interaction_col_map[[panel_lev]] = list()
+
+          for(other_lev in names(other_level_col_map)) {
+            other_col = other_level_col_map[[other_lev]]
+            candidates = c(
+              paste0(other_col, ":", panel_col),
+              paste0(panel_col, ":", other_col)
+            )
+            hit = candidates[candidates %in% x_cols]
+            if(length(hit) > 0) {
+              interaction_col_map[[panel_lev]][[other_lev]] = hit[1]
+              matched_cols = c(matched_cols, hit[1])
+            }
+          }
+        }
+
+        if(length(matched_cols) > 0) {
+          interaction_name = paste(other_group$var_name, panel_group$var_name, sep = ":")
+          groups[[interaction_name]] = list(
+            interaction_name = interaction_name,
+            panel_group = panel_group,
+            other_group = other_group,
+            interaction_col_map = interaction_col_map,
+            matched_cols = unique(matched_cols)
+          )
+        }
+      }
+    }
+
+    groups
+  }
+
   plot_specs = list()
   for(par_name in names(object$model_matrix$x)) {
     X = object$model_matrix$x[[par_name]]
     if(is.null(X) || ncol(X) == 0) next
 
     factor_groups = build_factor_groups(X, data)
+    interaction_groups = build_factor_interaction_groups(X, factor_groups)
     grouped_cols = unique(unlist(lapply(factor_groups, function(g) g$matched_cols), use.names = FALSE))
     if(length(grouped_cols) == 0) grouped_cols = character(0)
+    grouped_interaction_cols = unique(unlist(lapply(interaction_groups, function(g) g$matched_cols), use.names = FALSE))
+    if(length(grouped_interaction_cols) == 0) grouped_interaction_cols = character(0)
 
     for(var_name in names(factor_groups)) {
       fg = factor_groups[[var_name]]
@@ -3292,8 +3368,34 @@ plot_fixed_terms = function(
       }
     }
 
+    for(inter_name in names(interaction_groups)) {
+      ig = interaction_groups[[inter_name]]
+      has_valid_coef = FALSE
+      for(panel_lev in names(ig$interaction_col_map)) {
+        for(other_lev in names(ig$interaction_col_map[[panel_lev]])) {
+          coef_name = paste(par_name, ig$interaction_col_map[[panel_lev]][[other_lev]], sep = ".")
+          if(coef_name %in% names(object$par) && coef_name %in% rownames(V) && coef_name %in% colnames(V)) {
+            has_valid_coef = TRUE
+            break
+          }
+        }
+        if(has_valid_coef) break
+      }
+      if(has_valid_coef) {
+        for(panel_level in ig$panel_group$levels) {
+          plot_specs[[length(plot_specs) + 1]] = list(
+            type = "interaction_factor_factor",
+            par_name = par_name,
+            group = ig,
+            panel_level = panel_level
+          )
+        }
+      }
+    }
+
     for(col_name in colnames(X)) {
       if(col_name %in% grouped_cols) next
+      if(col_name %in% grouped_interaction_cols) next
       if(!include_intercept && col_name == "intercept") next
       coef_name = paste(par_name, col_name, sep = ".")
       if(!coef_name %in% names(object$par)) next
@@ -3394,6 +3496,97 @@ plot_fixed_terms = function(
         coefficient = paste(par_name, fg$var_name, sep = "."),
         x = x_plot,
         levels = levs,
+        fitted = fitted_term,
+        se = term_se,
+        ci_lower = ci_lower,
+        ci_upper = ci_upper,
+        plot = p
+      )
+      plot_objects[[length(plot_objects) + 1]] = p
+    } else if(identical(spec$type, "interaction_factor_factor")) {
+      ig = spec$group
+      pg = ig$panel_group
+      og = ig$other_group
+      panel_level = spec$panel_level
+
+      levs = og$levels
+      fitted_term = rep(NA_real_, length(levs))
+      term_se = rep(NA_real_, length(levs))
+
+      if(identical(panel_level, pg$ref_level)) {
+        fitted_term[] = 0
+        term_se[] = 0
+      } else {
+        for(j in seq_along(levs)) {
+          lev = levs[j]
+          if(identical(lev, og$ref_level)) {
+            fitted_term[j] = 0
+            term_se[j] = 0
+          } else if(panel_level %in% names(ig$interaction_col_map) && lev %in% names(ig$interaction_col_map[[panel_level]])) {
+            col_name_lev = ig$interaction_col_map[[panel_level]][[lev]]
+            coef_name_lev = paste(par_name, col_name_lev, sep = ".")
+            if(coef_name_lev %in% names(object$par) && coef_name_lev %in% rownames(V) && coef_name_lev %in% colnames(V)) {
+              fitted_term[j] = as.numeric(object$par[coef_name_lev])
+              term_se[j] = sqrt(pmax(0, as.numeric(V[coef_name_lev, coef_name_lev])))
+            }
+          }
+        }
+      }
+
+      keep = is.finite(fitted_term) & is.finite(term_se)
+      ci_lower = fitted_term - z * term_se
+      ci_upper = fitted_term + z * term_se
+
+      y_vals = c(fitted_term[keep], ci_lower[keep], ci_upper[keep])
+      if(length(y_vals) > 0) {
+        y_rng = range(y_vals)
+        y_pad = 0.05 * max(1e-8, diff(y_rng))
+        y_lim = c(y_rng[1] - y_pad, y_rng[2] + y_pad)
+      } else {
+        y_lim = NULL
+      }
+
+      plot_df = data.frame(
+        x = factor(levs, levels = levs),
+        fitted = fitted_term,
+        ci_lower = ci_lower,
+        ci_upper = ci_upper,
+        keep = keep,
+        stringsAsFactors = FALSE
+      )
+
+      p = ggplot2::ggplot(plot_df[plot_df$keep, , drop = FALSE], ggplot2::aes(x = x, y = fitted))
+      p = gg_add(p, ggplot2::geom_hline(yintercept = 0, color = "grey70", linetype = 3), "geom_hline")
+      p = gg_add(p, ggplot2::geom_point(color = fit_col, size = factor_cex), "geom_point")
+      p = gg_add(p, ggplot2::geom_errorbar(ggplot2::aes(ymin = ci_lower, ymax = ci_upper), color = ci_col, width = 0.15), "geom_errorbar")
+      p = gg_add(
+        p,
+        ggplot2::labs(
+          title = paste(par_name, paste(ig$interaction_name, paste0(pg$var_name, "=", panel_level), sep = " | "), sep = ": "),
+          x = og$var_name,
+          y = paste("fixed contribution:", paste(par_name, ig$interaction_name, sep = "."))
+        ),
+        "labs"
+      )
+      p = gg_add(p, ggplot2::theme_minimal(), "theme_minimal")
+
+      if(!is.null(y_lim)) {
+        p = gg_add(p, ggplot2::coord_cartesian(ylim = y_lim), "coord_cartesian")
+      }
+
+      if(show_legend) {
+        p = gg_add(p, ggplot2::labs(caption = paste("estimate /", round(ci_level * 100), "% CI")), "labs")
+      }
+
+      entry_name = paste(ig$interaction_name, paste0(pg$var_name, "=", panel_level), sep = "|")
+
+      if(is.null(out[[par_name]])) out[[par_name]] = list()
+      out[[par_name]][[entry_name]] = list(
+        coefficient = paste(par_name, ig$interaction_name, sep = "."),
+        x = seq_along(levs),
+        levels = levs,
+        panel_var = pg$var_name,
+        panel_level = panel_level,
         fitted = fitted_term,
         se = term_se,
         ci_lower = ci_lower,
