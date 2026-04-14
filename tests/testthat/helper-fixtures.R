@@ -91,6 +91,7 @@ fit_fixture_model <- function(
   max_inner_iter = 2,
   outer_stop_crit = 1,
   inner_stop_crit = 1,
+  use_backtracking = TRUE,
   verbose = 0
 ) {
   suppressPackageStartupMessages({
@@ -113,6 +114,7 @@ fit_fixture_model <- function(
     zeta.formula = zeta_formula,
     start_from = start_from,
     include_dlcopdpar = include_dlcopdpar,
+    use_backtracking = use_backtracking,
     verbose = verbose,
     max_outer_iter = max_outer_iter,
     max_inner_iter = max_inner_iter,

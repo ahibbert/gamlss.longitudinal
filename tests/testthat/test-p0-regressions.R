@@ -48,12 +48,13 @@ test_that("T004 dlcopdpar TRUE/FALSE parity smoke test", {
   expect_setequal(names(fit_false$par), names(fit_true$par))
 })
 
-test_that("T005 baseline fit fingerprint stays stable", {
+test_that("T005 baseline fit fingerprint stays stable with use_backtracking FALSE", {
   dat <- make_fixture_factor_time_interaction(n_subject = 24L)
 
   fit <- fit_fixture_model(
     dat,
     include_dlcopdpar = FALSE,
+    use_backtracking = FALSE,
     max_outer_iter = 3L,
     max_inner_iter = 3L,
     outer_stop_crit = 0.5,
@@ -88,4 +89,47 @@ test_that("T005 baseline fit fingerprint stays stable", {
 
   ll <- fit$calc_lik_out_end$log_lik[c("marginal", "copula", "joint")]
   expect_equal(unname(ll), unname(expected_loglik), tolerance = 1e-9)
+})
+
+test_that("T006 baseline fit fingerprint stays stable with use_backtracking TRUE", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 24L)
+
+  fit <- fit_fixture_model(
+    dat,
+    include_dlcopdpar = FALSE,
+    use_backtracking = TRUE,
+    max_outer_iter = 3L,
+    max_inner_iter = 3L,
+    outer_stop_crit = 0.5,
+    inner_stop_crit = 0.5,
+    verbose = 0
+  )
+
+  expected_par <- c(
+    "theta.intercept" = 1.406839689988608,
+    "theta.time_covariate.L" = 0.025319210421813636,
+    "sigma.intercept" = -0.5745834057904562,
+    "sigma.time_covariate.L" = 0.14056958293200163,
+    "sigma.time_covariate.Q" = 0.20124015862764695,
+    "sigma.genderM" = 0.14987686912288116,
+    "mu.intercept" = 2.936366742574324,
+    "mu.time_covariate.L" = 0,
+    "mu.time_covariate.Q" = 0,
+    "mu.genderM" = 0,
+    "mu.age" = 0,
+    "mu.time_covariate.L:genderM" = 0,
+    "mu.time_covariate.Q:genderM" = 0
+  )
+
+  expected_loglik <- c(
+    "marginal" = -66.50547493356043,
+    "copula" = 9.98291714810978,
+    "joint" = -56.52255778545065
+  )
+
+  expect_identical(names(fit$par), names(expected_par))
+  expect_equal(unname(fit$par), unname(expected_par), tolerance = 1e-6)
+
+  ll <- fit$calc_lik_out_end$log_lik[c("marginal", "copula", "joint")]
+  expect_equal(unname(ll), unname(expected_loglik), tolerance = 1e-6)
 })
