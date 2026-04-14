@@ -184,22 +184,18 @@ data_in=dataset; data_in$gender=as.factor(data_in$gender); data_in$time_of_obser
 rm(dataset)
 
 source("R/common_functions.R")
-fit=gamlss.longitudinal(dataset=data_in
-                   , margin_dist=margin_dist
-                   , copula_dist=copula_dist
-                   , time_var="time_of_observation_random_name"
-                   , subject_var="person"
+fit=gamlss.longitudinal(dataset = data_in
+                   , margin_dist = margin_dist
+                   , copula_dist = copula_dist
+                   , time_var = "time_of_observation_random_name"
+                   , subject_var = "person"
                    , mu.formula = mu_formula
                    , sigma.formula = sigma_formula
                    , nu.formula = nu_formula
                    , tau.formula = tau_formula
-                   , theta.formula=theta_formula
-                   , zeta.formula=zeta_formula
-                   , include_dlcopdpar=TRUE
-                   #, verbose=1, plot_results=FALSE,  true_val=par_to_eta(input_par,copula_dist,margin_dist)
-                   #, use_Rcpp=FALSE, start_step_size=0.5, step_adjustment = 0.5, inner_stop_crit=.1, outer_stop_crit=.1
-                   #, lambda_start = 5
-                   #, lambda_penalty_K = 2 #Optimising for AIC
+                   , theta.formula = theta_formula
+                   , zeta.formula = zeta_formula
+                   , verbose = 3
 )
 
 #vcov_fit=vcov.gamlss.longitudinal(fit, numderiv=TRUE)
@@ -208,10 +204,10 @@ fit=gamlss.longitudinal(dataset=data_in
 source("R/common_functions.R")
 source("R/diagnostics_topmodels.R")
 source("R (testing)/plot_copula_v2.R")
-plot.terms(fit,  data = data_in)
 summary(fit)
 plot(fit)
 plot(fit, time_stratified = TRUE)
 plot.copula(fit, contour_bins=5, time_stratified = TRUE, plot2_cuts=10)
 plot.copula_contour_compare(fit, time_stratified = TRUE, transform="normal", diff_scale_limit=.1)
+plot.terms(fit,  data = data_in)
 
