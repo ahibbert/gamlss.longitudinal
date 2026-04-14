@@ -1,4 +1,4 @@
-###########NEW SIMPLIFIED FUNCTIONS
+﻿###########NEW SIMPLIFIED FUNCTIONS
 
 #' Fit a longitudinal joint regression model
 #'
@@ -36,6 +36,7 @@
 #' @param max_negative_outer_streak Maximum number of consecutive negative outer
 #' log-likelihood changes allowed before stopping.
 #' @param use_Rcpp Use Rcpp for matrix operations
+#' @importFrom VineCopula BiCopName BiCopPDF BiCopDeriv BiCopDeriv2 BiCopTau2Par D2RVine RVineSim
 #'
 #' @export
 gamlss.longitudinal=function(dataset,
@@ -1341,7 +1342,7 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
   if(length(par1_eval)==0) {
     copula_d=numeric(0)
   } else {
-    copula_d=BiCopPDF(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval)
+    copula_d=VineCopula::BiCopPDF(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval)
   }
   if(length(copula_d)>0) {
     copula_d[!is.finite(copula_d) | copula_d<=0]=1
@@ -1586,33 +1587,33 @@ calc_copula_derivatives = function(eta_inv, Fx_1_2, copula_dist, calc_d2=FALSE, 
     par1_eval[par1_eval>=28]=27.9
   }
 
-  copula_d=BiCopPDF(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval)
+  copula_d=VineCopula::BiCopPDF(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval)
   copula_d[!is.finite(copula_d) | copula_d<=0]=1
   copula_d[!pair_complete]=1
 
-  dldth=BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par",log=TRUE)
-  dcdth=BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par",log=FALSE)
+  dldth=VineCopula::BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par",log=TRUE)
+  dcdth=VineCopula::BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par",log=FALSE)
 
   if(calc_d2==TRUE) {
-    d2cdth=BiCopDeriv2(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par")
+    d2cdth=VineCopula::BiCopDeriv2(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par")
     d2ldth2=(1/(copula_d^2))*(copula_d*d2cdth-dcdth^2)
   }
 
   if("zeta" %in% names(eta_inv)) {
-    dldz=BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par2",log=TRUE)
-    dcdz=BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par2",log=FALSE)
+    dldz=VineCopula::BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par2",log=TRUE)
+    dcdz=VineCopula::BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par2",log=FALSE)
 
     if(calc_d2==TRUE) {
-      d2cdz=BiCopDeriv2(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par2")
+      d2cdz=VineCopula::BiCopDeriv2(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par2")
       d2ldz2=(1/(copula_d^2))*(copula_d*d2cdz-dcdz^2)
 
-      d2cdthdz=BiCopDeriv2(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par1par2")
+      d2cdthdz=VineCopula::BiCopDeriv2(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par1par2")
       d2ldthdz=(d2cdthdz*copula_d-dcdth*dcdz)/(copula_d^2)
     }
 
   }
-  dcdu1=BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="u1",log=FALSE)
-  dcdu2=BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="u2",log=FALSE)
+  dcdu1=VineCopula::BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="u1",log=FALSE)
+  dcdu2=VineCopula::BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="u2",log=FALSE)
 
   dldth[!is.finite(dldth)]=0; if(calc_d2==TRUE) {d2ldth2[!is.finite(d2ldth2)]=0  }
   dldth[!pair_complete]=0
@@ -1621,8 +1622,8 @@ calc_copula_derivatives = function(eta_inv, Fx_1_2, copula_dist, calc_d2=FALSE, 
   dcdu2[!pair_complete]=0
 
   if(calc_d2==TRUE) {
-    d2cdu12=BiCopDeriv2(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="u1")
-    d2cdu22=BiCopDeriv2(Fx_eval[,1],Fx_eval[,2],family = as.numeric(BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="u2")
+    d2cdu12=VineCopula::BiCopDeriv2(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="u1")
+    d2cdu22=VineCopula::BiCopDeriv2(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="u2")
     d2cdu12[!is.finite(d2cdu12)]=0
     d2cdu22[!is.finite(d2cdu22)]=0
     d2cdu12[!pair_complete]=0
@@ -3521,7 +3522,7 @@ get_starting_values = function(copula_dist,margin_dist,dataset,eta_transform=FAL
   }
   tau_start=max(min(tau_start,0.9999),-0.9999)
 
-  cop_par=BiCopTau2Par(family=as.numeric(BiCopName(copula_dist)),tau=tau_start)
+  cop_par=VineCopula::BiCopTau2Par(family=as.numeric(VineCopula::BiCopName(copula_dist)),tau=tau_start)
   names(cop_par)=get_copula_dist(copula_dist)$parameters
 
   if(margin_dist$family[1]=="GA" | margin_dist$family[1]=="EXP") {
@@ -3714,16 +3715,16 @@ get_copula_dist=function(copula_dist) {
 
   if(copula_dist=="C" | copula_dist=="Clayton") {
     copula_link=list(log,exp,dloginv=exp); two_par_cop=FALSE
-    copula_dist=BiCopName(copula_dist)
+    copula_dist=VineCopula::BiCopName(copula_dist)
     parameters=c("theta")
   }
   else if(copula_dist=="N" | copula_dist=="Normal") {
     copula_link=list(fisher_z,fisher_z_inv,dfisher_z_inv); two_par_cop=FALSE
-    copula_dist=BiCopName(copula_dist)
+    copula_dist=VineCopula::BiCopName(copula_dist)
     parameters=c("theta")
   } else if(copula_dist=="t" | copula_dist=="T" | copula_dist=="Student") {
     copula_link=list(fisher_z,fisher_z_inv,dfisher_z_inv,log_2plus,log_2plus_inv,dlog_2plus_inv); two_par_cop=TRUE
-    copula_dist=BiCopName(copula_dist)
+    copula_dist=VineCopula::BiCopName(copula_dist)
     parameters=c("theta","zeta")
   } else {
     stop("ERROR: COPULA DIST LINK FUNCTIONS NOT YET IMPLEMENTED: DEFINE MANUALLY WITH copula_link ARGUMENT.")
@@ -4039,11 +4040,11 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     par2 <- c(log_2plus_inv(2.1),log_2plus_inv(2.1),log_2plus_inv(2.1))
 
     # transform to R-vine matrix notation
-    RVM <- D2RVine(order, family, par, par2)
+    RVM <- VineCopula::D2RVine(order, family, par, par2)
     contour(RVM)
 
     t=d
-    copsim=RVineSim(n*t,RVM)
+    copsim=VineCopula::RVineSim(n*t,RVM)
 
     covariates=list()
     covariates[[1]] = as.data.frame(round(runif(n,0,100),0)) #Age
@@ -4080,11 +4081,11 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
 
     # transform to R-vine matrix notation
 
-    RVM <- D2RVine(order, family, par, par2)
+    RVM <- VineCopula::D2RVine(order, family, par, par2)
     #contour(RVM)
 
     t=d
-    copsim=RVineSim(n,RVM)
+    copsim=VineCopula::RVineSim(n,RVM)
 
     covariates=list()
     covariates[[1]] = as.data.frame(round(runif(n,0,100),0)) #Age
@@ -4128,11 +4129,11 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
 
     # transform to R-vine matrix notation
 
-    RVM <- D2RVine(order, family, par, par2)
+    RVM <- VineCopula::D2RVine(order, family, par, par2)
     #contour(RVM)
 
     t=d
-    copsim=RVineSim(n,RVM)
+    copsim=VineCopula::RVineSim(n,RVM)
 
     covariates=list()
     covariates[[1]] = as.data.frame(round(runif(n,0,100),0)) #Age
@@ -4181,11 +4182,11 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
 
     # transform to R-vine matrix notation
 
-    RVM <- D2RVine(order, family, par, par2)
+    RVM <- VineCopula::D2RVine(order, family, par, par2)
     #contour(RVM)
 
     t=d
-    copsim=RVineSim(n,RVM)
+    copsim=VineCopula::RVineSim(n,RVM)
 
     covariates=list()
     covariates[[1]] = as.data.frame(round(runif(n,0,100),0)) #Age
@@ -4273,12 +4274,12 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     RVM=list()
     
     for (i in 1:n) {
-      RVM[[i]] = D2RVine(order, c(rep(copula.family,length(theta_inv[i,])),rep(0,dd-(length(theta_inv[i,])))), par=c(theta_inv[i,],rep(0,dd-(length(theta_inv[i,])))), par2=c(theta_inv[i,],rep(0,dd-(length(theta_inv[i,])))))
+      RVM[[i]] = VineCopula::D2RVine(order, c(rep(copula.family,length(theta_inv[i,])),rep(0,dd-(length(theta_inv[i,])))), par=c(theta_inv[i,],rep(0,dd-(length(theta_inv[i,])))), par2=c(theta_inv[i,],rep(0,dd-(length(theta_inv[i,])))))
     }
-    #RVM <- D2RVine(order, rep(family[1],nrow(theta_inv)), theta_inv, theta_inv*0)
+    #RVM <- VineCopula::D2RVine(order, rep(family[1],nrow(theta_inv)), theta_inv, theta_inv*0)
     #contour(RVM)
 
-    copsim=RVineSim(n,RVM)
+    copsim=VineCopula::RVineSim(n,RVM)
 
 
     margin=matrix(0,ncol=ncol(copsim),nrow=nrow(copsim))
@@ -4343,11 +4344,11 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
 
     # transform to R-vine matrix notation
 
-    RVM <- D2RVine(order, family, par, par2)
+    RVM <- VineCopula::D2RVine(order, family, par, par2)
     #contour(RVM)
 
     t=d
-    copsim=RVineSim(n,RVM)
+    copsim=VineCopula::RVineSim(n,RVM)
     
 
     covariates=list()
@@ -4396,11 +4397,11 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
 
     # transform to R-vine matrix notation
 
-    RVM <- D2RVine(order, family, par, par2)
+    RVM <- VineCopula::D2RVine(order, family, par, par2)
     #contour(RVM)
 
     t=d
-    copsim=RVineSim(n,RVM)
+    copsim=VineCopula::RVineSim(n,RVM)
 
     covariates=list()
     covariates[[1]] = as.data.frame(round(runif(n,0,100),0)) #Age
@@ -4557,7 +4558,7 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
         if ("zeta" %in% copula_input$parameters) as.numeric(zeta_out[r, ]) else rep(0, d - 1),
         rep(0, dd - (d - 1))
       )
-      copsim[r, ] <- as.numeric(RVineSim(1, D2RVine(order, family, par_r, par2_r)))
+      copsim[r, ] <- as.numeric(VineCopula::RVineSim(1, VineCopula::D2RVine(order, family, par_r, par2_r)))
     }
 
     margin=matrix(0,ncol=ncol(copsim),nrow=nrow(copsim))
@@ -4727,25 +4728,25 @@ optim_outer <- function(par,dataset,margin_dist,copula_dist,
     if(par1>28){par1=28}
   }
 
-  copula_d=BiCopPDF(  Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2)
-  dldth=BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par",log=TRUE)
-  dcdth=BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par",log=FALSE)
-  d2cdth=BiCopDeriv2( Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par")
+  copula_d=VineCopula::BiCopPDF(  Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2)
+  dldth=VineCopula::BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par",log=TRUE)
+  dcdth=VineCopula::BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par",log=FALSE)
+  d2cdth=VineCopula::BiCopDeriv2( Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par")
   d2ldth2=(1/(copula_d^2))*(copula_d*d2cdth-dcdth^2)
   if(!is.na(copula_par["zeta"])) {
-    dldz=BiCopDeriv(    Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par2",log=TRUE)
-    dcdz=BiCopDeriv(    Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par2",log=FALSE)
-    d2cdz=BiCopDeriv2(  Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par2")
+    dldz=VineCopula::BiCopDeriv(    Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par2",log=TRUE)
+    dcdz=VineCopula::BiCopDeriv(    Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par2",log=FALSE)
+    d2cdz=VineCopula::BiCopDeriv2(  Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par2")
     d2ldz2=(1/(copula_d^2))*(copula_d*d2cdz-dcdz^2)
 
-    d2cdthdz=BiCopDeriv2(  Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par1par2")
+    d2cdthdz=VineCopula::BiCopDeriv2(  Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par1par2")
     d2ldthdz=(d2cdthdz*copula_d-dcdth*dcdz)/(copula_d^2)
   }
-  dcdu1=BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="u1",log=FALSE)
-  dcdu2=BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="u2",log=FALSE)
+  dcdu1=VineCopula::BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="u1",log=FALSE)
+  dcdu2=VineCopula::BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="u2",log=FALSE)
 
-  d2cdu12=BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="u1",log=FALSE)
-  d2cdu22=BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="u2",log=FALSE)
+  d2cdu12=VineCopula::BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="u1",log=FALSE)
+  d2cdu22=VineCopula::BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="u2",log=FALSE)
 
   d2ldth2[!is.finite(d2ldth2)]=0
 
@@ -4944,3 +4945,4 @@ optim_outer <- function(par,dataset,margin_dist,copula_dist,
 
   return(list(score=score,hessian=hessian,par_end=par_end,par_eta_end=par_eta_end,par_start=par,log_lik=log_lik))
 }
+
