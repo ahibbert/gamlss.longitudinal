@@ -1,5 +1,40 @@
 ﻿###########NEW SIMPLIFIED FUNCTIONS
 
+.solve_linear_system <- function(A, b = NULL) {
+  A <- as.matrix(A)
+
+  if (is.null(b)) {
+    b_mat <- diag(nrow(A))
+  } else {
+    b_mat <- as.matrix(b)
+  }
+
+  # Cholesky is fastest and most stable for positive-definite systems.
+  chol_A <- tryCatch(chol(A), error = function(e) NULL)
+  if (!is.null(chol_A)) {
+    sol <- backsolve(chol_A, forwardsolve(t(chol_A), b_mat))
+    if (is.null(b)) {
+      return(sol)
+    }
+    return(sol)
+  }
+
+  # General full-rank solve.
+  sol <- tryCatch(solve(A, b_mat), error = function(e) NULL)
+  if (!is.null(sol)) {
+    return(sol)
+  }
+
+  # Rank-revealing fallback.
+  sol <- tryCatch(qr.solve(A, b_mat), error = function(e) NULL)
+  if (!is.null(sol)) {
+    return(sol)
+  }
+
+  # Last-resort pseudo-inverse for near-singular systems.
+  MASS::ginv(A) %*% b_mat
+}
+
 #' Fit a longitudinal joint regression model
 #'
 #' This function fits a longitudinal model to a dataset with gamlss margins
@@ -414,6 +449,11 @@ gamlss.longitudinal=function(dataset,
   outer_negative_streak=0
   step_size=start_step_size
   weights_final=list()
+  pair_cache=build_copula_pair_cache(
+    response=dataset$response,
+    response_margin=dataset$time,
+    response_subject=dataset$subject
+  )
 
   #OUTER ITERATION (MAIN LOOP)
   while ((first_outer_run==TRUE | (abs(outer_log_lik_change)>outer_stop_crit)) & outer_only_run_counter < max_outer_iter) {
@@ -459,7 +499,8 @@ gamlss.longitudinal=function(dataset,
         }
 
         calc_lik_out=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=FALSE
-          ,response=dataset$response,response_margin=(dataset$time),response_subject = dataset$subject)
+          ,response=dataset$response,response_margin=(dataset$time),response_subject = dataset$subject
+          ,pair_cache=pair_cache)
         log_lik=calc_lik_out$log_lik; margin_d=calc_lik_out$margin_d; margin_p=calc_lik_out$margin_p; 
         margin_deriv=calc_lik_out$margin_deriv; copula_d=calc_lik_out$copula_d; copula_p=calc_lik_out$copula_p; 
         Fx_1_2=calc_lik_out$Fx_1_2;order_copula=calc_lik_out$order_copula
@@ -619,7 +660,7 @@ gamlss.longitudinal=function(dataset,
 
         # Setup model matrices
         X=as.matrix(mm$x[[par_name]])
-        W=diag(as.vector(score$w_k))
+        w_k_vec=as.vector(score$w_k)
 
         z_k=score$z_k
         for (s_name in names(mm$s[[par_name]])) {
@@ -636,6 +677,20 @@ gamlss.longitudinal=function(dataset,
           temp_par_s_unlisted=unlist(par_s[[par_name]],use.names=TRUE)
           names(temp_par_s_unlisted)=colnames(X)[(ncol(mm$x[[par_name]])+1):ncol(X)]
           beta_start=c(par_cov[paste(paste(par_name,sep=" "),colnames(mm$x[[par_name]]),sep=".")],temp_par_s_unlisted)
+        }
+
+        smooth_penalty_meta <- list()
+        if(length(par_s[[par_name]]) > 0) {
+          start_idx <- ncol(mm$x[[par_name]]) + 1
+          for (s_name in names(mm$s[[par_name]])) {
+            B <- mm$s[[par_name]][[s_name]]
+            n_B <- ncol(B)
+            idx <- start_idx:(start_idx + n_B - 1)
+            D <- diff(diag(n_B), differences = 2)
+            S_base <- t(D) %*% D
+            smooth_penalty_meta[[s_name]] <- list(idx = idx, B = B, S_base = S_base)
+            start_idx <- start_idx + n_B
+          }
         }
 
         backfitting_iteration <- function(
@@ -658,27 +713,23 @@ gamlss.longitudinal=function(dataset,
           ############# Backfitting with penalisation
           pen_mat=matrix(0,nrow=ncol(X),ncol=ncol(X))
           if(length(par_s[[par_name]])>0) {
-            start_idx=ncol(mm$x[[par_name]])+1
-            for (s_name in names(mm$s[[par_name]])) {
-              #print(lambda_s[[par_name]])
-              B=mm$s[[par_name]][[s_name]]
-              n_B=ncol(B)
-              idx=start_idx:(start_idx+n_B-1)
-              D=diff(diag(n_B),differences=2)
-              S=t(D)%*%D
-              G=par_s[[par_name]][[s_name]]
-              #pen_val=lambda%*% t(G)%*%S%*%G
+            for (s_name in names(smooth_penalty_meta)) {
+              meta=smooth_penalty_meta[[s_name]]
+              B=meta$B
+              idx=meta$idx
+              S=meta$S_base
               if(first_inner_run==TRUE) {
                 pen_mat[idx,idx]=S*0
               } else {
                 pen_mat[idx,idx]=S*lambda_s[[par_name]][[s_name]]
               }
-              df_s[[par_name]][[s_name]]=sum(diag(B%*%MASS::ginv(t(B)%*%B+pen_mat[idx,idx])%*%t(B)))
-              start_idx=start_idx+n_B
+              df_s[[par_name]][[s_name]]=sum(diag(B %*% .solve_linear_system(t(B)%*%B+pen_mat[idx,idx]) %*% t(B)))
             }
           }
 
-          beta_update=as.vector(MASS::ginv(t(X)%*%W%*%X + pen_mat)%*%t(X)%*%W%*%z_k)
+          XtWX = crossprod(X, X * w_k_vec)
+          XtWz = crossprod(X, z_k * w_k_vec)
+          beta_update=as.vector(.solve_linear_system(XtWX + pen_mat, XtWz))
           beta_change_inner=beta_update-beta_start
           beta_new=beta_start*(1-step_size) + (step_size)*(beta_update)
           beta_new
@@ -700,7 +751,8 @@ gamlss.longitudinal=function(dataset,
           par_s=par_s_new
 
           calc_lik_out_end=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=FALSE
-            ,response=dataset$response,response_margin=(dataset$time),response_subject = dataset$subject)      
+            ,response=dataset$response,response_margin=(dataset$time),response_subject = dataset$subject
+            ,pair_cache=pair_cache)      
           
 
           #print(sum(unlist(df_s[[par_name]])))
@@ -1215,12 +1267,88 @@ calc_eta=function(par_cov,mm,margin_dist,copula_link,par_s=NA) {
 #' \item{order_copula}{A matrix indicating the order of margins and subjects for copula calculations.}
 #' 
 #' @export
-calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=FALSE,response,response_margin,response_subject,penalize_smooth=FALSE,par_s=NA) {
-  #Setup input matrix of response and parameters
-  #response=dataset$response; response_subject=dataset$subject; response_margin=dataset$time; dataset=NA
+build_copula_pair_cache <- function(response, response_margin, response_subject) {
   margin_names=sort(unique(response_margin))
   num_margins=length(margin_names)
   n_obs=length(response)
+  obs_response=!is.na(response)
+
+  base_df=data.frame(
+    row_id=seq_len(n_obs),
+    time=response_margin,
+    subject=response_subject,
+    observed=obs_response,
+    stringsAsFactors = FALSE
+  )
+
+  pair_df_all=list()
+  if(num_margins>1) {
+    for (i in seq_len(num_margins-1)) {
+      t1=margin_names[i]
+      t2=margin_names[i+1]
+
+      left=base_df[base_df$time==t1,c("row_id","subject","time","observed")]
+      right=base_df[base_df$time==t2,c("row_id","subject","time","observed")]
+      names(left)=c("row_id1","subject","time1","observed1")
+      names(right)=c("row_id2","subject","time2","observed2")
+
+      pair_i=merge(left,right,by="subject",all=FALSE)
+      if(nrow(pair_i)>0) {
+        pair_df_all[[length(pair_df_all)+1]]=pair_i
+      }
+    }
+  }
+
+  if(length(pair_df_all)==0) {
+    pair_df=data.frame(
+      subject=response_subject[0],
+      row_id1=integer(0),
+      time1=response_margin[0],
+      observed1=logical(0),
+      row_id2=integer(0),
+      time2=response_margin[0],
+      observed2=logical(0)
+    )
+  } else {
+    pair_df=do.call(rbind,pair_df_all)
+  }
+
+  order_copula=as.matrix(pair_df[,c("time1","subject","time2","subject")])
+  colnames(order_copula)=c("time1","subject1","time2","subject2")
+
+  observed_pair_base=rep(FALSE,nrow(pair_df))
+  if(nrow(pair_df)>0) {
+    observed_pair_base=pair_df$observed1 & pair_df$observed2
+  }
+
+  theta_rows=which(response_margin %in% margin_names[seq_len(max(1, num_margins-1))])
+  theta_index_map=rep(NA_integer_,n_obs)
+  theta_index_map[theta_rows]=seq_along(theta_rows)
+
+  cache=list(
+    row_id1=pair_df$row_id1,
+    row_id2=pair_df$row_id2,
+    order_copula=order_copula,
+    observed_pair_base=observed_pair_base,
+    theta_index_map=theta_index_map,
+    margin_names=margin_names,
+    num_margins=num_margins,
+    n_obs=n_obs
+  )
+  cache
+}
+
+#' @param pair_cache Optional cache built by build_copula_pair_cache to reuse pair indexing across repeated likelihood calls.
+calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=FALSE,response,response_margin,response_subject,penalize_smooth=FALSE,par_s=NA,pair_cache=NULL) {
+  #Setup input matrix of response and parameters
+  #response=dataset$response; response_subject=dataset$subject; response_margin=dataset$time; dataset=NA
+  if(is.null(pair_cache)) {
+    pair_cache=build_copula_pair_cache(response,response_margin,response_subject)
+  }
+
+  margin_names=pair_cache$margin_names
+  num_margins=pair_cache$num_margins
+  n_obs=pair_cache$n_obs
 
   obs_response=!is.na(response)
 
@@ -1276,74 +1404,26 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
   ################COPULA DERIVATIVES
   #First calculate margin F(x1), F(x2) as inputs to copula
 
-  pair_df_all=list()
-  base_df=data.frame(
-    row_id=seq_len(n_obs),
-    time=response_margin,
-    subject=response_subject,
-    u=margin_p,
-    observed=obs_response,
-    stringsAsFactors = FALSE
-  )
+  row_id1=pair_cache$row_id1
+  row_id2=pair_cache$row_id2
+  order_copula=pair_cache$order_copula
 
-  if(num_margins>1) {
-    for (i in seq_len(num_margins-1)) {
-      t1=margin_names[i]
-      t2=margin_names[i+1]
-
-      left=base_df[base_df$time==t1,c("row_id","subject","time","u","observed")]
-      right=base_df[base_df$time==t2,c("row_id","subject","time","u","observed")]
-      names(left)=c("row_id1","subject","time1","u1","observed1")
-      names(right)=c("row_id2","subject","time2","u2","observed2")
-
-      pair_i=merge(left,right,by="subject",all=FALSE)
-      if(nrow(pair_i)>0) {
-        pair_df_all[[length(pair_df_all)+1]]=pair_i
-      }
-    }
-  }
-
-  if(length(pair_df_all)==0) {
-    pair_df=data.frame(
-      subject=response_subject[0],
-      row_id1=integer(0),
-      time1=response_margin[0],
-      u1=numeric(0),
-      observed1=logical(0),
-      row_id2=integer(0),
-      time2=response_margin[0],
-      u2=numeric(0),
-      observed2=logical(0)
-    )
-  } else {
-    pair_df=do.call(rbind,pair_df_all)
-  }
-
-  order_copula=as.matrix(pair_df[,c("time1","subject","time2","subject")])
-  colnames(order_copula)=c("time1","subject1","time2","subject2")
-
-  Fx_1_2=as.matrix(pair_df[,c("u1","u2")])
+  Fx_1_2=cbind(margin_p[row_id1],margin_p[row_id2])
   if(nrow(Fx_1_2)==0) {
     Fx_1_2=matrix(numeric(0),ncol=2)
   }
   colnames(Fx_1_2)=c("u1","u2")
 
-  pair_complete=rep(FALSE,nrow(pair_df))
-  if(nrow(pair_df)>0) {
-    pair_complete=pair_df$observed1 & pair_df$observed2 & is.finite(pair_df$u1) & is.finite(pair_df$u2)
-  }
+  pair_complete=pair_cache$observed_pair_base & is.finite(Fx_1_2[,1]) & is.finite(Fx_1_2[,2])
 
-  par1=rep(NA_real_,nrow(pair_df))
-  par2=rep(NA_real_,nrow(pair_df))
-  if(nrow(pair_df)>0) {
+  par1=rep(NA_real_,length(row_id1))
+  par2=rep(NA_real_,length(row_id1))
+  if(length(row_id1)>0) {
     theta_len <- length(eta_inv[["theta"]])
     if(theta_len == n_obs) {
-      theta_idx <- pair_df$row_id1
+      theta_idx <- row_id1
     } else {
-      theta_rows = which(response_margin %in% margin_names[seq_len(max(1, num_margins-1))])
-      theta_index_map=rep(NA_integer_,n_obs)
-      theta_index_map[theta_rows]=seq_along(theta_rows)
-      theta_idx=theta_index_map[pair_df$row_id1]
+      theta_idx=pair_cache$theta_index_map[row_id1]
     }
 
     par1=eta_inv[["theta"]][theta_idx]
@@ -1394,7 +1474,7 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
 
   copula_p=rep(NA_real_,length(copula_d))
 
-  return_list=list(log_lik,margin_d,copula_d,margin_p,copula_p,Fx_1_2,order_copula,margin_deriv,pair_complete,par1,par2,pair_df$row_id1,pair_df$row_id2)
+  return_list=list(log_lik,margin_d,copula_d,margin_p,copula_p,Fx_1_2,order_copula,margin_deriv,pair_complete,par1,par2,row_id1,row_id2)
   names(return_list)=c("log_lik","margin_d","copula_d","margin_p","copula_p","Fx_1_2","order_copula","margin_deriv","pair_complete","copula_par1","copula_par2","copula_row_id1","copula_row_id2")
   return(return_list)
 }
