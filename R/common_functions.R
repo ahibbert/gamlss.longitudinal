@@ -1179,6 +1179,27 @@ create_model_matrices<-function(
     gamlss2(...)
   }
 
+  normalize_time_covariate_colnames <- function(nms) {
+    if (length(nms) == 0) return(nms)
+
+    out <- nms
+    suffix_map <- c(L = "1", Q = "2", C = "3")
+
+    for (sx in names(suffix_map)) {
+      out <- gsub(
+        paste0("time_covariate\\.", sx, "\\b"),
+        paste0("time_covariate.", suffix_map[[sx]]),
+        out,
+        perl = TRUE
+      )
+    }
+
+    # contr.poly names can appear as ^4, ^5, ...; normalize to .4, .5, ...
+    out <- gsub("time_covariate\\^([0-9]+)", "time_covariate.\\1", out, perl = TRUE)
+
+    out
+  }
+
   sanitize_for_gamlss2 <- function(data_in, fml) {
     vars_needed <- unique(all.vars(stats::as.formula(fml)))
     vars_needed <- vars_needed[vars_needed %in% names(data_in)]
@@ -1283,6 +1304,7 @@ create_model_matrices<-function(
       }
       X_fixed <- stats::model.matrix(fixed_formula, data = data_for_par)
       colnames(X_fixed) <- sub("^\\(Intercept\\)$", "intercept", colnames(X_fixed))
+      colnames(X_fixed) <- normalize_time_covariate_colnames(colnames(X_fixed))
       mm_x[[parameter]] <- as.data.frame(X_fixed, check.names = FALSE)
     } else {
       mm_x[[parameter]] <- data.frame(row.names = seq_len(nrow(data_for_par)))
