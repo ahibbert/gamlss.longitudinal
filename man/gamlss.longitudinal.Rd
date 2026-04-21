@@ -31,6 +31,7 @@ gamlss.longitudinal(
   max_inner_iter = 20,
   max_negative_outer_streak = 10,
   use_backtracking = TRUE,
+  backtracking_max_halves = 5,
   compute_vcov = TRUE,
   vcov_numderiv = TRUE,
   use_Rcpp = FALSE,
@@ -89,6 +90,9 @@ log-likelihood changes allowed before stopping.}
 
 \item{use_backtracking}{Logical; if `TRUE` (default), apply step-halving
 backtracking to reject downhill inner updates.}
+
+\item{backtracking_max_halves}{Integer; maximum number of consecutive
+step halvings attempted after a rejected update before taking no step.}
 
 \item{compute_vcov}{Logical; if `TRUE` (default), compute and store the
 model variance-covariance output at the end of fitting.}

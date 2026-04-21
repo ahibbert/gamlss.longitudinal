@@ -64,18 +64,18 @@ test_that("T005 baseline fit fingerprint stays stable with use_backtracking FALS
 
   expected_par <- c(
     "theta.intercept" = 1.5641422709077644,
-    "theta.time_covariate.L" = 0.00036952677386012129,
+    "theta.time_covariate.1" = 0.00036952677386012129,
     "sigma.intercept" = -1.4662507430579528,
-    "sigma.time_covariate.L" = 0.20867796595747662,
-    "sigma.time_covariate.Q" = 0.077153524488408259,
+    "sigma.time_covariate.1" = 0.20867796595747662,
+    "sigma.time_covariate.2" = 0.077153524488408259,
     "sigma.genderM" = 0.3370667005163685,
     "mu.intercept" = 2.4068416883317543,
-    "mu.time_covariate.L" = 0.30616664489726197,
-    "mu.time_covariate.Q" = 0.13587596959788967,
+    "mu.time_covariate.1" = 0.30616664489726197,
+    "mu.time_covariate.2" = 0.13587596959788967,
     "mu.genderM" = 0.8220603720064974,
     "mu.age" = 0.0011928517367271545,
-    "mu.time_covariate.L:genderM" = 0.25179058880563637,
-    "mu.time_covariate.Q:genderM" = -0.38387806349188175
+    "mu.time_covariate.1:genderM" = 0.25179058880563637,
+    "mu.time_covariate.2:genderM" = -0.38387806349188175
   )
 
   expected_loglik <- c(
@@ -107,18 +107,18 @@ test_that("T006 baseline fit fingerprint stays stable with use_backtracking TRUE
 
   expected_par <- c(
     "theta.intercept" = 1.406839689988608,
-    "theta.time_covariate.L" = 0.025319210421813636,
+    "theta.time_covariate.1" = 0.025319210421813636,
     "sigma.intercept" = -0.5745834057904562,
-    "sigma.time_covariate.L" = 0.14056958293200163,
-    "sigma.time_covariate.Q" = 0.20124015862764695,
+    "sigma.time_covariate.1" = 0.14056958293200163,
+    "sigma.time_covariate.2" = 0.20124015862764695,
     "sigma.genderM" = 0.14987686912288116,
     "mu.intercept" = 2.936366742574324,
-    "mu.time_covariate.L" = 0,
-    "mu.time_covariate.Q" = 0,
+    "mu.time_covariate.1" = 0,
+    "mu.time_covariate.2" = 0,
     "mu.genderM" = 0,
     "mu.age" = 0,
-    "mu.time_covariate.L:genderM" = 0,
-    "mu.time_covariate.Q:genderM" = 0
+    "mu.time_covariate.1:genderM" = 0,
+    "mu.time_covariate.2:genderM" = 0
   )
 
   expected_loglik <- c(
