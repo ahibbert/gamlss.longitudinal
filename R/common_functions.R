@@ -72,6 +72,8 @@
 #' log-likelihood changes allowed before stopping.
 #' @param use_backtracking Logical; if `TRUE` (default), apply step-halving
 #' backtracking to reject downhill inner updates.
+#' @param backtracking_max_halves Integer; maximum number of consecutive
+#' step halvings attempted after a rejected update before taking no step.
 #' @param compute_vcov Logical; if `TRUE` (default), compute and store the
 #' model variance-covariance output at the end of fitting.
 #' @param vcov_numderiv Logical; passed to `vcov.gamlss.longitudinal()` when
@@ -106,6 +108,7 @@ gamlss.longitudinal=function(dataset,
                         max_inner_iter=20,
                         max_negative_outer_streak=10,
                         use_backtracking=TRUE,
+                        backtracking_max_halves=5,
                         compute_vcov=TRUE,
                         vcov_numderiv=TRUE,
                         use_Rcpp=FALSE,
@@ -114,6 +117,14 @@ gamlss.longitudinal=function(dataset,
                       )
 {
   fit_start_time <- Sys.time()
+
+  if (!is.numeric(backtracking_max_halves) || length(backtracking_max_halves) != 1 || is.na(backtracking_max_halves)) {
+    stop("ERROR: backtracking_max_halves must be a single non-negative integer.")
+  }
+  backtracking_max_halves <- as.integer(backtracking_max_halves)
+  if (backtracking_max_halves < 0) {
+    stop("ERROR: backtracking_max_halves must be a single non-negative integer.")
+  }
 
   ##################### DATA CHECKS AND VALIDATION #####################
 
@@ -833,12 +844,11 @@ gamlss.longitudinal=function(dataset,
         start_joint_loglik <- as.numeric(calc_lik_out$log_lik["joint"])
         accepted_results <- backfitting_iteration_results
         accepted_step_size <- step_size
-        loglik_tol <- 1e-10
         proposed_joint_loglik <- as.numeric(backfitting_iteration_results$calc_lik_out_end$log_lik["joint"])
         theta_step_rejected <- FALSE
 
-        if(isTRUE(use_backtracking) && is.finite(start_joint_loglik) && is.finite(proposed_joint_loglik) && proposed_joint_loglik < (start_joint_loglik - loglik_tol)) {
-          max_backtrack <- 6
+        if(isTRUE(use_backtracking) && is.finite(start_joint_loglik) && is.finite(proposed_joint_loglik) && proposed_joint_loglik < start_joint_loglik) {
+          max_backtrack <- backtracking_max_halves
           trial_step <- step_size
           accepted <- FALSE
 
@@ -862,7 +872,7 @@ gamlss.longitudinal=function(dataset,
             )
 
             trial_joint_loglik <- as.numeric(trial_results$calc_lik_out_end$log_lik["joint"])
-            if(is.finite(trial_joint_loglik) && trial_joint_loglik >= (start_joint_loglik - loglik_tol)) {
+            if(is.finite(trial_joint_loglik) && trial_joint_loglik >= start_joint_loglik) {
               accepted_results <- trial_results
               accepted_step_size <- trial_step
               accepted <- TRUE
