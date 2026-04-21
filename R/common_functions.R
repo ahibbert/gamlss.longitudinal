@@ -3148,9 +3148,9 @@ plot_smooth_terms = function(
 #' `gamlss.longitudinal` object using coefficient uncertainty from
 #' `vcov.gamlss.longitudinal()`.
 #'
-#' For each fixed-effect design-matrix column $x_j$, it plots
-#' $x_j \hat\beta_j$ with pointwise confidence bands
-#' $x_j \hat\beta_j \pm z_{\alpha/2}\sqrt{x_j^2 \mathrm{Var}(\hat\beta_j)}$.
+#' For each fixed-effect design-matrix column \eqn{x_j}, it plots
+#' \eqn{x_j \hat{\beta}_j} with pointwise confidence bands
+#' \eqn{x_j \hat{\beta}_j \pm z_{\alpha/2}\sqrt{x_j^2 \mathrm{Var}(\hat{\beta}_j)}}.
 #'
 #' @param object A fitted `gamlss.longitudinal` object.
 #' @param vcov_obj Optional output from `vcov(object, ...)`. If `NULL`, this is
