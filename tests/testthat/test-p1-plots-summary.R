@@ -88,3 +88,18 @@ test_that("T154 plot.terms handles no-data fixed-term plots with many time level
   mu_entries <- pt$fixed_terms$mu
   expect_false(any(grepl("\\|", names(mu_entries), perl = TRUE)))
 })
+
+test_that("T155 ordered factor time is handled like nominal factor in grouped plots", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 16L)
+  dat$time_raw <- factor(as.character(dat$time_raw), levels = levels(dat$time_raw), ordered = TRUE)
+  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+
+  pt <- suppressWarnings(plot.terms(fit, data = dat, plot_interactions = TRUE))
+  mu_entries <- pt$fixed_terms$mu
+  interaction_entries <- names(mu_entries)[grepl(":", names(mu_entries), fixed = TRUE)]
+
+  expect_equal(length(interaction_entries), 1)
+  interaction_entry <- mu_entries[[interaction_entries[1]]]
+  expect_setequal(interaction_entry$levels, levels(dat$time_raw))
+  expect_setequal(interaction_entry$series, levels(dat$gender))
+})

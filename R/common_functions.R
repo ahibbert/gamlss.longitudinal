@@ -188,7 +188,11 @@ gamlss.longitudinal=function(dataset,
     }
     dataset$time_covariate <- factor(time_chr, levels = time_covariate_levels, ordered = time_covariate_ordered)
     if (time_covariate_ordered) {
-      contrasts(dataset$time_covariate) <- contr.treatment(length(time_covariate_levels))
+      time_contr <- contr.treatment(length(time_covariate_levels))
+      if (length(time_covariate_levels) > 1) {
+        colnames(time_contr) <- time_covariate_levels[-1]
+      }
+      contrasts(dataset$time_covariate) <- time_contr
     }
   } else if (is.numeric(dataset$time_covariate) || is.integer(dataset$time_covariate)) {
     dataset$time <- as.numeric(dataset$time_covariate)
@@ -317,7 +321,11 @@ gamlss.longitudinal=function(dataset,
                                      levels = time_covariate_levels,
                                      ordered = time_covariate_ordered)
     if (time_covariate_ordered) {
-      contrasts(dataset$time_covariate) <- contr.treatment(length(time_covariate_levels))
+      time_contr <- contr.treatment(length(time_covariate_levels))
+      if (length(time_covariate_levels) > 1) {
+        colnames(time_contr) <- time_covariate_levels[-1]
+      }
+      contrasts(dataset$time_covariate) <- time_contr
     }
   }
   dataset <- dataset[order(dataset$subject, dataset$time), , drop = FALSE]
@@ -1144,6 +1152,20 @@ create_model_matrices<-function(
 ) {
 
   dataset_mm <- dataset
+  normalize_ordered_factor <- function(col) {
+    if (!is.factor(col)) return(col)
+    if (!is.ordered(col)) return(col)
+
+    levs <- levels(col)
+    col_nom <- factor(as.character(col), levels = levs, ordered = FALSE)
+    if (length(levs) > 1) {
+      contr <- contr.treatment(length(levs))
+      colnames(contr) <- levs[-1]
+      contrasts(col_nom) <- contr
+    }
+    col_nom
+  }
+
   mode_value <- function(x) {
     x_non_na <- x[!is.na(x)]
     if (length(x_non_na) == 0) return(NA)
@@ -1164,13 +1186,14 @@ create_model_matrices<-function(
       col[is.na(col)] <- fill_val
       dataset_mm[[nm]] <- col
     } else if (is.factor(col)) {
+      col <- normalize_ordered_factor(col)
       fill_val <- mode_value(col)
       if (is.na(fill_val)) {
         fill_val <- if (length(levels(col)) > 0) levels(col)[1] else "missing"
       }
-      col <- as.character(col)
-      col[is.na(col)] <- fill_val
-      dataset_mm[[nm]] <- factor(col)
+      col_chr <- as.character(col)
+      col_chr[is.na(col_chr)] <- fill_val
+      dataset_mm[[nm]] <- factor(col_chr, levels = levels(col), ordered = FALSE)
     } else {
       fill_val <- mode_value(col)
       if (is.na(fill_val)) fill_val <- "missing"
@@ -1225,7 +1248,9 @@ create_model_matrices<-function(
     for (nm in names(data_out)) {
       col <- data_out[[nm]]
       if (is.factor(col)) {
-        data_out[[nm]] <- droplevels(col)
+        col <- droplevels(col)
+        col <- normalize_ordered_factor(col)
+        data_out[[nm]] <- col
       } else if (is.numeric(col) || is.integer(col)) {
         col[!is.finite(col)] <- NA
         if (any(is.na(col))) {
