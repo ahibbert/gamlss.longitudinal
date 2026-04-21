@@ -9,8 +9,6 @@ plot.terms(x, ...)
 \arguments{
 \item{x}{A fitted `gamlss.longitudinal` object.}
 
-\item{...}{Additional arguments (currently unused).}
-
 \item{y}{Unused; included for S3 generic compatibility.}
 
 \item{data}{Optional data frame containing original covariates used to infer
@@ -22,6 +20,8 @@ smooth-term x-axis variables. If omitted, smooth terms may fall back to index.}
 
 \item{include_intercept}{Logical; include intercept terms in fixed plots.}
 
+\item{plot_interactions}{Logical; if TRUE, include interaction terms in fixed-term plots. Default is FALSE.}
+
 \item{ci_col}{Color for confidence bands (default: "red").}
 
 \item{fit_col}{Color for fitted lines (default: "black").}
@@ -32,7 +32,9 @@ smooth-term x-axis variables. If omitted, smooth terms may fall back to index.}
 spaced x-grid.}
 
 \item{smooth_grid_n}{Number of x-grid points for smooth-term plots when
-`smooth_even_grid = TRUE`.}
+\code{smooth_even_grid = TRUE}.}
+
+\item{...}{Additional arguments (currently unused).}
 }
 \value{
 Invisibly returns a list with `smooth_terms` and `fixed_terms`.

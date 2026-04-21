@@ -18,7 +18,7 @@ test_that("T152 plot.terms interaction rendering metadata includes factor levels
 
   suppressPackageStartupMessages(library(grid))
 
-  pt <- suppressWarnings(plot.terms(fit, data = dat))
+  pt <- suppressWarnings(plot.terms(fit, data = dat, plot_interactions = TRUE))
   pf <- pt$fixed_terms
 
   mu_entries <- pf$mu
@@ -44,4 +44,46 @@ test_that("T153 plot methods smoke test return dashboard structures", {
   pdiag <- suppressWarnings(plot(fit, data = dat))
   expect_true(is.list(pdiag))
   expect_true(all(c("diagnostics", "forecasts", "dashboard") %in% names(pdiag)))
+})
+
+test_that("T154 plot.terms handles no-data fixed-term plots with many time levels", {
+  set.seed(42)
+
+  subject_tbl <- data.frame(
+    id = seq_len(18L),
+    gender = factor(sample(c("F", "M"), 18L, replace = TRUE)),
+    age = round(runif(18L, min = 20, max = 70), 1),
+    stringsAsFactors = FALSE
+  )
+  time_levels <- paste0("t", seq_len(8L))
+  grid <- expand.grid(
+    id = subject_tbl$id,
+    time_raw = factor(time_levels, levels = time_levels, ordered = TRUE),
+    KEEP.OUT.ATTRS = FALSE,
+    stringsAsFactors = FALSE
+  )
+  dat <- merge(grid, subject_tbl, by = "id", sort = FALSE)
+  dat <- dat[order(dat$id, dat$time_raw), ]
+  rownames(dat) <- NULL
+
+  t_num <- as.integer(dat$time_raw)
+  g_num <- ifelse(dat$gender == "M", 1, 0)
+  dat$y <- 1.5 + 0.15 * t_num + 0.35 * g_num + 0.2 * t_num * g_num + 0.01 * dat$age + rnorm(nrow(dat), sd = 0.12)
+
+  fit <- fit_fixture_model(
+    dat,
+    include_dlcopdpar = TRUE,
+    mu_formula = "y ~ time_raw * gender + age",
+    sigma_formula = "~ time_raw + gender",
+    theta_formula = "~ time_raw",
+    max_outer_iter = 2,
+    max_inner_iter = 2,
+    use_backtracking = TRUE
+  )
+
+  pt <- suppressWarnings(plot.terms(fit))
+  expect_true(is.list(pt))
+  expect_true(length(pt$fixed_terms) > 0)
+  mu_entries <- pt$fixed_terms$mu
+  expect_false(any(grepl("\\|", names(mu_entries), perl = TRUE)))
 })

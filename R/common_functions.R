@@ -3220,6 +3220,7 @@ plot_fixed_terms = function(
   ci_level = 0.95,
   ncol = NULL,
   include_intercept = FALSE,
+  plot_interactions = FALSE,
   ci_col = "red",
   fit_col = "black",
   ci_lty = 2,
@@ -3391,7 +3392,7 @@ plot_fixed_terms = function(
     if(is.null(X) || ncol(X) == 0) next
 
     factor_groups = build_factor_groups(X, data)
-    interaction_groups = build_factor_interaction_groups(X, factor_groups)
+    interaction_groups = if(plot_interactions) build_factor_interaction_groups(X, factor_groups) else list()
     grouped_cols = unique(unlist(lapply(factor_groups, function(g) g$matched_cols), use.names = FALSE))
     if(length(grouped_cols) == 0) grouped_cols = character(0)
     grouped_interaction_cols = unique(unlist(lapply(interaction_groups, function(g) g$matched_cols), use.names = FALSE))
@@ -3446,6 +3447,7 @@ plot_fixed_terms = function(
       if(col_name %in% grouped_cols) next
       if(col_name %in% grouped_interaction_cols) next
       if(!include_intercept && col_name == "intercept") next
+      if(!plot_interactions && grepl(":", col_name, fixed = TRUE)) next
       coef_name = paste(par_name, col_name, sep = ".")
       if(!coef_name %in% names(object$par)) next
       if(!coef_name %in% rownames(V) || !coef_name %in% colnames(V)) next
@@ -3509,7 +3511,7 @@ plot_fixed_terms = function(
       }
 
       plot_df = data.frame(
-        x = factor(levs, levels = levs),
+        x = x_plot,
         fitted = fitted_term,
         ci_lower = ci_lower,
         ci_upper = ci_upper,
@@ -3520,7 +3522,7 @@ plot_fixed_terms = function(
       p = gg_add(p, ggplot2::geom_hline(yintercept = 0, color = "grey70", linetype = 3), "geom_hline")
       p = gg_add(p, ggplot2::geom_point(color = fit_col, size = factor_cex), "geom_point")
       p = gg_add(p, ggplot2::geom_errorbar(ggplot2::aes(ymin = ci_lower, ymax = ci_upper), color = ci_col, width = 0.15), "geom_errorbar")
-      p = gg_add(p, ggplot2::scale_x_discrete(labels = levs), "scale_x_discrete")
+      p = gg_add(p, ggplot2::scale_x_continuous(breaks = x_plot, labels = levs), "scale_x_continuous")
       p = gg_add(
         p,
         ggplot2::labs(
@@ -3559,6 +3561,7 @@ plot_fixed_terms = function(
       panel_level = spec$panel_level
 
       levs = og$levels
+      x_plot = seq_along(levs)
       fitted_term = rep(NA_real_, length(levs))
       term_se = rep(NA_real_, length(levs))
 
@@ -3596,7 +3599,7 @@ plot_fixed_terms = function(
       }
 
       plot_df = data.frame(
-        x = factor(levs, levels = levs),
+        x = x_plot,
         fitted = fitted_term,
         ci_lower = ci_lower,
         ci_upper = ci_upper,
@@ -3608,6 +3611,7 @@ plot_fixed_terms = function(
       p = gg_add(p, ggplot2::geom_hline(yintercept = 0, color = "grey70", linetype = 3), "geom_hline")
       p = gg_add(p, ggplot2::geom_point(color = fit_col, size = factor_cex), "geom_point")
       p = gg_add(p, ggplot2::geom_errorbar(ggplot2::aes(ymin = ci_lower, ymax = ci_upper), color = ci_col, width = 0.15), "geom_errorbar")
+      p = gg_add(p, ggplot2::scale_x_continuous(breaks = x_plot, labels = levs), "scale_x_continuous")
       p = gg_add(
         p,
         ggplot2::labs(
@@ -3660,7 +3664,7 @@ plot_fixed_terms = function(
       ci_upper = fitted_term + z * term_se
 
       x_labels = as.character(signif(x_levels, 6))
-      x_factor = factor(x_labels, levels = x_labels)
+      x_plot = seq_along(x_levels)
 
       y_vals = c(fitted_term, ci_lower, ci_upper)
       y_vals = y_vals[is.finite(y_vals)]
@@ -3673,7 +3677,7 @@ plot_fixed_terms = function(
       }
 
       plot_df = data.frame(
-        x = x_factor,
+        x = x_plot,
         fitted = fitted_term,
         ci_lower = ci_lower,
         ci_upper = ci_upper,
@@ -3684,6 +3688,7 @@ plot_fixed_terms = function(
       p = gg_add(p, ggplot2::geom_hline(yintercept = 0, color = "grey70", linetype = 3), "geom_hline")
       p = gg_add(p, ggplot2::geom_point(color = fit_col, size = factor_cex), "geom_point")
       p = gg_add(p, ggplot2::geom_errorbar(ggplot2::aes(ymin = ci_lower, ymax = ci_upper), color = ci_col, width = 0.15), "geom_errorbar")
+      p = gg_add(p, ggplot2::scale_x_continuous(breaks = x_plot, labels = x_labels), "scale_x_continuous")
       p = gg_add(
         p,
         ggplot2::labs(
@@ -3845,6 +3850,7 @@ plot.terms.gamlss.longitudinal = function(
   ci_level = 0.95,
   ncol = 2,
   include_intercept = FALSE,
+  plot_interactions = FALSE,
   ci_col = "red",
   fit_col = "black",
   show_legend = TRUE,
@@ -3869,6 +3875,9 @@ plot.terms.gamlss.longitudinal = function(
       if(!is.null(X) && ncol(X) > 0) {
         coef_names = paste(par_name, colnames(X), sep = ".")
         coef_names = coef_names[!(colnames(X) == "intercept" & !include_intercept)]
+        if(!plot_interactions) {
+          coef_names = coef_names[!grepl(":", coef_names, fixed = TRUE)]
+        }
         n_fixed = n_fixed + sum(coef_names %in% names(obj$par))
       }
     }
@@ -3917,6 +3926,7 @@ plot.terms.gamlss.longitudinal = function(
       ci_level = ci_level,
       ncol = ncol,
       include_intercept = include_intercept,
+      plot_interactions = plot_interactions,
       ci_col = ci_col,
       fit_col = fit_col,
       setup_mfrow = FALSE,
