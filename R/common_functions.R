@@ -846,6 +846,8 @@ gamlss.longitudinal=function(dataset,
         accepted_step_size <- step_size
         proposed_joint_loglik <- as.numeric(backfitting_iteration_results$calc_lik_out_end$log_lik["joint"])
         theta_step_rejected <- FALSE
+        backtracking_attempts_used <- 0L
+        max_backtrack <- 0L
 
         if(isTRUE(use_backtracking) && is.finite(start_joint_loglik) && is.finite(proposed_joint_loglik) && proposed_joint_loglik < start_joint_loglik) {
           max_backtrack <- backtracking_max_halves
@@ -853,6 +855,7 @@ gamlss.longitudinal=function(dataset,
           accepted <- FALSE
 
           for(bt in seq_len(max_backtrack)) {
+            backtracking_attempts_used <- bt
             trial_step <- trial_step / 2
             trial_results <- backfitting_iteration(
               par_s=par_s,
@@ -897,6 +900,8 @@ gamlss.longitudinal=function(dataset,
               "\nBacktracking applied for ", par_name,
               ": step_size ", signif(step_size, 4),
               " -> ", signif(accepted_step_size, 4),
+              " (halves tried=", backtracking_attempts_used,
+              "/", max_backtrack, ")",
               "\n"
             ))
           }
@@ -911,6 +916,8 @@ gamlss.longitudinal=function(dataset,
             ", backtracking=", if(isTRUE(use_backtracking)) "on" else "off",
             ", step=", signif(step_size, 4),
             ", accepted_step=", signif(accepted_step_size, 4),
+            ", halves_tried=", backtracking_attempts_used,
+            "/", max_backtrack,
             ", rejected=", if(theta_step_rejected) "yes" else "no",
             "\n"
           ))
