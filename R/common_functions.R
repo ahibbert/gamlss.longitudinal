@@ -736,8 +736,14 @@ gamlss.longitudinal=function(dataset,
             }
           }
 
-          XtWX = crossprod(X, X * w_k_vec)
-          XtWz = crossprod(X, z_k * w_k_vec)
+          base_crossprod <- get("crossprod", envir = asNamespace("base"), inherits = FALSE)
+          if (typeof(base_crossprod) == "builtin") {
+            XtWX = base_crossprod(X, X * w_k_vec)
+            XtWz = base_crossprod(X, z_k * w_k_vec)
+          } else {
+            XtWX = t(X) %*% (X * w_k_vec)
+            XtWz = t(X) %*% (z_k * w_k_vec)
+          }
           beta_update=as.vector(.solve_linear_system(XtWX + pen_mat, XtWz))
           beta_change_inner=beta_update-beta_start
           beta_new=beta_start*(1-step_size) + (step_size)*(beta_update)
