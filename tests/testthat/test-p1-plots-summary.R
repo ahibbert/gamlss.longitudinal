@@ -23,12 +23,13 @@ test_that("T152 plot.terms interaction rendering metadata includes factor levels
 
   mu_entries <- pf$mu
   entry_names <- names(mu_entries)
-  interaction_entries <- entry_names[grepl(":", entry_names, fixed = TRUE) & grepl("|", entry_names, fixed = TRUE)]
+  interaction_entries <- entry_names[grepl(":", entry_names, fixed = TRUE)]
 
-  expect_equal(length(interaction_entries), 2)
-  panel_levels <- vapply(mu_entries[interaction_entries], function(e) e$panel_level, character(1))
-  expect_setequal(panel_levels, levels(dat$gender))
-  expect_true(all(vapply(mu_entries[interaction_entries], function(e) length(e$levels), integer(1)) == length(levels(dat$time_raw))))
+  expect_equal(length(interaction_entries), 1)
+  interaction_entry <- mu_entries[[interaction_entries[1]]]
+  expect_setequal(interaction_entry$levels, levels(dat$time_raw))
+  expect_setequal(interaction_entry$series, levels(dat$gender))
+  expect_equal(nrow(interaction_entry$plot_data), length(levels(dat$time_raw)) * length(levels(dat$gender)))
 })
 
 test_that("T153 plot methods smoke test return dashboard structures", {
