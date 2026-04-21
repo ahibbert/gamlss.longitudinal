@@ -1270,7 +1270,11 @@ create_model_matrices<-function(
     fixed_terms <- term_labels[!grepl("^\\s*s\\(", term_labels)]
 
     if(length(fixed_terms) > 0 || has_intercept) {
-      fixed_formula <- stats::reformulate(termlabels = fixed_terms, intercept = has_intercept)
+      fixed_formula <- if (length(fixed_terms) == 0L && has_intercept) {
+        stats::as.formula("~ 1")
+      } else {
+        stats::reformulate(termlabels = fixed_terms, intercept = has_intercept)
+      }
       X_fixed <- stats::model.matrix(fixed_formula, data = data_for_par)
       colnames(X_fixed) <- sub("^\\(Intercept\\)$", "intercept", colnames(X_fixed))
       mm_x[[parameter]] <- as.data.frame(X_fixed, check.names = FALSE)

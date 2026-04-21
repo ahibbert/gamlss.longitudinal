@@ -117,3 +117,21 @@ test_that("T107 starting values fallback warning is emitted for non-finite tau",
 
   expect_true(any(grepl("Non-finite Kendall tau", warn_out$warnings, fixed = TRUE)))
 })
+
+test_that("T108 intercept-only formulas are accepted across parameters", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 12L)
+
+  fit <- fit_fixture_model(
+    dat,
+    mu_formula = "y ~ 1",
+    sigma_formula = "~ 1",
+    nu_formula = "~ 1",
+    tau_formula = "~ 1",
+    theta_formula = "~ 1",
+    include_dlcopdpar = TRUE
+  )
+
+  expect_s3_class(fit, "gamlss.longitudinal")
+  expect_true(all(c("mu", "sigma", "nu", "tau", "theta") %in% names(fit$model_matrix$x)))
+  expect_true(all(vapply(fit$model_matrix$x[c("mu", "sigma", "nu", "tau", "theta")], ncol, integer(1)) >= 1L))
+})
