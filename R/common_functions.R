@@ -176,6 +176,9 @@ gamlss.longitudinal=function(dataset,
       stop("ERROR: Failed to map factor time levels to internal numeric time index.")
     }
     dataset$time_covariate <- factor(time_chr, levels = time_covariate_levels, ordered = time_covariate_ordered)
+    if (time_covariate_ordered) {
+      contrasts(dataset$time_covariate) <- contr.treatment(length(time_covariate_levels))
+    }
   } else if (is.numeric(dataset$time_covariate) || is.integer(dataset$time_covariate)) {
     dataset$time <- as.numeric(dataset$time_covariate)
   } else if (is.character(dataset$time_covariate)) {
@@ -302,6 +305,9 @@ gamlss.longitudinal=function(dataset,
     dataset$time_covariate <- factor(as.character(dataset$time_covariate),
                                      levels = time_covariate_levels,
                                      ordered = time_covariate_ordered)
+    if (time_covariate_ordered) {
+      contrasts(dataset$time_covariate) <- contr.treatment(length(time_covariate_levels))
+    }
   }
   dataset <- dataset[order(dataset$subject, dataset$time), , drop = FALSE]
   rownames(dataset) <- NULL
