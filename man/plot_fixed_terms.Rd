@@ -10,6 +10,7 @@ plot_fixed_terms(
   ci_level = 0.95,
   ncol = NULL,
   include_intercept = FALSE,
+  plot_interactions = FALSE,
   ci_col = "red",
   fit_col = "black",
   ci_lty = 2,
@@ -34,6 +35,8 @@ computed internally with `vcov(object, numderiv = TRUE)`.}
 \item{ncol}{Number of plot columns (defaults to 2 or fewer if needed).}
 
 \item{include_intercept}{Logical; include intercept columns in plots.}
+
+\item{plot_interactions}{Logical; if TRUE, include interaction terms in fixed-term plots. Default is FALSE.}
 
 \item{ci_col}{Color for confidence bands.}
 
