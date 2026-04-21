@@ -16,7 +16,7 @@ gamlss.longitudinal(
   tau.formula = ("~ 1"),
   theta.formula = ("~ 1"),
   zeta.formula = ("~ 1"),
-  include_dlcopdpar = FALSE,
+  include_dlcopdpar = TRUE,
   inner_stop_crit = 0.1,
   outer_stop_crit = 0.1,
   start_step_size = 0.5,
@@ -30,6 +30,9 @@ gamlss.longitudinal(
   max_outer_iter = 20,
   max_inner_iter = 20,
   max_negative_outer_streak = 10,
+  use_backtracking = TRUE,
+  compute_vcov = TRUE,
+  vcov_numderiv = TRUE,
   use_Rcpp = FALSE,
   lambda_start = 5,
   lambda_penalty_K = 2
@@ -83,6 +86,15 @@ to the margin parameters in the joint likelihood.}
 
 \item{max_negative_outer_streak}{Maximum number of consecutive negative outer
 log-likelihood changes allowed before stopping.}
+
+\item{use_backtracking}{Logical; if `TRUE` (default), apply step-halving
+backtracking to reject downhill inner updates.}
+
+\item{compute_vcov}{Logical; if `TRUE` (default), compute and store the
+model variance-covariance output at the end of fitting.}
+
+\item{vcov_numderiv}{Logical; passed to `vcov.gamlss.longitudinal()` when
+`compute_vcov = TRUE`.}
 
 \item{use_Rcpp}{Use Rcpp for matrix operations}
 }
