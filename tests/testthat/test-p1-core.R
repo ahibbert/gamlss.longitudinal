@@ -132,6 +132,8 @@ test_that("T108 intercept-only formulas are accepted across parameters", {
   )
 
   expect_s3_class(fit, "gamlss.longitudinal")
-  expect_true(all(c("mu", "sigma", "nu", "tau", "theta") %in% names(fit$model_matrix$x)))
-  expect_true(all(vapply(fit$model_matrix$x[c("mu", "sigma", "nu", "tau", "theta")], ncol, integer(1)) >= 1L))
+  # For NO() margins the active parameters are mu/sigma plus copula theta.
+  expected_pars <- c("mu", "sigma", "theta")
+  expect_true(all(expected_pars %in% names(fit$model_matrix$x)))
+  expect_true(all(vapply(fit$model_matrix$x[expected_pars], ncol, integer(1)) >= 1L))
 })
