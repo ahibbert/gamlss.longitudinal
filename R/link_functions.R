@@ -89,3 +89,27 @@ dlog_2plus_inv <- function(x) {
   return(exp(x))
 }
 
+#' @export
+log_1plus <- function(x) {
+  return(
+    log(x-1)
+  )
+}
+
+#' @export
+log_1plus_inv <- function(x) {
+  y = exp(x) + 1
+  y[y == 1] = y[y == 1] + 0.00001
+  return(y)
+}
+
+#' @export
+dlog_1plus <- function(x) {
+  return(-1/(x-1))
+}
+
+#' @export
+dlog_1plus_inv <- function(x) {
+  return(exp(x))
+}
+
