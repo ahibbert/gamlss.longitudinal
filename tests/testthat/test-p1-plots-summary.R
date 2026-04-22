@@ -115,3 +115,34 @@ test_that("T155 ordered factor time is handled like nominal factor in grouped pl
   expect_setequal(interaction_entry$levels, levels(dat$time_raw))
   expect_setequal(interaction_entry$series, levels(dat$gender))
 })
+
+test_that("T156 transformed smooth covariates keep their x-axis scale", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 16L)
+  fit <- fit_fixture_model(
+    dat,
+    include_dlcopdpar = TRUE,
+    mu_formula = "y ~ time_raw * gender + s(log(age), bs = 'ps')"
+  )
+
+  pt <- suppressWarnings(plot.terms(fit))
+  smooth_entries <- pt$smooth_terms$mu
+  expect_equal(length(smooth_entries), 1)
+
+  smooth_entry <- smooth_entries[[1]]
+  expect_equal(smooth_entry$x, log(dat$age), tolerance = 1e-12)
+  expect_equal(smooth_entry$x[1], log(dat$age)[1], tolerance = 1e-12)
+  expect_s3_class(smooth_entry$plot, "ggplot")
+})
+
+test_that("T157 copula plot wrappers remain available after install", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 16L)
+  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+
+  p1 <- suppressWarnings(plot.copula(fit, plot = FALSE))
+  p2 <- suppressWarnings(plot.copula_contour_compare(fit, plot = FALSE))
+
+  expect_true(is.list(p1))
+  expect_true(all(c("plots", "dashboard", "fit_data", "pair_data", "quartile_summary") %in% names(p1)))
+  expect_true(is.list(p2))
+  expect_true(all(c("plots", "dashboard", "grid", "metrics") %in% names(p2)))
+})
