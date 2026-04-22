@@ -11,6 +11,18 @@ test_that("T151 summary output contract is stable", {
   expect_true(is.finite(s$fit$logLik))
 })
 
+test_that("T151b summary print shows tiny p-values as less than threshold", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 18L)
+  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+
+  s <- summary(fit, include_vcov = FALSE)
+  s$coefficients$p_value[1] <- 1e-8
+  s$coefficients$signif[1] <- "***"
+
+  txt <- capture.output(print(s))
+  expect_true(any(grepl("<0.00001", txt, fixed = TRUE)))
+})
+
 test_that("T152 plot.terms interaction rendering metadata includes factor levels", {
   dat <- make_fixture_factor_time_interaction(n_subject = 16L)
   dat$time_raw <- factor(as.character(dat$time_raw), levels = levels(dat$time_raw), ordered = FALSE)

@@ -2834,16 +2834,24 @@ print.summary.gamlss.longitudinal = function(x, digits = max(3, getOption("digit
   cat("\nFixed coefficients:\n")
   cat("--------------------\n")
   coef_tbl = x$coefficients
+  p_value_raw = coef_tbl$p_value
   coef_tbl$estimate = round(coef_tbl$estimate, digits)
   coef_tbl$std_error = round(coef_tbl$std_error, digits)
   coef_tbl$p_value = round(coef_tbl$p_value, digits + 1)
 
   fmt_num = function(v, d) ifelse(is.na(v), "NA", formatC(v, format = "f", digits = d))
+  fmt_p_value = function(v, v_raw, d) {
+    ifelse(
+      is.na(v_raw),
+      "NA",
+      ifelse(v_raw > 0 & v_raw < 10^(-d), paste0("<", formatC(10^(-d), format = "f", digits = d)), fmt_num(v, d))
+    )
+  }
   coef_disp = data.frame(
     term = as.character(coef_tbl$term),
     estimate = fmt_num(coef_tbl$estimate, digits),
     std_error = fmt_num(coef_tbl$std_error, digits),
-    p_value = fmt_num(coef_tbl$p_value, digits + 1),
+    p_value = fmt_p_value(coef_tbl$p_value, p_value_raw, digits + 1),
     signif = ifelse(is.na(coef_tbl$signif), "", as.character(coef_tbl$signif)),
     parameter = as.character(coef_tbl$parameter),
     stringsAsFactors = FALSE
