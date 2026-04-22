@@ -18,6 +18,30 @@
   ...
 )
 }
+\arguments{
+\item{object}{A fitted `gamlss.longitudinal` object.}
+
+\item{lags}{Integer lags to assess, measured in ordered time steps.}
+
+\item{grid_n}{Grid size used for contour averaging.}
+
+\item{max_pairs_overlay}{Maximum number of paired observations used for the fitted overlay.}
+
+\item{transform}{Character; "uniform" (default) shows empirical copula on [0,1], "normal" transforms to standard normal scale.}
+
+\item{plot1_style}{Character; "bins" (default) draws a binned empirical layer, "scatter" draws points.}
+
+\item{contour_bins}{Integer number of contour levels for the fitted copula overlay in plot 1.}
+
+\item{time_stratified}{Logical; if TRUE, facet both plots by time pair.}
+
+\item{plot2_cuts}{Integer number of quantile-based cuts used in plot 2 (default 10).}
+
+\item{plot}{Logical; if TRUE, print the dashboard.}
+}
+\value{
+Invisibly returns a list with plot objects and summaries.
+}
 \description{
 Plot copula diagnostics for a fitted gamlss.longitudinal object
 }
