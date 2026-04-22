@@ -4595,7 +4595,7 @@ plot.copula_contour_compare <- function(object, lags = 1, grid_n = 45, max_pairs
       high = "#b2182b",
       midpoint = 0,
       limits = c(-diff_scale_limit, diff_scale_limit),
-      oob = scales::squish,
+      oob = function(x, range) pmin(pmax(x, range[1]), range[2]),
       name = "Fit - Emp"
     ) +
     ggplot2::labs(title = "Contour Difference Surface", x = x_label, y = y_label) +

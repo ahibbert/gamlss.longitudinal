@@ -3,8 +3,6 @@
 S3method(coef,gamlss.longitudinal)
 S3method(logLik,gamlss.longitudinal)
 S3method(pithist,gamlss.longitudinal)
-S3method(plot,copula)
-S3method(plot,copula_contour_compare)
 S3method(plot,copula_time_summary)
 S3method(plot,gamlss.longitudinal)
 S3method(plot.terms,gamlss.longitudinal)
