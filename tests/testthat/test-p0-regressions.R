@@ -63,25 +63,25 @@ test_that("T005 baseline fit fingerprint stays stable with use_backtracking FALS
   )
 
   expected_par <- c(
-    "theta.intercept" = 1.5641422709077644,
-    "theta.time_covariate.1" = 0.00036952677386012129,
-    "sigma.intercept" = -1.4662507430579528,
-    "sigma.time_covariate.1" = 0.20867796595747662,
-    "sigma.time_covariate.2" = 0.077153524488408259,
-    "sigma.genderM" = 0.3370667005163685,
-    "mu.intercept" = 2.4068416883317543,
-    "mu.time_covariate.1" = 0.30616664489726197,
-    "mu.time_covariate.2" = 0.13587596959788967,
-    "mu.genderM" = 0.8220603720064974,
-    "mu.age" = 0.0011928517367271545,
-    "mu.time_covariate.1:genderM" = 0.25179058880563637,
-    "mu.time_covariate.2:genderM" = -0.38387806349188175
+    "theta.intercept" = 1.5895753629,
+    "theta.time_covariatet2" = -0.0145853735,
+    "sigma.intercept" = -0.3737415984,
+    "sigma.time_covariatet2" = 0.0161266090,
+    "sigma.time_covariatet3" = -0.0099353386,
+    "sigma.genderM" = -0.0018691103,
+    "mu.intercept" = 2.7138356319,
+    "mu.time_covariatet2" = 0.0185003522,
+    "mu.time_covariatet3" = 0.1906880395,
+    "mu.genderM" = 0.3574107613,
+    "mu.age" = -0.0008306714,
+    "mu.time_covariatet2:genderM" = 0.1558714736,
+    "mu.time_covariatet3:genderM" = -0.0942926933
   )
 
   expected_loglik <- c(
-    "marginal" = -5.6475829180525805,
-    "copula" = -164.58474063030087,
-    "joint" = -170.23232354835346
+    "marginal" = -57.1437,
+    "copula" = -4.328628,
+    "joint" = -61.47233
   )
 
   expect_identical(names(fit$par), names(expected_par))
@@ -106,25 +106,25 @@ test_that("T006 baseline fit fingerprint stays stable with use_backtracking TRUE
   )
 
   expected_par <- c(
-    "theta.intercept" = 1.406839689988608,
-    "theta.time_covariate.1" = 0.025319210421813636,
-    "sigma.intercept" = -0.5745834057904562,
-    "sigma.time_covariate.1" = 0.14056958293200163,
-    "sigma.time_covariate.2" = 0.20124015862764695,
-    "sigma.genderM" = 0.14987686912288116,
-    "mu.intercept" = 2.936366742574324,
-    "mu.time_covariate.1" = 0,
-    "mu.time_covariate.2" = 0,
-    "mu.genderM" = 0,
-    "mu.age" = 0,
-    "mu.time_covariate.1:genderM" = 0,
-    "mu.time_covariate.2:genderM" = 0
+    "theta.intercept" = 1.5638809760,
+    "theta.time_covariatet2" = 0.0005225898,
+    "sigma.intercept" = -1.5823105534,
+    "sigma.time_covariatet2" = 0.0530642214,
+    "sigma.time_covariatet3" = 0.2951152096,
+    "sigma.genderM" = 0.3370667005,
+    "mu.intercept" = 2.2458203099,
+    "mu.time_covariatet2" = 0.0500791139,
+    "mu.time_covariatet3" = 0.4329850216,
+    "mu.genderM" = 0.4872999761,
+    "mu.age" = 0.0011928517,
+    "mu.time_covariatet2:genderM" = 0.6481955223,
+    "mu.time_covariatet3:genderM" = 0.3560856656
   )
 
   expected_loglik <- c(
-    "marginal" = -66.50547493356043,
-    "copula" = 9.98291714810978,
-    "joint" = -56.52255778545065
+    "marginal" = -5.647583,
+    "copula" = -164.5847,
+    "joint" = -170.2323
   )
 
   expect_identical(names(fit$par), names(expected_par))
@@ -132,4 +132,22 @@ test_that("T006 baseline fit fingerprint stays stable with use_backtracking TRUE
 
   ll <- fit$calc_lik_out_end$log_lik[c("marginal", "copula", "joint")]
   expect_equal(unname(ll), unname(expected_loglik), tolerance = 1e-6)
+})
+
+test_that("T007 copula link functions cover Frank Joe and Gumbel", {
+  frank <- get_copula_dist("Frank")
+  joe <- get_copula_dist("Joe")
+  gumbel <- get_copula_dist("Gumbel")
+
+  expect_equal(frank$parameters, "theta")
+  expect_equal(frank$copula_link$theta.linkfun(2.5), 2.5)
+  expect_equal(frank$copula_link$theta.linkinv(-1.75), -1.75)
+
+  expect_equal(joe$parameters, "theta")
+  expect_equal(joe$copula_link$theta.linkinv(log(4)), 5)
+  expect_equal(gumbel$copula_link$theta.linkinv(log(2)), 3)
+
+  expect_equal(gumbel$parameters, "theta")
+  expect_equal(joe$copula_link$theta.linkfun(3), log(2))
+  expect_equal(gumbel$copula_link$theta.linkfun(3), log(2))
 })

@@ -4361,6 +4361,21 @@ get_copula_dist=function(copula_dist) {
     copula_dist=VineCopula::BiCopName(copula_dist)
     parameters=c("theta")
   }
+  else if(copula_dist=="F" | copula_dist=="Frank") {
+    copula_link=list(identity,identity,function(x) rep(1, length(x))); two_par_cop=FALSE
+    copula_dist=VineCopula::BiCopName(copula_dist)
+    parameters=c("theta")
+  }
+  else if(copula_dist=="J" | copula_dist=="Joe") {
+    copula_link=list(log_1plus,log_1plus_inv,dlog_1plus_inv); two_par_cop=FALSE
+    copula_dist=VineCopula::BiCopName(copula_dist)
+    parameters=c("theta")
+  }
+  else if(copula_dist=="G" | copula_dist=="Gumbel") {
+    copula_link=list(log_1plus,log_1plus_inv,dlog_1plus_inv); two_par_cop=FALSE
+    copula_dist=VineCopula::BiCopName(copula_dist)
+    parameters=c("theta")
+  }
   else if(copula_dist=="N" | copula_dist=="Normal") {
     copula_link=list(fisher_z,fisher_z_inv,dfisher_z_inv); two_par_cop=FALSE
     copula_dist=VineCopula::BiCopName(copula_dist)
