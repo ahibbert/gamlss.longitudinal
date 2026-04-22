@@ -6,6 +6,11 @@
 \usage{
 \method{logLik}{gamlss.longitudinal}(object, ...)
 }
+\arguments{
+\item{object}{A fitted `gamlss.longitudinal` object.}
+
+\item{...}{Additional arguments currently ignored.}
+}
 \description{
 This function returns the log likelihood for a fitted gamlss.longitudinal object
 }

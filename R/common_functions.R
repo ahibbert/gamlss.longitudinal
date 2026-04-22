@@ -1,4 +1,5 @@
-﻿###########NEW SIMPLIFIED FUNCTIONS
+﻿#' @importFrom rlang .data
+###########NEW SIMPLIFIED FUNCTIONS
 
 .solve_linear_system <- function(A, b = NULL) {
   A <- as.matrix(A)
@@ -1212,11 +1213,11 @@ create_model_matrices<-function(
     if (isTRUE(quiet_gamlss2)) {
       fit <- NULL
       invisible(utils::capture.output({
-        fit <- suppressMessages(suppressWarnings(gamlss2(...)))
+        fit <- suppressMessages(suppressWarnings(gamlss2::gamlss2(...)))
       }, type = "output"))
       return(fit)
     }
-    gamlss2(...)
+    gamlss2::gamlss2(...)
   }
 
   normalize_time_covariate_colnames <- function(nms) {
@@ -1445,16 +1446,9 @@ calc_eta=function(par_cov,mm,margin_dist,copula_link,par_s=NA) {
 #' Calculate the likelihood components for the joint model
 #' 
 #' This function calculates the marginal and copula log likelihoods and components
-#' for the joint model based on the inverse link function values (eta_inv),
-#' model matrices (mm), marginal distribution functions (margin_dist),
-#' and copula distribution (copula_dist). It computes the marginal density,
-#' copula density, and joint log-likelihood.
+#' for the joint model by organizing response data by margin and subject for 
+#' efficient pair-based copula calculations.
 #' 
-#' @param eta_inv A list of inverse link function values for each parameter.
-#' @param mm A list containing model matrices for fixed effects (mm$x).
-#' @param margin_dist A list of functions for the marginal distribution, including density and distribution functions.
-#' @param copula_dist A string specifying the copula distribution (e.g., "C", "t").
-#' @param calc_d2 A logical indicating whether to calculate second derivatives (default is FALSE).
 #' @param response A numeric vector of response values.
 #' @param response_margin A numeric vector indicating the margin (time) for each response.
 #' @param response_subject A numeric vector indicating the subject for each response.
@@ -4190,7 +4184,7 @@ plot.gamlss.longitudinal = function(
 }
 
 .copula_v2_message_plot <- function(title, subtitle, message) {
-  ggplot2::ggplot(data.frame(x = 0, y = 0), ggplot2::aes(x = x, y = y)) +
+  ggplot2::ggplot(data.frame(x = 0, y = 0), ggplot2::aes(x = .data$x, y = .data$y)) +
     ggplot2::geom_text(label = message, size = 4) +
     ggplot2::xlim(-1, 1) +
     ggplot2::ylim(-1, 1) +
@@ -4502,6 +4496,17 @@ plot.gamlss.longitudinal = function(
 
 #' Compare fitted and empirical copula contour surfaces
 #'
+#' @param object A fitted `gamlss.longitudinal` object.
+#' @param lags Integer lags to assess, measured in ordered time steps.
+#' @param grid_n Grid size used for density surfaces.
+#' @param max_pairs_overlay Maximum number of paired observations used for fitted surface averaging.
+#' @param contour_bins Number of contour levels to draw in the surface panels.
+#' @param transform Character; "uniform" compares surfaces on copula scale, "normal" compares them on z-scale.
+#' @param diff_scale_limit Positive numeric; fixed symmetric color scale limit for the difference panel.
+#' @param time_stratified Logical; if TRUE, compare surfaces by time pair.
+#' @param plot Logical; if TRUE, print the dashboard.
+#'
+#' @return Invisibly returns plots, grid-level surfaces, and numeric similarity metrics.
 #' @export
 plot.copula_contour_compare <- function(object, lags = 1, grid_n = 45, max_pairs_overlay = 300, contour_bins = 10, transform = "uniform", diff_scale_limit = 0.05, time_stratified = FALSE, plot = TRUE, ...) {
   if (!inherits(object, "gamlss.longitudinal")) {
@@ -4622,6 +4627,18 @@ plot.copula_contour_compare <- function(object, lags = 1, grid_n = 45, max_pairs
 
 #' Plot copula diagnostics for a fitted gamlss.longitudinal object
 #'
+#' @param object A fitted `gamlss.longitudinal` object.
+#' @param lags Integer lags to assess, measured in ordered time steps.
+#' @param grid_n Grid size used for contour averaging.
+#' @param max_pairs_overlay Maximum number of paired observations used for the fitted overlay.
+#' @param transform Character; "uniform" (default) shows empirical copula on [0,1], "normal" transforms to standard normal scale.
+#' @param plot1_style Character; "bins" (default) draws a binned empirical layer, "scatter" draws points.
+#' @param contour_bins Integer number of contour levels for the fitted copula overlay in plot 1.
+#' @param time_stratified Logical; if TRUE, facet both plots by time pair.
+#' @param plot2_cuts Integer number of quantile-based cuts used in plot 2 (default 10).
+#' @param plot Logical; if TRUE, print the dashboard.
+#'
+#' @return Invisibly returns a list with plot objects and summaries.
 #' @export
 plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, transform = "normal", plot1_style = "bins", contour_bins = 8, time_stratified = FALSE, plot2_cuts = 10, plot = TRUE, ...) {
   if (!inherits(object, "gamlss.longitudinal")) {
@@ -4996,7 +5013,8 @@ fit_jointreg_nocov <- function(input_par,margin_dist,copula_dist,data
 
 
 
-#' @export
+#' @keywords internal
+#' @noRd
 calc_F_x <- function(eta_inv,mm,margin_dist,response) {
   #Setup input matrix of response and parameters
   #margin_names=unique(response_margin)
@@ -5302,7 +5320,8 @@ plotDist <- function (dataset,dist,offdiag_scale=c("response","pseudo"),show_cor
   ggarrange(plotlist=plots,ncol=num_margins,nrow=num_margins)
 
 }
-#' @export
+#' @keywords internal
+#' @noRd
 create_longitudinal_dataset <- function(response,covariates,labels=NA) {
   num_time_points=ncol(response)
   if(num_time_points <=1) {print('Not enough time points')}
@@ -5911,7 +5930,8 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
 
   return(dataset)
 }
-#' @export
+#' @keywords internal
+#' @noRd
 bvt_norm_true_SE_B0_Bt <- function(sigma_x,sigma_y,rho,n,d){
 
   #sigma_x=2

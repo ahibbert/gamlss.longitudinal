@@ -17,6 +17,28 @@
   ...
 )
 }
+\arguments{
+\item{object}{A fitted `gamlss.longitudinal` object.}
+
+\item{lags}{Integer lags to assess, measured in ordered time steps.}
+
+\item{grid_n}{Grid size used for density surfaces.}
+
+\item{max_pairs_overlay}{Maximum number of paired observations used for fitted surface averaging.}
+
+\item{contour_bins}{Number of contour levels to draw in the surface panels.}
+
+\item{transform}{Character; "uniform" compares surfaces on copula scale, "normal" compares them on z-scale.}
+
+\item{diff_scale_limit}{Positive numeric; fixed symmetric color scale limit for the difference panel.}
+
+\item{time_stratified}{Logical; if TRUE, compare surfaces by time pair.}
+
+\item{plot}{Logical; if TRUE, print the dashboard.}
+}
+\value{
+Invisibly returns plots, grid-level surfaces, and numeric similarity metrics.
+}
 \description{
 Compare fitted and empirical copula contour surfaces
 }

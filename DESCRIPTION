@@ -4,15 +4,17 @@ Title: Fit Longitudinal Data Using GAMLSS Margins and Copula Dependence Structur
 Version: 0.1.0
 Author: Aydin Sareff-Hibbert
 Maintainer: Aydin Sareff-Hibbert <aydin.hibbert@sydney.edu.au>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Description: Fits longitudinal Gaussian additive models for location, scale and shape (GAMLSS)
+    with flexible copula dependence structures across time. Supports various copula
+    families (Gaussian, Clayton, Frank, Gumbel, Joe) with custom links and includes
+    comprehensive diagnostic and visualization tools.
 Depends: R (>= 4.1.0)
 Imports:
     gamlss,
     gamlss.dist,
     gamlss2,
     VineCopula,
-    moments,
+    rlang,
     latex2exp,
     ggplot2,
     ggpubr,

@@ -42,7 +42,7 @@ procast <- function(object, ...) {
 .gl_call_family_fun <- function(prefix, family_name, x, params, extra_args = list()) {
   fun <- .gl_get_family_fun(family_name, prefix)
   arg_name <- switch(prefix, p = "q", d = "x", q = "p", "x")
-  args <- c(setNames(list(x), arg_name), extra_args, params)
+  args <- c(stats::setNames(list(x), arg_name), extra_args, params)
   args <- args[names(args) %in% formalArgs(fun)]
   do.call(fun, args)
 }

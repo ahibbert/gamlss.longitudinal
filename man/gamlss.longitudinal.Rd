@@ -101,6 +101,16 @@ model variance-covariance output at the end of fitting.}
 `compute_vcov = TRUE`.}
 
 \item{use_Rcpp}{Use Rcpp for matrix operations}
+
+\item{dataset}{A data frame containing the response, time, subject, and covariates.}
+
+\item{time_var}{Name of the time variable in `dataset`.}
+
+\item{subject_var}{Name of the subject identifier variable in `dataset`.}
+
+\item{lambda_start}{Starting penalty value used for smoothing parameter initialization.}
+
+\item{lambda_penalty_K}{Penalty matrix scaling constant used during fitting.}
 }
 \description{
 This function fits a longitudinal model to a dataset with gamlss margins
