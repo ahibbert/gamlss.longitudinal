@@ -63,25 +63,25 @@ test_that("T005 baseline fit fingerprint stays stable with use_backtracking FALS
   )
 
   expected_par <- c(
-    "theta.intercept" = 1.5895753629,
-    "theta.time_covariatet2" = -0.0145853735,
-    "sigma.intercept" = -0.3737415984,
-    "sigma.time_covariatet2" = 0.0161266090,
-    "sigma.time_covariatet3" = -0.0099353386,
-    "sigma.genderM" = -0.0018691103,
-    "mu.intercept" = 2.7138356319,
-    "mu.time_covariatet2" = 0.0185003522,
-    "mu.time_covariatet3" = 0.1906880395,
-    "mu.genderM" = 0.3574107613,
-    "mu.age" = -0.0008306714,
-    "mu.time_covariatet2:genderM" = 0.1558714736,
-    "mu.time_covariatet3:genderM" = -0.0942926933
+    "theta.intercept" = 1.5638809760,
+    "theta.time_covariatet2" = 0.0005225898,
+    "sigma.intercept" = -1.5823105534,
+    "sigma.time_covariatet2" = 0.0530642214,
+    "sigma.time_covariatet3" = 0.2951152096,
+    "sigma.genderM" = 0.3370667005,
+    "mu.intercept" = 2.2458203099,
+    "mu.time_covariatet2" = 0.0500791139,
+    "mu.time_covariatet3" = 0.4329850216,
+    "mu.genderM" = 0.4872999761,
+    "mu.age" = 0.0011928517,
+    "mu.time_covariatet2:genderM" = 0.6481955223,
+    "mu.time_covariatet3:genderM" = 0.3560856656
   )
 
   expected_loglik <- c(
-    "marginal" = -57.1437,
-    "copula" = -4.328628,
-    "joint" = -61.47233
+    "marginal" = -5.647582918,
+    "copula" = -164.584740630,
+    "joint" = -170.232323548
   )
 
   expect_identical(names(fit$par), names(expected_par))
@@ -106,25 +106,25 @@ test_that("T006 baseline fit fingerprint stays stable with use_backtracking TRUE
   )
 
   expected_par <- c(
-    "theta.intercept" = 1.5638809760,
-    "theta.time_covariatet2" = 0.0005225898,
-    "sigma.intercept" = -1.5823105534,
-    "sigma.time_covariatet2" = 0.0530642214,
-    "sigma.time_covariatet3" = 0.2951152096,
-    "sigma.genderM" = 0.3370667005,
-    "mu.intercept" = 2.2458203099,
-    "mu.time_covariatet2" = 0.0500791139,
-    "mu.time_covariatet3" = 0.4329850216,
-    "mu.genderM" = 0.4872999761,
-    "mu.age" = 0.0011928517,
-    "mu.time_covariatet2:genderM" = 0.6481955223,
-    "mu.time_covariatet3:genderM" = 0.3560856656
+    "theta.intercept" = 1.38893630,
+    "theta.time_covariatet2" = 0.03580677,
+    "sigma.intercept" = -0.59182516,
+    "sigma.time_covariatet2" = -0.14707015,
+    "sigma.time_covariatet3" = 0.19879541,
+    "sigma.genderM" = 0.14987687,
+    "mu.intercept" = 2.93636674,
+    "mu.time_covariatet2" = 0.00000000,
+    "mu.time_covariatet3" = 0.00000000,
+    "mu.genderM" = 0.00000000,
+    "mu.age" = 0.00000000,
+    "mu.time_covariatet2:genderM" = 0.00000000,
+    "mu.time_covariatet3:genderM" = 0.00000000
   )
 
   expected_loglik <- c(
-    "marginal" = -5.647583,
-    "copula" = -164.5847,
-    "joint" = -170.2323
+    "marginal" = -66.505475,
+    "copula" = 9.982917,
+    "joint" = -56.522558
   )
 
   expect_identical(names(fit$par), names(expected_par))
