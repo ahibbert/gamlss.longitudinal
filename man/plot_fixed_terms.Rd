@@ -36,8 +36,6 @@ computed internally with `vcov(object, numderiv = TRUE)`.}
 
 \item{include_intercept}{Logical; include intercept columns in plots.}
 
-\item{plot_interactions}{Logical; if TRUE, include interaction terms in fixed-term plots. Default is FALSE.}
-
 \item{ci_col}{Color for confidence bands.}
 
 \item{fit_col}{Color for fitted fixed-term line.}
