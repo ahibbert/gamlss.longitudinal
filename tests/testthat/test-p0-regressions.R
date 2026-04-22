@@ -151,3 +151,24 @@ test_that("T007 copula link functions cover Frank Joe and Gumbel", {
   expect_equal(joe$copula_link$theta.linkfun(3), log(2))
   expect_equal(gumbel$copula_link$theta.linkfun(3), log(2))
 })
+
+test_that("T008 t-copula starting values include theta and zeta", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 16L)
+  start_dat <- data.frame(
+    subject = dat$id,
+    time = dat$time_raw,
+    response = dat$y
+  )
+
+  start_vals <- get_starting_values(
+    copula_dist = "t",
+    margin_dist = gamlss.dist::NO(),
+    dataset = start_dat,
+    eta_transform = FALSE
+  )
+
+  expect_true(all(c("theta", "zeta") %in% names(start_vals)))
+  expect_true(is.finite(unname(start_vals["theta"])))
+  expect_true(is.finite(unname(start_vals["zeta"])))
+  expect_gt(unname(start_vals["zeta"]), 2)
+})

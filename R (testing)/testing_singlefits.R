@@ -186,7 +186,7 @@ rm(dataset)
 source("R/common_functions.R")
 fit=gamlss.longitudinal(dataset = data_in
                    , margin_dist = margin_dist
-                   , copula_dist = copula_dist
+                   , copula_dist = "t"
                    , time_var = "time_of_observation_random_name"
                    , subject_var = "person"
                    , mu.formula = mu_formula
@@ -197,15 +197,14 @@ fit=gamlss.longitudinal(dataset = data_in
                    , zeta.formula = zeta_formula
                    , verbose = 1
 )
-
 #vcov_fit=vcov.gamlss.longitudinal(fit, numderiv=TRUE)
 
 #################### PLOT METHOD ####################
 source("R/common_functions.R")
 source("R/diagnostics_topmodels.R")
 source("R (testing)/plot_copula_v2.R")
-plot.terms(fit,  data = data_in)
 summary(fit)
+plot.terms(fit,  data = data_in)
 plot(fit)
 plot(fit, time_stratified = TRUE)
 plot.copula(fit, contour_bins=5, time_stratified = TRUE, plot2_cuts=10)

@@ -4849,8 +4849,18 @@ get_starting_values = function(copula_dist,margin_dist,dataset,eta_transform=FAL
   }
   tau_start=max(min(tau_start,0.9999),-0.9999)
 
-  cop_par=VineCopula::BiCopTau2Par(family=as.numeric(VineCopula::BiCopName(copula_dist)),tau=tau_start)
-  names(cop_par)=get_copula_dist(copula_dist)$parameters
+  copula_spec=get_copula_dist(copula_dist)
+  theta_start=VineCopula::BiCopTau2Par(
+    family=as.numeric(VineCopula::BiCopName(copula_dist)),
+    tau=tau_start
+  )
+
+  if("zeta" %in% copula_spec$parameters) {
+    # VineCopula::BiCopTau2Par() returns only theta for t-copula; seed zeta separately.
+    cop_par=c(theta=as.numeric(theta_start)[1], zeta=8)
+  } else {
+    cop_par=c(theta=as.numeric(theta_start)[1])
+  }
 
   if(margin_dist$family[1]=="GA" | margin_dist$family[1]=="EXP") {
     margin_par=c(
