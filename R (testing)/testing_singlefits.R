@@ -15,7 +15,7 @@ missingness_mode = "mar" # or "mar"
 mar_missing_rate = 0.1
 
 #copula_dist="N"; margin_dist=BCPEo(); mu=1; sigma=0.5;nu=-1; tau=1; theta=-0.5; zeta=NA; simOption=10;
-copula_dist="G"; margin_dist=BCPEo(); mu=1; sigma=0.5;nu=-1; tau=1; theta=1; zeta=NA; simOption=10;
+copula_dist="t"; margin_dist=BCPEo(); mu=1; sigma=0.5;nu=-1; tau=1; theta=1; zeta=0; simOption=10;
 
 
 # USE THIS WITH SIMOPTION 10
@@ -27,7 +27,7 @@ covariates_input=list( mu.time=0.1   ,sigma.time=0.1   ,nu.time=1    ,tau.time=0
 
 rm(dataset)
 dataset=loadDataset(simOption=simOption, n=n,d=d, copula_dist=copula_dist, margin_dist=margin_dist
-                    , par.margin=c(mu,sigma,nu,tau), par.copula=c(theta=theta),covariates_input=covariates_input)
+                    , par.margin=c(mu,sigma,nu,tau), par.copula=c(theta=theta,zeta=zeta),covariates_input=covariates_input)
 
 # Inject missingness into response using selected mode.
 if (missingness_mode == "increasing_time") {
@@ -176,7 +176,7 @@ sigma_formula="~ time_of_observation_random_name + gender + s(age_new_name,bs='p
 nu_formula="~ time_of_observation_random_name"
 tau_formula="~ time_of_observation_random_name"
 theta_formula="~ time_of_observation_random_name"
-zeta_formula="~ time_of_observation_random_name"
+zeta_formula="~ 1"
 
 ### FOR TESTING DATASETS WITH NON STANDARD NAMING
 if("age_group" %in% names(dataset)) dataset$age_group = NULL
@@ -188,7 +188,7 @@ source("R/common_functions.R")
 source("R/link_functions.R")
 fit=gamlss.longitudinal(dataset = data_in
                    , margin_dist = margin_dist
-                   , copula_dist = "G"
+                   , copula_dist = "t"
                    , time_var = "time_of_observation_random_name"
                    , subject_var = "person"
                    , mu.formula = mu_formula
@@ -199,7 +199,7 @@ fit=gamlss.longitudinal(dataset = data_in
                    , zeta.formula = zeta_formula
                    , verbose = 3
                    , compute_vcov = FALSE
-                   , include_dlcopdpar = FALSE
+                   , include_dlcopdpar = TRUE
                    , check_dlcopdpar_gradient = FALSE
                    , step_adjustment = 1
 )
@@ -213,6 +213,4 @@ plot(fit)
 plot.terms(fit,  data = data_in)
 plot(fit, time_stratified = TRUE)
 plot.copula(fit, contour_bins=5, time_stratified = TRUE, plot2_cuts=10)
-plot.copula_contour_compare(fit, time_stratified = TRUE, transform="normal", diff_scale_limit=.1)
-
 
