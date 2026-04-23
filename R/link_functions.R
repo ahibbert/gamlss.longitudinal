@@ -52,7 +52,7 @@ log_2plus_inv <- function(x) {
 }
 #' @export
 dlog_2plus <- function(x) {
-  return(-1/(x-2))
+  return(1/(x-2))
 }
 #' @export
 dlog <-function(x) {
@@ -105,11 +105,31 @@ log_1plus_inv <- function(x) {
 
 #' @export
 dlog_1plus <- function(x) {
-  return(-1/(x-1))
+  return(1/(x-1))
 }
 
 #' @export
 dlog_1plus_inv <- function(x) {
   return(exp(x))
+}
+
+#' @export
+gumbel_linkfun <- function(x) {
+  x <- pmin(x, 17)
+  return(log(x - 1))
+}
+
+#' @export
+gumbel_linkinv <- function(x) {
+  y <- exp(x) + 1
+  y[y > 17] <- 17
+  return(y)
+}
+
+#' @export
+dgumbel_linkinv <- function(x) {
+  y <- exp(x)
+  y[y >= 16] <- 0
+  return(y)
 }
 
