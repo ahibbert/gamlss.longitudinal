@@ -3,8 +3,9 @@ library("ggplot2"); library("latex2exp"); library("ggpubr"); library("Matrix"); 
 #library(gamlss.longitudinal); 
 library(gamlss2); library(gamlss)
 set.seed(100)
-#########DATASET
-n=500; d=4
+
+########### Generate Dataset ###########
+n=200; d=4
 
 # Missingness configuration:
 # - "increasing_time": p_miss(i) = i/(T+1) by ordered time index i.
@@ -13,12 +14,12 @@ n=500; d=4
 missingness_mode = "mar" # or "mar"
 mar_missing_rate = 0.1
 
-copula_dist="N"; margin_dist=BCPEo(); mu=1; sigma=0.5;nu=-1; tau=1; theta=-0.5; zeta=NA; simOption=10;
-copula_dist="C"; margin_dist=BCPEo(); mu=1; sigma=0.5;nu=-1; tau=1; theta=-2; zeta=NA; simOption=10;
+#copula_dist="N"; margin_dist=BCPEo(); mu=1; sigma=0.5;nu=-1; tau=1; theta=-0.5; zeta=NA; simOption=10;
+copula_dist="G"; margin_dist=BCPEo(); mu=1; sigma=0.5;nu=-1; tau=1; theta=1; zeta=NA; simOption=10;
 
 
 # USE THIS WITH SIMOPTION 10
-covariates_input=list( mu.time=0.1   ,sigma.time=0.1   ,nu.time=1    ,tau.time=0.1   ,theta.time=1  ,zeta.time=0
+covariates_input=list( mu.time=0.1   ,sigma.time=0.1   ,nu.time=1    ,tau.time=0.1   ,theta.time=0.5  ,zeta.time=0
                         ,mu.age=1    ,sigma.age=0.5     ,nu.age=0     ,tau.age=0    ,theta.age=0    ,zeta.age=0
                         ,mu.gender=0.1 ,sigma.gender=0.1  ,nu.gender=0  ,tau.gender=0 ,theta.gender=0 ,zeta.gender=0)
 
@@ -58,7 +59,7 @@ if (missingness_mode == "increasing_time") {
 
 plotDist(dataset, margin_dist, offdiag_scale = "pseudo")
 
-#########PLOTTING#############
+########### PLOTTING ###########
 #Group dataset by age categories in buckets of 10 years then calculate the correlation in each bucket and plot
 library(dplyr)
 # Create age groups with extended range and filter out any remaining NAs
@@ -170,7 +171,7 @@ ggarrange(p1, p2, p3, p4, p5, ncol=2, nrow=3, common.legend=FALSE)
 
 ########## FIT ###########
 source("R/common_functions.R")
-mu_formula="random_name ~ time_of_observation_random_name + s(age_new_name,bs='ps') + gender + time_of_observation_random_name*gender"
+mu_formula="random_name ~ time_of_observation_random_name + s(age_new_name,bs='ps') + gender"
 sigma_formula="~ time_of_observation_random_name + gender + s(age_new_name,bs='ps')"
 nu_formula="~ time_of_observation_random_name"
 tau_formula="~ time_of_observation_random_name"
@@ -184,9 +185,10 @@ data_in=dataset; data_in$gender=as.factor(data_in$gender); data_in$time_of_obser
 rm(dataset)
 
 source("R/common_functions.R")
+source("R/link_functions.R")
 fit=gamlss.longitudinal(dataset = data_in
                    , margin_dist = margin_dist
-                   , copula_dist = "t"
+                   , copula_dist = "G"
                    , time_var = "time_of_observation_random_name"
                    , subject_var = "person"
                    , mu.formula = mu_formula
@@ -195,17 +197,20 @@ fit=gamlss.longitudinal(dataset = data_in
                    , tau.formula = tau_formula
                    , theta.formula = theta_formula
                    , zeta.formula = zeta_formula
-                   , verbose = 1
+                   , verbose = 3
+                   , compute_vcov = FALSE
+                   , include_dlcopdpar = FALSE
+                   , check_dlcopdpar_gradient = FALSE
+                   , step_adjustment = 1
 )
-#vcov_fit=vcov.gamlss.longitudinal(fit, numderiv=TRUE)
 
 #################### PLOT METHOD ####################
 source("R/common_functions.R")
 source("R/diagnostics_topmodels.R")
 source("R (testing)/plot_copula_v2.R")
 summary(fit)
-plot.terms(fit,  data = data_in)
 plot(fit)
+plot.terms(fit,  data = data_in)
 plot(fit, time_stratified = TRUE)
 plot.copula(fit, contour_bins=5, time_stratified = TRUE, plot2_cuts=10)
 plot.copula_contour_compare(fit, time_stratified = TRUE, transform="normal", diff_scale_limit=.1)
