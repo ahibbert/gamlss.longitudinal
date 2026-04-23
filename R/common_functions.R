@@ -1,4 +1,4 @@
-﻿#' @importFrom rlang .data
+#' @importFrom rlang .data
 ###########NEW SIMPLIFIED FUNCTIONS
 
 .solve_linear_system <- function(A, b = NULL) {
@@ -99,7 +99,7 @@ gamlss.longitudinal=function(dataset,
                         include_dlcopdpar=TRUE,
                         check_dlcopdpar_gradient=FALSE,
                         inner_stop_crit=.1,
-                        outer_stop_crit=.01,
+                        outer_stop_crit=.1,
                         start_step_size=.5,
                         step_adjustment=.5,
                         max_steps=5,
@@ -4991,6 +4991,55 @@ eta_to_par=function(eta,margin_dist,copula_dist) {
   }
   return(par)
 }
+
+.select_t_copula_zeta_start <- function(dataset, margin_dist, copula_dist, margin_par, theta_start) {
+  zeta_grid <- c(2.05, 2.2, 2.5, 3, 4, 5, 8, 12, 20, 35)
+  if (!length(zeta_grid)) {
+    return(8)
+  }
+
+  param_names <- c(names(margin_dist$parameters), get_copula_dist(copula_dist)$parameters)
+  mm_stub <- as.list(setNames(rep(1, length(param_names)), param_names))
+  pair_cache <- build_copula_pair_cache(dataset$response, dataset$time, dataset$subject)
+
+  base_eta_inv <- c(as.list(margin_par), list(theta = as.numeric(theta_start)[1]))
+
+  best_zeta <- 8
+  best_loglik <- -Inf
+
+  for (candidate_zeta in zeta_grid) {
+    eta_inv <- base_eta_inv
+    eta_inv$zeta <- candidate_zeta
+
+    candidate_fit <- tryCatch(
+      calc_likelihood_minimal(
+        eta_inv = eta_inv,
+        mm = mm_stub,
+        margin_dist = margin_dist,
+        copula_dist = copula_dist,
+        calc_d2 = FALSE,
+        response = dataset$response,
+        response_margin = dataset$time,
+        response_subject = dataset$subject,
+        pair_cache = pair_cache
+      ),
+      error = function(e) NULL
+    )
+
+    if (is.null(candidate_fit)) {
+      next
+    }
+
+    candidate_loglik <- candidate_fit$log_lik["joint"]
+    if (is.finite(candidate_loglik) && candidate_loglik > best_loglik) {
+      best_loglik <- candidate_loglik
+      best_zeta <- candidate_zeta
+    }
+  }
+
+  best_zeta
+}
+
 #' @export
 get_starting_values = function(copula_dist,margin_dist,dataset,eta_transform=FALSE) {
 
@@ -5010,13 +5059,6 @@ get_starting_values = function(copula_dist,margin_dist,dataset,eta_transform=FAL
     family=as.numeric(VineCopula::BiCopName(copula_dist)),
     tau=tau_start
   )
-
-  if("zeta" %in% copula_spec$parameters) {
-    # VineCopula::BiCopTau2Par() returns only theta for t-copula; seed zeta separately.
-    cop_par=c(theta=as.numeric(theta_start)[1], zeta=8)
-  } else {
-    cop_par=c(theta=as.numeric(theta_start)[1])
-  }
 
   if(margin_dist$family[1]=="GA" | margin_dist$family[1]=="EXP") {
     margin_par=c(
@@ -5053,6 +5095,20 @@ get_starting_values = function(copula_dist,margin_dist,dataset,eta_transform=FAL
 
   names(margin_par)=names(margin_dist$parameters)
   margin_par=margin_par[!is.na(names(margin_par))]
+
+  if("zeta" %in% copula_spec$parameters) {
+    # VineCopula::BiCopTau2Par() returns only theta for t-copula; select zeta by a small grid search.
+    zeta_start <- .select_t_copula_zeta_start(
+      dataset = dataset,
+      margin_dist = margin_dist,
+      copula_dist = copula_dist,
+      margin_par = margin_par,
+      theta_start = theta_start
+    )
+    cop_par=c(theta=as.numeric(theta_start)[1], zeta=as.numeric(zeta_start))
+  } else {
+    cop_par=c(theta=as.numeric(theta_start)[1])
+  }
 
   if(eta_transform==TRUE) {
     margin_par_eta=margin_par
