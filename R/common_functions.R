@@ -57,6 +57,8 @@
 #' @param zeta.formula Formula for the zeta parameter of the copula distribution
 #' @param include_dlcopdpar Include the derivative of the copula likelihood with respect
 #' to the margin parameters in the joint likelihood.
+#' @param check_dlcopdpar_gradient If `TRUE`, run an optional finite-difference
+#' diagnostic for the margin score contribution when `include_dlcopdpar = TRUE`.
 #' @param inner_stop_crit Stopping criterion for the inner loop
 #' @param outer_stop_crit Stopping criterion for the outer loop
 #' @param start_step_size Initial step size for the backfitting algorithm
@@ -95,8 +97,9 @@ gamlss.longitudinal=function(dataset,
                         theta.formula=("~ 1"),
                         zeta.formula=("~ 1"),
                         include_dlcopdpar=TRUE,
+                        check_dlcopdpar_gradient=FALSE,
                         inner_stop_crit=.1,
-                        outer_stop_crit=.1,
+                        outer_stop_crit=.01,
                         start_step_size=.5,
                         step_adjustment=.5,
                         max_steps=5,
@@ -109,7 +112,7 @@ gamlss.longitudinal=function(dataset,
                         max_inner_iter=20,
                         max_negative_outer_streak=10,
                         use_backtracking=TRUE,
-                        backtracking_max_halves=5,
+                        backtracking_max_halves=50,
                         compute_vcov=TRUE,
                         vcov_numderiv=TRUE,
                         use_Rcpp=FALSE,
@@ -575,21 +578,33 @@ gamlss.longitudinal=function(dataset,
         ### Calculate copula derivatives w.r.t margin parameters
         if(!par_name %in% c("mu","sigma","nu","tau")) {
           if(par_name == "theta") {
-            d1_full=matrix(0,nrow=length(dataset$response),ncol=1)
+            n_par <- length(eta[[par_name]])
+            d1_full=matrix(0,nrow=n_par,ncol=1)
             row_id1 <- calc_lik_out$copula_row_id1
             if(length(row_id1)>0) {
-              valid_idx <- is.finite(row_id1) & row_id1 >= 1 & row_id1 <= nrow(d1_full)
-              d1_full[row_id1[valid_idx],1] <- dldth[valid_idx]
+              if(n_par == length(dataset$response)) {
+                par_idx <- row_id1
+              } else {
+                par_idx <- calc_lik_out$copula_theta_index_map[row_id1]
+              }
+              valid_idx <- is.finite(par_idx) & par_idx >= 1 & par_idx <= nrow(d1_full)
+              d1_full[par_idx[valid_idx],1] <- dldth[valid_idx]
             }
             d1=as.matrix(d1_full)
             colnames(d1)="dldtheta"
             #d2=d2ldth2
           } else if(par_name == "zeta") {
-            d1_full=matrix(0,nrow=length(dataset$response),ncol=1)
+            n_par <- length(eta[[par_name]])
+            d1_full=matrix(0,nrow=n_par,ncol=1)
             row_id1 <- calc_lik_out$copula_row_id1
             if(length(row_id1)>0) {
-              valid_idx <- is.finite(row_id1) & row_id1 >= 1 & row_id1 <= nrow(d1_full)
-              d1_full[row_id1[valid_idx],1] <- dldz[valid_idx]
+              if(n_par == length(dataset$response)) {
+                par_idx <- row_id1
+              } else {
+                par_idx <- calc_lik_out$copula_theta_index_map[row_id1]
+              }
+              valid_idx <- is.finite(par_idx) & par_idx >= 1 & par_idx <= nrow(d1_full)
+              d1_full[par_idx[valid_idx],1] <- dldz[valid_idx]
             }
             d1=as.matrix(d1_full)
             colnames(d1)="dldzeta"
@@ -630,16 +645,42 @@ gamlss.longitudinal=function(dataset,
             margin_components_Ft_plus$time=normalize_lag_time(margin_components_Ft_plus$time)
             margin_plus=merge(margin_components,margin_components_Ft_plus,by=c("time","subject"),all.x=TRUE)
 
-            copula_components=cbind(order_copula,dcdu1,dcdu2,copula_d)
+            copula_components=cbind(
+              order_copula,
+              row_id1=calc_lik_out$copula_row_id1,
+              row_id2=calc_lik_out$copula_row_id2,
+              dcdu1,
+              dcdu2,
+              copula_d
+            )
 
             copula_merged=merge(copula_components,margin_plus,by.x=c("time1","subject1"),by.y=c("time","subject"),all.x=TRUE)
 
             #Calculate copula derivative with respect to marginal parameters
             input=copula_merged
-            d1_cop=calc_deriv_copula_wrt_margin(input,margin_par,par_name)
+            d1_cop=calc_deriv_copula_wrt_margin(input,margin_par,par_name,calc_d2=FALSE)[,which(margin_par==par_name)]
             d1_m=d1
             d1=d1_m+d1_cop
             #d1=d1*0+(nd_impact[par_name]/nrow(d1))
+
+            if (check_dlcopdpar_gradient && outer_only_run_counter == 1) {
+              gradient_check <- check_dlcopdpar_gradient_margin_score(
+                eta = eta,
+                eta_inv = eta_inv,
+                par_name = par_name,
+                margin_dist = margin_dist,
+                copula_dist = copula_dist,
+                dataset = dataset,
+                mm = mm$x,
+                pair_cache = pair_cache,
+                d1 = d1,
+                base_loglik = log_lik["joint"],
+                verbose = verbose
+              )
+              if (isTRUE(gradient_check$warned)) {
+                warning(gradient_check$message, call. = FALSE)
+              }
+            }
           }
 
           timer=c(timer,difftime(Sys.time(),timer_start,units="secs"))
@@ -664,25 +705,21 @@ gamlss.longitudinal=function(dataset,
         eta_dr_vec <- as.numeric(eta_dr[[par_name]])
 
         if (length(d1) != eta_len) {
-          if (length(d1) < eta_len) {
-            d1 <- c(d1, rep(0, eta_len - length(d1)))
-          } else {
-            d1 <- d1[seq_len(eta_len)]
-          }
-          if (verbose > 1) {
-            #cat(paste0("\nAdjusted derivative length for ", par_name, ": d1 -> ", eta_len, "\n"))
-          }
+          stop(
+            "Score derivative length mismatch for ", par_name,
+            ": length(d1)=", length(d1),
+            " but length(eta)=", eta_len,
+            ". This indicates an index-alignment bug in derivative assembly."
+          )
         }
 
         if (length(eta_dr_vec) != eta_len) {
-          if (length(eta_dr_vec) < eta_len) {
-            eta_dr_vec <- c(eta_dr_vec, rep(0, eta_len - length(eta_dr_vec)))
-          } else {
-            eta_dr_vec <- eta_dr_vec[seq_len(eta_len)]
-          }
-          if (verbose > 1) {
-            cat(paste0("\nAdjusted link-derivative length for ", par_name, ": eta_dr -> ", eta_len, "\n"))
-          }
+          stop(
+            "Link-derivative length mismatch for ", par_name,
+            ": length(eta_dr)=", length(eta_dr_vec),
+            " but length(eta)=", eta_len,
+            "."
+          )
         }
 
         # 1. Calculate y_k, w_k
@@ -1670,8 +1707,8 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
 
   copula_p=rep(NA_real_,length(copula_d))
 
-  return_list=list(log_lik,margin_d,copula_d,margin_p,copula_p,Fx_1_2,order_copula,margin_deriv,pair_complete,par1,par2,row_id1,row_id2)
-  names(return_list)=c("log_lik","margin_d","copula_d","margin_p","copula_p","Fx_1_2","order_copula","margin_deriv","pair_complete","copula_par1","copula_par2","copula_row_id1","copula_row_id2")
+  return_list=list(log_lik,margin_d,copula_d,margin_p,copula_p,Fx_1_2,order_copula,margin_deriv,pair_complete,par1,par2,row_id1,row_id2,pair_cache$theta_index_map)
+  names(return_list)=c("log_lik","margin_d","copula_d","margin_p","copula_p","Fx_1_2","order_copula","margin_deriv","pair_complete","copula_par1","copula_par2","copula_row_id1","copula_row_id2","copula_theta_index_map")
   return(return_list)
 }
 
@@ -1720,7 +1757,8 @@ calc_deriv_copula_wrt_margin = function(input,margin_par,par_name,calc_d2=FALSE)
 
     if(calc_d2==FALSE) {
 
-      dlcopdpar=matrix(0,nrow=nrow(input),ncol=length(margin_par))
+      dlcopdpar_row1=matrix(0,nrow=nrow(input),ncol=length(margin_par))
+      dlcopdpar_row2=matrix(0,nrow=nrow(input),ncol=length(margin_par))
       i=1
       for (inner_par_name in margin_par) {
 
@@ -1744,19 +1782,45 @@ calc_deriv_copula_wrt_margin = function(input,margin_par,par_name,calc_d2=FALSE)
           du_t_dmu=F_nd_t
           du_t_plus_dmu=F_nd_t_plus
 
-          dc_plus_dt_dmu=dc_tplus_du_t * du_t_dmu
-          dc_plus_dt_plus_dmu=dc_tplus_du_tplus * du_t_plus_dmu
-          dc_plus_dt_dmu[is.nan(dc_plus_dt_dmu)]=0
-          dc_plus_dt_plus_dmu[is.nan(dc_plus_dt_plus_dmu)]=0
-          dcdmu_tplus=((dc_plus_dt_dmu + dc_plus_dt_plus_dmu) / c_tplus)
-          dcdmu_tplus[is.nan(dcdmu_tplus)|is.na(dcdmu_tplus)]=0
+          # Exact endpoint attribution for pair log-copula derivative:
+          # row_id1 gets (dc/du1)*(du1/dpar)/c, row_id2 gets (dc/du2)*(du2/dpar)/c.
+          dlogc_row1=(dc_tplus_du_t * du_t_dmu) / c_tplus
+          dlogc_row2=(dc_tplus_du_tplus * du_t_plus_dmu) / c_tplus
+          dlogc_row1[!is.finite(dlogc_row1)] = 0
+          dlogc_row2[!is.finite(dlogc_row2)] = 0
 
-          dlcopdpar[,i]=dcdmu_tplus
+          dlcopdpar_row1[,i]=dlogc_row1
+          dlcopdpar_row2[,i]=dlogc_row2
 
         }
         i=i+1
       }
-      colnames(dlcopdpar)=paste("dlcopd",margin_par,sep="")
+      colnames(dlcopdpar_row1)=paste("dlcopd",margin_par,sep="")
+      colnames(dlcopdpar_row2)=paste("dlcopd",margin_par,sep="")
+
+      # Prefer explicit row-index accumulation to avoid merge-order instability.
+      if(all(c("row_id1","row_id2") %in% colnames(input))) {
+        n_obs <- suppressWarnings(max(c(input[,"row_id1"], input[,"row_id2"]), na.rm = TRUE))
+        if(!is.finite(n_obs) || n_obs < 1) {
+          stop("Invalid row ids in copula-to-margin derivative assembly.")
+        }
+        d1_cop <- matrix(0, nrow = as.integer(n_obs), ncol = length(margin_par))
+        colnames(d1_cop) <- margin_par
+
+        row_id1 <- as.integer(input[,"row_id1"])
+        row_id2 <- as.integer(input[,"row_id2"])
+        for(j in seq_along(margin_par)) {
+          contrib1 <- as.numeric(dlcopdpar_row1[, j])
+          contrib2 <- as.numeric(dlcopdpar_row2[, j])
+          valid1 <- is.finite(contrib1) & is.finite(row_id1) & row_id1 >= 1 & row_id1 <= n_obs
+          valid2 <- is.finite(contrib2) & is.finite(row_id2) & row_id2 >= 1 & row_id2 <= n_obs
+          d1_cop[row_id1[valid1], j] <- d1_cop[row_id1[valid1], j] + contrib1[valid1]
+          d1_cop[row_id2[valid2], j] <- d1_cop[row_id2[valid2], j] + contrib2[valid2]
+        }
+        return(d1_cop)
+      }
+
+      dlcopdpar <- dlcopdpar_row1 + dlcopdpar_row2
 
       par_dlcopdpar=dlcopdpar[,paste("dlcopd",margin_par,sep="")]
       merged_dlcopdpar=merge(cbind(input[,c("time1","time2","subject1","subject2")],par_dlcopdpar),cbind(input[,c("time1","time2","subject1","subject2")],par_dlcopdpar),by.x=c("time2","subject2"),by.y=c("time1","subject1"),all=TRUE)
@@ -1849,6 +1913,87 @@ calc_deriv_copula_wrt_margin = function(input,margin_par,par_name,calc_d2=FALSE)
     }
 
 
+}
+
+check_dlcopdpar_gradient_margin_score <- function(
+  eta,
+  eta_inv,
+  par_name,
+  margin_dist,
+  copula_dist,
+  dataset,
+  mm,
+  pair_cache,
+  d1,
+  base_loglik,
+  verbose=FALSE
+) {
+  if (!par_name %in% c("mu", "sigma", "nu", "tau")) {
+    return(list(warned = FALSE, message = NULL))
+  }
+
+  eta_vec <- as.numeric(eta[[par_name]])
+  score_vec <- as.numeric(d1)
+  finite_idx <- which(is.finite(eta_vec) & is.finite(score_vec))
+  if (length(finite_idx) == 0) {
+    return(list(warned = FALSE, message = NULL))
+  }
+
+  probe_candidates <- unique(round(seq(1, length(finite_idx), length.out = min(3, length(finite_idx)))))
+  probe_idx <- finite_idx[probe_candidates]
+  eps <- 1e-6
+  tolerance <- 1e-3
+  diffs <- numeric(length(probe_idx))
+
+  linkinv_fun <- margin_dist[[paste(par_name, ".linkinv", sep = "")]]
+  if (is.null(linkinv_fun)) {
+    return(list(warned = FALSE, message = NULL))
+  }
+
+  for (k in seq_along(probe_idx)) {
+    idx <- probe_idx[k]
+    eta_pert <- eta
+    eta_pert[[par_name]][idx] <- eta_pert[[par_name]][idx] + eps
+
+    eta_inv_pert <- eta_inv
+    eta_inv_pert[[par_name]] <- linkinv_fun(eta_pert[[par_name]])
+
+    lik_pert <- calc_likelihood_minimal(
+      eta_inv_pert,
+      mm = mm,
+      margin_dist = margin_dist,
+      copula_dist = copula_dist,
+      calc_d2 = FALSE,
+      response = dataset$response,
+      response_margin = dataset$time,
+      response_subject = dataset$subject,
+      pair_cache = pair_cache
+    )$log_lik["joint"]
+
+    finite_diff <- (lik_pert - base_loglik) / eps
+    diffs[k] <- finite_diff - score_vec[idx]
+  }
+
+  max_abs_diff <- max(abs(diffs), na.rm = TRUE)
+  if (!is.finite(max_abs_diff)) {
+    return(list(warned = FALSE, message = NULL))
+  }
+
+  message_text <- paste0(
+    "DLCOPDGRAD check for ", par_name,
+    ": max abs(score - finite_diff) = ", signif(max_abs_diff, 4),
+    " over ", length(probe_idx), " probe row(s)."
+  )
+
+  if (max_abs_diff > tolerance) {
+    return(list(warned = TRUE, message = paste0(message_text, " Potential score mismatch detected.")))
+  }
+
+  if (!is.null(verbose) && verbose > 1) {
+    message(message_text)
+  }
+
+  return(list(warned = FALSE, message = message_text))
 }
 
 calc_copula_derivatives = function(eta_inv, Fx_1_2, copula_dist, calc_d2=FALSE, calc_d2_marginal=FALSE, par1=NULL, par2=NULL, pair_complete=NULL) {
@@ -2349,6 +2494,7 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE, prog
     #####################For each parameter...
     d1_cop=d2_cop=matrix(0,nrow=length(response),ncol=length(margin_par))
     colnames(d1_cop)=colnames(d2_cop)=margin_par
+    pair_cache_diag <- build_copula_pair_cache(response, response_margin, response_subject)
     for (par_name in margin_par) {
       if(object$include_dlcopdpar==TRUE | include_dlcopdpar==TRUE) {
 
@@ -2374,7 +2520,17 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE, prog
         margin_components_Ft_plus[,"time"]=normalize_lag_time(margin_components_Ft_plus[,"time"])
         margin_plus=merge(margin_components,margin_components_Ft_plus,by=c("time","subject"),all.x=TRUE)
 
-        copula_components=cbind(order_copula,dcdu1,dcdu2,copula_d,d2cdu12,d2cdu22,c_nd2)
+        copula_components=cbind(
+          order_copula,
+          row_id1=pair_cache_diag$row_id1,
+          row_id2=pair_cache_diag$row_id2,
+          dcdu1,
+          dcdu2,
+          copula_d,
+          d2cdu12,
+          d2cdu22,
+          c_nd2
+        )
         copula_merged=merge(copula_components,margin_plus,by.x=c("time1","subject1"),by.y=c("time","subject"),all.x=TRUE)
 
         #Calculate copula derivative with respect to marginal parameters
@@ -5067,7 +5223,7 @@ get_copula_dist=function(copula_dist) {
     parameters=c("theta")
   }
   else if(copula_dist=="G" | copula_dist=="Gumbel") {
-    copula_link=list(log_1plus,log_1plus_inv,dlog_1plus_inv); two_par_cop=FALSE
+    copula_link=list(gumbel_linkfun,gumbel_linkinv,dgumbel_linkinv); two_par_cop=FALSE
     copula_dist=VineCopula::BiCopName(copula_dist)
     parameters=c("theta")
   }

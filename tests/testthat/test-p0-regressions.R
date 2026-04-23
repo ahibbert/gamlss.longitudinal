@@ -146,10 +146,12 @@ test_that("T007 copula link functions cover Frank Joe and Gumbel", {
   expect_equal(joe$parameters, "theta")
   expect_equal(joe$copula_link$theta.linkinv(log(4)), 5)
   expect_equal(gumbel$copula_link$theta.linkinv(log(2)), 3)
+  expect_equal(gumbel$copula_link$theta.linkinv(log(100)), 17)
 
   expect_equal(gumbel$parameters, "theta")
   expect_equal(joe$copula_link$theta.linkfun(3), log(2))
   expect_equal(gumbel$copula_link$theta.linkfun(3), log(2))
+  expect_equal(gumbel$copula_link$theta.linkfun(100), log(16))
 })
 
 test_that("T008 t-copula starting values include theta and zeta", {
