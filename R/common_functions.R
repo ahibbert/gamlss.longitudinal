@@ -1,4 +1,4 @@
-﻿#' @importFrom rlang .data
+#' @importFrom rlang .data
 ###########NEW SIMPLIFIED FUNCTIONS
 
 .solve_linear_system <- function(A, b = NULL) {
