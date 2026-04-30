@@ -59,8 +59,10 @@
 #' to the margin parameters in the joint likelihood.
 #' @param check_dlcopdpar_gradient If `TRUE`, run an optional finite-difference
 #' diagnostic for the margin score contribution when `include_dlcopdpar = TRUE`.
-#' @param inner_stop_crit Stopping criterion for the inner loop
-#' @param outer_stop_crit Stopping criterion for the outer loop
+#' @param inner_stop_crit Stopping criterion for the inner loop. If `NA` or
+#' `NULL`, an automatic data-adaptive value is used.
+#' @param outer_stop_crit Stopping criterion for the outer loop. If `NA` or
+#' `NULL`, an automatic data-adaptive value is used.
 #' @param start_step_size Initial step size for the backfitting algorithm
 #' @param step_adjustment Step size adjustment factor
 #' @param max_steps Maximum number of times for reducing the step size
@@ -98,8 +100,8 @@ gamlss.longitudinal=function(dataset,
                         zeta.formula=("~ 1"),
                         include_dlcopdpar=TRUE,
                         check_dlcopdpar_gradient=FALSE,
-                        inner_stop_crit=.001,
-                        outer_stop_crit=.001,
+                        inner_stop_crit=NA,
+                        outer_stop_crit=NA,
                         start_step_size=.5,
                         step_adjustment=.5,
                         max_steps=5,
@@ -505,6 +507,63 @@ gamlss.longitudinal=function(dataset,
     response_margin=dataset$time,
     response_subject=dataset$subject
   )
+
+  .is_auto_stop_crit <- function(x) {
+    is.null(x) || (length(x) == 1 && is.na(x))
+  }
+
+  .validate_stop_crit <- function(x, name) {
+    if (!is.numeric(x) || length(x) != 1 || !is.finite(x) || x <= 0) {
+      stop(name, " must be a single positive finite number, or NA/NULL for automatic selection.")
+    }
+    as.numeric(x)
+  }
+
+  if (.is_auto_stop_crit(inner_stop_crit) || .is_auto_stop_crit(outer_stop_crit)) {
+    eta_init_out <- calc_eta(par_cov, mm, margin_dist, copula_link, par_s = par_s)
+    eta_init <- eta_init_out$eta_inv
+    calc_lik_init <- calc_likelihood_minimal(
+      eta_init,
+      mm = mm$x,
+      margin_dist,
+      copula_dist,
+      calc_d2 = FALSE,
+      response = dataset$response,
+      response_margin = dataset$time,
+      response_subject = dataset$subject,
+      pair_cache = pair_cache
+    )
+
+    init_joint_ll <- as.numeric(calc_lik_init$log_lik["joint"])
+    if (!is.finite(init_joint_ll)) {
+      init_joint_ll <- 0
+    }
+
+    scale_base <- max(1, abs(init_joint_ll), nrow(dataset))
+    auto_outer_stop_crit <- min(0.05, max(1e-4, 1e-6 * scale_base))
+    auto_inner_stop_crit <- min(0.01, max(1e-5, auto_outer_stop_crit / 5))
+
+    if (.is_auto_stop_crit(outer_stop_crit)) {
+      outer_stop_crit <- auto_outer_stop_crit
+    } else {
+      outer_stop_crit <- .validate_stop_crit(outer_stop_crit, "outer_stop_crit")
+    }
+
+    if (.is_auto_stop_crit(inner_stop_crit)) {
+      inner_stop_crit <- auto_inner_stop_crit
+    } else {
+      inner_stop_crit <- .validate_stop_crit(inner_stop_crit, "inner_stop_crit")
+    }
+
+    if (verbose > 0) {
+      cat("\nUsing stop criteria:",
+          "inner_stop_crit=", format(inner_stop_crit, digits = 6),
+          "| outer_stop_crit=", format(outer_stop_crit, digits = 6), "\n")
+    }
+  } else {
+    inner_stop_crit <- .validate_stop_crit(inner_stop_crit, "inner_stop_crit")
+    outer_stop_crit <- .validate_stop_crit(outer_stop_crit, "outer_stop_crit")
+  }
 
   #OUTER ITERATION (MAIN LOOP)
   while ((first_outer_run==TRUE | (abs(outer_log_lik_change)>outer_stop_crit)) & outer_only_run_counter < max_outer_iter) {

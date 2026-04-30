@@ -363,7 +363,7 @@ fit=gamlss.longitudinal(dataset = data_in
                    , zeta.formula = zeta_formula
                    , verbose = 1
                    , compute_vcov = TRUE
-                   , include_dlcopdpar=FALSE
+                   , include_dlcopdpar=TRUE
 )
 #endregion
 
