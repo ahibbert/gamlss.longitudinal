@@ -1,11 +1,14 @@
+#region Setup and Libraries
 source("R/common_functions.R");source("R/link_functions.R"); library("VineCopula");library("moments"); 
 library("ggplot2"); library("latex2exp"); library("ggpubr"); library("Matrix"); library("MASS")
 #library(gamlss.longitudinal); 
 library(gamlss2); library(gamlss)
 set.seed(100)
+#endregion
 
+#region Simulation Configuration
 ########### Generate Dataset ###########
-n=200; d=4
+n=500; d=4
 
 # Missingness configuration:
 # - "increasing_time": p_miss(i) = i/(T+1) by ordered time index i.
@@ -14,21 +17,175 @@ n=200; d=4
 missingness_mode = "mar" # or "mar"
 mar_missing_rate = 0.1
 
-#copula_dist="N"; margin_dist=BCPEo(); mu=1; sigma=0.5;nu=-1; tau=1; theta=-0.5; zeta=NA; simOption=10;
-copula_dist="t"; margin_dist=BCPEo(); mu=1; sigma=0.5;nu=-1; tau=1; theta=1; zeta=0; simOption=10;
+copula_dist="N"; margin_dist=GG(); mu=1.56; sigma=-2.1; nu=.7; theta=0.8; tau=NA; zeta=NA; simOption=10
 
+# Parameterization control for simulation starts:
+# - TRUE: mu/sigma/nu/tau values above are interpreted on eta (linear predictor) scale.
+# - FALSE: values are interpreted on natural parameter scale.
+margin_inputs_on_eta_scale <- TRUE
+#endregion
 
+#region Parameter Guards and Starts
+# Reproducibility guard: validate simulation inputs explicitly so stale
+# workspace variables cannot leak into loadDataset() calls.
+if (!exists("simOption", inherits = FALSE) || length(simOption) != 1 || !is.numeric(simOption) || !is.finite(simOption)) {
+  stop("simOption must be defined as one finite numeric scalar before simulation.")
+}
+
+required_margin_par <- names(margin_dist$parameters)
+if (length(required_margin_par) == 0) {
+  stop("margin_dist does not expose any parameters; cannot build par.margin.")
+}
+
+margin_start <- vapply(required_margin_par, function(pn) {
+  if (!exists(pn, envir = .GlobalEnv, inherits = FALSE)) {
+    stop("Missing required margin parameter variable: '", pn, "'.")
+  }
+  val <- get(pn, envir = .GlobalEnv, inherits = FALSE)
+  if (!is.numeric(val) || length(val) != 1 || !is.finite(val)) {
+    stop("Margin parameter '", pn, "' must be one finite numeric scalar.")
+  }
+  if (isTRUE(margin_inputs_on_eta_scale)) {
+    linkinv_name <- paste0(pn, ".linkinv")
+    if (!(linkinv_name %in% names(margin_dist)) || !is.function(margin_dist[[linkinv_name]])) {
+      stop("Missing link-inverse function for margin parameter '", pn, "'.")
+    }
+    natural_val <- suppressWarnings(margin_dist[[linkinv_name]](as.numeric(val)))
+    if (!is.numeric(natural_val) || length(natural_val) != 1 || !is.finite(natural_val)) {
+      stop(
+        "Margin eta parameter '", pn, "' = ", as.numeric(val),
+        " does not map to a finite natural parameter for family ", margin_dist$family[1],
+        "."
+      )
+    }
+    return(as.numeric(natural_val))
+  }
+
+  linkfun_name <- paste0(pn, ".linkfun")
+  if (linkfun_name %in% names(margin_dist) && is.function(margin_dist[[linkfun_name]])) {
+    eta_val <- suppressWarnings(margin_dist[[linkfun_name]](as.numeric(val)))
+    if (!is.numeric(eta_val) || length(eta_val) != 1 || !is.finite(eta_val)) {
+      stop(
+        "Margin parameter '", pn, "' = ", as.numeric(val),
+        " is outside the link-function domain for family ", margin_dist$family[1],
+        ". Provide a valid starting value."
+      )
+    }
+  }
+  as.numeric(val)
+}, numeric(1))
+
+copula_spec <- get_copula_dist(copula_dist)
+required_copula_par <- copula_spec$parameters
+if (length(required_copula_par) == 0) {
+  stop("copula_dist does not expose any parameters; cannot build par.copula.")
+}
+
+copula_start <- vapply(required_copula_par, function(pn) {
+  if (!exists(pn, envir = .GlobalEnv, inherits = FALSE)) {
+    stop("Missing required copula parameter variable: '", pn, "'.")
+  }
+  val <- get(pn, envir = .GlobalEnv, inherits = FALSE)
+  if (!is.numeric(val) || length(val) != 1 || !is.finite(val)) {
+    stop("Copula parameter '", pn, "' must be one finite numeric scalar.")
+  }
+  linkfun_name <- paste0(pn, ".linkfun")
+  if (linkfun_name %in% names(copula_spec$copula_link) && is.function(copula_spec$copula_link[[linkfun_name]])) {
+    eta_val <- suppressWarnings(copula_spec$copula_link[[linkfun_name]](as.numeric(val)))
+    if (!is.numeric(eta_val) || length(eta_val) != 1 || !is.finite(eta_val)) {
+      stop(
+        "Copula parameter '", pn, "' = ", as.numeric(val),
+        " is outside the link-function domain for copula ", copula_dist,
+        ". Provide a valid starting value."
+      )
+    }
+  }
+  as.numeric(val)
+}, numeric(1))
+#endregion
+
+#region Covariate Effects
 # USE THIS WITH SIMOPTION 10
-covariates_input=list( mu.time=0.1   ,sigma.time=0.1   ,nu.time=1    ,tau.time=0.1   ,theta.time=0.5  ,zeta.time=0
-                        ,mu.age=1    ,sigma.age=0.5     ,nu.age=0     ,tau.age=0    ,theta.age=0    ,zeta.age=0
-                        ,mu.gender=0.1 ,sigma.gender=0.1  ,nu.gender=0  ,tau.gender=0 ,theta.gender=0 ,zeta.gender=0)
+covariates_input=list( mu.time=.1   ,sigma.time=.2   ,nu.time=0    ,tau.time=0   ,theta.time=.2  ,zeta.time=0
+                        ,mu.age=0.5    ,sigma.age=0.5     ,nu.age=0     ,tau.age=0    ,theta.age=0    ,zeta.age=0
+                        ,mu.gender=1 ,sigma.gender=1  ,nu.gender=0  ,tau.gender=0 ,theta.gender=.2 ,zeta.gender=0)
+#endregion
 
+#region Generate Dataset
 #########Generate dataset
 
-rm(dataset)
-dataset=loadDataset(simOption=simOption, n=n,d=d, copula_dist=copula_dist, margin_dist=margin_dist
-                    , par.margin=c(mu,sigma,nu,tau), par.copula=c(theta=theta,zeta=zeta),covariates_input=covariates_input)
+if (exists("dataset", inherits = FALSE)) rm(dataset)
+# Safety fallback: if this section is run independently (without running the
+# guard block above), rebuild validated parameter vectors on the fly.
+if (!exists("margin_start", inherits = FALSE) || !exists("copula_start", inherits = FALSE)) {
+  required_margin_par <- names(margin_dist$parameters)
+  margin_start <- vapply(required_margin_par, function(pn) {
+    if (!exists(pn, envir = .GlobalEnv, inherits = FALSE)) {
+      stop("Missing required margin parameter variable: '", pn, "'.")
+    }
+    val <- get(pn, envir = .GlobalEnv, inherits = FALSE)
+    if (!is.numeric(val) || length(val) != 1 || !is.finite(val)) {
+      stop("Margin parameter '", pn, "' must be one finite numeric scalar.")
+    }
+    if (isTRUE(margin_inputs_on_eta_scale)) {
+      linkinv_name <- paste0(pn, ".linkinv")
+      if (!(linkinv_name %in% names(margin_dist)) || !is.function(margin_dist[[linkinv_name]])) {
+        stop("Missing link-inverse function for margin parameter '", pn, "'.")
+      }
+      natural_val <- suppressWarnings(margin_dist[[linkinv_name]](as.numeric(val)))
+      if (!is.numeric(natural_val) || length(natural_val) != 1 || !is.finite(natural_val)) {
+        stop(
+          "Margin eta parameter '", pn, "' = ", as.numeric(val),
+          " does not map to a finite natural parameter for family ", margin_dist$family[1],
+          "."
+        )
+      }
+      return(as.numeric(natural_val))
+    }
 
+    linkfun_name <- paste0(pn, ".linkfun")
+    if (linkfun_name %in% names(margin_dist) && is.function(margin_dist[[linkfun_name]])) {
+      eta_val <- suppressWarnings(margin_dist[[linkfun_name]](as.numeric(val)))
+      if (!is.numeric(eta_val) || length(eta_val) != 1 || !is.finite(eta_val)) {
+        stop(
+          "Margin parameter '", pn, "' = ", as.numeric(val),
+          " is outside the link-function domain for family ", margin_dist$family[1],
+          ". Provide a valid starting value."
+        )
+      }
+    }
+    as.numeric(val)
+  }, numeric(1))
+
+  copula_spec <- get_copula_dist(copula_dist)
+  required_copula_par <- copula_spec$parameters
+  copula_start <- vapply(required_copula_par, function(pn) {
+    if (!exists(pn, envir = .GlobalEnv, inherits = FALSE)) {
+      stop("Missing required copula parameter variable: '", pn, "'.")
+    }
+    val <- get(pn, envir = .GlobalEnv, inherits = FALSE)
+    if (!is.numeric(val) || length(val) != 1 || !is.finite(val)) {
+      stop("Copula parameter '", pn, "' must be one finite numeric scalar.")
+    }
+    linkfun_name <- paste0(pn, ".linkfun")
+    if (linkfun_name %in% names(copula_spec$copula_link) && is.function(copula_spec$copula_link[[linkfun_name]])) {
+      eta_val <- suppressWarnings(copula_spec$copula_link[[linkfun_name]](as.numeric(val)))
+      if (!is.numeric(eta_val) || length(eta_val) != 1 || !is.finite(eta_val)) {
+        stop(
+          "Copula parameter '", pn, "' = ", as.numeric(val),
+          " is outside the link-function domain for copula ", copula_dist,
+          ". Provide a valid starting value."
+        )
+      }
+    }
+    as.numeric(val)
+  }, numeric(1))
+}
+dataset=loadDataset(simOption=simOption, n=n,d=d, copula_dist=copula_dist, margin_dist=margin_dist
+                    , par.margin=margin_start, par.copula=copula_start,covariates_input=covariates_input)
+#endregion
+
+#region Inject Missingness
 # Inject missingness into response using selected mode.
 if (missingness_mode == "increasing_time") {
   time_points_missing = sort(unique(dataset$time))
@@ -56,7 +213,9 @@ if (missingness_mode == "increasing_time") {
 } else {
   stop("Invalid missingness_mode. Use 'increasing_time' or 'mar'.")
 }
+#endregion
 
+#region Exploratory Data Plots
 plotDist(dataset, margin_dist, offdiag_scale = "pseudo")
 
 ########### PLOTTING ###########
@@ -168,27 +327,32 @@ p5 = ggplot(age_skewness, aes(x=age_group, y=skewness_response, color=time, grou
 # Combine all five plots
 library(ggpubr)
 ggarrange(p1, p2, p3, p4, p5, ncol=2, nrow=3, common.legend=FALSE)
+#endregion
 
+#region Model Fit
 ########## FIT ###########
 source("R/common_functions.R")
-mu_formula="random_name ~ time_of_observation_random_name + s(age_new_name,bs='ps') + gender"
-sigma_formula="~ time_of_observation_random_name + gender + s(age_new_name,bs='ps')"
-nu_formula="~ time_of_observation_random_name"
-tau_formula="~ time_of_observation_random_name"
-theta_formula="~ time_of_observation_random_name"
+mu_formula="random_name ~ time_of_observation_random_name + s(age_new_name) + gender"
+sigma_formula="~ time_of_observation_random_name + s(age_new_name) + gender"
+nu_formula="~ 1"
+tau_formula="~ 1"
+theta_formula="~ time_of_observation_random_name + gender"
 zeta_formula="~ 1"
 
 ### FOR TESTING DATASETS WITH NON STANDARD NAMING
 if("age_group" %in% names(dataset)) dataset$age_group = NULL
 colnames(dataset)=c("person","time_of_observation_random_name","random_name","age_new_name","year","gender")
-data_in=dataset; data_in$gender=as.factor(data_in$gender); data_in$time_of_observation_random_name=as.factor(data_in$time_of_observation_random_name)
+data_in=dataset
+data_in$time_of_observation_random_name = factor(data_in$time_of_observation_random_name)
+data_in$gender = factor(data_in$gender)
 rm(dataset)
 
+options(scipen=999)
 source("R/common_functions.R")
 source("R/link_functions.R")
 fit=gamlss.longitudinal(dataset = data_in
                    , margin_dist = margin_dist
-                   , copula_dist = "t"
+                   , copula_dist = copula_dist
                    , time_var = "time_of_observation_random_name"
                    , subject_var = "person"
                    , mu.formula = mu_formula
@@ -197,20 +361,21 @@ fit=gamlss.longitudinal(dataset = data_in
                    , tau.formula = tau_formula
                    , theta.formula = theta_formula
                    , zeta.formula = zeta_formula
-                   , verbose = 3
-                   , compute_vcov = FALSE
-                   , include_dlcopdpar = TRUE
-                   , check_dlcopdpar_gradient = FALSE
-                   , step_adjustment = 1
+                   , verbose = 1
+                   , compute_vcov = TRUE
+                   , include_dlcopdpar=FALSE
 )
+#endregion
 
+#region Model Diagnostics
 #################### PLOT METHOD ####################
 source("R/common_functions.R")
 source("R/diagnostics_topmodels.R")
 source("R (testing)/plot_copula_v2.R")
 summary(fit)
-plot(fit)
 plot.terms(fit,  data = data_in)
+plot(fit)
 plot(fit, time_stratified = TRUE)
 plot.copula(fit, contour_bins=5, time_stratified = TRUE, plot2_cuts=10)
+#endregion
 

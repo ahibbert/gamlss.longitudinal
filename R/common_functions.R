@@ -98,8 +98,8 @@ gamlss.longitudinal=function(dataset,
                         zeta.formula=("~ 1"),
                         include_dlcopdpar=TRUE,
                         check_dlcopdpar_gradient=FALSE,
-                        inner_stop_crit=.1,
-                        outer_stop_crit=.1,
+                        inner_stop_crit=.001,
+                        outer_stop_crit=.001,
                         start_step_size=.5,
                         step_adjustment=.5,
                         max_steps=5,
@@ -108,15 +108,15 @@ gamlss.longitudinal=function(dataset,
                         plot_results=FALSE,
                         true_val=NA,
                         method="RS",
-                        max_outer_iter=20,
-                        max_inner_iter=20,
+                        max_outer_iter=1000,
+                        max_inner_iter=100,
                         max_negative_outer_streak=10,
                         use_backtracking=TRUE,
                         backtracking_max_halves=50,
                         compute_vcov=TRUE,
                         vcov_numderiv=TRUE,
                         use_Rcpp=FALSE,
-                        lambda_start=5,
+                        lambda_start=NA,
                         lambda_penalty_K=2
                       )
 {
@@ -472,7 +472,20 @@ gamlss.longitudinal=function(dataset,
       B=mm$s[[par_name]][[s_name]]
       par_s[[par_name]][[s_name]]=c(par_s[[par_name]][[s_name]],rep(0,ncol(B)))
       names(par_s[[par_name]][[s_name]])=paste(par_name,s_name,1:ncol(B),sep=".")
-      df_s[[par_name]][[s_name]]=0; lambda_s[[par_name]][[s_name]]=lambda_start
+      df_s[[par_name]][[s_name]]=0
+      # Data-adaptive starting lambda: tr(B'B) / tr(S) balances the penalty and
+      # data terms regardless of n, k, or response scale. Used when the user has
+      # not supplied an explicit lambda_start (i.e. lambda_start = NA).
+      S_init <- attr(B, "penalty")
+      if (is.na(lambda_start)) {
+        if (!is.null(S_init) && is.matrix(S_init) && sum(diag(S_init)) > 0) {
+          lambda_s[[par_name]][[s_name]] <- sum(diag(t(B) %*% B)) / sum(diag(S_init))
+        } else {
+          lambda_s[[par_name]][[s_name]] <- 10  # fallback if no penalty stored
+        }
+      } else {
+        lambda_s[[par_name]][[s_name]] <- lambda_start
+      }
       names(df_s[[par_name]][[s_name]])=names(lambda_s[[par_name]][[s_name]])=s_name
    }
   }
@@ -758,8 +771,16 @@ gamlss.longitudinal=function(dataset,
             B <- mm$s[[par_name]][[s_name]]
             n_B <- ncol(B)
             idx <- start_idx:(start_idx + n_B - 1)
-            D <- diff(diag(n_B), differences = 2)
-            S_base <- t(D) %*% D
+            # Prefer the basis-specific penalty from smoothCon; fall back to a
+            # generic second-difference penalty only if none was stored.
+            pen_attr <- attr(B, "penalty")
+            if (!is.null(pen_attr) && is.matrix(pen_attr) &&
+                nrow(pen_attr) == n_B && ncol(pen_attr) == n_B) {
+              S_base <- pen_attr
+            } else {
+              D <- diff(diag(n_B), differences = 2)
+              S_base <- t(D) %*% D
+            }
             smooth_penalty_meta[[s_name]] <- list(idx = idx, B = B, S_base = S_base)
             start_idx <- start_idx + n_B
           }
@@ -790,12 +811,14 @@ gamlss.longitudinal=function(dataset,
               B=meta$B
               idx=meta$idx
               S=meta$S_base
-              if(first_inner_run==TRUE) {
-                pen_mat[idx,idx]=S*0
-              } else {
-                pen_mat[idx,idx]=S*lambda_s[[par_name]][[s_name]]
-              }
-              df_s[[par_name]][[s_name]]=sum(diag(B %*% .solve_linear_system(t(B)%*%B+pen_mat[idx,idx]) %*% t(B)))
+              # Always apply the current lambda penalty (lambda_s is initialised
+              # to lambda_start, so the first outer iteration is not unpenalised).
+              pen_mat[idx,idx]=S*lambda_s[[par_name]][[s_name]]
+              # Weighted effective DF: tr((B'WB + λS)^{-1} B'WB)
+              # Uses IRLS weights w_k_vec from the enclosing scope.
+              # This is both correct and avoids building an n×n hat matrix.
+              BtWB_s <- t(B) %*% (B * as.vector(w_k_vec))
+              df_s[[par_name]][[s_name]] <- sum(.solve_linear_system(BtWB_s + pen_mat[idx,idx]) * BtWB_s)
             }
           }
 
@@ -872,7 +895,7 @@ gamlss.longitudinal=function(dataset,
                 par_s=par_s,par_cov=par_cov, beta_start=beta_start, lambda_s=lambda_s, first_inner_run=FALSE,K=K,
                   margin_dist=margin_dist, copula_dist=copula_dist, dataset=dataset, mm=mm, copula_link=copula_link
                   ,df_s=df_s,step_size=step_size,par_name=par_name,
-                  method="L-BFGS-B",lower=1,upper=1e3,control = list(factr=1,pgtol=.1)
+                  method="L-BFGS-B",lower=0.01,upper=1e6,control = list(factr=1,pgtol=.1)
               )
               lambda_s[[par_name]][[smooth_name]]=optim_lambda_out$par
               if(verbose>2) {
@@ -1402,6 +1425,11 @@ create_model_matrices<-function(
         s_con <- mgcv::smoothCon(s_obj, data = data_for_par, knots = NULL)
         if (length(s_con) > 0 && !is.null(s_con[[1]]$X)) {
           B_s <- s_con[[1]]$X
+          # Store the basis-specific penalty matrix returned by smoothCon so the
+          # optimizer can use it instead of a generic second-difference fallback.
+          if (!is.null(s_con[[1]]$S) && length(s_con[[1]]$S) > 0) {
+            attr(B_s, "penalty") <- s_con[[1]]$S[[1]]
+          }
           if (!is.null(s_call) && length(s_call) >= 2) {
             x_expr <- s_call[[2]]
             x_var <- trimws(gsub("`", "", paste(deparse(x_expr), collapse = " "), fixed = TRUE))
@@ -2668,27 +2696,32 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE, prog
         # Get the smoothing parameter
         lambda = object$lambda_s[[par_name]][[s_name]]
         
-        # Create difference penalty matrix (2nd order differences)
-        # This assumes B-splines with difference penalty
-        k = ncol(B)  # number of basis functions
-        if(k > 2) {
-          # Create second difference penalty matrix
+        # Use the mgcv-generated penalty stored on the basis matrix; fall back to
+        # a generic second-difference penalty only when unavailable.
+        k = ncol(B)
+        pen_attr = attr(B, "penalty")
+        if (!is.null(pen_attr) && is.matrix(pen_attr) &&
+            nrow(pen_attr) == k && ncol(pen_attr) == k) {
+          P = pen_attr
+        } else if (k > 2) {
           D2 = diff(diag(k), differences = 2)
           P = t(D2) %*% D2
         } else {
-          # For very small basis, use identity penalty
           P = diag(k)
         }
         
-        # Get working weights (diagonal of W matrix)
-        # Use weights from the score function calculation
-        if(!is.null(object$weights) && length(object$weights) == nrow(B)) {
-          w_diag = object$weights
+        # Get per-parameter IRLS working weights. object$weights is a named list
+        # keyed by parameter name; fall back to unit weights if not available.
+        w_par = object$weights[[par_name]]
+        if (!is.null(w_par) && is.numeric(w_par) && length(w_par) == nrow(B)) {
+          w_diag = as.vector(w_par)
         } else {
-          # Fallback: use unit weights
           w_diag = rep(1, nrow(B))
         }
         W = diag(w_diag)
+
+        # Per-parameter sigma2: scale consistent with IRLS, 1/mean(w)
+        sigma2_par = if (all(w_diag > 0)) 1 / mean(w_diag) else sigma2_est
         
         # Calculate the penalized precision matrix: X'WX + lambda*P
         XWX = t(B) %*% W %*% B
@@ -2696,7 +2729,7 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE, prog
         
         # Variance-covariance matrix for this smooth: (X'WX + lambda*P)^(-1) * sigma^2
         tryCatch({
-          smooth_vcov = solve(penalized_precision) * sigma2_est
+          smooth_vcov = solve(penalized_precision) * sigma2_par
           smooth_se = sqrt((diag(smooth_vcov)))
           
           # Store results
@@ -2706,7 +2739,7 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE, prog
           # Also calculate the smoother matrix for fitted values variance
           # A = X(X'WX + lambda*P)^(-1)X'W
           smoother_matrix = B %*% solve(penalized_precision) %*% t(B) %*% W
-          fitted_se = sqrt(abs(as.vector(diag(smoother_matrix))) * sigma2_est)
+          fitted_se = sqrt(abs(as.vector(diag(smoother_matrix))) * sigma2_par)
           
           cat(sprintf("\nSmooth term variance estimates for %s:%s\n", par_name, s_name))
           cat(sprintf("  Basis coefficients SE: min=%.4f, max=%.4f, mean=%.4f\n", 
@@ -6041,6 +6074,52 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     covariates[[2]] = t(t(matrix(1,ncol=t,nrow=n))*(1:t)) #Time
     covariates[[3]] = as.data.frame(round(runif(n,0,2),0)) #Gender
 
+    # Build treatment-coded factor effects for simulation inputs.
+    # Supported coefficient formats for each *.time / *.gender entry:
+    # - scalar: same effect for all non-reference levels
+    # - vector length (L-1): explicit non-reference effects
+    # - vector length L: full per-level effects
+    resolve_factor_effect <- function(levels, coef_input, label) {
+      lvl <- as.character(levels)
+      n_lvl <- length(lvl)
+
+      if (is.null(coef_input) || any(is.na(coef_input))) {
+        return(stats::setNames(rep(0, n_lvl), lvl))
+      }
+
+      coef_vec <- as.numeric(coef_input)
+      if (length(coef_vec) == 1) {
+        out <- c(0, rep(coef_vec, max(0, n_lvl - 1)))
+      } else if (length(coef_vec) == (n_lvl - 1)) {
+        out <- c(0, coef_vec)
+      } else if (length(coef_vec) == n_lvl) {
+        out <- coef_vec
+      } else {
+        stop(
+          "simOption 10 factor effect '", label, "' has invalid length ", length(coef_vec),
+          ". Expected 1, ", n_lvl - 1, ", or ", n_lvl, " for levels: ",
+          paste(lvl, collapse = ", "),
+          "."
+        )
+      }
+
+      stats::setNames(out, lvl)
+    }
+
+    make_time_factor_component <- function(coef_input, n_cols, label) {
+      levels <- as.character(seq_len(n_cols))
+      level_effects <- resolve_factor_effect(levels, coef_input, label)
+      matrix(rep(level_effects[levels], n), ncol = n_cols, byrow = TRUE)
+    }
+
+    make_gender_factor_component <- function(coef_input, n_cols, label) {
+      gender_vals <- as.character(as.vector(covariates[[3]][, 1]))
+      levels <- sort(unique(gender_vals))
+      level_effects <- resolve_factor_effect(levels, coef_input, label)
+      subj_effect <- as.numeric(level_effects[gender_vals])
+      matrix(rep(subj_effect, n_cols), ncol = n_cols)
+    }
+
     copula_input=get_copula_dist(copula_dist)
     copula.family=copula_input$copula_dist
 
@@ -6062,41 +6141,41 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     tau_out = NULL
 
     if ("mu" %in% names(margin_dist$parameters)) {
-      mu_eta = matrix(rep(covariates_input$mu.time * 1:(d), n), ncol = d, byrow = TRUE) + 
+      mu_eta = make_time_factor_component(covariates_input$mu.time, d, "mu.time") + 
         matrix(rep(as.matrix(covariates_input$mu.age * ((covariates[[1]] - 50) / 100)^2), d), ncol = d) + 
-        matrix(rep(as.matrix(covariates_input$mu.gender * (covariates[[3]])), d), ncol = d)
+        make_gender_factor_component(covariates_input$mu.gender, d, "mu.gender")
       mu_out = apply_margin_link("mu", par.margin[1], mu_eta)
     }
 
     if ("sigma" %in% names(margin_dist$parameters)) {
-      sigma_eta = matrix(rep(covariates_input$sigma.time * 1:(d), n), ncol = d, byrow = TRUE) + 
+      sigma_eta = make_time_factor_component(covariates_input$sigma.time, d, "sigma.time") + 
         matrix(rep(as.matrix(covariates_input$sigma.age * ((covariates[[1]] - 50) / 100)^2), d), ncol = d) +
-        matrix(rep(as.matrix(covariates_input$sigma.gender * (covariates[[3]])), d), ncol = d)
+        make_gender_factor_component(covariates_input$sigma.gender, d, "sigma.gender")
       sigma_out = apply_margin_link("sigma", par.margin[2], sigma_eta)
     }
 
     if ("nu" %in% names(margin_dist$parameters)) {
-      nu_eta = matrix(rep(covariates_input$nu.time * 1:(d), n), ncol = d, byrow = TRUE) + 
+      nu_eta = make_time_factor_component(covariates_input$nu.time, d, "nu.time") + 
         matrix(rep(as.matrix(covariates_input$nu.age * ((covariates[[1]] - 50) / 100)^2), d), ncol = d) + 
-        matrix(rep(as.matrix(covariates_input$nu.gender * (covariates[[3]])), d), ncol = d)
+        make_gender_factor_component(covariates_input$nu.gender, d, "nu.gender")
       nu_out = apply_margin_link("nu", par.margin[3], nu_eta)
     }
 
     if ("tau" %in% names(margin_dist$parameters)) {
-      tau_eta = matrix(rep(covariates_input$tau.time * 1:(d), n), ncol = d, byrow = TRUE) +
+      tau_eta = make_time_factor_component(covariates_input$tau.time, d, "tau.time") +
         matrix(rep(as.matrix(covariates_input$tau.age * ((covariates[[1]] - 50) / 100)^2), d), ncol = d) +
-        matrix(rep(as.matrix(covariates_input$tau.gender * (covariates[[3]])), d), ncol = d)
+        make_gender_factor_component(covariates_input$tau.gender, d, "tau.gender")
       tau_out = apply_margin_link("tau", par.margin[4], tau_eta)
     }
-    theta_eta_out=par.copula[1]+matrix(rep(covariates_input$theta.time*1:(d-1),n),ncol=d-1,byrow=TRUE) + 
+    theta_eta_out=par.copula[1]+make_time_factor_component(covariates_input$theta.time, d - 1, "theta.time") + 
       matrix(rep(as.matrix(covariates_input$theta.age*((covariates[[1]]-50)/100)^2),d-1),ncol=d-1) +
-      matrix(rep(as.matrix(covariates_input$theta.gender*(covariates[[3]])),d-1),ncol=d-1)
+      make_gender_factor_component(covariates_input$theta.gender, d - 1, "theta.gender")
     theta_out = copula_input$copula_link$theta.linkinv(theta_eta_out)
 
     if ("zeta" %in% copula_input$parameters) {
-      zeta_eta_out=par.copula[2]+matrix(rep(covariates_input$zeta.time*1:(d-1),n),ncol=d-1,byrow=TRUE) + 
+      zeta_eta_out=par.copula[2]+make_time_factor_component(covariates_input$zeta.time, d - 1, "zeta.time") + 
         matrix(rep(as.matrix(covariates_input$zeta.age*((covariates[[1]]-50)/100)^2),d-1),ncol=d-1) + 
-        matrix(rep(as.matrix(covariates_input$zeta.gender*(covariates[[3]])),d-1),ncol=d-1)
+        make_gender_factor_component(covariates_input$zeta.gender, d - 1, "zeta.gender")
       zeta_out = copula_input$copula_link$zeta.linkinv(zeta_eta_out)
     } else {
       zeta_out = matrix(0, nrow = n, ncol = d - 1)
