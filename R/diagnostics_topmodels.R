@@ -1,5 +1,5 @@
 # Silence NSE checks for ggplot mappings.
-utils::globalVariables(c("theoretical", "observed", "detrended", "midpoint", "root_diff", "band_lower", "band_upper", "time"))
+utils::globalVariables(c("theoretical", "observed", "detrended", "midpoint", "root_diff", "band_lower", "band_upper", "time", "split_group"))
 
 #' @export
 pithist <- function(object, ...) {
@@ -209,7 +209,9 @@ procast <- function(object, ...) {
     sigma_hat = sigma_hat,
     family = object$margin_dist$family[1],
     subject = response_subject,
-    time = response_margin
+    time = response_margin,
+    keep_mask = keep,
+    keep_index = which(keep)
   )
 }
 
@@ -302,8 +304,57 @@ qqrplot.gamlss.longitudinal <- function(object, randomize = FALSE, plot = TRUE, 
 }
 
 #' @export
-wormplot.gamlss.longitudinal <- function(object, randomize = FALSE, plot = TRUE, smooth = TRUE, by_time = FALSE, ...) {
+wormplot.gamlss.longitudinal <- function(object, randomize = FALSE, plot = TRUE, smooth = TRUE, by_time = FALSE, by = NULL, data = NULL, ...) {
   pit_out <- .gl_pit(object, randomize = randomize)
+
+  resolve_split <- function(by, pit_out, object, data = NULL) {
+    if (is.null(by) || (is.character(by) && length(by) == 1 && !nzchar(by))) {
+      return(NULL)
+    }
+    if (!is.character(by) || length(by) != 1) {
+      stop("'by' must be NULL or a single column name as a character string.")
+    }
+
+    if (by %in% c("time", "response_margin")) {
+      return(as.factor(pit_out$diag$time))
+    }
+    if (by %in% c("subject", "response_subject")) {
+      return(as.factor(pit_out$diag$subject))
+    }
+
+    if (is.null(data)) {
+      stop("To split wormplot by '", by, "', provide data= containing that column.")
+    }
+    if (!is.data.frame(data)) {
+      data <- as.data.frame(data, stringsAsFactors = FALSE)
+    }
+    if (!by %in% names(data)) {
+      stop("Column '", by, "' not found in provided data.")
+    }
+
+    n_pit <- length(pit_out$pit)
+    if (nrow(data) == n_pit) {
+      return(as.factor(data[[by]]))
+    }
+
+    keep_mask <- pit_out$diag$keep_mask
+    if (!is.null(keep_mask) && length(keep_mask) == nrow(data)) {
+      vec <- data[[by]][keep_mask]
+      if (length(vec) == n_pit) {
+        return(as.factor(vec))
+      }
+    }
+
+    keep_index <- pit_out$diag$keep_index
+    if (!is.null(keep_index) && length(keep_index) == n_pit && max(keep_index) <= nrow(data)) {
+      return(as.factor(data[[by]][keep_index]))
+    }
+
+    stop(
+      "Could not align data rows with wormplot residual rows for by='", by, "'. ",
+      "Provide data with row count equal to either length(pit) (", n_pit, ") or the original fit data rows."
+    )
+  }
 
   worm_band_frame <- function(theoretical, n, band_level = 0.95) {
     p <- stats::pnorm(theoretical)
@@ -316,15 +367,24 @@ wormplot.gamlss.longitudinal <- function(object, randomize = FALSE, plot = TRUE,
     )
   }
 
-  if (!by_time) {
+  if (isTRUE(by_time) && is.null(by)) {
+    by <- "time"
+  } else if (isTRUE(by_time) && !is.null(by)) {
+    warning("Both by_time and by were provided; using by='", by, "'.", call. = FALSE)
+  }
+
+  split_group <- resolve_split(by, pit_out, object, data)
+  split_by <- !is.null(split_group)
+
+  if (!split_by) {
     z <- stats::qnorm(pmin(pmax(pit_out$pit, .Machine$double.eps), 1 - .Machine$double.eps))
     theo <- stats::qnorm(stats::ppoints(length(z)))
     worm_df <- data.frame(theoretical = theo, detrended = sort(z) - theo)
     worm_band <- worm_band_frame(theo, length(z))
   } else {
-    split_pit <- split(pit_out$pit, pit_out$diag$time)
-    worm_list <- lapply(names(split_pit), function(ti) {
-      pit_t <- split_pit[[ti]]
+    split_pit <- split(pit_out$pit, split_group)
+    worm_list <- lapply(names(split_pit), function(grp) {
+      pit_t <- split_pit[[grp]]
       z_t <- stats::qnorm(pmin(pmax(pit_t, .Machine$double.eps), 1 - .Machine$double.eps))
       theo_t <- stats::qnorm(stats::ppoints(length(z_t)))
       band_t <- worm_band_frame(theo_t, length(z_t))
@@ -333,7 +393,7 @@ wormplot.gamlss.longitudinal <- function(object, randomize = FALSE, plot = TRUE,
         detrended = sort(z_t) - theo_t,
         band_lower = band_t$band_lower,
         band_upper = band_t$band_upper,
-        time = as.factor(ti)
+        split_group = as.factor(grp)
       )
     })
     worm_df <- do.call(rbind, worm_list)
@@ -346,7 +406,7 @@ wormplot.gamlss.longitudinal <- function(object, randomize = FALSE, plot = TRUE,
   theoretical <- detrended <- band_lower <- band_upper <- NULL
   p <- ggplot2::ggplot(worm_df, ggplot2::aes(x = theoretical, y = detrended)) +
     ggplot2::geom_ribbon(
-      data = if (by_time) worm_df else worm_band,
+      data = if (split_by) worm_df else worm_band,
       ggplot2::aes(x = theoretical, ymin = band_lower, ymax = band_upper),
       inherit.aes = FALSE,
       fill = "#9ecae1",
@@ -354,11 +414,15 @@ wormplot.gamlss.longitudinal <- function(object, randomize = FALSE, plot = TRUE,
     ) +
     ggplot2::geom_point(size = 1.2, alpha = 0.7) +
     ggplot2::geom_hline(yintercept = 0, linetype = "dashed", color = "#666666") +
-    ggplot2::labs(x = "Theoretical Normal Quantiles", y = "Detrended Quantiles", title = if (by_time) "Worm Plot by Time" else "Worm Plot") +
+    ggplot2::labs(
+      x = "Theoretical Normal Quantiles",
+      y = "Detrended Quantiles",
+      title = if (split_by) paste0("Worm Plot by ", by) else "Worm Plot"
+    ) +
     ggplot2::theme_minimal()
 
-  if (by_time) {
-    p <- p + ggplot2::facet_wrap(~time, scales = "free")
+  if (split_by) {
+    p <- p + ggplot2::facet_wrap(~split_group, scales = "free")
   }
 
   if (smooth && nrow(worm_df) > 5) {
