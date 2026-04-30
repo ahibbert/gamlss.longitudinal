@@ -4,7 +4,7 @@
 # 1) empirical copula with fitted overlay
 # 2) observed vs fitted Kendall correlation by quartile
 
-utils::globalVariables(c("u1", "u2", "quartile", "tau_emp", "tau_fit", "density", "x_id", "time_pair"))
+utils::globalVariables(c("u1", "u2", "quartile", "tau_emp", "tau_fit", "density", "x_id", "time_pair", "split_group"))
 
 .copula_v2_clamp01 <- function(x) {
   pmin(pmax(x, 0.001), 0.999)
@@ -238,6 +238,8 @@ utils::globalVariables(c("u1", "u2", "quartile", "tau_emp", "tau_fit", "density"
 
         pair_list[[idx]] <- data.frame(
           subject = subject_id,
+          time_left = as.character(t1),
+          time_right = as.character(t2),
           time_pair = paste0("T", as.character(t1), " vs T", as.character(t2)),
           lag = lag_value,
           u1 = row1$u,
@@ -257,6 +259,75 @@ utils::globalVariables(c("u1", "u2", "quartile", "tau_emp", "tau_fit", "density"
   }
 
   do.call(rbind, pair_list)
+}
+
+.copula_v2_attach_group <- function(pair_data, object, by, data = NULL) {
+  if (is.null(by) || (is.character(by) && length(by) == 1 && !nzchar(by))) {
+    pair_data$split_group <- factor(pair_data$time_pair)
+    return(pair_data)
+  }
+
+  if (!is.character(by) || length(by) != 1) {
+    stop("'by' must be NULL or a single column name as a character string.")
+  }
+
+  if (by %in% c("time", "time_pair")) {
+    pair_data$split_group <- factor(pair_data$time_pair)
+    return(pair_data)
+  }
+  if (by %in% c("subject", "lag") && by %in% names(pair_data)) {
+    pair_data$split_group <- factor(pair_data[[by]])
+    return(pair_data)
+  }
+
+  if (is.null(data)) {
+    stop("To split plot.copula by '", by, "', provide data= containing that column.")
+  }
+
+  df <- as.data.frame(data, stringsAsFactors = FALSE)
+  if (!is.null(object$var_map)) {
+    for (old_name in names(object$var_map)) {
+      new_name <- object$var_map[[old_name]]
+      if (old_name %in% names(df) && !new_name %in% names(df)) {
+        names(df)[names(df) == old_name] <- new_name
+      }
+    }
+  }
+
+  by_col <- by
+  if (!by_col %in% names(df) && !is.null(object$var_map) && by %in% names(object$var_map)) {
+    mapped_col <- object$var_map[[by]]
+    if (mapped_col %in% names(df)) {
+      by_col <- mapped_col
+    }
+  }
+  if (!by_col %in% names(df)) {
+    stop("Column '", by, "' not found in provided data after internal name mapping.")
+  }
+  if (!all(c("subject", "time") %in% names(df))) {
+    stop("Provided data must contain subject and time columns (or names mappable via object$var_map) to split by '", by, "'.")
+  }
+
+  key_df <- paste(df$subject, as.character(df$time), sep = "::")
+  key_pair <- paste(pair_data$subject, as.character(pair_data$time_left), sep = "::")
+  matched <- df[[by_col]][match(key_pair, key_df)]
+
+  if (all(is.na(matched))) {
+    by_subj <- tapply(df[[by_col]], as.character(df$subject), function(v) {
+      vv <- unique(v[!is.na(v)])
+      if (length(vv) == 1) vv else NA
+    })
+    matched <- by_subj[as.character(pair_data$subject)]
+  }
+
+  pair_data$split_group <- factor(matched)
+  pair_data <- pair_data[!is.na(pair_data$split_group), , drop = FALSE]
+
+  if (nrow(pair_data) == 0) {
+    stop("No valid paired rows remained after grouping by '", by, "'.")
+  }
+
+  pair_data
 }
 
 .copula_v2_transform_data <- function(data, transform = "uniform") {
@@ -529,11 +600,17 @@ plot.copula_contour_compare <- function(object, lags = 1, grid_n = 45, max_pairs
 #' @param plot1_style Character; "bins" (default) draws a binned empirical layer, "scatter" draws points.
 #' @param contour_bins Integer number of contour levels for the fitted copula overlay in plot 1.
 #' @param time_stratified Logical; if TRUE, facet both plots by time pair.
+#' @param by Optional grouping variable name for stratified plots. Defaults to
+#'   time-pair grouping when NULL. Use `data` for covariates not stored on the
+#'   fitted pair object (for example gender).
+#' @param data Optional data frame used when grouping by a covariate via `by`.
+#' @param tau_ylim Optional numeric vector of length 2 specifying y-axis limits
+#'   for Kendall's tau chart(s). If `NULL` (default), y-axis scales are automatic.
 #' @param plot2_cuts Integer number of quantile-based cuts used in plot 2 (default 10).
 #' @param plot Logical; if TRUE, print the dashboard.
 #'
 #' @return Invisibly returns a list with plot objects and summaries.
-plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, transform = "normal", plot1_style = "bins", contour_bins = 8, time_stratified = FALSE, plot2_cuts = 10, plot = TRUE, ...) {
+plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, transform = "normal", plot1_style = "bins", contour_bins = 8, time_stratified = FALSE, by = NULL, data = NULL, tau_ylim = NULL, plot2_cuts = 10, plot = TRUE, ...) {
   if (!inherits(object, "gamlss.longitudinal")) {
     stop("'object' must be a fitted 'gamlss.longitudinal' object.")
   }
@@ -561,8 +638,23 @@ plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, 
   }
   plot2_cuts <- as.integer(round(plot2_cuts))
 
+  if (!is.null(tau_ylim)) {
+    if (!is.numeric(tau_ylim) || length(tau_ylim) != 2 || any(!is.finite(tau_ylim)) || tau_ylim[1] >= tau_ylim[2]) {
+      stop("'tau_ylim' must be NULL or a numeric vector of length 2 with tau_ylim[1] < tau_ylim[2].")
+    }
+    tau_ylim <- as.numeric(tau_ylim)
+  }
+
   fit_data <- .copula_v2_fit_data(object)
   pair_data_uniform <- .copula_v2_pair_data(fit_data, lags = lags)
+
+  if (isTRUE(time_stratified) && is.null(by)) {
+    by <- "time_pair"
+  } else if (isTRUE(time_stratified) && !is.null(by)) {
+    warning("Both time_stratified and by were supplied; using by='", by, "'.", call. = FALSE)
+  }
+
+  pair_data_uniform <- .copula_v2_attach_group(pair_data_uniform, object = object, by = by, data = data)
   pair_data_plot <- pair_data_uniform
 
   # Apply transform to pair data if requested
@@ -591,15 +683,17 @@ plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, 
     as.numeric(VineCopula::BiCopName(copula_family_name))
   }, error = function(e) NA_numeric_)
 
-  if (isTRUE(time_stratified)) {
-    density_list <- lapply(split(pair_data_uniform, pair_data_uniform$time_pair), function(x) {
+  is_grouped <- !is.null(by) || isTRUE(time_stratified)
+
+  if (is_grouped) {
+    density_list <- lapply(split(pair_data_uniform, pair_data_uniform$split_group), function(x) {
       grid_i <- .copula_v2_average_density_grid(
         family_num = family_num,
         pair_data = x,
         grid_n = grid_n,
         max_pairs_overlay = max_pairs_overlay
       )
-      grid_i$time_pair <- as.character(x$time_pair[1])
+      grid_i$split_group <- as.character(x$split_group[1])
       grid_i
     })
     density_grid <- do.call(rbind, density_list)
@@ -668,8 +762,8 @@ plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, 
     ) +
     ggplot2::theme_minimal()
 
-  if (isTRUE(time_stratified)) {
-    p1 <- p1 + ggplot2::facet_wrap(~time_pair)
+  if (is_grouped) {
+    p1 <- p1 + ggplot2::facet_wrap(~split_group)
   }
 
   if (all(!is.finite(density_grid$density))) {
@@ -680,7 +774,7 @@ plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, 
     )
   }
 
-  build_cut_summary <- function(df, time_pair_name = NULL) {
+  build_cut_summary <- function(df, split_name = NULL) {
     if (nrow(df) < 1) {
       return(data.frame())
     }
@@ -708,15 +802,15 @@ plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, 
       )
     }))
 
-    if (!is.null(time_pair_name)) {
-      out$time_pair <- time_pair_name
+    if (!is.null(split_name)) {
+      out$split_group <- split_name
     }
     out
   }
 
-  if (isTRUE(time_stratified)) {
-    quartile_list <- lapply(split(pair_data_plot, pair_data_plot$time_pair), function(x) {
-      build_cut_summary(x, time_pair_name = as.character(x$time_pair[1]))
+  if (is_grouped) {
+    quartile_list <- lapply(split(pair_data_plot, pair_data_plot$split_group), function(x) {
+      build_cut_summary(x, split_name = as.character(x$split_group[1]))
     })
     quartile_df <- do.call(rbind, quartile_list)
   } else {
@@ -743,11 +837,14 @@ plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, 
         x = "Cut",
         y = "Kendall's tau"
       ) +
-      ggplot2::ylim(-1, 1) +
       ggplot2::theme_minimal()
 
-    if (isTRUE(time_stratified)) {
-      p2 <- p2 + ggplot2::facet_wrap(~time_pair)
+    if (is_grouped) {
+      p2 <- p2 + ggplot2::facet_wrap(~split_group, scales = if (is.null(tau_ylim)) "free_y" else "fixed")
+    }
+
+    if (!is.null(tau_ylim)) {
+      p2 <- p2 + ggplot2::coord_cartesian(ylim = tau_ylim)
     }
   }
 
