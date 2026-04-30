@@ -364,6 +364,7 @@ fit=gamlss.longitudinal(dataset = data_in
                    , verbose = 1
                    , compute_vcov = TRUE
                    , include_dlcopdpar=TRUE
+                   , vcov_numderiv = FALSE
 )
 #endregion
 
@@ -373,9 +374,252 @@ source("R/common_functions.R")
 source("R/diagnostics_topmodels.R")
 source("R (testing)/plot_copula_v2.R")
 summary(fit)
-plot.terms(fit,  data = data_in)
 plot(fit)
-plot(fit, time_stratified = TRUE)
-plot.copula(fit, contour_bins=5, time_stratified = TRUE, plot2_cuts=10)
+plot.terms(fit,  data = data_in)
+wormplot(fit, by="time_of_observation_random_name", data=data_in)
+wormplot(fit, by="gender", data=data_in)
+plot.copula(fit, by="gender", data=data_in)
+#endregion
+
+#region Hessian Method Comparison
+# Compare the analytical Hessian against the numerical ground truth.
+# Run the model fit block first, then this block.
+source("R/common_functions.R")
+source("R/link_functions.R")
+source("R/analytical_hessian.R")
+
+# Optional diagnostics toggles for this section
+run_hessian_plots <- TRUE
+hessian_block_tol <- 0.05
+
+cat("=== Hessian Method Comparison ===\n\n")
+
+# --- Numerical (source of truth) ---
+cat("Computing NUMERICAL Hessian...\n")
+t_num <- system.time(
+  vcov_num <- vcov(fit, method = "numderiv", progress = TRUE)
+)
+cat(sprintf("Numerical time: %.1f sec\n\n", t_num["elapsed"]))
+
+# --- Analytical ---
+cat("Computing ANALYTICAL Hessian...\n")
+source("R/analytical_hessian.R")
+t_ana <- system.time(
+  vcov_ana <- vcov(fit, method = "analytical", progress = TRUE)
+)
+cat(sprintf("Analytical time: %.1f sec\n\n", t_ana["elapsed"]))
+
+cat(sprintf("Speed-up: %.1fx\n\n", t_num["elapsed"] / t_ana["elapsed"]))
+
+# --- Comparison ---
+H_num <- -solve(vcov_num$vcov$overall)
+H_ana <- -solve(vcov_ana$vcov$overall)
+
+se_num <- sqrt(diag(vcov_num$vcov$overall))
+se_ana <- sqrt(diag(vcov_ana$vcov$overall))
+
+comparison_df <- data.frame(
+  parameter = names(fit$par),
+  se_numerical  = se_num,
+  se_analytical = se_ana,
+  se_rel_diff_pct = round(100 * (se_ana - se_num) / abs(se_num), 2)
+)
+cat("SE comparison (numerical vs analytical):\n")
+print(comparison_df, row.names = FALSE)
+
+# Hessian element-wise comparison
+hess_rel_err <- abs(H_ana - H_num) / (abs(H_num) + 1e-12)
+cat(sprintf("\nHessian element-wise relative error:\n"))
+cat(sprintf("  Max:    %.4f\n", max(hess_rel_err, na.rm = TRUE)))
+cat(sprintf("  Median: %.6f\n", median(hess_rel_err, na.rm = TRUE)))
+cat(sprintf("  Mean:   %.6f\n", mean(hess_rel_err, na.rm = TRUE)))
+
+# Block-level drift checks (more stable than element-wise max near tiny denominators)
+block_rel_frob <- function(A, B) {
+  num <- sqrt(sum((A - B)^2, na.rm = TRUE))
+  den <- sqrt(sum(B^2, na.rm = TRUE))
+  num / (den + 1e-12)
+}
+
+theta_rows <- grepl("theta", rownames(H_ana))
+mu_rows    <- grepl("^mu\\.", rownames(H_ana))
+sigma_rows <- grepl("^sigma\\.", rownames(H_ana))
+nu_rows    <- grepl("^nu\\.", rownames(H_ana))
+
+block_checks <- data.frame(
+  block = c("theta-theta", "mu-mu", "sigma-sigma", "nu-nu", "mu-sigma"),
+  rel_frob = c(
+    block_rel_frob(H_ana[theta_rows, theta_rows, drop = FALSE], H_num[theta_rows, theta_rows, drop = FALSE]),
+    block_rel_frob(H_ana[mu_rows, mu_rows, drop = FALSE], H_num[mu_rows, mu_rows, drop = FALSE]),
+    block_rel_frob(H_ana[sigma_rows, sigma_rows, drop = FALSE], H_num[sigma_rows, sigma_rows, drop = FALSE]),
+    block_rel_frob(H_ana[nu_rows, nu_rows, drop = FALSE], H_num[nu_rows, nu_rows, drop = FALSE]),
+    block_rel_frob(H_ana[mu_rows, sigma_rows, drop = FALSE], H_num[mu_rows, sigma_rows, drop = FALSE])
+  )
+)
+cat("\nBlock drift check (relative Frobenius norm):\n")
+print(block_checks, row.names = FALSE)
+
+bad_blocks <- block_checks$block[is.finite(block_checks$rel_frob) & block_checks$rel_frob > hessian_block_tol]
+if (length(bad_blocks) > 0) {
+  warning(
+    "Hessian block drift above tolerance (",
+    hessian_block_tol,
+    "): ",
+    paste(bad_blocks, collapse = ", "),
+    call. = FALSE
+  )
+}
+
+# Visual: scatter plot of Hessian diagonal
+if (isTRUE(run_hessian_plots)) {
+  par(mfrow = c(1, 2))
+  diag_num <- diag(H_num); diag_ana <- diag(H_ana)
+  plot(diag_num, diag_ana,
+       xlab = "Numerical H diag", ylab = "Analytical H diag",
+       main = "Hessian diagonal: Numerical vs Analytical",
+       pch = 19, col = "steelblue")
+  abline(0, 1, col = "red", lty = 2)
+
+  # Off-diagonal scatter (upper triangle)
+  idx_upper <- which(upper.tri(H_num))
+  plot(H_num[idx_upper], H_ana[idx_upper],
+       xlab = "Numerical H off-diag", ylab = "Analytical H off-diag",
+       main = "Hessian off-diagonal: Numerical vs Analytical",
+       pch = 19, col = "darkorange", cex = 0.5)
+  abline(0, 1, col = "red", lty = 2)
+  par(mfrow = c(1, 1))
+
+  # Full matrix heatmap of relative error
+  image(hess_rel_err, main = "Hessian relative error |H_ana - H_num| / |H_num|",
+        xlab = "Parameter index", ylab = "Parameter index",
+        col = heat.colors(50))
+}
+
+cat("\n=== Hessian Diagonal Ratio (analytical / numerical) ===\n")
+diag_df <- data.frame(
+  par = rownames(H_num),
+  se_num  = round(sqrt(diag(vcov_num$vcov$overall)), 5),
+  se_ana  = round(sqrt(diag(vcov_ana$vcov$overall)), 5),
+  H_ratio = round(diag(H_ana) / diag(H_num), 3)
+)
+print(diag_df, row.names = FALSE)
+
+cat("\n=== Off-diagonal block checks ===\n")
+
+cat("Theta x theta block:\n")
+print(round(H_ana[theta_rows, theta_rows], 2))
+cat("Numerical:\n")
+print(round(H_num[theta_rows, theta_rows], 2))
+
+cat("Mu x sigma cross block (first 4x4):\n")
+nr <- min(4, sum(mu_rows)); nc <- min(4, sum(sigma_rows))
+print(round(H_ana[mu_rows, sigma_rows][1:nr, 1:nc], 4))
+cat("Numerical:\n")
+print(round(H_num[mu_rows, sigma_rows][1:nr, 1:nc], 4))
+#endregion
+
+#region Debug sigma copula contribution
+run_sigma_debug <- FALSE
+if (isTRUE(run_sigma_debug)) {
+source("R/common_functions.R")
+source("R/link_functions.R")
+source("R/analytical_hessian.R")
+
+mm2 <- fit$model_matrix
+copula_link2 <- get_copula_dist(fit$copula_dist)$copula_link
+eta_out2 <- calc_eta(fit$par, mm2, fit$margin_dist, copula_link2, fit$par_s)
+pair_cache2 <- build_copula_pair_cache(fit$response, fit$response_margin, fit$response_subject)
+calc_lik2 <- calc_likelihood_minimal(
+  eta_inv = eta_out2$eta_inv, mm = mm2$x,
+  margin_dist = fit$margin_dist, copula_dist = fit$copula_dist,
+  calc_d2 = FALSE, response = fit$response,
+  response_margin = fit$response_margin, response_subject = fit$response_subject,
+  pair_cache = pair_cache2
+)
+eta_inv2 <- eta_out2$eta_inv
+eta_inv2[["margin_p_cache"]] <- calc_lik2$margin_p
+dF2 <- .calc_dFdpar(eta_inv2, mm2, fit$margin_dist, fit$response, h = 1e-4)
+d2F2 <- .calc_d2Fdpar2(eta_inv2, mm2, fit$margin_dist, fit$response, h = 1e-4)
+d2Fx2 <- .calc_d2Fdpar_cross(eta_inv2, mm2, fit$margin_dist, fit$response, h = 1e-4)
+cop2 <- suppressWarnings(.calc_copula_hessian_contributions(
+  eta_inv2, pair_cache2, fit$copula_dist, dF2, d2F2, d2Fx2
+))
+
+# For a single pair, verify
+k <- which(cop2$pair_ok)[1]
+i1 <- cop2$row_id1[k]; i2 <- cop2$row_id2[k]
+cat("Pair", k, ": obs i1=", i1, "i2=", i2, "\n")
+
+# Check copula family number
+fam_num <- as.numeric(VineCopula::BiCopName(fit$copula_dist))
+cat("Copula fam_num:", fam_num, "\n")
+th_row <- pair_cache2$theta_index_map[i1]
+cat("th_row:", th_row, "\n")
+theta_val <- copula_link2$theta.linkinv(as.numeric(eta_out2$eta_inv$theta[th_row]))
+cat("theta_val:", theta_val, "\n")
+
+u1_v <- calc_lik2$margin_p[i1]; u2_v <- calc_lik2$margin_p[i2]
+s1_0 <- eta_inv2$sigma[i1]; s2_0 <- eta_inv2$sigma[i2]
+cat("sigma i1:", s1_0, "sigma i2:", s2_0, "\n")
+
+h_s <- 1e-4
+pfun <- eval(parse(text = paste0("p", fit$margin_dist$family[1])))
+y1 <- fit$response[i1]; y2 <- fit$response[i2]
+mu1 <- eta_inv2$mu[i1]; mu2 <- eta_inv2$mu[i2]
+nu1 <- eta_inv2$nu[i1]; nu2 <- eta_inv2$nu[i2]
+
+logc_s <- function(s1, s2) {
+  u1 <- pmax(pmin(pfun(y1, mu=mu1, sigma=s1, nu=nu1), 1-1e-7), 1e-7)
+  u2 <- pmax(pmin(pfun(y2, mu=mu2, sigma=s2, nu=nu2), 1-1e-7), 1e-7)
+  log(VineCopula::BiCopPDF(u1, u2, fam_num, theta_val))
+}
+
+true_d2_i1 <- (logc_s(s1_0+h_s, s2_0) - 2*logc_s(s1_0, s2_0) + logc_s(s1_0-h_s, s2_0)) / h_s^2
+true_d2_i2 <- (logc_s(s1_0, s2_0+h_s) - 2*logc_s(s1_0, s2_0) + logc_s(s1_0, s2_0-h_s)) / h_s^2
+true_cross  <- (logc_s(s1_0+h_s, s2_0+h_s) - logc_s(s1_0+h_s, s2_0-h_s) -
+                logc_s(s1_0-h_s, s2_0+h_s) + logc_s(s1_0-h_s, s2_0-h_s)) / (4*h_s^2)
+
+cat("\nFD d2 log c / d s_i1^2:", true_d2_i1, "\n")
+cat("FD d2 log c / d s_i2^2:", true_d2_i2, "\n")
+cat("FD d2 log c / (d s_i1 d s_i2):", true_cross, "\n")
+
+cat("\nFormula cop_d2l_margin sigma[i1]:", cop2$cop_d2l_margin$sigma$sigma[i1], "\n")
+cat("Formula cross_pair[k]:", cop2$cross_pair_contribs$sigma$sigma[k], "\n")
+
+# TRUE theta: eta_inv$theta is already linkinv-transformed
+true_theta <- as.numeric(eta_out2$eta_inv$theta[pair_cache2$theta_index_map[i1]])
+cat("True natural theta:", true_theta, "\n")
+
+u1_v <- calc_lik2$margin_p[i1]; u2_v <- calc_lik2$margin_p[i2]
+cat("u1:", u1_v, "u2:", u2_v, "\n")
+s1_0 <- eta_inv2$sigma[i1]; s2_0 <- eta_inv2$sigma[i2]
+
+h_s <- 1e-4
+pfun <- eval(parse(text = paste0("p", fit$margin_dist$family[1])))
+y1 <- fit$response[i1]; y2 <- fit$response[i2]
+mu1 <- eta_inv2$mu[i1]; mu2 <- eta_inv2$mu[i2]
+nu1 <- eta_inv2$nu[i1]; nu2 <- eta_inv2$nu[i2]
+
+# FD using TRUE theta
+logc_s2 <- function(s1, s2) {
+  uu1 <- pmax(pmin(pfun(y1, mu=mu1, sigma=s1, nu=nu1), 1-1e-7), 1e-7)
+  uu2 <- pmax(pmin(pfun(y2, mu=mu2, sigma=s2, nu=nu2), 1-1e-7), 1e-7)
+  log(VineCopula::BiCopPDF(uu1, uu2, fam_num, true_theta))
+}
+true_d2_i1_corrected  <- (logc_s2(s1_0+h_s, s2_0) - 2*logc_s2(s1_0, s2_0) + logc_s2(s1_0-h_s, s2_0)) / h_s^2
+true_d2_i2_corrected  <- (logc_s2(s1_0, s2_0+h_s) - 2*logc_s2(s1_0, s2_0) + logc_s2(s1_0, s2_0-h_s)) / h_s^2
+true_cross_corrected  <- (logc_s2(s1_0+h_s, s2_0+h_s) - logc_s2(s1_0+h_s, s2_0-h_s) -
+                          logc_s2(s1_0-h_s, s2_0+h_s) + logc_s2(s1_0-h_s, s2_0-h_s)) / (4*h_s^2)
+
+cat("\nFD d2 log c / d s_i1^2 (correct theta):", true_d2_i1_corrected, "\n")
+cat("FD d2 log c / d s_i2^2 (correct theta):", true_d2_i2_corrected, "\n")
+cat("FD d2 log c / (d s_i1 d s_i2) (correct theta):", true_cross_corrected, "\n")
+cat("\ncop_d2l_margin sigma[i1]:", cop2$cop_d2l_margin$sigma$sigma[i1], "\n")
+cat("cross_pair_contribs sigma[k]:", cop2$cross_pair_contribs$sigma$sigma[k], "\n")
+cat("Error diag_i1:", cop2$cop_d2l_margin$sigma$sigma[i1] - true_d2_i1_corrected, "\n")
+cat("Error cross:", cop2$cross_pair_contribs$sigma$sigma[k] - true_cross_corrected, "\n")
+} else {
+  cat("Debug sigma copula contribution skipped (set run_sigma_debug <- TRUE to run).\n")
+}
 #endregion
 

@@ -1,6 +1,9 @@
 ﻿#' @importFrom rlang .data
 ###########NEW SIMPLIFIED FUNCTIONS
 
+# Null-coalescing operator (base R does not provide one)
+`%||%` <- function(a, b) if (!is.null(a)) a else b
+
 .solve_linear_system <- function(A, b = NULL) {
   A <- as.matrix(A)
 
@@ -2517,10 +2520,22 @@ coef.gamlss.longitudinal=function(object, ...) {
 }
 
 # This function returns the variance-covariance matrix for a given gamlss longitudinal object
+#' @param method Character; Hessian method to use. \code{"numderiv"} (default
+#'   and source of truth) uses full finite-difference numerical second
+#'   derivatives. \code{"analytical"} uses the semi-analytical Hessian from
+#'   \code{R/analytical_hessian.R} (faster, experimental). The legacy
+#'   \code{numderiv} logical argument is still accepted and maps to
+#'   \code{method = "numderiv"} when \code{TRUE}.
 #' @export
-vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE, progress=interactive(), ...) {
+vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
+                                   method=c("numderiv","analytical","analytical_only"),
+                                   progress=interactive(), h=1e-4, ...) {
 
   #object=fit; par=NA; numderiv=TRUE; sep_d2=TRUE
+
+  method <- match.arg(method)
+  # Legacy: numderiv=TRUE overrides method selection
+  if (isTRUE(numderiv)) method <- "numderiv"
 
   progress = isTRUE(progress)
   
@@ -2561,9 +2576,25 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE, prog
   nd_impact_F=calc_Fx_derivatives(eta_inv,mm$x,margin_dist,response)
   nd_impact_F2=calc_Fx2_derivatives(eta_inv,mm$x,margin_dist,response)
 
-  if(numderiv==TRUE) {
+  if (method == "numderiv") {
     #nd2_joint_lik=calc_true_SE_numderiv_only(eta_inv,mm,margin_dist,response,testing=TRUE,response_margin,response_subject)
     hessian_nd=calc_true_SE_numderiv_only_covariates(object=object,par=par_cov,mm=mm$x,margin_dist=margin_dist,response=response,testing=FALSE,response_margin=response_margin,response_subject=response_subject,progress=progress)
+  } else if (method %in% c("analytical", "analytical_only")) {
+    # Source the analytical Hessian helpers if not already loaded.
+    if (!exists("calc_analytical_hessian", mode = "function")) {
+      # Try relative to this file, then working directory
+      candidate_paths <- c(
+        file.path(dirname(attr(body(vcov.gamlss.longitudinal), "srcfile")$filename %||% ""), "analytical_hessian.R"),
+        "R/analytical_hessian.R",
+        file.path(getwd(), "R", "analytical_hessian.R")
+      )
+      loaded <- FALSE
+      for (cp in candidate_paths) {
+        if (file.exists(cp)) { source(cp, local = FALSE); loaded <- TRUE; break }
+      }
+      if (!loaded) stop("Cannot locate analytical_hessian.R. Source it manually or ensure the working directory is the package root.")
+    }
+    hessian_nd <- calc_analytical_hessian(object, progress = progress, h = h)
   } else {
 
     #######to delete############
@@ -2707,7 +2738,7 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE, prog
 
   }
 
-  if(numderiv==TRUE) {
+  if (method %in% c("numderiv", "analytical", "analytical_only")) {
     vcov_final=-solve(hessian_nd)
     se_final=sqrt(abs(diag(solve(hessian_nd))))
   } else {
@@ -6809,3 +6840,11 @@ optim_outer <- function(par,dataset,margin_dist,copula_dist,
   return(list(score=score,hessian=hessian,par_end=par_end,par_eta_end=par_eta_end,par_start=par,log_lik=log_lik))
 }
 
+# Load analytical Hessian helpers when sourcing this file directly (development workflow).
+local({
+  candidates <- c("R/analytical_hessian.R",
+                  file.path(getwd(), "R", "analytical_hessian.R"))
+  for (p in candidates) {
+    if (file.exists(p)) { source(p, local = FALSE); break }
+  }
+})
