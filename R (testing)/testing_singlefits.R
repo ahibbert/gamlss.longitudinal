@@ -1,7 +1,6 @@
 #region Setup and Libraries
 source("R/common_functions.R");source("R/link_functions.R"); library("VineCopula");library("moments"); 
 library("ggplot2"); library("latex2exp"); library("ggpubr"); library("Matrix"); library("MASS")
-#library(gamlss.longitudinal); 
 library(gamlss2); library(gamlss)
 set.seed(100)
 #endregion
@@ -17,12 +16,14 @@ n=500; d=4
 missingness_mode = "mar" # or "mar"
 mar_missing_rate = 0.1
 
-copula_dist="N"; margin_dist=GG(); mu=1.56; sigma=-2.1; nu=.7; theta=0.8; tau=NA; zeta=NA; simOption=10
+#copula_dist="t"; margin_dist=GG(); mu=2; sigma=-2; nu=1; theta=1; tau=2; zeta=2.5; simOption=10
+copula_dist="t"; margin_dist=BCPE(); mu=1; sigma=0.3; nu=2; theta=0; tau=0.5; zeta=0.5; simOption=10
 
 # Parameterization control for simulation starts:
-# - TRUE: mu/sigma/nu/tau values above are interpreted on eta (linear predictor) scale.
+# - TRUE: intercept values above are interpreted on eta (linear predictor) scale.
 # - FALSE: values are interpreted on natural parameter scale.
 margin_inputs_on_eta_scale <- TRUE
+copula_inputs_on_eta_scale <- TRUE
 #endregion
 
 #region Parameter Guards and Starts
@@ -89,6 +90,21 @@ copula_start <- vapply(required_copula_par, function(pn) {
   if (!is.numeric(val) || length(val) != 1 || !is.finite(val)) {
     stop("Copula parameter '", pn, "' must be one finite numeric scalar.")
   }
+  if (isTRUE(copula_inputs_on_eta_scale)) {
+    linkinv_name <- paste0(pn, ".linkinv")
+    if (!(linkinv_name %in% names(copula_spec$copula_link)) || !is.function(copula_spec$copula_link[[linkinv_name]])) {
+      stop("Missing link-inverse function for copula parameter '", pn, "'.")
+    }
+    natural_val <- suppressWarnings(copula_spec$copula_link[[linkinv_name]](as.numeric(val)))
+    if (!is.numeric(natural_val) || length(natural_val) != 1 || !is.finite(natural_val)) {
+      stop(
+        "Copula eta parameter '", pn, "' = ", as.numeric(val),
+        " does not map to a finite natural parameter for copula ", copula_dist,
+        "."
+      )
+    }
+    return(as.numeric(natural_val))
+  }
   linkfun_name <- paste0(pn, ".linkfun")
   if (linkfun_name %in% names(copula_spec$copula_link) && is.function(copula_spec$copula_link[[linkfun_name]])) {
     eta_val <- suppressWarnings(copula_spec$copula_link[[linkfun_name]](as.numeric(val)))
@@ -106,7 +122,7 @@ copula_start <- vapply(required_copula_par, function(pn) {
 
 #region Covariate Effects
 # USE THIS WITH SIMOPTION 10
-covariates_input=list( mu.time=.1   ,sigma.time=.2   ,nu.time=0    ,tau.time=0   ,theta.time=.2  ,zeta.time=0
+covariates_input=list( mu.time=.1   ,sigma.time=.2   ,nu.time=0    ,tau.time=0   ,theta.time=0.5  ,zeta.time=1
                         ,mu.age=0.5    ,sigma.age=0.5     ,nu.age=0     ,tau.age=0    ,theta.age=0    ,zeta.age=0
                         ,mu.gender=1 ,sigma.gender=1  ,nu.gender=0  ,tau.gender=0 ,theta.gender=.2 ,zeta.gender=0)
 #endregion
@@ -166,6 +182,21 @@ if (!exists("margin_start", inherits = FALSE) || !exists("copula_start", inherit
     val <- get(pn, envir = .GlobalEnv, inherits = FALSE)
     if (!is.numeric(val) || length(val) != 1 || !is.finite(val)) {
       stop("Copula parameter '", pn, "' must be one finite numeric scalar.")
+    }
+    if (isTRUE(copula_inputs_on_eta_scale)) {
+      linkinv_name <- paste0(pn, ".linkinv")
+      if (!(linkinv_name %in% names(copula_spec$copula_link)) || !is.function(copula_spec$copula_link[[linkinv_name]])) {
+        stop("Missing link-inverse function for copula parameter '", pn, "'.")
+      }
+      natural_val <- suppressWarnings(copula_spec$copula_link[[linkinv_name]](as.numeric(val)))
+      if (!is.numeric(natural_val) || length(natural_val) != 1 || !is.finite(natural_val)) {
+        stop(
+          "Copula eta parameter '", pn, "' = ", as.numeric(val),
+          " does not map to a finite natural parameter for copula ", copula_dist,
+          "."
+        )
+      }
+      return(as.numeric(natural_val))
     }
     linkfun_name <- paste0(pn, ".linkfun")
     if (linkfun_name %in% names(copula_spec$copula_link) && is.function(copula_spec$copula_link[[linkfun_name]])) {
@@ -361,10 +392,11 @@ fit=gamlss.longitudinal(dataset = data_in
                    , tau.formula = tau_formula
                    , theta.formula = theta_formula
                    , zeta.formula = zeta_formula
-                   , verbose = 1
+                   , verbose = 3
                    , compute_vcov = TRUE
                    , include_dlcopdpar=TRUE
-                   , vcov_numderiv = FALSE
+                   , vcov_method="analytical"
+                   , method="RS"
 )
 #endregion
 
@@ -378,7 +410,7 @@ plot(fit)
 plot.terms(fit,  data = data_in)
 wormplot(fit, by="time_of_observation_random_name", data=data_in)
 wormplot(fit, by="gender", data=data_in)
-plot.copula(fit, by="gender", data=data_in)
+plot.copula(fit, data=data_in)
 #endregion
 
 #region Hessian Method Comparison
