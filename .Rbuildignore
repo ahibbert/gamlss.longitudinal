@@ -7,3 +7,4 @@
 ^auto_open_plots\.sh$
 ^start_httpgd\.R$
 ^\.vscode$
+^results($|/)

@@ -10,7 +10,6 @@ plot_fixed_terms(
   ci_level = 0.95,
   ncol = NULL,
   include_intercept = FALSE,
-  plot_interactions = FALSE,
   ci_col = "red",
   fit_col = "black",
   ci_lty = 2,
@@ -28,7 +27,7 @@ plot_fixed_terms(
 \item{object}{A fitted `gamlss.longitudinal` object.}
 
 \item{vcov_obj}{Optional output from `vcov(object, ...)`. If `NULL`, this is
-computed internally with `vcov(object, method = "numderiv")`.}
+computed internally with `vcov(object, numderiv = TRUE)`.}
 
 \item{ci_level}{Confidence level for pointwise intervals.}
 
@@ -70,7 +69,7 @@ This utility plots fixed-effect term contributions for a fitted
 `vcov.gamlss.longitudinal()`.
 }
 \details{
-For each fixed-effect design-matrix column \eqn{x_j}, it plots
-\eqn{x_j \hat{\beta}_j} with pointwise confidence bands
-\eqn{x_j \hat{\beta}_j \pm z_{\alpha/2}\sqrt{x_j^2 \mathrm{Var}(\hat{\beta}_j)}}.
+For each fixed-effect design-matrix column $x_j$, it plots
+$x_j \hat\beta_j$ with pointwise confidence bands
+$x_j \hat\beta_j \pm z_{\alpha/2}\sqrt{x_j^2 \mathrm{Var}(\hat\beta_j)}$.
 }

@@ -4,7 +4,7 @@
 \alias{.calc_d2Fdpar2}
 \title{Second diagonal derivative d2F/dpar^2 (per observation)}
 \usage{
-.calc_d2Fdpar2(eta_inv, mm, margin_dist, response, h = 1e-04)
+.calc_d2Fdpar2(eta_inv, mm, margin_dist, response, h = 0.0001)
 }
 \description{
 Second diagonal derivative d2F/dpar^2 (per observation)

@@ -4,7 +4,7 @@
 \alias{calc_analytical_hessian}
 \title{Compute analytical (semi-analytical) Hessian for gamlss.longitudinal}
 \usage{
-calc_analytical_hessian(object, progress = interactive(), h = 1e-04)
+calc_analytical_hessian(object, progress = interactive(), h = 0.0001)
 }
 \arguments{
 \item{object}{A fitted gamlss.longitudinal object.}

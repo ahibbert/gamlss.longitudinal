@@ -17,9 +17,8 @@ gamlss.longitudinal(
   theta.formula = ("~ 1"),
   zeta.formula = ("~ 1"),
   include_dlcopdpar = TRUE,
-  check_dlcopdpar_gradient = FALSE,
-  inner_stop_crit = NA,
-  outer_stop_crit = NA,
+  inner_stop_crit = 0.1,
+  outer_stop_crit = 0.1,
   start_step_size = 0.5,
   step_adjustment = 0.5,
   max_steps = 5,
@@ -28,18 +27,18 @@ gamlss.longitudinal(
   plot_results = FALSE,
   true_val = NA,
   method = "RS",
-  max_outer_iter = 1000,
-  max_inner_iter = 100,
+  max_outer_iter = 20,
+  max_inner_iter = 20,
   max_negative_outer_streak = 10,
   use_backtracking = TRUE,
   backtracking_max_halves = 50,
   cg_max_stall = 5,
-  cg_max_delta = 0.5,
+  cg_max_delta = 1,
   cg_max_delta_upper = NA,
-  cg_armijo_c1 = 1e-04,
+  cg_armijo_c1 = 0.0001,
   cg_grad_tol = NA,
   cg_step_tol = NA,
-  cg_update_lambda = TRUE,
+  cg_update_lambda = FALSE,
   cg_beta_method = "none",
   cg_restart_every = NA,
   cg_lambda_update_every = 10,
@@ -49,7 +48,7 @@ gamlss.longitudinal(
   vcov_method = c("numderiv", "analytical"),
   vcov_numderiv = TRUE,
   use_Rcpp = FALSE,
-  lambda_start = NA,
+  lambda_start = 5,
   lambda_penalty_K = 2
 )
 }
@@ -75,15 +74,9 @@ e.g. "t", "C" etc.}
 \item{include_dlcopdpar}{Include the derivative of the copula likelihood with respect
 to the margin parameters in the joint likelihood.}
 
-\item{check_dlcopdpar_gradient}{If `TRUE`, run an optional finite-difference
-diagnostic for the margin score contribution when `include_dlcopdpar = TRUE`.}
+\item{inner_stop_crit}{Stopping criterion for the inner loop}
 
-\item{inner_stop_crit}{Stopping criterion for the inner loop. If `NA` or
-`NULL`, an automatic data-adaptive value is used.}
-
-\item{outer_stop_crit}{Stopping criterion for the outer loop. If `NA` or
-`NULL`, an automatic data-adaptive value is used. For `method = "CG"`,
-the automatic outer criterion is set 10x smaller than `"RS"`.}
+\item{outer_stop_crit}{Stopping criterion for the outer loop}
 
 \item{start_step_size}{Initial step size for the backfitting algorithm}
 
@@ -99,8 +92,7 @@ the automatic outer criterion is set 10x smaller than `"RS"`.}
 
 \item{true_val}{True values for the parameters if known for plotting}
 
-\item{method}{Optimisation method to use. Choose from `"RS"` (Rigby-Stasinopoulos style 'one-parameter at a time' updates using only first derivatives, faster but less efficient.)
-or `"CG"` (joint Cole-Green style Newton-Raphson updates using the observed first and second derivatives of the likelihood. More computationally intensive per step but more efficient.).}
+\item{method}{Optimisation method to use, RS() is the default}
 
 \item{max_outer_iter}{Maximum number of outer iterations}
 
@@ -109,44 +101,9 @@ or `"CG"` (joint Cole-Green style Newton-Raphson updates using the observed firs
 \item{max_negative_outer_streak}{Maximum number of consecutive negative outer
 log-likelihood changes allowed before stopping.}
 
-\item{use_backtracking}{Logical; if `TRUE` (default), apply step-halving
-backtracking to reject downhill inner updates.}
-
-\item{backtracking_max_halves}{Integer; maximum number of consecutive
-step halvings attempted after a rejected update before taking no step.}
-
-\item{cg_max_stall}{Integer; for `method = "CG"` only. Maximum number of
-consecutive outer iterations where no improving step is found before CG stops.}
-
-\item{cg_max_delta}{Numeric; for `method = "CG"` only. Maximum absolute
-coefficient step size used to limit Newton/trust-region updates.}
-
-\item{cg_max_delta_upper}{Numeric; for `method = "CG"` only. Optional upper
-bound for the adaptive trust-region radius. If `NA`, uses `cg_max_delta`.}
-
-\item{cg_armijo_c1}{Numeric; for `method = "CG"` only. Minimum improvement
-threshold used by the line-search acceptance rule.}
-
-\item{cg_grad_tol}{Numeric; for `method = "CG"` only. Penalized-gradient
-infinity-norm convergence tolerance. If `NA`, selected from `outer_stop_crit`.}
-
-\item{cg_step_tol}{Numeric; for `method = "CG"` only. Accepted-step L2
-convergence tolerance. If `NA`, selected from `outer_stop_crit`.}
-
-\item{cg_update_lambda}{Logical; for `method = "CG"` only. If `TRUE`, update
-smoother penalties during CG iterations.}
-
-\item{cg_beta_method}{Character; reserved CG beta update control.}
-
-\item{cg_restart_every}{Integer; reserved CG restart control.}
-
-\item{cg_lambda_update_every}{Integer; for `method = "CG"` only. When
+\item{cg_lambda_update_every}{Integer; for `method="CG"` only. When
 `cg_update_lambda = TRUE`, update each smoother's lambda every this many
 outer iterations. Use `1` to update every CG iteration.}
-
-\item{cg_wolfe}{Logical; reserved Wolfe line-search control.}
-
-\item{cg_wolfe_c2}{Numeric; reserved Wolfe curvature constant.}
 
 \item{compute_vcov}{Logical; if `TRUE` (default), compute and store the
 model variance-covariance output at the end of fitting.}
@@ -155,7 +112,7 @@ model variance-covariance output at the end of fitting.}
 One of `"numderiv"` or `"analytical"`.}
 
 \item{vcov_numderiv}{Logical; passed to `vcov.gamlss.longitudinal()` when
-`compute_vcov = TRUE`.}
+`compute_vcov = TRUE`. Retained for backwards compatibility.}
 
 \item{use_Rcpp}{Use Rcpp for matrix operations}
 }
