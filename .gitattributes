@@ -1,0 +1,24 @@
+# Normalize line endings to LF in the repository
+* text=auto eol=lf
+
+# R source files — always LF
+*.R text eol=lf
+*.Rd text eol=lf
+*.Rmd text eol=lf
+
+# Data/lock files — always LF
+*.lock text eol=lf
+
+# Windows scripts — CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files — no conversion
+*.RData binary
+*.rda binary
+*.rds binary
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary

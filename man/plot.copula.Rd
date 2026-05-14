@@ -17,6 +17,9 @@
   data = NULL,
   tau_ylim = NULL,
   plot2_cuts = 10,
+  tail_thresholds = c(0.05, 0.1, 0.2),
+  residual_lags = 1:3,
+  dashboard_ncol = 2,
   plot = TRUE,
   ...
 )
@@ -48,6 +51,14 @@ fitted pair object (for example gender).}
 for Kendall's tau chart(s). If `NULL` (default), y-axis scales are automatic.}
 
 \item{plot2_cuts}{Integer number of quantile-based cuts used in plot 2 (default 10).}
+
+\item{tail_thresholds}{Numeric vector of lower-tail probabilities used for
+tail co-occurrence and conditional exceedance diagnostics.}
+
+\item{residual_lags}{Integer lags used for Rosenblatt normal-score
+autocorrelation diagnostics.}
+
+\item{dashboard_ncol}{Number of columns in the combined diagnostic dashboard.}
 
 \item{plot}{Logical; if TRUE, print the dashboard.}
 }
