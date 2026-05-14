@@ -38,10 +38,6 @@ e.g. GA(), NO(), PO(), NBI(), etc.}
 e.g. "t", "C" etc.}
 
 \item{copula.link}{List of link functions for the copula parameters}
-
-\item{dataset}{Data frame used to construct the model matrices.}
-
-\item{quiet_gamlss2}{Logical; if `TRUE`, suppress output from internal `gamlss2()` calls.}
 }
 \value{
 Returns a list mm with items mm$x and mm$s for fixed and smooth terms respectively,

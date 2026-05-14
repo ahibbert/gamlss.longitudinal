@@ -17,8 +17,9 @@ gamlss.longitudinal(
   theta.formula = ("~ 1"),
   zeta.formula = ("~ 1"),
   include_dlcopdpar = TRUE,
-  inner_stop_crit = 0.1,
-  outer_stop_crit = 0.1,
+  check_dlcopdpar_gradient = FALSE,
+  inner_stop_crit = NA,
+  outer_stop_crit = NA,
   start_step_size = 0.5,
   step_adjustment = 0.5,
   max_steps = 5,
@@ -27,15 +28,20 @@ gamlss.longitudinal(
   plot_results = FALSE,
   true_val = NA,
   method = "RS",
-  max_outer_iter = 20,
-  max_inner_iter = 20,
+  max_outer_iter = 1000,
+  max_inner_iter = 100,
   max_negative_outer_streak = 10,
   use_backtracking = TRUE,
-  backtracking_max_halves = 5,
+  backtracking_max_halves = 50,
+  cg_max_stall = 5,
+  cg_max_delta = 5,
+  cg_armijo_c1 = 1e-04,
+  cg_grad_tol = NA,
+  cg_step_tol = NA,
   compute_vcov = TRUE,
-  vcov_numderiv = TRUE,
+  vcov_method = c("numderiv", "analytical"),
   use_Rcpp = FALSE,
-  lambda_start = 5,
+  lambda_start = NA,
   lambda_penalty_K = 2
 )
 }
@@ -61,9 +67,15 @@ e.g. "t", "C" etc.}
 \item{include_dlcopdpar}{Include the derivative of the copula likelihood with respect
 to the margin parameters in the joint likelihood.}
 
-\item{inner_stop_crit}{Stopping criterion for the inner loop}
+\item{check_dlcopdpar_gradient}{If `TRUE`, run an optional finite-difference
+diagnostic for the margin score contribution when `include_dlcopdpar = TRUE`.}
 
-\item{outer_stop_crit}{Stopping criterion for the outer loop}
+\item{inner_stop_crit}{Stopping criterion for the inner loop. If `NA` or
+`NULL`, an automatic data-adaptive value is used.}
+
+\item{outer_stop_crit}{Stopping criterion for the outer loop. If `NA` or
+`NULL`, an automatic data-adaptive value is used. For `method = "CG"`,
+the automatic outer criterion is set 10x smaller than `"RS"`.}
 
 \item{start_step_size}{Initial step size for the backfitting algorithm}
 
@@ -79,7 +91,8 @@ to the margin parameters in the joint likelihood.}
 
 \item{true_val}{True values for the parameters if known for plotting}
 
-\item{method}{Optimisation method to use, RS() is the default}
+\item{method}{Optimisation method to use. Choose from `"RS"` (Rigby-Stasinopoulos style 'one-parameter at a time' updates using only first derivatives, faster but less efficient.)
+or `"CG"` (joint Cole-Green style Newton-Raphson updates using the observed first and second derivatives of the likelihood. More computationally intensive per step but more efficient.).}
 
 \item{max_outer_iter}{Maximum number of outer iterations}
 
@@ -94,23 +107,36 @@ backtracking to reject downhill inner updates.}
 \item{backtracking_max_halves}{Integer; maximum number of consecutive
 step halvings attempted after a rejected update before taking no step.}
 
+\item{cg_max_stall}{Integer; for `method="CG"` only. Maximum number of
+consecutive outer iterations where the line search finds no improvement
+before CG declares convergence (stalled). Increase for large datasets.
+Default is 10.}
+
+\item{cg_max_delta}{Numeric; for `method="CG"` only. Maximum allowed
+absolute value of any single coefficient in the Newton step before
+backtracking begins. Caps overshooting on large or ill-conditioned problems.
+Default is 10.}
+
+\item{cg_armijo_c1}{Numeric in `(0, 1)`; for `method="CG"` only. Minimum
+fraction of the quadratic model's predicted improvement that must be realized
+by an accepted trust-region step. Smaller values are less strict. Default is
+`1e-4`.}
+
+\item{cg_grad_tol}{Numeric; for `method="CG"` only. Infinity-norm tolerance
+for the penalized gradient at convergence. If `NA`/`NULL`, an automatic value
+based on `outer_stop_crit` is used.}
+
+\item{cg_step_tol}{Numeric; for `method="CG"` only. L2-norm tolerance for
+the accepted parameter step at convergence. If `NA`/`NULL`, an automatic
+value based on `outer_stop_crit` is used.}
+
 \item{compute_vcov}{Logical; if `TRUE` (default), compute and store the
 model variance-covariance output at the end of fitting.}
 
-\item{vcov_numderiv}{Logical; passed to `vcov.gamlss.longitudinal()` when
-`compute_vcov = TRUE`.}
+\item{vcov_method}{Character; fit-time vcov method when `compute_vcov = TRUE`.
+One of `"numderiv"` or `"analytical"`.}
 
 \item{use_Rcpp}{Use Rcpp for matrix operations}
-
-\item{dataset}{A data frame containing the response, time, subject, and covariates.}
-
-\item{time_var}{Name of the time variable in `dataset`.}
-
-\item{subject_var}{Name of the subject identifier variable in `dataset`.}
-
-\item{lambda_start}{Starting penalty value used for smoothing parameter initialization.}
-
-\item{lambda_penalty_K}{Penalty matrix scaling constant used during fitting.}
 }
 \description{
 This function fits a longitudinal model to a dataset with gamlss margins
