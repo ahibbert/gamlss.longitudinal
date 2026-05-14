@@ -82,8 +82,31 @@
 #' backtracking to reject downhill inner updates.
 #' @param backtracking_max_halves Integer; maximum number of consecutive
 #' step halvings attempted after a rejected update before taking no step.
+#' @param cg_max_stall Integer; for `method = "CG"` only. Maximum number of
+#' consecutive outer iterations where no improving step is found before CG stops.
+#' @param cg_max_delta Numeric; for `method = "CG"` only. Maximum absolute
+#' coefficient step size used to limit Newton/trust-region updates.
+#' @param cg_max_delta_upper Numeric; for `method = "CG"` only. Optional upper
+#' bound for the adaptive trust-region radius. If `NA`, uses `cg_max_delta`.
+#' @param cg_armijo_c1 Numeric; for `method = "CG"` only. Minimum improvement
+#' threshold used by the line-search acceptance rule.
+#' @param cg_grad_tol Numeric; for `method = "CG"` only. Penalized-gradient
+#' infinity-norm convergence tolerance. If `NA`, selected from `outer_stop_crit`.
+#' @param cg_step_tol Numeric; for `method = "CG"` only. Accepted-step L2
+#' convergence tolerance. If `NA`, selected from `outer_stop_crit`.
+#' @param cg_update_lambda Logical; for `method = "CG"` only. If `TRUE`, update
+#' smoother penalties during CG iterations.
+#' @param cg_beta_method Character; reserved CG beta update control.
+#' @param cg_restart_every Integer; reserved CG restart control.
+#' @param cg_lambda_update_every Integer; for `method = "CG"` only. When
+#' `cg_update_lambda = TRUE`, update each smoother's lambda every this many
+#' outer iterations. Use `1` to update every CG iteration.
+#' @param cg_wolfe Logical; reserved Wolfe line-search control.
+#' @param cg_wolfe_c2 Numeric; reserved Wolfe curvature constant.
 #' @param compute_vcov Logical; if `TRUE` (default), compute and store the
 #' model variance-covariance output at the end of fitting.
+#' @param vcov_method Character; fit-time vcov method when `compute_vcov = TRUE`.
+#' One of `"numderiv"` or `"analytical"`.
 #' @param vcov_numderiv Logical; passed to `vcov.gamlss.longitudinal()` when
 #' `compute_vcov = TRUE`.
 #' @param use_Rcpp Use Rcpp for matrix operations
@@ -118,7 +141,20 @@ gamlss.longitudinal=function(dataset,
                         max_negative_outer_streak=10,
                         use_backtracking=TRUE,
                         backtracking_max_halves=50,
+                        cg_max_stall=5,
+                        cg_max_delta=0.5,
+                        cg_max_delta_upper=NA,
+                        cg_armijo_c1=1e-4,
+                        cg_grad_tol=NA,
+                        cg_step_tol=NA,
+                        cg_update_lambda=TRUE,
+                        cg_beta_method="none",
+                        cg_restart_every=NA,
+                        cg_lambda_update_every=10,
+                        cg_wolfe=FALSE,
+                        cg_wolfe_c2=0.1,
                         compute_vcov=TRUE,
+                        vcov_method=c("numderiv","analytical"),
                         vcov_numderiv=TRUE,
                         use_Rcpp=FALSE,
                         lambda_start=NA,
@@ -133,6 +169,23 @@ gamlss.longitudinal=function(dataset,
   backtracking_max_halves <- as.integer(backtracking_max_halves)
   if (backtracking_max_halves < 0) {
     stop("ERROR: backtracking_max_halves must be a single non-negative integer.")
+  }
+
+  method <- toupper(as.character(method)[1])
+  if(!method %in% c("RS", "CG")) {
+    stop("ERROR: method must be one of 'RS' or 'CG'.")
+  }
+  vcov_method <- match.arg(vcov_method)
+  vcov_numderiv <- identical(vcov_method, "numderiv") || isTRUE(vcov_numderiv)
+  cg_lambda_update_every <- as.integer(cg_lambda_update_every)
+  if(!is.finite(cg_lambda_update_every) || cg_lambda_update_every < 1L) {
+    stop("cg_lambda_update_every must be a positive integer.")
+  }
+  cg_max_stall <- as.integer(cg_max_stall)
+  if(!is.finite(cg_max_stall) || cg_max_stall < 1L) cg_max_stall <- 5L
+  if(!is.finite(cg_max_delta) || cg_max_delta <= 0) cg_max_delta <- 0.5
+  if(!is.finite(cg_max_delta_upper) || cg_max_delta_upper < cg_max_delta) {
+    cg_max_delta_upper <- cg_max_delta
   }
 
   ##################### DATA CHECKS AND VALIDATION #####################
@@ -544,6 +597,9 @@ gamlss.longitudinal=function(dataset,
 
     scale_base <- max(1, abs(init_joint_ll), nrow(dataset))
     auto_outer_stop_crit <- min(0.05, max(1e-4, 1e-6 * scale_base))
+    if (identical(method, "CG")) {
+      auto_outer_stop_crit <- auto_outer_stop_crit / 10
+    }
     auto_inner_stop_crit <- min(0.01, max(1e-5, auto_outer_stop_crit / 5))
 
     if (.is_auto_stop_crit(outer_stop_crit)) {
@@ -568,7 +624,334 @@ gamlss.longitudinal=function(dataset,
     outer_stop_crit <- .validate_stop_crit(outer_stop_crit, "outer_stop_crit")
   }
 
+  cg_grad_tol_eff <- if(.is_auto_stop_crit(cg_grad_tol)) {
+    max(1e-3, 10 * outer_stop_crit)
+  } else {
+    .validate_stop_crit(cg_grad_tol, "cg_grad_tol")
+  }
+  cg_step_tol_eff <- if(.is_auto_stop_crit(cg_step_tol)) {
+    max(1e-5, 0.1 * outer_stop_crit)
+  } else {
+    .validate_stop_crit(cg_step_tol, "cg_step_tol")
+  }
+
   #OUTER ITERATION (MAIN LOOP)
+  if(method == "CG") {
+    if(!exists("calc_analytical_hessian", mode = "function")) {
+      hess_path <- file.path(getwd(), "R", "analytical_hessian.R")
+      if(file.exists(hess_path)) {
+        source(hess_path, local = FALSE)
+      }
+    }
+    if(!exists("calc_analytical_hessian", mode = "function")) {
+      stop("CG requires calc_analytical_hessian(); source R/analytical_hessian.R first.")
+    }
+    if(verbose > 0) {
+      cat("\nUsing optimization method: CG")
+      cat(paste0(
+        "\nCG controls: max_delta=", signif(cg_max_delta, 4),
+        " | lambda_update_every=", cg_lambda_update_every,
+        " | update_lambda=", isTRUE(cg_update_lambda),
+        "\n"
+      ))
+    }
+
+    build_cg_model <- function(mm, par_cov, par_s) {
+      mm_cg <- mm
+      beta <- par_cov
+      for(pn in names(mm$x)) {
+        if(length(mm$s[[pn]]) > 0) {
+          for(sn in names(mm$s[[pn]])) {
+            B <- mm$s[[pn]][[sn]]
+            b <- par_s[[pn]][[sn]]
+            colnames(B) <- sub(paste0("^", pn, "\\."), "", names(b))
+            mm_cg$x[[pn]] <- cbind(mm_cg$x[[pn]], B)
+            beta <- c(beta, b)
+          }
+        }
+        mm_cg$s[[pn]] <- list()
+      }
+      list(mm = mm_cg, beta = beta)
+    }
+
+    unpack_cg_beta <- function(beta_vec) {
+      par_cov_new <- beta_vec[names(par_cov)]
+      par_s_new <- par_s
+      for(pn in names(par_s_new)) {
+        if(length(par_s_new[[pn]]) == 0) next
+        for(sn in names(par_s_new[[pn]])) {
+          b_names <- names(par_s_new[[pn]][[sn]])
+          par_s_new[[pn]][[sn]] <- beta_vec[b_names]
+        }
+      }
+      list(par_cov = par_cov_new, par_s = par_s_new)
+    }
+
+    build_cg_penalty <- function(beta_names, lambda_current) {
+      P <- matrix(0, nrow = length(beta_names), ncol = length(beta_names),
+                  dimnames = list(beta_names, beta_names))
+      for(pn in names(par_s)) {
+        if(length(par_s[[pn]]) == 0) next
+        for(sn in names(par_s[[pn]])) {
+          b_names <- names(par_s[[pn]][[sn]])
+          idx <- match(b_names, beta_names)
+          idx <- idx[!is.na(idx)]
+          if(length(idx) == 0) next
+          B <- mm$s[[pn]][[sn]]
+          S <- attr(B, "penalty")
+          if(is.null(S) || !is.matrix(S)) {
+            D <- diff(diag(ncol(B)), differences = 2)
+            S <- t(D) %*% D
+          }
+          P[idx, idx] <- P[idx, idx] + as.numeric(lambda_current[[pn]][[sn]]) * S
+        }
+      }
+      P
+    }
+
+    cg_eval <- function(beta_vec, mm_cg) {
+      unpacked <- unpack_cg_beta(beta_vec)
+      eta_out <- calc_eta(beta_vec, mm_cg, margin_dist, copula_link,
+                          par_s = setNames(lapply(names(mm_cg$x), function(x) list()), names(mm_cg$x)))
+      eta_inv <- eta_out$eta_inv
+      if(any(!is.finite(unlist(eta_inv, use.names = FALSE)))) return(NULL)
+      if("theta" %in% names(eta_inv) && any(abs(eta_inv$theta) >= 0.999, na.rm = TRUE)) return(NULL)
+      positive_names <- intersect(names(eta_inv), c("mu", "sigma", "tau", "zeta"))
+      for(pn in positive_names) {
+        if(any(eta_inv[[pn]] <= 1e-8, na.rm = TRUE)) return(NULL)
+      }
+      lik <- tryCatch(calc_likelihood_minimal(
+        eta_inv, mm = mm_cg$x, margin_dist, copula_dist, calc_d2 = FALSE,
+        response = dataset$response, response_margin = dataset$time,
+        response_subject = dataset$subject, pair_cache = pair_cache
+      ), error = function(e) NULL)
+      if(is.null(lik)) return(NULL)
+      list(loglik = as.numeric(lik$log_lik["joint"]), calc_lik = lik,
+           par_cov = unpacked$par_cov, par_s = unpacked$par_s)
+    }
+
+    cg_objective <- function(beta_vec, loglik, penalty_current) {
+      as.numeric(loglik) - 0.5 * sum(as.numeric(beta_vec) * as.numeric(penalty_current %*% beta_vec))
+    }
+
+    cg_gradient <- function(beta_vec, base_ll, mm_cg) {
+      grad <- rep(0, length(beta_vec))
+      names(grad) <- names(beta_vec)
+      for(ii in seq_along(beta_vec)) {
+        hk <- 1e-5 * max(1, abs(beta_vec[ii]))
+        bp <- bm <- beta_vec
+        bp[ii] <- bp[ii] + hk
+        bm[ii] <- bm[ii] - hk
+        lp <- cg_eval(bp, mm_cg)
+        lm <- cg_eval(bm, mm_cg)
+        lpv <- if(is.null(lp)) NA_real_ else lp$loglik
+        lmv <- if(is.null(lm)) NA_real_ else lm$loglik
+        if(is.finite(lpv) && is.finite(lmv)) grad[ii] <- (lpv - lmv) / (2 * hk)
+        else if(is.finite(lpv) && is.finite(base_ll)) grad[ii] <- (lpv - base_ll) / hk
+        else if(is.finite(lmv) && is.finite(base_ll)) grad[ii] <- (base_ll - lmv) / hk
+      }
+      grad
+    }
+
+    cg_smooth_edf_list <- function(H_obs_current, penalty_current, beta_names) {
+      edf_out <- setNames(lapply(names(par_s), function(x) list()), names(par_s))
+      for(pn in names(par_s)) {
+        if(length(par_s[[pn]]) == 0) next
+        for(sn in names(par_s[[pn]])) {
+          idx <- match(names(par_s[[pn]][[sn]]), rownames(H_obs_current))
+          idx <- idx[!is.na(idx)]
+          if(length(idx) == 0) next
+          H_block <- H_obs_current[idx, idx, drop = FALSE]
+          P_block <- penalty_current[idx, idx, drop = FALSE]
+          info_block <- -0.5 * (H_block + t(H_block))
+          if(sum(diag(info_block), na.rm = TRUE) < 0) {
+            info_block <- -info_block
+          }
+          info_block <- tryCatch({
+            eg <- eigen(0.5 * (info_block + t(info_block)), symmetric = TRUE)
+            eg$values[eg$values < 0] <- 0
+            eg$vectors %*% diag(eg$values, nrow = length(eg$values)) %*% t(eg$vectors)
+          }, error = function(e) info_block)
+          P_block <- 0.5 * (P_block + t(P_block))
+          edf_val <- tryCatch({
+            k <- nrow(info_block)
+            ridge <- max(1e-8, 1e-8 * max(1, max(abs(diag(info_block)), na.rm = TRUE)))
+            sum(diag(.solve_linear_system(info_block + P_block + diag(ridge, k), info_block)))
+          }, error = function(e) NA_real_)
+          if(!is.finite(edf_val)) edf_val <- length(idx)
+          edf_out[[pn]][[sn]] <- max(0, min(length(idx), as.numeric(edf_val)))
+        }
+      }
+      edf_out
+    }
+
+    cg_update_lambda_once <- function(H_obs_current, beta_vec, grad_vec, lambda_current, mm_cg, trust_radius) {
+      lambda_new <- lambda_current
+      if(!isTRUE(cg_update_lambda)) return(lambda_new)
+      for(pn in names(lambda_new)) {
+        if(length(lambda_new[[pn]]) == 0) next
+        for(sn in names(lambda_new[[pn]])) {
+          lambda0 <- as.numeric(lambda_new[[pn]][[sn]])
+          if(!is.finite(lambda0) || lambda0 <= 0) lambda0 <- 1
+          candidates <- unique(pmax(0.01, pmin(1e6, lambda0 * c(0.1, 0.25, 0.5, 1, 2, 4, 10))))
+          score <- rep(Inf, length(candidates))
+          for(jj in seq_along(candidates)) {
+            lambda_try <- lambda_new
+            lambda_try[[pn]][[sn]] <- candidates[jj]
+            P_try <- build_cg_penalty(names(beta_vec), lambda_try)
+            g_try <- grad_vec - as.numeric(P_try %*% beta_vec)
+            H_try <- H_obs_current - P_try
+            delta <- tryCatch(-as.numeric(.solve_linear_system(H_try, g_try)), error = function(e) NULL)
+            if(is.null(delta) || !all(is.finite(delta))) next
+            dnorm <- sqrt(sum(delta^2))
+            if(is.finite(dnorm) && dnorm > trust_radius) delta <- delta * trust_radius / dnorm
+            dc <- max(abs(delta))
+            if(is.finite(dc) && dc > cg_max_delta) delta <- delta * cg_max_delta / dc
+            beta_try <- beta_vec + delta
+            eval_try <- cg_eval(beta_try, mm_cg)
+            if(is.null(eval_try) || !is.finite(eval_try$loglik)) next
+            edf_try <- sum(unlist(cg_smooth_edf_list(H_obs_current, P_try, names(beta_vec))), na.rm = TRUE)
+            score[jj] <- -2 * eval_try$loglik + lambda_penalty_K * edf_try
+          }
+          best <- which.min(score)
+          if(length(best) == 1 && is.finite(score[best])) {
+            lambda_new[[pn]][[sn]] <- candidates[best]
+            if(verbose > 1) {
+              cat(paste0("\nCG lambda update for ", pn, " - ", sn, ": ",
+                         signif(lambda0, 4), " -> ", signif(candidates[best], 4)))
+            }
+          }
+        }
+      }
+      lambda_new
+    }
+
+    cg_aug <- build_cg_model(mm, par_cov, par_s)
+    mm_cg <- cg_aug$mm
+    beta_all <- cg_aug$beta
+    penalty_mat <- build_cg_penalty(names(beta_all), lambda_s)
+    cg_trust_radius <- as.numeric(cg_max_delta)
+    cg_stall_count <- 0L
+    cg_converged <- FALSE
+
+    while(!cg_converged && outer_only_run_counter < max_outer_iter) {
+      cat(paste("\nOUTER ITERATION:", outer_only_run_counter))
+      eval_start <- cg_eval(beta_all, mm_cg)
+      if(is.null(eval_start) || !is.finite(eval_start$loglik)) stop("CG failed: current likelihood is not finite.")
+      log_lik_history <- rbind(log_lik_history, eval_start$calc_lik$log_lik)
+      par_history <- rbind(par_history, eval_start$par_cov)
+      outer_start_log_lik <- eval_start$loglik
+      obj_start <- cg_objective(beta_all, outer_start_log_lik, penalty_mat)
+      grad <- cg_gradient(beta_all, outer_start_log_lik, mm_cg)
+
+      tmp_obj <- list(
+        response = dataset$response,
+        response_margin = dataset$time,
+        response_subject = dataset$subject,
+        margin_dist = margin_dist,
+        copula_dist = copula_dist,
+        model_matrix = mm_cg,
+        par = beta_all,
+        par_s = setNames(lapply(names(mm_cg$x), function(x) list()), names(mm_cg$x))
+      )
+      H_obs <- calc_analytical_hessian(tmp_obj, progress = FALSE)
+      if(isTRUE(cg_update_lambda) && outer_only_run_counter > 1 &&
+         ((outer_only_run_counter - 2L) %% cg_lambda_update_every == 0L)) {
+        lambda_s <- cg_update_lambda_once(H_obs, beta_all, grad, lambda_s, mm_cg, cg_trust_radius)
+        penalty_mat <- build_cg_penalty(names(beta_all), lambda_s)
+      }
+      df_s <- cg_smooth_edf_list(H_obs, penalty_mat, names(beta_all))
+
+      g_pen <- grad - as.numeric(penalty_mat %*% beta_all)
+      H_pen <- H_obs - penalty_mat
+      candidate_steps <- list()
+      grad_norm <- sqrt(sum(g_pen^2))
+      if(is.finite(grad_norm) && grad_norm > 0) {
+        candidate_steps[[length(candidate_steps) + 1L]] <- as.numeric(cg_trust_radius * g_pen / grad_norm)
+      }
+      for(ridge in c(0, 1e-8, 1e-6, 1e-4, 1e-2, 1, 10, 100)) {
+        d <- tryCatch(-as.numeric(.solve_linear_system(H_pen - diag(ridge, nrow(H_pen)), g_pen)), error = function(e) NULL)
+        if(!is.null(d) && all(is.finite(d))) {
+          candidate_steps[[length(candidate_steps) + 1L]] <- d
+          candidate_steps[[length(candidate_steps) + 1L]] <- -d
+        }
+      }
+
+      best <- NULL
+      max_backtrack <- if(isTRUE(use_backtracking)) as.integer(backtracking_max_halves) else 0L
+      for(delta0 in candidate_steps) {
+        for(bt in seq_len(max_backtrack + 1L)) {
+          delta <- delta0 / (2 ^ (bt - 1L))
+          dnorm <- sqrt(sum(delta^2))
+          if(is.finite(dnorm) && dnorm > cg_trust_radius) delta <- delta * cg_trust_radius / dnorm
+          dc <- max(abs(delta))
+          if(is.finite(dc) && dc > cg_max_delta) delta <- delta * cg_max_delta / dc
+          beta_try <- beta_all + delta
+          eval_try <- cg_eval(beta_try, mm_cg)
+          if(is.null(eval_try) || !is.finite(eval_try$loglik)) next
+          obj_try <- cg_objective(beta_try, eval_try$loglik, penalty_mat)
+          improvement <- obj_try - obj_start
+          if(is.finite(improvement) && improvement > max(1e-8, cg_armijo_c1 * max(1, abs(obj_start)))) {
+            if(is.null(best) || improvement > best$improvement) {
+              best <- list(beta = beta_try, eval = eval_try, improvement = improvement,
+                           step_l2 = sqrt(sum(delta^2)))
+            }
+          }
+        }
+      }
+
+      if(is.null(best)) {
+        cg_stall_count <- cg_stall_count + 1L
+        cg_trust_radius <- max(cg_trust_radius / 2, cg_step_tol_eff)
+        calc_lik_out_end <- eval_start$calc_lik
+        if(verbose > 0) cat(paste0("\nCG step rejected (stall ", cg_stall_count, "/", cg_max_stall, ")\n"))
+      } else {
+        beta_all <- best$beta
+        unpacked <- unpack_cg_beta(beta_all)
+        par_cov <- unpacked$par_cov
+        par_s <- unpacked$par_s
+        calc_lik_out_end <- best$eval$calc_lik
+        cg_stall_count <- 0L
+      }
+
+      outer_end_log_lik <- as.numeric(calc_lik_out_end$log_lik["joint"])
+      outer_log_lik_change <- outer_end_log_lik - outer_start_log_lik
+      out_temp <- c(outer_start_log_lik, outer_end_log_lik, outer_log_lik_change)
+      names(out_temp) <- c("Start LogLik", "End LogLik", "Change")
+      cat("\n")
+      print(out_temp)
+
+      if(cg_stall_count >= cg_max_stall) cg_converged <- TRUE
+      grad_inf <- max(abs(g_pen), na.rm = TRUE)
+      step_l2 <- if(is.null(best)) 0 else best$step_l2
+      if(abs(outer_log_lik_change) <= outer_stop_crit &&
+         is.finite(grad_inf) && grad_inf <= cg_grad_tol_eff &&
+         is.finite(step_l2) && step_l2 <= cg_step_tol_eff) {
+        cat("\nOUTER CONVERGED")
+        cg_converged <- TRUE
+      }
+
+      outer_only_run_counter <- outer_only_run_counter + 1L
+    }
+
+    final_obj <- list(
+      response = dataset$response,
+      response_margin = dataset$time,
+      response_subject = dataset$subject,
+      margin_dist = margin_dist,
+      copula_dist = copula_dist,
+      model_matrix = mm_cg,
+      par = beta_all,
+      par_s = setNames(lapply(names(mm_cg$x), function(x) list()), names(mm_cg$x))
+    )
+    final_H <- tryCatch(calc_analytical_hessian(final_obj, progress = FALSE), error = function(e) NULL)
+    if(!is.null(final_H)) {
+      penalty_mat <- build_cg_penalty(names(beta_all), lambda_s)
+      df_s <- cg_smooth_edf_list(final_H, penalty_mat, names(beta_all))
+    }
+
+    for(pn in names(mm$x)) weights_final[[pn]] <- rep(1, nrow(mm$x[[pn]]))
+  } else {
   while ((first_outer_run==TRUE | (abs(outer_log_lik_change)>outer_stop_crit)) & outer_only_run_counter < max_outer_iter) {
 
     cat(paste("\nOUTER ITERATION:",outer_only_run_counter))
@@ -876,9 +1259,9 @@ gamlss.longitudinal=function(dataset,
               # Always apply the current lambda penalty (lambda_s is initialised
               # to lambda_start, so the first outer iteration is not unpenalised).
               pen_mat[idx,idx]=S*lambda_s[[par_name]][[s_name]]
-              # Weighted effective DF: tr((B'WB + λS)^{-1} B'WB)
+              # Weighted effective DF: tr((B'WB + lambda S)^(-1) B'WB)
               # Uses IRLS weights w_k_vec from the enclosing scope.
-              # This is both correct and avoids building an n×n hat matrix.
+              # This is both correct and avoids building an n by n hat matrix.
               BtWB_s <- t(B) %*% (B * as.vector(w_k_vec))
               df_s[[par_name]][[s_name]] <- sum(.solve_linear_system(BtWB_s + pen_mat[idx,idx]) * BtWB_s)
             }
@@ -1133,6 +1516,7 @@ gamlss.longitudinal=function(dataset,
     }
     
   }
+  }
 
   cat("\n\n############ MODEL FIT ############\n")
   cat(paste("\nMargin distribution:",margin_dist$family[2]))
@@ -1192,7 +1576,8 @@ gamlss.longitudinal=function(dataset,
   return_list$vcov <- NULL
   return_list$vcov_meta <- list(
     precomputed = FALSE,
-    numderiv = isTRUE(vcov_numderiv)
+    numderiv = isTRUE(vcov_numderiv),
+    method = vcov_method
   )
 
   if(isTRUE(compute_vcov)) {
@@ -1204,6 +1589,7 @@ gamlss.longitudinal=function(dataset,
       vcov.gamlss.longitudinal(
         return_list,
         numderiv = isTRUE(vcov_numderiv),
+        method = vcov_method,
         progress = isTRUE(verbose > 0)
       )
     }, error = function(e) {
