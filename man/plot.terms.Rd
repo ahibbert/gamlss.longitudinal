@@ -33,6 +33,10 @@ spaced x-grid.}
 
 \item{smooth_grid_n}{Number of x-grid points for smooth-term plots when
 `smooth_even_grid = TRUE`.}
+
+\item{paginate}{Logical; if `TRUE`, render one chart at a time and prompt
+for Enter between plots (interactive sessions). If `FALSE` (default), render
+all plots in a multi-panel dashboard.}
 }
 \value{
 Invisibly returns a list with `smooth_terms` and `fixed_terms`.

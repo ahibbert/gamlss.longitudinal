@@ -4,7 +4,7 @@
 \alias{summary.gamlss.longitudinal}
 \title{Summarize a fitted gamlss.longitudinal model}
 \usage{
-\method{summary}{gamlss.longitudinal}(object, include_vcov = TRUE, numderiv = TRUE, ci_level = 0.95, ...)
+\method{summary}{gamlss.longitudinal}(object, include_vcov = TRUE, vcov_method = NULL, ci_level = 0.95, ...)
 }
 \arguments{
 \item{object}{A fitted object of class `gamlss.longitudinal`.}
@@ -12,7 +12,9 @@
 \item{include_vcov}{Logical; if `TRUE`, compute and include variance-covariance
 output via `vcov.gamlss.longitudinal()`.}
 
-\item{numderiv}{Logical passed to `vcov.gamlss.longitudinal()`.}
+\item{vcov_method}{Optional character method passed to
+`vcov.gamlss.longitudinal()`. If `NULL` (default), uses the fit's cached
+vcov method when available.}
 
 \item{ci_level}{Confidence level for coefficient intervals.}
 

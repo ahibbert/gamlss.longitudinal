@@ -28,15 +28,13 @@ plot_fixed_terms(
 \item{object}{A fitted `gamlss.longitudinal` object.}
 
 \item{vcov_obj}{Optional output from `vcov(object, ...)`. If `NULL`, this is
-computed internally with `vcov(object, numderiv = TRUE)`.}
+computed internally with `vcov(object, method = "numderiv")`.}
 
 \item{ci_level}{Confidence level for pointwise intervals.}
 
 \item{ncol}{Number of plot columns (defaults to 2 or fewer if needed).}
 
 \item{include_intercept}{Logical; include intercept columns in plots.}
-
-\item{plot_interactions}{Logical; include interaction term panels when available.}
 
 \item{ci_col}{Color for confidence bands.}
 

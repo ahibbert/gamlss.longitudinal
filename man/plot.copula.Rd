@@ -13,6 +13,9 @@
   plot1_style = "bins",
   contour_bins = 8,
   time_stratified = FALSE,
+  by = NULL,
+  data = NULL,
+  tau_ylim = NULL,
   plot2_cuts = 10,
   plot = TRUE,
   ...
@@ -34,6 +37,15 @@
 \item{contour_bins}{Integer number of contour levels for the fitted copula overlay in plot 1.}
 
 \item{time_stratified}{Logical; if TRUE, facet both plots by time pair.}
+
+\item{by}{Optional grouping variable name for stratified plots. Defaults to
+time-pair grouping when NULL. Use `data` for covariates not stored on the
+fitted pair object (for example gender).}
+
+\item{data}{Optional data frame used when grouping by a covariate via `by`.}
+
+\item{tau_ylim}{Optional numeric vector of length 2 specifying y-axis limits
+for Kendall's tau chart(s). If `NULL` (default), y-axis scales are automatic.}
 
 \item{plot2_cuts}{Integer number of quantile-based cuts used in plot 2 (default 10).}
 
