@@ -5,7 +5,7 @@
 \title{Plot copula diagnostics for a fitted gamlss.longitudinal object}
 \usage{
 \method{plot}{copula}(
-  object,
+  x,
   lags = 1,
   grid_n = 35,
   max_pairs_overlay = 300,
@@ -25,7 +25,7 @@
 )
 }
 \arguments{
-\item{object}{A fitted `gamlss.longitudinal` object.}
+\item{x}{A fitted `gamlss.longitudinal` object.}
 
 \item{lags}{Integer lags to assess, measured in ordered time steps.}
 
@@ -61,6 +61,8 @@ autocorrelation diagnostics.}
 \item{dashboard_ncol}{Number of columns in the combined diagnostic dashboard.}
 
 \item{plot}{Logical; if TRUE, print the dashboard.}
+
+\item{...}{Additional arguments reserved for future methods.}
 }
 \value{
 Invisibly returns a list with plot objects and summaries.

@@ -5,7 +5,7 @@
 \title{Compute observed per-observation margin log-density second derivatives
 via finite differences in the natural (pre-link) parameter space.}
 \usage{
-.calc_margin_d2l_fd(eta_inv, mm, margin_dist, response, h = 0.0001)
+.calc_margin_d2l_fd(eta_inv, mm, margin_dist, response, h = 1e-04)
 }
 \description{
 This replaces the gamlss family d2ld*2 functions which return the

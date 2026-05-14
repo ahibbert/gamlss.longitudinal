@@ -82,8 +82,7 @@ diagnostic for the margin score contribution when `include_dlcopdpar = TRUE`.}
 `NULL`, an automatic data-adaptive value is used.}
 
 \item{outer_stop_crit}{Stopping criterion for the outer loop. If `NA` or
-`NULL`, an automatic data-adaptive value is used. For `method = "CG"`,
-the automatic outer criterion is set 10x smaller than `"RS"`.}
+`NULL`, an automatic data-adaptive value is used.}
 
 \item{start_step_size}{Initial step size for the backfitting algorithm}
 
@@ -99,8 +98,7 @@ the automatic outer criterion is set 10x smaller than `"RS"`.}
 
 \item{true_val}{True values for the parameters if known for plotting}
 
-\item{method}{Optimisation method to use. Choose from `"RS"` (Rigby-Stasinopoulos style 'one-parameter at a time' updates using only first derivatives, faster but less efficient.)
-or `"CG"` (joint Cole-Green style Newton-Raphson updates using the observed first and second derivatives of the likelihood. More computationally intensive per step but more efficient.).}
+\item{method}{Optimisation method to use, RS() is the default}
 
 \item{max_outer_iter}{Maximum number of outer iterations}
 
