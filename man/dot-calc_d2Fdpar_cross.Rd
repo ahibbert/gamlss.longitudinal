@@ -4,7 +4,7 @@
 \alias{.calc_d2Fdpar_cross}
 \title{Cross second derivative d2F/(dpar1 dpar2) (per observation)}
 \usage{
-.calc_d2Fdpar_cross(eta_inv, mm, margin_dist, response, h = 0.0001)
+.calc_d2Fdpar_cross(eta_inv, mm, margin_dist, response, h = 1e-04)
 }
 \description{
 Cross second derivative d2F/(dpar1 dpar2) (per observation)

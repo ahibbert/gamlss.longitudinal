@@ -4,7 +4,7 @@
 \alias{.calc_dFdpar}
 \title{First derivative of F(y) w.r.t. natural parameters (per observation)}
 \usage{
-.calc_dFdpar(eta_inv, mm, margin_dist, response, h = 0.0001)
+.calc_dFdpar(eta_inv, mm, margin_dist, response, h = 1e-04)
 }
 \description{
 Returns a list named by margin parameter (mu, sigma, nu, tau).

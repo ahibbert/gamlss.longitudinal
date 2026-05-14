@@ -20,6 +20,7 @@ Imports:
     ggpubr,
     MASS,
     mgcv,
+    scales,
     methods,
     utils,
     stats,

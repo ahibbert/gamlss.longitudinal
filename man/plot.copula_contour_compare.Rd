@@ -5,7 +5,7 @@
 \title{Compare fitted and empirical copula contour surfaces}
 \usage{
 \method{plot}{copula_contour_compare}(
-  object,
+  x,
   lags = 1,
   grid_n = 45,
   max_pairs_overlay = 300,
@@ -18,7 +18,7 @@
 )
 }
 \arguments{
-\item{object}{A fitted `gamlss.longitudinal` object.}
+\item{x}{A fitted `gamlss.longitudinal` object.}
 
 \item{lags}{Integer lags to assess, measured in ordered time steps.}
 
@@ -35,6 +35,8 @@
 \item{time_stratified}{Logical; if TRUE, compare surfaces by time pair.}
 
 \item{plot}{Logical; if TRUE, print the dashboard.}
+
+\item{...}{Additional arguments reserved for future methods.}
 }
 \value{
 Invisibly returns plots, grid-level surfaces, and numeric similarity metrics.
