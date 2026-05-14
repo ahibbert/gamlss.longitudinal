@@ -109,6 +109,14 @@ utils::globalVariables(c(
 #' outer iterations. Use `1` to update every CG iteration.
 #' @param cg_wolfe Logical; reserved Wolfe line-search control.
 #' @param cg_wolfe_c2 Numeric; reserved Wolfe curvature constant.
+#' @param cg_line_search Character; for `method = "CG"` only. `"best"` evaluates
+#' candidate steps up to `cg_max_line_search_evals` before taking the largest
+#' improvement, while `"first"` accepts the first improving candidate step.
+#' @param cg_max_line_search_evals Integer; for `method = "CG"` only. Optional
+#' cap on the number of candidate likelihood evaluations per outer iteration.
+#' @param cg_gradient_method Character; for `method = "CG"` only. `"forward"`
+#' uses one-sided finite differences for speed, while `"central"` uses two-sided
+#' finite differences.
 #' @param compute_vcov Logical; if `TRUE` (default), compute and store the
 #' model variance-covariance output at the end of fitting.
 #' @param vcov_method Character; fit-time vcov method when `compute_vcov = TRUE`.
@@ -159,6 +167,9 @@ gamlss.longitudinal=function(dataset,
                         cg_lambda_update_every=10,
                         cg_wolfe=FALSE,
                         cg_wolfe_c2=0.1,
+                        cg_line_search="best",
+                        cg_max_line_search_evals=60,
+                        cg_gradient_method="forward",
                         compute_vcov=TRUE,
                         vcov_method=c("numderiv","analytical"),
                         vcov_numderiv=TRUE,
@@ -178,6 +189,19 @@ gamlss.longitudinal=function(dataset,
   }
 
   method <- toupper(as.character(method)[1])
+  cg_line_search <- match.arg(as.character(cg_line_search)[1], c("first", "best"))
+  cg_gradient_method <- match.arg(as.character(cg_gradient_method)[1], c("forward", "central"))
+  if (length(cg_max_line_search_evals) != 1 || is.null(cg_max_line_search_evals)) {
+    stop("ERROR: cg_max_line_search_evals must be a single non-negative integer or NA.")
+  }
+  if (is.na(cg_max_line_search_evals)) {
+    cg_max_line_search_evals <- Inf
+  } else {
+    cg_max_line_search_evals <- as.integer(cg_max_line_search_evals)
+    if (!is.finite(cg_max_line_search_evals) || cg_max_line_search_evals < 0) {
+      stop("ERROR: cg_max_line_search_evals must be a single non-negative integer or NA.")
+    }
+  }
   if(!method %in% c("RS", "CG")) {
     stop("ERROR: method must be one of 'RS' or 'CG'.")
   }
@@ -658,6 +682,8 @@ gamlss.longitudinal=function(dataset,
         "\nCG controls: max_delta=", signif(cg_max_delta, 4),
         " | lambda_update_every=", cg_lambda_update_every,
         " | update_lambda=", isTRUE(cg_update_lambda),
+        " | line_search=", cg_line_search,
+        " | gradient=", cg_gradient_method,
         "\n"
       ))
     }
@@ -745,16 +771,29 @@ gamlss.longitudinal=function(dataset,
       names(grad) <- names(beta_vec)
       for(ii in seq_along(beta_vec)) {
         hk <- 1e-5 * max(1, abs(beta_vec[ii]))
-        bp <- bm <- beta_vec
+        bp <- beta_vec
         bp[ii] <- bp[ii] + hk
-        bm[ii] <- bm[ii] - hk
         lp <- cg_eval(bp, mm_cg)
-        lm <- cg_eval(bm, mm_cg)
         lpv <- if(is.null(lp)) NA_real_ else lp$loglik
-        lmv <- if(is.null(lm)) NA_real_ else lm$loglik
-        if(is.finite(lpv) && is.finite(lmv)) grad[ii] <- (lpv - lmv) / (2 * hk)
-        else if(is.finite(lpv) && is.finite(base_ll)) grad[ii] <- (lpv - base_ll) / hk
-        else if(is.finite(lmv) && is.finite(base_ll)) grad[ii] <- (base_ll - lmv) / hk
+        if(identical(cg_gradient_method, "forward")) {
+          if(is.finite(lpv) && is.finite(base_ll)) {
+            grad[ii] <- (lpv - base_ll) / hk
+          } else {
+            bm <- beta_vec
+            bm[ii] <- bm[ii] - hk
+            lm <- cg_eval(bm, mm_cg)
+            lmv <- if(is.null(lm)) NA_real_ else lm$loglik
+            if(is.finite(lmv) && is.finite(base_ll)) grad[ii] <- (base_ll - lmv) / hk
+          }
+        } else {
+          bm <- beta_vec
+          bm[ii] <- bm[ii] - hk
+          lm <- cg_eval(bm, mm_cg)
+          lmv <- if(is.null(lm)) NA_real_ else lm$loglik
+          if(is.finite(lpv) && is.finite(lmv)) grad[ii] <- (lpv - lmv) / (2 * hk)
+          else if(is.finite(lpv) && is.finite(base_ll)) grad[ii] <- (lpv - base_ll) / hk
+          else if(is.finite(lmv) && is.finite(base_ll)) grad[ii] <- (base_ll - lmv) / hk
+        }
       }
       grad
     }
@@ -884,15 +923,23 @@ gamlss.longitudinal=function(dataset,
       }
 
       best <- NULL
+      line_eval_count <- 0L
+      stop_line_search <- FALSE
       max_backtrack <- if(isTRUE(use_backtracking)) as.integer(backtracking_max_halves) else 0L
       for(delta0 in candidate_steps) {
+        if(stop_line_search) break
         for(bt in seq_len(max_backtrack + 1L)) {
+          if(line_eval_count >= cg_max_line_search_evals) {
+            stop_line_search <- TRUE
+            break
+          }
           delta <- delta0 / (2 ^ (bt - 1L))
           dnorm <- sqrt(sum(delta^2))
           if(is.finite(dnorm) && dnorm > cg_trust_radius) delta <- delta * cg_trust_radius / dnorm
           dc <- max(abs(delta))
           if(is.finite(dc) && dc > cg_max_delta) delta <- delta * cg_max_delta / dc
           beta_try <- beta_all + delta
+          line_eval_count <- line_eval_count + 1L
           eval_try <- cg_eval(beta_try, mm_cg)
           if(is.null(eval_try) || !is.finite(eval_try$loglik)) next
           obj_try <- cg_objective(beta_try, eval_try$loglik, penalty_mat)
@@ -902,8 +949,15 @@ gamlss.longitudinal=function(dataset,
               best <- list(beta = beta_try, eval = eval_try, improvement = improvement,
                            step_l2 = sqrt(sum(delta^2)))
             }
+            if(identical(cg_line_search, "first")) {
+              stop_line_search <- TRUE
+              break
+            }
           }
         }
+      }
+      if(verbose > 1) {
+        cat(paste0("\nCG line search likelihood evaluations: ", line_eval_count))
       }
 
       if(is.null(best)) {
