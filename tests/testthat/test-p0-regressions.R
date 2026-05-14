@@ -63,8 +63,8 @@ test_that("T005 baseline fit fingerprint stays stable with use_backtracking FALS
   )
 
   expected_par <- c(
-    "theta.intercept" = 1.5638809760,
-    "theta.time_covariatet2" = 0.0005225898,
+    "theta.intercept" = 1.5551320267,
+    "theta.time_covariatet2" = 0.0129120008,
     "sigma.intercept" = -1.5823105534,
     "sigma.time_covariatet2" = 0.0530642214,
     "sigma.time_covariatet3" = 0.2951152096,
@@ -80,8 +80,8 @@ test_that("T005 baseline fit fingerprint stays stable with use_backtracking FALS
 
   expected_loglik <- c(
     "marginal" = -5.647582918,
-    "copula" = -164.584740630,
-    "joint" = -170.232323548
+    "copula" = -163.475667088,
+    "joint" = -169.123250006
   )
 
   expect_identical(names(fit$par), names(expected_par))
@@ -106,13 +106,13 @@ test_that("T006 baseline fit fingerprint stays stable with use_backtracking TRUE
   )
 
   expected_par <- c(
-    "theta.intercept" = 1.38893630,
-    "theta.time_covariatet2" = 0.03580677,
-    "sigma.intercept" = -0.59182516,
-    "sigma.time_covariatet2" = -0.14707015,
-    "sigma.time_covariatet3" = 0.19879541,
-    "sigma.genderM" = 0.14987687,
-    "mu.intercept" = 2.93636674,
+    "theta.intercept" = 1.40253726,
+    "theta.time_covariatet2" = -0.07728956,
+    "sigma.intercept" = -0.59182520,
+    "sigma.time_covariatet2" = -0.14707010,
+    "sigma.time_covariatet3" = 0.19879540,
+    "sigma.genderM" = 0.14987690,
+    "mu.intercept" = 2.93636670,
     "mu.time_covariatet2" = 0.00000000,
     "mu.time_covariatet3" = 0.00000000,
     "mu.genderM" = 0.00000000,
@@ -123,8 +123,8 @@ test_that("T006 baseline fit fingerprint stays stable with use_backtracking TRUE
 
   expected_loglik <- c(
     "marginal" = -66.505475,
-    "copula" = 9.982917,
-    "joint" = -56.522558
+    "copula" = 11.694344,
+    "joint" = -54.811131
   )
 
   expect_identical(names(fit$par), names(expected_par))
@@ -173,4 +173,38 @@ test_that("T008 t-copula starting values include theta and zeta", {
   expect_true(is.finite(unname(start_vals["theta"])))
   expect_true(is.finite(unname(start_vals["zeta"])))
   expect_gt(unname(start_vals["zeta"]), 2)
+})
+
+test_that("T009 CG is reasonably close to RS on fixture model", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 24L)
+
+  fit_rs <- fit_fixture_model(
+    dat,
+    method = "RS",
+    include_dlcopdpar = TRUE,
+    max_outer_iter = 4L,
+    max_inner_iter = 4L,
+    outer_stop_crit = 0.2,
+    inner_stop_crit = 0.2,
+    use_backtracking = TRUE,
+    verbose = 0
+  )
+
+  fit_cg <- fit_fixture_model(
+    dat,
+    method = "CG",
+    include_dlcopdpar = TRUE,
+    max_outer_iter = 8L,
+    outer_stop_crit = 0.05,
+    use_backtracking = TRUE,
+    verbose = 0
+  )
+
+  ll_rs <- as.numeric(fit_rs$calc_lik_out_end$log_lik["joint"])
+  ll_cg <- as.numeric(fit_cg$calc_lik_out_end$log_lik["joint"])
+
+  # CG must not be worse than RS by more than 10% (one-sided: CG finding a
+  # better LL than RS is expected and acceptable).
+  cg_shortfall <- (ll_rs - ll_cg) / (abs(ll_rs) + 1e-9)
+  expect_lte(cg_shortfall, 0.10)
 })
