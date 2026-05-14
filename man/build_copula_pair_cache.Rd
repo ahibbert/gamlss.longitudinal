@@ -12,6 +12,16 @@ build_copula_pair_cache(response, response_margin, response_subject)
 \item{response_margin}{A numeric vector indicating the margin (time) for each response.}
 
 \item{response_subject}{A numeric vector indicating the subject for each response.}
+
+\item{eta_inv}{A list of inverse link function values for each parameter.}
+
+\item{mm}{A list containing model matrices for fixed effects (mm$x).}
+
+\item{margin_dist}{A list of functions for the marginal distribution, including density and distribution functions.}
+
+\item{copula_dist}{A string specifying the copula distribution (e.g., "C", "t").}
+
+\item{calc_d2}{A logical indicating whether to calculate second derivatives (default is FALSE).}
 }
 \value{
 A list containing:
@@ -26,6 +36,8 @@ A list containing:
 }
 \description{
 This function calculates the marginal and copula log likelihoods and components
-for the joint model by organizing response data by margin and subject for 
-efficient pair-based copula calculations.
+for the joint model based on the inverse link function values (eta_inv),
+model matrices (mm), marginal distribution functions (margin_dist),
+and copula distribution (copula_dist). It computes the marginal density,
+copula density, and joint log-likelihood.
 }

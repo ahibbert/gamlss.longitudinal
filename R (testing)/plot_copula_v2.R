@@ -4,7 +4,11 @@
 # 1) empirical copula with fitted overlay
 # 2) observed vs fitted Kendall correlation by quartile
 
-utils::globalVariables(c("u1", "u2", "quartile", "tau_emp", "tau_fit", "density", "x_id", "time_pair", "split_group"))
+utils::globalVariables(c(
+  "u1", "u2", "quartile", "tau_emp", "tau_fit", "density", "x_id", "time_pair", "split_group",
+  "time", "z", "z_prev", "z_curr", "empirical", "fitted", "threshold", "tail", "probability",
+  "emp_copula", "fit_copula", "lag", "cor_z", "n_pairs"
+))
 
 .copula_v2_clamp01 <- function(x) {
   pmin(pmax(x, 0.001), 0.999)
@@ -34,6 +38,179 @@ utils::globalVariables(c("u1", "u2", "quartile", "tau_emp", "tau_fit", "density"
   }
 
   NA_real_
+}
+
+.copula_v2_bicop_cdf <- function(u1, u2, family_num, par, par2 = NA_real_) {
+  n <- max(length(u1), length(u2), length(par), length(par2))
+  if (!is.finite(family_num) || n < 1) return(rep(NA_real_, length(u1)))
+  u1 <- rep(u1, length.out = n)
+  u2 <- rep(u2, length.out = n)
+  par <- rep(par, length.out = n)
+  par2 <- rep(par2, length.out = n)
+  vapply(seq_len(n), function(i) {
+    if (!is.finite(u1[i]) || !is.finite(u2[i]) || !is.finite(par[i])) return(NA_real_)
+    tryCatch({
+      VineCopula::BiCopCDF(
+        u1[i],
+        u2[i],
+        family = family_num,
+        par = par[i],
+        par2 = if (is.finite(par2[i])) par2[i] else 0
+      )
+    }, error = function(e) NA_real_)
+  }, numeric(1), USE.NAMES = FALSE)
+}
+
+.copula_v2_bicop_cond_u2_given_u1 <- function(u1, u2, family_num, par, par2 = NA_real_) {
+  n <- max(length(u1), length(u2), length(par), length(par2))
+  if (!is.finite(family_num) || n < 1) return(rep(NA_real_, length(u1)))
+  u1 <- rep(u1, length.out = n)
+  u2 <- rep(u2, length.out = n)
+  par <- rep(par, length.out = n)
+  par2 <- rep(par2, length.out = n)
+  out <- vapply(seq_len(n), function(i) {
+    if (!is.finite(u1[i]) || !is.finite(u2[i]) || !is.finite(par[i])) return(NA_real_)
+    tryCatch({
+      # BiCopHfunc1 gives dC(u1, u2) / du1, i.e. F(U2 <= u2 | U1 = u1).
+      VineCopula::BiCopHfunc1(
+        u1[i],
+        u2[i],
+        family = family_num,
+        par = par[i],
+        par2 = if (is.finite(par2[i])) par2[i] else 0
+      )
+    }, error = function(e) NA_real_)
+  }, numeric(1), USE.NAMES = FALSE)
+  .copula_v2_clamp01(as.numeric(out))
+}
+
+.copula_v2_rosenblatt_pair_data <- function(pair_data, family_num) {
+  pair_data$rosenblatt <- .copula_v2_bicop_cond_u2_given_u1(
+    pair_data$u1,
+    pair_data$u2,
+    family_num = family_num,
+    par = pair_data$theta_pair,
+    par2 = pair_data$zeta_pair
+  )
+  pair_data$z <- stats::qnorm(.copula_v2_clamp01(pair_data$rosenblatt))
+  pair_data$z_prev <- stats::qnorm(.copula_v2_clamp01(pair_data$u1))
+  pair_data$z_curr <- pair_data$z
+  pair_data
+}
+
+.copula_v2_rosenblatt_series <- function(fit_data, family_num) {
+  pair_data <- .copula_v2_pair_data(fit_data, lags = 1)
+  pair_data <- .copula_v2_rosenblatt_pair_data(pair_data, family_num)
+
+  out <- fit_data[, c("subject", "time", "u"), drop = FALSE]
+  out$key <- paste(out$subject, as.character(out$time), sep = "::")
+  out$rosenblatt <- NA_real_
+
+  first_idx <- ave(seq_len(nrow(out)), out$subject, FUN = function(x) x == min(x))
+  out$rosenblatt[as.logical(first_idx)] <- out$u[as.logical(first_idx)]
+
+  pair_key <- paste(pair_data$subject, as.character(pair_data$time_right), sep = "::")
+  out$rosenblatt <- ifelse(
+    is.na(out$rosenblatt),
+    pair_data$rosenblatt[match(out$key, pair_key)],
+    out$rosenblatt
+  )
+  out$rosenblatt <- .copula_v2_clamp01(out$rosenblatt)
+  out$z <- stats::qnorm(out$rosenblatt)
+  out[is.finite(out$z), c("subject", "time", "rosenblatt", "z"), drop = FALSE]
+}
+
+.copula_v2_kendall_diagnostic <- function(pair_data, family_num) {
+  if (nrow(pair_data) < 2) return(data.frame())
+
+  emp_copula <- vapply(seq_len(nrow(pair_data)), function(i) {
+    mean(pair_data$u1 <= pair_data$u1[i] & pair_data$u2 <= pair_data$u2[i], na.rm = TRUE)
+  }, numeric(1))
+
+  fit_copula <- .copula_v2_bicop_cdf(
+    pair_data$u1,
+    pair_data$u2,
+    family_num = family_num,
+    par = pair_data$theta_pair,
+    par2 = pair_data$zeta_pair
+  )
+
+  ok <- is.finite(emp_copula) & is.finite(fit_copula)
+  data.frame(
+    empirical = sort(emp_copula[ok]),
+    fitted = sort(fit_copula[ok]),
+    stringsAsFactors = FALSE
+  )
+}
+
+.copula_v2_tail_diagnostics <- function(pair_data, family_num, thresholds = c(0.05, 0.10, 0.20)) {
+  rows <- lapply(thresholds, function(alpha) {
+    c_lower <- .copula_v2_bicop_cdf(
+      rep(alpha, nrow(pair_data)),
+      rep(alpha, nrow(pair_data)),
+      family_num = family_num,
+      par = pair_data$theta_pair,
+      par2 = pair_data$zeta_pair
+    )
+    upper_cut <- 1 - alpha
+    c_upper_cut <- .copula_v2_bicop_cdf(
+      rep(upper_cut, nrow(pair_data)),
+      rep(upper_cut, nrow(pair_data)),
+      family_num = family_num,
+      par = pair_data$theta_pair,
+      par2 = pair_data$zeta_pair
+    )
+    lower_fit <- mean(c_lower, na.rm = TRUE)
+    upper_fit <- mean(1 - 2 * upper_cut + c_upper_cut, na.rm = TRUE)
+
+    data.frame(
+      threshold = alpha,
+      tail = c("Lower", "Upper"),
+      empirical = c(
+        mean(pair_data$u1 <= alpha & pair_data$u2 <= alpha, na.rm = TRUE),
+        mean(pair_data$u1 >= upper_cut & pair_data$u2 >= upper_cut, na.rm = TRUE)
+      ),
+      fitted = c(lower_fit, upper_fit),
+      stringsAsFactors = FALSE
+    )
+  })
+  do.call(rbind, rows)
+}
+
+.copula_v2_conditional_tail_diagnostics <- function(tail_df) {
+  if (nrow(tail_df) == 0) return(tail_df)
+  out <- tail_df
+  out$empirical <- out$empirical / out$threshold
+  out$fitted <- out$fitted / out$threshold
+  out$empirical <- pmin(pmax(out$empirical, 0), 1)
+  out$fitted <- pmin(pmax(out$fitted, 0), 1)
+  out
+}
+
+.copula_v2_rosenblatt_lag_summary <- function(rosenblatt_df, lag_values = 1:3) {
+  lag_values <- sort(unique(as.integer(lag_values)))
+  lag_values <- lag_values[lag_values > 0]
+  rows <- lapply(lag_values, function(lag_value) {
+    pair_list <- lapply(split(rosenblatt_df, rosenblatt_df$subject), function(x) {
+      x <- x[order(x$time), , drop = FALSE]
+      if (nrow(x) <= lag_value) return(NULL)
+      data.frame(
+        z_prev = x$z[seq_len(nrow(x) - lag_value)],
+        z_curr = x$z[(lag_value + 1):nrow(x)]
+      )
+    })
+    pair_list <- pair_list[!vapply(pair_list, is.null, logical(1))]
+    if (length(pair_list) == 0) {
+      return(data.frame(lag = lag_value, cor_z = NA_real_, n_pairs = 0L))
+    }
+    pairs <- do.call(rbind, pair_list)
+    data.frame(
+      lag = lag_value,
+      cor_z = suppressWarnings(stats::cor(pairs$z_prev, pairs$z_curr, use = "complete.obs")),
+      n_pairs = nrow(pairs)
+    )
+  })
+  do.call(rbind, rows)
 }
 
 .copula_v2_message_plot <- function(title, subtitle, message) {
@@ -607,10 +784,15 @@ plot.copula_contour_compare <- function(object, lags = 1, grid_n = 45, max_pairs
 #' @param tau_ylim Optional numeric vector of length 2 specifying y-axis limits
 #'   for Kendall's tau chart(s). If `NULL` (default), y-axis scales are automatic.
 #' @param plot2_cuts Integer number of quantile-based cuts used in plot 2 (default 10).
+#' @param tail_thresholds Numeric vector of lower-tail probabilities used for
+#'   tail co-occurrence and conditional exceedance diagnostics.
+#' @param residual_lags Integer lags used for Rosenblatt normal-score
+#'   autocorrelation diagnostics.
+#' @param dashboard_ncol Number of columns in the combined diagnostic dashboard.
 #' @param plot Logical; if TRUE, print the dashboard.
 #'
 #' @return Invisibly returns a list with plot objects and summaries.
-plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, transform = "normal", plot1_style = "bins", contour_bins = 8, time_stratified = FALSE, by = NULL, data = NULL, tau_ylim = NULL, plot2_cuts = 10, plot = TRUE, ...) {
+plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, transform = "normal", plot1_style = "bins", contour_bins = 8, time_stratified = FALSE, by = NULL, data = NULL, tau_ylim = NULL, plot2_cuts = 10, tail_thresholds = c(0.05, 0.10, 0.20), residual_lags = 1:3, dashboard_ncol = 2, plot = TRUE, ...) {
   if (!inherits(object, "gamlss.longitudinal")) {
     stop("'object' must be a fitted 'gamlss.longitudinal' object.")
   }
@@ -644,6 +826,23 @@ plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, 
     }
     tau_ylim <- as.numeric(tau_ylim)
   }
+
+  tail_thresholds <- sort(unique(as.numeric(tail_thresholds)))
+  tail_thresholds <- tail_thresholds[is.finite(tail_thresholds) & tail_thresholds > 0 & tail_thresholds < 0.5]
+  if (length(tail_thresholds) == 0) {
+    tail_thresholds <- c(0.05, 0.10, 0.20)
+  }
+
+  residual_lags <- sort(unique(as.integer(residual_lags)))
+  residual_lags <- residual_lags[residual_lags > 0]
+  if (length(residual_lags) == 0) {
+    residual_lags <- 1:3
+  }
+
+  if (!is.numeric(dashboard_ncol) || length(dashboard_ncol) != 1 || !is.finite(dashboard_ncol) || dashboard_ncol < 1) {
+    stop("'dashboard_ncol' must be a single positive integer.")
+  }
+  dashboard_ncol <- as.integer(round(dashboard_ncol))
 
   fit_data <- .copula_v2_fit_data(object)
   pair_data_uniform <- .copula_v2_pair_data(fit_data, lags = lags)
@@ -848,7 +1047,185 @@ plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, 
     }
   }
 
-  dashboard <- ggpubr::ggarrange(p1, p2, ncol = 1, nrow = 2)
+  rosenblatt_df <- tryCatch(
+    .copula_v2_rosenblatt_series(fit_data, family_num),
+    error = function(e) data.frame()
+  )
+
+  rosenblatt_pair_df <- tryCatch(
+    .copula_v2_rosenblatt_pair_data(pair_data_uniform, family_num),
+    error = function(e) data.frame()
+  )
+
+  if (nrow(rosenblatt_df) == 0 || all(!is.finite(rosenblatt_df$z))) {
+    p_ros_time <- .copula_v2_message_plot(
+      title = "Rosenblatt Normal Scores by Time",
+      subtitle = "Scores are qnorm of pairwise conditional Rosenblatt residuals",
+      message = "No finite Rosenblatt residuals"
+    )
+  } else {
+    p_ros_time <- ggplot2::ggplot(rosenblatt_df, ggplot2::aes(x = factor(time), y = z)) +
+      ggplot2::geom_hline(yintercept = 0, color = "#666666", linetype = "dashed") +
+      ggplot2::geom_boxplot(fill = "#9ecae1", color = "#4d4d4d", outlier.alpha = 0.35) +
+      ggplot2::labs(
+        title = "Rosenblatt Normal Scores by Time",
+        subtitle = "Each time point should be centered near zero with similar spread",
+        x = "Time",
+        y = "Normal score"
+      ) +
+      ggplot2::theme_minimal()
+  }
+
+  if (nrow(rosenblatt_pair_df) == 0 || all(!is.finite(rosenblatt_pair_df$z_prev)) || all(!is.finite(rosenblatt_pair_df$z_curr))) {
+    p_ros_lag <- .copula_v2_message_plot(
+      title = "Rosenblatt Lag Plot",
+      subtitle = "Current conditional score against previous marginal score",
+      message = "No finite Rosenblatt lag pairs"
+    )
+  } else {
+    p_ros_lag <- ggplot2::ggplot(rosenblatt_pair_df, ggplot2::aes(x = z_prev, y = z_curr)) +
+      ggplot2::geom_hline(yintercept = 0, color = "#d9d9d9") +
+      ggplot2::geom_vline(xintercept = 0, color = "#d9d9d9") +
+      ggplot2::geom_point(color = "#4d4d4d", alpha = 0.35, size = 1.1) +
+      ggplot2::geom_smooth(method = "loess", se = FALSE, color = "#e41a1c", linewidth = 0.7) +
+      ggplot2::labs(
+        title = "Rosenblatt Lag Plot",
+        subtitle = "The smooth should be approximately flat at zero",
+        x = expression(Phi^-1 * (U[t])),
+        y = expression(Phi^-1 * (R[t + 1] ~ "|" ~ U[t]))
+      ) +
+      ggplot2::theme_minimal()
+  }
+
+  kendall_df <- tryCatch(
+    .copula_v2_kendall_diagnostic(pair_data_uniform, family_num),
+    error = function(e) data.frame()
+  )
+
+  if (nrow(kendall_df) == 0) {
+    p_kendall <- .copula_v2_message_plot(
+      title = "Kendall Function Diagnostic",
+      subtitle = "Empirical copula values compared with fitted copula values at observed pairs",
+      message = "No finite Kendall diagnostic values"
+    )
+  } else {
+    p_kendall <- ggplot2::ggplot(kendall_df, ggplot2::aes(x = fitted, y = empirical)) +
+      ggplot2::geom_abline(intercept = 0, slope = 1, color = "#666666", linetype = "dashed") +
+      ggplot2::geom_point(color = "#4d4d4d", alpha = 0.55, size = 1.2) +
+      ggplot2::labs(
+        title = "Kendall Function Diagnostic",
+        subtitle = "Sorted empirical copula probabilities should track sorted fitted probabilities",
+        x = "Fitted copula probability",
+        y = "Empirical copula probability"
+      ) +
+      ggplot2::theme_minimal()
+  }
+
+  tail_df <- tryCatch(
+    .copula_v2_tail_diagnostics(pair_data_uniform, family_num, thresholds = tail_thresholds),
+    error = function(e) data.frame()
+  )
+  cond_tail_df <- .copula_v2_conditional_tail_diagnostics(tail_df)
+
+  tail_long <- if (nrow(tail_df) > 0) {
+    rbind(
+      data.frame(threshold = tail_df$threshold, tail = tail_df$tail, source = "Empirical", probability = tail_df$empirical),
+      data.frame(threshold = tail_df$threshold, tail = tail_df$tail, source = "Fitted", probability = tail_df$fitted)
+    )
+  } else {
+    data.frame()
+  }
+
+  if (nrow(tail_long) == 0 || all(!is.finite(tail_long$probability))) {
+    p_tail <- .copula_v2_message_plot(
+      title = "Tail Co-occurrence",
+      subtitle = "Observed joint tail probability against fitted copula probability",
+      message = "No finite tail diagnostics"
+    )
+  } else {
+    p_tail <- ggplot2::ggplot(tail_long, ggplot2::aes(x = threshold, y = probability, color = source, group = source)) +
+      ggplot2::geom_point(size = 2.4) +
+      ggplot2::geom_line(linewidth = 0.8) +
+      ggplot2::facet_wrap(~tail) +
+      ggplot2::scale_color_manual(values = c(Empirical = "#4d4d4d", Fitted = "#e41a1c")) +
+      ggplot2::labs(
+        title = "Tail Co-occurrence",
+        subtitle = "Lower: P(Ut <= a, Ut+1 <= a); Upper: P(Ut >= 1-a, Ut+1 >= 1-a)",
+        x = "Tail probability a",
+        y = "Joint probability",
+        color = NULL
+      ) +
+      ggplot2::theme_minimal()
+  }
+
+  cond_tail_long <- if (nrow(cond_tail_df) > 0) {
+    rbind(
+      data.frame(threshold = cond_tail_df$threshold, tail = cond_tail_df$tail, source = "Empirical", probability = cond_tail_df$empirical),
+      data.frame(threshold = cond_tail_df$threshold, tail = cond_tail_df$tail, source = "Fitted", probability = cond_tail_df$fitted)
+    )
+  } else {
+    data.frame()
+  }
+
+  if (nrow(cond_tail_long) == 0 || all(!is.finite(cond_tail_long$probability))) {
+    p_cond_tail <- .copula_v2_message_plot(
+      title = "Conditional Tail Exceedance",
+      subtitle = "Observed conditional tail probability against fitted copula probability",
+      message = "No finite conditional tail diagnostics"
+    )
+  } else {
+    p_cond_tail <- ggplot2::ggplot(cond_tail_long, ggplot2::aes(x = threshold, y = probability, color = source, group = source)) +
+      ggplot2::geom_point(size = 2.4) +
+      ggplot2::geom_line(linewidth = 0.8) +
+      ggplot2::facet_wrap(~tail) +
+      ggplot2::scale_color_manual(values = c(Empirical = "#4d4d4d", Fitted = "#e41a1c")) +
+      ggplot2::coord_cartesian(ylim = c(0, 1)) +
+      ggplot2::labs(
+        title = "Conditional Tail Exceedance",
+        subtitle = "Lower: P(Ut+1 <= a | Ut <= a); Upper: P(Ut+1 >= 1-a | Ut >= 1-a)",
+        x = "Tail probability a",
+        y = "Conditional probability",
+        color = NULL
+      ) +
+      ggplot2::theme_minimal()
+  }
+
+  lag_summary_df <- tryCatch(
+    .copula_v2_rosenblatt_lag_summary(rosenblatt_df, lag_values = residual_lags),
+    error = function(e) data.frame()
+  )
+
+  if (nrow(lag_summary_df) == 0 || all(!is.finite(lag_summary_df$cor_z))) {
+    p_lag_summary <- .copula_v2_message_plot(
+      title = "Residual Dependence by Lag",
+      subtitle = "Correlation of Rosenblatt normal scores within subject",
+      message = "No finite residual lag correlations"
+    )
+  } else {
+    p_lag_summary <- ggplot2::ggplot(lag_summary_df, ggplot2::aes(x = factor(lag), y = cor_z)) +
+      ggplot2::geom_hline(yintercept = 0, color = "#666666", linetype = "dashed") +
+      ggplot2::geom_col(fill = "#4d4d4d", alpha = 0.8) +
+      ggplot2::geom_text(ggplot2::aes(label = paste0("n=", n_pairs)), vjust = -0.35, size = 3) +
+      ggplot2::labs(
+        title = "Residual Dependence by Lag",
+        subtitle = "Correlations should be close to zero after the Rosenblatt transform",
+        x = "Lag",
+        y = "Correlation"
+      ) +
+      ggplot2::theme_minimal()
+  }
+
+  dashboard_plots <- list(p1, p2, p_ros_time, p_ros_lag, p_kendall, p_tail, p_cond_tail, p_lag_summary)
+  dashboard <- do.call(
+    ggpubr::ggarrange,
+    c(
+      dashboard_plots,
+      list(
+        ncol = min(dashboard_ncol, length(dashboard_plots)),
+        nrow = ceiling(length(dashboard_plots) / dashboard_ncol)
+      )
+    )
+  )
 
   if (isTRUE(plot)) {
     print(dashboard)
@@ -857,11 +1234,24 @@ plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, 
   invisible(list(
     plots = list(
       empirical_overlay = p1,
-      quartile_correlation = p2
+      quartile_correlation = p2,
+      rosenblatt_by_time = p_ros_time,
+      rosenblatt_lag = p_ros_lag,
+      kendall_function = p_kendall,
+      tail_cooccurrence = p_tail,
+      conditional_tail_exceedance = p_cond_tail,
+      residual_lag_correlation = p_lag_summary
     ),
     dashboard = dashboard,
     fit_data = fit_data,
     pair_data = pair_data_plot,
-    quartile_summary = quartile_df
+    pair_data_uniform = pair_data_uniform,
+    rosenblatt = rosenblatt_df,
+    rosenblatt_pairs = rosenblatt_pair_df,
+    quartile_summary = quartile_df,
+    kendall_summary = kendall_df,
+    tail_summary = tail_df,
+    conditional_tail_summary = cond_tail_df,
+    residual_lag_summary = lag_summary_df
   ))
 }

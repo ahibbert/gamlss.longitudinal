@@ -34,12 +34,20 @@ gamlss.longitudinal(
   use_backtracking = TRUE,
   backtracking_max_halves = 50,
   cg_max_stall = 5,
-  cg_max_delta = 5,
+  cg_max_delta = 0.5,
+  cg_max_delta_upper = NA,
   cg_armijo_c1 = 1e-04,
   cg_grad_tol = NA,
   cg_step_tol = NA,
+  cg_update_lambda = TRUE,
+  cg_beta_method = "none",
+  cg_restart_every = NA,
+  cg_lambda_update_every = 10,
+  cg_wolfe = FALSE,
+  cg_wolfe_c2 = 0.1,
   compute_vcov = TRUE,
   vcov_method = c("numderiv", "analytical"),
+  vcov_numderiv = TRUE,
   use_Rcpp = FALSE,
   lambda_start = NA,
   lambda_penalty_K = 2
@@ -107,34 +115,47 @@ backtracking to reject downhill inner updates.}
 \item{backtracking_max_halves}{Integer; maximum number of consecutive
 step halvings attempted after a rejected update before taking no step.}
 
-\item{cg_max_stall}{Integer; for `method="CG"` only. Maximum number of
-consecutive outer iterations where the line search finds no improvement
-before CG declares convergence (stalled). Increase for large datasets.
-Default is 10.}
+\item{cg_max_stall}{Integer; for `method = "CG"` only. Maximum number of
+consecutive outer iterations where no improving step is found before CG stops.}
 
-\item{cg_max_delta}{Numeric; for `method="CG"` only. Maximum allowed
-absolute value of any single coefficient in the Newton step before
-backtracking begins. Caps overshooting on large or ill-conditioned problems.
-Default is 10.}
+\item{cg_max_delta}{Numeric; for `method = "CG"` only. Maximum absolute
+coefficient step size used to limit Newton/trust-region updates.}
 
-\item{cg_armijo_c1}{Numeric in `(0, 1)`; for `method="CG"` only. Minimum
-fraction of the quadratic model's predicted improvement that must be realized
-by an accepted trust-region step. Smaller values are less strict. Default is
-`1e-4`.}
+\item{cg_max_delta_upper}{Numeric; for `method = "CG"` only. Optional upper
+bound for the adaptive trust-region radius. If `NA`, uses `cg_max_delta`.}
 
-\item{cg_grad_tol}{Numeric; for `method="CG"` only. Infinity-norm tolerance
-for the penalized gradient at convergence. If `NA`/`NULL`, an automatic value
-based on `outer_stop_crit` is used.}
+\item{cg_armijo_c1}{Numeric; for `method = "CG"` only. Minimum improvement
+threshold used by the line-search acceptance rule.}
 
-\item{cg_step_tol}{Numeric; for `method="CG"` only. L2-norm tolerance for
-the accepted parameter step at convergence. If `NA`/`NULL`, an automatic
-value based on `outer_stop_crit` is used.}
+\item{cg_grad_tol}{Numeric; for `method = "CG"` only. Penalized-gradient
+infinity-norm convergence tolerance. If `NA`, selected from `outer_stop_crit`.}
+
+\item{cg_step_tol}{Numeric; for `method = "CG"` only. Accepted-step L2
+convergence tolerance. If `NA`, selected from `outer_stop_crit`.}
+
+\item{cg_update_lambda}{Logical; for `method = "CG"` only. If `TRUE`, update
+smoother penalties during CG iterations.}
+
+\item{cg_beta_method}{Character; reserved CG beta update control.}
+
+\item{cg_restart_every}{Integer; reserved CG restart control.}
+
+\item{cg_lambda_update_every}{Integer; for `method = "CG"` only. When
+`cg_update_lambda = TRUE`, update each smoother's lambda every this many
+outer iterations. Use `1` to update every CG iteration.}
+
+\item{cg_wolfe}{Logical; reserved Wolfe line-search control.}
+
+\item{cg_wolfe_c2}{Numeric; reserved Wolfe curvature constant.}
 
 \item{compute_vcov}{Logical; if `TRUE` (default), compute and store the
 model variance-covariance output at the end of fitting.}
 
 \item{vcov_method}{Character; fit-time vcov method when `compute_vcov = TRUE`.
 One of `"numderiv"` or `"analytical"`.}
+
+\item{vcov_numderiv}{Logical; passed to `vcov.gamlss.longitudinal()` when
+`compute_vcov = TRUE`.}
 
 \item{use_Rcpp}{Use Rcpp for matrix operations}
 }
