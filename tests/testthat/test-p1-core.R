@@ -137,3 +137,21 @@ test_that("T108 intercept-only formulas are accepted across parameters", {
   expect_true(all(expected_pars %in% names(fit$model_matrix$x)))
   expect_true(all(vapply(fit$model_matrix$x[expected_pars], ncol, integer(1)) >= 1L))
 })
+
+test_that("T109 CG optimizer runs with fixed and smooth terms", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 14L)
+
+  fit <- fit_fixture_model(
+    dat,
+    method = "CG",
+    include_dlcopdpar = TRUE,
+    mu_formula = "y ~ time_raw * gender + s(age, bs='ps')",
+    sigma_formula = "~ time_raw + gender",
+    max_outer_iter = 2,
+    outer_stop_crit = 1
+  )
+
+  expect_s3_class(fit, "gamlss.longitudinal")
+  expect_identical(fit$optim_method, "CG")
+  expect_true(is.finite(as.numeric(fit$calc_lik_out_end$log_lik["joint"])))
+})
