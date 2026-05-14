@@ -4,6 +4,12 @@
 # Null-coalescing operator (base R does not provide one)
 `%||%` <- function(a, b) if (!is.null(a)) a else b
 
+utils::globalVariables(c(
+  "u1", "u2", "quartile", "tau_emp", "tau_fit", "density", "x_id", "time_pair", "split_group",
+  "time", "z", "z_prev", "z_curr", "empirical", "fitted", "threshold", "tail", "probability",
+  "emp_copula", "fit_copula", "lag", "cor_z", "n_pairs", "source", "cut_group"
+))
+
 .solve_linear_system <- function(A, b = NULL) {
   A <- as.matrix(A)
 
@@ -354,7 +360,7 @@ gamlss.longitudinal=function(dataset,
     duplicate_combos <- subject_time_combo[duplicated(subject_time_combo)]
     stop("ERROR: Duplicate subject/time combinations found.\n",
          "Each subject must have exactly one observation per time point.\n",
-         "Duplicate combinations (first 10): ", 
+         "Duplicate combinations (first 10): ",
          paste(unique(duplicate_combos)[1:min(10, length(unique(duplicate_combos)))], collapse=", "))
   }
 
@@ -839,7 +845,7 @@ gamlss.longitudinal=function(dataset,
       eval_start <- cg_eval(beta_all, mm_cg)
       if(is.null(eval_start) || !is.finite(eval_start$loglik)) stop("CG failed: current likelihood is not finite.")
       log_lik_history <- rbind(log_lik_history, eval_start$calc_lik$log_lik)
-      par_history <- rbind(par_history, eval_start$par_cov)
+      par_history <- rbind(par_history, eval_start$par_cov[colnames(par_history)])
       outer_start_log_lik <- eval_start$loglik
       obj_start <- cg_objective(beta_all, outer_start_log_lik, penalty_mat)
       grad <- cg_gradient(beta_all, outer_start_log_lik, mm_cg)
@@ -997,8 +1003,8 @@ gamlss.longitudinal=function(dataset,
         calc_lik_out=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=FALSE
           ,response=dataset$response,response_margin=(dataset$time),response_subject = dataset$subject
           ,pair_cache=pair_cache)
-        log_lik=calc_lik_out$log_lik; margin_d=calc_lik_out$margin_d; margin_p=calc_lik_out$margin_p; 
-        margin_deriv=calc_lik_out$margin_deriv; copula_d=calc_lik_out$copula_d; copula_p=calc_lik_out$copula_p; 
+        log_lik=calc_lik_out$log_lik; margin_d=calc_lik_out$margin_d; margin_p=calc_lik_out$margin_p;
+        margin_deriv=calc_lik_out$margin_deriv; copula_d=calc_lik_out$copula_d; copula_p=calc_lik_out$copula_p;
         Fx_1_2=calc_lik_out$Fx_1_2;order_copula=calc_lik_out$order_copula
 
         if(first_outer_run==TRUE) {
@@ -1013,7 +1019,7 @@ gamlss.longitudinal=function(dataset,
 
         #Capturing log lik and parameter estimates for each iteration
         log_lik_history=rbind(log_lik_history,calc_lik_out$log_lik)
-        par_history=rbind(par_history,par_cov)
+        par_history=rbind(par_history,par_cov[colnames(par_history)])
 
         #Fixing extreme values if they exist, though they shouldn't
         Fx_1_2[Fx_1_2>1]=1;Fx_1_2[Fx_1_2<0]=0
@@ -1046,7 +1052,10 @@ gamlss.longitudinal=function(dataset,
                 par_idx <- calc_lik_out$copula_theta_index_map[row_id1]
               }
               valid_idx <- is.finite(par_idx) & par_idx >= 1 & par_idx <= nrow(d1_full)
-              d1_full[par_idx[valid_idx],1] <- dldth[valid_idx]
+              if(any(valid_idx)) {
+                d1_sum <- rowsum(dldth[valid_idx], par_idx[valid_idx], reorder = FALSE)
+                d1_full[as.integer(rownames(d1_sum)),1] <- d1_sum[,1]
+              }
             }
             d1=as.matrix(d1_full)
             colnames(d1)="dldtheta"
@@ -1062,7 +1071,10 @@ gamlss.longitudinal=function(dataset,
                 par_idx <- calc_lik_out$copula_theta_index_map[row_id1]
               }
               valid_idx <- is.finite(par_idx) & par_idx >= 1 & par_idx <= nrow(d1_full)
-              d1_full[par_idx[valid_idx],1] <- dldz[valid_idx]
+              if(any(valid_idx)) {
+                d1_sum <- rowsum(dldz[valid_idx], par_idx[valid_idx], reorder = FALSE)
+                d1_full[as.integer(rownames(d1_sum)),1] <- d1_sum[,1]
+              }
             }
             d1=as.matrix(d1_full)
             colnames(d1)="dldzeta"
@@ -1247,7 +1259,7 @@ gamlss.longitudinal=function(dataset,
           step_size,
           par_name
         ) {
-          
+
           ############# Backfitting with penalisation
           pen_mat=matrix(0,nrow=ncol(X),ncol=ncol(X))
           if(length(par_s[[par_name]])>0) {
@@ -1292,19 +1304,19 @@ gamlss.longitudinal=function(dataset,
 
           calc_lik_out_end=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=FALSE
             ,response=dataset$response,response_margin=(dataset$time),response_subject = dataset$subject
-            ,pair_cache=pair_cache)      
-          
+            ,pair_cache=pair_cache)
+
 
           #print(sum(unlist(df_s[[par_name]])))
           GAIC_lambda_k=-2*calc_lik_out_end$log_lik["joint"]+ K*sum(unlist(df_s[[par_name]]))
 
           #print(paste("K*DF_S",K*sum(unlist(df_s[[par_name]]))))
-          
+
           return_list=list(par_cov,par_s,calc_lik_out_end,GAIC_lambda_k,df_s)
           names(return_list)=c("par_cov","par_s","calc_lik_out_end","GAIC_lambda_k","df_s")
           return(return_list)
         }
-        
+
         optim_lambda <- function(lambda_val,smooth_name,
         par_s,par_cov, beta_start, lambda_s, first_inner_run=FALSE,K=K,
                 margin_dist, copula_dist, dataset, mm, copula_link,df_s,step_size,par_name) {
@@ -1313,12 +1325,12 @@ gamlss.longitudinal=function(dataset,
           backfitting_iteration_results=backfitting_iteration(par_s=par_s,par_cov=par_cov, beta_start=beta_start, lambda_s=lambda_s_temp, first_inner_run=FALSE,K=K,
                 margin_dist=margin_dist, copula_dist=copula_dist, dataset=dataset, mm=mm, copula_link=copula_link
                 ,df_s=df_s,step_size=step_size,par_name=par_name)
-          
+
           # Debug output
           loglik <- backfitting_iteration_results$calc_lik_out_end$log_lik["joint"]
           df_total <- sum(unlist(backfitting_iteration_results$df_s[[par_name]]))
           gaic_val <- backfitting_iteration_results$GAIC_lambda_k
-          #print(sprintf("lambda=%.3f | LogLik=%.2f | DF=%.2f | GAIC=%.2f\n", 
+          #print(sprintf("lambda=%.3f | LogLik=%.2f | DF=%.2f | GAIC=%.2f\n",
           #           lambda_val, loglik, df_total, gaic_val))
 
           return(backfitting_iteration_results$GAIC_lambda_k)
@@ -1349,7 +1361,7 @@ gamlss.longitudinal=function(dataset,
             } #end if inner_run_counter
           } #end for smooth_name
         } #end if num_smooths
-        
+
         backfitting_iteration_results=backfitting_iteration(par_s=par_s,par_cov=par_cov, beta_start=beta_start, lambda_s=lambda_s, first_inner_run=FALSE,K=K,
           margin_dist=margin_dist, copula_dist=copula_dist, dataset=dataset, mm=mm, copula_link=copula_link,df_s=df_s,step_size=step_size,par_name=par_name)
 
@@ -1514,7 +1526,7 @@ gamlss.longitudinal=function(dataset,
       print(c(outer_end_log_lik-outer_start_log_lik))
       cat("\nOUTER CONVERGED")
     }
-    
+
   }
   }
 
@@ -1541,7 +1553,7 @@ gamlss.longitudinal=function(dataset,
 
   df_s_total=df_s_cop_total=df_s_margin_total=0
   for(par_name in names(par_s)) {
-    if(par_name %in% c("theta","zeta")) 
+    if(par_name %in% c("theta","zeta"))
       df_s_cop_total=df_s_cop_total+sum(unlist(df_s[[par_name]]))
     else {
       df_s_margin_total=df_s_margin_total+sum(unlist(df_s[[par_name]]))
@@ -1644,7 +1656,7 @@ normalize_lag_time <- function(time) {
 #' @param copula.link List of link functions for the copula parameters
 #' @return Returns a list mm with items mm$x and mm$s for fixed and smooth terms respectively,
 #' with each of those lists being lists of each parameter and their respective model matrices
-#' 
+#'
 #' @export
 create_model_matrices<-function(
     mu.formula = ("response ~ 1"),
@@ -1898,30 +1910,30 @@ create_model_matrices<-function(
     }
   }
 
-  
+
   mm=list(mm_x,mm_s)
   names(mm)=c("x","s")
   return(mm)
 }
 
 #' Calculate eta, eta inverse and eta derivative based on the given parameters and model matrices
-#' 
+#'
 #' This function calculates the linear predictors (eta) for each parameter
 #' based on the given covariate parameters (par_cov) and model matrices (mm).
 #' It also computes the inverse link function (eta_inv) and the derivative of the link function (eta_dr)
 #' for each parameter using the specified marginal distribution and copula link functions.
-#' 
+#'
 #' @param par_cov A named vector of covariate parameters for each model term.
 #' @param mm A list containing model matrices for fixed effects (mm$x) and smooth terms (mm$s).
 #' @param margin_dist A list of functions for the marginal distribution, including link inverse and derivative functions.
 #' @param copula_link A list of functions for the copula link, including link inverse and derivative functions.
 #' @param par_s A list of smooth term parameters for each model parameter (optional).
-#' 
+#'
 #' @return A list containing:
 #' \item{eta}{A list of linear predictors for each parameter.}
 #' \item{eta_inv}{A list of inverse link function values for each parameter.}
 #' \item{eta_dr}{A list of derivatives of the link function for each parameter.}
-#' 
+#'
 #' @export
 calc_eta=function(par_cov,mm,margin_dist,copula_link,par_s=NA) {
   eta=list()
@@ -1957,11 +1969,11 @@ calc_eta=function(par_cov,mm,margin_dist,copula_link,par_s=NA) {
 }
 
 #' Calculate the likelihood components for the joint model
-#' 
+#'
 #' This function calculates the marginal and copula log likelihoods and components
-#' for the joint model by organizing response data by margin and subject for 
+#' for the joint model by organizing response data by margin and subject for
 #' efficient pair-based copula calculations.
-#' 
+#'
 #' @param response A numeric vector of response values.
 #' @param response_margin A numeric vector indicating the margin (time) for each response.
 #' @param response_subject A numeric vector indicating the subject for each response.
@@ -1974,7 +1986,7 @@ calc_eta=function(par_cov,mm,margin_dist,copula_link,par_s=NA) {
 #' \item{order_copula}{A matrix indicating the order of margins and subjects for copula calculations.}
 #' \item{margin_deriv}{A list of marginal derivatives.}
 #' \item{order_copula}{A matrix indicating the order of margins and subjects for copula calculations.}
-#' 
+#'
 #' @export
 build_copula_pair_cache <- function(response, response_margin, response_subject) {
   margin_names=sort(unique(response_margin))
@@ -2188,8 +2200,8 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
   return(return_list)
 }
 
-#' 
-#' 
+#'
+#'
 #' @export
 score_function_v2 <- function(eta,dldpar,d2ldpar,dpardeta,response=NA,phi=1,step_size=1,verbose=FALSE,crit_wk=0.0000001) {
 
@@ -2924,7 +2936,7 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
   if (isTRUE(numderiv)) method <- "numderiv"
 
   progress = isTRUE(progress)
-  
+
   include_dlcopdpar=TRUE
   response=object$response
   response_margin=object$response_margin
@@ -3133,13 +3145,13 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
   }
 
   ###########TESTING APPROACH FOR ESTIMATING SMOOTHER VARIANCE
-  
+
   # Method 1: Bayesian/Mixed Model Approach for Smoother Variance
   # Calculate variance-covariance matrix for smooth terms using: Var(beta) = (X'WX + lambda*P)^(-1) * sigma^2
-  
+
   smooth_vcov_list = list()
   smooth_se_list = list()
-  
+
   # Extract residual variance estimate (using reciprocal of mean weights as proxy for sigma^2)
   if(!is.null(object$weights) && length(object$weights) > 0 && is.numeric(object$weights)) {
     sigma2_est = 1 / mean(object$weights, na.rm = TRUE)
@@ -3155,23 +3167,23 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
   if(!is.finite(sigma2_est)) {
     sigma2_est = 1
   }
-  
+
   # Process each parameter that has smooth terms
   for(par_name in names(object$par_s)) {
     if(length(object$par_s[[par_name]]) > 0) {
-      
+
       smooth_vcov_list[[par_name]] = list()
       smooth_se_list[[par_name]] = list()
-      
+
       # Process each smooth term for this parameter
       for(s_name in names(object$par_s[[par_name]])) {
-        
+
         # Get the B-spline basis matrix
         B = object$model_matrix$s[[par_name]][[s_name]]
-        
+
         # Get the smoothing parameter
         lambda = object$lambda_s[[par_name]][[s_name]]
-        
+
         # Use the mgcv-generated penalty stored on the basis matrix; fall back to
         # a generic second-difference penalty only when unavailable.
         k = ncol(B)
@@ -3185,7 +3197,7 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
         } else {
           P = diag(k)
         }
-        
+
         # Get per-parameter IRLS working weights. object$weights is a named list
         # keyed by parameter name; fall back to unit weights if not available.
         w_par = object$weights[[par_name]]
@@ -3198,36 +3210,36 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
 
         # Per-parameter sigma2: scale consistent with IRLS, 1/mean(w)
         sigma2_par = if (all(w_diag > 0)) 1 / mean(w_diag) else sigma2_est
-        
+
         # Calculate the penalized precision matrix: X'WX + lambda*P
         XWX = t(B) %*% W %*% B
         penalized_precision = XWX + lambda * P
-        
+
         # Variance-covariance matrix for this smooth: (X'WX + lambda*P)^(-1) * sigma^2
         tryCatch({
           smooth_vcov = solve(penalized_precision) * sigma2_par
           smooth_se = sqrt((diag(smooth_vcov)))
-          
+
           # Store results
           smooth_vcov_list[[par_name]][[s_name]] = smooth_vcov
           smooth_se_list[[par_name]][[s_name]] = smooth_se
-          
+
           # Also calculate the smoother matrix for fitted values variance
           # A = X(X'WX + lambda*P)^(-1)X'W
           smoother_matrix = B %*% solve(penalized_precision) %*% t(B) %*% W
           fitted_se = sqrt(abs(as.vector(diag(smoother_matrix))) * sigma2_par)
-          
+
           cat(sprintf("\nSmooth term variance estimates for %s:%s\n", par_name, s_name))
-          cat(sprintf("  Basis coefficients SE: min=%.4f, max=%.4f, mean=%.4f\n", 
+          cat(sprintf("  Basis coefficients SE: min=%.4f, max=%.4f, mean=%.4f\n",
                      min(smooth_se), max(smooth_se), mean(smooth_se)))
-          cat(sprintf("  Fitted values SE: min=%.4f, max=%.4f, mean=%.4f\n", 
+          cat(sprintf("  Fitted values SE: min=%.4f, max=%.4f, mean=%.4f\n",
                      min(fitted_se), max(fitted_se), mean(fitted_se)))
-          cat(sprintf("  Effective DF: %.2f (trace of smoother matrix)\n", 
+          cat(sprintf("  Effective DF: %.2f (trace of smoother matrix)\n",
                      sum(diag(smoother_matrix))))
           cat(sprintf("  Smoothing parameter lambda: %.4f\n", lambda))
-          
+
         }, error = function(e) {
-          warning(sprintf("Could not calculate variance for smooth %s:%s - %s", 
+          warning(sprintf("Could not calculate variance for smooth %s:%s - %s",
                          par_name, s_name, e$message))
           smooth_vcov_list[[par_name]][[s_name]] = NULL
           smooth_se_list[[par_name]][[s_name]] = NULL
@@ -3235,14 +3247,14 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
       }
     }
   }
-  
+
   # Add smooth variance results to return list
   vcov_final_with_smooth = list(
     overall = vcov_final,
     smooth_vcov = smooth_vcov_list,
     smooth_se = smooth_se_list
   )
-  
+
   se_final_with_smooth = list(
     overall = se_final,
     smooth_se = smooth_se_list
@@ -3613,7 +3625,7 @@ print.summary.gamlss.longitudinal = function(x, digits = max(3, getOption("digit
 
   cat("  Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1\n")
 
-  
+
   cat("\nSmooth terms:\n")
   cat("--------------------\n")
   if(!is.null(x$smooth_terms) && nrow(x$smooth_terms) > 0) {
@@ -4902,6 +4914,7 @@ plot.gamlss.longitudinal = function(
 }
 
 .copula_v2_tau_from_par <- function(family_num, par, par2 = NA_real_) {
+  # Handle NA inputs immediately
   if (!is.finite(par)) {
     return(NA_real_)
   }
@@ -4914,11 +4927,193 @@ plot.gamlss.longitudinal = function(
     }
   }, error = function(e) NA_real_)
 
-  if (is.finite(tau)) as.numeric(tau) else NA_real_
+  if (is.finite(tau)) {
+    return(as.numeric(tau))
+  }
+
+  # Fallback for Gaussian/Clayton copulas using formula
+  if (family_num %in% c(1, 2) && is.finite(par)) {
+    return(2 / pi * asin(max(min(par, 0.999999), -0.999999)))
+  }
+
+  NA_real_
+}
+
+.copula_v2_bicop_cdf <- function(u1, u2, family_num, par, par2 = NA_real_) {
+  n <- max(length(u1), length(u2), length(par), length(par2))
+  if (!is.finite(family_num) || n < 1) return(rep(NA_real_, length(u1)))
+  u1 <- rep(u1, length.out = n)
+  u2 <- rep(u2, length.out = n)
+  par <- rep(par, length.out = n)
+  par2 <- rep(par2, length.out = n)
+  vapply(seq_len(n), function(i) {
+    if (!is.finite(u1[i]) || !is.finite(u2[i]) || !is.finite(par[i])) return(NA_real_)
+    tryCatch({
+      VineCopula::BiCopCDF(
+        u1[i],
+        u2[i],
+        family = family_num,
+        par = par[i],
+        par2 = if (is.finite(par2[i])) par2[i] else 0
+      )
+    }, error = function(e) NA_real_)
+  }, numeric(1), USE.NAMES = FALSE)
+}
+
+.copula_v2_bicop_cond_u2_given_u1 <- function(u1, u2, family_num, par, par2 = NA_real_) {
+  n <- max(length(u1), length(u2), length(par), length(par2))
+  if (!is.finite(family_num) || n < 1) return(rep(NA_real_, length(u1)))
+  u1 <- rep(u1, length.out = n)
+  u2 <- rep(u2, length.out = n)
+  par <- rep(par, length.out = n)
+  par2 <- rep(par2, length.out = n)
+  out <- vapply(seq_len(n), function(i) {
+    if (!is.finite(u1[i]) || !is.finite(u2[i]) || !is.finite(par[i])) return(NA_real_)
+    tryCatch({
+      # BiCopHfunc1 gives dC(u1, u2) / du1, i.e. F(U2 <= u2 | U1 = u1).
+      VineCopula::BiCopHfunc1(
+        u1[i],
+        u2[i],
+        family = family_num,
+        par = par[i],
+        par2 = if (is.finite(par2[i])) par2[i] else 0
+      )
+    }, error = function(e) NA_real_)
+  }, numeric(1), USE.NAMES = FALSE)
+  .copula_v2_clamp01(as.numeric(out))
+}
+
+.copula_v2_rosenblatt_pair_data <- function(pair_data, family_num) {
+  pair_data$rosenblatt <- .copula_v2_bicop_cond_u2_given_u1(
+    pair_data$u1,
+    pair_data$u2,
+    family_num = family_num,
+    par = pair_data$theta_pair,
+    par2 = pair_data$zeta_pair
+  )
+  pair_data$z <- stats::qnorm(.copula_v2_clamp01(pair_data$rosenblatt))
+  pair_data$z_prev <- stats::qnorm(.copula_v2_clamp01(pair_data$u1))
+  pair_data$z_curr <- pair_data$z
+  pair_data
+}
+
+.copula_v2_rosenblatt_series <- function(fit_data, family_num) {
+  pair_data <- .copula_v2_pair_data(fit_data, lags = 1)
+  pair_data <- .copula_v2_rosenblatt_pair_data(pair_data, family_num)
+
+  out <- fit_data[, c("subject", "time", "u"), drop = FALSE]
+  out$key <- paste(out$subject, as.character(out$time), sep = "::")
+  out$rosenblatt <- NA_real_
+
+  first_idx <- ave(seq_len(nrow(out)), out$subject, FUN = function(x) x == min(x))
+  out$rosenblatt[as.logical(first_idx)] <- out$u[as.logical(first_idx)]
+
+  pair_key <- paste(pair_data$subject, as.character(pair_data$time_right), sep = "::")
+  out$rosenblatt <- ifelse(
+    is.na(out$rosenblatt),
+    pair_data$rosenblatt[match(out$key, pair_key)],
+    out$rosenblatt
+  )
+  out$rosenblatt <- .copula_v2_clamp01(out$rosenblatt)
+  out$z <- stats::qnorm(out$rosenblatt)
+  out[is.finite(out$z), c("subject", "time", "rosenblatt", "z"), drop = FALSE]
+}
+
+.copula_v2_kendall_diagnostic <- function(pair_data, family_num) {
+  if (nrow(pair_data) < 2) return(data.frame())
+
+  emp_copula <- vapply(seq_len(nrow(pair_data)), function(i) {
+    mean(pair_data$u1 <= pair_data$u1[i] & pair_data$u2 <= pair_data$u2[i], na.rm = TRUE)
+  }, numeric(1))
+
+  fit_copula <- .copula_v2_bicop_cdf(
+    pair_data$u1,
+    pair_data$u2,
+    family_num = family_num,
+    par = pair_data$theta_pair,
+    par2 = pair_data$zeta_pair
+  )
+
+  ok <- is.finite(emp_copula) & is.finite(fit_copula)
+  data.frame(
+    empirical = sort(emp_copula[ok]),
+    fitted = sort(fit_copula[ok]),
+    stringsAsFactors = FALSE
+  )
+}
+
+.copula_v2_tail_diagnostics <- function(pair_data, family_num, thresholds = c(0.05, 0.10, 0.20)) {
+  rows <- lapply(thresholds, function(alpha) {
+    c_lower <- .copula_v2_bicop_cdf(
+      rep(alpha, nrow(pair_data)),
+      rep(alpha, nrow(pair_data)),
+      family_num = family_num,
+      par = pair_data$theta_pair,
+      par2 = pair_data$zeta_pair
+    )
+    upper_cut <- 1 - alpha
+    c_upper_cut <- .copula_v2_bicop_cdf(
+      rep(upper_cut, nrow(pair_data)),
+      rep(upper_cut, nrow(pair_data)),
+      family_num = family_num,
+      par = pair_data$theta_pair,
+      par2 = pair_data$zeta_pair
+    )
+    lower_fit <- mean(c_lower, na.rm = TRUE)
+    upper_fit <- mean(1 - 2 * upper_cut + c_upper_cut, na.rm = TRUE)
+
+    data.frame(
+      threshold = alpha,
+      tail = c("Lower", "Upper"),
+      empirical = c(
+        mean(pair_data$u1 <= alpha & pair_data$u2 <= alpha, na.rm = TRUE),
+        mean(pair_data$u1 >= upper_cut & pair_data$u2 >= upper_cut, na.rm = TRUE)
+      ),
+      fitted = c(lower_fit, upper_fit),
+      stringsAsFactors = FALSE
+    )
+  })
+  do.call(rbind, rows)
+}
+
+.copula_v2_conditional_tail_diagnostics <- function(tail_df) {
+  if (nrow(tail_df) == 0) return(tail_df)
+  out <- tail_df
+  out$empirical <- out$empirical / out$threshold
+  out$fitted <- out$fitted / out$threshold
+  out$empirical <- pmin(pmax(out$empirical, 0), 1)
+  out$fitted <- pmin(pmax(out$fitted, 0), 1)
+  out
+}
+
+.copula_v2_rosenblatt_lag_summary <- function(rosenblatt_df, lag_values = 1:3) {
+  lag_values <- sort(unique(as.integer(lag_values)))
+  lag_values <- lag_values[lag_values > 0]
+  rows <- lapply(lag_values, function(lag_value) {
+    pair_list <- lapply(split(rosenblatt_df, rosenblatt_df$subject), function(x) {
+      x <- x[order(x$time), , drop = FALSE]
+      if (nrow(x) <= lag_value) return(NULL)
+      data.frame(
+        z_prev = x$z[seq_len(nrow(x) - lag_value)],
+        z_curr = x$z[(lag_value + 1):nrow(x)]
+      )
+    })
+    pair_list <- pair_list[!vapply(pair_list, is.null, logical(1))]
+    if (length(pair_list) == 0) {
+      return(data.frame(lag = lag_value, cor_z = NA_real_, n_pairs = 0L))
+    }
+    pairs <- do.call(rbind, pair_list)
+    data.frame(
+      lag = lag_value,
+      cor_z = suppressWarnings(stats::cor(pairs$z_prev, pairs$z_curr, use = "complete.obs")),
+      n_pairs = nrow(pairs)
+    )
+  })
+  do.call(rbind, rows)
 }
 
 .copula_v2_message_plot <- function(title, subtitle, message) {
-  ggplot2::ggplot(data.frame(x = 0, y = 0), ggplot2::aes(x = .data$x, y = .data$y)) +
+  ggplot2::ggplot(data.frame(x = 0, y = 0), ggplot2::aes(x = x, y = y)) +
     ggplot2::geom_text(label = message, size = 4) +
     ggplot2::xlim(-1, 1) +
     ggplot2::ylim(-1, 1) +
@@ -4932,6 +5127,8 @@ plot.gamlss.longitudinal = function(
   }
 
   copula_spec <- get_copula_dist(object$copula_dist)
+
+  # Extract proper copula family name for BiCopName
   copula_family_name <- object$copula_dist
   if (!is.character(copula_family_name) || nchar(copula_family_name) == 0) {
     copula_family_name <- copula_spec$copula_dist
@@ -4955,6 +5152,7 @@ plot.gamlss.longitudinal = function(
   subject <- object$response_subject
   time <- object$response_margin
 
+  # Extract only margin parameters that are actually in eta_out$eta_inv
   margin_param_names <- names(object$margin_dist$parameters)
   margin_params <- list()
   for (param_name in margin_param_names) {
@@ -4966,6 +5164,7 @@ plot.gamlss.longitudinal = function(
   theta_fit <- if ("theta" %in% names(eta_out$eta_inv)) eta_out$eta_inv$theta else numeric(0)
   zeta_fit <- if ("zeta" %in% names(eta_out$eta_inv)) eta_out$eta_inv$zeta else numeric(0)
 
+  # Align response-side vectors to a common leading length.
   margin_min_n <- if (length(margin_params) > 0) {
     min(vapply(margin_params, length, integer(1)))
   } else {
@@ -4987,9 +5186,13 @@ plot.gamlss.longitudinal = function(
     if (length(param_vec) == 0) {
       return(rep(NA_real_, n_resp))
     }
+
+    # Full-row parameterization.
     if (length(param_vec) == n_resp) {
       return(param_vec)
     }
+
+    # Pair-row parameterization: parameters correspond to times 1:(T-1) only.
     margin_names <- sort(unique(time))
     left_time_rows <- which(time %in% margin_names[seq_len(max(1, length(margin_names) - 1))])
     if (length(param_vec) == length(left_time_rows)) {
@@ -4997,12 +5200,15 @@ plot.gamlss.longitudinal = function(
       out[left_time_rows] <- param_vec
       return(out)
     }
+
+    # Fallback for unexpected lengths.
     rep(param_vec, length.out = n_resp)
   }
 
   theta_fit <- align_copula_param(theta_fit)
   zeta_fit <- align_copula_param(zeta_fit)
 
+  # Filter by finite values
   keep <- is.finite(response)
   for (param_name in names(margin_params)) {
     keep <- keep & is.finite(margin_params[[param_name]])
@@ -5019,6 +5225,7 @@ plot.gamlss.longitudinal = function(
     stop("No finite fitted observations are available for copula diagnostics.")
   }
 
+  # Convert margin_dist$family to family name if needed
   family_name <- object$margin_dist$family[1]
   if (!is.character(family_name)) {
     family_name <- object$margin_dist$family[1]$family
@@ -5031,6 +5238,7 @@ plot.gamlss.longitudinal = function(
     as.numeric(VineCopula::BiCopName(copula_family_name))
   }, error = function(e) NA_real_)
 
+  # Compute tau_fit, suppressing coercion warnings
   tau_fit <- suppressWarnings(
     vapply(seq_along(theta_fit), function(i) {
       .copula_v2_tau_from_par(family_num, theta_fit[i], zeta_fit[i])
@@ -5076,6 +5284,7 @@ plot.gamlss.longitudinal = function(
 
   pair_list <- list()
   idx <- 1L
+
   for (lag_value in lag_values) {
     for (subject_id in unique(fit_data$subject)) {
       subject_rows <- fit_data[fit_data$subject == subject_id, , drop = FALSE]
@@ -5095,6 +5304,7 @@ plot.gamlss.longitudinal = function(
         row1 <- subject_rows[j, , drop = FALSE]
         row2 <- subject_rows[k, , drop = FALSE]
 
+        # Match likelihood indexing: pair (t, t+lag) uses the left-row copula parameter.
         theta_pair <- as.numeric(row1$theta_fit)
         zeta_pair <- as.numeric(row1$zeta_fit)
         tau_pair <- as.numeric(row1$tau_fit)
@@ -5197,7 +5407,9 @@ plot.gamlss.longitudinal = function(
 }
 
 .copula_v2_transform_data <- function(data, transform = "uniform") {
+  # Transform uniform [0,1] data to normal scale or other scales
   if (transform == "normal") {
+    # Clamp to avoid infinite values from qnorm at 0 or 1
     data$u1 <- stats::qnorm(.copula_v2_clamp01(data$u1))
     data$u2 <- stats::qnorm(.copula_v2_clamp01(data$u2))
   }
@@ -5221,6 +5433,7 @@ plot.gamlss.longitudinal = function(
 
   density_sum <- rep(0, nrow(grid_df))
   density_count <- 0L
+
   for (i in seq_len(nrow(pair_data))) {
     par <- pair_data$theta_pair[i]
     par2 <- pair_data$zeta_pair[i]
@@ -5243,6 +5456,7 @@ plot.gamlss.longitudinal = function(
   } else {
     grid_df$density <- density_sum / density_count
   }
+
   grid_df
 }
 
@@ -5274,6 +5488,7 @@ plot.gamlss.longitudinal = function(
     return(list(summary = data.frame(), overlap = data.frame()))
   }
 
+  # Scale both surfaces to unit mass before computing distance metrics.
   emp <- pmax(emp, 0)
   fit <- pmax(fit, 0)
   emp <- emp / max(sum(emp), .Machine$double.eps)
@@ -5317,9 +5532,11 @@ plot.copula_contour_compare <- function(object, lags = 1, grid_n = 45, max_pairs
   if (!inherits(object, "gamlss.longitudinal")) {
     stop("'object' must be a fitted 'gamlss.longitudinal' object.")
   }
+
   if (!transform %in% c("uniform", "normal")) {
     stop("'transform' must be either 'uniform' or 'normal'.")
   }
+
   if (!is.numeric(diff_scale_limit) || length(diff_scale_limit) != 1 || !is.finite(diff_scale_limit) || diff_scale_limit <= 0) {
     stop("'diff_scale_limit' must be a single positive numeric value.")
   }
@@ -5347,7 +5564,16 @@ plot.copula_contour_compare <- function(object, lags = 1, grid_n = 45, max_pairs
 
   grid_list <- lapply(names(split_data), function(nm) {
     pd <- split_data[[nm]]
-    fit_grid <- .copula_v2_average_density_grid(family_num = family_num, pair_data = pd, grid_n = grid_n, max_pairs_overlay = max_pairs_overlay)
+
+    fit_grid <- .copula_v2_average_density_grid(
+      family_num = family_num,
+      pair_data = pd,
+      grid_n = grid_n,
+      max_pairs_overlay = max_pairs_overlay
+    )
+
+    # Build empirical surface on the same copula grid as fit_grid, then transform both
+    # together if requested. This avoids grid mismatch artifacts in contouring.
     emp_grid <- .copula_v2_empirical_density_grid(pd, grid_n = grid_n, lims = c(0.02, 0.98, 0.02, 0.98))
 
     if (transform == "normal") {
@@ -5357,12 +5583,22 @@ plot.copula_contour_compare <- function(object, lags = 1, grid_n = 45, max_pairs
       fit_grid$u1 <- z1
       fit_grid$u2 <- z2
       fit_grid$density <- fit_grid$density * jacobian
+
       emp_grid$u1 <- z1
       emp_grid$u2 <- z2
       emp_grid$density <- emp_grid$density * jacobian
+    } else {
+      emp_grid <- emp_grid
     }
 
-    g <- merge(emp_grid, fit_grid, by = c("u1", "u2"), suffixes = c("_emp", "_fit"), all = FALSE)
+    # Merge on grid coordinates to ensure pointwise comparisons.
+    g <- merge(
+      emp_grid,
+      fit_grid,
+      by = c("u1", "u2"),
+      suffixes = c("_emp", "_fit"),
+      all = FALSE
+    )
     g$density_diff <- g$density_fit - g$density_emp
     g$time_pair <- nm
     g
@@ -5405,7 +5641,7 @@ plot.copula_contour_compare <- function(object, lags = 1, grid_n = 45, max_pairs
       high = "#b2182b",
       midpoint = 0,
       limits = c(-diff_scale_limit, diff_scale_limit),
-      oob = function(x, range) pmin(pmax(x, range[1]), range[2]),
+      oob = scales::squish,
       name = "Fit - Emp"
     ) +
     ggplot2::labs(title = "Contour Difference Surface", x = x_label, y = y_label) +
@@ -5418,6 +5654,7 @@ plot.copula_contour_compare <- function(object, lags = 1, grid_n = 45, max_pairs
   }
 
   dashboard <- ggpubr::ggarrange(p_emp, p_fit, p_diff, ncol = 1, nrow = 3)
+
   if (isTRUE(plot)) {
     print(dashboard)
   }
@@ -5447,27 +5684,38 @@ plot.copula_contour_compare <- function(object, lags = 1, grid_n = 45, max_pairs
 #' @param tau_ylim Optional numeric vector of length 2 specifying y-axis limits
 #'   for Kendall's tau chart(s). If `NULL` (default), y-axis scales are automatic.
 #' @param plot2_cuts Integer number of quantile-based cuts used in plot 2 (default 10).
+#' @param tail_thresholds Numeric vector of lower-tail probabilities used for
+#'   tail co-occurrence and conditional exceedance diagnostics.
+#' @param residual_lags Integer lags used for Rosenblatt normal-score
+#'   autocorrelation diagnostics.
+#' @param dashboard_ncol Number of columns in the combined diagnostic dashboard.
 #' @param plot Logical; if TRUE, print the dashboard.
 #'
 #' @return Invisibly returns a list with plot objects and summaries.
 #' @export
-plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, transform = "normal", plot1_style = "bins", contour_bins = 8, time_stratified = FALSE, by = NULL, data = NULL, tau_ylim = NULL, plot2_cuts = 10, plot = TRUE, ...) {
+plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, transform = "normal", plot1_style = "bins", contour_bins = 8, time_stratified = FALSE, by = NULL, data = NULL, tau_ylim = NULL, plot2_cuts = 10, tail_thresholds = c(0.05, 0.10, 0.20), residual_lags = 1:3, dashboard_ncol = 2, plot = TRUE, ...) {
   if (!inherits(object, "gamlss.longitudinal")) {
     stop("'object' must be a fitted 'gamlss.longitudinal' object.")
   }
+
+  # Validate and apply transformation
   if (!transform %in% c("uniform", "normal")) {
     stop("'transform' must be either 'uniform' or 'normal'.")
   }
+
   if (!plot1_style %in% c("bins", "scatter")) {
     stop("'plot1_style' must be either 'bins' or 'scatter'.")
   }
+
   if (!is.numeric(contour_bins) || length(contour_bins) != 1 || !is.finite(contour_bins) || contour_bins < 1) {
     stop("'contour_bins' must be a single finite number >= 1.")
   }
   contour_bins <- as.integer(round(contour_bins))
+
   if (!is.logical(time_stratified) || length(time_stratified) != 1 || is.na(time_stratified)) {
     stop("'time_stratified' must be TRUE or FALSE.")
   }
+
   if (!is.numeric(plot2_cuts) || length(plot2_cuts) != 1 || !is.finite(plot2_cuts) || plot2_cuts < 2) {
     stop("'plot2_cuts' must be a single finite number >= 2.")
   }
@@ -5480,6 +5728,23 @@ plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, 
     tau_ylim <- as.numeric(tau_ylim)
   }
 
+  tail_thresholds <- sort(unique(as.numeric(tail_thresholds)))
+  tail_thresholds <- tail_thresholds[is.finite(tail_thresholds) & tail_thresholds > 0 & tail_thresholds < 0.5]
+  if (length(tail_thresholds) == 0) {
+    tail_thresholds <- c(0.05, 0.10, 0.20)
+  }
+
+  residual_lags <- sort(unique(as.integer(residual_lags)))
+  residual_lags <- residual_lags[residual_lags > 0]
+  if (length(residual_lags) == 0) {
+    residual_lags <- 1:3
+  }
+
+  if (!is.numeric(dashboard_ncol) || length(dashboard_ncol) != 1 || !is.finite(dashboard_ncol) || dashboard_ncol < 1) {
+    stop("'dashboard_ncol' must be a single positive integer.")
+  }
+  dashboard_ncol <- as.integer(round(dashboard_ncol))
+
   fit_data <- .copula_v2_fit_data(object)
   pair_data_uniform <- .copula_v2_pair_data(fit_data, lags = lags)
 
@@ -5491,16 +5756,23 @@ plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, 
 
   pair_data_uniform <- .copula_v2_attach_group(pair_data_uniform, object = object, by = by, data = data)
   pair_data_plot <- pair_data_uniform
+
+  # Apply transform to pair data if requested
   if (transform == "normal") {
     pair_data_plot <- .copula_v2_transform_data(pair_data_plot, transform = "normal")
   }
 
   copula_spec <- get_copula_dist(object$copula_dist)
+
+  # Ensure proper copula family name for BiCopName
   copula_family_name <- object$copula_dist
   if (!is.character(copula_family_name) || nchar(copula_family_name) == 0) {
     copula_family_name <- copula_spec$copula_dist
   }
+
+  # If still a numeric code, convert to family name
   if (grepl("^[0-9]+$", copula_family_name)) {
+    # Map numeric codes back to family names
     family_map <- c("1" = "N", "2" = "C", "3" = "G", "4" = "F", "5" = "J", "6" = "BB1", "7" = "BB6", "8" = "BB7", "9" = "BB8", "10" = "T")
     if (copula_family_name %in% names(family_map)) {
       copula_family_name <- family_map[[copula_family_name]]
@@ -5515,32 +5787,62 @@ plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, 
 
   if (is_grouped) {
     density_list <- lapply(split(pair_data_uniform, pair_data_uniform$split_group), function(x) {
-      grid_i <- .copula_v2_average_density_grid(family_num = family_num, pair_data = x, grid_n = grid_n, max_pairs_overlay = max_pairs_overlay)
+      grid_i <- .copula_v2_average_density_grid(
+        family_num = family_num,
+        pair_data = x,
+        grid_n = grid_n,
+        max_pairs_overlay = max_pairs_overlay
+      )
       grid_i$split_group <- as.character(x$split_group[1])
       grid_i
     })
     density_grid <- do.call(rbind, density_list)
   } else {
-    density_grid <- .copula_v2_average_density_grid(family_num = family_num, pair_data = pair_data_uniform, grid_n = grid_n, max_pairs_overlay = max_pairs_overlay)
+    density_grid <- .copula_v2_average_density_grid(
+      family_num = family_num,
+      pair_data = pair_data_uniform,
+      grid_n = grid_n,
+      max_pairs_overlay = max_pairs_overlay
+    )
   }
 
+  # Apply transform to density grid if requested
   if (transform == "normal") {
+    # Transform coordinates to normal scale
     z1 <- stats::qnorm(.copula_v2_clamp01(density_grid$u1))
     z2 <- stats::qnorm(.copula_v2_clamp01(density_grid$u2))
+
+    # Apply Jacobian correction: multiply by phi(z1) * phi(z2)
+    # where phi is the standard normal PDF
     jacobian_correction <- stats::dnorm(z1) * stats::dnorm(z2)
+
     density_grid$u1 <- z1
     density_grid$u2 <- z2
     density_grid$density <- density_grid$density * jacobian_correction
   }
 
-  x_label <- if (transform == "normal") expression(Phi^-1 * (U[t])) else expression(U[t])
-  y_label <- if (transform == "normal") expression(Phi^-1 * (U[t + 1])) else expression(U[t + 1])
+  # Set axis labels based on transform
+  x_label <- if (transform == "normal") {
+    expression(Phi^-1 * (U[t]))
+  } else {
+    expression(U[t])
+  }
+
+  y_label <- if (transform == "normal") {
+    expression(Phi^-1 * (U[t + 1]))
+  } else {
+    expression(U[t + 1])
+  }
 
   p1 <- ggplot2::ggplot(pair_data_plot, ggplot2::aes_string(x = "u1", y = "u2"))
+
   if (plot1_style == "scatter") {
-    p1 <- p1 + ggplot2::geom_point(color = "#4d4d4d", alpha = 0.45, size = 1.2)
+    p1 <- p1 +
+      ggplot2::geom_point(color = "#4d4d4d", alpha = 0.45, size = 1.2)
   } else {
-    p1 <- p1 + ggplot2::geom_bin2d(bins = 25, alpha = 0.8) + ggplot2::scale_fill_gradient(low = "white", high = "black", name = "Count")
+    p1 <- p1 +
+      ggplot2::geom_bin2d(bins = 25, alpha = 0.8) +
+      ggplot2::scale_fill_gradient(low = "white", high = "black", name = "Count")
   }
 
   p1 <- p1 +
@@ -5576,6 +5878,8 @@ plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, 
     if (nrow(df) < 1) {
       return(data.frame())
     }
+
+    # Use rank-based bins to avoid collapsed quantile cuts when many fitted tau values are tied.
     df <- df[is.finite(df$tau_fit), , drop = FALSE]
     if (nrow(df) < 1) {
       return(data.frame())
@@ -5589,8 +5893,15 @@ plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, 
     out <- do.call(rbind, lapply(split(df, df$cut_group), function(x) {
       tau_emp <- suppressWarnings(stats::cor(x$u1, x$u2, method = "kendall", use = "complete.obs"))
       tau_fit <- mean(x$tau_fit, na.rm = TRUE)
-      data.frame(cut_group = as.character(x$cut_group[1]), tau_emp = tau_emp, tau_fit = tau_fit, n_pairs = nrow(x), stringsAsFactors = FALSE)
+      data.frame(
+        cut_group = as.character(x$cut_group[1]),
+        tau_emp = tau_emp,
+        tau_fit = tau_fit,
+        n_pairs = nrow(x),
+        stringsAsFactors = FALSE
+      )
     }))
+
     if (!is.null(split_name)) {
       out$split_group <- split_name
     }
@@ -5637,17 +5948,212 @@ plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, 
     }
   }
 
-  dashboard <- ggpubr::ggarrange(p1, p2, ncol = 1, nrow = 2)
+  rosenblatt_df <- tryCatch(
+    .copula_v2_rosenblatt_series(fit_data, family_num),
+    error = function(e) data.frame()
+  )
+
+  rosenblatt_pair_df <- tryCatch(
+    .copula_v2_rosenblatt_pair_data(pair_data_uniform, family_num),
+    error = function(e) data.frame()
+  )
+
+  if (nrow(rosenblatt_df) == 0 || all(!is.finite(rosenblatt_df$z))) {
+    p_ros_time <- .copula_v2_message_plot(
+      title = "Rosenblatt Normal Scores by Time",
+      subtitle = "Scores are qnorm of pairwise conditional Rosenblatt residuals",
+      message = "No finite Rosenblatt residuals"
+    )
+  } else {
+    p_ros_time <- ggplot2::ggplot(rosenblatt_df, ggplot2::aes(x = factor(time), y = z)) +
+      ggplot2::geom_hline(yintercept = 0, color = "#666666", linetype = "dashed") +
+      ggplot2::geom_boxplot(fill = "#9ecae1", color = "#4d4d4d", outlier.alpha = 0.35) +
+      ggplot2::labs(
+        title = "Rosenblatt Normal Scores by Time",
+        subtitle = "Each time point should be centered near zero with similar spread",
+        x = "Time",
+        y = "Normal score"
+      ) +
+      ggplot2::theme_minimal()
+  }
+
+  if (nrow(rosenblatt_pair_df) == 0 || all(!is.finite(rosenblatt_pair_df$z_prev)) || all(!is.finite(rosenblatt_pair_df$z_curr))) {
+    p_ros_lag <- .copula_v2_message_plot(
+      title = "Rosenblatt Lag Plot",
+      subtitle = "Current conditional score against previous marginal score",
+      message = "No finite Rosenblatt lag pairs"
+    )
+  } else {
+    p_ros_lag <- ggplot2::ggplot(rosenblatt_pair_df, ggplot2::aes(x = z_prev, y = z_curr)) +
+      ggplot2::geom_hline(yintercept = 0, color = "#d9d9d9") +
+      ggplot2::geom_vline(xintercept = 0, color = "#d9d9d9") +
+      ggplot2::geom_point(color = "#4d4d4d", alpha = 0.35, size = 1.1) +
+      ggplot2::geom_smooth(method = "loess", se = FALSE, color = "#e41a1c", linewidth = 0.7) +
+      ggplot2::labs(
+        title = "Rosenblatt Lag Plot",
+        subtitle = "The smooth should be approximately flat at zero",
+        x = expression(Phi^-1 * (U[t])),
+        y = expression(Phi^-1 * (R[t + 1] ~ "|" ~ U[t]))
+      ) +
+      ggplot2::theme_minimal()
+  }
+
+  kendall_df <- tryCatch(
+    .copula_v2_kendall_diagnostic(pair_data_uniform, family_num),
+    error = function(e) data.frame()
+  )
+
+  if (nrow(kendall_df) == 0) {
+    p_kendall <- .copula_v2_message_plot(
+      title = "Kendall Function Diagnostic",
+      subtitle = "Empirical copula values compared with fitted copula values at observed pairs",
+      message = "No finite Kendall diagnostic values"
+    )
+  } else {
+    p_kendall <- ggplot2::ggplot(kendall_df, ggplot2::aes(x = fitted, y = empirical)) +
+      ggplot2::geom_abline(intercept = 0, slope = 1, color = "#666666", linetype = "dashed") +
+      ggplot2::geom_point(color = "#4d4d4d", alpha = 0.55, size = 1.2) +
+      ggplot2::labs(
+        title = "Kendall Function Diagnostic",
+        subtitle = "Sorted empirical copula probabilities should track sorted fitted probabilities",
+        x = "Fitted copula probability",
+        y = "Empirical copula probability"
+      ) +
+      ggplot2::theme_minimal()
+  }
+
+  tail_df <- tryCatch(
+    .copula_v2_tail_diagnostics(pair_data_uniform, family_num, thresholds = tail_thresholds),
+    error = function(e) data.frame()
+  )
+  cond_tail_df <- .copula_v2_conditional_tail_diagnostics(tail_df)
+
+  tail_long <- if (nrow(tail_df) > 0) {
+    rbind(
+      data.frame(threshold = tail_df$threshold, tail = tail_df$tail, source = "Empirical", probability = tail_df$empirical),
+      data.frame(threshold = tail_df$threshold, tail = tail_df$tail, source = "Fitted", probability = tail_df$fitted)
+    )
+  } else {
+    data.frame()
+  }
+
+  if (nrow(tail_long) == 0 || all(!is.finite(tail_long$probability))) {
+    p_tail <- .copula_v2_message_plot(
+      title = "Tail Co-occurrence",
+      subtitle = "Observed joint tail probability against fitted copula probability",
+      message = "No finite tail diagnostics"
+    )
+  } else {
+    p_tail <- ggplot2::ggplot(tail_long, ggplot2::aes(x = threshold, y = probability, color = source, group = source)) +
+      ggplot2::geom_point(size = 2.4) +
+      ggplot2::geom_line(linewidth = 0.8) +
+      ggplot2::facet_wrap(~tail) +
+      ggplot2::scale_color_manual(values = c(Empirical = "#4d4d4d", Fitted = "#e41a1c")) +
+      ggplot2::labs(
+        title = "Tail Co-occurrence",
+        subtitle = "Lower: P(Ut <= a, Ut+1 <= a); Upper: P(Ut >= 1-a, Ut+1 >= 1-a)",
+        x = "Tail probability a",
+        y = "Joint probability",
+        color = NULL
+      ) +
+      ggplot2::theme_minimal()
+  }
+
+  cond_tail_long <- if (nrow(cond_tail_df) > 0) {
+    rbind(
+      data.frame(threshold = cond_tail_df$threshold, tail = cond_tail_df$tail, source = "Empirical", probability = cond_tail_df$empirical),
+      data.frame(threshold = cond_tail_df$threshold, tail = cond_tail_df$tail, source = "Fitted", probability = cond_tail_df$fitted)
+    )
+  } else {
+    data.frame()
+  }
+
+  if (nrow(cond_tail_long) == 0 || all(!is.finite(cond_tail_long$probability))) {
+    p_cond_tail <- .copula_v2_message_plot(
+      title = "Conditional Tail Exceedance",
+      subtitle = "Observed conditional tail probability against fitted copula probability",
+      message = "No finite conditional tail diagnostics"
+    )
+  } else {
+    p_cond_tail <- ggplot2::ggplot(cond_tail_long, ggplot2::aes(x = threshold, y = probability, color = source, group = source)) +
+      ggplot2::geom_point(size = 2.4) +
+      ggplot2::geom_line(linewidth = 0.8) +
+      ggplot2::facet_wrap(~tail) +
+      ggplot2::scale_color_manual(values = c(Empirical = "#4d4d4d", Fitted = "#e41a1c")) +
+      ggplot2::coord_cartesian(ylim = c(0, 1)) +
+      ggplot2::labs(
+        title = "Conditional Tail Exceedance",
+        subtitle = "Lower: P(Ut+1 <= a | Ut <= a); Upper: P(Ut+1 >= 1-a | Ut >= 1-a)",
+        x = "Tail probability a",
+        y = "Conditional probability",
+        color = NULL
+      ) +
+      ggplot2::theme_minimal()
+  }
+
+  lag_summary_df <- tryCatch(
+    .copula_v2_rosenblatt_lag_summary(rosenblatt_df, lag_values = residual_lags),
+    error = function(e) data.frame()
+  )
+
+  if (nrow(lag_summary_df) == 0 || all(!is.finite(lag_summary_df$cor_z))) {
+    p_lag_summary <- .copula_v2_message_plot(
+      title = "Residual Dependence by Lag",
+      subtitle = "Correlation of Rosenblatt normal scores within subject",
+      message = "No finite residual lag correlations"
+    )
+  } else {
+    p_lag_summary <- ggplot2::ggplot(lag_summary_df, ggplot2::aes(x = factor(lag), y = cor_z)) +
+      ggplot2::geom_hline(yintercept = 0, color = "#666666", linetype = "dashed") +
+      ggplot2::geom_col(fill = "#4d4d4d", alpha = 0.8) +
+      ggplot2::geom_text(ggplot2::aes(label = paste0("n=", n_pairs)), vjust = -0.35, size = 3) +
+      ggplot2::labs(
+        title = "Residual Dependence by Lag",
+        subtitle = "Correlations should be close to zero after the Rosenblatt transform",
+        x = "Lag",
+        y = "Correlation"
+      ) +
+      ggplot2::theme_minimal()
+  }
+
+  dashboard_plots <- list(p1, p2, p_ros_time, p_ros_lag, p_kendall, p_tail, p_cond_tail, p_lag_summary)
+  dashboard <- do.call(
+    ggpubr::ggarrange,
+    c(
+      dashboard_plots,
+      list(
+        ncol = min(dashboard_ncol, length(dashboard_plots)),
+        nrow = ceiling(length(dashboard_plots) / dashboard_ncol)
+      )
+    )
+  )
+
   if (isTRUE(plot)) {
     print(dashboard)
   }
 
   invisible(list(
-    plots = list(empirical_overlay = p1, quartile_correlation = p2),
+    plots = list(
+      empirical_overlay = p1,
+      quartile_correlation = p2,
+      rosenblatt_by_time = p_ros_time,
+      rosenblatt_lag = p_ros_lag,
+      kendall_function = p_kendall,
+      tail_cooccurrence = p_tail,
+      conditional_tail_exceedance = p_cond_tail,
+      residual_lag_correlation = p_lag_summary
+    ),
     dashboard = dashboard,
     fit_data = fit_data,
     pair_data = pair_data_plot,
-    quartile_summary = quartile_df
+    pair_data_uniform = pair_data_uniform,
+    rosenblatt = rosenblatt_df,
+    rosenblatt_pairs = rosenblatt_pair_df,
+    quartile_summary = quartile_df,
+    kendall_summary = kendall_df,
+    tail_summary = tail_df,
+    conditional_tail_summary = cond_tail_df,
+    residual_lag_summary = lag_summary_df
   ))
 }
 
@@ -6489,7 +6995,7 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
 
     #par.copula=c(.3); names(par.copula)=c("theta")
     theta_intercept=unlist(par.copula["theta"])
-    theta_out=theta_intercept+matrix(rep(covariates_input$theta.time*1:(d-1),n),ncol=d-1,byrow=TRUE) + 
+    theta_out=theta_intercept+matrix(rep(covariates_input$theta.time*1:(d-1),n),ncol=d-1,byrow=TRUE) +
     matrix(rep(as.matrix(covariates_input$theta.age*((covariates[[1]]-50)/100)^2),d-1),ncol=d-1)
 
     theta_inv=copula_input$copula_link$theta.linkinv(theta_out)
@@ -6503,9 +7009,9 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     }
 
     # transform to R-vine matrix notatio
-    
+
     RVM=list()
-    
+
     for (i in 1:n) {
       RVM[[i]] = VineCopula::D2RVine(order, c(rep(copula.family,length(theta_inv[i,])),rep(0,dd-(length(theta_inv[i,])))), par=c(theta_inv[i,],rep(0,dd-(length(theta_inv[i,])))), par2=c(theta_inv[i,],rep(0,dd-(length(theta_inv[i,])))))
     }
@@ -6582,7 +7088,7 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
 
     t=d
     copsim=VineCopula::RVineSim(n,RVM)
-    
+
 
     covariates=list()
     covariates[[1]] = as.data.frame(round(runif(n,0,100),0)) #Age
@@ -6738,22 +7244,22 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     tau_out = NULL
 
     if ("mu" %in% names(margin_dist$parameters)) {
-      mu_eta = make_time_factor_component(covariates_input$mu.time, d, "mu.time") + 
-        matrix(rep(as.matrix(covariates_input$mu.age * ((covariates[[1]] - 50) / 100)^2), d), ncol = d) + 
+      mu_eta = make_time_factor_component(covariates_input$mu.time, d, "mu.time") +
+        matrix(rep(as.matrix(covariates_input$mu.age * ((covariates[[1]] - 50) / 100)^2), d), ncol = d) +
         make_gender_factor_component(covariates_input$mu.gender, d, "mu.gender")
       mu_out = apply_margin_link("mu", par.margin[1], mu_eta)
     }
 
     if ("sigma" %in% names(margin_dist$parameters)) {
-      sigma_eta = make_time_factor_component(covariates_input$sigma.time, d, "sigma.time") + 
+      sigma_eta = make_time_factor_component(covariates_input$sigma.time, d, "sigma.time") +
         matrix(rep(as.matrix(covariates_input$sigma.age * ((covariates[[1]] - 50) / 100)^2), d), ncol = d) +
         make_gender_factor_component(covariates_input$sigma.gender, d, "sigma.gender")
       sigma_out = apply_margin_link("sigma", par.margin[2], sigma_eta)
     }
 
     if ("nu" %in% names(margin_dist$parameters)) {
-      nu_eta = make_time_factor_component(covariates_input$nu.time, d, "nu.time") + 
-        matrix(rep(as.matrix(covariates_input$nu.age * ((covariates[[1]] - 50) / 100)^2), d), ncol = d) + 
+      nu_eta = make_time_factor_component(covariates_input$nu.time, d, "nu.time") +
+        matrix(rep(as.matrix(covariates_input$nu.age * ((covariates[[1]] - 50) / 100)^2), d), ncol = d) +
         make_gender_factor_component(covariates_input$nu.gender, d, "nu.gender")
       nu_out = apply_margin_link("nu", par.margin[3], nu_eta)
     }
@@ -6764,14 +7270,14 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
         make_gender_factor_component(covariates_input$tau.gender, d, "tau.gender")
       tau_out = apply_margin_link("tau", par.margin[4], tau_eta)
     }
-    theta_eta_out=par.copula[1]+make_time_factor_component(covariates_input$theta.time, d - 1, "theta.time") + 
+    theta_eta_out=par.copula[1]+make_time_factor_component(covariates_input$theta.time, d - 1, "theta.time") +
       matrix(rep(as.matrix(covariates_input$theta.age*((covariates[[1]]-50)/100)^2),d-1),ncol=d-1) +
       make_gender_factor_component(covariates_input$theta.gender, d - 1, "theta.gender")
     theta_out = copula_input$copula_link$theta.linkinv(theta_eta_out)
 
     if ("zeta" %in% copula_input$parameters) {
-      zeta_eta_out=par.copula[2]+make_time_factor_component(covariates_input$zeta.time, d - 1, "zeta.time") + 
-        matrix(rep(as.matrix(covariates_input$zeta.age*((covariates[[1]]-50)/100)^2),d-1),ncol=d-1) + 
+      zeta_eta_out=par.copula[2]+make_time_factor_component(covariates_input$zeta.time, d - 1, "zeta.time") +
+        matrix(rep(as.matrix(covariates_input$zeta.age*((covariates[[1]]-50)/100)^2),d-1),ncol=d-1) +
         make_gender_factor_component(covariates_input$zeta.gender, d - 1, "zeta.gender")
       zeta_out = copula_input$copula_link$zeta.linkinv(zeta_eta_out)
     } else {
@@ -6790,7 +7296,7 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     if (!is.null(tau_out) && any(!is.finite(tau_out))) {
       stop("simOption 10 generated non-finite tau values after link inverse transformation.")
     }
-    
+
     if (any(!is.finite(theta_out))) {
       stop("simOption 10 generated non-finite theta values after link inverse transformation.")
     }
