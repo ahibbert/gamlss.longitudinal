@@ -1583,6 +1583,7 @@ gamlss.longitudinal=function(dataset,
     zeta = zeta.formula.int
   )
   return_list$var_map <- var_map
+  return_list$optim_method <- method
 
   # Store vcov metadata and optionally precompute vcov once at fit time.
   return_list$vcov <- NULL
@@ -5516,7 +5517,7 @@ plot.gamlss.longitudinal = function(
 
 #' Compare fitted and empirical copula contour surfaces
 #'
-#' @param object A fitted `gamlss.longitudinal` object.
+#' @param x A fitted `gamlss.longitudinal` object.
 #' @param lags Integer lags to assess, measured in ordered time steps.
 #' @param grid_n Grid size used for density surfaces.
 #' @param max_pairs_overlay Maximum number of paired observations used for fitted surface averaging.
@@ -5525,13 +5526,15 @@ plot.gamlss.longitudinal = function(
 #' @param diff_scale_limit Positive numeric; fixed symmetric color scale limit for the difference panel.
 #' @param time_stratified Logical; if TRUE, compare surfaces by time pair.
 #' @param plot Logical; if TRUE, print the dashboard.
+#' @param ... Additional arguments reserved for future methods.
 #'
 #' @return Invisibly returns plots, grid-level surfaces, and numeric similarity metrics.
 #' @export
-plot.copula_contour_compare <- function(object, lags = 1, grid_n = 45, max_pairs_overlay = 300, contour_bins = 10, transform = "uniform", diff_scale_limit = 0.05, time_stratified = FALSE, plot = TRUE, ...) {
-  if (!inherits(object, "gamlss.longitudinal")) {
-    stop("'object' must be a fitted 'gamlss.longitudinal' object.")
+plot.copula_contour_compare <- function(x, lags = 1, grid_n = 45, max_pairs_overlay = 300, contour_bins = 10, transform = "uniform", diff_scale_limit = 0.05, time_stratified = FALSE, plot = TRUE, ...) {
+  if (!inherits(x, "gamlss.longitudinal")) {
+    stop("'x' must be a fitted 'gamlss.longitudinal' object.")
   }
+  object <- x
 
   if (!transform %in% c("uniform", "normal")) {
     stop("'transform' must be either 'uniform' or 'normal'.")
@@ -5669,7 +5672,7 @@ plot.copula_contour_compare <- function(object, lags = 1, grid_n = 45, max_pairs
 
 #' Plot copula diagnostics for a fitted gamlss.longitudinal object
 #'
-#' @param object A fitted `gamlss.longitudinal` object.
+#' @param x A fitted `gamlss.longitudinal` object.
 #' @param lags Integer lags to assess, measured in ordered time steps.
 #' @param grid_n Grid size used for contour averaging.
 #' @param max_pairs_overlay Maximum number of paired observations used for the fitted overlay.
@@ -5690,13 +5693,15 @@ plot.copula_contour_compare <- function(object, lags = 1, grid_n = 45, max_pairs
 #'   autocorrelation diagnostics.
 #' @param dashboard_ncol Number of columns in the combined diagnostic dashboard.
 #' @param plot Logical; if TRUE, print the dashboard.
+#' @param ... Additional arguments reserved for future methods.
 #'
 #' @return Invisibly returns a list with plot objects and summaries.
 #' @export
-plot.copula <- function(object, lags = 1, grid_n = 35, max_pairs_overlay = 300, transform = "normal", plot1_style = "bins", contour_bins = 8, time_stratified = FALSE, by = NULL, data = NULL, tau_ylim = NULL, plot2_cuts = 10, tail_thresholds = c(0.05, 0.10, 0.20), residual_lags = 1:3, dashboard_ncol = 2, plot = TRUE, ...) {
-  if (!inherits(object, "gamlss.longitudinal")) {
-    stop("'object' must be a fitted 'gamlss.longitudinal' object.")
+plot.copula <- function(x, lags = 1, grid_n = 35, max_pairs_overlay = 300, transform = "normal", plot1_style = "bins", contour_bins = 8, time_stratified = FALSE, by = NULL, data = NULL, tau_ylim = NULL, plot2_cuts = 10, tail_thresholds = c(0.05, 0.10, 0.20), residual_lags = 1:3, dashboard_ncol = 2, plot = TRUE, ...) {
+  if (!inherits(x, "gamlss.longitudinal")) {
+    stop("'x' must be a fitted 'gamlss.longitudinal' object.")
   }
+  object <- x
 
   # Validate and apply transformation
   if (!transform %in% c("uniform", "normal")) {
