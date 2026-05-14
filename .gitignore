@@ -4,3 +4,4 @@
 .Ruserdata
 tests/REGRESSION_TEST_PLAN.md
 results/
+.codex-backups/

@@ -6,3 +6,6 @@
 ^start_httpgd\.R$
 ^\.vscode$
 ^results($|/)
+^\.codex-backups($|/)
+^_check($|/)
+^.*\.Rcheck($|/)
