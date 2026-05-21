@@ -2001,9 +2001,18 @@ gamlss.longitudinal=function(dataset,
           par_cov=par_cov_new
           par_s=par_s_new
 
-          calc_lik_out_end=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=FALSE
-            ,response=dataset$response,response_margin=(dataset$time),response_subject = dataset$subject
-            ,pair_cache=pair_cache)
+          if(par_name %in% c("theta", "zeta") && isTRUE(getOption("gamlss.longitudinal.fast_copula_lik", TRUE))) {
+            calc_lik_out_end=.calc_likelihood_update_copula(
+              eta_inv = eta_inv,
+              base_lik = calc_lik_out,
+              copula_dist = copula_dist,
+              pair_cache = pair_cache
+            )
+          } else {
+            calc_lik_out_end=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=FALSE
+              ,response=dataset$response,response_margin=(dataset$time),response_subject = dataset$subject
+              ,pair_cache=pair_cache)
+          }
 
 
           #print(sum(unlist(df_s[[par_name]])))
@@ -3018,6 +3027,74 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
   return_list=list(log_lik,margin_d,copula_d,margin_p,copula_p,Fx_1_2,order_copula,margin_deriv,pair_complete,par1,par2,row_id1,row_id2,pair_cache$theta_index_map)
   names(return_list)=c("log_lik","margin_d","copula_d","margin_p","copula_p","Fx_1_2","order_copula","margin_deriv","pair_complete","copula_par1","copula_par2","copula_row_id1","copula_row_id2","copula_theta_index_map")
   return(return_list)
+}
+
+.calc_likelihood_update_copula <- function(eta_inv, base_lik, copula_dist, pair_cache) {
+  row_id1 <- pair_cache$row_id1
+  Fx_1_2 <- base_lik$Fx_1_2
+  n_obs <- pair_cache$n_obs
+
+  pair_complete <- pair_cache$observed_pair_base & is.finite(Fx_1_2[, 1]) & is.finite(Fx_1_2[, 2])
+
+  par1 <- rep(NA_real_, length(row_id1))
+  par2 <- rep(NA_real_, length(row_id1))
+  if(length(row_id1) > 0) {
+    theta_len <- length(eta_inv[["theta"]])
+    if(theta_len == n_obs) {
+      theta_idx <- row_id1
+    } else {
+      theta_idx <- pair_cache$theta_index_map[row_id1]
+    }
+
+    par1 <- eta_inv[["theta"]][theta_idx]
+    if("zeta" %in% names(eta_inv)) {
+      par2 <- eta_inv[["zeta"]][theta_idx]
+    } else {
+      par2 <- rep(0, length(par1))
+    }
+  }
+
+  pair_complete <- pair_complete & is.finite(par1) & is.finite(par2)
+
+  Fx_eval <- Fx_1_2
+  if(nrow(Fx_eval) > 0) {
+    Fx_eval[!is.finite(Fx_eval)] <- 0.5
+    Fx_eval[Fx_eval > 1] <- 1
+    Fx_eval[Fx_eval < 0] <- 0
+  }
+
+  par1_eval <- par1
+  par2_eval <- par2
+  par1_eval[!is.finite(par1_eval)] <- 0
+  par2_eval[!is.finite(par2_eval)] <- 0
+
+  if(copula_dist == "C") {
+    par1_eval[par1_eval >= 28] <- 27.9
+  }
+
+  if(length(par1_eval) == 0) {
+    copula_d <- numeric(0)
+  } else {
+    copula_d <- .copula_pdf(Fx_eval[, 1], Fx_eval[, 2], family = copula_dist, par = par1_eval, par2 = par2_eval)
+  }
+  if(length(copula_d) > 0) {
+    copula_d[!is.finite(copula_d) | copula_d <= 0] <- 1
+    copula_d[!pair_complete] <- 1
+  }
+
+  copula_loglik_terms <- log(copula_d[pair_complete])
+  copula_loglik_terms <- copula_loglik_terms[is.finite(copula_loglik_terms)]
+  copula_loglik <- sum(copula_loglik_terms)
+  marginal_loglik <- as.numeric(base_lik$log_lik["marginal"])
+  log_lik <- c(marginal_loglik, copula_loglik, marginal_loglik + copula_loglik)
+  names(log_lik) <- c("marginal", "copula", "joint")
+
+  base_lik$log_lik <- log_lik
+  base_lik$copula_d <- copula_d
+  base_lik$pair_complete <- pair_complete
+  base_lik$copula_par1 <- par1
+  base_lik$copula_par2 <- par2
+  base_lik
 }
 
 #'
