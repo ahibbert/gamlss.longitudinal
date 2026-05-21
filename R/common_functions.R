@@ -1041,6 +1041,22 @@ gamlss.longitudinal=function(dataset,
     response_margin=dataset$time,
     response_subject=dataset$subject
   )
+  rs_has_smooth <- any(vapply(mm$s, length, integer(1L)) > 0L)
+  rs_calc_eta <- function(par_cov_current, par_s_current, update_only = NULL, eta_out_current = NULL) {
+    if (isTRUE(getOption("gamlss.longitudinal.fast_rs_eta", TRUE)) && !rs_has_smooth) {
+      .calc_eta_rs_cached(
+        rs_design_cache = rs_design_cache,
+        par_cov = par_cov_current,
+        par_s = par_s_current,
+        margin_dist = margin_dist,
+        copula_link = copula_link,
+        update_only = update_only,
+        eta_out = eta_out_current
+      )
+    } else {
+      calc_eta(par_cov_current, mm, margin_dist, copula_link, par_s = par_s_current)
+    }
+  }
 
   .is_auto_stop_crit <- function(x) {
     is.null(x) || (length(x) == 1 && is.na(x))
@@ -1706,7 +1722,7 @@ gamlss.longitudinal=function(dataset,
 
         first_inner_run=FALSE
 
-        eta_out=calc_eta(par_cov,mm,margin_dist,copula_link,par_s=if(first_inner_run) {NA} else {par_s})
+        eta_out=rs_calc_eta(par_cov_current = par_cov, par_s_current = par_s)
         eta=eta_out$eta; eta_dr=eta_out$eta_dr; eta_inv=eta_out$eta_inv
 
         # Guard against silent row dropping in matrix construction when response has NAs.
@@ -1920,7 +1936,8 @@ gamlss.longitudinal=function(dataset,
           beta_start=c(par_cov[fixed_names])
         } else {
             ############# UNPENALISED VERSION
-          temp_par_s_unlisted=unlist(par_s[[par_name]],use.names=TRUE)
+          temp_par_s_unlisted=unlist(par_s[[par_name]],use.names=FALSE)
+          names(temp_par_s_unlisted)=setdiff(colnames(X), fixed_names)
           beta_start=c(par_cov[fixed_names],temp_par_s_unlisted)
         }
 
@@ -1974,10 +1991,11 @@ gamlss.longitudinal=function(dataset,
           #Select all beta_new which have names corresponding to s_name
           par_s_new=par_s
           for(s_name in names(par_s[[par_name]])) {
-            par_s_new[[par_name]][[s_name]]=temp_par_s_new[grepl(s_name,names(temp_par_s_new),fixed=TRUE)]
+            smooth_col_names=colnames(X)[smooth_penalty_meta[[s_name]]$idx]
+            par_s_new[[par_name]][[s_name]]=temp_par_s_new[smooth_col_names]
           }
 
-          eta_out=calc_eta(par_cov_new,mm,margin_dist,copula_link,par_s=par_s_new)
+          eta_out=rs_calc_eta(par_cov_current = par_cov_new, par_s_current = par_s_new)
 
           eta=eta_out$eta; eta_dr=eta_out$eta_dr; eta_inv=eta_out$eta_inv
           par_cov=par_cov_new
@@ -2717,6 +2735,57 @@ calc_eta=function(par_cov,mm,margin_dist,copula_link,par_s=NA) {
     }
   }
   return(list(eta=eta,eta_inv=eta_inv,eta_dr=eta_dr))
+}
+
+.calc_eta_rs_cached <- function(
+  rs_design_cache,
+  par_cov,
+  par_s,
+  margin_dist,
+  copula_link,
+  update_only = NULL,
+  eta_out = NULL
+) {
+  if (is.null(eta_out)) {
+    eta_out <- list(eta = list(), eta_inv = list(), eta_dr = list())
+  }
+
+  par_names <- names(rs_design_cache)
+  if (!is.null(update_only)) {
+    par_names <- intersect(update_only, par_names)
+  }
+
+  for (par_name in par_names) {
+    design_info <- rs_design_cache[[par_name]]
+    X <- design_info$X
+    beta <- numeric(ncol(X))
+    names(beta) <- colnames(X)
+
+    fixed_names <- design_info$fixed_names
+    beta[fixed_names] <- par_cov[fixed_names]
+
+    if (length(par_s[[par_name]]) > 0) {
+      smooth_beta <- unlist(par_s[[par_name]], use.names = FALSE)
+      smooth_names <- setdiff(colnames(X), fixed_names)
+      if (length(smooth_beta) != length(smooth_names)) {
+        stop("Smooth coefficient length does not match cached design columns for ", par_name, ".", call. = FALSE)
+      }
+      beta[smooth_names] <- smooth_beta
+    }
+
+    eta_vec <- as.numeric(X %*% beta)
+    eta_out$eta[[par_name]] <- eta_vec
+
+    if (par_name %in% c("mu", "sigma", "nu", "tau")) {
+      eta_out$eta_inv[[par_name]] <- margin_dist[[paste(par_name, ".linkinv", sep = "")]](eta_vec)
+      eta_out$eta_dr[[par_name]] <- margin_dist[[paste(par_name, ".dr", sep = "")]](eta_vec)
+    } else if (par_name %in% c("theta", "zeta")) {
+      eta_out$eta_inv[[par_name]] <- copula_link[[paste(par_name, ".linkinv", sep = "")]](eta_vec)
+      eta_out$eta_dr[[par_name]] <- copula_link[[paste(par_name, ".dr", sep = "")]](eta_vec)
+    }
+  }
+
+  eta_out
 }
 
 #' Calculate the likelihood components for the joint model
