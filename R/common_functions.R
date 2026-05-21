@@ -1372,10 +1372,12 @@ gamlss.longitudinal=function(dataset,
     cg_lambda_update_count <- 0L
     cg_has_smooths <- length(unlist(lambda_s, use.names = FALSE)) > 0L
     cg_lambda_trace <- data.frame()
+    cg_step_trace <- list()
 
     while(!cg_converged && outer_only_run_counter < max_outer_iter) {
       check_elapsed_budget("CG outer iteration")
       cat(paste("\nOUTER ITERATION:", outer_only_run_counter))
+      cg_trust_radius_start <- cg_trust_radius
       eval_start <- cg_eval(beta_all, mm_cg)
       if(is.null(eval_start) || !is.finite(eval_start$loglik)) stop("CG failed: current likelihood is not finite.")
       log_lik_history <- rbind(log_lik_history, eval_start$calc_lik$log_lik)
@@ -1415,6 +1417,7 @@ gamlss.longitudinal=function(dataset,
       )
       H_obs <- calc_analytical_hessian(tmp_obj, progress = FALSE)
       H_zeta_fd <- NULL
+      lambda_changed <- FALSE
       if(identical(cg_zeta_hessian, "finite")) {
         zeta_names <- grep("^zeta\\.", names(beta_all), value = TRUE)
         if(length(zeta_names) > 0L) {
@@ -1503,6 +1506,7 @@ gamlss.longitudinal=function(dataset,
 
       cg_prevented_deterioration <- FALSE
       cg_prevented_raw_loglik_drop <- NA_real_
+      accepted_improvement <- NA_real_
       if(is.null(best)) {
         cg_stall_count <- cg_stall_count + 1L
         cg_trust_radius <- max(cg_trust_radius / 2, cg_step_tol_eff)
@@ -1526,6 +1530,11 @@ gamlss.longitudinal=function(dataset,
           par_s <- unpacked$par_s
           calc_lik_out_end <- best$eval$calc_lik
           cg_stall_count <- 0L
+          accepted_improvement <- best$improvement
+          if(is.finite(best$step_l2) && is.finite(cg_trust_radius) &&
+             best$step_l2 >= 0.8 * cg_trust_radius) {
+            cg_trust_radius <- min(as.numeric(cg_max_delta), max(cg_step_tol_eff, 1.5 * cg_trust_radius))
+          }
         }
       }
 
@@ -1558,6 +1567,29 @@ gamlss.longitudinal=function(dataset,
         cg_raw_loglik_drop_from_best >= cg_raw_loglik_drop_tol
       cg_deterioration_hit <- isTRUE(cg_deterioration_hit) || isTRUE(cg_prevented_deterioration)
       cg_stop_requested <- cg_max_stall_hit || cg_tolerance_met || cg_deterioration_hit
+
+      cg_step_trace[[length(cg_step_trace) + 1L]] <- data.frame(
+        outer_iteration = as.integer(outer_only_run_counter),
+        start_logLik = as.numeric(outer_start_log_lik),
+        end_logLik = as.numeric(outer_end_log_lik),
+        raw_logLik_change = as.numeric(outer_log_lik_change),
+        start_penalized_logLik = as.numeric(obj_start),
+        accepted_penalized_improvement = as.numeric(accepted_improvement),
+        grad_inf = as.numeric(grad_inf),
+        step_l2 = as.numeric(step_l2),
+        trust_radius_start = as.numeric(cg_trust_radius_start),
+        trust_radius_end = as.numeric(cg_trust_radius),
+        line_search_evals = as.integer(line_eval_count),
+        accepted_step = !is.null(best),
+        lambda_update_count = as.integer(cg_lambda_update_count),
+        lambda_changed = isTRUE(lambda_changed),
+        stall_count = as.integer(cg_stall_count),
+        tolerance_met = isTRUE(cg_tolerance_met),
+        max_stall_hit = isTRUE(cg_max_stall_hit),
+        raw_deterioration_hit = isTRUE(cg_deterioration_hit),
+        raw_loglik_drop_from_best = as.numeric(cg_raw_loglik_drop_from_best),
+        row.names = NULL
+      )
 
       if(isTRUE(cg_stop_requested)) {
         if(isTRUE(cg_update_lambda) && isTRUE(cg_has_smooths) && cg_lambda_update_count == 0L) {
@@ -2301,6 +2333,11 @@ gamlss.longitudinal=function(dataset,
   }
   if(identical(method, "CG")) {
     return_list$cg_lambda_trace <- cg_lambda_trace
+    return_list$cg_step_trace <- if(length(cg_step_trace)) {
+      do.call(rbind, cg_step_trace)
+    } else {
+      data.frame()
+    }
   }
 
   # Store vcov metadata and optionally precompute vcov once at fit time.
