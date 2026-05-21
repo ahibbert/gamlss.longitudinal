@@ -1,0 +1,408 @@
+---
+title: "Native Simulation, Copula Screening, and GAMLSS Longitudinal Fitting"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Native Simulation, Copula Screening, and GAMLSS Longitudinal Fitting}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 8,
+  fig.height = 5,
+  warning = FALSE,
+  message = FALSE,
+  error = FALSE
+)
+
+if (!requireNamespace("gamlss.longitudinal", quietly = TRUE) &&
+    requireNamespace("pkgload", quietly = TRUE)) {
+  pkgload::load_all("..", quiet = TRUE)
+}
+```
+
+This vignette shows an end-to-end workflow for simulated longitudinal data with
+GAMLSS margins and native copula dependence. The example is simulated so that we
+can compare the fitted model with the known truth, but the same workflow is
+intended to mirror a real analysis:
+
+1. simulate or load longitudinal data,
+2. inspect the marginal response and pairwise dependence,
+3. choose a marginal distribution,
+4. screen candidate copula families,
+5. fit the longitudinal model,
+6. inspect model, term, and copula diagnostics.
+
+```{r packages}
+library(gamlss.longitudinal)
+library(gamlss.dist)
+library(ggplot2)
+```
+
+## Simulate Data
+
+We simulate a balanced dataset with 300 subjects and 5 time points. The response
+is Gamma distributed. Each subject has:
+
+- a three-level treatment group: `control`, `low`, or `high`;
+- a subject-level age generated uniformly between 25 and 70;
+- a repeated observation time scaled to `[0, 1]`.
+
+The marginal mean has treatment, time, and nonlinear age effects. The marginal
+scale has treatment, time, and a simple U-shaped age effect. The dependence
+structure is Clayton, with its parameter varying smoothly with age and linearly
+with time.
+
+```{r simulate-data}
+set.seed(20260521)
+
+n_subject <- 300
+time_points <- seq(0, 1, length.out = 5)
+
+treatment_effect <- c(control = 0, low = 0.20, high = 0.45)
+
+truth_mu_age_smooth <- function(x) {
+  sim_smooth_bump(x, amplitude = 0.45, location = 0.62, width = 0.18) +
+    sim_smooth_sin(x, amplitude = 0.12)
+}
+
+truth_sigma_age_smooth <- function(x) {
+  sim_smooth_u(x, amplitude = 1.00)
+}
+
+truth_theta_age_smooth <- function(x) {
+  sim_smooth_bump(x, amplitude = 0.55, location = 0.45, width = 0.22)
+}
+
+dat <- simulate_longitudinal_dataset(
+  n = n_subject,
+  times = time_points,
+  margin_dist = GA(mu.link = "log", sigma.link = "log"),
+  copula_dist = "C",
+  covariates = function(base) {
+    simulate_longitudinal_covariates(
+      base,
+      subject = list(
+        treatment = function(subject_data) {
+          factor(
+            sample(c("control", "low", "high"), nrow(subject_data), replace = TRUE),
+            levels = c("control", "low", "high")
+          )
+        },
+        age = function(subject_data) stats::runif(nrow(subject_data), 25, 70)
+      ),
+      observation = list(
+        time_scaled = function(long_data) sim_rescale01(long_data$time)
+      )
+    )
+  },
+  margin_params = list(
+    mu = function(d) {
+      age_scaled <- sim_rescale01(d$age)
+      eta_mu <- 1.00 +
+        sim_factor_effect(d$treatment, treatment_effect) +
+        0.20 * d$time_scaled +
+        truth_mu_age_smooth(age_scaled)
+      exp(eta_mu)
+    },
+    sigma = function(d) {
+      age_scaled <- sim_rescale01(d$age)
+      eta_sigma <- -0.75 +
+        0.12 * sim_factor_effect(d$treatment, c(control = 0, low = 1, high = 1)) +
+        0.10 * d$time_scaled +
+        truth_sigma_age_smooth(age_scaled)
+      exp(eta_sigma)
+    }
+  ),
+  copula_params = list(
+    theta = function(e) {
+      age_scaled <- sim_rescale01(e$age)
+      time_left_scaled <- sim_rescale01(e$time_left)
+      eta_theta <- 0.05 +
+        0.20 * time_left_scaled +
+        truth_theta_age_smooth(age_scaled)
+      exp(eta_theta)
+    }
+  ),
+  seed = 20260521
+)
+
+dat$age_scaled <- sim_rescale01(dat$age)
+head(dat)
+```
+
+## Inspect The Response
+
+`plotDist()` gives a compact view of the marginal response distribution at each
+time point and the pairwise dependence between time points. The off-diagonal
+panels use pseudo-observations here, so the dependence pattern is shown on a
+copula scale.
+
+```{r plot-dist, fig.width = 8, fig.height = 8}
+plotDist(dat, GA(mu.link = "log", sigma.link = "log"), offdiag_scale = "pseudo")
+```
+
+## Choose A Marginal Distribution
+
+For positive continuous responses, `gamlss::fitDist()` is a useful marginal
+screen. It does not account for longitudinal dependence, so it should be treated
+as a guide rather than as the final model choice.
+
+```{r marginal-screen-fit, include = FALSE}
+quiet_fitDist <- function(...) {
+  out_con <- file(tempfile(), open = "wt")
+  msg_con <- file(tempfile(), open = "wt")
+  sink(out_con)
+  sink(msg_con, type = "message")
+  on.exit({
+    sink(type = "message")
+    sink()
+    close(msg_con)
+    close(out_con)
+  }, add = TRUE)
+  suppressWarnings(suppressMessages(gamlss::fitDist(...)))
+}
+
+margin_screen <- quiet_fitDist(
+    dat$response,
+    type = "realplus",
+    try.gamlss = FALSE,
+    trace = FALSE
+)
+```
+
+```{r marginal-screen}
+margin_screen_fits <- data.frame(
+  family = names(margin_screen$fits),
+  AIC = as.numeric(margin_screen$fits),
+  row.names = NULL
+)
+
+head(margin_screen_fits, 10)
+
+best_margin <- margin_screen_fits[1, , drop = FALSE]
+best_margin
+```
+
+The screen is marginal, and this example continues with the Gamma family because
+the fitted longitudinal model will handle covariates, smooth effects, and
+within-subject dependence.
+
+```{r marginal-histdist, fig.width = 7, fig.height = 4.5}
+gamlss::histDist(
+  dat$response,
+  family = GA,
+  nbins = 30,
+  main = "Gamma Fit To The Marginal Response",
+  xlab = "Response"
+)
+```
+
+## Choose A Copula Family
+
+The native `select_copula()` helper screens candidate copula families using
+copula log-likelihoods on pseudo-observation pairs. In real data, those
+pseudo-observations would usually come from a preliminary marginal fit. Because
+this example is simulated, we can use the stored truth uniforms to demonstrate
+the family-screening step directly.
+
+```{r copula-screen}
+copula_family_screen <- select_copula(
+  data = dat,
+  u_var = "u",
+  families = c("N", "C", "F", "G", "J", "t"),
+  t_df_grid = c(3, 4, 6, 10, 20)
+)
+
+copula_family_screen
+```
+
+The next plot overlays the selected copula density on a binned view of adjacent
+pairs after transforming the pseudo-observations to standard-normal scale.
+
+```{r copula-screen-overlay, fig.width = 6.5, fig.height = 5}
+make_adjacent_pairs <- function(data, subject_var = "subject", time_var = "time", u_var = "u") {
+  data <- data[order(data[[subject_var]], data[[time_var]]), , drop = FALSE]
+  pair_list <- lapply(split(data, data[[subject_var]]), function(x) {
+    x <- x[order(x[[time_var]]), , drop = FALSE]
+    data.frame(
+      u1 = x[[u_var]][-nrow(x)],
+      u2 = x[[u_var]][-1]
+    )
+  })
+  do.call(rbind, pair_list)
+}
+
+plot_copula_screen_overlay <- function(pair_data, selected_fit, grid_n = 80, bins = 28) {
+  pair_data$z1 <- stats::qnorm(pmin(pmax(pair_data$u1, 0.001), 0.999))
+  pair_data$z2 <- stats::qnorm(pmin(pmax(pair_data$u2, 0.001), 0.999))
+
+  z_grid <- seq(-2.75, 2.75, length.out = grid_n)
+  density_grid <- expand.grid(z1 = z_grid, z2 = z_grid)
+  density_grid$u1 <- stats::pnorm(density_grid$z1)
+  density_grid$u2 <- stats::pnorm(density_grid$z2)
+  density_grid$density <- gamlss.longitudinal:::.copula_pdf(
+    density_grid$u1,
+    density_grid$u2,
+    family = selected_fit$family[1],
+    par = selected_fit$par[1],
+    par2 = selected_fit$par2[1]
+  ) * stats::dnorm(density_grid$z1) * stats::dnorm(density_grid$z2)
+
+  ggplot(pair_data, aes(x = z1, y = z2)) +
+    geom_bin2d(aes(fill = after_stat(density)), bins = bins) +
+    geom_contour(
+      data = density_grid,
+      aes(x = z1, y = z2, z = density),
+      inherit.aes = FALSE,
+      color = "white",
+      linewidth = 0.75,
+      bins = 8
+    ) +
+    scale_fill_viridis_c(name = "Empirical density") +
+    labs(
+      title = paste("Selected copula:", selected_fit$family[1]),
+      x = expression(Phi^-1 * (U[t])),
+      y = expression(Phi^-1 * (U[t + 1]))
+    ) +
+    theme_minimal()
+}
+
+pair_data <- make_adjacent_pairs(dat)
+plot_copula_screen_overlay(pair_data, copula_family_screen[1, , drop = FALSE])
+```
+
+## Fit The Longitudinal Model
+
+The final model uses smooth age effects in the marginal mean, marginal scale,
+and copula dependence parameter. The example keeps `sigma` slightly less
+flexible than `mu` and `theta`, because scale smooths are harder to recover from
+finite samples.
+
+```{r fit-model}
+fit <- gamlss.longitudinal(
+  dataset = dat,
+  margin_dist = GA(mu.link = "log", sigma.link = "log"),
+  copula_dist = "C",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment + time_scaled + s(age_scaled, bs = "ps", k = 8),
+  sigma.formula = ~ treatment + time_scaled + s(age_scaled, bs = "ps", k = 5),
+  theta.formula = ~ time_scaled + s(age_scaled, bs = "ps", k = 8)
+)
+
+summary(fit)
+```
+
+The standard model diagnostic dashboard combines PIT, QQ, worm, rootogram, and
+forecast-style checks.
+
+```{r model-diagnostics, fig.width = 8, fig.height = 9}
+plot(fit, data = dat)
+```
+
+## Term Diagnostics
+
+Because this is simulated, we first plot the true term contributions used to
+generate the data. The fitted term dashboard is shown immediately afterwards.
+
+```{r true-terms, fig.width = 8, fig.height = 5}
+term_theme <- function(p) {
+  p +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(size = 11),
+      axis.title = element_text(size = 9),
+      plot.caption = element_text(size = 8)
+    )
+}
+
+truth_smooth_plot <- function(x, contribution, title, xlab) {
+  plot_df <- data.frame(x = x, contribution = contribution)
+  term_theme(
+    ggplot(plot_df, aes(x = x, y = contribution)) +
+      geom_line(color = "black", linewidth = 1.2) +
+      labs(title = title, x = xlab, y = paste0("smooth(", xlab, ")"), caption = "truth")
+  )
+}
+
+truth_continuous_plot <- function(x, contribution, title, xlab, ylab) {
+  plot_df <- data.frame(x = x, contribution = contribution)
+  term_theme(
+    ggplot(plot_df, aes(x = x, y = contribution)) +
+      geom_line(color = "black", linewidth = 1.2) +
+      labs(title = title, x = xlab, y = ylab, caption = "truth")
+  )
+}
+
+truth_factor_plot <- function(effects, title, xlab, ylab) {
+  plot_df <- data.frame(
+    x = seq_along(effects),
+    level = factor(names(effects), levels = names(effects)),
+    contribution = as.numeric(effects)
+  )
+  term_theme(
+    ggplot(plot_df, aes(x = x, y = contribution)) +
+      geom_hline(yintercept = 0, color = "grey70", linetype = 3) +
+      geom_point(color = "black", size = 1.2) +
+      geom_errorbar(aes(ymin = contribution, ymax = contribution), color = "red", width = 0.15) +
+      scale_x_continuous(breaks = plot_df$x, labels = plot_df$level) +
+      labs(title = title, x = xlab, y = ylab, caption = "truth")
+  )
+}
+
+print_term_dashboard <- function(plotlist, ncol = 4) {
+  nrow <- ceiling(length(plotlist) / ncol)
+  grid::grid.newpage()
+  grid::pushViewport(grid::viewport(layout = grid::grid.layout(nrow, ncol)))
+  on.exit(grid::popViewport(), add = TRUE)
+  for (i in seq_along(plotlist)) {
+    row_id <- ((i - 1) %/% ncol) + 1
+    col_id <- ((i - 1) %% ncol) + 1
+    print(
+      plotlist[[i]],
+      vp = grid::viewport(layout.pos.row = row_id, layout.pos.col = col_id)
+    )
+  }
+}
+
+time_grid <- seq(0, 1, length.out = 200)
+age_grid <- seq(0, 1, length.out = 200)
+
+truth_term_plots <- list(
+  truth_smooth_plot(age_grid, truth_mu_age_smooth(age_grid), 'mu: s(age_scaled, bs = "ps", k = 8)', "age_scaled"),
+  truth_smooth_plot(age_grid, truth_sigma_age_smooth(age_grid), 'sigma: s(age_scaled, bs = "ps", k = 5)', "age_scaled"),
+  truth_smooth_plot(age_grid, truth_theta_age_smooth(age_grid), 'theta: s(age_scaled, bs = "ps", k = 8)', "age_scaled"),
+  truth_factor_plot(treatment_effect, "mu: treatment", "treatment", "fixed contribution: mu.treatment"),
+  truth_continuous_plot(time_grid, 0.20 * time_grid, "mu: time_scaled", "time_scaled", "fixed contribution: mu.time_scaled"),
+  truth_factor_plot(c(control = 0, low = 0.12, high = 0.12), "sigma: treatment", "treatment", "fixed contribution: sigma.treatment"),
+  truth_continuous_plot(time_grid, 0.10 * time_grid, "sigma: time_scaled", "time_scaled", "fixed contribution: sigma.time_scaled"),
+  truth_continuous_plot(time_grid, 0.20 * time_grid, "theta: time_scaled", "time_scaled", "fixed contribution: theta.time_scaled")
+)
+
+print_term_dashboard(truth_term_plots, ncol = 4)
+```
+
+```{r fitted-terms, fig.width = 8, fig.height = 5}
+plot.terms(fit, data = dat)
+```
+
+## Copula Diagnostics
+
+Finally, inspect the fitted copula directly. The default dashboard includes
+normal-scale pair diagnostics, fitted copula overlays, tail summaries, and
+lagged residual checks.
+
+```{r copula-diagnostics, fig.width = 8, fig.height = 8}
+plot.copula(fit, data = dat)
+```
+
+## Next Steps
+
+In a real analysis, the same workflow can be repeated with alternative marginal
+formulas, different copula families, and more targeted diagnostics. For
+simulation studies, the stored `true_*` columns make it straightforward to
+compare fitted effects against the data-generating truth.
