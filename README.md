@@ -35,8 +35,8 @@ devtools::install_github("ahibbert/gamlss.longitudinal")
 
 The main worked example is now maintained as a vignette:
 
+- Online article: <https://ahibbert.github.io/gamlss.longitudinal/articles/native-simulation-workflow.html>
 - Source: [`vignettes/native-simulation-workflow.Rmd`](vignettes/native-simulation-workflow.Rmd)
-- Rendered preview, when built locally: [`vignettes/native-simulation-workflow.html`](vignettes/native-simulation-workflow.html)
 
 The vignette demonstrates:
 
