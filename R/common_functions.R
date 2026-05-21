@@ -1,4 +1,4 @@
-﻿#' @importFrom rlang .data
+#' @importFrom rlang .data
 ###########NEW SIMPLIFIED FUNCTIONS
 
 # Null-coalescing operator (base R does not provide one)
@@ -45,6 +45,197 @@ utils::globalVariables(c(
   MASS::ginv(A) %*% b_mat
 }
 
+.cg_analytical_gradient <- function(
+  beta_vec,
+  mm_cg,
+  eta_out,
+  calc_lik,
+  margin_dist,
+  copula_dist,
+  include_dlcopdpar,
+  response,
+  response_margin,
+  response_subject
+) {
+  eta <- eta_out$eta
+  eta_inv <- eta_out$eta_inv
+  eta_dr <- eta_out$eta_dr
+
+  grad <- rep(0, length(beta_vec))
+  names(grad) <- names(beta_vec)
+
+  margin_par <- intersect(names(mm_cg$x), c("mu", "sigma", "nu", "tau"))
+  copula_par <- intersect(names(mm_cg$x), c("theta", "zeta"))
+
+  copula_derivatives <- calc_copula_derivatives(
+    eta_inv,
+    calc_lik$Fx_1_2,
+    copula_dist,
+    par1 = calc_lik$copula_par1,
+    par2 = calc_lik$copula_par2,
+    pair_complete = calc_lik$pair_complete
+  )
+
+  margin_score_natural <- list()
+  if(length(margin_par) > 0) {
+    margin_deriv_subnames <- c("m", "d", "v", "t")
+    names(margin_deriv_subnames) <- c("mu", "sigma", "nu", "tau")
+
+    for(par_name in margin_par) {
+      d_name <- paste0("dld", margin_deriv_subnames[par_name])
+      hit <- grep(paste0("^", d_name, "$"), names(calc_lik$margin_deriv))
+      if(length(hit) == 0) {
+        hit <- grep(d_name, names(calc_lik$margin_deriv))
+      }
+      if(length(hit) == 0) {
+        margin_score_natural[[par_name]] <- rep(0, length(eta[[par_name]]))
+      } else {
+        margin_score_natural[[par_name]] <- as.numeric(calc_lik$margin_deriv[[hit[1]]])
+      }
+    }
+
+    if(isTRUE(include_dlcopdpar)) {
+      nd_impact_F <- calc_Fx_derivatives(eta_inv, mm_cg$x, margin_dist, response = response)
+
+      order_margin <- data.frame(time = response_margin, subject = response_subject)
+      margin_deriv_1 <- matrix(0, ncol = length(margin_par), nrow = length(response))
+      colnames(margin_deriv_1) <- paste0("dld", margin_par)
+      for(par_name in margin_par) {
+        margin_deriv_1[, paste0("dld", par_name)] <- margin_score_natural[[par_name]]
+      }
+
+      margin_components_base <- cbind(
+        order_margin,
+        response = response,
+        margin_p = calc_lik$margin_p,
+        margin_d = calc_lik$margin_d,
+        margin_deriv_1,
+        mu = eta_inv[["mu"]]
+      )
+      names(margin_components_base)[seq_len(ncol(order_margin))] <- c("time", "subject")
+
+      copula_components <- cbind(
+        calc_lik$order_copula,
+        row_id1 = calc_lik$copula_row_id1,
+        row_id2 = calc_lik$copula_row_id2,
+        dcdu1 = copula_derivatives$dcdu1,
+        dcdu2 = copula_derivatives$dcdu2,
+        copula_d = calc_lik$copula_d
+      )
+
+      for(par_name in margin_par) {
+        margin_components <- cbind(
+          margin_components_base,
+          F_nd = nd_impact_F[[par_name]]
+        )
+        margin_components_Ft_plus <- margin_components
+        margin_components_Ft_plus$time <- normalize_lag_time(margin_components_Ft_plus$time)
+        margin_plus <- merge(
+          margin_components,
+          margin_components_Ft_plus,
+          by = c("time", "subject"),
+          all.x = TRUE
+        )
+        copula_merged <- merge(
+          copula_components,
+          margin_plus,
+          by.x = c("time1", "subject1"),
+          by.y = c("time", "subject"),
+          all.x = TRUE
+        )
+        d1_cop <- calc_deriv_copula_wrt_margin(
+          copula_merged,
+          margin_par,
+          par_name,
+          calc_d2 = FALSE
+        )[, which(margin_par == par_name)]
+        n_score <- length(margin_score_natural[[par_name]])
+        if(length(d1_cop) >= n_score) {
+          margin_score_natural[[par_name]] <- margin_score_natural[[par_name]] + d1_cop[seq_len(n_score)]
+        }
+      }
+    }
+  }
+
+  for(par_name in margin_par) {
+    score_eta <- as.numeric(margin_score_natural[[par_name]]) * as.numeric(eta_dr[[par_name]])
+    score_eta[!is.finite(score_eta)] <- 0
+    X <- as.matrix(mm_cg$x[[par_name]])
+    par_grad <- as.numeric(crossprod(X, score_eta))
+    x_names <- colnames(X)
+    names(par_grad) <- ifelse(
+      startsWith(x_names, paste0(par_name, ".")),
+      x_names,
+      paste(par_name, x_names, sep = ".")
+    )
+    idx <- match(names(par_grad), names(grad))
+    valid <- !is.na(idx)
+    grad[idx[valid]] <- par_grad[valid]
+  }
+
+  if("theta" %in% copula_par) {
+    n_par <- length(eta[["theta"]])
+    d1_full <- rep(0, n_par)
+    row_id1 <- calc_lik$copula_row_id1
+    if(length(row_id1) > 0) {
+      if(n_par == length(response)) {
+        par_idx <- row_id1
+      } else {
+        par_idx <- calc_lik$copula_theta_index_map[row_id1]
+      }
+      valid_idx <- is.finite(par_idx) & par_idx >= 1 & par_idx <= n_par
+      if(any(valid_idx)) {
+        d1_sum <- rowsum(copula_derivatives$dldth[valid_idx], par_idx[valid_idx], reorder = FALSE)
+        d1_full[as.integer(rownames(d1_sum))] <- d1_sum[, 1]
+      }
+    }
+    score_eta <- d1_full * as.numeric(eta_dr[["theta"]])
+    score_eta[!is.finite(score_eta)] <- 0
+    par_grad <- as.numeric(crossprod(as.matrix(mm_cg$x[["theta"]]), score_eta))
+    x_names <- colnames(mm_cg$x[["theta"]])
+    names(par_grad) <- ifelse(
+      startsWith(x_names, "theta."),
+      x_names,
+      paste("theta", x_names, sep = ".")
+    )
+    idx <- match(names(par_grad), names(grad))
+    valid <- !is.na(idx)
+    grad[idx[valid]] <- par_grad[valid]
+  }
+
+  if("zeta" %in% copula_par && "dldz" %in% names(copula_derivatives)) {
+    n_par <- length(eta[["zeta"]])
+    d1_full <- rep(0, n_par)
+    row_id1 <- calc_lik$copula_row_id1
+    if(length(row_id1) > 0) {
+      if(n_par == length(response)) {
+        par_idx <- row_id1
+      } else {
+        par_idx <- calc_lik$copula_theta_index_map[row_id1]
+      }
+      valid_idx <- is.finite(par_idx) & par_idx >= 1 & par_idx <= n_par
+      if(any(valid_idx)) {
+        d1_sum <- rowsum(copula_derivatives$dldz[valid_idx], par_idx[valid_idx], reorder = FALSE)
+        d1_full[as.integer(rownames(d1_sum))] <- d1_sum[, 1]
+      }
+    }
+    score_eta <- d1_full * as.numeric(eta_dr[["zeta"]])
+    score_eta[!is.finite(score_eta)] <- 0
+    par_grad <- as.numeric(crossprod(as.matrix(mm_cg$x[["zeta"]]), score_eta))
+    x_names <- colnames(mm_cg$x[["zeta"]])
+    names(par_grad) <- ifelse(
+      startsWith(x_names, "zeta."),
+      x_names,
+      paste("zeta", x_names, sep = ".")
+    )
+    idx <- match(names(par_grad), names(grad))
+    valid <- !is.na(idx)
+    grad[idx[valid]] <- par_grad[valid]
+  }
+
+  grad
+}
+
 #' Fit a longitudinal joint regression model
 #'
 #' This function fits a longitudinal model to a dataset with gamlss margins
@@ -56,8 +247,7 @@ utils::globalVariables(c(
 #'
 #' @param margin_dist Marginal distribution specified as a gamlss family object,
 #' e.g. GA(), NO(), PO(), NBI(), etc.
-#' @param copula_dist Copula distribution specified as a string in VineCopula style
-#'  e.g. "t", "C" etc.
+#' @param copula_dist Copula distribution code, one of "N", "C", "F", "G", "J", or "t".
 #' @param mu.formula Formula for the mean parameter of the marginal distribution
 #' @param sigma.formula Formula for the sigma parameter of the marginal distribution
 #' @param nu.formula Formula for the nu parameter of the marginal distribution
@@ -76,6 +266,11 @@ utils::globalVariables(c(
 #' @param step_adjustment Step size adjustment factor
 #' @param max_steps Maximum number of times for reducing the step size
 #' @param start_from Starting values for the parameters if needed
+#' @param warm_start_joint Logical; if `TRUE` (default), RS joint fits started
+#' without explicit `start_from` first run a short separate RS stabilisation
+#' phase and use those coefficients as the joint starting values.
+#' @param warm_start_joint_iter Integer; number of separate RS outer iterations
+#' used for the default joint warm start.
 #' @param verbose Level of output to the console 3 = ALL, 0 = Minimal
 #' @param plot_results Plot the results of the optimisation
 #' @param true_val True values for the parameters if known for plotting
@@ -84,6 +279,8 @@ utils::globalVariables(c(
 #' @param max_inner_iter Maximum number of inner iterations
 #' @param max_negative_outer_streak Maximum number of consecutive negative outer
 #' log-likelihood changes allowed before stopping.
+#' @param max_elapsed_sec Optional maximum elapsed fitting time in seconds.
+#' If finite, the optimiser stops with an error once this budget is exceeded.
 #' @param use_backtracking Logical; if `TRUE` (default), apply step-halving
 #' backtracking to reject downhill inner updates.
 #' @param backtracking_max_halves Integer; maximum number of consecutive
@@ -92,8 +289,6 @@ utils::globalVariables(c(
 #' consecutive outer iterations where no improving step is found before CG stops.
 #' @param cg_max_delta Numeric; for `method = "CG"` only. Maximum absolute
 #' coefficient step size used to limit Newton/trust-region updates.
-#' @param cg_max_delta_upper Numeric; for `method = "CG"` only. Optional upper
-#' bound for the adaptive trust-region radius. If `NA`, uses `cg_max_delta`.
 #' @param cg_armijo_c1 Numeric; for `method = "CG"` only. Minimum improvement
 #' threshold used by the line-search acceptance rule.
 #' @param cg_grad_tol Numeric; for `method = "CG"` only. Penalized-gradient
@@ -102,21 +297,28 @@ utils::globalVariables(c(
 #' convergence tolerance. If `NA`, selected from `outer_stop_crit`.
 #' @param cg_update_lambda Logical; for `method = "CG"` only. If `TRUE`, update
 #' smoother penalties during CG iterations.
-#' @param cg_beta_method Character; reserved CG beta update control.
-#' @param cg_restart_every Integer; reserved CG restart control.
 #' @param cg_lambda_update_every Integer; for `method = "CG"` only. When
 #' `cg_update_lambda = TRUE`, update each smoother's lambda every this many
 #' outer iterations. Use `1` to update every CG iteration.
-#' @param cg_wolfe Logical; reserved Wolfe line-search control.
-#' @param cg_wolfe_c2 Numeric; reserved Wolfe curvature constant.
+#' @param cg_max_lambda_updates Integer; for `method = "CG"` only. Maximum
+#' number of smoother penalty update rounds. Use `NA` for no cap.
+#' @param cg_raw_loglik_drop_tol Numeric; for `method = "CG"` only. Stop CG as
+#' not converged if the raw joint log-likelihood drops this far below the best
+#' raw joint log-likelihood seen after at least one lambda update. Use `NA` to
+#' disable.
 #' @param cg_line_search Character; for `method = "CG"` only. `"best"` evaluates
 #' candidate steps up to `cg_max_line_search_evals` before taking the largest
 #' improvement, while `"first"` accepts the first improving candidate step.
 #' @param cg_max_line_search_evals Integer; for `method = "CG"` only. Optional
 #' cap on the number of candidate likelihood evaluations per outer iteration.
-#' @param cg_gradient_method Character; for `method = "CG"` only. `"forward"`
-#' uses one-sided finite differences for speed, while `"central"` uses two-sided
-#' finite differences.
+#' @param cg_gradient_method Character; for `method = "CG"` only.
+#' `"analytical"` uses the same score components as RS, `"forward"` uses
+#' one-sided finite differences, and `"central"` uses two-sided finite
+#' differences.
+#' @param cg_zeta_hessian Character; for `method = "CG"` only. `"analytical"`
+#' uses the analytical Hessian for the zeta block, while `"finite"` replaces
+#' the zeta-zeta block with central finite differences of the raw joint
+#' log-likelihood.
 #' @param compute_vcov Logical; if `TRUE` (default), compute and store the
 #' model variance-covariance output at the end of fitting.
 #' @param vcov_method Character; fit-time vcov method when `compute_vcov = TRUE`.
@@ -124,7 +326,6 @@ utils::globalVariables(c(
 #' @param vcov_numderiv Logical; passed to `vcov.gamlss.longitudinal()` when
 #' `compute_vcov = TRUE`.
 #' @param use_Rcpp Use Rcpp for matrix operations
-#' @importFrom VineCopula BiCopName BiCopPDF BiCopDeriv BiCopDeriv2 BiCopTau2Par D2RVine RVineSim
 #'
 #' @export
 gamlss.longitudinal=function(dataset,
@@ -143,42 +344,58 @@ gamlss.longitudinal=function(dataset,
                         inner_stop_crit=NA,
                         outer_stop_crit=NA,
                         start_step_size=.5,
-                        step_adjustment=.5,
+                        step_adjustment=NA,
                         max_steps=5,
                         start_from=NA,
+                        warm_start_joint=TRUE,
+                        warm_start_joint_iter=5,
                         verbose=1,
                         plot_results=FALSE,
                         true_val=NA,
                         method="RS",
-                        max_outer_iter=1000,
+                        max_outer_iter=100,
                         max_inner_iter=100,
                         max_negative_outer_streak=10,
+                        max_elapsed_sec=Inf,
                         use_backtracking=TRUE,
                         backtracking_max_halves=50,
                         cg_max_stall=5,
                         cg_max_delta=0.5,
-                        cg_max_delta_upper=NA,
                         cg_armijo_c1=1e-4,
                         cg_grad_tol=NA,
                         cg_step_tol=NA,
                         cg_update_lambda=TRUE,
-                        cg_beta_method="none",
-                        cg_restart_every=NA,
                         cg_lambda_update_every=10,
-                        cg_wolfe=FALSE,
-                        cg_wolfe_c2=0.1,
+                        cg_max_lambda_updates=NA,
+                        cg_raw_loglik_drop_tol=10,
                         cg_line_search="best",
                         cg_max_line_search_evals=60,
                         cg_gradient_method="forward",
+                        cg_zeta_hessian="analytical",
                         compute_vcov=TRUE,
-                        vcov_method=c("numderiv","analytical"),
-                        vcov_numderiv=TRUE,
+                        vcov_method=c("analytical","numderiv"),
+                        vcov_numderiv=FALSE,
                         use_Rcpp=FALSE,
                         lambda_start=NA,
                         lambda_penalty_K=2
                       )
 {
   fit_start_time <- Sys.time()
+  check_elapsed_budget <- function(stage = "optimisation") {
+    if (is.finite(max_elapsed_sec) && max_elapsed_sec > 0) {
+      elapsed <- as.numeric(difftime(Sys.time(), fit_start_time, units = "secs"))
+      if (elapsed > max_elapsed_sec) {
+        stop(
+          sprintf(
+            "Model exceeded max_elapsed_sec during %s (elapsed %.1f sec > %.1f sec).",
+            stage, elapsed, max_elapsed_sec
+          ),
+          call. = FALSE
+        )
+      }
+    }
+    invisible(TRUE)
+  }
 
   if (!is.numeric(backtracking_max_halves) || length(backtracking_max_halves) != 1 || is.na(backtracking_max_halves)) {
     stop("ERROR: backtracking_max_halves must be a single non-negative integer.")
@@ -190,7 +407,8 @@ gamlss.longitudinal=function(dataset,
 
   method <- toupper(as.character(method)[1])
   cg_line_search <- match.arg(as.character(cg_line_search)[1], c("first", "best"))
-  cg_gradient_method <- match.arg(as.character(cg_gradient_method)[1], c("forward", "central"))
+  cg_gradient_method <- match.arg(as.character(cg_gradient_method)[1], c("analytical", "forward", "central"))
+  cg_zeta_hessian <- match.arg(as.character(cg_zeta_hessian)[1], c("analytical", "finite"))
   if (length(cg_max_line_search_evals) != 1 || is.null(cg_max_line_search_evals)) {
     stop("ERROR: cg_max_line_search_evals must be a single non-negative integer or NA.")
   }
@@ -205,18 +423,51 @@ gamlss.longitudinal=function(dataset,
   if(!method %in% c("RS", "CG")) {
     stop("ERROR: method must be one of 'RS' or 'CG'.")
   }
+  user_supplied_start <- !all(is.na(start_from))
+  if (!is.logical(warm_start_joint) || length(warm_start_joint) != 1 || is.na(warm_start_joint)) {
+    stop("ERROR: warm_start_joint must be TRUE or FALSE.")
+  }
+  if (!is.numeric(warm_start_joint_iter) || length(warm_start_joint_iter) != 1 || is.na(warm_start_joint_iter)) {
+    stop("ERROR: warm_start_joint_iter must be a single non-negative integer.")
+  }
+  warm_start_joint_iter <- as.integer(warm_start_joint_iter)
+  if (warm_start_joint_iter < 0) {
+    stop("ERROR: warm_start_joint_iter must be a single non-negative integer.")
+  }
   vcov_method <- match.arg(vcov_method)
-  vcov_numderiv <- identical(vcov_method, "numderiv") || isTRUE(vcov_numderiv)
+  if (isTRUE(vcov_numderiv)) {
+    vcov_method <- "numderiv"
+  }
+  vcov_numderiv <- identical(vcov_method, "numderiv")
   cg_lambda_update_every <- as.integer(cg_lambda_update_every)
   if(!is.finite(cg_lambda_update_every) || cg_lambda_update_every < 1L) {
     stop("cg_lambda_update_every must be a positive integer.")
   }
+  if (length(cg_max_lambda_updates) != 1 || is.null(cg_max_lambda_updates)) {
+    stop("cg_max_lambda_updates must be a single non-negative integer or NA.")
+  }
+  if (is.na(cg_max_lambda_updates)) {
+    cg_max_lambda_updates <- Inf
+  } else {
+    cg_max_lambda_updates <- as.integer(cg_max_lambda_updates)
+    if (!is.finite(cg_max_lambda_updates) || cg_max_lambda_updates < 0L) {
+      stop("cg_max_lambda_updates must be a single non-negative integer or NA.")
+    }
+  }
+  if (length(cg_raw_loglik_drop_tol) != 1 || is.null(cg_raw_loglik_drop_tol)) {
+    stop("cg_raw_loglik_drop_tol must be a single non-negative numeric value or NA.")
+  }
+  if (is.na(cg_raw_loglik_drop_tol)) {
+    cg_raw_loglik_drop_tol <- Inf
+  } else {
+    cg_raw_loglik_drop_tol <- as.numeric(cg_raw_loglik_drop_tol)
+    if (!is.finite(cg_raw_loglik_drop_tol) || cg_raw_loglik_drop_tol < 0) {
+      stop("cg_raw_loglik_drop_tol must be a single non-negative numeric value or NA.")
+    }
+  }
   cg_max_stall <- as.integer(cg_max_stall)
   if(!is.finite(cg_max_stall) || cg_max_stall < 1L) cg_max_stall <- 5L
   if(!is.finite(cg_max_delta) || cg_max_delta <= 0) cg_max_delta <- 0.5
-  if(!is.finite(cg_max_delta_upper) || cg_max_delta_upper < cg_max_delta) {
-    cg_max_delta_upper <- cg_max_delta
-  }
 
   ##################### DATA CHECKS AND VALIDATION #####################
 
@@ -532,6 +783,157 @@ gamlss.longitudinal=function(dataset,
     dataset = dataset
   ))
 
+  warm_start_info <- list(
+    used = FALSE,
+    outer_iter = 0L,
+    include_dlcopdpar = FALSE,
+    log_lik = NULL
+  )
+
+  if (
+    method == "RS" &&
+    isTRUE(include_dlcopdpar) &&
+    isTRUE(warm_start_joint) &&
+    warm_start_joint_iter > 0L &&
+    !isTRUE(user_supplied_start)
+  ) {
+    if (verbose > 0) {
+      cat(
+        "\nRunning separate RS warm-start phase for ",
+        warm_start_joint_iter,
+        " outer iteration(s) before joint RS fit...\n",
+        sep = ""
+      )
+    }
+
+    warm_fit <- NULL
+    warm_output <- NULL
+    warm_err <- NULL
+    tryCatch({
+      warm_output <- capture.output({
+        warm_fit <- gamlss.longitudinal(
+          dataset = dataset_original,
+          margin_dist = margin_dist,
+          copula_dist = copula_dist,
+          time_var = time_var,
+          subject_var = subject_var,
+          mu.formula = mu.formula,
+          sigma.formula = sigma.formula,
+          nu.formula = nu.formula,
+          tau.formula = tau.formula,
+          theta.formula = theta.formula,
+          zeta.formula = zeta.formula,
+          include_dlcopdpar = FALSE,
+          check_dlcopdpar_gradient = FALSE,
+          inner_stop_crit = inner_stop_crit,
+          outer_stop_crit = outer_stop_crit,
+          start_step_size = start_step_size,
+          step_adjustment = step_adjustment,
+          max_steps = max_steps,
+          start_from = NA,
+          warm_start_joint = FALSE,
+          warm_start_joint_iter = 0L,
+          verbose = 0,
+          plot_results = FALSE,
+          true_val = true_val,
+          method = method,
+          max_outer_iter = warm_start_joint_iter,
+          max_inner_iter = max_inner_iter,
+          max_negative_outer_streak = max_negative_outer_streak,
+          max_elapsed_sec = max_elapsed_sec,
+          use_backtracking = use_backtracking,
+          backtracking_max_halves = backtracking_max_halves,
+          cg_max_stall = cg_max_stall,
+          cg_max_delta = cg_max_delta,
+          cg_armijo_c1 = cg_armijo_c1,
+          cg_grad_tol = cg_grad_tol,
+          cg_step_tol = cg_step_tol,
+          cg_update_lambda = cg_update_lambda,
+          cg_lambda_update_every = cg_lambda_update_every,
+          cg_line_search = cg_line_search,
+          cg_max_line_search_evals = cg_max_line_search_evals,
+          cg_gradient_method = cg_gradient_method,
+          compute_vcov = FALSE,
+          vcov_method = vcov_method,
+          vcov_numderiv = vcov_numderiv,
+          use_Rcpp = use_Rcpp,
+          lambda_start = lambda_start,
+          lambda_penalty_K = lambda_penalty_K
+        )
+      }, type = "output")
+    }, error = function(e) {
+      warm_err <<- e
+    })
+
+    if (!is.null(warm_err)) {
+      stop(
+        "Separate RS warm-start phase failed: ",
+        conditionMessage(warm_err),
+        "\nSet warm_start_joint = FALSE to force a cold-start joint fit.",
+        call. = FALSE
+      )
+    }
+    if (is.null(warm_fit) || is.null(warm_fit$par)) {
+      stop(
+        "Separate RS warm-start phase did not return coefficient starting values.\n",
+        "Set warm_start_joint = FALSE to force a cold-start joint fit.",
+        call. = FALSE
+      )
+    }
+
+    start_from <- warm_fit$par
+    warm_start_info <- list(
+      used = TRUE,
+      outer_iter = warm_start_joint_iter,
+      include_dlcopdpar = FALSE,
+      log_lik = warm_fit$calc_lik_out_end$log_lik,
+      captured_output = warm_output
+    )
+
+    if (verbose > 1 && length(warm_output) > 0) {
+      cat(paste(warm_output, collapse = "\n"), "\n")
+    }
+  }
+
+  if (length(start_step_size) != 1 || !is.numeric(start_step_size) ||
+      !is.finite(start_step_size) || start_step_size <= 0) {
+    stop("ERROR: start_step_size must be a single positive finite numeric value.")
+  }
+  if (length(max_steps) != 1 || !is.numeric(max_steps) || is.na(max_steps)) {
+    stop("ERROR: max_steps must be a single non-negative integer.")
+  }
+  max_steps <- as.integer(max_steps)
+  if (max_steps < 0) {
+    stop("ERROR: max_steps must be a single non-negative integer.")
+  }
+  if (length(step_adjustment) != 1 || is.null(step_adjustment)) {
+    stop("ERROR: step_adjustment must be a single positive numeric value, or NA for the method-specific default.")
+  }
+  step_adjustment <- as.numeric(step_adjustment)
+  if (is.na(step_adjustment)) {
+    rs_joint_step_adjustment_default <- 1
+    rs_separate_step_adjustment_default <- 1
+    step_adjustment <- if (method == "RS" && isTRUE(include_dlcopdpar)) {
+      rs_joint_step_adjustment_default
+    } else if (method == "RS") {
+      rs_separate_step_adjustment_default
+    } else {
+      1
+    }
+    if (verbose > 0) {
+      cat(
+        "\nUsing automatic step_adjustment=",
+        signif(step_adjustment, 4),
+        " for ",
+        if (method == "RS" && isTRUE(include_dlcopdpar)) "joint RS" else if (method == "RS") "separate RS" else method,
+        ".\n",
+        sep = ""
+      )
+    }
+  } else if (!is.finite(step_adjustment) || step_adjustment <= 0) {
+    stop("ERROR: step_adjustment must be a single positive numeric value, or NA for the method-specific default.")
+  }
+
   #Create vector of starting covariate values, currently starting at zero before first fit with the intercept as the mean
   if(all(is.na(start_from))) {
     par_eta=get_starting_values(copula_dist,margin_dist,dataset=dataset,eta_transform=TRUE)
@@ -584,6 +986,13 @@ gamlss.longitudinal=function(dataset,
   outer_log_lik_change=outer_start_log_lik=outer_end_log_lik=0
   log_lik_history=matrix(ncol=3,nrow=0)
   par_history=matrix(ncol=length(par_cov),nrow=0); colnames(par_history)=names(par_cov)
+  cg_stop_reason <- NA_character_
+  cg_last_grad_inf <- NA_real_
+  cg_last_step_l2 <- NA_real_
+  cg_best_raw_loglik <- -Inf
+  cg_best_iteration <- NA_integer_
+  cg_raw_loglik_drop_from_best <- NA_real_
+  rs_block_trace <- list()
   outer_run_counter=1; outer_only_run_counter=1
   outer_negative_streak=0
   step_size=start_step_size
@@ -758,7 +1167,7 @@ gamlss.longitudinal=function(dataset,
         response_subject = dataset$subject, pair_cache = pair_cache
       ), error = function(e) NULL)
       if(is.null(lik)) return(NULL)
-      list(loglik = as.numeric(lik$log_lik["joint"]), calc_lik = lik,
+      list(loglik = as.numeric(lik$log_lik["joint"]), calc_lik = lik, eta_out = eta_out,
            par_cov = unpacked$par_cov, par_s = unpacked$par_s)
     }
 
@@ -796,6 +1205,64 @@ gamlss.longitudinal=function(dataset,
         }
       }
       grad
+    }
+
+    cg_finite_hessian_block <- function(beta_vec, block_names, mm_cg, h = 1e-4) {
+      block_names <- intersect(block_names, names(beta_vec))
+      n_block <- length(block_names)
+      H_block <- matrix(NA_real_, n_block, n_block,
+                        dimnames = list(block_names, block_names))
+      if(n_block == 0L) return(H_block)
+      eval_base <- cg_eval(beta_vec, mm_cg)
+      f0 <- if(is.null(eval_base)) NA_real_ else eval_base$loglik
+      if(!is.finite(f0)) return(H_block)
+
+      eval_ll <- function(beta_try) {
+        out <- cg_eval(beta_try, mm_cg)
+        if(is.null(out)) NA_real_ else out$loglik
+      }
+
+      for(ii in seq_len(n_block)) {
+        ni <- block_names[ii]
+        hi <- h * max(1, abs(beta_vec[ni]))
+        bp <- beta_vec
+        bm <- beta_vec
+        bp[ni] <- bp[ni] + hi
+        bm[ni] <- bm[ni] - hi
+        fp <- eval_ll(bp)
+        fm <- eval_ll(bm)
+        if(is.finite(fp) && is.finite(fm)) {
+          H_block[ii, ii] <- (fp - 2 * f0 + fm) / (hi^2)
+        }
+
+        if(ii < n_block) {
+          for(jj in seq.int(ii + 1L, n_block)) {
+            nj <- block_names[jj]
+            hj <- h * max(1, abs(beta_vec[nj]))
+            bpp <- beta_vec
+            bpm <- beta_vec
+            bmp <- beta_vec
+            bmm <- beta_vec
+            bpp[ni] <- bpp[ni] + hi
+            bpp[nj] <- bpp[nj] + hj
+            bpm[ni] <- bpm[ni] + hi
+            bpm[nj] <- bpm[nj] - hj
+            bmp[ni] <- bmp[ni] - hi
+            bmp[nj] <- bmp[nj] + hj
+            bmm[ni] <- bmm[ni] - hi
+            bmm[nj] <- bmm[nj] - hj
+            fpp <- eval_ll(bpp)
+            fpm <- eval_ll(bpm)
+            fmp <- eval_ll(bmp)
+            fmm <- eval_ll(bmm)
+            if(all(is.finite(c(fpp, fpm, fmp, fmm)))) {
+              H_block[ii, jj] <- (fpp - fpm - fmp + fmm) / (4 * hi * hj)
+              H_block[jj, ii] <- H_block[ii, jj]
+            }
+          }
+        }
+      }
+      H_block
     }
 
     cg_smooth_edf_list <- function(H_obs_current, penalty_current, beta_names) {
@@ -839,7 +1306,11 @@ gamlss.longitudinal=function(dataset,
           lambda0 <- as.numeric(lambda_new[[pn]][[sn]])
           if(!is.finite(lambda0) || lambda0 <= 0) lambda0 <- 1
           candidates <- unique(pmax(0.01, pmin(1e6, lambda0 * c(0.1, 0.25, 0.5, 1, 2, 4, 10))))
-          score <- rep(Inf, length(candidates))
+          gaic_score <- rep(Inf, length(candidates))
+          penalty_value <- rep(NA_real_, length(candidates))
+          penalized_loglik <- rep(NA_real_, length(candidates))
+          raw_loglik <- rep(NA_real_, length(candidates))
+          edf_values <- rep(NA_real_, length(candidates))
           for(jj in seq_along(candidates)) {
             lambda_try <- lambda_new
             lambda_try[[pn]][[sn]] <- candidates[jj]
@@ -856,10 +1327,30 @@ gamlss.longitudinal=function(dataset,
             eval_try <- cg_eval(beta_try, mm_cg)
             if(is.null(eval_try) || !is.finite(eval_try$loglik)) next
             edf_try <- sum(unlist(cg_smooth_edf_list(H_obs_current, P_try, names(beta_vec))), na.rm = TRUE)
-            score[jj] <- -2 * eval_try$loglik + lambda_penalty_K * edf_try
+            penalty_try <- sum(as.numeric(beta_try) * as.numeric(P_try %*% beta_try))
+            raw_loglik[jj] <- eval_try$loglik
+            edf_values[jj] <- edf_try
+            penalty_value[jj] <- penalty_try
+            penalized_loglik[jj] <- cg_objective(beta_try, eval_try$loglik, P_try)
+            gaic_score[jj] <- -2 * eval_try$loglik + lambda_penalty_K * edf_try
           }
-          best <- which.min(score)
-          if(length(best) == 1 && is.finite(score[best])) {
+          best <- which.max(penalized_loglik)
+          if(length(best) == 1 && is.finite(penalized_loglik[best])) {
+            trace_rows <- data.frame(
+              outer_iteration = outer_only_run_counter,
+              parameter = pn,
+              smooth = sn,
+              lambda_before = lambda0,
+              lambda_candidate = candidates,
+              raw_logLik_after_step = raw_loglik,
+              smooth_penalty_after_step = penalty_value,
+              penalized_logLik_after_step = penalized_loglik,
+              edf_after_step = edf_values,
+              gaic_score = gaic_score,
+              chosen = seq_along(candidates) == best,
+              row.names = NULL
+            )
+            cg_lambda_trace <<- rbind(cg_lambda_trace, trace_rows)
             lambda_new[[pn]][[sn]] <- candidates[best]
             if(verbose > 1) {
               cat(paste0("\nCG lambda update for ", pn, " - ", sn, ": ",
@@ -878,16 +1369,39 @@ gamlss.longitudinal=function(dataset,
     cg_trust_radius <- as.numeric(cg_max_delta)
     cg_stall_count <- 0L
     cg_converged <- FALSE
+    cg_lambda_update_count <- 0L
+    cg_has_smooths <- length(unlist(lambda_s, use.names = FALSE)) > 0L
+    cg_lambda_trace <- data.frame()
 
     while(!cg_converged && outer_only_run_counter < max_outer_iter) {
+      check_elapsed_budget("CG outer iteration")
       cat(paste("\nOUTER ITERATION:", outer_only_run_counter))
       eval_start <- cg_eval(beta_all, mm_cg)
       if(is.null(eval_start) || !is.finite(eval_start$loglik)) stop("CG failed: current likelihood is not finite.")
       log_lik_history <- rbind(log_lik_history, eval_start$calc_lik$log_lik)
       par_history <- rbind(par_history, eval_start$par_cov[colnames(par_history)])
       outer_start_log_lik <- eval_start$loglik
+      if(is.finite(outer_start_log_lik) && outer_start_log_lik > cg_best_raw_loglik) {
+        cg_best_raw_loglik <- outer_start_log_lik
+        cg_best_iteration <- outer_only_run_counter
+      }
       obj_start <- cg_objective(beta_all, outer_start_log_lik, penalty_mat)
-      grad <- cg_gradient(beta_all, outer_start_log_lik, mm_cg)
+      grad <- if(identical(cg_gradient_method, "analytical")) {
+        .cg_analytical_gradient(
+          beta_all,
+          mm_cg,
+          eval_start$eta_out,
+          eval_start$calc_lik,
+          margin_dist,
+          copula_dist,
+          include_dlcopdpar,
+          dataset$response,
+          dataset$time,
+          dataset$subject
+        )
+      } else {
+        cg_gradient(beta_all, outer_start_log_lik, mm_cg)
+      }
 
       tmp_obj <- list(
         response = dataset$response,
@@ -900,10 +1414,37 @@ gamlss.longitudinal=function(dataset,
         par_s = setNames(lapply(names(mm_cg$x), function(x) list()), names(mm_cg$x))
       )
       H_obs <- calc_analytical_hessian(tmp_obj, progress = FALSE)
+      H_zeta_fd <- NULL
+      if(identical(cg_zeta_hessian, "finite")) {
+        zeta_names <- grep("^zeta\\.", names(beta_all), value = TRUE)
+        if(length(zeta_names) > 0L) {
+          H_zeta_fd <- cg_finite_hessian_block(beta_all, zeta_names, mm_cg)
+          if(all(is.finite(H_zeta_fd))) {
+            H_obs[zeta_names, zeta_names] <- 0.5 * (H_zeta_fd + t(H_zeta_fd))
+          } else if(verbose > 0) {
+            cat("\nCG finite zeta Hessian skipped because the block was not finite.")
+          }
+        }
+      }
       if(isTRUE(cg_update_lambda) && outer_only_run_counter > 1 &&
-         ((outer_only_run_counter - 2L) %% cg_lambda_update_every == 0L)) {
+         cg_lambda_update_count < cg_max_lambda_updates &&
+         (outer_only_run_counter %% cg_lambda_update_every == 0L)) {
+        lambda_before <- lambda_s
         lambda_s <- cg_update_lambda_once(H_obs, beta_all, grad, lambda_s, mm_cg, cg_trust_radius)
         penalty_mat <- build_cg_penalty(names(beta_all), lambda_s)
+        lambda_changed <- !isTRUE(all.equal(
+          unlist(lambda_before, use.names = TRUE),
+          unlist(lambda_s, use.names = TRUE),
+          tolerance = 1e-12,
+          check.attributes = FALSE
+        ))
+        if(isTRUE(lambda_changed)) {
+          cg_trust_radius <- max(cg_step_tol_eff, cg_trust_radius / 2)
+          if(verbose > 0) {
+            cat(paste0("\nCG trust radius shrunk after lambda update to ", signif(cg_trust_radius, 4)))
+          }
+        }
+        cg_lambda_update_count <- cg_lambda_update_count + 1L
       }
       df_s <- cg_smooth_edf_list(H_obs, penalty_mat, names(beta_all))
 
@@ -960,35 +1501,92 @@ gamlss.longitudinal=function(dataset,
         cat(paste0("\nCG line search likelihood evaluations: ", line_eval_count))
       }
 
+      cg_prevented_deterioration <- FALSE
+      cg_prevented_raw_loglik_drop <- NA_real_
       if(is.null(best)) {
         cg_stall_count <- cg_stall_count + 1L
         cg_trust_radius <- max(cg_trust_radius / 2, cg_step_tol_eff)
         calc_lik_out_end <- eval_start$calc_lik
         if(verbose > 0) cat(paste0("\nCG step rejected (stall ", cg_stall_count, "/", cg_max_stall, ")\n"))
       } else {
-        beta_all <- best$beta
-        unpacked <- unpack_cg_beta(beta_all)
-        par_cov <- unpacked$par_cov
-        par_s <- unpacked$par_s
-        calc_lik_out_end <- best$eval$calc_lik
-        cg_stall_count <- 0L
+        prospective_best_raw_loglik <- max(cg_best_raw_loglik, outer_start_log_lik, na.rm = TRUE)
+        prospective_raw_loglik_drop <- prospective_best_raw_loglik - best$eval$loglik
+        cg_prevented_deterioration <- is.finite(cg_raw_loglik_drop_tol) &&
+          cg_lambda_update_count > 0L &&
+          is.finite(prospective_raw_loglik_drop) &&
+          prospective_raw_loglik_drop >= cg_raw_loglik_drop_tol
+        if(isTRUE(cg_prevented_deterioration)) {
+          cg_prevented_raw_loglik_drop <- prospective_raw_loglik_drop
+          calc_lik_out_end <- eval_start$calc_lik
+          best <- NULL
+        } else {
+          beta_all <- best$beta
+          unpacked <- unpack_cg_beta(beta_all)
+          par_cov <- unpacked$par_cov
+          par_s <- unpacked$par_s
+          calc_lik_out_end <- best$eval$calc_lik
+          cg_stall_count <- 0L
+        }
       }
 
       outer_end_log_lik <- as.numeric(calc_lik_out_end$log_lik["joint"])
       outer_log_lik_change <- outer_end_log_lik - outer_start_log_lik
+      if(is.finite(outer_end_log_lik) && outer_end_log_lik > cg_best_raw_loglik) {
+        cg_best_raw_loglik <- outer_end_log_lik
+        cg_best_iteration <- outer_only_run_counter
+      }
+      cg_raw_loglik_drop_from_best <- cg_best_raw_loglik - outer_end_log_lik
+      if(isTRUE(cg_prevented_deterioration) && is.finite(cg_prevented_raw_loglik_drop)) {
+        cg_raw_loglik_drop_from_best <- max(cg_raw_loglik_drop_from_best, cg_prevented_raw_loglik_drop, na.rm = TRUE)
+      }
       out_temp <- c(outer_start_log_lik, outer_end_log_lik, outer_log_lik_change)
       names(out_temp) <- c("Start LogLik", "End LogLik", "Change")
       cat("\n")
       print(out_temp)
 
-      if(cg_stall_count >= cg_max_stall) cg_converged <- TRUE
       grad_inf <- max(abs(g_pen), na.rm = TRUE)
       step_l2 <- if(is.null(best)) 0 else best$step_l2
-      if(abs(outer_log_lik_change) <= outer_stop_crit &&
-         is.finite(grad_inf) && grad_inf <= cg_grad_tol_eff &&
-         is.finite(step_l2) && step_l2 <= cg_step_tol_eff) {
-        cat("\nOUTER CONVERGED")
-        cg_converged <- TRUE
+      cg_last_grad_inf <- grad_inf
+      cg_last_step_l2 <- step_l2
+      cg_tolerance_met <- abs(outer_log_lik_change) <= outer_stop_crit &&
+        is.finite(grad_inf) && grad_inf <= cg_grad_tol_eff &&
+        is.finite(step_l2) && step_l2 <= cg_step_tol_eff
+      cg_max_stall_hit <- cg_stall_count >= cg_max_stall
+      cg_deterioration_hit <- is.finite(cg_raw_loglik_drop_tol) &&
+        cg_lambda_update_count > 0L &&
+        is.finite(cg_raw_loglik_drop_from_best) &&
+        cg_raw_loglik_drop_from_best >= cg_raw_loglik_drop_tol
+      cg_deterioration_hit <- isTRUE(cg_deterioration_hit) || isTRUE(cg_prevented_deterioration)
+      cg_stop_requested <- cg_max_stall_hit || cg_tolerance_met || cg_deterioration_hit
+
+      if(isTRUE(cg_stop_requested)) {
+        if(isTRUE(cg_update_lambda) && isTRUE(cg_has_smooths) && cg_lambda_update_count == 0L) {
+          lambda_s <- cg_update_lambda_once(H_obs, beta_all, grad, lambda_s, mm_cg, cg_trust_radius)
+          penalty_mat <- build_cg_penalty(names(beta_all), lambda_s)
+          df_s <- cg_smooth_edf_list(H_obs, penalty_mat, names(beta_all))
+          cg_lambda_update_count <- cg_lambda_update_count + 1L
+          cg_stall_count <- 0L
+          if(verbose > 0) {
+            cat("\nCG convergence delayed for first smoother lambda update")
+          }
+        } else {
+          cg_stop_reason <- if(isTRUE(cg_tolerance_met)) {
+            "tolerance"
+          } else if(isTRUE(cg_deterioration_hit)) {
+            "raw_loglik_deterioration"
+          } else {
+            "max_stall"
+          }
+          if(identical(cg_stop_reason, "tolerance")) cat("\nOUTER CONVERGED")
+          if(identical(cg_stop_reason, "raw_loglik_deterioration") && verbose > 0) {
+            cat(paste0(
+              "\nCG stopped after raw log-likelihood dropped ",
+              signif(cg_raw_loglik_drop_from_best, 5),
+              " below best seen value."
+            ))
+          }
+          cg_converged <- TRUE
+        }
       }
 
       outer_only_run_counter <- outer_only_run_counter + 1L
@@ -1013,6 +1611,7 @@ gamlss.longitudinal=function(dataset,
     for(pn in names(mm$x)) weights_final[[pn]] <- rep(1, nrow(mm$x[[pn]]))
   } else {
   while ((first_outer_run==TRUE | (abs(outer_log_lik_change)>outer_stop_crit)) & outer_only_run_counter < max_outer_iter) {
+    check_elapsed_budget("RS outer iteration")
 
     cat(paste("\nOUTER ITERATION:",outer_only_run_counter))
     first_outer_run=TRUE
@@ -1488,6 +2087,26 @@ gamlss.longitudinal=function(dataset,
         }
 
         accepted_joint_loglik <- as.numeric(accepted_results$calc_lik_out_end$log_lik["joint"])
+        if(!identical(method, "CG")) {
+          rs_block_trace[[length(rs_block_trace) + 1L]] <- data.frame(
+            outer_iteration = as.integer(outer_only_run_counter),
+            inner_iteration = as.integer(inner_run_counter),
+            global_inner_iteration = as.integer(outer_run_counter),
+            parameter = par_name,
+            start_logLik = as.numeric(start_joint_loglik),
+            proposed_logLik = as.numeric(proposed_joint_loglik),
+            accepted_logLik = as.numeric(accepted_joint_loglik),
+            proposed_change = as.numeric(proposed_joint_loglik - start_joint_loglik),
+            accepted_change = as.numeric(accepted_joint_loglik - start_joint_loglik),
+            nominal_step_size = as.numeric(step_size),
+            accepted_step_size = as.numeric(accepted_step_size),
+            backtracking_attempts = as.integer(backtracking_attempts_used),
+            max_backtracking_attempts = as.integer(max_backtrack),
+            rejected = isTRUE(theta_step_rejected),
+            elapsed_sec = as.numeric(difftime(Sys.time(), timer_start, units = "secs")),
+            stringsAsFactors = FALSE
+          )
+        }
         if(par_name == "theta" && verbose > 2) {
           cat(paste0(
             "\nTheta step diagnostics: start=", signif(start_joint_loglik, 8),
@@ -1584,6 +2203,39 @@ gamlss.longitudinal=function(dataset,
   }
   }
 
+  converged <- is.finite(outer_log_lik_change) && abs(outer_log_lik_change) <= outer_stop_crit
+  if(identical(method, "CG")) {
+    converged <- identical(cg_stop_reason, "tolerance")
+  }
+  hit_outer_limit <- outer_only_run_counter >= max_outer_iter && !isTRUE(converged)
+  convergence_info <- list(
+    converged = isTRUE(converged),
+    hit_outer_limit = isTRUE(hit_outer_limit),
+    hit_max_stall = isTRUE(identical(cg_stop_reason, "max_stall")),
+    hit_raw_loglik_deterioration = isTRUE(identical(cg_stop_reason, "raw_loglik_deterioration")),
+    stop_reason = if(identical(method, "CG")) cg_stop_reason else if(isTRUE(converged)) "tolerance" else NA_character_,
+    grad_inf = as.numeric(cg_last_grad_inf),
+    step_l2 = as.numeric(cg_last_step_l2),
+    best_raw_loglik = as.numeric(cg_best_raw_loglik),
+    best_raw_loglik_iteration = as.integer(cg_best_iteration),
+    raw_loglik_drop_from_best = as.numeric(cg_raw_loglik_drop_from_best),
+    raw_loglik_drop_tol = as.numeric(cg_raw_loglik_drop_tol),
+    outer_iterations = max(0L, outer_only_run_counter - 1L),
+    max_outer_iter = max_outer_iter,
+    outer_log_lik_change = as.numeric(outer_log_lik_change),
+    outer_stop_crit = outer_stop_crit,
+    method = method,
+    cg_gradient_method = if(identical(method, "CG")) cg_gradient_method else NA_character_,
+    cg_zeta_hessian = if(identical(method, "CG")) cg_zeta_hessian else NA_character_
+  )
+
+  if (isTRUE(hit_outer_limit)) {
+    warning(
+      "Model stopped at max_outer_iter before satisfying outer_stop_crit; treat fit as not converged.",
+      call. = FALSE
+    )
+  }
+
   cat("\n\n############ MODEL FIT ############\n")
   cat(paste("\nMargin distribution:",margin_dist$family[2]))
   cat(paste("\nCopula distribution:",copula_dist))
@@ -1638,6 +2290,18 @@ gamlss.longitudinal=function(dataset,
   )
   return_list$var_map <- var_map
   return_list$optim_method <- method
+  return_list$warm_start_joint <- warm_start_info
+  return_list$convergence <- convergence_info
+  if(!identical(method, "CG")) {
+    return_list$rs_block_trace <- if(length(rs_block_trace)) {
+      do.call(rbind, rs_block_trace)
+    } else {
+      data.frame()
+    }
+  }
+  if(identical(method, "CG")) {
+    return_list$cg_lambda_trace <- cg_lambda_trace
+  }
 
   # Store vcov metadata and optionally precompute vcov once at fit time.
   return_list$vcov <- NULL
@@ -1706,8 +2370,7 @@ normalize_lag_time <- function(time) {
 #' @param zeta.formula Formula for the zeta parameter of the copula distribution
 #' @param margin.family Marginal distribution specified as a gamlss family object,
 #' e.g. GA(), NO(), PO(), NBI(), etc.
-#' @param copula.family Copula distribution specified as a string in VineCopula style
-#' e.g. "t", "C" etc.
+#' @param copula.family Copula distribution code, one of "N", "C", "F", "G", "J", or "t".
 #' @param copula.link List of link functions for the copula parameters
 #' @return Returns a list mm with items mm$x and mm$s for fixed and smooth terms respectively,
 #' with each of those lists being lists of each parameter and their respective model matrices
@@ -1875,7 +2538,7 @@ create_model_matrices<-function(
     as.formula(paste(response_name, "~", rhs_txt), env = parent.frame())
   }
 
-  if(copula.family %in% c("t")){two_par_cop=TRUE} else {two_par_cop=FALSE}
+  if(copula.family %in% c("t", "T", "Student")){two_par_cop=TRUE} else {two_par_cop=FALSE}
   included_parameters <- c(names(margin.family$parameters), if(two_par_cop) c("theta","zeta") else c("theta"))
 
   formulas=list()
@@ -2231,7 +2894,7 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
   if(length(par1_eval)==0) {
     copula_d=numeric(0)
   } else {
-    copula_d=VineCopula::BiCopPDF(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval)
+    copula_d=.copula_pdf(Fx_eval[,1],Fx_eval[,2],family = copula_dist,par=par1_eval,par2=par2_eval)
   }
   if(length(copula_d)>0) {
     copula_d[!is.finite(copula_d) | copula_d<=0]=1
@@ -2297,6 +2960,10 @@ calc_deriv_copula_wrt_margin = function(input,margin_par,par_name,calc_d2=FALSE)
 
     #Calculate copula derivative with respect to marginal parameters
     #input=copula_merged
+    num_col <- function(nm) {
+      val <- if (is.data.frame(input)) input[[nm]] else input[, nm]
+      suppressWarnings(as.numeric(val))
+    }
 
     if(calc_d2==FALSE) {
 
@@ -2307,20 +2974,20 @@ calc_deriv_copula_wrt_margin = function(input,margin_par,par_name,calc_d2=FALSE)
 
         if(inner_par_name==par_name) {
           #Take parameters from input for clarity
-          dc_tplus_du_t=input[,"dcdu1"]
-          dc_tplus_du_tplus=input[,"dcdu2"]
-          l_t=input[,paste(paste("dld",inner_par_name,sep=""),".x",sep="")]
-          l_t_plus=input[,paste(paste("dld",inner_par_name,sep=""),".y",sep="")]
-          x_t=input[,"response.x"]
-          x_t_plus=input[,"response.y"]
-          f_t=input[,"margin_d.x"]
-          f_t_plus=input[,"margin_d.y"]
-          c_tplus=input[,"copula_d"]
-          mu_t=input[,"mu.x"]
-          mu_t_plus=input[,"mu.y"]
+          dc_tplus_du_t=num_col("dcdu1")
+          dc_tplus_du_tplus=num_col("dcdu2")
+          l_t=num_col(paste(paste("dld",inner_par_name,sep=""),".x",sep=""))
+          l_t_plus=num_col(paste(paste("dld",inner_par_name,sep=""),".y",sep=""))
+          x_t=num_col("response.x")
+          x_t_plus=num_col("response.y")
+          f_t=num_col("margin_d.x")
+          f_t_plus=num_col("margin_d.y")
+          c_tplus=num_col("copula_d")
+          mu_t=num_col("mu.x")
+          mu_t_plus=num_col("mu.y")
 
-          F_nd_t=input[,"F_nd.x"]
-          F_nd_t_plus=input[,"F_nd.y"]
+          F_nd_t=num_col("F_nd.x")
+          F_nd_t_plus=num_col("F_nd.y")
 
           du_t_dmu=F_nd_t
           du_t_plus_dmu=F_nd_t_plus
@@ -2343,15 +3010,15 @@ calc_deriv_copula_wrt_margin = function(input,margin_par,par_name,calc_d2=FALSE)
 
       # Prefer explicit row-index accumulation to avoid merge-order instability.
       if(all(c("row_id1","row_id2") %in% colnames(input))) {
-        n_obs <- suppressWarnings(max(c(input[,"row_id1"], input[,"row_id2"]), na.rm = TRUE))
+        n_obs <- suppressWarnings(max(c(num_col("row_id1"), num_col("row_id2")), na.rm = TRUE))
         if(!is.finite(n_obs) || n_obs < 1) {
           stop("Invalid row ids in copula-to-margin derivative assembly.")
         }
         d1_cop <- matrix(0, nrow = as.integer(n_obs), ncol = length(margin_par))
         colnames(d1_cop) <- margin_par
 
-        row_id1 <- as.integer(input[,"row_id1"])
-        row_id2 <- as.integer(input[,"row_id2"])
+        row_id1 <- as.integer(num_col("row_id1"))
+        row_id2 <- as.integer(num_col("row_id2"))
         for(j in seq_along(margin_par)) {
           contrib1 <- as.numeric(dlcopdpar_row1[, j])
           contrib2 <- as.numeric(dlcopdpar_row2[, j])
@@ -2384,20 +3051,20 @@ calc_deriv_copula_wrt_margin = function(input,margin_par,par_name,calc_d2=FALSE)
 
         if(inner_par_name==par_name) {
           #Take parameters from input for clarity
-          dc_tplus_du_t=input[,"dcdu1"]
-          dc_tplus_du_tplus=input[,"dcdu2"]
+          dc_tplus_du_t=num_col("dcdu1")
+          dc_tplus_du_tplus=num_col("dcdu2")
           #l_t=input[,paste(paste("dld",inner_par_name,sep=""),".x",sep="")]
           #l_t_plus=input[,paste(paste("dld",inner_par_name,sep=""),".y",sep="")]
           #x_t=input[,"response.x"]
           #x_t_plus=input[,"response.y"]
           #f_t=input[,"margin_d.x"]
           #f_t_plus=input[,"margin_d.y"]
-          c_tplus=input[,"copula_d"]
-          mu_t=input[,"mu.x"]
-          mu_t_plus=input[,"mu.y"]
+          c_tplus=num_col("copula_d")
+          mu_t=num_col("mu.x")
+          mu_t_plus=num_col("mu.y")
 
-          F_nd_t=input[,"F_nd.x"]
-          F_nd_t_plus=input[,"F_nd.y"]
+          F_nd_t=num_col("F_nd.x")
+          F_nd_t_plus=num_col("F_nd.y")
 
           du_t_dmu=F_nd_t
           du_t_plus_dmu=F_nd_t_plus
@@ -2413,14 +3080,14 @@ calc_deriv_copula_wrt_margin = function(input,margin_par,par_name,calc_d2=FALSE)
 
           #######NOW FOR SECOND DERIVATIVE OF COPULA TERM
 
-          F_nd2=input[,"F_nd2.x"]
-          F_nd2_plus=input[,"F_nd2.y"]
+          F_nd2=num_col("F_nd2.x")
+          F_nd2_plus=num_col("F_nd2.y")
 
           d2u_t_dmu2=F_nd2
           d2u_t_plus_dmu2=F_nd2_plus
 
-          d2cdu_t2=input[,"d2cdu12"]
-          d2cdu_t_plus2=input[,"d2cdu22"]
+          d2cdu_t2=num_col("d2cdu12")
+          d2cdu_t_plus2=num_col("d2cdu22")
           d2cdu_t2[is.nan(d2cdu_t2)]=0
           d2cdu_t_plus2[is.nan(d2cdu_t_plus2)]=0
 
@@ -2430,7 +3097,7 @@ calc_deriv_copula_wrt_margin = function(input,margin_par,par_name,calc_d2=FALSE)
                     dc_tplus_du_tplus * d2u_t_plus_dmu2
 
           d2lcdmu2=as.matrix((d2cdmu2*c_tplus-(dcdmu_tplus^2))/(c_tplus^2))
-          d2lcdmu2=input[,"c_nd2"]
+          d2lcdmu2=num_col("c_nd2")
 
           d2lcopdpar2[,i]=d2lcdmu2
 
@@ -2584,33 +3251,33 @@ calc_copula_derivatives = function(eta_inv, Fx_1_2, copula_dist, calc_d2=FALSE, 
     par1_eval[par1_eval>=28]=27.9
   }
 
-  copula_d=VineCopula::BiCopPDF(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval)
+  copula_d=.copula_pdf(Fx_eval[,1],Fx_eval[,2],family = copula_dist,par=par1_eval,par2=par2_eval)
   copula_d[!is.finite(copula_d) | copula_d<=0]=1
   copula_d[!pair_complete]=1
 
-  dldth=VineCopula::BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par",log=TRUE)
-  dcdth=VineCopula::BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par",log=FALSE)
+  dldth=.copula_deriv(Fx_eval[,1],Fx_eval[,2],family = copula_dist,par=par1_eval,par2=par2_eval,deriv="par",log=TRUE)
+  dcdth=.copula_deriv(Fx_eval[,1],Fx_eval[,2],family = copula_dist,par=par1_eval,par2=par2_eval,deriv="par",log=FALSE)
 
   if(calc_d2==TRUE) {
-    d2cdth=VineCopula::BiCopDeriv2(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par")
+    d2cdth=.copula_deriv2(Fx_eval[,1],Fx_eval[,2],family = copula_dist,par=par1_eval,par2=par2_eval,deriv="par")
     d2ldth2=(1/(copula_d^2))*(copula_d*d2cdth-dcdth^2)
   }
 
   if("zeta" %in% names(eta_inv)) {
-    dldz=VineCopula::BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par2",log=TRUE)
-    dcdz=VineCopula::BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par2",log=FALSE)
+    dldz=.copula_deriv(Fx_eval[,1],Fx_eval[,2],family = copula_dist,par=par1_eval,par2=par2_eval,deriv="par2",log=TRUE)
+    dcdz=.copula_deriv(Fx_eval[,1],Fx_eval[,2],family = copula_dist,par=par1_eval,par2=par2_eval,deriv="par2",log=FALSE)
 
     if(calc_d2==TRUE) {
-      d2cdz=VineCopula::BiCopDeriv2(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par2")
+      d2cdz=.copula_deriv2(Fx_eval[,1],Fx_eval[,2],family = copula_dist,par=par1_eval,par2=par2_eval,deriv="par2")
       d2ldz2=(1/(copula_d^2))*(copula_d*d2cdz-dcdz^2)
 
-      d2cdthdz=VineCopula::BiCopDeriv2(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="par1par2")
+      d2cdthdz=.copula_deriv2(Fx_eval[,1],Fx_eval[,2],family = copula_dist,par=par1_eval,par2=par2_eval,deriv="par1par2")
       d2ldthdz=(d2cdthdz*copula_d-dcdth*dcdz)/(copula_d^2)
     }
 
   }
-  dcdu1=VineCopula::BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="u1",log=FALSE)
-  dcdu2=VineCopula::BiCopDeriv(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="u2",log=FALSE)
+  dcdu1=.copula_deriv(Fx_eval[,1],Fx_eval[,2],family = copula_dist,par=par1_eval,par2=par2_eval,deriv="u1",log=FALSE)
+  dcdu2=.copula_deriv(Fx_eval[,1],Fx_eval[,2],family = copula_dist,par=par1_eval,par2=par2_eval,deriv="u2",log=FALSE)
 
   dldth[!is.finite(dldth)]=0; if(calc_d2==TRUE) {d2ldth2[!is.finite(d2ldth2)]=0  }
   dldth[!pair_complete]=0
@@ -2619,8 +3286,8 @@ calc_copula_derivatives = function(eta_inv, Fx_1_2, copula_dist, calc_d2=FALSE, 
   dcdu2[!pair_complete]=0
 
   if(calc_d2==TRUE) {
-    d2cdu12=VineCopula::BiCopDeriv2(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="u1")
-    d2cdu22=VineCopula::BiCopDeriv2(Fx_eval[,1],Fx_eval[,2],family = as.numeric(VineCopula::BiCopName(copula_dist)),par=par1_eval,par2=par2_eval,deriv="u2")
+    d2cdu12=.copula_deriv2(Fx_eval[,1],Fx_eval[,2],family = copula_dist,par=par1_eval,par2=par2_eval,deriv="u1")
+    d2cdu22=.copula_deriv2(Fx_eval[,1],Fx_eval[,2],family = copula_dist,par=par1_eval,par2=par2_eval,deriv="u2")
     d2cdu12[!is.finite(d2cdu12)]=0
     d2cdu22[!is.finite(d2cdu22)]=0
     d2cdu12[!pair_complete]=0
@@ -2973,15 +3640,15 @@ coef.gamlss.longitudinal=function(object, ...) {
 }
 
 # This function returns the variance-covariance matrix for a given gamlss longitudinal object
-#' @param method Character; Hessian method to use. \code{"numderiv"} (default
-#'   and source of truth) uses full finite-difference numerical second
-#'   derivatives. \code{"analytical"} uses the semi-analytical Hessian from
-#'   \code{R/analytical_hessian.R} (faster, experimental). The legacy
+#' @param method Character; Hessian method to use. \code{"analytical"} (default)
+#'   uses the semi-analytical Hessian from \code{R/analytical_hessian.R}.
+#'   \code{"numderiv"} uses full finite-difference numerical second
+#'   derivatives as a slower reference path. The legacy
 #'   \code{numderiv} logical argument is still accepted and maps to
 #'   \code{method = "numderiv"} when \code{TRUE}.
 #' @export
 vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
-                                   method=c("numderiv","analytical","analytical_only"),
+                                   method=c("analytical","numderiv","analytical_only"),
                                    progress=interactive(), h=1e-4, ...) {
 
   #object=fit; par=NA; numderiv=TRUE; sep_d2=TRUE
@@ -3319,22 +3986,33 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
 
 }
 
-.can_use_cached_vcov <- function(object, numderiv = TRUE, extra_args = list()) {
+.can_use_cached_vcov <- function(object, numderiv = FALSE, method = NULL, extra_args = list()) {
   if(!inherits(object, "gamlss.longitudinal")) return(FALSE)
-  if(!is.null(extra_args) && length(extra_args) > 0) return(FALSE)
+  extra_args_cache <- extra_args
+  extra_args_cache$method <- NULL
+  if(!is.null(extra_args_cache) && length(extra_args_cache) > 0) return(FALSE)
   if(is.null(object$vcov) || !is.list(object$vcov)) return(FALSE)
   if(is.null(object$vcov$vcov) || is.null(object$vcov$vcov$overall)) return(FALSE)
 
   if(!is.null(object$vcov_meta) && !is.null(object$vcov_meta$numderiv)) {
-    return(identical(isTRUE(object$vcov_meta$numderiv), isTRUE(numderiv)))
+    numderiv_ok <- identical(isTRUE(object$vcov_meta$numderiv), isTRUE(numderiv))
+    method_ok <- is.null(method) ||
+      is.null(object$vcov_meta$method) ||
+      identical(as.character(object$vcov_meta$method)[1], as.character(method)[1])
+    return(numderiv_ok && method_ok)
   }
 
   TRUE
 }
 
-.resolve_vcov <- function(object, numderiv = TRUE, extra_args = list()) {
-  if(.can_use_cached_vcov(object, numderiv = numderiv, extra_args = extra_args)) {
+.resolve_vcov <- function(object, numderiv = FALSE, extra_args = list()) {
+  vcov_method <- extra_args$method %||% if (isTRUE(numderiv)) "numderiv" else "analytical"
+  if(.can_use_cached_vcov(object, numderiv = numderiv, method = vcov_method, extra_args = extra_args)) {
     return(object$vcov)
+  }
+
+  if(is.null(extra_args$method)) {
+    extra_args$method <- vcov_method
   }
 
   do.call(
@@ -3366,7 +4044,7 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
 summary.gamlss.longitudinal = function(
   object,
   include_vcov = TRUE,
-  numderiv = TRUE,
+  numderiv = FALSE,
   ci_level = 0.95,
   ...
 ) {
@@ -3556,7 +4234,7 @@ summary.gamlss.longitudinal = function(
   }
 
   copula_dist <- object$model$copula_dist
-  if (!(copula_dist %in% c("t", "T", "Student"))) {
+  if (!identical(copula_dist, "t")) {
     return(NULL)
   }
 
@@ -3715,7 +4393,7 @@ print.summary.gamlss.longitudinal = function(x, digits = max(3, getOption("digit
 #'
 #' @param object A fitted `gamlss.longitudinal` object.
 #' @param vcov_obj Optional output from `vcov(object, ...)`. If `NULL`, this is
-#' computed internally with `vcov(object, numderiv = TRUE)`.
+#' computed internally with the analytical vcov path.
 #' @param data Optional data frame containing original covariates used for the
 #' x-axis variable of each smooth.
 #' @param ci_level Confidence level for pointwise intervals.
@@ -3759,7 +4437,7 @@ plot_smooth_terms = function(
   }
 
   if(is.null(vcov_obj)) {
-    vcov_obj = .resolve_vcov(object, numderiv = TRUE, extra_args = list())
+    vcov_obj = .resolve_vcov(object, numderiv = FALSE, extra_args = list(method = "analytical"))
   }
 
   if(!is.list(vcov_obj) || is.null(vcov_obj$vcov)) {
@@ -4022,7 +4700,7 @@ plot_smooth_terms = function(
 #'
 #' @param object A fitted `gamlss.longitudinal` object.
 #' @param vcov_obj Optional output from `vcov(object, ...)`. If `NULL`, this is
-#' computed internally with `vcov(object, numderiv = TRUE)`.
+#' computed internally with the analytical vcov path.
 #' @param ci_level Confidence level for pointwise intervals.
 #' @param ncol Number of plot columns (defaults to 2 or fewer if needed).
 #' @param include_intercept Logical; include intercept columns in plots.
@@ -4067,7 +4745,7 @@ plot_fixed_terms = function(
   }
 
   if(is.null(vcov_obj)) {
-    vcov_obj = .resolve_vcov(object, numderiv = TRUE, extra_args = list())
+    vcov_obj = .resolve_vcov(object, numderiv = FALSE, extra_args = list(method = "analytical"))
   }
 
   if(!is.list(vcov_obj) || is.null(vcov_obj$vcov) || is.null(vcov_obj$vcov$overall)) {
@@ -4727,7 +5405,7 @@ plot.terms.gamlss.longitudinal = function(
     return(invisible(list(smooth_terms = list(), fixed_terms = list())))
   }
 
-  vcov_obj = .resolve_vcov(x, numderiv = TRUE, extra_args = list())
+  vcov_obj = .resolve_vcov(x, numderiv = FALSE, extra_args = list(method = "analytical"))
 
   smooth_results = list()
   fixed_results = list()
@@ -4976,9 +5654,9 @@ plot.gamlss.longitudinal = function(
 
   tau <- tryCatch({
     if (is.finite(par2)) {
-      suppressWarnings(VineCopula::BiCopPar2Tau(family = family_num, par = par, par2 = par2))
+      suppressWarnings(.copula_par_to_tau(family = family_num, par = par, par2 = par2))
     } else {
-      suppressWarnings(VineCopula::BiCopPar2Tau(family = family_num, par = par, par2 = 0))
+      suppressWarnings(.copula_par_to_tau(family = family_num, par = par, par2 = 0))
     }
   }, error = function(e) NA_real_)
 
@@ -4986,8 +5664,8 @@ plot.gamlss.longitudinal = function(
     return(as.numeric(tau))
   }
 
-  # Fallback for Gaussian/Clayton copulas using formula
-  if (family_num %in% c(1, 2) && is.finite(par)) {
+  # Fallback for Gaussian copulas using formula.
+  if (identical(family_num, "N") && is.finite(par)) {
     return(2 / pi * asin(max(min(par, 0.999999), -0.999999)))
   }
 
@@ -4996,7 +5674,7 @@ plot.gamlss.longitudinal = function(
 
 .copula_v2_bicop_cdf <- function(u1, u2, family_num, par, par2 = NA_real_) {
   n <- max(length(u1), length(u2), length(par), length(par2))
-  if (!is.finite(family_num) || n < 1) return(rep(NA_real_, length(u1)))
+  if (!is.character(family_num) || length(family_num) != 1L || n < 1) return(rep(NA_real_, length(u1)))
   u1 <- rep(u1, length.out = n)
   u2 <- rep(u2, length.out = n)
   par <- rep(par, length.out = n)
@@ -5004,7 +5682,7 @@ plot.gamlss.longitudinal = function(
   vapply(seq_len(n), function(i) {
     if (!is.finite(u1[i]) || !is.finite(u2[i]) || !is.finite(par[i])) return(NA_real_)
     tryCatch({
-      VineCopula::BiCopCDF(
+      .copula_cdf(
         u1[i],
         u2[i],
         family = family_num,
@@ -5017,7 +5695,7 @@ plot.gamlss.longitudinal = function(
 
 .copula_v2_bicop_cond_u2_given_u1 <- function(u1, u2, family_num, par, par2 = NA_real_) {
   n <- max(length(u1), length(u2), length(par), length(par2))
-  if (!is.finite(family_num) || n < 1) return(rep(NA_real_, length(u1)))
+  if (!is.character(family_num) || length(family_num) != 1L || n < 1) return(rep(NA_real_, length(u1)))
   u1 <- rep(u1, length.out = n)
   u2 <- rep(u2, length.out = n)
   par <- rep(par, length.out = n)
@@ -5026,7 +5704,7 @@ plot.gamlss.longitudinal = function(
     if (!is.finite(u1[i]) || !is.finite(u2[i]) || !is.finite(par[i])) return(NA_real_)
     tryCatch({
       # BiCopHfunc1 gives dC(u1, u2) / du1, i.e. F(U2 <= u2 | U1 = u1).
-      VineCopula::BiCopHfunc1(
+      .copula_hfunc1(
         u1[i],
         u2[i],
         family = family_num,
@@ -5183,17 +5861,7 @@ plot.gamlss.longitudinal = function(
 
   copula_spec <- get_copula_dist(object$copula_dist)
 
-  # Extract proper copula family name for BiCopName
-  copula_family_name <- object$copula_dist
-  if (!is.character(copula_family_name) || nchar(copula_family_name) == 0) {
-    copula_family_name <- copula_spec$copula_dist
-  }
-  if (grepl("^[0-9]+$", copula_family_name)) {
-    family_map <- c("1" = "N", "2" = "C", "3" = "G", "4" = "F", "5" = "J", "6" = "BB1", "7" = "BB6", "8" = "BB7", "9" = "BB8", "10" = "T")
-    if (copula_family_name %in% names(family_map)) {
-      copula_family_name <- family_map[[copula_family_name]]
-    }
-  }
+  copula_family_name <- .copula_family_code(copula_spec$copula_dist)
 
   eta_out <- calc_eta(
     par_cov = object$par,
@@ -5290,8 +5958,8 @@ plot.gamlss.longitudinal = function(
   u <- .copula_v2_clamp01(u)
 
   family_num <- tryCatch({
-    as.numeric(VineCopula::BiCopName(copula_family_name))
-  }, error = function(e) NA_real_)
+    .copula_family_code(copula_family_name)
+  }, error = function(e) NA_character_)
 
   # Compute tau_fit, suppressing coercion warnings
   tau_fit <- suppressWarnings(
@@ -5494,9 +6162,9 @@ plot.gamlss.longitudinal = function(
     par2 <- pair_data$zeta_pair[i]
     density_i <- tryCatch({
       if (is.finite(par2)) {
-        VineCopula::BiCopPDF(grid_df$u1, grid_df$u2, family = family_num, par = par, par2 = par2)
+        .copula_pdf(grid_df$u1, grid_df$u2, family = family_num, par = par, par2 = par2)
       } else {
-        VineCopula::BiCopPDF(grid_df$u1, grid_df$u2, family = family_num, par = par, par2 = 0)
+        .copula_pdf(grid_df$u1, grid_df$u2, family = family_num, par = par, par2 = 0)
       }
     }, error = function(e) rep(NA_real_, nrow(grid_df)))
 
@@ -5602,20 +6270,11 @@ plot.copula_contour_compare <- function(x, lags = 1, grid_n = 45, max_pairs_over
   pair_data <- .copula_v2_pair_data(fit_data, lags = lags)
 
   copula_spec <- get_copula_dist(object$copula_dist)
-  copula_family_name <- object$copula_dist
-  if (!is.character(copula_family_name) || nchar(copula_family_name) == 0) {
-    copula_family_name <- copula_spec$copula_dist
-  }
-  if (grepl("^[0-9]+$", copula_family_name)) {
-    family_map <- c("1" = "N", "2" = "C", "3" = "G", "4" = "F", "5" = "J", "6" = "BB1", "7" = "BB6", "8" = "BB7", "9" = "BB8", "10" = "T")
-    if (copula_family_name %in% names(family_map)) {
-      copula_family_name <- family_map[[copula_family_name]]
-    }
-  }
+  copula_family_name <- .copula_family_code(copula_spec$copula_dist)
 
   family_num <- tryCatch({
-    as.numeric(VineCopula::BiCopName(copula_family_name))
-  }, error = function(e) NA_real_)
+    .copula_family_code(copula_family_name)
+  }, error = function(e) NA_character_)
 
   split_data <- if (isTRUE(time_stratified)) split(pair_data, pair_data$time_pair) else list(All = pair_data)
 
@@ -5823,24 +6482,11 @@ plot.copula <- function(x, lags = 1, grid_n = 35, max_pairs_overlay = 300, trans
 
   copula_spec <- get_copula_dist(object$copula_dist)
 
-  # Ensure proper copula family name for BiCopName
-  copula_family_name <- object$copula_dist
-  if (!is.character(copula_family_name) || nchar(copula_family_name) == 0) {
-    copula_family_name <- copula_spec$copula_dist
-  }
-
-  # If still a numeric code, convert to family name
-  if (grepl("^[0-9]+$", copula_family_name)) {
-    # Map numeric codes back to family names
-    family_map <- c("1" = "N", "2" = "C", "3" = "G", "4" = "F", "5" = "J", "6" = "BB1", "7" = "BB6", "8" = "BB7", "9" = "BB8", "10" = "T")
-    if (copula_family_name %in% names(family_map)) {
-      copula_family_name <- family_map[[copula_family_name]]
-    }
-  }
+  copula_family_name <- .copula_family_code(copula_spec$copula_dist)
 
   family_num <- tryCatch({
-    as.numeric(VineCopula::BiCopName(copula_family_name))
-  }, error = function(e) NA_real_)
+    .copula_family_code(copula_family_name)
+  }, error = function(e) NA_character_)
 
   is_grouped <- !is.null(by) || isTRUE(time_stratified)
 
@@ -6277,6 +6923,22 @@ get_starting_values = function(copula_dist,margin_dist,dataset,eta_transform=FAL
 
   margin_names=unique(dataset$time)
   num_margins=length(margin_names)
+  finite_response <- dataset$response[is.finite(dataset$response)]
+  margin_par_already_eta <- FALSE
+  moment_skewness <- function(x) {
+    x <- x[is.finite(x)]
+    if (length(x) < 3) return(0)
+    s <- stats::sd(x)
+    if (!is.finite(s) || s <= 0) return(0)
+    mean(((x - mean(x)) / s)^3)
+  }
+  moment_kurtosis <- function(x) {
+    x <- x[is.finite(x)]
+    if (length(x) < 4) return(3)
+    s <- stats::sd(x)
+    if (!is.finite(s) || s <= 0) return(3)
+    mean(((x - mean(x)) / s)^4)
+  }
 
   tau_start=cor(dataset[dataset$time%in%(margin_names[1:(num_margins-1)]),"response"]
                 ,dataset[dataset$time%in%(margin_names[2:(num_margins)]),"response"],method="kendall",use="complete.obs")
@@ -6287,31 +6949,31 @@ get_starting_values = function(copula_dist,margin_dist,dataset,eta_transform=FAL
   tau_start=max(min(tau_start,0.9999),-0.9999)
 
   copula_spec=get_copula_dist(copula_dist)
-  theta_start=VineCopula::BiCopTau2Par(
-    family=as.numeric(VineCopula::BiCopName(copula_dist)),
+  theta_start=.copula_tau_to_par(
+    family=copula_dist,
     tau=tau_start
   )
 
   if(margin_dist$family[1]=="GA" | margin_dist$family[1]=="EXP") {
     margin_par=c(
-      mean(dataset$response)
-      , sd(dataset$response)/mean(dataset$response)
-      , skewness(dataset$response)
-      , kurtosis(dataset$response)
+      mean(finite_response)
+      , stats::sd(finite_response)/mean(finite_response)
+      , moment_skewness(finite_response)
+      , moment_kurtosis(finite_response)
     )
   } else if (margin_dist$family[1]=="NO") {
     margin_par=c(
-      mean(dataset$response)
-      , sd(dataset$response)
+      mean(finite_response)
+      , stats::sd(finite_response)
     )
   } else if (margin_dist$family[1]=="PO") {
     margin_par=c(
-      mean(dataset$response)
+      mean(finite_response)
     )
   } else if (margin_dist$family[1]=="NBI") {
     margin_par=c(
-      mean(dataset$response),
-      sd(dataset$response)/mean(dataset$response)
+      mean(finite_response),
+      stats::sd(finite_response)/mean(finite_response)
     )
   } else {
     cat("Fitting initial GAMLSS model for margin to obtain starting values...\n")
@@ -6322,14 +6984,14 @@ get_starting_values = function(copula_dist,margin_dist,dataset,eta_transform=FAL
     margin_par=unlist(coefAll(start_fit))
     names(margin_par)=names(margin_dist$parameters)
     #margin_par=eta_to_par(margin_par_temp,margin_dist,get_copula_dist(copula_dist))
-    eta_transform=FALSE
+    margin_par_already_eta <- TRUE
   }
 
   names(margin_par)=names(margin_dist$parameters)
   margin_par=margin_par[!is.na(names(margin_par))]
 
   if("zeta" %in% copula_spec$parameters) {
-    # VineCopula::BiCopTau2Par() returns only theta for t-copula; select zeta by a small grid search.
+    # .copula_tau_to_par() returns only theta for t-copula; select zeta by a small grid search.
     zeta_start <- .select_t_copula_zeta_start(
       dataset = dataset,
       margin_dist = margin_dist,
@@ -6346,9 +7008,11 @@ get_starting_values = function(copula_dist,margin_dist,dataset,eta_transform=FAL
     margin_par_eta=margin_par
     cop_par_eta=cop_par
 
-    for (par_name in names(margin_par)) {
-      FUN = eval(parse(text=paste(paste(paste("margin_dist$",par_name,sep=""),"linkfun",sep="."))))
-      margin_par_eta[par_name]=FUN(margin_par[par_name])
+    if(!isTRUE(margin_par_already_eta)) {
+      for (par_name in names(margin_par)) {
+        FUN = eval(parse(text=paste(paste(paste("margin_dist$",par_name,sep=""),"linkfun",sep="."))))
+        margin_par_eta[par_name]=FUN(margin_par[par_name])
+      }
     }
 
     for (par_name in names(cop_par)) {
@@ -6495,36 +7159,32 @@ calc_F_x <- function(eta_inv,mm,margin_dist,response) {
 #' @export
 get_copula_dist=function(copula_dist) {
 
-  if(copula_dist=="C" | copula_dist=="Clayton") {
+  copula_dist <- .copula_family_code(copula_dist)
+
+  if(copula_dist=="C") {
     copula_link=list(log,exp,dloginv=exp); two_par_cop=FALSE
-    copula_dist=VineCopula::BiCopName(copula_dist)
     parameters=c("theta")
   }
-  else if(copula_dist=="F" | copula_dist=="Frank") {
+  else if(copula_dist=="F") {
     copula_link=list(identity,identity,function(x) rep(1, length(x))); two_par_cop=FALSE
-    copula_dist=VineCopula::BiCopName(copula_dist)
     parameters=c("theta")
   }
-  else if(copula_dist=="J" | copula_dist=="Joe") {
+  else if(copula_dist=="J") {
     copula_link=list(log_1plus,log_1plus_inv,dlog_1plus_inv); two_par_cop=FALSE
-    copula_dist=VineCopula::BiCopName(copula_dist)
     parameters=c("theta")
   }
-  else if(copula_dist=="G" | copula_dist=="Gumbel") {
+  else if(copula_dist=="G") {
     copula_link=list(gumbel_linkfun,gumbel_linkinv,dgumbel_linkinv); two_par_cop=FALSE
-    copula_dist=VineCopula::BiCopName(copula_dist)
     parameters=c("theta")
   }
-  else if(copula_dist=="N" | copula_dist=="Normal") {
+  else if(copula_dist=="N") {
     copula_link=list(fisher_z,fisher_z_inv,dfisher_z_inv); two_par_cop=FALSE
-    copula_dist=VineCopula::BiCopName(copula_dist)
     parameters=c("theta")
-  } else if(copula_dist=="t" | copula_dist=="T" | copula_dist=="Student") {
+  } else if(copula_dist=="t") {
     copula_link=list(fisher_z,fisher_z_inv,dfisher_z_inv,log_2plus,log_2plus_inv,dlog_2plus_inv); two_par_cop=TRUE
-    copula_dist=VineCopula::BiCopName(copula_dist)
     parameters=c("theta","zeta")
   } else {
-    stop("ERROR: COPULA DIST LINK FUNCTIONS NOT YET IMPLEMENTED: DEFINE MANUALLY WITH copula_link ARGUMENT.")
+    stop("ERROR: COPULA DIST LINK FUNCTIONS NOT YET IMPLEMENTED.")
   }
 
   if(two_par_cop) {names(copula_link)=c("theta.linkfun","theta.linkinv","theta.dr","zeta.linkfun","zeta.linkinv","zeta.dr")} else {names(copula_link)=c("theta.linkfun","theta.linkinv","theta.dr")}
@@ -6690,12 +7350,13 @@ plotDist <- function (dataset,dist,offdiag_scale=c("response","pseudo"),show_cor
 
   offdiag_scale <- match.arg(offdiag_scale)
 
-  num_margins=length(unique(dataset[,"time"]))
+  time_values <- sort(unique(dataset[, "time"]))
+  num_margins=length(time_values)
 
   margin_data=list()
   margin_pseudo=list()
   for (i in seq_len(num_margins)) {
-    margin_data[[i]] <- dataset[dataset[,"time"] == i, c("subject", "response")]
+    margin_data[[i]] <- dataset[dataset[,"time"] == time_values[i], c("subject", "response")]
 
     r <- rank(margin_data[[i]]$response, ties.method = "average", na.last = "keep")
     n_obs <- sum(!is.na(margin_data[[i]]$response))
@@ -6716,11 +7377,11 @@ plotDist <- function (dataset,dist,offdiag_scale=c("response","pseudo"),show_cor
     for (j in seq_len(num_margins)) {
       if(i==j) {
         input_data=data.frame(X1 = margin_data[[i]]$response)
-        x_lab <- TeX(paste("$Y_",i,"$"))
+        x_lab <- latex2exp::TeX(paste("$Y_",i,"$"))
 
-        p <- ggplot(input_data, aes(x=X1)) +
-          geom_histogram(bins=30, na.rm=TRUE) +
-          labs(x = x_lab)
+        p <- ggplot2::ggplot(input_data, ggplot2::aes(x=X1)) +
+          ggplot2::geom_histogram(bins=30, na.rm=TRUE) +
+          ggplot2::labs(x = x_lab)
       }
       if(i!=j) {
         if (offdiag_scale == "pseudo") {
@@ -6733,8 +7394,8 @@ plotDist <- function (dataset,dist,offdiag_scale=c("response","pseudo"),show_cor
           )
           input_data <- input_data[complete.cases(input_data$u.i, input_data$u.j), c("u.i", "u.j")]
           names(input_data) <- c("X1", "X2")
-          x_lab <- TeX(paste("$U_",i,"$"))
-          y_lab <- TeX(paste("$U_",j,"$"))
+          x_lab <- latex2exp::TeX(paste("$U_",i,"$"))
+          y_lab <- latex2exp::TeX(paste("$U_",j,"$"))
         } else {
           input_data <- merge(
             margin_data[[i]],
@@ -6745,14 +7406,14 @@ plotDist <- function (dataset,dist,offdiag_scale=c("response","pseudo"),show_cor
           )
           input_data <- input_data[complete.cases(input_data$response.i, input_data$response.j), c("response.i", "response.j")]
           names(input_data) <- c("X1", "X2")
-          x_lab <- TeX(paste("$Y_",i,"$"))
-          y_lab <- TeX(paste("$Y_",j,"$"))
+          x_lab <- latex2exp::TeX(paste("$Y_",i,"$"))
+          y_lab <- latex2exp::TeX(paste("$Y_",j,"$"))
         }
 
-        p=ggplot(data=input_data,aes(x=X1,y=X2)) +
-          geom_point(size=0.4, alpha=0.25, color="black", na.rm=TRUE) +
-          geom_density_2d(contour_var="density",bins=10,color="black") +
-          labs(x = x_lab, y = y_lab)
+        p=ggplot2::ggplot(data=input_data,ggplot2::aes(x=X1,y=X2)) +
+          ggplot2::geom_point(size=0.4, alpha=0.25, color="black", na.rm=TRUE) +
+          ggplot2::geom_density_2d(contour_var="density",bins=10,color="black") +
+          ggplot2::labs(x = x_lab, y = y_lab)
 
         if (show_cor_stats) {
           if (nrow(input_data) >= 3) {
@@ -6763,7 +7424,7 @@ plotDist <- function (dataset,dist,offdiag_scale=c("response","pseudo"),show_cor
             stats_lab <- "Pearson r = NA | Kendall tau = NA"
           }
 
-          p <- p + labs(subtitle = stats_lab)
+          p <- p + ggplot2::labs(subtitle = stats_lab)
         }
       }
 
@@ -6771,7 +7432,7 @@ plotDist <- function (dataset,dist,offdiag_scale=c("response","pseudo"),show_cor
       z=z+1
     }
   }
-  ggarrange(plotlist=plots,ncol=num_margins,nrow=num_margins)
+  ggpubr::ggarrange(plotlist=plots,ncol=num_margins,nrow=num_margins)
 
 }
 #' @keywords internal
@@ -6838,11 +7499,11 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     par2 <- c(log_2plus_inv(2.1),log_2plus_inv(2.1),log_2plus_inv(2.1))
 
     # transform to R-vine matrix notation
-    RVM <- VineCopula::D2RVine(order, family, par, par2)
+    RVM <- .copula_dvine(order, family, par, par2)
     contour(RVM)
 
     t=d
-    copsim=VineCopula::RVineSim(n*t,RVM)
+    copsim=.copula_rvine_sim(n*t,RVM)
 
     covariates=list()
     covariates[[1]] = as.data.frame(round(runif(n,0,100),0)) #Age
@@ -6879,11 +7540,11 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
 
     # transform to R-vine matrix notation
 
-    RVM <- VineCopula::D2RVine(order, family, par, par2)
+    RVM <- .copula_dvine(order, family, par, par2)
     #contour(RVM)
 
     t=d
-    copsim=VineCopula::RVineSim(n,RVM)
+    copsim=.copula_rvine_sim(n,RVM)
 
     covariates=list()
     covariates[[1]] = as.data.frame(round(runif(n,0,100),0)) #Age
@@ -6927,11 +7588,11 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
 
     # transform to R-vine matrix notation
 
-    RVM <- VineCopula::D2RVine(order, family, par, par2)
+    RVM <- .copula_dvine(order, family, par, par2)
     #contour(RVM)
 
     t=d
-    copsim=VineCopula::RVineSim(n,RVM)
+    copsim=.copula_rvine_sim(n,RVM)
 
     covariates=list()
     covariates[[1]] = as.data.frame(round(runif(n,0,100),0)) #Age
@@ -6980,11 +7641,11 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
 
     # transform to R-vine matrix notation
 
-    RVM <- VineCopula::D2RVine(order, family, par, par2)
+    RVM <- .copula_dvine(order, family, par, par2)
     #contour(RVM)
 
     t=d
-    copsim=VineCopula::RVineSim(n,RVM)
+    copsim=.copula_rvine_sim(n,RVM)
 
     covariates=list()
     covariates[[1]] = as.data.frame(round(runif(n,0,100),0)) #Age
@@ -7072,12 +7733,12 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
     RVM=list()
 
     for (i in 1:n) {
-      RVM[[i]] = VineCopula::D2RVine(order, c(rep(copula.family,length(theta_inv[i,])),rep(0,dd-(length(theta_inv[i,])))), par=c(theta_inv[i,],rep(0,dd-(length(theta_inv[i,])))), par2=c(theta_inv[i,],rep(0,dd-(length(theta_inv[i,])))))
+      RVM[[i]] = .copula_dvine(order, c(rep(copula.family,length(theta_inv[i,])),rep(0,dd-(length(theta_inv[i,])))), par=c(theta_inv[i,],rep(0,dd-(length(theta_inv[i,])))), par2=c(theta_inv[i,],rep(0,dd-(length(theta_inv[i,])))))
     }
-    #RVM <- VineCopula::D2RVine(order, rep(family[1],nrow(theta_inv)), theta_inv, theta_inv*0)
+    #RVM <- .copula_dvine(order, rep(family[1],nrow(theta_inv)), theta_inv, theta_inv*0)
     #contour(RVM)
 
-    copsim=VineCopula::RVineSim(n,RVM)
+    copsim=.copula_rvine_sim(n,RVM)
 
 
     margin=matrix(0,ncol=ncol(copsim),nrow=nrow(copsim))
@@ -7142,11 +7803,11 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
 
     # transform to R-vine matrix notation
 
-    RVM <- VineCopula::D2RVine(order, family, par, par2)
+    RVM <- .copula_dvine(order, family, par, par2)
     #contour(RVM)
 
     t=d
-    copsim=VineCopula::RVineSim(n,RVM)
+    copsim=.copula_rvine_sim(n,RVM)
 
 
     covariates=list()
@@ -7195,11 +7856,11 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
 
     # transform to R-vine matrix notation
 
-    RVM <- VineCopula::D2RVine(order, family, par, par2)
+    RVM <- .copula_dvine(order, family, par, par2)
     #contour(RVM)
 
     t=d
-    copsim=VineCopula::RVineSim(n,RVM)
+    copsim=.copula_rvine_sim(n,RVM)
 
     covariates=list()
     covariates[[1]] = as.data.frame(round(runif(n,0,100),0)) #Age
@@ -7402,7 +8063,7 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
         if ("zeta" %in% copula_input$parameters) as.numeric(zeta_out[r, ]) else rep(0, d - 1),
         rep(0, dd - (d - 1))
       )
-      copsim[r, ] <- as.numeric(VineCopula::RVineSim(1, VineCopula::D2RVine(order, family, par_r, par2_r)))
+      copsim[r, ] <- as.numeric(.copula_rvine_sim(1, .copula_dvine(order, family, par_r, par2_r)))
     }
 
     margin=matrix(0,ncol=ncol(copsim),nrow=nrow(copsim))
@@ -7573,25 +8234,25 @@ optim_outer <- function(par,dataset,margin_dist,copula_dist,
     if(par1>28){par1=28}
   }
 
-  copula_d=VineCopula::BiCopPDF(  Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2)
-  dldth=VineCopula::BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par",log=TRUE)
-  dcdth=VineCopula::BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par",log=FALSE)
-  d2cdth=VineCopula::BiCopDeriv2( Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par")
+  copula_d=.copula_pdf(  Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2)
+  dldth=.copula_deriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par",log=TRUE)
+  dcdth=.copula_deriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par",log=FALSE)
+  d2cdth=.copula_deriv2( Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par")
   d2ldth2=(1/(copula_d^2))*(copula_d*d2cdth-dcdth^2)
   if(!is.na(copula_par["zeta"])) {
-    dldz=VineCopula::BiCopDeriv(    Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par2",log=TRUE)
-    dcdz=VineCopula::BiCopDeriv(    Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par2",log=FALSE)
-    d2cdz=VineCopula::BiCopDeriv2(  Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par2")
+    dldz=.copula_deriv(    Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par2",log=TRUE)
+    dcdz=.copula_deriv(    Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par2",log=FALSE)
+    d2cdz=.copula_deriv2(  Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par2")
     d2ldz2=(1/(copula_d^2))*(copula_d*d2cdz-dcdz^2)
 
-    d2cdthdz=VineCopula::BiCopDeriv2(  Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par1par2")
+    d2cdthdz=.copula_deriv2(  Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="par1par2")
     d2ldthdz=(d2cdthdz*copula_d-dcdth*dcdz)/(copula_d^2)
   }
-  dcdu1=VineCopula::BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="u1",log=FALSE)
-  dcdu2=VineCopula::BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="u2",log=FALSE)
+  dcdu1=.copula_deriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="u1",log=FALSE)
+  dcdu2=.copula_deriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="u2",log=FALSE)
 
-  d2cdu12=VineCopula::BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="u1",log=FALSE)
-  d2cdu22=VineCopula::BiCopDeriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="u2",log=FALSE)
+  d2cdu12=.copula_deriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="u1",log=FALSE)
+  d2cdu22=.copula_deriv(   Fx_1_2[,1],Fx_1_2[,2],family = copula_number,par=par1,par2=par2,deriv="u2",log=FALSE)
 
   d2ldth2[!is.finite(d2ldth2)]=0
 
