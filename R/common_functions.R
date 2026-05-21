@@ -981,6 +981,45 @@ gamlss.longitudinal=function(dataset,
   }
   #Starting parameters for fixed parameters: par_cov
 
+  rs_design_cache <- setNames(vector("list", length(names(mm$x))), names(mm$x))
+  for (pn in names(mm$x)) {
+    X_fixed <- as.matrix(mm$x[[pn]])
+    fixed_names <- paste(pn, colnames(mm$x[[pn]]), sep = ".")
+    X_parts <- list(X_fixed)
+    smooth_penalty_meta <- list()
+
+    if (length(mm$s[[pn]]) > 0) {
+      start_idx <- ncol(X_fixed) + 1L
+      for (s_name in names(mm$s[[pn]])) {
+        B <- as.matrix(mm$s[[pn]][[s_name]])
+        smooth_names <- names(par_s[[pn]][[s_name]])
+        colnames(B) <- smooth_names
+        X_parts[[length(X_parts) + 1L]] <- B
+
+        n_B <- ncol(B)
+        idx <- start_idx:(start_idx + n_B - 1L)
+        pen_attr <- attr(mm$s[[pn]][[s_name]], "penalty")
+        if (!is.null(pen_attr) && is.matrix(pen_attr) &&
+            nrow(pen_attr) == n_B && ncol(pen_attr) == n_B) {
+          S_base <- pen_attr
+        } else {
+          D <- diff(diag(n_B), differences = 2)
+          S_base <- t(D) %*% D
+        }
+        smooth_penalty_meta[[s_name]] <- list(idx = idx, B = B, S_base = S_base)
+        start_idx <- start_idx + n_B
+      }
+    }
+
+    X_combined <- do.call(cbind, X_parts)
+    colnames(X_combined)[seq_along(fixed_names)] <- fixed_names
+    rs_design_cache[[pn]] <- list(
+      X = X_combined,
+      fixed_names = fixed_names,
+      smooth_penalty_meta = smooth_penalty_meta
+    )
+  }
+
   #Parameters used in optimisation loops
   first_outer_run=TRUE
   outer_log_lik_change=outer_start_log_lik=outer_end_log_lik=0
@@ -1775,13 +1814,6 @@ gamlss.longitudinal=function(dataset,
           margin_par=names(mm$x)[names(mm$x) %in% c("mu","sigma","nu","tau")]
           response=dataset$response
 
-          #Extract margin calculations for F(x), f(x), response and derivatives at time 1 and time 2, join to copula values for time 1 and time 2
-          margin_deriv_1=matrix(0,ncol=length(margin_par),nrow=length(response))
-          colnames(margin_deriv_1)=paste("dld",margin_par,sep="")
-          #margin_deriv_2=margin_deriv_2cross
-          margin_deriv_1[,paste("dld",par_name,sep="")]=margin_deriv[grepl("dld",names(margin_deriv))][[which(margin_par==par_name)]]
-          #margin_deriv_2[,i]=margin_deriv[grepl("d2ld",names(margin_deriv))&endsWith(names(margin_deriv),"2")][[i]]
-
           d1=as.matrix(margin_deriv[grepl(paste("dld",margin_deriv_subnames[par_name],sep=""),names(margin_deriv))][[1]])
           colnames(d1)=paste("dld",par_name,sep="")
 
@@ -1790,30 +1822,20 @@ gamlss.longitudinal=function(dataset,
             #Calculate numerical derivatives for F(x) - also used as a reference for overall likelihood derivative
             nd_impact_F=calc_Fx_derivatives(eta_inv,mm$x,margin_dist,response=dataset$response)
 
-            ### COPULA LIKELIHOOD DERIVATIVES
-            order_margin=dataset[,c("time","subject")]
-            mu=eta_inv[["mu"]]
-            F_nd=nd_impact_F[[par_name]]
-
-            margin_components=cbind(order_margin,response,margin_p,margin_d,margin_deriv_1,mu,F_nd)
-            margin_components_Ft_plus=margin_components
-            margin_components_Ft_plus$time=normalize_lag_time(margin_components_Ft_plus$time)
-            margin_plus=merge(margin_components,margin_components_Ft_plus,by=c("time","subject"),all.x=TRUE)
-
-            copula_components=cbind(
-              order_copula,
-              row_id1=calc_lik_out$copula_row_id1,
-              row_id2=calc_lik_out$copula_row_id2,
-              dcdu1,
-              dcdu2,
-              copula_d
+            # Calculate copula derivative with respect to marginal parameters.
+            # The old path built a pair-expanded data frame using two merge()
+            # calls. The likelihood path already has stable observation row
+            # ids, so accumulate the endpoint contributions directly.
+            d1_cop <- .calc_dlcopdpar_indexed(
+              row_id1 = calc_lik_out$copula_row_id1,
+              row_id2 = calc_lik_out$copula_row_id2,
+              dcdu1 = dcdu1,
+              dcdu2 = dcdu2,
+              copula_d = copula_d,
+              F_nd = nd_impact_F[[par_name]],
+              n_obs = length(dataset$response),
+              pair_complete = calc_lik_out$pair_complete
             )
-
-            copula_merged=merge(copula_components,margin_plus,by.x=c("time1","subject1"),by.y=c("time","subject"),all.x=TRUE)
-
-            #Calculate copula derivative with respect to marginal parameters
-            input=copula_merged
-            d1_cop=calc_deriv_copula_wrt_margin(input,margin_par,par_name,calc_d2=FALSE)[,which(margin_par==par_name)]
             d1_m=d1
             d1=d1_m+d1_cop
             #d1=d1*0+(nd_impact[par_name]/nrow(d1))
@@ -1886,46 +1908,20 @@ gamlss.longitudinal=function(dataset,
         names(timer)[length(timer)]=paste("Backfitting")
 
         # Setup model matrices
-        X=as.matrix(mm$x[[par_name]])
+        design_info <- rs_design_cache[[par_name]]
+        X <- design_info$X
+        fixed_names <- design_info$fixed_names
+        smooth_penalty_meta <- design_info$smooth_penalty_meta
         w_k_vec=as.vector(score$w_k)
 
         z_k=score$z_k
-        for (s_name in names(mm$s[[par_name]])) {
-          B=mm$s[[par_name]][[s_name]]
-          #par_s[[par_name]][[s_name]]=c(par_s[[par_name]][[s_name]],rep(10,ncol(B)))
-          colnames(B)=paste(par_name,s_name,1:ncol(B),sep=".")
-          X=cbind(X,B)
-        }
         if(length(par_s[[par_name]])==0) {
           paste("No smooths found for parameter; running basic IRLS",par_name)
-          beta_start=c(par_cov[paste(paste(par_name,sep=" "),colnames(mm$x[[par_name]]),sep=".")])
+          beta_start=c(par_cov[fixed_names])
         } else {
             ############# UNPENALISED VERSION
           temp_par_s_unlisted=unlist(par_s[[par_name]],use.names=TRUE)
-          names(temp_par_s_unlisted)=colnames(X)[(ncol(mm$x[[par_name]])+1):ncol(X)]
-          beta_start=c(par_cov[paste(paste(par_name,sep=" "),colnames(mm$x[[par_name]]),sep=".")],temp_par_s_unlisted)
-        }
-
-        smooth_penalty_meta <- list()
-        if(length(par_s[[par_name]]) > 0) {
-          start_idx <- ncol(mm$x[[par_name]]) + 1
-          for (s_name in names(mm$s[[par_name]])) {
-            B <- mm$s[[par_name]][[s_name]]
-            n_B <- ncol(B)
-            idx <- start_idx:(start_idx + n_B - 1)
-            # Prefer the basis-specific penalty from smoothCon; fall back to a
-            # generic second-difference penalty only if none was stored.
-            pen_attr <- attr(B, "penalty")
-            if (!is.null(pen_attr) && is.matrix(pen_attr) &&
-                nrow(pen_attr) == n_B && ncol(pen_attr) == n_B) {
-              S_base <- pen_attr
-            } else {
-              D <- diff(diag(n_B), differences = 2)
-              S_base <- t(D) %*% D
-            }
-            smooth_penalty_meta[[s_name]] <- list(idx = idx, B = B, S_base = S_base)
-            start_idx <- start_idx + n_B
-          }
+          beta_start=c(par_cov[fixed_names],temp_par_s_unlisted)
         }
 
         backfitting_iteration <- function(
@@ -1971,8 +1967,8 @@ gamlss.longitudinal=function(dataset,
           beta_new=beta_start*(1-step_size) + (step_size)*(beta_update)
           beta_new
 
-          temp_par_cov_new=beta_new[grepl(par_name,names(beta_new))]
-          par_cov_new=c(beta_new[names(par_cov)[grepl(par_name,names(par_cov))]],par_cov[!names(par_cov) %in% names(temp_par_cov_new)])
+          temp_par_cov_new=beta_new[fixed_names]
+          par_cov_new=c(temp_par_cov_new,par_cov[!names(par_cov) %in% names(temp_par_cov_new)])
           #par_cov_new[names(beta)]=beta
           temp_par_s_new=beta_new[!names(beta_new) %in% names(par_cov_new)]
           #Select all beta_new which have names corresponding to s_name
@@ -3160,6 +3156,56 @@ calc_deriv_copula_wrt_margin = function(input,margin_par,par_name,calc_d2=FALSE)
     }
 
 
+}
+
+.calc_dlcopdpar_indexed <- function(
+  row_id1,
+  row_id2,
+  dcdu1,
+  dcdu2,
+  copula_d,
+  F_nd,
+  n_obs,
+  pair_complete = NULL
+) {
+  row_id1 <- as.integer(row_id1)
+  row_id2 <- as.integer(row_id2)
+  n_pair <- length(row_id1)
+
+  if (length(row_id2) != n_pair || length(dcdu1) != n_pair || length(dcdu2) != n_pair ||
+      length(copula_d) != n_pair) {
+    stop("Copula derivative inputs have inconsistent pair lengths.", call. = FALSE)
+  }
+  if (length(F_nd) != n_obs) {
+    stop("F derivative length does not match the number of observations.", call. = FALSE)
+  }
+
+  if (is.null(pair_complete)) {
+    pair_complete <- rep(TRUE, n_pair)
+  } else {
+    pair_complete <- as.logical(pair_complete)
+    if (length(pair_complete) != n_pair) {
+      stop("pair_complete length does not match copula pair length.", call. = FALSE)
+    }
+  }
+
+  dlogc_row1 <- (as.numeric(dcdu1) * as.numeric(F_nd[row_id1])) / as.numeric(copula_d)
+  dlogc_row2 <- (as.numeric(dcdu2) * as.numeric(F_nd[row_id2])) / as.numeric(copula_d)
+  dlogc_row1[!pair_complete | !is.finite(dlogc_row1)] <- 0
+  dlogc_row2[!pair_complete | !is.finite(dlogc_row2)] <- 0
+
+  out <- numeric(n_obs)
+  valid1 <- is.finite(row_id1) & row_id1 >= 1L & row_id1 <= n_obs
+  valid2 <- is.finite(row_id2) & row_id2 >= 1L & row_id2 <= n_obs
+  if (any(valid1)) {
+    sum1 <- rowsum(dlogc_row1[valid1], row_id1[valid1], reorder = FALSE)
+    out[as.integer(rownames(sum1))] <- out[as.integer(rownames(sum1))] + sum1[, 1]
+  }
+  if (any(valid2)) {
+    sum2 <- rowsum(dlogc_row2[valid2], row_id2[valid2], reorder = FALSE)
+    out[as.integer(rownames(sum2))] <- out[as.integer(rownames(sum2))] + sum2[, 1]
+  }
+  out
 }
 
 check_dlcopdpar_gradient_margin_score <- function(
