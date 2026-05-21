@@ -1,0 +1,15 @@
+url: https://ahibbert.github.io/gamlss.longitudinal/
+
+template:
+  bootstrap: 5
+
+navbar:
+  structure:
+    left: [intro, reference, articles]
+    right: [github]
+
+articles:
+  - title: Worked Examples
+    navbar: ~
+    contents:
+      - native-simulation-workflow
