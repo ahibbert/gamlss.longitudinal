@@ -789,6 +789,7 @@ gamlss.longitudinal=function(dataset,
     include_dlcopdpar = FALSE,
     log_lik = NULL
   )
+  warm_start_par_s <- NULL
 
   if (
     method == "RS" &&
@@ -882,11 +883,13 @@ gamlss.longitudinal=function(dataset,
     }
 
     start_from <- warm_fit$par
+    warm_start_par_s <- warm_fit$par_s
     warm_start_info <- list(
       used = TRUE,
       outer_iter = warm_start_joint_iter,
       include_dlcopdpar = FALSE,
       log_lik = warm_fit$calc_lik_out_end$log_lik,
+      carries_smooth = !is.null(warm_start_par_s) && any(vapply(warm_start_par_s, length, integer(1L)) > 0L),
       captured_output = warm_output
     )
 
@@ -979,6 +982,17 @@ gamlss.longitudinal=function(dataset,
       names(df_s[[par_name]][[s_name]])=names(lambda_s[[par_name]][[s_name]])=s_name
    }
   }
+  if(!is.null(warm_start_par_s)) {
+    for (par_name in intersect(names(par_s), names(warm_start_par_s))) {
+      if(length(par_s[[par_name]]) == 0 || length(warm_start_par_s[[par_name]]) == 0) next
+      for (s_name in intersect(names(par_s[[par_name]]), names(warm_start_par_s[[par_name]]))) {
+        warm_beta <- warm_start_par_s[[par_name]][[s_name]]
+        if(length(warm_beta) == length(par_s[[par_name]][[s_name]])) {
+          par_s[[par_name]][[s_name]] <- warm_beta
+        }
+      }
+    }
+  }
   #Starting parameters for fixed parameters: par_cov
 
   rs_design_cache <- setNames(vector("list", length(names(mm$x))), names(mm$x))
@@ -1041,9 +1055,8 @@ gamlss.longitudinal=function(dataset,
     response_margin=dataset$time,
     response_subject=dataset$subject
   )
-  rs_has_smooth <- any(vapply(mm$s, length, integer(1L)) > 0L)
   rs_calc_eta <- function(par_cov_current, par_s_current, update_only = NULL, eta_out_current = NULL) {
-    if (isTRUE(getOption("gamlss.longitudinal.fast_rs_eta", TRUE)) && !rs_has_smooth) {
+    if (isTRUE(getOption("gamlss.longitudinal.fast_rs_eta", TRUE))) {
       .calc_eta_rs_cached(
         rs_design_cache = rs_design_cache,
         par_cov = par_cov_current,
