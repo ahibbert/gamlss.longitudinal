@@ -1055,6 +1055,7 @@ gamlss.longitudinal=function(dataset,
     response_margin=dataset$time,
     response_subject=dataset$subject
   )
+  margin_eval_cache=.build_margin_eval_cache(margin_dist, calc_d2 = FALSE)
   rs_calc_eta <- function(par_cov_current, par_s_current, update_only = NULL, eta_out_current = NULL) {
     if (isTRUE(getOption("gamlss.longitudinal.fast_rs_eta", TRUE))) {
       .calc_eta_rs_cached(
@@ -1094,7 +1095,8 @@ gamlss.longitudinal=function(dataset,
       response = dataset$response,
       response_margin = dataset$time,
       response_subject = dataset$subject,
-      pair_cache = pair_cache
+      pair_cache = pair_cache,
+      margin_eval_cache = margin_eval_cache
     )
 
     init_joint_ll <- as.numeric(calc_lik_init$log_lik["joint"])
@@ -1232,7 +1234,8 @@ gamlss.longitudinal=function(dataset,
       lik <- tryCatch(calc_likelihood_minimal(
         eta_inv, mm = mm_cg$x, margin_dist, copula_dist, calc_d2 = FALSE,
         response = dataset$response, response_margin = dataset$time,
-        response_subject = dataset$subject, pair_cache = pair_cache
+        response_subject = dataset$subject, pair_cache = pair_cache,
+        margin_eval_cache = margin_eval_cache
       ), error = function(e) NULL)
       if(is.null(lik)) return(NULL)
       list(loglik = as.numeric(lik$log_lik["joint"]), calc_lik = lik, eta_out = eta_out,
@@ -1755,7 +1758,7 @@ gamlss.longitudinal=function(dataset,
 
         calc_lik_out=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=FALSE
           ,response=dataset$response,response_margin=(dataset$time),response_subject = dataset$subject
-          ,pair_cache=pair_cache)
+          ,pair_cache=pair_cache,margin_eval_cache=margin_eval_cache)
         log_lik=calc_lik_out$log_lik; margin_d=calc_lik_out$margin_d; margin_p=calc_lik_out$margin_p;
         margin_deriv=calc_lik_out$margin_deriv; copula_d=calc_lik_out$copula_d; copula_p=calc_lik_out$copula_p;
         Fx_1_2=calc_lik_out$Fx_1_2;order_copula=calc_lik_out$order_copula
@@ -2024,7 +2027,7 @@ gamlss.longitudinal=function(dataset,
           } else {
             calc_lik_out_end=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=FALSE
               ,response=dataset$response,response_margin=(dataset$time),response_subject = dataset$subject
-              ,pair_cache=pair_cache)
+              ,pair_cache=pair_cache,margin_eval_cache=margin_eval_cache)
           }
 
 
@@ -2884,6 +2887,9 @@ build_copula_pair_cache <- function(response, response_margin, response_subject)
     observed_pair_base=pair_df$observed1 & pair_df$observed2
   }
 
+  Fx_1_2_template=matrix(NA_real_,nrow=nrow(pair_df),ncol=2)
+  colnames(Fx_1_2_template)=c("u1","u2")
+
   theta_rows=which(response_margin %in% margin_names[seq_len(max(1, num_margins-1))])
   theta_index_map=rep(NA_integer_,n_obs)
   theta_index_map[theta_rows]=seq_along(theta_rows)
@@ -2891,6 +2897,7 @@ build_copula_pair_cache <- function(response, response_margin, response_subject)
   cache=list(
     row_id1=pair_df$row_id1,
     row_id2=pair_df$row_id2,
+    Fx_1_2_template=Fx_1_2_template,
     order_copula=order_copula,
     observed_pair_base=observed_pair_base,
     theta_index_map=theta_index_map,
@@ -2901,12 +2908,41 @@ build_copula_pair_cache <- function(response, response_margin, response_subject)
   cache
 }
 
+.build_margin_eval_cache <- function(margin_dist, calc_d2=FALSE) {
+  if(calc_d2==TRUE) {
+    to_include=grepl("dld",names(margin_dist))|grepl("d2ld",names(margin_dist))
+  } else {
+    to_include=grepl("dld",names(margin_dist))
+  }
+
+  margin_deriv_names=names(margin_dist)[to_include]
+  margin_deriv_cache=lapply(margin_deriv_names, function(deriv_name) {
+    FUN=margin_dist[[deriv_name]]
+    list(name=deriv_name,FUN=FUN,args=formalArgs(FUN))
+  })
+
+  margin_pFUN=get(paste("p",margin_dist$family[1],sep=""),mode="function",inherits=TRUE)
+  margin_dFUN=get(paste("d",margin_dist$family[1],sep=""),mode="function",inherits=TRUE)
+
+  list(
+    calc_d2=calc_d2,
+    margin_deriv_cache=margin_deriv_cache,
+    margin_pFUN=margin_pFUN,
+    margin_p_args=formalArgs(margin_pFUN),
+    margin_dFUN=margin_dFUN,
+    margin_d_args=formalArgs(margin_dFUN)
+  )
+}
+
 #' @param pair_cache Optional cache built by build_copula_pair_cache to reuse pair indexing across repeated likelihood calls.
-calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=FALSE,response,response_margin,response_subject,penalize_smooth=FALSE,par_s=NA,pair_cache=NULL) {
+calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=FALSE,response,response_margin,response_subject,penalize_smooth=FALSE,par_s=NA,pair_cache=NULL,margin_eval_cache=NULL) {
   #Setup input matrix of response and parameters
   #response=dataset$response; response_subject=dataset$subject; response_margin=dataset$time; dataset=NA
   if(is.null(pair_cache)) {
     pair_cache=build_copula_pair_cache(response,response_margin,response_subject)
+  }
+  if(is.null(margin_eval_cache) || !identical(margin_eval_cache$calc_d2, calc_d2)) {
+    margin_eval_cache=.build_margin_eval_cache(margin_dist, calc_d2=calc_d2)
   }
 
   margin_names=pair_cache$margin_names
@@ -2931,36 +2967,24 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
   #Calculate all derivatives
 
   ################## MARGIN DERIVATIVES
-  if(calc_d2==TRUE) {
-    to_include=grepl("dld",names(margin_dist))|grepl("d2ld",names(margin_dist))
-  } else {
-    to_include=grepl("dld",names(margin_dist))
-  }
-
-  margin_deriv_names=names(margin_dist)[to_include]
   margin_deriv=list()
-  for (deriv_name in margin_deriv_names) {
-    FUN=margin_dist[[deriv_name]]
-    FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%formalArgs(FUN)]
-    deriv_val=do.call(FUN,args=margin_deriv_input[FUN_args])
+  for (deriv_info in margin_eval_cache$margin_deriv_cache) {
+    FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%deriv_info$args]
+    deriv_val=do.call(deriv_info$FUN,args=margin_deriv_input[FUN_args])
     if(length(deriv_val)==n_obs) {
       deriv_val[!obs_response]=0
       deriv_val[!is.finite(deriv_val)]=0
     }
-    margin_deriv[[deriv_name]]=deriv_val
+    margin_deriv[[deriv_info$name]]=deriv_val
   }
 
-  margin_pFUN=eval(parse( text=paste("p",margin_dist$family[1],sep="") ))
-  FUN=margin_pFUN
-  FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%formalArgs(FUN)]
-  margin_p=do.call(FUN,args=margin_deriv_input[FUN_args])
+  FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%margin_eval_cache$margin_p_args]
+  margin_p=do.call(margin_eval_cache$margin_pFUN,args=margin_deriv_input[FUN_args])
   margin_p[!obs_response]=NA
   margin_p[!is.finite(margin_p)]=NA
 
-  margin_dFUN=eval(parse( text=paste("d",margin_dist$family[1],sep="") ))
-  FUN=margin_dFUN
-  FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%formalArgs(FUN)]
-  margin_d=do.call(FUN,args=margin_deriv_input[FUN_args])
+  FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%margin_eval_cache$margin_d_args]
+  margin_d=do.call(margin_eval_cache$margin_dFUN,args=margin_deriv_input[FUN_args])
   margin_d[!obs_response]=NA
   margin_d[!is.finite(margin_d) | margin_d<=0]=NA
 
@@ -2971,11 +2995,15 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
   row_id2=pair_cache$row_id2
   order_copula=pair_cache$order_copula
 
-  Fx_1_2=cbind(margin_p[row_id1],margin_p[row_id2])
-  if(nrow(Fx_1_2)==0) {
-    Fx_1_2=matrix(numeric(0),ncol=2)
+  Fx_1_2=pair_cache$Fx_1_2_template
+  if(is.null(Fx_1_2)) {
+    Fx_1_2=matrix(NA_real_,nrow=length(row_id1),ncol=2)
+    colnames(Fx_1_2)=c("u1","u2")
   }
-  colnames(Fx_1_2)=c("u1","u2")
+  if(length(row_id1)>0) {
+    Fx_1_2[,1]=margin_p[row_id1]
+    Fx_1_2[,2]=margin_p[row_id2]
+  }
 
   pair_complete=pair_cache$observed_pair_base & is.finite(Fx_1_2[,1]) & is.finite(Fx_1_2[,2])
 
