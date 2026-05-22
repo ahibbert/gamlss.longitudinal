@@ -16,7 +16,7 @@
 #   Step 1 – per-pair / per-observation second derivatives of the joint
 #             log-likelihood w.r.t. natural parameters (mu, sigma, ...,
 #             theta, zeta). These use analytical formulas from gamlss
-#             family objects and VineCopula::BiCopDeriv2, plus a cheap
+#             family objects and .copula_deriv2, plus a cheap
 #             per-observation finite difference on F(y) only (not the full
 #             likelihood).
 #
@@ -24,8 +24,46 @@
 #             H[a,b] = X_a' diag(d2l / d eta_a d eta_b) X_b
 #             where d eta / d beta = X.
 #
-# Supported copulas: anything supported by VineCopula::BiCopDeriv2.
+# Supported copulas: anything supported by .copula_deriv2.
 # Supported margins: any gamlss family that exposes d2ldm2 etc.
+
+.calc_linkinv_second_derivative <- function(eta, linkinv_fun, h = 1e-5) {
+  eta <- as.numeric(eta)
+  step <- h * pmax(abs(eta), 1)
+  plus <- linkinv_fun(eta + step)
+  base <- linkinv_fun(eta)
+  minus <- linkinv_fun(eta - step)
+  out <- (plus - 2 * base + minus) / (step^2)
+  out[!is.finite(out)] <- 0
+  as.numeric(out)
+}
+
+.calc_eta_d2_linkinv <- function(eta, margin_dist, copula_link, h = 1e-5) {
+  out <- vector("list", length(eta))
+  names(out) <- names(eta)
+  for (par_name in names(eta)) {
+    linkinv_fun <- NULL
+    if (par_name %in% names(margin_dist$parameters)) {
+      linkinv_fun <- margin_dist[[paste(par_name, ".linkinv", sep = "")]]
+    } else if (par_name %in% c("theta", "zeta")) {
+      linkinv_fun <- copula_link[[paste(par_name, ".linkinv", sep = "")]]
+    }
+    out[[par_name]] <- if (is.function(linkinv_fun)) {
+      .calc_linkinv_second_derivative(eta[[par_name]], linkinv_fun, h = h)
+    } else {
+      rep(0, length(eta[[par_name]]))
+    }
+  }
+  out
+}
+
+.natural_fd_step <- function(par, par_name, margin_dist, h) {
+  link_name <- margin_dist[[paste(par_name, "link", sep = ".")]]
+  if (is.character(link_name) && identical(link_name[1], "identity")) {
+    return(rep(h, length(par)))
+  }
+  h * pmax(abs(par), 1e-6)
+}
 
 
 # ------------------------------------------------------------
@@ -213,7 +251,7 @@
   par2_e[!is.finite(par2_e)] <- 0
   if (copula_dist == "C") par1_e[par1_e >= 28] <- 27.9
 
-  fam_num <- as.numeric(VineCopula::BiCopName(copula_dist))
+  fam_num <- copula_dist
 
   if (n_pairs == 0) {
     empty <- rep(0, n_obs)
@@ -225,45 +263,47 @@
       for (pn2 in margin_pars) cop_d2l_margin[[pn1]][[pn2]] <- empty
     }
     return(list(
+      cop_d1l_margin = setNames(lapply(margin_pars, function(p) empty), margin_pars),
       cop_d2l_margin = cop_d2l_margin,
       cop_d2l_theta = empty,
       cop_d2l_zeta = if (has_zeta) empty else NULL,
       cop_d2l_thetazeta = if (has_zeta) empty else NULL,
-      cop_d2l_margin_theta = setNames(lapply(margin_pars, function(p) empty), margin_pars)
+      cop_d2l_margin_theta = setNames(lapply(margin_pars, function(p) empty), margin_pars),
+      cop_d2l_margin_zeta = if (has_zeta) setNames(lapply(margin_pars, function(p) empty), margin_pars) else NULL
     ))
   }
 
   pair_ok <- pair_complete & is.finite(u1) & is.finite(u2) & is.finite(par1_e) & is.finite(par2_e)
 
   # --- Copula density and derivatives (all vectorised, one pass) ---
-  c_val <- VineCopula::BiCopPDF(u1, u2, family = fam_num, par = par1_e, par2 = par2_e)
+  c_val <- .copula_pdf(u1, u2, family = fam_num, par = par1_e, par2 = par2_e)
   c_val[!is.finite(c_val) | c_val <= 0] <- 1
 
-  dcdu1  <- VineCopula::BiCopDeriv(u1, u2, fam_num, par1_e, par2_e, deriv = "u1",   log = FALSE)
-  dcdu2  <- VineCopula::BiCopDeriv(u1, u2, fam_num, par1_e, par2_e, deriv = "u2",   log = FALSE)
-  dcdth  <- VineCopula::BiCopDeriv(u1, u2, fam_num, par1_e, par2_e, deriv = "par",  log = FALSE)
-  dldth  <- VineCopula::BiCopDeriv(u1, u2, fam_num, par1_e, par2_e, deriv = "par",  log = TRUE)
+  dcdu1  <- .copula_deriv(u1, u2, fam_num, par1_e, par2_e, deriv = "u1",   log = FALSE)
+  dcdu2  <- .copula_deriv(u1, u2, fam_num, par1_e, par2_e, deriv = "u2",   log = FALSE)
+  dcdth  <- .copula_deriv(u1, u2, fam_num, par1_e, par2_e, deriv = "par",  log = FALSE)
+  dldth  <- .copula_deriv(u1, u2, fam_num, par1_e, par2_e, deriv = "par",  log = TRUE)
 
-  d2cdu1_2   <- VineCopula::BiCopDeriv2(u1, u2, fam_num, par1_e, par2_e, deriv = "u1")
-  d2cdu2_2   <- VineCopula::BiCopDeriv2(u1, u2, fam_num, par1_e, par2_e, deriv = "u2")
-  d2cdth2    <- VineCopula::BiCopDeriv2(u1, u2, fam_num, par1_e, par2_e, deriv = "par")
+  d2cdu1_2   <- .copula_deriv2(u1, u2, fam_num, par1_e, par2_e, deriv = "u1")
+  d2cdu2_2   <- .copula_deriv2(u1, u2, fam_num, par1_e, par2_e, deriv = "u2")
+  d2cdth2    <- .copula_deriv2(u1, u2, fam_num, par1_e, par2_e, deriv = "par")
   # d2c/(du1 du2) not implemented in BiCopDeriv2; use 4-point FD on copula density only
   hu <- 1e-5
   u1c <- pmax(pmin(u1, 1 - hu), hu); u2c <- pmax(pmin(u2, 1 - hu), hu)
-  c_pp <- VineCopula::BiCopPDF(u1c + hu, u2c + hu, fam_num, par1_e, par2_e)
-  c_pm <- VineCopula::BiCopPDF(u1c + hu, u2c - hu, fam_num, par1_e, par2_e)
-  c_mp <- VineCopula::BiCopPDF(u1c - hu, u2c + hu, fam_num, par1_e, par2_e)
-  c_mm <- VineCopula::BiCopPDF(u1c - hu, u2c - hu, fam_num, par1_e, par2_e)
+  c_pp <- .copula_pdf(u1c + hu, u2c + hu, fam_num, par1_e, par2_e)
+  c_pm <- .copula_pdf(u1c + hu, u2c - hu, fam_num, par1_e, par2_e)
+  c_mp <- .copula_pdf(u1c - hu, u2c + hu, fam_num, par1_e, par2_e)
+  c_mm <- .copula_pdf(u1c - hu, u2c - hu, fam_num, par1_e, par2_e)
   d2cdu1u2 <- (c_pp - c_pm - c_mp + c_mm) / (4 * hu^2)
   d2cdu1u2[!is.finite(d2cdu1u2)] <- 0
   # d2c/(du1 dtheta) and d2c/(du2 dtheta): FD on BiCopDeriv w.r.t. par
   hth <- 1e-5
-  dcdu1_p <- VineCopula::BiCopDeriv(u1, u2, fam_num, par1_e + hth, par2_e, deriv = "u1", log = FALSE)
-  dcdu1_m <- VineCopula::BiCopDeriv(u1, u2, fam_num, par1_e - hth, par2_e, deriv = "u1", log = FALSE)
+  dcdu1_p <- .copula_deriv(u1, u2, fam_num, par1_e + hth, par2_e, deriv = "u1", log = FALSE)
+  dcdu1_m <- .copula_deriv(u1, u2, fam_num, par1_e - hth, par2_e, deriv = "u1", log = FALSE)
   d2cdthu1 <- (dcdu1_p - dcdu1_m) / (2 * hth)
   d2cdthu1[!is.finite(d2cdthu1)] <- 0
-  dcdu2_p <- VineCopula::BiCopDeriv(u1, u2, fam_num, par1_e + hth, par2_e, deriv = "u2", log = FALSE)
-  dcdu2_m <- VineCopula::BiCopDeriv(u1, u2, fam_num, par1_e - hth, par2_e, deriv = "u2", log = FALSE)
+  dcdu2_p <- .copula_deriv(u1, u2, fam_num, par1_e + hth, par2_e, deriv = "u2", log = FALSE)
+  dcdu2_m <- .copula_deriv(u1, u2, fam_num, par1_e - hth, par2_e, deriv = "u2", log = FALSE)
   d2cdthu2 <- (dcdu2_p - dcdu2_m) / (2 * hth)
   d2cdthu2[!is.finite(d2cdthu2)] <- 0
 
@@ -280,10 +320,22 @@
 
   # Zeta (t-copula second parameter)
   if (has_zeta) {
-    dcdz   <- VineCopula::BiCopDeriv(u1, u2, fam_num, par1_e, par2_e, deriv = "par2", log = FALSE)
-    d2cdz2 <- VineCopula::BiCopDeriv2(u1, u2, fam_num, par1_e, par2_e, deriv = "par2")
-    d2cdthdz <- VineCopula::BiCopDeriv2(u1, u2, fam_num, par1_e, par2_e, deriv = "par1par2")
+    dcdz   <- .copula_deriv(u1, u2, fam_num, par1_e, par2_e, deriv = "par2", log = FALSE)
+    d2cdz2 <- .copula_deriv2(u1, u2, fam_num, par1_e, par2_e, deriv = "par2")
+    d2cdthdz <- .copula_deriv2(u1, u2, fam_num, par1_e, par2_e, deriv = "par1par2")
+    hz <- 1e-5 * pmax(1, abs(par2_e))
+    par2_p <- par2_e + hz
+    par2_m <- pmax(par2_e - hz, 2 + 1e-8)
+    hz_eff <- par2_p - par2_m
+    dcdu1_zp <- .copula_deriv(u1, u2, fam_num, par1_e, par2_p, deriv = "u1", log = FALSE)
+    dcdu1_zm <- .copula_deriv(u1, u2, fam_num, par1_e, par2_m, deriv = "u1", log = FALSE)
+    d2cdzu1 <- (dcdu1_zp - dcdu1_zm) / hz_eff
+    dcdu2_zp <- .copula_deriv(u1, u2, fam_num, par1_e, par2_p, deriv = "u2", log = FALSE)
+    dcdu2_zm <- .copula_deriv(u1, u2, fam_num, par1_e, par2_m, deriv = "u2", log = FALSE)
+    d2cdzu2 <- (dcdu2_zp - dcdu2_zm) / hz_eff
     dcdz <- .z(dcdz); d2cdz2 <- .z(d2cdz2); d2cdthdz <- .z(d2cdthdz)
+    d2cdzu1 <- .z(d2cdzu1); d2cdzu2 <- .z(d2cdzu2)
+    dldz_pair <- .z(dcdz / c_val)
     d2ldz2_pair <- (c_val * d2cdz2 - dcdz^2) / c_val^2
     d2ldthdz_pair <- (d2cdthdz * c_val - dcdth * dcdz) / c_val^2
     d2ldz2_pair <- .z(d2ldz2_pair)
@@ -323,9 +375,12 @@
   cop_d2l_zeta_pair   <- NULL
   cop_d2l_thetazeta_pair <- NULL
   if (has_zeta) {
-    # For zeta (t-copula df), apply analogous curvature correction if link != identity.
-    # Currently zeta uses identity link so dr=1, d2_linkinv=0: no correction needed.
-    cop_d2l_zeta_pair      <- d2ldz2_pair
+    # t-copula zeta uses log_2plus_inv(eta) = exp(eta) + 2.
+    # Store zeta curvature in eta space so assembly does NOT multiply by dr^2 again.
+    zeta_dr_pair <- pmax(par2_e - 2, 0)
+    zeta_d2_linkinv_pair <- zeta_dr_pair
+    cop_d2l_zeta_pair <- d2ldz2_pair * zeta_dr_pair^2 + dldz_pair * zeta_d2_linkinv_pair
+    cop_d2l_zeta_pair <- .z(cop_d2l_zeta_pair)
     cop_d2l_thetazeta_pair <- d2ldthdz_pair
   }
 
@@ -356,12 +411,15 @@
     names(cop_d2l_margin[[pn]]) <- margin_pars
     for (pn2 in margin_pars) cop_d2l_margin[[pn]][[pn2]] <- numeric(n_obs)
   }
+  cop_d1l_margin <- setNames(lapply(margin_pars, function(p) numeric(n_obs)), margin_pars)
 
   # Pair-indexed margin×theta cross-terms: d2logc/(d par_pn_i1 d theta_k) for u1 and u2 roles.
   # Stored separately to allow correct theta-row-indexed assembly.
   n_pairs <- length(row_id1)
   cop_d2l_margin_theta_u1 <- setNames(lapply(margin_pars, function(p) numeric(n_pairs)), margin_pars)
   cop_d2l_margin_theta_u2 <- setNames(lapply(margin_pars, function(p) numeric(n_pairs)), margin_pars)
+  cop_d2l_margin_zeta_u1 <- if (has_zeta) setNames(lapply(margin_pars, function(p) numeric(n_pairs)), margin_pars) else NULL
+  cop_d2l_margin_zeta_u2 <- if (has_zeta) setNames(lapply(margin_pars, function(p) numeric(n_pairs)), margin_pars) else NULL
 
   for (k in seq_along(row_id1)) {
     if (!pair_ok[k]) next
@@ -376,6 +434,13 @@
       d2Fi2 <- d2F_list[[pni]][i2]
 
       # Contribution of obs i1 (u1 slot) to its own diagonal Hessian entry
+      d1_i1 <- dcdu1[k] * dFi1 / cv
+      d1_i2 <- dcdu2[k] * dFi2 / cv
+      d1_i1[!is.finite(d1_i1)] <- 0
+      d1_i2[!is.finite(d1_i2)] <- 0
+      cop_d1l_margin[[pni]][i1] <- cop_d1l_margin[[pni]][i1] + d1_i1
+      cop_d1l_margin[[pni]][i2] <- cop_d1l_margin[[pni]][i2] + d1_i2
+
       diag_i1 <- (d2cdu1_2[k] * dFi1^2 + dcdu1[k] * d2Fi1) / cv -
                  (dcdu1[k] * dFi1 / cv)^2
       # Contribution of obs i2 (u2 slot) to its own diagonal Hessian entry
@@ -428,6 +493,16 @@
 
       cop_d2l_margin_theta_u1[[pni]][k] <- d2logc_dpar_dtheta_i1
       cop_d2l_margin_theta_u2[[pni]][k] <- d2logc_dpar_dtheta_i2
+
+      if (has_zeta) {
+        d2logc_dpar_dzeta_i1 <- d2cdzu1[k] * dFi1 / cv - (dcdu1[k] * dFi1 / cv) * (dcdz[k] / cv)
+        d2logc_dpar_dzeta_i2 <- d2cdzu2[k] * dFi2 / cv - (dcdu2[k] * dFi2 / cv) * (dcdz[k] / cv)
+        d2logc_dpar_dzeta_i1[!is.finite(d2logc_dpar_dzeta_i1)] <- 0
+        d2logc_dpar_dzeta_i2[!is.finite(d2logc_dpar_dzeta_i2)] <- 0
+
+        cop_d2l_margin_zeta_u1[[pni]][k] <- d2logc_dpar_dzeta_i1
+        cop_d2l_margin_zeta_u2[[pni]][k] <- d2logc_dpar_dzeta_i2
+      }
     }
   }
 
@@ -454,12 +529,15 @@
   }
 
   list(
+    cop_d1l_margin          = cop_d1l_margin,
     cop_d2l_margin         = cop_d2l_margin,
     cop_d2l_theta          = cop_d2l_theta_pair,       # pair-indexed
     cop_d2l_zeta           = cop_d2l_zeta_pair,        # pair-indexed or NULL
     cop_d2l_thetazeta      = cop_d2l_thetazeta_pair,   # pair-indexed or NULL
     cop_d2l_margin_theta_u1 = cop_d2l_margin_theta_u1,  # pair-indexed, u1 role
     cop_d2l_margin_theta_u2 = cop_d2l_margin_theta_u2,  # pair-indexed, u2 role
+    cop_d2l_margin_zeta_u1 = cop_d2l_margin_zeta_u1,    # pair-indexed, u1 role or NULL
+    cop_d2l_margin_zeta_u2 = cop_d2l_margin_zeta_u2,    # pair-indexed, u2 role or NULL
     cross_pair_contribs    = cross_pair_contributions,
     row_id1 = row_id1, row_id2 = row_id2, pair_ok = pair_ok
   )
@@ -477,9 +555,11 @@
 #' @keywords internal
 .assemble_covariate_hessian <- function(
     object,
+    margin_d1l,           # list[[pn]]: per-obs d log margin / d par
     margin_d2l,           # list[[pn1]][[pn2]]: per-obs d2 log margin / d par1 d par2
     copula_hess,          # output of .calc_copula_hessian_contributions
     eta_dr,               # link function derivatives d par/d eta, named list
+    eta_d2,               # link inverse second derivatives d2 par / d eta2
     mm,                   # model matrix list (mm$x, mm$s)
     pair_cache            # pair_cache for theta_index_map
 ) {
@@ -508,6 +588,15 @@
     # column name within the block is the part after "blk."
     col_name <- sub(paste0("^", blk, "\\."), "", a_name)
     if (col_name == a_name) col_name <- "(Intercept)"  # no dot = intercept
+    if (!col_name %in% colnames(X)) {
+      # Smooth columns can be appended to mm$x as numbered basis columns while
+      # the coefficient names retain the full smooth label, e.g.
+      # theta.s(s1, k = 10).3 -> design column "3".
+      basis_col <- sub("^.*\\.([0-9]+)$", "\\1", col_name)
+      if (!identical(basis_col, col_name) && basis_col %in% colnames(X)) {
+        col_name <- basis_col
+      }
+    }
     if (!col_name %in% colnames(X)) return(NULL)
     X[, col_name, drop = TRUE]
   }
@@ -522,6 +611,16 @@
         val <- val + margin_d2l[[pn1]][[pn2]]
       if (!is.null(copula_hess$cop_d2l_margin[[pn1]][[pn2]]))
         val <- val + copula_hess$cop_d2l_margin[[pn1]][[pn2]]
+    }
+    val
+  }
+
+  d1l_par_margin_obs <- function(pn) {
+    n_obs <- length(eta_dr[[pn]])
+    val <- numeric(n_obs)
+    if (pn %in% names(margin_d1l)) val <- val + margin_d1l[[pn]]
+    if (!is.null(copula_hess$cop_d1l_margin) && pn %in% names(copula_hess$cop_d1l_margin)) {
+      val <- val + copula_hess$cop_d1l_margin[[pn]]
     }
     val
   }
@@ -562,12 +661,13 @@
 
       } else if (!is.null(copula_hess$cop_d2l_zeta) &&
                  pa == "zeta" && pb == "zeta") {
-        # zeta uses identity link: no curvature correction; multiply by dra*drb.
+        # cop_d2l_zeta is already in eta space (curvature correction applied);
+        # do NOT multiply by dra*drb here.
         th_idx <- pair_cache$theta_index_map[row_id1[pair_ok]]
         valid  <- !is.na(th_idx)
         d2_pairs <- copula_hess$cop_d2l_zeta[pair_ok]
-        H_ab <- sum(xa[th_idx[valid]] * xb[th_idx[valid]] * d2_pairs[valid] *
-                    dra[th_idx[valid]] * drb[th_idx[valid]], na.rm = TRUE)
+        H_ab <- sum(xa[th_idx[valid]] * xb[th_idx[valid]] * d2_pairs[valid],
+                    na.rm = TRUE)
 
       } else if (!is.null(copula_hess$cop_d2l_thetazeta) &&
                  ((pa == "theta" && pb == "zeta") ||
@@ -607,9 +707,38 @@
           na.rm = TRUE
         )
 
+      } else if (!is.null(copula_hess$cop_d2l_margin_zeta_u1) &&
+                 ((pa %in% names(margin_d2l) && pb == "zeta") ||
+                  (pb %in% names(margin_d2l) && pa == "zeta"))) {
+        # Margin x zeta cross block. This is analogous to margin x theta,
+        # but zeta uses the log_2plus inverse link, so include dzeta/deta.
+        mp  <- if (pa %in% names(margin_d2l)) pa else pb
+        xm  <- if (pa %in% names(margin_d2l)) xa else xb
+        drm <- if (pa %in% names(margin_d2l)) dra else drb
+        xze <- if (pb == "zeta") xb else xa
+        drze <- if (pb == "zeta") drb else dra
+
+        th_idx <- pair_cache$theta_index_map[row_id1[pair_ok]]
+        valid  <- !is.na(th_idx)
+        th_v   <- th_idx[valid]
+        id1_v  <- id1_ok[valid]
+        id2_v  <- id2_ok[valid]
+
+        u1_vals <- copula_hess$cop_d2l_margin_zeta_u1[[mp]][pair_ok][valid]
+        u2_vals <- copula_hess$cop_d2l_margin_zeta_u2[[mp]][pair_ok][valid]
+
+        H_ab <- sum(
+          xm[id1_v] * drm[id1_v] * u1_vals * drze[th_v] * xze[th_v] +
+          xm[id2_v] * drm[id2_v] * u2_vals * drze[th_v] * xze[th_v],
+          na.rm = TRUE
+        )
+
       } else {
         # Margin x margin: obs-level
         d2l_obs <- d2l_par_margin_obs(pa, pb) * dra * drb
+        if (identical(pa, pb) && pa %in% names(eta_d2)) {
+          d2l_obs <- d2l_obs + d1l_par_margin_obs(pa) * as.numeric(eta_d2[[pa]])
+        }
         H_ab <- sum(xa * xb * d2l_obs, na.rm = TRUE)
 
         # Cross-pair copula contributions (obs i1 in u1 role, obs i2 in u2 role)
@@ -676,7 +805,7 @@
   for (i in seq_along(margin_pars)) {
     pni <- margin_pars[i]
     par_i <- as.numeric(eta_inv[[pni]])
-    hi <- h * pmax(abs(par_i), 1e-6)  # scale h to parameter magnitude
+    hi <- .natural_fd_step(par_i, pni, margin_dist, h)
 
     # Log-density at +hi and -hi for pni
     args_ip <- base_args; args_ip[[pni]] <- par_i + hi
@@ -693,7 +822,7 @@
       if (j <= i) next  # fill upper triangle, then mirror
       pnj <- margin_pars[j]
       par_j <- as.numeric(eta_inv[[pnj]])
-      hj <- h * pmax(abs(par_j), 1e-6)
+      hj <- .natural_fd_step(par_j, pnj, margin_dist, h)
 
       args_jp <- base_args; args_jp[[pnj]] <- par_j + hj
       args_jm <- base_args; args_jm[[pnj]] <- par_j - hj
@@ -724,6 +853,23 @@
 #' calc_likelihood_minimal.
 #'
 #' @keywords internal
+.get_margin_d1l <- function(margin_deriv, mm) {
+  margin_pars <- names(mm$x)[names(mm$x) %in% c("mu", "sigma", "nu", "tau")]
+  subs <- c(mu = "m", sigma = "d", nu = "v", tau = "t")
+  result <- vector("list", length(margin_pars))
+  names(result) <- margin_pars
+  for (pn in margin_pars) {
+    key <- paste0("dld", subs[[pn]])
+    if (key %in% names(margin_deriv)) {
+      result[[pn]] <- as.numeric(margin_deriv[[key]])
+    } else {
+      n <- if (length(margin_deriv)) length(margin_deriv[[1]]) else nrow(mm$x[[pn]])
+      result[[pn]] <- numeric(n)
+    }
+  }
+  result
+}
+
 .get_margin_d2l <- function(margin_deriv, mm) {
   margin_pars <- names(mm$x)[names(mm$x) %in% c("mu", "sigma", "nu", "tau")]
   n_par <- length(margin_pars)
@@ -802,6 +948,7 @@ calc_analytical_hessian <- function(object, progress = interactive(), h = 1e-4) 
   eta_out  <- calc_eta(par_cov, mm, margin_dist, copula_link, par_s = par_s)
   eta_inv  <- eta_out$eta_inv
   eta_dr   <- eta_out$eta_dr
+  eta_d2   <- .calc_eta_d2_linkinv(eta_out$eta, margin_dist, copula_link)
 
   pair_cache <- build_copula_pair_cache(response, response_margin, response_subject)
 
@@ -832,11 +979,12 @@ calc_analytical_hessian <- function(object, progress = interactive(), h = 1e-4) 
 
   if (progress) cat("Analytical Hessian: extracting margin second derivatives...\n")
 
+  margin_d1l <- .get_margin_d1l(calc_lik$margin_deriv, mm)
   margin_d2l <- .calc_margin_d2l_fd(eta_inv, mm, margin_dist, response, h = h)
 
   if (progress) cat("Analytical Hessian: assembling covariate Hessian matrix...\n")
 
-  H <- .assemble_covariate_hessian(object, margin_d2l, cop_hess, eta_dr, mm, pair_cache)
+  H <- .assemble_covariate_hessian(object, margin_d1l, margin_d2l, cop_hess, eta_dr, eta_d2, mm, pair_cache)
 
   if (progress) cat("Analytical Hessian: done.\n")
 
