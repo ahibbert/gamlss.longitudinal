@@ -2934,78 +2934,6 @@ build_copula_pair_cache <- function(response, response_margin, response_subject)
   )
 }
 
-.bcpe_FT <- function(t, tau, log_c=NULL) {
-  if(is.null(log_c)) {
-    log_c=0.5*(-(2/tau)*log(2)+lgamma(1/tau)-lgamma(3/tau))
-  }
-  c_val=exp(log_c)
-  s=0.5*((abs(t/c_val))^tau)
-  F_s=pgamma(s, shape=1/tau, scale=1)
-  0.5*(1+F_s*sign(t))
-}
-
-.bcpe_fT_log <- function(t, tau, log_c=NULL) {
-  if(is.null(log_c)) {
-    log_c=0.5*(-(2/tau)*log(2)+lgamma(1/tau)-lgamma(3/tau))
-  }
-  c_val=exp(log_c)
-  log(tau)-log_c-(0.5*(abs(t/c_val)^tau))-(1+(1/tau))*log(2)-lgamma(1/tau)
-}
-
-.eval_bcpe_margin_pd <- function(y, mu, sigma, nu, tau) {
-  if(any(mu < 0)) stop(paste("mu must be positive", "\n", ""))
-  if(any(sigma < 0)) stop(paste("sigma must be positive", "\n", ""))
-  if(any(tau < 0)) stop(paste("tau must be positive", "\n", ""))
-
-  z=if(length(nu)>1) {
-    ifelse(nu != 0, (((y/mu)^nu-1)/(nu*sigma)), log(y/mu)/sigma)
-  } else if(nu != 0) {
-    (((y/mu)^nu-1)/(nu*sigma))
-  } else {
-    log(y/mu)/sigma
-  }
-
-  log_c=0.5*(-(2/tau)*log(2)+lgamma(1/tau)-lgamma(3/tau))
-  F_z=.bcpe_FT(z, tau, log_c=log_c)
-  F_upper=.bcpe_FT(1/(sigma*abs(nu)), tau, log_c=log_c)
-  F_lower=if(length(nu)>1) {
-    ifelse(nu > 0, .bcpe_FT(-1/(sigma*abs(nu)), tau, log_c=log_c), 0)
-  } else if(nu > 0) {
-    .bcpe_FT(-1/(sigma*abs(nu)), tau, log_c=log_c)
-  } else {
-    0
-  }
-
-  margin_p=(F_z-F_lower)/F_upper
-  log_fz=.bcpe_fT_log(z, tau, log_c=log_c)-log(F_upper)
-  log_der=(nu-1)*log(y)-nu*log(mu)-log(sigma)
-  margin_d=exp(log_der+log_fz)
-  margin_d=ifelse(y <= 0, 0, margin_d)
-
-  list(p=margin_p, d=margin_d)
-}
-
-.eval_margin_pd <- function(margin_deriv_input, margin_eval_cache) {
-  if(identical(margin_eval_cache$family, "BCPE") &&
-     all(c("y", "mu", "sigma", "nu", "tau") %in% names(margin_deriv_input))) {
-    return(.eval_bcpe_margin_pd(
-      y=margin_deriv_input[["y"]],
-      mu=margin_deriv_input[["mu"]],
-      sigma=margin_deriv_input[["sigma"]],
-      nu=margin_deriv_input[["nu"]],
-      tau=margin_deriv_input[["tau"]]
-    ))
-  }
-
-  FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%margin_eval_cache$margin_p_args]
-  margin_p=do.call(margin_eval_cache$margin_pFUN,args=margin_deriv_input[FUN_args])
-
-  FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%margin_eval_cache$margin_d_args]
-  margin_d=do.call(margin_eval_cache$margin_dFUN,args=margin_deriv_input[FUN_args])
-
-  list(p=margin_p, d=margin_d)
-}
-
 #' @param pair_cache Optional cache built by build_copula_pair_cache to reuse pair indexing across repeated likelihood calls.
 calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=FALSE,response,response_margin,response_subject,penalize_smooth=FALSE,par_s=NA,pair_cache=NULL,margin_eval_cache=NULL) {
   #Setup input matrix of response and parameters
@@ -3050,12 +2978,13 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
     margin_deriv[[deriv_info$name]]=deriv_val
   }
 
-  margin_pd=.eval_margin_pd(margin_deriv_input, margin_eval_cache)
-  margin_p=margin_pd$p
+  FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%margin_eval_cache$margin_p_args]
+  margin_p=do.call(margin_eval_cache$margin_pFUN,args=margin_deriv_input[FUN_args])
   margin_p[!obs_response]=NA
   margin_p[!is.finite(margin_p)]=NA
 
-  margin_d=margin_pd$d
+  FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%margin_eval_cache$margin_d_args]
+  margin_d=do.call(margin_eval_cache$margin_dFUN,args=margin_deriv_input[FUN_args])
   margin_d[!obs_response]=NA
   margin_d[!is.finite(margin_d) | margin_d<=0]=NA
 
