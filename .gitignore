@@ -2,6 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
+R (testing)/
 tests/REGRESSION_TEST_PLAN.md
 results/
 .codex-backups/
