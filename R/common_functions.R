@@ -1852,7 +1852,7 @@ gamlss.longitudinal=function(dataset,
           if(include_dlcopdpar==TRUE) {
 
             #Calculate numerical derivatives for F(x) - also used as a reference for overall likelihood derivative
-            nd_impact_F=calc_Fx_derivatives(eta_inv,mm$x,margin_dist,response=dataset$response)
+            nd_impact_F=calc_Fx_derivatives(eta_inv,mm$x,margin_dist,response=dataset$response,par_names=par_name)
 
             # Calculate copula derivative with respect to marginal parameters.
             # The old path built a pair-expanded data frame using two merge()
@@ -2934,6 +2934,80 @@ build_copula_pair_cache <- function(response, response_margin, response_subject)
   )
 }
 
+.bcpe_FT <- function(t, tau, log_c=NULL) {
+  if(is.null(log_c)) {
+    log_c=0.5*(-(2/tau)*log(2)+lgamma(1/tau)-lgamma(3/tau))
+  }
+  c_val=exp(log_c)
+  s=0.5*((abs(t/c_val))^tau)
+  F_s=pgamma(s, shape=1/tau, scale=1)
+  0.5*(1+F_s*sign(t))
+}
+
+.bcpe_fT_log <- function(t, tau, log_c=NULL) {
+  if(is.null(log_c)) {
+    log_c=0.5*(-(2/tau)*log(2)+lgamma(1/tau)-lgamma(3/tau))
+  }
+  c_val=exp(log_c)
+  log(tau)-log_c-(0.5*(abs(t/c_val)^tau))-(1+(1/tau))*log(2)-lgamma(1/tau)
+}
+
+.eval_bcpe_margin_pd <- function(y, mu, sigma, nu, tau) {
+  if(any(mu < 0)) stop(paste("mu must be positive", "\n", ""))
+  if(any(sigma < 0)) stop(paste("sigma must be positive", "\n", ""))
+  if(any(tau < 0)) stop(paste("tau must be positive", "\n", ""))
+
+  z=log(y/mu)/sigma
+  if(length(nu)>1) {
+    nz=nu != 0
+    z[nz]=(((y[nz]/mu[nz])^nu[nz]-1)/(nu[nz]*sigma[nz]))
+  } else if(nu != 0) {
+    z=(((y/mu)^nu-1)/(nu*sigma))
+  }
+
+  log_c=0.5*(-(2/tau)*log(2)+lgamma(1/tau)-lgamma(3/tau))
+  F_z=.bcpe_FT(z, tau, log_c=log_c)
+  F_upper=.bcpe_FT(1/(sigma*abs(nu)), tau, log_c=log_c)
+  F_lower=rep(0, length(y))
+  if(length(nu)>1) {
+    pos=nu > 0
+    if(any(pos)) {
+      F_lower[pos]=.bcpe_FT(-1/(sigma[pos]*abs(nu[pos])), tau[pos], log_c=log_c[pos])
+    }
+  } else if(nu > 0) {
+    F_lower=.bcpe_FT(-1/(sigma*abs(nu)), tau, log_c=log_c)
+  }
+
+  margin_p=(F_z-F_lower)/F_upper
+  log_fz=.bcpe_fT_log(z, tau, log_c=log_c)-log(F_upper)
+  log_der=(nu-1)*log(y)-nu*log(mu)-log(sigma)
+  margin_d=exp(log_der+log_fz)
+  margin_d[y <= 0]=0
+
+  list(p=margin_p, d=margin_d)
+}
+
+.eval_margin_pd <- function(margin_deriv_input, margin_eval_cache) {
+  if(identical(margin_eval_cache$family, "BCPE") &&
+     all(c("y", "mu", "sigma", "nu", "tau") %in% names(margin_deriv_input))) {
+    return(.eval_bcpe_margin_pd(
+      y=margin_deriv_input[["y"]],
+      mu=margin_deriv_input[["mu"]],
+      sigma=margin_deriv_input[["sigma"]],
+      nu=margin_deriv_input[["nu"]],
+      tau=margin_deriv_input[["tau"]]
+    ))
+  }
+
+  FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%margin_eval_cache$margin_p_args]
+  margin_p=do.call(margin_eval_cache$margin_pFUN,args=margin_deriv_input[FUN_args])
+
+  FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%margin_eval_cache$margin_d_args]
+  margin_d=do.call(margin_eval_cache$margin_dFUN,args=margin_deriv_input[FUN_args])
+
+  list(p=margin_p, d=margin_d)
+}
+
 #' @param pair_cache Optional cache built by build_copula_pair_cache to reuse pair indexing across repeated likelihood calls.
 calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=FALSE,response,response_margin,response_subject,penalize_smooth=FALSE,par_s=NA,pair_cache=NULL,margin_eval_cache=NULL) {
   #Setup input matrix of response and parameters
@@ -2978,13 +3052,12 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
     margin_deriv[[deriv_info$name]]=deriv_val
   }
 
-  FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%margin_eval_cache$margin_p_args]
-  margin_p=do.call(margin_eval_cache$margin_pFUN,args=margin_deriv_input[FUN_args])
+  margin_pd=.eval_margin_pd(margin_deriv_input, margin_eval_cache)
+  margin_p=margin_pd$p
   margin_p[!obs_response]=NA
   margin_p[!is.finite(margin_p)]=NA
 
-  FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%margin_eval_cache$margin_d_args]
-  margin_d=do.call(margin_eval_cache$margin_dFUN,args=margin_deriv_input[FUN_args])
+  margin_d=margin_pd$d
   margin_d[!obs_response]=NA
   margin_d[!is.finite(margin_d) | margin_d<=0]=NA
 
@@ -3604,7 +3677,7 @@ calc_copula_derivatives = function(eta_inv, Fx_1_2, copula_dist, calc_d2=FALSE, 
   return(return_list)
 }
 
-calc_Fx_derivatives = function(eta_inv, mm, margin_dist,response) {
+calc_Fx_derivatives = function(eta_inv, mm, margin_dist,response,par_names=NULL) {
   # Allow callers to pass full model matrix object; we only need fixed-effect blocks.
   if (is.list(mm) && all(c("x", "s") %in% names(mm))) {
     mm = mm$x
@@ -3614,6 +3687,9 @@ calc_Fx_derivatives = function(eta_inv, mm, margin_dist,response) {
   nd_impact_F=list() ###### WE DON"T NEED TO BE CALCULATING THIS FOR ALL PARAMETERS EVERY TIME
 
   margin_par_names=names(eta_inv)[names(eta_inv) %in% c("mu","sigma","nu","tau")]
+  if(!is.null(par_names)) {
+    margin_par_names=intersect(margin_par_names, par_names)
+  }
 
   for (eta_par_names_nd in margin_par_names) {
     adj_fac=.0001
