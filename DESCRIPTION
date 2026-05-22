@@ -13,7 +13,6 @@ Imports:
     gamlss,
     gamlss.dist,
     gamlss2,
-    VineCopula,
     rlang,
     latex2exp,
     ggplot2,
@@ -28,7 +27,14 @@ Imports:
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
+URL: https://ahibbert.github.io/gamlss.longitudinal,
+    https://github.com/ahibbert/gamlss.longitudinal
+BugReports: https://github.com/ahibbert/gamlss.longitudinal/issues
 Suggests:
-    testthat (>= 3.0.0)
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0),
+    VineCopula
+VignetteBuilder: knitr
 Config/testthat/edition: 3
 RoxygenNote: 7.3.3

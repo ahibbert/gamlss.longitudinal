@@ -34,8 +34,7 @@ create_model_matrices(
 \item{margin.family}{Marginal distribution specified as a gamlss family object,
 e.g. GA(), NO(), PO(), NBI(), etc.}
 
-\item{copula.family}{Copula distribution specified as a string in VineCopula style
-e.g. "t", "C" etc.}
+\item{copula.family}{Copula distribution code, one of "N", "C", "F", "G", "J", or "t".}
 
 \item{copula.link}{List of link functions for the copula parameters}
 }

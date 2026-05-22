@@ -26,7 +26,7 @@ plot_smooth_terms(
 \item{object}{A fitted `gamlss.longitudinal` object.}
 
 \item{vcov_obj}{Optional output from `vcov(object, ...)`. If `NULL`, this is
-computed internally with `vcov(object, numderiv = TRUE)`.}
+computed internally with the analytical vcov path.}
 
 \item{data}{Optional data frame containing original covariates used for the
 x-axis variable of each smooth.}

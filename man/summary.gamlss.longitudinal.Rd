@@ -4,7 +4,7 @@
 \alias{summary.gamlss.longitudinal}
 \title{Summarize a fitted gamlss.longitudinal model}
 \usage{
-\method{summary}{gamlss.longitudinal}(object, include_vcov = TRUE, numderiv = TRUE, ci_level = 0.95, ...)
+\method{summary}{gamlss.longitudinal}(object, include_vcov = TRUE, numderiv = FALSE, ci_level = 0.95, ...)
 }
 \arguments{
 \item{object}{A fitted object of class `gamlss.longitudinal`.}

@@ -24,6 +24,8 @@ gamlss.longitudinal(
   step_adjustment = 0.5,
   max_steps = 5,
   start_from = NA,
+  warm_start_joint = TRUE,
+  warm_start_joint_iter = 5,
   verbose = 1,
   plot_results = FALSE,
   true_val = NA,
@@ -31,23 +33,22 @@ gamlss.longitudinal(
   max_outer_iter = 1000,
   max_inner_iter = 100,
   max_negative_outer_streak = 10,
+  max_elapsed_sec = Inf,
   use_backtracking = TRUE,
   backtracking_max_halves = 50,
   cg_max_stall = 5,
   cg_max_delta = 0.5,
-  cg_max_delta_upper = NA,
   cg_armijo_c1 = 1e-04,
   cg_grad_tol = NA,
   cg_step_tol = NA,
   cg_update_lambda = TRUE,
-  cg_beta_method = "none",
-  cg_restart_every = NA,
   cg_lambda_update_every = 10,
-  cg_wolfe = FALSE,
-  cg_wolfe_c2 = 0.1,
+  cg_line_search = "best",
+  cg_max_line_search_evals = 60,
+  cg_gradient_method = "forward",
   compute_vcov = TRUE,
-  vcov_method = c("numderiv", "analytical"),
-  vcov_numderiv = TRUE,
+  vcov_method = c("analytical", "numderiv"),
+  vcov_numderiv = FALSE,
   use_Rcpp = FALSE,
   lambda_start = NA,
   lambda_penalty_K = 2
@@ -57,8 +58,7 @@ gamlss.longitudinal(
 \item{margin_dist}{Marginal distribution specified as a gamlss family object,
 e.g. GA(), NO(), PO(), NBI(), etc.}
 
-\item{copula_dist}{Copula distribution specified as a string in VineCopula style
-e.g. "t", "C" etc.}
+\item{copula_dist}{Copula distribution code, one of "N", "C", "F", "G", "J", or "t".}
 
 \item{mu.formula}{Formula for the mean parameter of the marginal distribution}
 
@@ -92,6 +92,13 @@ diagnostic for the margin score contribution when `include_dlcopdpar = TRUE`.}
 
 \item{start_from}{Starting values for the parameters if needed}
 
+\item{warm_start_joint}{Logical; if `TRUE` (default), RS joint fits started
+without explicit `start_from` first run a short separate RS stabilisation
+phase and use those coefficients as the joint starting values.}
+
+\item{warm_start_joint_iter}{Integer; number of separate RS outer iterations
+used for the default joint warm start.}
+
 \item{verbose}{Level of output to the console 3 = ALL, 0 = Minimal}
 
 \item{plot_results}{Plot the results of the optimisation}
@@ -107,6 +114,9 @@ diagnostic for the margin score contribution when `include_dlcopdpar = TRUE`.}
 \item{max_negative_outer_streak}{Maximum number of consecutive negative outer
 log-likelihood changes allowed before stopping.}
 
+\item{max_elapsed_sec}{Optional maximum elapsed fitting time in seconds.
+If finite, the optimiser stops with an error once this budget is exceeded.}
+
 \item{use_backtracking}{Logical; if `TRUE` (default), apply step-halving
 backtracking to reject downhill inner updates.}
 
@@ -118,9 +128,6 @@ consecutive outer iterations where no improving step is found before CG stops.}
 
 \item{cg_max_delta}{Numeric; for `method = "CG"` only. Maximum absolute
 coefficient step size used to limit Newton/trust-region updates.}
-
-\item{cg_max_delta_upper}{Numeric; for `method = "CG"` only. Optional upper
-bound for the adaptive trust-region radius. If `NA`, uses `cg_max_delta`.}
 
 \item{cg_armijo_c1}{Numeric; for `method = "CG"` only. Minimum improvement
 threshold used by the line-search acceptance rule.}
@@ -134,17 +141,21 @@ convergence tolerance. If `NA`, selected from `outer_stop_crit`.}
 \item{cg_update_lambda}{Logical; for `method = "CG"` only. If `TRUE`, update
 smoother penalties during CG iterations.}
 
-\item{cg_beta_method}{Character; reserved CG beta update control.}
-
-\item{cg_restart_every}{Integer; reserved CG restart control.}
-
 \item{cg_lambda_update_every}{Integer; for `method = "CG"` only. When
 `cg_update_lambda = TRUE`, update each smoother's lambda every this many
 outer iterations. Use `1` to update every CG iteration.}
 
-\item{cg_wolfe}{Logical; reserved Wolfe line-search control.}
+\item{cg_line_search}{Character; for `method = "CG"` only. `"best"` evaluates
+candidate steps up to `cg_max_line_search_evals` before taking the largest
+improvement, while `"first"` accepts the first improving candidate step.}
 
-\item{cg_wolfe_c2}{Numeric; reserved Wolfe curvature constant.}
+\item{cg_max_line_search_evals}{Integer; for `method = "CG"` only. Optional
+cap on the number of candidate likelihood evaluations per outer iteration.}
+
+\item{cg_gradient_method}{Character; for `method = "CG"` only.
+`"analytical"` uses the same score components as RS, `"forward"` uses
+one-sided finite differences, and `"central"` uses two-sided finite
+differences.}
 
 \item{compute_vcov}{Logical; if `TRUE` (default), compute and store the
 model variance-covariance output at the end of fitting.}
