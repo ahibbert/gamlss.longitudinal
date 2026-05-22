@@ -2957,32 +2957,30 @@ build_copula_pair_cache <- function(response, response_margin, response_subject)
   if(any(sigma < 0)) stop(paste("sigma must be positive", "\n", ""))
   if(any(tau < 0)) stop(paste("tau must be positive", "\n", ""))
 
-  z=log(y/mu)/sigma
-  if(length(nu)>1) {
-    nz=nu != 0
-    z[nz]=(((y[nz]/mu[nz])^nu[nz]-1)/(nu[nz]*sigma[nz]))
+  z=if(length(nu)>1) {
+    ifelse(nu != 0, (((y/mu)^nu-1)/(nu*sigma)), log(y/mu)/sigma)
   } else if(nu != 0) {
-    z=(((y/mu)^nu-1)/(nu*sigma))
+    (((y/mu)^nu-1)/(nu*sigma))
+  } else {
+    log(y/mu)/sigma
   }
 
   log_c=0.5*(-(2/tau)*log(2)+lgamma(1/tau)-lgamma(3/tau))
   F_z=.bcpe_FT(z, tau, log_c=log_c)
   F_upper=.bcpe_FT(1/(sigma*abs(nu)), tau, log_c=log_c)
-  F_lower=rep(0, length(y))
-  if(length(nu)>1) {
-    pos=nu > 0
-    if(any(pos)) {
-      F_lower[pos]=.bcpe_FT(-1/(sigma[pos]*abs(nu[pos])), tau[pos], log_c=log_c[pos])
-    }
+  F_lower=if(length(nu)>1) {
+    ifelse(nu > 0, .bcpe_FT(-1/(sigma*abs(nu)), tau, log_c=log_c), 0)
   } else if(nu > 0) {
-    F_lower=.bcpe_FT(-1/(sigma*abs(nu)), tau, log_c=log_c)
+    .bcpe_FT(-1/(sigma*abs(nu)), tau, log_c=log_c)
+  } else {
+    0
   }
 
   margin_p=(F_z-F_lower)/F_upper
   log_fz=.bcpe_fT_log(z, tau, log_c=log_c)-log(F_upper)
   log_der=(nu-1)*log(y)-nu*log(mu)-log(sigma)
   margin_d=exp(log_der+log_fz)
-  margin_d[y <= 0]=0
+  margin_d=ifelse(y <= 0, 0, margin_d)
 
   list(p=margin_p, d=margin_d)
 }
