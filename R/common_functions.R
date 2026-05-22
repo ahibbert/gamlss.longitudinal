@@ -3526,7 +3526,7 @@ calc_copula_derivatives = function(eta_inv, Fx_1_2, copula_dist, calc_d2=FALSE, 
   copula_d[!pair_complete]=1
 
   dldth=.copula_deriv(Fx_eval[,1],Fx_eval[,2],family = copula_dist,par=par1_eval,par2=par2_eval,deriv="par",log=TRUE)
-  dcdth=.copula_deriv(Fx_eval[,1],Fx_eval[,2],family = copula_dist,par=par1_eval,par2=par2_eval,deriv="par",log=FALSE)
+  dcdth=copula_d*dldth
 
   if(calc_d2==TRUE) {
     d2cdth=.copula_deriv2(Fx_eval[,1],Fx_eval[,2],family = copula_dist,par=par1_eval,par2=par2_eval,deriv="par")
@@ -3535,7 +3535,7 @@ calc_copula_derivatives = function(eta_inv, Fx_1_2, copula_dist, calc_d2=FALSE, 
 
   if("zeta" %in% names(eta_inv)) {
     dldz=.copula_deriv(Fx_eval[,1],Fx_eval[,2],family = copula_dist,par=par1_eval,par2=par2_eval,deriv="par2",log=TRUE)
-    dcdz=.copula_deriv(Fx_eval[,1],Fx_eval[,2],family = copula_dist,par=par1_eval,par2=par2_eval,deriv="par2",log=FALSE)
+    dcdz=copula_d*dldz
 
     if(calc_d2==TRUE) {
       d2cdz=.copula_deriv2(Fx_eval[,1],Fx_eval[,2],family = copula_dist,par=par1_eval,par2=par2_eval,deriv="par2")
