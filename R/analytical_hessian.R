@@ -62,7 +62,76 @@
   if (is.character(link_name) && identical(link_name[1], "identity")) {
     return(rep(h, length(par)))
   }
-  h * pmax(abs(par), 1e-6)
+  h * pmax(abs(par), 1)
+}
+
+.warn_gg_near_zero_nu <- function(margin_dist, eta_inv, threshold = 0.05) {
+  family <- margin_dist$family[1]
+  if (!identical(family, "GG") || !("nu" %in% names(eta_inv))) {
+    return(invisible(FALSE))
+  }
+
+  nu <- as.numeric(eta_inv[["nu"]])
+  min_abs_nu <- suppressWarnings(min(abs(nu[is.finite(nu)]), na.rm = TRUE))
+  if (!is.finite(min_abs_nu) || min_abs_nu >= threshold) {
+    return(invisible(FALSE))
+  }
+
+  warning(
+    sprintf(
+      paste(
+        "Analytical Hessian for GG may be numerically unstable because fitted",
+        "nu is close to 0 (min |nu| = %.4g). Consider vcov(..., method =",
+        "\"numderiv\") if standard errors are important."
+      ),
+      min_abs_nu
+    ),
+    call. = FALSE
+  )
+  invisible(TRUE)
+}
+
+.warn_zero_heavy_discrete_hessian <- function(margin_dist, response, zero_threshold = 0.35) {
+  family <- margin_dist$family[1]
+  zero_inflated_families <- c(
+    "ZIP", "ZIP2", "ZAP",
+    "ZINBI", "ZINBII", "ZINBF",
+    "ZAGA", "ZAIG", "ZALG"
+  )
+  count_families <- c(
+    zero_inflated_families,
+    "PO", "PIG", "NBI", "NBII", "DEL", "SICHEL", "SI", "DPO", "DNO"
+  )
+  if (!(family %in% count_families)) {
+    return(invisible(FALSE))
+  }
+
+  observed <- response[is.finite(response)]
+  if (!length(observed)) {
+    return(invisible(FALSE))
+  }
+
+  zero_fraction <- mean(observed == 0)
+  is_zero_inflated_family <- family %in% zero_inflated_families
+  is_zero_heavy_data <- is.finite(zero_fraction) && zero_fraction >= zero_threshold
+  if (!is_zero_inflated_family && !is_zero_heavy_data) {
+    return(invisible(FALSE))
+  }
+
+  warning(
+    sprintf(
+      paste(
+        "Analytical Hessian for zero-heavy discrete margins may be numerically",
+        "delicate, especially zero-inflation/shape curvature (family = %s,",
+        "zero fraction = %.3f). Consider vcov(..., method = \"numderiv\") if",
+        "standard errors are important."
+      ),
+      family,
+      zero_fraction
+    ),
+    call. = FALSE
+  )
+  invisible(TRUE)
 }
 
 
@@ -99,11 +168,12 @@
   for (pn in margin_pars) {
     args_p <- valid_args_base
     args_m <- valid_args_base
-    args_p[[pn]] <- args_p[[pn]] + h
-    args_m[[pn]] <- args_m[[pn]] - h
+    hp <- .natural_fd_step(as.numeric(args_p[[pn]]), pn, margin_dist, h)
+    args_p[[pn]] <- args_p[[pn]] + hp
+    args_m[[pn]] <- args_m[[pn]] - hp
     Fp <- do.call(pfun, args_p)
     Fm <- do.call(pfun, args_m)
-    dF <- (Fp - Fm) / (2 * h)
+    dF <- (Fp - Fm) / (2 * hp)
     dF[!is.finite(dF)] <- 0
     result[[pn]] <- as.numeric(dF)
   }
@@ -136,11 +206,12 @@
   for (pn in margin_pars) {
     args_p <- valid_args_base
     args_m <- valid_args_base
-    args_p[[pn]] <- args_p[[pn]] + h
-    args_m[[pn]] <- args_m[[pn]] - h
+    hp <- .natural_fd_step(as.numeric(args_p[[pn]]), pn, margin_dist, h)
+    args_p[[pn]] <- args_p[[pn]] + hp
+    args_m[[pn]] <- args_m[[pn]] - hp
     Fp <- do.call(pfun, args_p)
     Fm <- do.call(pfun, args_m)
-    d2F <- (Fp + Fm - 2 * F0) / (h^2)
+    d2F <- (Fp + Fm - 2 * F0) / (hp^2)
     d2F[!is.finite(d2F)] <- 0
     result[[pn]] <- as.numeric(d2F)
   }
@@ -181,17 +252,19 @@
     pn1 <- margin_pars[i]
     for (j in (i + 1):n_par) {
       pn2 <- margin_pars[j]
+      h1 <- .natural_fd_step(as.numeric(valid_args_base[[pn1]]), pn1, margin_dist, h)
+      h2 <- .natural_fd_step(as.numeric(valid_args_base[[pn2]]), pn2, margin_dist, h)
       # 4-point mixed-derivative formula
-      args_pp <- valid_args_base; args_pp[[pn1]] <- args_pp[[pn1]] + h; args_pp[[pn2]] <- args_pp[[pn2]] + h
-      args_pm <- valid_args_base; args_pm[[pn1]] <- args_pm[[pn1]] + h; args_pm[[pn2]] <- args_pm[[pn2]] - h
-      args_mp <- valid_args_base; args_mp[[pn1]] <- args_mp[[pn1]] - h; args_mp[[pn2]] <- args_mp[[pn2]] + h
-      args_mm <- valid_args_base; args_mm[[pn1]] <- args_mm[[pn1]] - h; args_mm[[pn2]] <- args_mm[[pn2]] - h
+      args_pp <- valid_args_base; args_pp[[pn1]] <- args_pp[[pn1]] + h1; args_pp[[pn2]] <- args_pp[[pn2]] + h2
+      args_pm <- valid_args_base; args_pm[[pn1]] <- args_pm[[pn1]] + h1; args_pm[[pn2]] <- args_pm[[pn2]] - h2
+      args_mp <- valid_args_base; args_mp[[pn1]] <- args_mp[[pn1]] - h1; args_mp[[pn2]] <- args_mp[[pn2]] + h2
+      args_mm <- valid_args_base; args_mm[[pn1]] <- args_mm[[pn1]] - h1; args_mm[[pn2]] <- args_mm[[pn2]] - h2
 
       Fpp <- do.call(pfun, args_pp)
       Fpm <- do.call(pfun, args_pm)
       Fmp <- do.call(pfun, args_mp)
       Fmm <- do.call(pfun, args_mm)
-      d2F <- (Fpp - Fpm - Fmp + Fmm) / (4 * h^2)
+      d2F <- (Fpp - Fpm - Fmp + Fmm) / (4 * h1 * h2)
       d2F[!is.finite(d2F)] <- 0
       result[[pn1]][[pn2]] <- as.numeric(d2F)
       result[[pn2]][[pn1]] <- as.numeric(d2F)
@@ -949,6 +1022,8 @@ calc_analytical_hessian <- function(object, progress = interactive(), h = 1e-4) 
   eta_inv  <- eta_out$eta_inv
   eta_dr   <- eta_out$eta_dr
   eta_d2   <- .calc_eta_d2_linkinv(eta_out$eta, margin_dist, copula_link)
+  .warn_gg_near_zero_nu(margin_dist, eta_inv)
+  .warn_zero_heavy_discrete_hessian(margin_dist, response)
 
   pair_cache <- build_copula_pair_cache(response, response_margin, response_subject)
 
