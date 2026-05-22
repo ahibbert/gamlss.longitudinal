@@ -1044,7 +1044,13 @@
   rho_denom <- 1 - rho^2
   numerator <- x^2 - 2 * rho * x * y + y^2
   denom <- df * rho_denom + numerator
-  density <- .copula_t_pdf(u1, u2, rho, df)
+  q <- numerator / rho_denom
+  log_biv <- lgamma((df + 2) / 2) - lgamma(df / 2) -
+    log(df * pi) - 0.5 * log1p(-rho^2) -
+    (df + 2) / 2 * log1p(q / df)
+  log_density <- log_biv - stats::dt(x, df = df, log = TRUE) - stats::dt(y, df = df, log = TRUE)
+  density <- exp(log_density)
+  density[!is.finite(density)] <- 0
 
   score <- switch(
     deriv,
@@ -1059,7 +1065,6 @@
       dlog_dy / stats::dt(y, df = df)
     },
     par = {
-      q <- numerator / rho_denom
       dq_drho <- (-2 * x * y * rho_denom + 2 * rho * numerator) / rho_denom^2
       rho / rho_denom - (df + 2) * dq_drho / (2 * (df + q))
     },
