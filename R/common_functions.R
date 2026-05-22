@@ -319,10 +319,15 @@ utils::globalVariables(c(
 #' uses the analytical Hessian for the zeta block, while `"finite"` replaces
 #' the zeta-zeta block with central finite differences of the raw joint
 #' log-likelihood.
+#' @param cg_hessian_method Character; for `method = "CG"` only. `"analytical"`
+#' uses the semi-analytical Hessian for Newton steps, `"finite"` uses a full
+#' finite-difference Hessian, and `"auto"` tries analytical then falls back to
+#' finite differences when needed.
 #' @param compute_vcov Logical; if `TRUE` (default), compute and store the
 #' model variance-covariance output at the end of fitting.
 #' @param vcov_method Character; fit-time vcov method when `compute_vcov = TRUE`.
-#' One of `"numderiv"` or `"analytical"`.
+#' One of `"analytical"` or `"numderiv"`. Analytical vcov falls back to the
+#' numerical reference path if the analytical Hessian cannot be inverted.
 #' @param vcov_numderiv Logical; passed to `vcov.gamlss.longitudinal()` when
 #' `compute_vcov = TRUE`.
 #' @param use_Rcpp Use Rcpp for matrix operations
@@ -372,6 +377,7 @@ gamlss.longitudinal=function(dataset,
                         cg_max_line_search_evals=60,
                         cg_gradient_method="forward",
                         cg_zeta_hessian="analytical",
+                        cg_hessian_method=c("analytical","finite","auto"),
                         compute_vcov=TRUE,
                         vcov_method=c("analytical","numderiv"),
                         vcov_numderiv=FALSE,
@@ -409,6 +415,7 @@ gamlss.longitudinal=function(dataset,
   cg_line_search <- match.arg(as.character(cg_line_search)[1], c("first", "best"))
   cg_gradient_method <- match.arg(as.character(cg_gradient_method)[1], c("analytical", "forward", "central"))
   cg_zeta_hessian <- match.arg(as.character(cg_zeta_hessian)[1], c("analytical", "finite"))
+  cg_hessian_method <- match.arg(as.character(cg_hessian_method)[1], c("analytical", "finite", "auto"))
   if (length(cg_max_line_search_evals) != 1 || is.null(cg_max_line_search_evals)) {
     stop("ERROR: cg_max_line_search_evals must be a single non-negative integer or NA.")
   }
@@ -854,6 +861,8 @@ gamlss.longitudinal=function(dataset,
           cg_line_search = cg_line_search,
           cg_max_line_search_evals = cg_max_line_search_evals,
           cg_gradient_method = cg_gradient_method,
+          cg_zeta_hessian = cg_zeta_hessian,
+          cg_hessian_method = cg_hessian_method,
           compute_vcov = FALSE,
           vcov_method = vcov_method,
           vcov_numderiv = vcov_numderiv,
@@ -1163,6 +1172,7 @@ gamlss.longitudinal=function(dataset,
         " | update_lambda=", isTRUE(cg_update_lambda),
         " | line_search=", cg_line_search,
         " | gradient=", cg_gradient_method,
+        " | hessian=", cg_hessian_method,
         "\n"
       ))
     }
@@ -1338,6 +1348,47 @@ gamlss.longitudinal=function(dataset,
       H_block
     }
 
+    cg_hessian_ok <- function(H, beta_names) {
+      is.matrix(H) &&
+        identical(dim(H), c(length(beta_names), length(beta_names))) &&
+        all(is.finite(H))
+    }
+
+    cg_observed_hessian <- function(tmp_obj, beta_vec, mm_cg, context = "CG iteration") {
+      beta_names <- names(beta_vec)
+      use_finite <- identical(cg_hessian_method, "finite")
+      H <- NULL
+      analytical_error <- NULL
+
+      if(!use_finite) {
+        H <- tryCatch(
+          calc_analytical_hessian(tmp_obj, progress = FALSE),
+          error = function(e) {
+            analytical_error <<- conditionMessage(e)
+            NULL
+          }
+        )
+        if(cg_hessian_ok(H, beta_names)) {
+          return(0.5 * (H + t(H)))
+        }
+        if(verbose > 0) {
+          msg <- if(!is.null(analytical_error)) analytical_error else "non-finite analytical Hessian"
+          warning(
+            "CG analytical Hessian failed during ", context,
+            "; falling back to finite-difference Hessian. Reason: ", msg,
+            call. = FALSE
+          )
+        }
+      }
+
+      H_fd <- cg_finite_hessian_block(beta_vec, beta_names, mm_cg)
+      if(!cg_hessian_ok(H_fd, beta_names)) {
+        msg <- if(!is.null(analytical_error)) analytical_error else "finite-difference Hessian was non-finite"
+        stop("CG failed to construct a usable Hessian during ", context, ". Reason: ", msg, call. = FALSE)
+      }
+      0.5 * (H_fd + t(H_fd))
+    }
+
     cg_smooth_edf_list <- function(H_obs_current, penalty_current, beta_names) {
       edf_out <- setNames(lapply(names(par_s), function(x) list()), names(par_s))
       for(pn in names(par_s)) {
@@ -1488,7 +1539,7 @@ gamlss.longitudinal=function(dataset,
         par = beta_all,
         par_s = setNames(lapply(names(mm_cg$x), function(x) list()), names(mm_cg$x))
       )
-      H_obs <- calc_analytical_hessian(tmp_obj, progress = FALSE)
+      H_obs <- cg_observed_hessian(tmp_obj, beta_all, mm_cg, context = paste0("outer iteration ", outer_only_run_counter))
       H_zeta_fd <- NULL
       lambda_changed <- FALSE
       if(identical(cg_zeta_hessian, "finite")) {
@@ -1707,7 +1758,10 @@ gamlss.longitudinal=function(dataset,
       par = beta_all,
       par_s = setNames(lapply(names(mm_cg$x), function(x) list()), names(mm_cg$x))
     )
-    final_H <- tryCatch(calc_analytical_hessian(final_obj, progress = FALSE), error = function(e) NULL)
+    final_H <- tryCatch(
+      cg_observed_hessian(final_obj, beta_all, mm_cg, context = "final smooth EDF update"),
+      error = function(e) NULL
+    )
     if(!is.null(final_H)) {
       penalty_mat <- build_cg_penalty(names(beta_all), lambda_s)
       df_s <- cg_smooth_edf_list(final_H, penalty_mat, names(beta_all))
@@ -2299,7 +2353,8 @@ gamlss.longitudinal=function(dataset,
     outer_stop_crit = outer_stop_crit,
     method = method,
     cg_gradient_method = if(identical(method, "CG")) cg_gradient_method else NA_character_,
-    cg_zeta_hessian = if(identical(method, "CG")) cg_zeta_hessian else NA_character_
+    cg_zeta_hessian = if(identical(method, "CG")) cg_zeta_hessian else NA_character_,
+    cg_hessian_method = if(identical(method, "CG")) cg_hessian_method else NA_character_
   )
 
   if (isTRUE(hit_outer_limit)) {
@@ -2413,6 +2468,12 @@ gamlss.longitudinal=function(dataset,
     if(!is.null(vcov_cached)) {
       return_list$vcov <- vcov_cached
       return_list$vcov_meta$precomputed <- TRUE
+      if(!is.null(vcov_cached$method)) {
+        return_list$vcov_meta$method_used <- vcov_cached$method
+      }
+      if(!is.null(vcov_cached$method_requested)) {
+        return_list$vcov_meta$method <- vcov_cached$method_requested
+      }
     }
   }
 
@@ -3931,8 +3992,12 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
   #object=fit; par=NA; numderiv=TRUE; sep_d2=TRUE
 
   method <- match.arg(method)
+  method_requested <- method
+  method_used <- method
   # Legacy: numderiv=TRUE overrides method selection
   if (isTRUE(numderiv)) method <- "numderiv"
+  method_requested <- method
+  method_used <- method
 
   progress = isTRUE(progress)
 
@@ -3973,6 +4038,15 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
   nd_impact_F=calc_Fx_derivatives(eta_inv,mm$x,margin_dist,response)
   nd_impact_F2=calc_Fx2_derivatives(eta_inv,mm$x,margin_dist,response)
 
+  solve_hessian_vcov <- function(H) {
+    vc <- -solve(H)
+    se <- sqrt(abs(diag(solve(H))))
+    if(!is.matrix(vc) || any(!is.finite(vc)) || any(!is.finite(se))) {
+      stop("Hessian inversion produced non-finite variance-covariance values.", call. = FALSE)
+    }
+    list(vcov = vc, se = se)
+  }
+
   if (method == "numderiv") {
     #nd2_joint_lik=calc_true_SE_numderiv_only(eta_inv,mm,margin_dist,response,testing=TRUE,response_margin,response_subject)
     hessian_nd=calc_true_SE_numderiv_only_covariates(object=object,par=par_cov,mm=mm$x,margin_dist=margin_dist,response=response,testing=FALSE,response_margin=response_margin,response_subject=response_subject,progress=progress)
@@ -3991,7 +4065,36 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
       }
       if (!loaded) stop("Cannot locate analytical_hessian.R. Source it manually or ensure the working directory is the package root.")
     }
-    hessian_nd <- calc_analytical_hessian(object, progress = progress, h = h)
+    analytical_hessian <- tryCatch(
+      calc_analytical_hessian(object, progress = progress, h = h),
+      error = function(e) structure(list(error = conditionMessage(e)), class = "vcov_hessian_error")
+    )
+    analytical_vcov <- if(inherits(analytical_hessian, "vcov_hessian_error")) {
+      analytical_hessian
+    } else {
+      tryCatch(
+        solve_hessian_vcov(analytical_hessian),
+        error = function(e) structure(list(error = conditionMessage(e)), class = "vcov_hessian_error")
+      )
+    }
+    if(inherits(analytical_vcov, "vcov_hessian_error")) {
+      if(identical(method, "analytical_only")) {
+        stop("Analytical Hessian vcov failed: ", analytical_vcov$error, call. = FALSE)
+      }
+      warning(
+        "Analytical Hessian vcov failed; falling back to numerical Hessian. Reason: ",
+        analytical_vcov$error,
+        call. = FALSE
+      )
+      method <- "numderiv"
+      method_used <- "numderiv"
+      hessian_nd=calc_true_SE_numderiv_only_covariates(object=object,par=par_cov,mm=mm$x,margin_dist=margin_dist,response=response,testing=FALSE,response_margin=response_margin,response_subject=response_subject,progress=progress)
+    } else {
+      method_used <- "analytical"
+      hessian_nd <- analytical_hessian
+      vcov_final <- analytical_vcov$vcov
+      se_final <- analytical_vcov$se
+    }
   } else {
 
     #######to delete############
@@ -4136,8 +4239,11 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
   }
 
   if (method %in% c("numderiv", "analytical", "analytical_only")) {
-    vcov_final=-solve(hessian_nd)
-    se_final=sqrt(abs(diag(solve(hessian_nd))))
+    if(!exists("vcov_final", inherits = FALSE) || !exists("se_final", inherits = FALSE)) {
+      vcov_solved <- solve_hessian_vcov(hessian_nd)
+      vcov_final <- vcov_solved$vcov
+      se_final <- vcov_solved$se
+    }
   } else {
     vcov_final = -(solve((d2_mat)))/(length(response))
     se_final=sqrt(abs(diag(vcov_final)))
@@ -4259,7 +4365,12 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
     smooth_se = smooth_se_list
   )
 
-  return(list(vcov=vcov_final_with_smooth, se=se_final_with_smooth))
+  return(list(
+    vcov=vcov_final_with_smooth,
+    se=se_final_with_smooth,
+    method=method_used,
+    method_requested=method_requested
+  ))
 
 }
 
