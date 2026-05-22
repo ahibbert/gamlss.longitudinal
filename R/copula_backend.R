@@ -980,6 +980,10 @@
   pmax(as.numeric(par2), 2.000001)
 }
 
+.copula_t_df_step <- function(df, rel = 1e-3) {
+  pmin(pmax(rel * abs(df), 1e-4), 0.25 * (df - 2))
+}
+
 .copula_t_pdf <- function(u1, u2, par, par2) {
   vals <- .copula_recycle(.copula_clamp01(u1), .copula_clamp01(u2), .copula_gaussian_rho(par), .copula_t_df(par2))
   u1 <- vals[[1]]
@@ -1069,7 +1073,7 @@
       rho / rho_denom - (df + 2) * dq_drho / (2 * (df + q))
     },
     par2 = {
-      h <- pmin(1e-4, 0.25 * (df - 2))
+      h <- .copula_t_df_step(df)
       dcd_df <- (
         .copula_t_pdf(u1, u2, rho, df + h) -
           .copula_t_pdf(u1, u2, rho, df - h)
@@ -1115,14 +1119,15 @@
       ) / (2 * h)
     },
     par2 = {
-      h <- pmin(1e-4, 0.25 * (df - 2))
+      h <- .copula_t_df_step(df)
       (
-        .copula_t_deriv(u1, u2, rho, df + h, deriv = "par2") -
-          .copula_t_deriv(u1, u2, rho, df - h, deriv = "par2")
-      ) / (2 * h)
+        .copula_t_pdf(u1, u2, rho, df + h) -
+          2 * .copula_t_pdf(u1, u2, rho, df) +
+          .copula_t_pdf(u1, u2, rho, df - h)
+      ) / (h^2)
     },
     par1par2 = {
-      h <- pmin(1e-4, 0.25 * (df - 2))
+      h <- .copula_t_df_step(df)
       (
         .copula_t_deriv(u1, u2, rho, df + h, deriv = "par") -
           .copula_t_deriv(u1, u2, rho, df - h, deriv = "par")
