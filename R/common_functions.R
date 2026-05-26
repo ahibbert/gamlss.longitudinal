@@ -45,6 +45,262 @@ utils::globalVariables(c(
   MASS::ginv(A) %*% b_mat
 }
 
+.is_discrete_margin <- function(margin_dist) {
+  family <- as.character(margin_dist$family[1])
+  type <- tolower(paste(as.character(margin_dist$type), collapse = " "))
+  family %in% c("PO", "PIG", "NBI", "NBII", "DEL", "SICHEL", "SI", "ZIP", "ZAP", "DPO", "DNO") ||
+    grepl("discrete|count", type)
+}
+
+.copula_cdf_du1 <- function(u1, u2, family, par, par2 = 0) {
+  .copula_hfunc1(u1, u2, family = family, par = par, par2 = par2)
+}
+
+.copula_cdf_du2 <- function(u1, u2, family, par, par2 = 0) {
+  .copula_hfunc1(u2, u1, family = family, par = par, par2 = par2)
+}
+
+.copula_rectangle_prob <- function(u1, u2, l1, l2, family, par, par2 = 0) {
+  rect <- .copula_cdf(u1, u2, family = family, par = par, par2 = par2) -
+    .copula_cdf(l1, u2, family = family, par = par, par2 = par2) -
+    .copula_cdf(u1, l2, family = family, par = par, par2 = par2) +
+    .copula_cdf(l1, l2, family = family, par = par, par2 = par2)
+  pmax(as.numeric(rect), 1e-300)
+}
+
+.calc_F_bounds_derivatives <- function(eta_inv, mm, margin_dist, response, par_names = NULL, h = 1e-4) {
+  if (is.list(mm) && all(c("x", "s") %in% names(mm))) {
+    mm <- mm$x
+  }
+
+  margin_par_names <- names(eta_inv)[names(eta_inv) %in% c("mu", "sigma", "nu", "tau")]
+  if (!is.null(par_names)) {
+    margin_par_names <- intersect(margin_par_names, par_names)
+  }
+
+  out <- setNames(vector("list", length(margin_par_names)), margin_par_names)
+  for (pn in margin_par_names) {
+    hp <- h * pmax(1, abs(as.numeric(eta_inv[[pn]])))
+    eta_plus <- eta_minus <- eta_inv
+    eta_plus[[pn]] <- eta_plus[[pn]] + hp
+    eta_minus[[pn]] <- eta_minus[[pn]] - hp
+    if (pn %in% c("mu", "sigma", "tau", "zeta")) {
+      eta_plus[[pn]] <- pmax(eta_plus[[pn]], 1e-8)
+      eta_minus[[pn]] <- pmax(eta_minus[[pn]], 1e-8)
+    }
+    if (pn == "nu" && identical(as.character(margin_dist$family[1]), "DEL")) {
+      eta_plus[[pn]] <- pmin(pmax(eta_plus[[pn]], 1e-8), 1 - 1e-8)
+      eta_minus[[pn]] <- pmin(pmax(eta_minus[[pn]], 1e-8), 1 - 1e-8)
+    }
+    denom <- eta_plus[[pn]] - eta_minus[[pn]]
+    denom[!is.finite(denom) | abs(denom) < .Machine$double.eps] <- NA_real_
+
+    Fu_plus <- calc_F_x(eta_plus, mm, margin_dist, response)
+    Fu_minus <- calc_F_x(eta_minus, mm, margin_dist, response)
+    Fl_plus <- calc_F_x(eta_plus, mm, margin_dist, response - 1)
+    Fl_minus <- calc_F_x(eta_minus, mm, margin_dist, response - 1)
+
+    out[[pn]] <- list(
+      upper = as.numeric((Fu_plus - Fu_minus) / denom),
+      lower = as.numeric((Fl_plus - Fl_minus) / denom)
+    )
+    out[[pn]]$upper[!is.finite(out[[pn]]$upper)] <- 0
+    out[[pn]]$lower[!is.finite(out[[pn]]$lower)] <- 0
+  }
+  out
+}
+
+.calc_copula_rectangle_par_derivative <- function(calc_lik, copula_dist, par_name, h = 1e-5) {
+  row_id1 <- calc_lik$copula_row_id1
+  n_pair <- length(row_id1)
+  if (n_pair == 0L) return(numeric(0))
+
+  par1 <- calc_lik$copula_par1
+  par2 <- calc_lik$copula_par2
+  hp <- h * pmax(1, abs(if (identical(par_name, "theta")) par1 else par2))
+  par1_p <- par1_m <- par1
+  par2_p <- par2_m <- par2
+  if (identical(par_name, "theta")) {
+    par1_p <- par1 + hp
+    par1_m <- par1 - hp
+    if (identical(copula_dist, "C")) par1_m <- pmax(par1_m, 1e-8)
+  } else {
+    par2_p <- par2 + hp
+    par2_m <- pmax(par2 - hp, 1e-8)
+  }
+
+  u <- calc_lik$Fx_1_2
+  l <- calc_lik$Fx_1_2_lower
+  rect_p <- .copula_rectangle_prob(u[, 1], u[, 2], l[, 1], l[, 2], copula_dist, par1_p, par2_p)
+  rect_m <- .copula_rectangle_prob(u[, 1], u[, 2], l[, 1], l[, 2], copula_dist, par1_m, par2_m)
+  deriv <- (rect_p - rect_m) / (2 * hp)
+  deriv[!is.finite(deriv)] <- 0
+  deriv
+}
+
+.calc_discrete_rectangle_scores <- function(
+  eta_inv,
+  mm,
+  margin_dist,
+  copula_dist,
+  response,
+  response_margin,
+  response_subject,
+  pair_cache = NULL,
+  calc_lik = NULL,
+  method = c("analytical", "finite"),
+  h = 1e-5
+) {
+  method <- match.arg(method)
+  if (is.null(pair_cache)) {
+    pair_cache <- build_copula_pair_cache(response, response_margin, response_subject)
+  }
+  if (is.null(calc_lik)) {
+    calc_lik <- calc_likelihood_minimal(
+      eta_inv, mm = mm, margin_dist, copula_dist, response = response,
+      response_margin = response_margin, response_subject = response_subject,
+      pair_cache = pair_cache
+    )
+  }
+
+  score_names <- intersect(names(mm), c("mu", "sigma", "nu", "tau", "theta", "zeta"))
+  if (method == "finite") {
+    base <- calc_lik$log_lik["joint"]
+    out <- setNames(vector("list", length(score_names)), score_names)
+    for (pn in score_names) {
+      n <- length(eta_inv[[pn]])
+      out[[pn]] <- numeric(n)
+      for (ii in seq_len(n)) {
+        hp <- h * max(1, abs(eta_inv[[pn]][ii]))
+        plus <- minus <- eta_inv
+        plus[[pn]][ii] <- plus[[pn]][ii] + hp
+        minus[[pn]][ii] <- minus[[pn]][ii] - hp
+        if (pn %in% c("mu", "sigma", "tau", "zeta")) {
+          plus[[pn]][ii] <- max(plus[[pn]][ii], 1e-8)
+          minus[[pn]][ii] <- max(minus[[pn]][ii], 1e-8)
+        }
+        if (pn == "nu" && identical(as.character(margin_dist$family[1]), "DEL")) {
+          plus[[pn]][ii] <- min(max(plus[[pn]][ii], 1e-8), 1 - 1e-8)
+          minus[[pn]][ii] <- min(max(minus[[pn]][ii], 1e-8), 1 - 1e-8)
+        }
+        if (pn == "theta" && identical(copula_dist, "C")) {
+          minus[[pn]][ii] <- max(minus[[pn]][ii], 1e-8)
+        }
+        lp <- calc_likelihood_minimal(
+          plus, mm = mm, margin_dist, copula_dist, response = response,
+          response_margin = response_margin, response_subject = response_subject,
+          pair_cache = pair_cache, calc_margin_deriv = FALSE
+        )$log_lik["joint"]
+        lm <- calc_likelihood_minimal(
+          minus, mm = mm, margin_dist, copula_dist, response = response,
+          response_margin = response_margin, response_subject = response_subject,
+          pair_cache = pair_cache, calc_margin_deriv = FALSE
+        )$log_lik["joint"]
+        if (is.finite(lp) && is.finite(lm)) {
+          out[[pn]][ii] <- (lp - lm) / (plus[[pn]][ii] - minus[[pn]][ii])
+        } else if (is.finite(lp) && is.finite(base)) {
+          out[[pn]][ii] <- (lp - base) / hp
+        } else if (is.finite(lm) && is.finite(base)) {
+          out[[pn]][ii] <- (base - lm) / hp
+        }
+      }
+    }
+    return(out)
+  }
+
+  margin_par <- intersect(score_names, c("mu", "sigma", "nu", "tau"))
+  copula_par <- intersect(score_names, c("theta", "zeta"))
+  out <- setNames(vector("list", length(score_names)), score_names)
+
+  margin_deriv_subnames <- c(mu = "m", sigma = "d", nu = "v", tau = "t")
+  for (pn in margin_par) {
+    d_name <- paste0("dld", margin_deriv_subnames[pn])
+    hit <- grep(paste0("^", d_name, "$"), names(calc_lik$margin_deriv))
+    if (length(hit) == 0) hit <- grep(d_name, names(calc_lik$margin_deriv))
+    out[[pn]] <- if (length(hit) == 0) rep(0, length(response)) else as.numeric(calc_lik$margin_deriv[[hit[1]]])
+    out[[pn]][!is.finite(out[[pn]])] <- 0
+  }
+
+  row_id1 <- calc_lik$copula_row_id1
+  row_id2 <- calc_lik$copula_row_id2
+  pair_ok <- calc_lik$pair_complete
+  rect <- calc_lik$copula_rect_prob
+  u <- calc_lik$Fx_1_2
+  l <- calc_lik$Fx_1_2_lower
+  par1 <- calc_lik$copula_par1
+  par2 <- calc_lik$copula_par2
+
+  if (length(row_id1) > 0L && length(margin_par) > 0L) {
+    F_deriv <- .calc_F_bounds_derivatives(eta_inv, mm, margin_dist, response, par_names = margin_par, h = h)
+    du1_uu <- .copula_cdf_du1(u[, 1], u[, 2], copula_dist, par1, par2)
+    du1_ul <- .copula_cdf_du1(u[, 1], l[, 2], copula_dist, par1, par2)
+    dl1_lu <- .copula_cdf_du1(l[, 1], u[, 2], copula_dist, par1, par2)
+    dl1_ll <- .copula_cdf_du1(l[, 1], l[, 2], copula_dist, par1, par2)
+    du2_uu <- .copula_cdf_du2(u[, 1], u[, 2], copula_dist, par1, par2)
+    du2_lu <- .copula_cdf_du2(l[, 1], u[, 2], copula_dist, par1, par2)
+    dl2_ul <- .copula_cdf_du2(u[, 1], l[, 2], copula_dist, par1, par2)
+    dl2_ll <- .copula_cdf_du2(l[, 1], l[, 2], copula_dist, par1, par2)
+
+    for (pn in margin_par) {
+      dU <- F_deriv[[pn]]$upper
+      dL <- F_deriv[[pn]]$lower
+      drect1 <- (du1_uu - du1_ul) * dU[row_id1] + (-dl1_lu + dl1_ll) * dL[row_id1]
+      drect2 <- (du2_uu - du2_lu) * dU[row_id2] + (-dl2_ul + dl2_ll) * dL[row_id2]
+      contrib1 <- drect1 / rect - out[[pn]][row_id1]
+      contrib2 <- drect2 / rect - out[[pn]][row_id2]
+      contrib1[!pair_ok | !is.finite(contrib1)] <- 0
+      contrib2[!pair_ok | !is.finite(contrib2)] <- 0
+      sum1 <- rowsum(contrib1, row_id1, reorder = FALSE)
+      sum2 <- rowsum(contrib2, row_id2, reorder = FALSE)
+      out[[pn]][as.integer(rownames(sum1))] <- out[[pn]][as.integer(rownames(sum1))] + sum1[, 1]
+      out[[pn]][as.integer(rownames(sum2))] <- out[[pn]][as.integer(rownames(sum2))] + sum2[, 1]
+    }
+  }
+
+  for (pn in copula_par) {
+    n_par <- length(eta_inv[[pn]])
+    out[[pn]] <- numeric(n_par)
+    if (length(row_id1) == 0L) next
+    drect <- .calc_copula_rectangle_par_derivative(calc_lik, copula_dist, pn, h = h)
+    contrib <- drect / rect
+    contrib[!pair_ok | !is.finite(contrib)] <- 0
+    if (n_par == length(response)) {
+      par_idx <- row_id1
+    } else {
+      par_idx <- calc_lik$copula_theta_index_map[row_id1]
+    }
+    valid <- is.finite(par_idx) & par_idx >= 1 & par_idx <= n_par
+    if (any(valid)) {
+      summed <- rowsum(contrib[valid], par_idx[valid], reorder = FALSE)
+      out[[pn]][as.integer(rownames(summed))] <- summed[, 1]
+    }
+  }
+
+  out
+}
+
+.score_list_to_beta_gradient <- function(score_list, eta_out, mm_cg, beta_names) {
+  grad <- rep(0, length(beta_names))
+  names(grad) <- beta_names
+  for (pn in names(score_list)) {
+    if (!pn %in% names(mm_cg$x) || !pn %in% names(eta_out$eta_dr)) next
+    score_eta <- as.numeric(score_list[[pn]]) * as.numeric(eta_out$eta_dr[[pn]])
+    score_eta[!is.finite(score_eta)] <- 0
+    X <- as.matrix(mm_cg$x[[pn]])
+    par_grad <- as.numeric(crossprod(X, score_eta))
+    x_names <- colnames(X)
+    names(par_grad) <- ifelse(
+      startsWith(x_names, paste0(pn, ".")),
+      x_names,
+      paste(pn, x_names, sep = ".")
+    )
+    idx <- match(names(par_grad), names(grad))
+    valid <- !is.na(idx)
+    grad[idx[valid]] <- par_grad[valid]
+  }
+  grad
+}
+
 .cg_analytical_gradient <- function(
   beta_vec,
   mm_cg,
@@ -66,6 +322,21 @@ utils::globalVariables(c(
 
   margin_par <- intersect(names(mm_cg$x), c("mu", "sigma", "nu", "tau"))
   copula_par <- intersect(names(mm_cg$x), c("theta", "zeta"))
+
+  if (identical(calc_lik$likelihood_type, "discrete_rectangle")) {
+    score_list <- .calc_discrete_rectangle_scores(
+      eta_inv,
+      mm_cg$x,
+      margin_dist,
+      copula_dist,
+      response,
+      response_margin,
+      response_subject,
+      calc_lik = calc_lik,
+      method = "analytical"
+    )
+    return(.score_list_to_beta_gradient(score_list, eta_out, mm_cg, names(beta_vec)))
+  }
 
   copula_derivatives <- calc_copula_derivatives(
     eta_inv,
@@ -315,6 +586,9 @@ utils::globalVariables(c(
 #' `"analytical"` uses the same score components as RS, `"forward"` uses
 #' one-sided finite differences, and `"central"` uses two-sided finite
 #' differences.
+#' @param discrete_score_method Character. For discrete margins using exact
+#' rectangle likelihoods, choose `"analytical"` for vectorised rectangle-score
+#' assembly or `"finite"` for slow row-wise finite-difference scores.
 #' @param cg_zeta_hessian Character; for `method = "CG"` only. `"analytical"`
 #' uses the analytical Hessian for the zeta block, while `"finite"` replaces
 #' the zeta-zeta block with central finite differences of the raw joint
@@ -376,6 +650,7 @@ gamlss.longitudinal=function(dataset,
                         cg_line_search="best",
                         cg_max_line_search_evals=60,
                         cg_gradient_method="forward",
+                        discrete_score_method=c("analytical","finite"),
                         cg_zeta_hessian="analytical",
                         cg_hessian_method=c("analytical","finite","auto"),
                         compute_vcov=TRUE,
@@ -414,6 +689,7 @@ gamlss.longitudinal=function(dataset,
   method <- toupper(as.character(method)[1])
   cg_line_search <- match.arg(as.character(cg_line_search)[1], c("first", "best"))
   cg_gradient_method <- match.arg(as.character(cg_gradient_method)[1], c("analytical", "forward", "central"))
+  discrete_score_method <- match.arg(as.character(discrete_score_method)[1], c("analytical", "finite"))
   cg_zeta_hessian <- match.arg(as.character(cg_zeta_hessian)[1], c("analytical", "finite"))
   cg_hessian_method <- match.arg(as.character(cg_hessian_method)[1], c("analytical", "finite", "auto"))
   if (length(cg_max_line_search_evals) != 1 || is.null(cg_max_line_search_evals)) {
@@ -861,6 +1137,7 @@ gamlss.longitudinal=function(dataset,
           cg_line_search = cg_line_search,
           cg_max_line_search_evals = cg_max_line_search_evals,
           cg_gradient_method = cg_gradient_method,
+          discrete_score_method = discrete_score_method,
           cg_zeta_hessian = cg_zeta_hessian,
           cg_hessian_method = cg_hessian_method,
           compute_vcov = FALSE,
@@ -1851,8 +2128,27 @@ gamlss.longitudinal=function(dataset,
         timer=c(timer,difftime(Sys.time(),timer_start,units="secs"))
         names(timer)[length(timer)]=paste("Copula Derivatives")
 
+        discrete_scores <- NULL
+        if (identical(calc_lik_out$likelihood_type, "discrete_rectangle")) {
+          discrete_scores <- .calc_discrete_rectangle_scores(
+            eta_inv,
+            mm$x,
+            margin_dist,
+            copula_dist,
+            dataset$response,
+            dataset$time,
+            dataset$subject,
+            pair_cache = pair_cache,
+            calc_lik = calc_lik_out,
+            method = discrete_score_method
+          )
+        }
+
         ### Calculate copula derivatives w.r.t margin parameters
-        if(!par_name %in% c("mu","sigma","nu","tau")) {
+        if (!is.null(discrete_scores)) {
+          d1 <- as.matrix(discrete_scores[[par_name]])
+          colnames(d1) <- paste0("dld", par_name)
+        } else if(!par_name %in% c("mu","sigma","nu","tau")) {
           if(par_name == "theta") {
             n_par <- length(eta[[par_name]])
             d1_full=matrix(0,nrow=n_par,ncol=1)
@@ -3046,6 +3342,18 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
   margin_p[!obs_response]=NA
   margin_p[!is.finite(margin_p)]=NA
 
+  margin_p_lower <- NULL
+  likelihood_type <- "continuous_density"
+  if (.is_discrete_margin(margin_dist)) {
+    margin_deriv_input_lower <- margin_deriv_input
+    margin_deriv_input_lower[["q"]] <- response - 1
+    margin_deriv_input_lower[["x"]] <- response - 1
+    margin_p_lower <- do.call(margin_eval_cache$margin_pFUN, args = margin_deriv_input_lower[FUN_args])
+    margin_p_lower[!obs_response] <- NA
+    margin_p_lower[!is.finite(margin_p_lower)] <- NA
+    likelihood_type <- "discrete_rectangle"
+  }
+
   FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%margin_eval_cache$margin_d_args]
   margin_d=do.call(margin_eval_cache$margin_dFUN,args=margin_deriv_input[FUN_args])
   margin_d[!obs_response]=NA
@@ -3068,7 +3376,21 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
     Fx_1_2[,2]=margin_p[row_id2]
   }
 
+  Fx_1_2_lower <- NULL
+  if (identical(likelihood_type, "discrete_rectangle")) {
+    Fx_1_2_lower <- Fx_1_2
+    if(length(row_id1)>0) {
+      Fx_1_2_lower[,1]=margin_p_lower[row_id1]
+      Fx_1_2_lower[,2]=margin_p_lower[row_id2]
+    }
+  }
+
   pair_complete=pair_cache$observed_pair_base & is.finite(Fx_1_2[,1]) & is.finite(Fx_1_2[,2])
+  if (identical(likelihood_type, "discrete_rectangle")) {
+    pair_complete <- pair_complete & is.finite(Fx_1_2_lower[,1]) & is.finite(Fx_1_2_lower[,2]) &
+      is.finite(margin_d[row_id1]) & is.finite(margin_d[row_id2]) &
+      margin_d[row_id1] > 0 & margin_d[row_id2] > 0
+  }
 
   par1=rep(NA_real_,length(row_id1))
   par2=rep(NA_real_,length(row_id1))
@@ -3106,8 +3428,21 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
     par1_eval[par1_eval>=28]=27.9
   }
 
+  copula_rect_prob <- NULL
   if(length(par1_eval)==0) {
     copula_d=numeric(0)
+    copula_rect_prob <- numeric(0)
+  } else if (identical(likelihood_type, "discrete_rectangle")) {
+    Fx_lower_eval <- Fx_1_2_lower
+    Fx_lower_eval[!is.finite(Fx_lower_eval)] <- 0.5
+    Fx_lower_eval[Fx_lower_eval > 1] <- 1
+    Fx_lower_eval[Fx_lower_eval < 0] <- 0
+    copula_rect_prob <- .copula_rectangle_prob(
+      Fx_eval[,1], Fx_eval[,2], Fx_lower_eval[,1], Fx_lower_eval[,2],
+      family = copula_dist, par = par1_eval, par2 = par2_eval
+    )
+    denom <- margin_d[row_id1] * margin_d[row_id2]
+    copula_d <- copula_rect_prob / denom
   } else {
     copula_d=.copula_pdf(Fx_eval[,1],Fx_eval[,2],family = copula_dist,par=par1_eval,par2=par2_eval)
   }
@@ -3128,17 +3463,24 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
 
   copula_p=rep(NA_real_,length(copula_d))
 
-  return_list=list(log_lik,margin_d,copula_d,margin_p,copula_p,Fx_1_2,order_copula,margin_deriv,pair_complete,par1,par2,row_id1,row_id2,pair_cache$theta_index_map)
-  names(return_list)=c("log_lik","margin_d","copula_d","margin_p","copula_p","Fx_1_2","order_copula","margin_deriv","pair_complete","copula_par1","copula_par2","copula_row_id1","copula_row_id2","copula_theta_index_map")
+  return_list=list(log_lik,margin_d,copula_d,margin_p,copula_p,Fx_1_2,order_copula,margin_deriv,pair_complete,par1,par2,row_id1,row_id2,pair_cache$theta_index_map,likelihood_type,margin_p_lower,Fx_1_2_lower,copula_rect_prob)
+  names(return_list)=c("log_lik","margin_d","copula_d","margin_p","copula_p","Fx_1_2","order_copula","margin_deriv","pair_complete","copula_par1","copula_par2","copula_row_id1","copula_row_id2","copula_theta_index_map","likelihood_type","margin_p_lower","Fx_1_2_lower","copula_rect_prob")
   return(return_list)
 }
 
 .calc_likelihood_update_copula <- function(eta_inv, base_lik, copula_dist, pair_cache) {
   row_id1 <- pair_cache$row_id1
+  row_id2 <- pair_cache$row_id2
   Fx_1_2 <- base_lik$Fx_1_2
   n_obs <- pair_cache$n_obs
 
   pair_complete <- pair_cache$observed_pair_base & is.finite(Fx_1_2[, 1]) & is.finite(Fx_1_2[, 2])
+  if (identical(base_lik$likelihood_type, "discrete_rectangle")) {
+    pair_complete <- pair_complete &
+      is.finite(base_lik$Fx_1_2_lower[, 1]) & is.finite(base_lik$Fx_1_2_lower[, 2]) &
+      is.finite(base_lik$margin_d[row_id1]) & is.finite(base_lik$margin_d[row_id2]) &
+      base_lik$margin_d[row_id1] > 0 & base_lik$margin_d[row_id2] > 0
+  }
 
   par1 <- rep(NA_real_, length(row_id1))
   par2 <- rep(NA_real_, length(row_id1))
@@ -3176,8 +3518,20 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
     par1_eval[par1_eval >= 28] <- 27.9
   }
 
+  copula_rect_prob <- base_lik$copula_rect_prob
   if(length(par1_eval) == 0) {
     copula_d <- numeric(0)
+    copula_rect_prob <- numeric(0)
+  } else if (identical(base_lik$likelihood_type, "discrete_rectangle")) {
+    Fx_lower_eval <- base_lik$Fx_1_2_lower
+    Fx_lower_eval[!is.finite(Fx_lower_eval)] <- 0.5
+    Fx_lower_eval[Fx_lower_eval > 1] <- 1
+    Fx_lower_eval[Fx_lower_eval < 0] <- 0
+    copula_rect_prob <- .copula_rectangle_prob(
+      Fx_eval[, 1], Fx_eval[, 2], Fx_lower_eval[, 1], Fx_lower_eval[, 2],
+      family = copula_dist, par = par1_eval, par2 = par2_eval
+    )
+    copula_d <- copula_rect_prob / (base_lik$margin_d[row_id1] * base_lik$margin_d[row_id2])
   } else {
     copula_d <- .copula_pdf(Fx_eval[, 1], Fx_eval[, 2], family = copula_dist, par = par1_eval, par2 = par2_eval)
   }
@@ -3195,6 +3549,7 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
 
   base_lik$log_lik <- log_lik
   base_lik$copula_d <- copula_d
+  base_lik$copula_rect_prob <- copula_rect_prob
   base_lik$pair_complete <- pair_complete
   base_lik$copula_par1 <- par1
   base_lik$copula_par2 <- par2
@@ -4029,6 +4384,27 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
             ,response=response,response_margin=response_margin,response_subject = response_subject)
 
   Fx_1_2=calc_lik_out$Fx_1_2; margin_p=calc_lik_out$margin_p; margin_d=calc_lik_out$margin_d; copula_d=calc_lik_out$copula_d
+
+  if (method %in% c("analytical", "analytical_only") &&
+      identical(calc_lik_out$likelihood_type, "discrete_rectangle")) {
+    zero_fraction <- mean(response == 0, na.rm = TRUE)
+    msg <- paste0(
+      "Analytical Hessian is not yet implemented for exact discrete rectangle likelihoods; ",
+      "falling back to numerical Hessian."
+    )
+    if (is.finite(zero_fraction) && zero_fraction >= 0.35) {
+      msg <- paste0(
+        "Analytical Hessian for zero-heavy discrete margins may be numerically delicate; ",
+        msg
+      )
+    }
+    if (identical(method, "analytical_only")) {
+      stop(msg, call. = FALSE)
+    }
+    warning(msg, call. = FALSE)
+    method <- "numderiv"
+    method_used <- "numderiv"
+  }
 
   ###Calculate derivaties: margin and copula d1 and d2
   margin_derivatives=calc_lik_out$margin_deriv
