@@ -605,6 +605,12 @@ utils::globalVariables(c(
 #' @param vcov_numderiv Logical; passed to `vcov.gamlss.longitudinal()` when
 #' `compute_vcov = TRUE`.
 #' @param use_Rcpp Use Rcpp for matrix operations
+#' @param rs_update_lambda Logical; for `method = "RS"` only. If `TRUE`,
+#' update smoothing parameters by the RS GAIC step; if `FALSE`, keep
+#' `lambda_start` fixed.
+#' @param rs_smooth_trust_radius Numeric; for `method = "RS"` only. Optional
+#' L2 trust radius applied separately to each smooth coefficient block after
+#' the RS weighted least-squares proposal. Use `Inf` to disable.
 #'
 #' @export
 gamlss.longitudinal=function(dataset,
@@ -658,7 +664,9 @@ gamlss.longitudinal=function(dataset,
                         vcov_numderiv=FALSE,
                         use_Rcpp=FALSE,
                         lambda_start=NA,
-                        lambda_penalty_K=2
+                        lambda_penalty_K=2,
+                        rs_update_lambda=TRUE,
+                        rs_smooth_trust_radius=Inf
                       )
 {
   fit_start_time <- Sys.time()
@@ -684,6 +692,10 @@ gamlss.longitudinal=function(dataset,
   backtracking_max_halves <- as.integer(backtracking_max_halves)
   if (backtracking_max_halves < 0) {
     stop("ERROR: backtracking_max_halves must be a single non-negative integer.")
+  }
+  if (length(rs_smooth_trust_radius) != 1 || !is.numeric(rs_smooth_trust_radius) ||
+      is.na(rs_smooth_trust_radius) || rs_smooth_trust_radius <= 0) {
+    stop("ERROR: rs_smooth_trust_radius must be a single positive numeric value or Inf.")
   }
 
   method <- toupper(as.character(method)[1])
@@ -2145,7 +2157,10 @@ gamlss.longitudinal=function(dataset,
         }
 
         ### Calculate copula derivatives w.r.t margin parameters
-        if (!is.null(discrete_scores)) {
+        if (
+          !is.null(discrete_scores) &&
+          (!par_name %in% c("mu", "sigma", "nu", "tau") || isTRUE(include_dlcopdpar))
+        ) {
           d1 <- as.matrix(discrete_scores[[par_name]])
           colnames(d1) <- paste0("dld", par_name)
         } else if(!par_name %in% c("mu","sigma","nu","tau")) {
@@ -2350,7 +2365,16 @@ gamlss.longitudinal=function(dataset,
           beta_update=as.vector(.solve_linear_system(XtWX + pen_mat, XtWz))
           beta_change_inner=beta_update-beta_start
           beta_new=beta_start*(1-step_size) + (step_size)*(beta_update)
-          beta_new
+          if (is.finite(rs_smooth_trust_radius) && length(par_s[[par_name]]) > 0) {
+            for (s_name in names(smooth_penalty_meta)) {
+              idx <- smooth_penalty_meta[[s_name]]$idx
+              delta_s <- beta_new[idx] - beta_start[idx]
+              delta_norm <- sqrt(sum(delta_s^2))
+              if (is.finite(delta_norm) && delta_norm > rs_smooth_trust_radius) {
+                beta_new[idx] <- beta_start[idx] + delta_s * (rs_smooth_trust_radius / delta_norm)
+              }
+            }
+          }
 
           temp_par_cov_new=beta_new[fixed_names]
           par_cov_new=c(temp_par_cov_new,par_cov[!names(par_cov) %in% names(temp_par_cov_new)])
@@ -2421,7 +2445,7 @@ gamlss.longitudinal=function(dataset,
         } else {
           for (smooth_name in names(lambda_s[[par_name]])) {
            #Optimize lambda for each smooth
-           if(inner_run_counter==1) {
+           if(isTRUE(rs_update_lambda) && inner_run_counter==1) {
              cat(paste("\nOptimising smoothing parameter for",par_name,"-",smooth_name))
               optim_lambda_out=optim(par=lambda_s[[par_name]][[smooth_name]],fn=optim_lambda,
                 smooth_name=smooth_name,
@@ -3035,7 +3059,7 @@ create_model_matrices<-function(
         s_txt <- trimws(s_label)
         s_call <- tryCatch(parse(text = s_txt)[[1]], error = function(e) NULL)
         s_obj <- eval(parse(text = s_txt), envir = smooth_eval_env)
-        s_con <- mgcv::smoothCon(s_obj, data = data_for_par, knots = NULL)
+        s_con <- mgcv::smoothCon(s_obj, data = data_for_par, knots = NULL, absorb.cons = TRUE)
         if (length(s_con) > 0 && !is.null(s_con[[1]]$X)) {
           B_s <- s_con[[1]]$X
           # Store the basis-specific penalty matrix returned by smoothCon so the
