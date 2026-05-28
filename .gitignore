@@ -2,7 +2,12 @@
 .Rhistory
 .RData
 .Ruserdata
+Rplots.pdf
+*.Rcheck/
+*.tar.gz
+_*.log
 R (testing)/
 tests/REGRESSION_TEST_PLAN.md
 results/
+examples/
 .codex-backups/
