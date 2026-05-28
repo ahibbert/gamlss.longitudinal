@@ -23,14 +23,14 @@ test_that("T151b summary print shows tiny p-values as less than threshold", {
   expect_true(any(grepl("<0.00001", txt, fixed = TRUE)))
 })
 
-test_that("T152 plot.terms interaction rendering metadata includes factor levels", {
+test_that("T152 plot_terms interaction rendering metadata includes factor levels", {
   dat <- make_fixture_factor_time_interaction(n_subject = 16L)
   dat$time_raw <- factor(as.character(dat$time_raw), levels = levels(dat$time_raw), ordered = FALSE)
   fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
 
   suppressPackageStartupMessages(library(grid))
 
-  pt <- suppressWarnings(plot.terms(fit, data = dat, plot_interactions = TRUE))
+  pt <- suppressWarnings(plot_terms(fit, data = dat, plot_interactions = TRUE))
   pf <- pt$fixed_terms
 
   mu_entries <- pf$mu
@@ -50,7 +50,7 @@ test_that("T153 plot methods smoke test return dashboard structures", {
 
   suppressPackageStartupMessages(library(grid))
 
-  pt <- suppressWarnings(plot.terms(fit, data = dat))
+  pt <- suppressWarnings(plot_terms(fit, data = dat))
   expect_true(is.list(pt))
   expect_true(all(c("smooth_terms", "fixed_terms", "dashboard") %in% names(pt)))
 
@@ -59,7 +59,7 @@ test_that("T153 plot methods smoke test return dashboard structures", {
   expect_true(all(c("diagnostics", "forecasts", "dashboard") %in% names(pdiag)))
 })
 
-test_that("T154 plot.terms handles no-data fixed-term plots with many time levels", {
+test_that("T154 plot_terms handles no-data fixed-term plots with many time levels", {
   set.seed(42)
 
   subject_tbl <- data.frame(
@@ -94,7 +94,7 @@ test_that("T154 plot.terms handles no-data fixed-term plots with many time level
     use_backtracking = TRUE
   )
 
-  pt <- suppressWarnings(plot.terms(fit))
+  pt <- suppressWarnings(plot_terms(fit))
   expect_true(is.list(pt))
   expect_true(length(pt$fixed_terms) > 0)
   mu_entries <- pt$fixed_terms$mu
@@ -106,7 +106,7 @@ test_that("T155 ordered factor time is handled like nominal factor in grouped pl
   dat$time_raw <- factor(as.character(dat$time_raw), levels = levels(dat$time_raw), ordered = TRUE)
   fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
 
-  pt <- suppressWarnings(plot.terms(fit, data = dat, plot_interactions = TRUE))
+  pt <- suppressWarnings(plot_terms(fit, data = dat, plot_interactions = TRUE))
   mu_entries <- pt$fixed_terms$mu
   interaction_entries <- names(mu_entries)[grepl(":", names(mu_entries), fixed = TRUE)]
 
@@ -124,7 +124,7 @@ test_that("T156 transformed smooth covariates keep their x-axis scale", {
     mu_formula = "y ~ time_raw * gender + s(log(age), bs = 'ps')"
   )
 
-  pt <- suppressWarnings(plot.terms(fit))
+  pt <- suppressWarnings(plot_terms(fit))
   smooth_entries <- pt$smooth_terms$mu
   expect_equal(length(smooth_entries), 1)
 
@@ -138,11 +138,26 @@ test_that("T157 copula plot wrappers remain available after install", {
   dat <- make_fixture_factor_time_interaction(n_subject = 16L)
   fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
 
-  p1 <- suppressWarnings(plot.copula(fit, plot = FALSE))
+  p1 <- suppressWarnings(plot_copula_diagnostics(fit, plot = FALSE))
   p2 <- suppressWarnings(plot.copula_contour_compare(fit, plot = FALSE))
 
   expect_true(is.list(p1))
   expect_true(all(c("plots", "dashboard", "fit_data", "pair_data", "quartile_summary") %in% names(p1)))
   expect_true(is.list(p2))
   expect_true(all(c("plots", "dashboard", "grid", "metrics") %in% names(p2)))
+})
+
+test_that("T158 old plotting entry points delegate with lifecycle warnings", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 14L)
+  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+
+  expect_warning(
+    old_terms <- plot.terms(fit, data = dat),
+    "plot_terms"
+  )
+  expect_true(is.list(old_terms))
+
+  old_copula <- suppressWarnings(plot.copula(fit, plot = FALSE))
+  expect_true(is.list(old_copula))
+  expect_true(all(c("plots", "dashboard", "fit_data", "pair_data", "quartile_summary") %in% names(old_copula)))
 })

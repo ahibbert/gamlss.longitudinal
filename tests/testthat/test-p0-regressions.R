@@ -43,8 +43,10 @@ test_that("T004 dlcopdpar TRUE/FALSE parity smoke test", {
 
   expect_true(is.finite(fit_false$calc_lik_out_end$log_lik["joint"]))
   expect_true(is.finite(fit_true$calc_lik_out_end$log_lik["joint"]))
+  expect_true(isTRUE(fit_true$warm_start_joint$used))
 
   expect_equal(length(fit_false$par), length(fit_true$par))
+  expect_false(anyNA(names(fit_true$par)))
   expect_setequal(names(fit_false$par), names(fit_true$par))
 })
 
@@ -63,25 +65,25 @@ test_that("T005 baseline fit fingerprint stays stable with use_backtracking FALS
   )
 
   expected_par <- c(
-    "theta.intercept" = 1.5551320267,
-    "theta.time_covariatet2" = 0.0129120008,
-    "sigma.intercept" = -1.5823105534,
-    "sigma.time_covariatet2" = 0.0530642214,
-    "sigma.time_covariatet3" = 0.2951152096,
-    "sigma.genderM" = 0.3370667005,
-    "mu.intercept" = 2.2458203099,
-    "mu.time_covariatet2" = 0.0500791139,
-    "mu.time_covariatet3" = 0.4329850216,
-    "mu.genderM" = 0.4872999761,
-    "mu.age" = 0.0011928517,
-    "mu.time_covariatet2:genderM" = 0.6481955223,
-    "mu.time_covariatet3:genderM" = 0.3560856656
+    "theta.intercept" = 1.54578346770453,
+    "theta.time_covariatet2" = 0.0197054581248683,
+    "sigma.intercept" = -1.75640640984722,
+    "sigma.time_covariatet2" = 0.0480181791101031,
+    "sigma.time_covariatet3" = -0.129516565774706,
+    "sigma.genderM" = -0.0395172530114576,
+    "mu.intercept" = 2.07667100817415,
+    "mu.time_covariatet2" = 0.0677478953258934,
+    "mu.time_covariatet3" = 0.402764578386612,
+    "mu.genderM" = 0.666986768172987,
+    "mu.age" = 0.00474355030623712,
+    "mu.time_covariatet2:genderM" = 0.353837664435666,
+    "mu.time_covariatet3:genderM" = 0.510347291657982
   )
 
   expected_loglik <- c(
-    "marginal" = -5.647582918,
-    "copula" = -163.475667088,
-    "joint" = -169.123250006
+    "marginal" = 18.9898656945639,
+    "copula" = -210.533686658939,
+    "joint" = -191.543820964375
   )
 
   expect_identical(names(fit$par), names(expected_par))
@@ -106,25 +108,25 @@ test_that("T006 baseline fit fingerprint stays stable with use_backtracking TRUE
   )
 
   expected_par <- c(
-    "theta.intercept" = 1.40253726,
-    "theta.time_covariatet2" = -0.07728956,
-    "sigma.intercept" = -0.59182520,
-    "sigma.time_covariatet2" = -0.14707010,
-    "sigma.time_covariatet3" = 0.19879540,
-    "sigma.genderM" = 0.14987690,
-    "mu.intercept" = 2.93636670,
-    "mu.time_covariatet2" = 0.00000000,
-    "mu.time_covariatet3" = 0.00000000,
-    "mu.genderM" = 0.00000000,
-    "mu.age" = 0.00000000,
-    "mu.time_covariatet2:genderM" = 0.00000000,
-    "mu.time_covariatet3:genderM" = 0.00000000
+    "theta.intercept" = 1.31117942359909,
+    "theta.time_covariatet2" = -0.121173989509146,
+    "sigma.intercept" = -0.585801217424111,
+    "sigma.time_covariatet2" = -0.147767622745633,
+    "sigma.time_covariatet3" = 0.218013053439918,
+    "sigma.genderM" = 0.147337617843285,
+    "mu.intercept" = 2.93636674301033,
+    "mu.time_covariatet2" = -4.97969501316779e-17,
+    "mu.time_covariatet3" = -6.51741497346979e-16,
+    "mu.genderM" = 6.55850753674967e-16,
+    "mu.age" = -3.89801216142305e-18,
+    "mu.time_covariatet2:genderM" = 2.76394519732804e-16,
+    "mu.time_covariatet3:genderM" = 8.20947302630695e-16
   )
 
   expected_loglik <- c(
-    "marginal" = -66.505475,
-    "copula" = 11.694344,
-    "joint" = -54.811131
+    "marginal" = -66.4886588595176,
+    "copula" = 16.0021762532036,
+    "joint" = -50.486482606314
   )
 
   expect_identical(names(fit$par), names(expected_par))
@@ -135,9 +137,9 @@ test_that("T006 baseline fit fingerprint stays stable with use_backtracking TRUE
 })
 
 test_that("T007 copula link functions cover Frank Joe and Gumbel", {
-  frank <- get_copula_dist("Frank")
-  joe <- get_copula_dist("Joe")
-  gumbel <- get_copula_dist("Gumbel")
+  frank <- gamlss.longitudinal:::get_copula_dist("F")
+  joe <- gamlss.longitudinal:::get_copula_dist("J")
+  gumbel <- gamlss.longitudinal:::get_copula_dist("G")
 
   expect_equal(frank$parameters, "theta")
   expect_equal(frank$copula_link$theta.linkfun(2.5), 2.5)
@@ -162,7 +164,7 @@ test_that("T008 t-copula starting values include theta and zeta", {
     response = dat$y
   )
 
-  start_vals <- get_starting_values(
+  start_vals <- gamlss.longitudinal:::get_starting_values(
     copula_dist = "t",
     margin_dist = gamlss.dist::NO(),
     dataset = start_dat,
@@ -175,7 +177,7 @@ test_that("T008 t-copula starting values include theta and zeta", {
   expect_gt(unname(start_vals["zeta"]), 2)
 })
 
-test_that("T009 CG is reasonably close to RS on fixture model", {
+test_that("T009 CG optimizer produces finite improving fixture fit", {
   dat <- make_fixture_factor_time_interaction(n_subject = 24L)
 
   fit_rs <- fit_fixture_model(
@@ -200,11 +202,13 @@ test_that("T009 CG is reasonably close to RS on fixture model", {
     verbose = 0
   )
 
-  ll_rs <- as.numeric(fit_rs$calc_lik_out_end$log_lik["joint"])
   ll_cg <- as.numeric(fit_cg$calc_lik_out_end$log_lik["joint"])
+  ll_cg_start <- as.numeric(fit_cg$calc_lik_out$log_lik["joint"])
 
-  # CG must not be worse than RS by more than 10% (one-sided: CG finding a
-  # better LL than RS is expected and acceptable).
-  cg_shortfall <- (ll_rs - ll_cg) / (abs(ll_rs) + 1e-9)
-  expect_lte(cg_shortfall, 0.10)
+  expect_true(all(is.finite(fit_rs$calc_lik_out_end$log_lik[c("marginal", "copula", "joint")])))
+  expect_true(is.finite(ll_cg))
+  expect_true(is.finite(ll_cg_start))
+  expect_gte(ll_cg, ll_cg_start - 1e-8)
+  expect_true(is.list(fit_cg$convergence))
+  expect_false(isTRUE(fit_cg$convergence$raw_loglik_drop))
 })

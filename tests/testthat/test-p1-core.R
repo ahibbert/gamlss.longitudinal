@@ -100,14 +100,13 @@ test_that("T106 smooth and fixed terms coexist in model setup", {
 test_that("T107 starting values fallback warning is emitted for non-finite tau", {
   suppressPackageStartupMessages({
     library(gamlss.dist)
-    library(VineCopula)
   })
 
   dat <- make_fixture_factor_time_interaction(n_subject = 14L)
   dat$y[] <- 1
 
   warn_out <- capture_warnings(
-    gamlss.longitudinal::get_starting_values(
+    gamlss.longitudinal:::get_starting_values(
       copula_dist = "N",
       margin_dist = gamlss.dist::NO(),
       dataset = data.frame(time = as.integer(dat$time_raw), response = dat$y),
