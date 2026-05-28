@@ -6,6 +6,7 @@ Rplots.pdf
 *.Rcheck/
 *.tar.gz
 _*.log
+_targets/
 R (testing)/
 tests/REGRESSION_TEST_PLAN.md
 results/
