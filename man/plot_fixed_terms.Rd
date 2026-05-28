@@ -36,6 +36,8 @@ computed internally with the analytical vcov path.}
 
 \item{include_intercept}{Logical; include intercept columns in plots.}
 
+\item{plot_interactions}{Logical; include interaction columns in plots.}
+
 \item{ci_col}{Color for confidence bands.}
 
 \item{fit_col}{Color for fitted fixed-term line.}
