@@ -16,8 +16,9 @@ Supported copula family codes are:
 
 ## Installation
 
-The package currently depends on `gamlss2`, which should be installed from the
-GAMLSS R-universe before installing `gamlss.longitudinal` from GitHub:
+The core package can be installed from GitHub with CRAN dependencies. Some
+optional benchmarking and JSS replication comparisons use `gamlss2`; install it
+from the GAMLSS R-universe only when running those opt-in workflows:
 
 ```r
 install.packages(
@@ -45,7 +46,7 @@ The vignette demonstrates:
 - marginal family screening with `gamlss::fitDist()`,
 - native copula family screening with `select_copula()`,
 - fitting a longitudinal GAMLSS-copula model,
-- `summary()`, `plot()`, `plot.terms()`, and `plot.copula()` diagnostics,
+- `summary()`, `plot()`, `plot_terms()`, and `plot_copula_diagnostics()` diagnostics,
 - comparison between simulated truth and fitted effects.
 
 To render the vignette locally:
@@ -74,8 +75,8 @@ fit <- gamlss.longitudinal(
 )
 
 summary(fit)
-plot.terms(fit, data = dat)
-plot.copula(fit, data = dat)
+plot_terms(fit, data = dat)
+plot_copula_diagnostics(fit, data = dat)
 ```
 
 See the vignette for a complete reproducible dataset, distribution screening,
