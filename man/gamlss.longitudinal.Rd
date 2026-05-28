@@ -21,7 +21,7 @@ gamlss.longitudinal(
   inner_stop_crit = NA,
   outer_stop_crit = NA,
   start_step_size = 0.5,
-  step_adjustment = 0.5,
+  step_adjustment = NA,
   max_steps = 5,
   start_from = NA,
   warm_start_joint = TRUE,
@@ -30,7 +30,7 @@ gamlss.longitudinal(
   plot_results = FALSE,
   true_val = NA,
   method = "RS",
-  max_outer_iter = 1000,
+  max_outer_iter = 100,
   max_inner_iter = 100,
   max_negative_outer_streak = 10,
   max_elapsed_sec = Inf,
@@ -43,22 +43,36 @@ gamlss.longitudinal(
   cg_step_tol = NA,
   cg_update_lambda = TRUE,
   cg_lambda_update_every = 10,
+  cg_max_lambda_updates = NA,
+  cg_raw_loglik_drop_tol = 10,
   cg_line_search = "best",
   cg_max_line_search_evals = 60,
   cg_gradient_method = "forward",
+  discrete_score_method = c("analytical", "finite"),
+  cg_zeta_hessian = "analytical",
+  cg_hessian_method = c("analytical", "finite", "auto"),
   compute_vcov = TRUE,
   vcov_method = c("analytical", "numderiv"),
   vcov_numderiv = FALSE,
   use_Rcpp = FALSE,
   lambda_start = NA,
-  lambda_penalty_K = 2
+  lambda_penalty_K = 2,
+  rs_update_lambda = TRUE,
+  rs_smooth_trust_radius = Inf
 )
 }
 \arguments{
+\item{dataset}{Long-format data frame containing the response, subject, time,
+and covariate columns.}
+
 \item{margin_dist}{Marginal distribution specified as a gamlss family object,
 e.g. GA(), NO(), PO(), NBI(), etc.}
 
 \item{copula_dist}{Copula distribution code, one of "N", "C", "F", "G", "J", or "t".}
+
+\item{time_var}{Name of the time variable in `dataset`.}
+
+\item{subject_var}{Name of the subject identifier in `dataset`.}
 
 \item{mu.formula}{Formula for the mean parameter of the marginal distribution}
 
@@ -145,6 +159,14 @@ smoother penalties during CG iterations.}
 `cg_update_lambda = TRUE`, update each smoother's lambda every this many
 outer iterations. Use `1` to update every CG iteration.}
 
+\item{cg_max_lambda_updates}{Integer; for `method = "CG"` only. Maximum
+number of smoother penalty update rounds. Use `NA` for no cap.}
+
+\item{cg_raw_loglik_drop_tol}{Numeric; for `method = "CG"` only. Stop CG as
+not converged if the raw joint log-likelihood drops this far below the best
+raw joint log-likelihood seen after at least one lambda update. Use `NA` to
+disable.}
+
 \item{cg_line_search}{Character; for `method = "CG"` only. `"best"` evaluates
 candidate steps up to `cg_max_line_search_evals` before taking the largest
 improvement, while `"first"` accepts the first improving candidate step.}
@@ -157,16 +179,44 @@ cap on the number of candidate likelihood evaluations per outer iteration.}
 one-sided finite differences, and `"central"` uses two-sided finite
 differences.}
 
+\item{discrete_score_method}{Character. For discrete margins using exact
+rectangle likelihoods, choose `"analytical"` for vectorised rectangle-score
+assembly or `"finite"` for slow row-wise finite-difference scores.}
+
+\item{cg_zeta_hessian}{Character; for `method = "CG"` only. `"analytical"`
+uses the analytical Hessian for the zeta block, while `"finite"` replaces
+the zeta-zeta block with central finite differences of the raw joint
+log-likelihood.}
+
+\item{cg_hessian_method}{Character; for `method = "CG"` only. `"analytical"`
+uses the semi-analytical Hessian for Newton steps, `"finite"` uses a full
+finite-difference Hessian, and `"auto"` tries analytical then falls back to
+finite differences when needed.}
+
 \item{compute_vcov}{Logical; if `TRUE` (default), compute and store the
 model variance-covariance output at the end of fitting.}
 
 \item{vcov_method}{Character; fit-time vcov method when `compute_vcov = TRUE`.
-One of `"numderiv"` or `"analytical"`.}
+One of `"analytical"` or `"numderiv"`. Analytical vcov falls back to the
+numerical reference path if the analytical Hessian cannot be inverted.}
 
 \item{vcov_numderiv}{Logical; passed to `vcov.gamlss.longitudinal()` when
 `compute_vcov = TRUE`.}
 
 \item{use_Rcpp}{Use Rcpp for matrix operations}
+
+\item{lambda_start}{Optional starting value for smooth-term penalties.}
+
+\item{lambda_penalty_K}{Penalty strength used when updating smooth-term
+smoothing parameters.}
+
+\item{rs_update_lambda}{Logical; for `method = "RS"` only. If `TRUE`,
+update smoothing parameters by the RS GAIC step; if `FALSE`, keep
+`lambda_start` fixed.}
+
+\item{rs_smooth_trust_radius}{Numeric; for `method = "RS"` only. Optional
+L2 trust radius applied separately to each smooth coefficient block after
+the RS weighted least-squares proposal. Use `Inf` to disable.}
 }
 \description{
 This function fits a longitudinal model to a dataset with gamlss margins

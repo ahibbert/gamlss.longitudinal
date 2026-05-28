@@ -8,18 +8,18 @@ simulate_longitudinal_covariates(data, subject = list(), observation = list())
 }
 \arguments{
 \item{data}{Base long-format design data supplied by
-\code{\link[=simulate_longitudinal_dataset]{simulate_longitudinal_dataset()}} to a covariate callback.}
+[simulate_longitudinal_dataset()] to a covariate callback.}
 
 \item{subject}{Named list of subject-level covariate specifications.}
 
 \item{observation}{Named list of observation-level covariate specifications.}
 }
 \value{
-A data frame of covariates aligned row-for-row with \code{data}.
+A data frame of covariates aligned row-for-row with `data`.
 }
 \description{
-This helper is designed to be used inside the \code{covariates} argument of
-\code{\link[=simulate_longitudinal_dataset]{simulate_longitudinal_dataset()}}. Subject-level variables are evaluated once
+This helper is designed to be used inside the `covariates` argument of
+[simulate_longitudinal_dataset()]. Subject-level variables are evaluated once
 per subject and repeated across time; observation-level variables are
 evaluated once per row of the long-format design.
 }

@@ -2,10 +2,18 @@
 % Please edit documentation in R/common_functions.R
 \name{logLik.gamlss.longitudinal}
 \alias{logLik.gamlss.longitudinal}
-\title{This function returns the log likelihood for a fitted gamlss.longitudinal object}
+\title{Log-likelihood for a fitted longitudinal GAMLSS-copula model}
 \usage{
 \method{logLik}{gamlss.longitudinal}(object, ...)
 }
+\arguments{
+\item{object}{A fitted `gamlss.longitudinal` object.}
+
+\item{...}{Additional arguments, currently unused.}
+}
+\value{
+Named log-likelihood components.
+}
 \description{
-This function returns the log likelihood for a fitted gamlss.longitudinal object
+Log-likelihood for a fitted longitudinal GAMLSS-copula model
 }
