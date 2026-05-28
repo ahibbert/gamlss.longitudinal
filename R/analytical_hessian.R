@@ -1002,7 +1002,8 @@
 #' @return A square matrix of dimension length(object$par) x length(object$par)
 #'   representing the Hessian of the joint log-likelihood evaluated at the MLE.
 #'
-#' @export
+#' @keywords internal
+#' @noRd
 calc_analytical_hessian <- function(object, progress = interactive(), h = 1e-4) {
   progress <- isTRUE(progress)
 
