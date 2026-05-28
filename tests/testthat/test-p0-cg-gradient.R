@@ -12,30 +12,37 @@ test_that("CG analytical gradient matches finite differences on a tiny model", {
   dat$x <- stats::rnorm(nrow(dat))
   dat$response <- 1 + 0.2 * dat$x + 0.1 * dat$time + stats::rnorm(nrow(dat), sd = 0.4)
 
-  fit <- gamlss.longitudinal(
-    dat,
-    gamlss.dist::NO(),
-    "N",
-    time_var = "time",
-    subject_var = "id",
-    mu.formula = "response ~ x + time",
-    sigma.formula = "~ 1",
-    theta.formula = "~ 1",
-    zeta.formula = "~ 1",
-    method = "CG",
-    max_outer_iter = 2,
-    compute_vcov = FALSE,
-    include_dlcopdpar = TRUE,
-    cg_gradient_method = "forward",
-    verbose = 0
+  fit <- withCallingHandlers(
+    gamlss.longitudinal(
+      dat,
+      gamlss.dist::NO(),
+      "N",
+      time_var = "time",
+      subject_var = "id",
+      mu.formula = "response ~ x + time",
+      sigma.formula = "~ 1",
+      theta.formula = "~ 1",
+      zeta.formula = "~ 1",
+      method = "CG",
+      max_outer_iter = 2,
+      compute_vcov = FALSE,
+      include_dlcopdpar = TRUE,
+      cg_gradient_method = "forward",
+      verbose = 0
+    ),
+    warning = function(w) {
+      if (grepl("Model stopped at max_outer_iter", conditionMessage(w), fixed = TRUE)) {
+        invokeRestart("muffleWarning")
+      }
+    }
   )
 
   mm <- fit$model_matrix
   beta <- fit$par
-  copula_link <- get_copula_dist(fit$copula_dist)$copula_link
-  eta <- calc_eta(beta, mm, fit$margin_dist, copula_link, fit$par_s)
-  pair_cache <- build_copula_pair_cache(fit$response, fit$response_margin, fit$response_subject)
-  lik <- calc_likelihood_minimal(
+  copula_link <- gamlss.longitudinal:::get_copula_dist(fit$copula_dist)$copula_link
+  eta <- gamlss.longitudinal:::calc_eta(beta, mm, fit$margin_dist, copula_link, fit$par_s)
+  pair_cache <- gamlss.longitudinal:::build_copula_pair_cache(fit$response, fit$response_margin, fit$response_subject)
+  lik <- gamlss.longitudinal:::calc_likelihood_minimal(
     eta$eta_inv,
     mm = mm$x,
     margin_dist = fit$margin_dist,
@@ -67,10 +74,10 @@ test_that("CG analytical gradient matches finite differences on a tiny model", {
     beta_plus[i] <- beta_plus[i] + h
     beta_minus[i] <- beta_minus[i] - h
 
-    eta_plus <- calc_eta(beta_plus, mm, fit$margin_dist, copula_link, fit$par_s)
-    eta_minus <- calc_eta(beta_minus, mm, fit$margin_dist, copula_link, fit$par_s)
+    eta_plus <- gamlss.longitudinal:::calc_eta(beta_plus, mm, fit$margin_dist, copula_link, fit$par_s)
+    eta_minus <- gamlss.longitudinal:::calc_eta(beta_minus, mm, fit$margin_dist, copula_link, fit$par_s)
 
-    ll_plus <- calc_likelihood_minimal(
+    ll_plus <- gamlss.longitudinal:::calc_likelihood_minimal(
       eta_plus$eta_inv,
       mm = mm$x,
       margin_dist = fit$margin_dist,
@@ -81,7 +88,7 @@ test_that("CG analytical gradient matches finite differences on a tiny model", {
       response_subject = fit$response_subject,
       pair_cache = pair_cache
     )$log_lik["joint"]
-    ll_minus <- calc_likelihood_minimal(
+    ll_minus <- gamlss.longitudinal:::calc_likelihood_minimal(
       eta_minus$eta_inv,
       mm = mm$x,
       margin_dist = fit$margin_dist,
