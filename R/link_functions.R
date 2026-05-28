@@ -1,5 +1,18 @@
 
 #### LINK FUNCTIONS ####
+#' Link helpers for bounded copula and distribution parameters
+#'
+#' These helpers provide simple link, inverse-link, and derivative functions
+#' used by `gamlss.longitudinal` parameter transformations.
+#'
+#' @name link_functions
+#' @aliases logit logit_inv dlogit logit28 logit28_inv dlogit28
+#'   log_2plus log_2plus_inv dlog_2plus dlog dlog_inv dlogit_inv
+#'   fisher_z fisher_z_inv dfisher_z_inv dlog_2plus_inv log_1plus
+#'   log_1plus_inv dlog_1plus dlog_1plus_inv gumbel_linkfun
+#'   gumbel_linkinv dgumbel_linkinv
+NULL
+
 #' @export
 logit <- function(x) {
   return(log(x/(1-x)))
