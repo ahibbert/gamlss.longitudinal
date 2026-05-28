@@ -1,11 +1,22 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^_pkgdown\.yml$
+^cran-comments\.md$
 ^R \(testing\)$
 ^Rplots\.pdf$
 ^auto_open_plots\.sh$
 ^start_httpgd\.R$
 ^\.vscode$
+^\.github($|/)
+^docs($|/)
+^examples($|/)
 ^results($|/)
+^paper($|/)
 ^\.codex-backups($|/)
 ^_check($|/)
 ^.*\.Rcheck($|/)
+^_.*\.log$
+^.*\.tar\.gz$
+^make_.*_paper_outputs\.R$
+^analyze_results\.R$
+^vignettes/.*\.html$
