@@ -12,7 +12,6 @@ Depends: R (>= 4.1.0)
 Imports:
     gamlss,
     gamlss.dist,
-    gamlss2,
     rlang,
     latex2exp,
     ggplot2,
@@ -26,15 +25,18 @@ Imports:
     graphics
 License: GPL-3
 Encoding: UTF-8
+Language: en-US
 LazyData: true
-URL: https://ahibbert.github.io/gamlss.longitudinal,
+URL: https://ahibbert.github.io/gamlss.longitudinal/,
     https://github.com/ahibbert/gamlss.longitudinal
 BugReports: https://github.com/ahibbert/gamlss.longitudinal/issues
 Suggests:
     knitr,
     rmarkdown,
     testthat (>= 3.0.0),
-    VineCopula
+    VineCopula,
+    gamlss2
+Additional_repositories: https://gamlss-dev.R-universe.dev
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 RoxygenNote: 7.3.3
