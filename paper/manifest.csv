@@ -1,0 +1,7 @@
+result_id,result_type,target,profile,output_path,verification
+tab_coverage_summary,table,coverage_summary_csv,smoke|expanded,results/jss-replication/<profile>/tables/coverage_summary.csv,file_exists
+tab_convergence_summary,table,convergence_summary_csv,smoke|expanded,results/jss-replication/<profile>/tables/convergence_summary.csv,file_exists
+fig_runtime_by_method,figure,runtime_figure,smoke|expanded,results/jss-replication/<profile>/figures/runtime_by_method.png,file_exists
+fig_convergence_by_method,figure,convergence_figure,smoke|expanded,results/jss-replication/<profile>/figures/convergence_by_method.png,file_exists
+log_session_info,log,session_info,smoke|expanded,results/jss-replication/<profile>/logs/session_info.txt,file_exists
+log_output_hashes,log,output_hashes,smoke|expanded,results/jss-replication/<profile>/logs/output_hashes.csv,file_exists
