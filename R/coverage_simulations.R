@@ -119,7 +119,13 @@
     ZANBI = list(mu = 4, sigma = 0.5, nu = 0.2),
     ZAPIG = list(mu = 4, sigma = 0.5, nu = 0.2),
     ZASICHEL = list(mu = 4, sigma = 0.5, nu = 0.2),
-    ZAZIPF = list(mu = 0.5, sigma = 0.2)
+    ZAZIPF = list(mu = 0.5, sigma = 0.2),
+    BNB = list(mu = 4, sigma = 0.5, nu = 2),
+    RGE = list(mu = 2, sigma = 0.3, nu = 1),
+    SI = list(mu = 0.5, sigma = 0.05, nu = -0.5),
+    ZABNB = list(mu = 4, sigma = 0.5, nu = 2, tau = 0.2),
+    ZIBNB = list(mu = 4, sigma = 0.5, nu = 2, tau = 0.2),
+    ZINBF = list(mu = 4, sigma = 0.5, nu = 2, tau = 0.2)
   )
   overrides[[family_name]] %||% list()
 }
@@ -582,7 +588,8 @@
     fit
   })
   elapsed <- as.numeric(difftime(Sys.time(), start, units = "secs"))
-  success <- !inherits(captured$value, "error") && is.finite(as.numeric(stats::logLik(captured$value)))
+  success <- !inherits(captured$value, "error") &&
+    is.finite(as.numeric(stats::logLik(captured$value)))
   converged <- success
   if (success && !is.null(captured$value$converged)) {
     converged <- isTRUE(captured$value$converged)
@@ -602,6 +609,12 @@
     max_rel_param_error = NA_real_,
     fitted_copula_tau = NA_real_,
     true_copula_tau = NA_real_,
+    marginal_fit_method = "gamlss",
+    marginal_fallback_used = FALSE,
+    marginal_fallback_error = NA_character_,
+    fit_attempt = "gamlss",
+    fit_attempt_count = 1L,
+    fit_attempt_trace = "gamlss",
     stringsAsFactors = FALSE
   )
   truth_eta <- .coverage_true_eta_coefficients(dat, family, copula, design)
@@ -616,26 +629,60 @@
 #' @keywords internal
 #' @noRd
 .coverage_fit_gamlss2 <- function(dat, family, copula, design, max_elapsed_sec = Inf) {
-  if (!requireNamespace("gamlss2", quietly = TRUE)) {
-    stop("Package 'gamlss2' is required for method = 'gamlss2'.", call. = FALSE)
-  }
-  gamlss2_fit <- getExportedValue("gamlss2", "gamlss2")
-  gamlss2_control <- getExportedValue("gamlss2", "gamlss2_control")
   .coverage_attach_namespace("gamlss.dist")
   margin_dist <- do.call(get(family, envir = asNamespace("gamlss.dist")), list())
   fml <- if (identical(design, "intercept")) response ~ 1 else response ~ x
+  fit_vars <- unique(all.vars(fml))
+  fit_vars <- fit_vars[fit_vars %in% names(dat)]
+  fit_dat <- dat[, fit_vars, drop = FALSE]
   start <- Sys.time()
-  captured <- .coverage_capture_conditions({
-    fit <- gamlss2_fit(
-      fml,
-      data = dat,
-      family = margin_dist,
-      control = gamlss2_control(trace = FALSE)
-    )
-    fit
-  })
+  fallback_used <- FALSE
+  fallback_error <- NA_character_
+  gamlss2_available <- requireNamespace("gamlss2", quietly = TRUE)
+  captured <- if (gamlss2_available) {
+    gamlss2_fit <- getExportedValue("gamlss2", "gamlss2")
+    gamlss2_control <- getExportedValue("gamlss2", "gamlss2_control")
+    .coverage_capture_conditions({
+      fit <- gamlss2_fit(
+        fml,
+        data = fit_dat,
+        family = margin_dist,
+        control = gamlss2_control(trace = FALSE)
+      )
+      fit
+    })
+  } else {
+    list(value = simpleError("Package 'gamlss2' is required for method = 'gamlss2'."), warnings = character(0))
+  }
+
+  success <- !inherits(captured$value, "error") &&
+    is.finite(as.numeric(stats::logLik(captured$value)))
+  if (!success) {
+    fallback_error <- if (inherits(captured$value, "error")) conditionMessage(captured$value) else "gamlss2 returned non-finite logLik"
+    fallback_used <- TRUE
+    gamlss_captured <- .coverage_capture_conditions({
+      fit <- NULL
+      invisible(utils::capture.output({
+        fit <- gamlss::gamlss(
+          formula = fml,
+          data = fit_dat,
+          family = margin_dist,
+          control = gamlss::gamlss.control(n.cyc = 8, trace = FALSE)
+        )
+      }))
+      fit
+    })
+    if (!inherits(gamlss_captured$value, "error") && is.finite(as.numeric(stats::logLik(gamlss_captured$value)))) {
+      captured <- gamlss_captured
+      success <- TRUE
+    } else {
+      captured$warnings <- c(captured$warnings, gamlss_captured$warnings)
+      captured$value <- if (inherits(gamlss_captured$value, "error")) gamlss_captured$value else captured$value
+    }
+  }
   elapsed <- as.numeric(difftime(Sys.time(), start, units = "secs"))
-  success <- !inherits(captured$value, "error") && is.finite(as.numeric(stats::logLik(captured$value)))
+  success <- success && (!is.finite(max_elapsed_sec) || elapsed <= max_elapsed_sec)
+  actual_method <- if (success && isTRUE(fallback_used)) "gamlss" else "gamlss2"
   out <- data.frame(
     method = "gamlss2",
     success = success,
@@ -651,20 +698,74 @@
     max_rel_param_error = NA_real_,
     fitted_copula_tau = NA_real_,
     true_copula_tau = NA_real_,
+    marginal_fit_method = actual_method,
+    marginal_fallback_used = fallback_used && success,
+    marginal_fallback_error = fallback_error,
+    fit_attempt = actual_method,
+    fit_attempt_count = if (isTRUE(fallback_used)) 2L else 1L,
+    fit_attempt_trace = if (isTRUE(fallback_used)) "gamlss2 > gamlss" else "gamlss2",
     stringsAsFactors = FALSE
   )
   truth_eta <- .coverage_true_eta_coefficients(dat, family, copula, design)
   truth_eta <- truth_eta[truth_eta$parameter %in% names(margin_dist$parameters), , drop = FALSE]
-  attr(out, "parameter_results") <- .coverage_parameter_results(
-    .coverage_gamlss2_eta_estimates(captured$value),
-    truth_eta
-  )
+  estimates <- if (identical(actual_method, "gamlss")) {
+    .coverage_gamlss_eta_estimates(captured$value, margin_dist)
+  } else {
+    .coverage_gamlss2_eta_estimates(captured$value)
+  }
+  attr(out, "parameter_results") <- .coverage_parameter_results(estimates, truth_eta)
   out
 }
 
 #' @keywords internal
 #' @noRd
-.coverage_fit_longitudinal <- function(
+.coverage_longitudinal_start_fit <- function(
+  dat,
+  family,
+  copula,
+  design,
+  max_outer_iter = 5,
+  max_inner_iter = 8,
+  max_elapsed_sec = 20
+) {
+  .coverage_attach_namespace("gamlss")
+  .coverage_attach_namespace("gamlss.dist")
+  margin_dist <- do.call(get(family, envir = asNamespace("gamlss.dist")), list())
+  formulas <- .coverage_fit_formulas(design)
+  fit <- NULL
+  invisible(utils::capture.output({
+    fit <- gamlss.longitudinal(
+      dataset = dat,
+      margin_dist = margin_dist,
+      copula_dist = copula,
+      time_var = "time",
+      subject_var = "subject",
+      mu.formula = formulas$mu,
+      sigma.formula = formulas$sigma,
+      nu.formula = formulas$nu,
+      tau.formula = formulas$tau,
+      theta.formula = formulas$theta,
+      zeta.formula = formulas$zeta,
+      include_dlcopdpar = FALSE,
+      method = "RS",
+      start_from = NA,
+      warm_start_joint = FALSE,
+      warm_start_joint_iter = 0L,
+      max_outer_iter = max_outer_iter,
+      max_inner_iter = max_inner_iter,
+      outer_stop_crit = 1e-4,
+      inner_stop_crit = 1e-4,
+      max_elapsed_sec = max_elapsed_sec,
+      compute_vcov = FALSE,
+      verbose = 0
+    )
+  }))
+  fit
+}
+
+#' @keywords internal
+#' @noRd
+.coverage_longitudinal_attempt <- function(
   dat,
   family,
   copula,
@@ -673,7 +774,11 @@
   max_outer_iter = 8,
   max_inner_iter = 8,
   max_elapsed_sec = 20,
-  start_from = NA
+  start_from = NA,
+  warm_start_joint = TRUE,
+  start_step_size = 0.5,
+  cg_max_delta = 0.5,
+  attempt_label = "default"
 ) {
   .coverage_attach_namespace("gamlss")
   .coverage_attach_namespace("gamlss.dist")
@@ -700,8 +805,10 @@
         include_dlcopdpar = include_dlcopdpar,
         method = fit_method,
         start_from = start_from,
-        warm_start_joint = isTRUE(include_dlcopdpar) && all(is.na(start_from)),
+        warm_start_joint = isTRUE(warm_start_joint) && isTRUE(include_dlcopdpar) && all(is.na(start_from)),
         warm_start_joint_iter = min(5L, max_outer_iter),
+        start_step_size = start_step_size,
+        cg_max_delta = cg_max_delta,
         max_outer_iter = max_outer_iter,
         max_inner_iter = max_inner_iter,
         outer_stop_crit = 1e-4,
@@ -714,7 +821,100 @@
     fit
   })
   elapsed <- as.numeric(difftime(Sys.time(), start, units = "secs"))
-  fit <- captured$value
+  list(
+    value = captured$value,
+    warnings = captured$warnings,
+    elapsed = elapsed,
+    attempt_label = attempt_label
+  )
+}
+
+#' @keywords internal
+#' @noRd
+.coverage_fit_longitudinal <- function(
+  dat,
+  family,
+  copula,
+  method,
+  design,
+  max_outer_iter = 8,
+  max_inner_iter = 8,
+  max_elapsed_sec = 20,
+  start_from = NA
+) {
+  margin_dist <- do.call(get(family, envir = asNamespace("gamlss.dist")), list())
+  attempts <- list()
+  start_from_supplied <- !all(is.na(start_from))
+
+  if (identical(method, "cg") && !start_from_supplied) {
+    rs_start <- tryCatch(
+      .coverage_longitudinal_start_fit(
+        dat,
+        family = family,
+        copula = copula,
+        design = design,
+        max_outer_iter = min(5L, max_outer_iter),
+        max_inner_iter = max_inner_iter,
+        max_elapsed_sec = max_elapsed_sec
+      )$par,
+      error = function(e) NA
+    )
+    attempts[[length(attempts) + 1L]] <- .coverage_longitudinal_attempt(
+      dat, family, copula, method, design,
+      max_outer_iter = max_outer_iter,
+      max_inner_iter = max_inner_iter,
+      max_elapsed_sec = max_elapsed_sec,
+      start_from = rs_start,
+      warm_start_joint = FALSE,
+      attempt_label = "rs_separate_start"
+    )
+  }
+
+  attempts[[length(attempts) + 1L]] <- .coverage_longitudinal_attempt(
+    dat, family, copula, method, design,
+    max_outer_iter = max_outer_iter,
+    max_inner_iter = max_inner_iter,
+    max_elapsed_sec = max_elapsed_sec,
+    start_from = start_from,
+    warm_start_joint = TRUE,
+    attempt_label = if (start_from_supplied) "explicit_start" else "default"
+  )
+
+  if (identical(method, "cg")) {
+    attempts[[length(attempts) + 1L]] <- .coverage_longitudinal_attempt(
+      dat, family, copula, method, design,
+      max_outer_iter = max_outer_iter,
+      max_inner_iter = max_inner_iter,
+      max_elapsed_sec = max_elapsed_sec,
+      start_from = NA,
+      warm_start_joint = FALSE,
+      attempt_label = "cold_start"
+    )
+    interior_start <- .coverage_truth_adjacent_start(dat, family, copula, design)
+    attempts[[length(attempts) + 1L]] <- .coverage_longitudinal_attempt(
+      dat, family, copula, method, design,
+      max_outer_iter = max_outer_iter,
+      max_inner_iter = max_inner_iter,
+      max_elapsed_sec = max_elapsed_sec,
+      start_from = interior_start,
+      warm_start_joint = FALSE,
+      start_step_size = 0.2,
+      cg_max_delta = 0.2,
+      attempt_label = "damped_interior_start"
+    )
+  }
+
+  successful <- vapply(attempts, function(x) {
+    fit <- x$value
+    is_fit <- inherits(fit, "gamlss.longitudinal")
+    if (!is_fit) return(FALSE)
+    loglik <- fit$calc_lik_out_end$log_lik
+    all(is.finite(as.numeric(loglik)))
+  }, logical(1))
+  chosen_idx <- if (any(successful)) which(successful)[1L] else length(attempts)
+  chosen <- attempts[[chosen_idx]]
+  elapsed <- sum(vapply(attempts[seq_len(chosen_idx)], `[[`, numeric(1), "elapsed"))
+  fit <- chosen$value
   is_fit <- inherits(fit, "gamlss.longitudinal")
   loglik <- if (is_fit) fit$calc_lik_out_end$log_lik else c(marginal = NA_real_, copula = NA_real_, joint = NA_real_)
   estimates <- if (is_fit) .coverage_natural_estimates(fit) else stats::setNames(numeric(0), character(0))
@@ -733,14 +933,17 @@
   } else {
     NA_real_
   }
-  success <- is_fit && all(is.finite(as.numeric(loglik))) && !inherits(fit, "error")
+  success <- is_fit &&
+    all(is.finite(as.numeric(loglik))) &&
+    !inherits(fit, "error") &&
+    (!is.finite(max_elapsed_sec) || elapsed <= max_elapsed_sec)
   out <- data.frame(
     method = method,
     success = success,
     converged = if (is_fit && !is.null(fit$convergence$converged)) isTRUE(fit$convergence$converged) else FALSE,
-    failure_type = .coverage_taxonomy(success, if (inherits(fit, "error")) conditionMessage(fit) else NA_character_, captured$warnings, elapsed, max_elapsed_sec),
+    failure_type = .coverage_taxonomy(success, if (inherits(fit, "error")) conditionMessage(fit) else NA_character_, chosen$warnings, elapsed, max_elapsed_sec),
     error = if (inherits(fit, "error")) conditionMessage(fit) else NA_character_,
-    warnings = paste(unique(captured$warnings), collapse = " | "),
+    warnings = paste(unique(unlist(lapply(attempts[seq_len(chosen_idx)], `[[`, "warnings"))), collapse = " | "),
     marginal_loglik = as.numeric(loglik["marginal"]),
     copula_loglik = as.numeric(loglik["copula"]),
     joint_loglik = as.numeric(loglik["joint"]),
@@ -749,6 +952,12 @@
     max_rel_param_error = rel_error,
     fitted_copula_tau = theta_tau,
     true_copula_tau = if ("copula_tau" %in% names(truth)) truth[["copula_tau"]] else NA_real_,
+    marginal_fit_method = method,
+    marginal_fallback_used = FALSE,
+    marginal_fallback_error = NA_character_,
+    fit_attempt = chosen$attempt_label,
+    fit_attempt_count = chosen_idx,
+    fit_attempt_trace = paste(vapply(attempts[seq_len(chosen_idx)], `[[`, character(1), "attempt_label"), collapse = " > "),
     stringsAsFactors = FALSE
   )
   attr(out, "parameter_results") <- .coverage_parameter_results(
@@ -768,11 +977,27 @@
   max_outer_iter = 8,
   max_inner_iter = 8,
   max_elapsed_sec = 20,
+  method_max_outer_iter = NULL,
+  method_max_inner_iter = NULL,
+  method_max_elapsed_sec = NULL,
   dependence = "moderate",
   missingness = "none",
   start_mode = c("default", "truth_adjacent")
 ) {
   start_mode <- match.arg(start_mode)
+  method_value <- as.character(case$method)
+  pick_method_control <- function(default, override) {
+    if (is.null(override)) return(default)
+    if (is.list(override)) {
+      value <- override[[method_value]]
+    } else {
+      value <- override[[method_value]]
+    }
+    if (is.null(value) || length(value) == 0L || is.na(value[[1L]])) default else value[[1L]]
+  }
+  max_outer_iter <- pick_method_control(max_outer_iter, method_max_outer_iter)
+  max_inner_iter <- pick_method_control(max_inner_iter, method_max_inner_iter)
+  max_elapsed_sec <- pick_method_control(max_elapsed_sec, method_max_elapsed_sec)
   dat <- .coverage_simulate_case(
     family = case$family,
     copula = case$copula,
@@ -853,13 +1078,31 @@
   n = 80,
   times = 1:3,
   seed = 1,
-  max_outer_iter = 8,
-  max_inner_iter = 8,
-  max_elapsed_sec = 20,
+    max_outer_iter = 8,
+    max_inner_iter = 8,
+    max_elapsed_sec = 20,
+  method_max_outer_iter = NULL,
+  method_max_inner_iter = NULL,
+  method_max_elapsed_sec = NULL,
   dependence = "moderate",
   missingness = "none",
   start_mode = "default"
 ) {
+  row_bind_fill <- function(rows) {
+    rows <- rows[!vapply(rows, is.null, logical(1))]
+    if (length(rows) == 0L) {
+      return(data.frame())
+    }
+    all_names <- unique(unlist(lapply(rows, names), use.names = FALSE))
+    rows <- lapply(rows, function(x) {
+      missing <- setdiff(all_names, names(x))
+      for (nm in missing) {
+        x[[nm]] <- NA
+      }
+      x[all_names]
+    })
+    do.call(rbind, rows)
+  }
   rows <- vector("list", nrow(grid))
   parameter_rows <- vector("list", nrow(grid))
   for (i in seq_len(nrow(grid))) {
@@ -871,6 +1114,9 @@
       max_outer_iter = max_outer_iter,
       max_inner_iter = max_inner_iter,
       max_elapsed_sec = max_elapsed_sec,
+      method_max_outer_iter = method_max_outer_iter,
+      method_max_inner_iter = method_max_inner_iter,
+      method_max_elapsed_sec = method_max_elapsed_sec,
       dependence = dependence,
       missingness = missingness,
       start_mode = start_mode
@@ -878,12 +1124,12 @@
     parameter_rows[[i]] <- attr(case_result, "parameter_results")
     rows[[i]] <- case_result
   }
-  results <- .coverage_add_review_metrics(do.call(rbind, rows))
+  results <- .coverage_add_review_metrics(row_bind_fill(rows))
   parameter_rows <- parameter_rows[!vapply(parameter_rows, is.null, logical(1))]
   attr(results, "parameter_results") <- if (length(parameter_rows) == 0L) {
     data.frame()
   } else {
-    do.call(rbind, parameter_rows)
+    row_bind_fill(parameter_rows)
   }
   attr(results, "runtime_summary") <- .coverage_runtime_summary(results)
   results
@@ -935,6 +1181,8 @@
     group <- results[idx, , drop = FALSE]
     gamlss2_ll <- group$marginal_loglik[group$method == "gamlss2" & group$success][1]
     gamlss_ll <- group$marginal_loglik[group$method == "gamlss" & group$success][1]
+    gamlss2_fit_method <- group$marginal_fit_method[group$method == "gamlss2" & group$success][1]
+    gamlss_fit_method <- group$marginal_fit_method[group$method == "gamlss" & group$success][1]
     rs_joint_ll <- group$joint_loglik[group$method == "rs_separate" & group$success][1]
 
     if (length(gamlss2_ll) == 1L && is.finite(gamlss2_ll)) {
@@ -945,10 +1193,10 @@
     reference_method <- NA_character_
     if (length(gamlss2_ll) == 1L && is.finite(gamlss2_ll)) {
       reference_ll <- gamlss2_ll
-      reference_method <- "gamlss2"
+      reference_method <- if (length(gamlss2_fit_method) == 1L && !is.na(gamlss2_fit_method)) gamlss2_fit_method else "gamlss2"
     } else if (length(gamlss_ll) == 1L && is.finite(gamlss_ll)) {
       reference_ll <- gamlss_ll
-      reference_method <- "gamlss"
+      reference_method <- if (length(gamlss_fit_method) == 1L && !is.na(gamlss_fit_method)) gamlss_fit_method else "gamlss"
     }
     if (is.finite(reference_ll)) {
       results$reference_marginal_method[idx] <- reference_method
