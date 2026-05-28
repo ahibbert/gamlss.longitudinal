@@ -110,6 +110,23 @@ test_that("Gaussian rectangle probabilities match VineCopula corner differences"
   expect_equal(.copula_rectangle_prob(u1, u2, l1, l2, "N", rho), pmax(expected, 1e-300), tolerance = 1e-10)
 })
 
+test_that("fast Poisson family shortcuts match gamlss.dist calls", {
+  skip_if_not_installed("gamlss.dist")
+
+  args <- list(x = 0:8, q = 0:8, mu = seq(0.8, 4.0, length.out = 9))
+
+  expect_equal(
+    gamlss.longitudinal:::.call_fast_count_family("d", "PO", args),
+    gamlss.dist::dPO(args$x, mu = args$mu),
+    tolerance = 1e-14
+  )
+  expect_equal(
+    gamlss.longitudinal:::.call_fast_count_family("p", "PO", args),
+    gamlss.dist::pPO(args$q, mu = args$mu),
+    tolerance = 1e-14
+  )
+})
+
 test_that("native Clayton backend matches VineCopula for implemented operations", {
   skip_if_no_vinecopula()
 
