@@ -62,6 +62,43 @@ utils::globalVariables(c(
     grepl("discrete|count", type)
 }
 
+.margin_parameter_has_link <- function(margin_dist, par_name) {
+  all(vapply(
+    paste0(par_name, c(".linkfun", ".linkinv", ".dr")),
+    function(nm) is.function(margin_dist[[nm]]),
+    logical(1)
+  ))
+}
+
+.normalise_margin_dist_links <- function(margin_dist) {
+  parameter_names <- names(margin_dist$parameters)
+  if (length(parameter_names) == 0L) {
+    return(margin_dist)
+  }
+  linked <- vapply(parameter_names, .margin_parameter_has_link, logical(1), margin_dist = margin_dist)
+  if (all(linked)) {
+    return(margin_dist)
+  }
+  dropped <- parameter_names[!linked]
+  qfun <- tryCatch(
+    get(paste0("q", margin_dist$family[1]), envir = asNamespace("gamlss.dist"), inherits = FALSE),
+    error = function(e) NULL
+  )
+  fixed_values <- stats::setNames(as.list(rep(NA_real_, length(dropped))), dropped)
+  if (!is.null(qfun)) {
+    q_formals <- formals(qfun)
+    for (par_name in dropped) {
+      value <- tryCatch(eval(q_formals[[par_name]], envir = baseenv()), error = function(e) NA_real_)
+      fixed_values[[par_name]] <- as.numeric(value)[1L]
+    }
+  }
+  margin_dist$parameters <- margin_dist$parameters[linked]
+  margin_dist$nopar <- length(margin_dist$parameters)
+  attr(margin_dist, "fixed_unlinked_parameters") <- dropped
+  attr(margin_dist, "fixed_unlinked_values") <- fixed_values
+  margin_dist
+}
+
 .copula_cdf_du1 <- function(u1, u2, family, par, par2 = 0) {
   .copula_hfunc1(u1, u2, family = family, par = par, par2 = par2)
 }
@@ -99,15 +136,29 @@ utils::globalVariables(c(
 
   remaining <- finite & !zero & !one1 & !one2 & !independent
   if (any(remaining)) {
-    .copula_require_vinecopula("the Gaussian copula CDF backend")
     key <- paste(signif(u1[remaining], 15), signif(u2[remaining], 15), signif(rho[remaining], 15), sep = "\r")
     unique_key <- !duplicated(key)
-    unique_vals <- VineCopula::BiCopCDF(
-      u1[remaining][unique_key],
-      u2[remaining][unique_key],
-      family = 1,
-      par = rho[remaining][unique_key]
-    )
+    u1_unique <- u1[remaining][unique_key]
+    u2_unique <- u2[remaining][unique_key]
+    rho_unique <- rho[remaining][unique_key]
+    if (requireNamespace("mvtnorm", quietly = TRUE)) {
+      z1 <- stats::qnorm(u1_unique)
+      z2 <- stats::qnorm(u2_unique)
+      unique_vals <- vapply(seq_along(rho_unique), function(ii) {
+        as.numeric(mvtnorm::pmvnorm(
+          upper = c(z1[[ii]], z2[[ii]]),
+          corr = matrix(c(1, rho_unique[[ii]], rho_unique[[ii]], 1), 2, 2)
+        ))
+      }, numeric(1))
+    } else {
+      .copula_require_vinecopula("the Gaussian copula CDF backend")
+      unique_vals <- VineCopula::BiCopCDF(
+        u1_unique,
+        u2_unique,
+        family = 1,
+        par = rho_unique
+      )
+    }
     out[remaining] <- unique_vals[match(key, key[unique_key])]
   }
 
@@ -753,6 +804,7 @@ gamlss.longitudinal=function(dataset,
                       )
 {
   fit_start_time <- Sys.time()
+  margin_dist <- .normalise_margin_dist_links(margin_dist)
   check_elapsed_budget <- function(stage = "optimisation") {
     if (is.finite(max_elapsed_sec) && max_elapsed_sec > 0) {
       elapsed <- as.numeric(difftime(Sys.time(), fit_start_time, units = "secs"))
@@ -3379,8 +3431,18 @@ build_copula_pair_cache <- function(response, response_margin, response_subject)
     list(name=deriv_name,FUN=FUN,args=formalArgs(FUN))
   })
 
-  margin_pFUN=get(paste("p",margin_dist$family[1],sep=""),mode="function",inherits=TRUE)
-  margin_dFUN=get(paste("d",margin_dist$family[1],sep=""),mode="function",inherits=TRUE)
+  margin_pFUN <- get(
+    paste("p", margin_dist$family[1], sep = ""),
+    envir = asNamespace("gamlss.dist"),
+    mode = "function",
+    inherits = FALSE
+  )
+  margin_dFUN <- get(
+    paste("d", margin_dist$family[1], sep = ""),
+    envir = asNamespace("gamlss.dist"),
+    mode = "function",
+    inherits = FALSE
+  )
 
   list(
     calc_d2=calc_d2,
@@ -3388,27 +3450,37 @@ build_copula_pair_cache <- function(response, response_margin, response_subject)
     margin_pFUN=margin_pFUN,
     margin_p_args=formalArgs(margin_pFUN),
     margin_dFUN=margin_dFUN,
-    margin_d_args=formalArgs(margin_dFUN)
+    margin_d_args=formalArgs(margin_dFUN),
+    family_call_cache = new.env(parent = emptyenv())
   )
 }
 
-.call_margin_family_cached <- function(FUN, args, FUN_args, cacheable = FALSE) {
+.call_margin_family_cached <- function(FUN, args, FUN_args, cacheable = FALSE, cache_env = NULL, cache_prefix = "") {
   call_args <- args[FUN_args]
+  safe_call <- function(call_args, fallback_n = NULL) {
+    if (is.null(fallback_n)) {
+      fallback_n <- max(c(1L, vapply(call_args, length, integer(1))), na.rm = TRUE)
+    }
+    tryCatch(
+      do.call(FUN, args = call_args),
+      error = function(e) rep(NA_real_, fallback_n)
+    )
+  }
   if (!isTRUE(cacheable) || length(call_args) == 0L) {
-    return(do.call(FUN, args = call_args))
+    return(safe_call(call_args))
   }
 
   arg_lengths <- vapply(call_args, length, integer(1))
   n <- max(arg_lengths)
   if (n <= 1L) {
-    return(do.call(FUN, args = call_args))
+    return(safe_call(call_args, fallback_n = n))
   }
 
   if (any(!arg_lengths %in% c(1L, n))) {
-    return(do.call(FUN, args = call_args))
+    return(safe_call(call_args, fallback_n = n))
   }
   if (!all(vapply(call_args, function(x) is.atomic(x) && !is.character(x), logical(1)))) {
-    return(do.call(FUN, args = call_args))
+    return(safe_call(call_args, fallback_n = n))
   }
 
   expanded <- lapply(call_args, rep, length.out = n)
@@ -3422,16 +3494,63 @@ build_copula_pair_cache <- function(response, response_margin, response_subject)
   key <- do.call(paste, c(key_parts, sep = "\r"))
   unique_idx <- !duplicated(key)
   if (sum(unique_idx) > 0.8 * n) {
-    return(do.call(FUN, args = call_args))
+    return(safe_call(call_args, fallback_n = n))
+  }
+
+  if (!is.null(cache_env)) {
+    cached <- rep(NA_real_, n)
+    hit <- logical(n)
+    lookup_key <- paste0(cache_prefix, "\r", key)
+    for (ii in seq_len(n)) {
+      if (exists(lookup_key[[ii]], envir = cache_env, inherits = FALSE)) {
+        cached[[ii]] <- get(lookup_key[[ii]], envir = cache_env, inherits = FALSE)
+        hit[[ii]] <- TRUE
+      }
+    }
+    if (all(hit)) {
+      return(cached)
+    }
+    need <- !hit
+    need_unique <- !duplicated(key[need])
+    need_args <- lapply(expanded, function(x) x[need][need_unique])
+    names(need_args) <- names(call_args)
+    need_val <- safe_call(need_args, fallback_n = sum(need_unique))
+    if (length(need_val) != sum(need_unique)) {
+      return(safe_call(call_args, fallback_n = n))
+    }
+    need_lookup <- paste0(cache_prefix, "\r", key[need][need_unique])
+    for (jj in seq_along(need_lookup)) {
+      assign(need_lookup[[jj]], need_val[[jj]], envir = cache_env)
+    }
+    cached[need] <- need_val[match(key[need], key[need][need_unique])]
+    return(cached)
   }
 
   unique_args <- lapply(expanded, `[`, unique_idx)
   names(unique_args) <- names(call_args)
-  unique_val <- do.call(FUN, args = unique_args)
+  unique_val <- safe_call(unique_args, fallback_n = sum(unique_idx))
   if (length(unique_val) != sum(unique_idx)) {
-    return(do.call(FUN, args = call_args))
+    return(safe_call(call_args, fallback_n = n))
   }
   unique_val[match(key, key[unique_idx])]
+}
+
+.call_fast_count_family <- function(prefix, family_name, args) {
+  if (!identical(family_name, "PO") || !"mu" %in% names(args)) {
+    return(NULL)
+  }
+  x <- args$x %||% args$q %||% args$y
+  mu <- args$mu
+  if (is.null(x) || is.null(mu)) {
+    return(NULL)
+  }
+  if (identical(prefix, "d")) {
+    return(stats::dpois(x, lambda = mu))
+  }
+  if (identical(prefix, "p")) {
+    return(stats::ppois(x, lambda = mu))
+  }
+  NULL
 }
 
 #' @param pair_cache Optional cache built by build_copula_pair_cache to reuse pair indexing across repeated likelihood calls.
@@ -3464,13 +3583,25 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
       margin_deriv_input[[par_name]]=eta_inv[[par_name]]
     }
   }
+  fixed_unlinked_values <- attr(margin_dist, "fixed_unlinked_values")
+  if (length(fixed_unlinked_values) > 0L) {
+    for (par_name in names(fixed_unlinked_values)) {
+      value <- fixed_unlinked_values[[par_name]]
+      if (is.numeric(value) && length(value) == 1L && is.finite(value)) {
+        margin_deriv_input[[par_name]] <- rep(value, n_obs)
+      }
+    }
+  }
 
   ################## MARGIN DERIVATIVES
   margin_deriv=list()
   if(isTRUE(calc_margin_deriv)) {
     for (deriv_info in margin_eval_cache$margin_deriv_cache) {
       FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%deriv_info$args]
-      deriv_val=do.call(deriv_info$FUN,args=margin_deriv_input[FUN_args])
+      deriv_val <- tryCatch(
+        do.call(deriv_info$FUN, args = margin_deriv_input[FUN_args]),
+        error = function(e) rep(0, n_obs)
+      )
       if(length(deriv_val)==n_obs) {
         deriv_val[!obs_response]=0
         deriv_val[!is.finite(deriv_val)]=0
@@ -3480,12 +3611,17 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
   }
 
   FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%margin_eval_cache$margin_p_args]
-  margin_p=.call_margin_family_cached(
+  margin_p <- .call_fast_count_family("p", margin_dist$family[1], margin_deriv_input)
+  if (is.null(margin_p)) {
+    margin_p=.call_margin_family_cached(
     margin_eval_cache$margin_pFUN,
     margin_deriv_input,
     FUN_args,
-    cacheable = discrete_margin
-  )
+    cacheable = discrete_margin,
+    cache_env = margin_eval_cache$family_call_cache,
+    cache_prefix = paste0(margin_dist$family[1], ":p:upper")
+    )
+  }
   margin_p[!obs_response]=NA
   margin_p[!is.finite(margin_p)]=NA
 
@@ -3493,26 +3629,47 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
   likelihood_type <- "continuous_density"
   if (discrete_margin) {
     margin_deriv_input_lower <- margin_deriv_input
-    margin_deriv_input_lower[["q"]] <- response - 1
-    margin_deriv_input_lower[["x"]] <- response - 1
-    margin_p_lower <- .call_margin_family_cached(
-      margin_eval_cache$margin_pFUN,
-      margin_deriv_input_lower,
-      FUN_args,
-      cacheable = TRUE
-    )
+    lower_response <- response - 1
+    margin_deriv_input_lower[["q"]] <- lower_response
+    margin_deriv_input_lower[["x"]] <- lower_response
+    margin_p_lower <- rep(NA_real_, length(response))
+    negative_lower <- obs_response & is.finite(lower_response) & lower_response < 0
+    margin_p_lower[negative_lower] <- 0
+    valid_lower <- obs_response & is.finite(lower_response) & lower_response >= 0
+    if (any(valid_lower)) {
+      lower_call_args <- lapply(margin_deriv_input_lower, function(value) {
+        if (length(value) == n_obs) value[valid_lower] else value
+      })
+      lower_eval <- .call_fast_count_family("p", margin_dist$family[1], lower_call_args)
+      if (is.null(lower_eval)) {
+        lower_eval <- .call_margin_family_cached(
+          margin_eval_cache$margin_pFUN,
+          lower_call_args,
+          names(lower_call_args)[names(lower_call_args) %in% margin_eval_cache$margin_p_args],
+          cacheable = TRUE,
+          cache_env = margin_eval_cache$family_call_cache,
+          cache_prefix = paste0(margin_dist$family[1], ":p:lower")
+        )
+      }
+      margin_p_lower[valid_lower] <- lower_eval
+    }
     margin_p_lower[!obs_response] <- NA
     margin_p_lower[!is.finite(margin_p_lower)] <- NA
     likelihood_type <- "discrete_rectangle"
   }
 
   FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%margin_eval_cache$margin_d_args]
-  margin_d=.call_margin_family_cached(
+  margin_d <- .call_fast_count_family("d", margin_dist$family[1], margin_deriv_input)
+  if (is.null(margin_d)) {
+    margin_d=.call_margin_family_cached(
     margin_eval_cache$margin_dFUN,
     margin_deriv_input,
     FUN_args,
-    cacheable = discrete_margin
-  )
+    cacheable = discrete_margin,
+    cache_env = margin_eval_cache$family_call_cache,
+    cache_prefix = paste0(margin_dist$family[1], ":d")
+    )
+  }
   margin_d[!obs_response]=NA
   margin_d[!is.finite(margin_d) | margin_d<=0]=NA
 
@@ -7943,6 +8100,8 @@ eta_to_par=function(eta,margin_dist,copula_dist) {
 #' @noRd
 get_starting_values = function(copula_dist,margin_dist,dataset,eta_transform=FALSE) {
 
+  margin_dist <- .normalise_margin_dist_links(margin_dist)
+
   margin_names=unique(dataset$time)
   num_margins=length(margin_names)
   finite_response <- dataset$response[is.finite(dataset$response)]
@@ -8000,12 +8159,42 @@ get_starting_values = function(copula_dist,margin_dist,dataset,eta_transform=FAL
   } else {
     cat("Fitting initial GAMLSS model for margin to obtain starting values...\n")
     # Deliberately low-iteration startup fit; silence expected convergence warnings.
-    start_fit=suppressWarnings(suppressMessages(
-      gamlss(dataset$response~1, family=margin_dist)
-    ))
-    margin_par=unlist(coefAll(start_fit))
+    start_fit <- tryCatch({
+      fit <- NULL
+      invisible(utils::capture.output({
+        fit <- suppressWarnings(suppressMessages(
+          gamlss(
+            dataset$response ~ 1,
+            family = margin_dist,
+            control = gamlss::gamlss.control(n.cyc = 5, trace = FALSE)
+          )
+        ))
+      }))
+      fit
+    }, error = function(e) NULL)
+    margin_par <- vapply(names(margin_dist$parameters), function(parameter) {
+      cf <- tryCatch(stats::coef(start_fit, what = parameter), error = function(e) numeric(0))
+      if (length(cf) > 0L && is.finite(cf[[1L]])) {
+        return(as.numeric(cf[[1L]]))
+      }
+      qfun <- get(paste0("q", margin_dist$family[1]), envir = asNamespace("gamlss.dist"), inherits = FALSE)
+      value <- tryCatch(eval(formals(qfun)[[parameter]], envir = baseenv()), error = function(e) NA_real_)
+      if (!is.numeric(value) || length(value) != 1L || !is.finite(value)) {
+        value <- switch(parameter,
+          mu = if (.is_discrete_margin(margin_dist)) 3 else mean(finite_response),
+          sigma = stats::sd(finite_response) / max(abs(mean(finite_response)), 1e-8),
+          nu = 0.5,
+          tau = 2,
+          0
+        )
+      }
+      linkfun <- margin_dist[[paste0(parameter, ".linkfun")]]
+      if (is.null(linkfun)) {
+        return(as.numeric(value))
+      }
+      as.numeric(linkfun(value))[1L]
+    }, numeric(1))
     names(margin_par)=names(margin_dist$parameters)
-    #margin_par=eta_to_par(margin_par_temp,margin_dist,get_copula_dist(copula_dist))
     margin_par_already_eta <- TRUE
   }
 
@@ -8051,6 +8240,8 @@ get_starting_values = function(copula_dist,margin_dist,dataset,eta_transform=FAL
 #' @keywords internal
 #' @noRd
 par_to_eta = function(par,copula_dist,margin_dist) {
+
+  margin_dist <- .normalise_margin_dist_links(margin_dist)
 
   margin_par=par[names(margin_dist$parameters)]
   names(margin_par)=names(margin_dist$parameters)
@@ -8171,11 +8362,52 @@ calc_F_x <- function(eta_inv,mm,margin_dist,response) {
       margin_deriv_input[[par_name]]=eta_inv[[par_name]]
     }
   }
+  fixed_unlinked_values <- attr(margin_dist, "fixed_unlinked_values")
+  if (length(fixed_unlinked_values) > 0L) {
+    for (par_name in names(fixed_unlinked_values)) {
+      value <- fixed_unlinked_values[[par_name]]
+      if (is.numeric(value) && length(value) == 1L && is.finite(value)) {
+        margin_deriv_input[[par_name]] <- rep(value, length(response))
+      }
+    }
+  }
 
-  margin_pFUN=eval(parse( text=paste("p",margin_dist$family[1],sep="") ))
+  negative_response <- is.finite(response) & response < 0
+  if (.is_discrete_margin(margin_dist) && any(negative_response)) {
+    margin_p <- rep(NA_real_, length(response))
+    margin_p[negative_response] <- 0
+    valid_response <- !negative_response
+    if (any(valid_response)) {
+      call_input <- lapply(margin_deriv_input, function(value) {
+        if (length(value) == length(response)) value[valid_response] else value
+      })
+      margin_pFUN <- get(
+        paste("p", margin_dist$family[1], sep = ""),
+        envir = asNamespace("gamlss.dist"),
+        mode = "function",
+        inherits = FALSE
+      )
+      FUN_args <- names(call_input)[names(call_input) %in% formalArgs(margin_pFUN)]
+      margin_p[valid_response] <- tryCatch(
+        do.call(margin_pFUN, args = call_input[FUN_args]),
+        error = function(e) rep(NA_real_, sum(valid_response))
+      )
+    }
+    return(margin_p)
+  }
+
+  margin_pFUN <- get(
+    paste("p", margin_dist$family[1], sep = ""),
+    envir = asNamespace("gamlss.dist"),
+    mode = "function",
+    inherits = FALSE
+  )
   FUN=margin_pFUN
   FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%formalArgs(FUN)]
-  margin_p=do.call(FUN,args=margin_deriv_input[FUN_args])
+  margin_p <- tryCatch(
+    do.call(FUN, args = margin_deriv_input[FUN_args]),
+    error = function(e) rep(NA_real_, length(response))
+  )
 
   return(margin_p)
 }
