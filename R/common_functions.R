@@ -1,4 +1,10 @@
 #' @importFrom rlang .data
+#' @importFrom graphics abline contour hist par plot.new
+#' @importFrom methods formalArgs
+#' @importFrom stats aggregate as.formula ave complete.cases contr.treatment contrasts "contrasts<-" cor optim qnorm rbeta rgamma rnorm runif setNames var
+#' @importFrom utils capture.output head
+#' @importFrom gamlss gamlss coefAll
+#' @importFrom gamlss.dist NO qZISICHEL
 ###########NEW SIMPLIFIED FUNCTIONS
 
 # Null-coalescing operator (base R does not provide one)
@@ -7,7 +13,11 @@
 utils::globalVariables(c(
   "u1", "u2", "quartile", "tau_emp", "tau_fit", "density", "x_id", "time_pair", "split_group",
   "time", "z", "z_prev", "z_curr", "empirical", "fitted", "threshold", "tail", "probability",
-  "emp_copula", "fit_copula", "lag", "cor_z", "n_pairs", "source", "cut_group"
+  "emp_copula", "fit_copula", "lag", "cor_z", "n_pairs", "source", "cut_group",
+  "x", "y", "X1", "X2", "idx", "response", "time_plot", "person_plot", "group",
+  "density_emp", "density_fit", "density_diff", "theta_fit", "zeta_fit"
+  , "copula_dist", "dataset", "dlcopdpar", "eta", "margin_deriv_names",
+  "nd_cross_m", "nd_impact", "rand_mvt", "row_id1"
 ))
 
 .solve_linear_system <- function(A, b = NULL) {
@@ -60,7 +70,73 @@ utils::globalVariables(c(
   .copula_hfunc1(u2, u1, family = family, par = par, par2 = par2)
 }
 
+.copula_gaussian_cdf_cached <- function(u1, u2, par) {
+  vals <- .copula_recycle(as.numeric(u1), as.numeric(u2), .copula_gaussian_rho(par))
+  u1 <- vals[[1]]
+  u2 <- vals[[2]]
+  rho <- vals[[3]]
+  out <- rep(NA_real_, length(u1))
+
+  finite <- is.finite(u1) & is.finite(u2) & is.finite(rho)
+  if (!any(finite)) {
+    return(out)
+  }
+
+  u1 <- pmin(pmax(u1, 0), 1)
+  u2 <- pmin(pmax(u2, 0), 1)
+
+  zero <- finite & (u1 <= 0 | u2 <= 0)
+  out[zero] <- 0
+
+  one1 <- finite & !zero & u1 >= 1
+  out[one1] <- u2[one1]
+
+  one2 <- finite & !zero & !one1 & u2 >= 1
+  out[one2] <- u1[one2]
+
+  independent <- finite & !zero & !one1 & !one2 & abs(rho) <= 1e-12
+  out[independent] <- u1[independent] * u2[independent]
+
+  remaining <- finite & !zero & !one1 & !one2 & !independent
+  if (any(remaining)) {
+    .copula_require_vinecopula("the Gaussian copula CDF backend")
+    key <- paste(signif(u1[remaining], 15), signif(u2[remaining], 15), signif(rho[remaining], 15), sep = "\r")
+    unique_key <- !duplicated(key)
+    unique_vals <- VineCopula::BiCopCDF(
+      u1[remaining][unique_key],
+      u2[remaining][unique_key],
+      family = 1,
+      par = rho[remaining][unique_key]
+    )
+    out[remaining] <- unique_vals[match(key, key[unique_key])]
+  }
+
+  pmin(pmax(as.numeric(out), 0), 1)
+}
+
+.copula_gaussian_rectangle_prob_cached <- function(u1, u2, l1, l2, par) {
+  vals <- .copula_recycle(as.numeric(u1), as.numeric(u2), as.numeric(l1), as.numeric(l2), .copula_gaussian_rho(par))
+  n <- length(vals[[1]])
+  if (n == 0L) {
+    return(numeric(0))
+  }
+  cdf <- .copula_gaussian_cdf_cached(
+    c(vals[[1]], vals[[3]], vals[[1]], vals[[3]]),
+    c(vals[[2]], vals[[2]], vals[[4]], vals[[4]]),
+    rep(vals[[5]], 4L)
+  )
+  rect <- cdf[seq_len(n)] -
+    cdf[n + seq_len(n)] -
+    cdf[2L * n + seq_len(n)] +
+    cdf[3L * n + seq_len(n)]
+  pmax(as.numeric(rect), 1e-300)
+}
+
 .copula_rectangle_prob <- function(u1, u2, l1, l2, family, par, par2 = 0) {
+  family <- .copula_family_code(family)
+  if (identical(family, "N")) {
+    return(.copula_gaussian_rectangle_prob_cached(u1, u2, l1, l2, par))
+  }
   rect <- .copula_cdf(u1, u2, family = family, par = par, par2 = par2) -
     .copula_cdf(l1, u2, family = family, par = par, par2 = par2) -
     .copula_cdf(u1, l2, family = family, par = par, par2 = par2) +
@@ -516,9 +592,13 @@ utils::globalVariables(c(
 #' use dlcopdpar=FALSE to fit separately optimised models for the margin and
 #' copula likelihoods which can be quicker with a slight loss to overall fit.
 #'
+#' @param dataset Long-format data frame containing the response, subject, time,
+#'   and covariate columns.
 #' @param margin_dist Marginal distribution specified as a gamlss family object,
 #' e.g. GA(), NO(), PO(), NBI(), etc.
 #' @param copula_dist Copula distribution code, one of "N", "C", "F", "G", "J", or "t".
+#' @param time_var Name of the time variable in `dataset`.
+#' @param subject_var Name of the subject identifier in `dataset`.
 #' @param mu.formula Formula for the mean parameter of the marginal distribution
 #' @param sigma.formula Formula for the sigma parameter of the marginal distribution
 #' @param nu.formula Formula for the nu parameter of the marginal distribution
@@ -605,6 +685,9 @@ utils::globalVariables(c(
 #' @param vcov_numderiv Logical; passed to `vcov.gamlss.longitudinal()` when
 #' `compute_vcov = TRUE`.
 #' @param use_Rcpp Use Rcpp for matrix operations
+#' @param lambda_start Optional starting value for smooth-term penalties.
+#' @param lambda_penalty_K Penalty strength used when updating smooth-term
+#'   smoothing parameters.
 #' @param rs_update_lambda Logical; for `method = "RS"` only. If `TRUE`,
 #' update smoothing parameters by the RS GAIC step; if `FALSE`, keep
 #' `lambda_start` fixed.
@@ -2834,7 +2917,8 @@ normalize_lag_time <- function(time) {
 #' @return Returns a list mm with items mm$x and mm$s for fixed and smooth terms respectively,
 #' with each of those lists being lists of each parameter and their respective model matrices
 #'
-#' @export
+#' @keywords internal
+#' @noRd
 create_model_matrices<-function(
     mu.formula = ("response ~ 1"),
     sigma.formula = ("1"),
@@ -2904,17 +2988,6 @@ create_model_matrices<-function(
     obs_resp <- dataset_mm$response[!is.na(dataset_mm$response)]
     fill_val <- if (length(obs_resp) > 0) mean(obs_resp) else 0
     dataset_mm$response[is.na(dataset_mm$response)] <- fill_val
-  }
-
-  run_gamlss2 <- function(...) {
-    if (isTRUE(quiet_gamlss2)) {
-      fit <- NULL
-      invisible(utils::capture.output({
-        fit <- suppressMessages(suppressWarnings(gamlss2::gamlss2(...)))
-      }, type = "output"))
-      return(fit)
-    }
-    gamlss2::gamlss2(...)
   }
 
   normalize_time_covariate_colnames <- function(nms) {
@@ -3111,7 +3184,8 @@ create_model_matrices<-function(
 #' \item{eta_inv}{A list of inverse link function values for each parameter.}
 #' \item{eta_dr}{A list of derivatives of the link function for each parameter.}
 #'
-#' @export
+#' @keywords internal
+#' @noRd
 calc_eta=function(par_cov,mm,margin_dist,copula_link,par_s=NA) {
   eta=list()
   #par_s=list(); par_s[["mu"]]=list(); par_s[["sigma"]]=list(); par_s[["nu"]]=list(); par_s[["tau"]]=list()
@@ -3215,7 +3289,8 @@ calc_eta=function(par_cov,mm,margin_dist,copula_link,par_s=NA) {
 #' \item{margin_deriv}{A list of marginal derivatives.}
 #' \item{order_copula}{A matrix indicating the order of margins and subjects for copula calculations.}
 #'
-#' @export
+#' @keywords internal
+#' @noRd
 build_copula_pair_cache <- function(response, response_margin, response_subject) {
   margin_names=sort(unique(response_margin))
   num_margins=length(margin_names)
@@ -3317,6 +3392,48 @@ build_copula_pair_cache <- function(response, response_margin, response_subject)
   )
 }
 
+.call_margin_family_cached <- function(FUN, args, FUN_args, cacheable = FALSE) {
+  call_args <- args[FUN_args]
+  if (!isTRUE(cacheable) || length(call_args) == 0L) {
+    return(do.call(FUN, args = call_args))
+  }
+
+  arg_lengths <- vapply(call_args, length, integer(1))
+  n <- max(arg_lengths)
+  if (n <= 1L) {
+    return(do.call(FUN, args = call_args))
+  }
+
+  if (any(!arg_lengths %in% c(1L, n))) {
+    return(do.call(FUN, args = call_args))
+  }
+  if (!all(vapply(call_args, function(x) is.atomic(x) && !is.character(x), logical(1)))) {
+    return(do.call(FUN, args = call_args))
+  }
+
+  expanded <- lapply(call_args, rep, length.out = n)
+  key_parts <- lapply(expanded, function(x) {
+    if (is.numeric(x) || is.integer(x)) {
+      format(signif(as.numeric(x), 15), scientific = FALSE, trim = TRUE)
+    } else {
+      as.character(x)
+    }
+  })
+  key <- do.call(paste, c(key_parts, sep = "\r"))
+  unique_idx <- !duplicated(key)
+  if (sum(unique_idx) > 0.8 * n) {
+    return(do.call(FUN, args = call_args))
+  }
+
+  unique_args <- lapply(expanded, `[`, unique_idx)
+  names(unique_args) <- names(call_args)
+  unique_val <- do.call(FUN, args = unique_args)
+  if (length(unique_val) != sum(unique_idx)) {
+    return(do.call(FUN, args = call_args))
+  }
+  unique_val[match(key, key[unique_idx])]
+}
+
 #' @param pair_cache Optional cache built by build_copula_pair_cache to reuse pair indexing across repeated likelihood calls.
 calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=FALSE,response,response_margin,response_subject,penalize_smooth=FALSE,par_s=NA,pair_cache=NULL,margin_eval_cache=NULL,calc_margin_deriv=TRUE) {
   #Setup input matrix of response and parameters
@@ -3331,6 +3448,7 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
   margin_names=pair_cache$margin_names
   num_margins=pair_cache$num_margins
   n_obs=pair_cache$n_obs
+  discrete_margin <- .is_discrete_margin(margin_dist)
 
   obs_response=!is.na(response)
 
@@ -3362,24 +3480,39 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
   }
 
   FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%margin_eval_cache$margin_p_args]
-  margin_p=do.call(margin_eval_cache$margin_pFUN,args=margin_deriv_input[FUN_args])
+  margin_p=.call_margin_family_cached(
+    margin_eval_cache$margin_pFUN,
+    margin_deriv_input,
+    FUN_args,
+    cacheable = discrete_margin
+  )
   margin_p[!obs_response]=NA
   margin_p[!is.finite(margin_p)]=NA
 
   margin_p_lower <- NULL
   likelihood_type <- "continuous_density"
-  if (.is_discrete_margin(margin_dist)) {
+  if (discrete_margin) {
     margin_deriv_input_lower <- margin_deriv_input
     margin_deriv_input_lower[["q"]] <- response - 1
     margin_deriv_input_lower[["x"]] <- response - 1
-    margin_p_lower <- do.call(margin_eval_cache$margin_pFUN, args = margin_deriv_input_lower[FUN_args])
+    margin_p_lower <- .call_margin_family_cached(
+      margin_eval_cache$margin_pFUN,
+      margin_deriv_input_lower,
+      FUN_args,
+      cacheable = TRUE
+    )
     margin_p_lower[!obs_response] <- NA
     margin_p_lower[!is.finite(margin_p_lower)] <- NA
     likelihood_type <- "discrete_rectangle"
   }
 
   FUN_args=names(margin_deriv_input)[names(margin_deriv_input)%in%margin_eval_cache$margin_d_args]
-  margin_d=do.call(margin_eval_cache$margin_dFUN,args=margin_deriv_input[FUN_args])
+  margin_d=.call_margin_family_cached(
+    margin_eval_cache$margin_dFUN,
+    margin_deriv_input,
+    FUN_args,
+    cacheable = discrete_margin
+  )
   margin_d[!obs_response]=NA
   margin_d[!is.finite(margin_d) | margin_d<=0]=NA
 
@@ -3580,9 +3713,8 @@ calc_likelihood_minimal <- function(eta_inv,mm,margin_dist,copula_dist,calc_d2=F
   base_lik
 }
 
-#'
-#'
-#' @export
+#' @keywords internal
+#' @noRd
 score_function_v2 <- function(eta,dldpar,d2ldpar,dpardeta,response=NA,phi=1,step_size=1,verbose=FALSE,crit_wk=0.0000001) {
 
   u_k=dldeta = dldpar * dpardeta
@@ -4344,25 +4476,46 @@ calc_true_SE_numderiv_only_covariates = function(object, par, mm, margin_dist,re
   return(nd2)
 }
 
-#' This function returns the log likelihood for a fitted gamlss.longitudinal object
+#' Log-likelihood for a fitted longitudinal GAMLSS-copula model
+#'
+#' @param object A fitted `gamlss.longitudinal` object.
+#' @param ... Additional arguments, currently unused.
+#'
+#' @return Named log-likelihood components.
 #' @export
 logLik.gamlss.longitudinal=function(object, ...) {
   return(object$calc_lik_out$log_lik)
 }
 
-# This function returns the coefficients for a fitted gamlss.longitudinal object
+#' Coefficients for a fitted longitudinal GAMLSS-copula model
+#'
+#' @param object A fitted `gamlss.longitudinal` object.
+#' @param ... Additional arguments, currently unused.
+#'
+#' @return Named coefficient vector.
 #' @export
 coef.gamlss.longitudinal=function(object, ...) {
   return(object$par)
 }
 
-# This function returns the variance-covariance matrix for a given gamlss longitudinal object
+#' Variance-covariance matrix for a fitted longitudinal GAMLSS-copula model
+#'
+#' @param object A fitted `gamlss.longitudinal` object.
+#' @param par Optional parameter list for evaluating uncertainty away from the
+#'   fitted coefficients.
+#' @param sep_d2 Logical legacy argument retained for compatibility.
+#' @param numderiv Logical; use the numerical Hessian path.
 #' @param method Character; Hessian method to use. \code{"analytical"} (default)
 #'   uses the semi-analytical Hessian from \code{R/analytical_hessian.R}.
 #'   \code{"numderiv"} uses full finite-difference numerical second
 #'   derivatives as a slower reference path. The legacy
 #'   \code{numderiv} logical argument is still accepted and maps to
 #'   \code{method = "numderiv"} when \code{TRUE}.
+#' @param progress Logical; show progress bars for slow Hessian calculations.
+#' @param h Numeric finite-difference step used by the analytical Hessian helper.
+#' @param ... Additional arguments, currently unused.
+#'
+#' @return A list containing variance-covariance matrices and standard errors.
 #' @export
 vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
                                    method=c("analytical","numderiv","analytical_only"),
@@ -5492,6 +5645,7 @@ plot_smooth_terms = function(
 #' @param ci_level Confidence level for pointwise intervals.
 #' @param ncol Number of plot columns (defaults to 2 or fewer if needed).
 #' @param include_intercept Logical; include intercept columns in plots.
+#' @param plot_interactions Logical; include interaction columns in plots.
 #' @param ci_col Color for confidence bands.
 #' @param fit_col Color for fitted fixed-term line.
 #' @param ci_lty Line type for confidence bands.
@@ -6109,41 +6263,30 @@ plot_fixed_terms = function(
   invisible(out)
 }
 
-#' Plot term effects for a fitted `gamlss.longitudinal` object
-#'
-#' This is the original term-wise plotting behavior (smooth and fixed effects)
-#' that was previously exposed through `plot.gamlss.longitudinal()`.
+#' Plot term effects for a fitted longitudinal model
 #'
 #' @param x A fitted `gamlss.longitudinal` object.
-#' @param y Unused; included for S3 generic compatibility.
-#' @param data Optional data frame containing original covariates used to infer
-#' smooth-term x-axis variables. If omitted, smooth terms may fall back to index.
-#' @param ci_level Confidence level for pointwise intervals (default: 0.95).
-#' @param ncol Number of columns in each plot frame (default: 2).
-#' @param include_intercept Logical; include intercept terms in fixed plots.
-#' @param ci_col Color for confidence bands (default: "red").
-#' @param fit_col Color for fitted lines (default: "black").
-#' @param show_legend Logical; if TRUE, draw a legend in each panel.
-#' @param smooth_even_grid Logical; if TRUE, draw smooth terms on an evenly
-#' spaced x-grid.
-#' @param smooth_grid_n Number of x-grid points for smooth-term plots when
-#' `smooth_even_grid = TRUE`.
-#' @param paginate Logical; if `TRUE`, render one chart at a time and prompt
-#' for Enter between plots (interactive sessions). If `FALSE` (default), render
-#' all plots in a multi-panel dashboard.
-#' @param ... Additional arguments (currently unused).
+#' @param y Unused; included for compatibility with older calls.
+#' @param data Optional data frame used to recover factor levels, transformed
+#'   covariate scales, and interaction plotting metadata.
+#' @param ci_level Confidence level for pointwise intervals.
+#' @param ncol Number of columns in the combined dashboard.
+#' @param include_intercept Logical; include intercept terms in fixed-effect
+#'   plots.
+#' @param plot_interactions Logical; include fixed-effect interaction terms.
+#' @param ci_col,fit_col Colours for interval and fitted-term layers.
+#' @param show_legend Logical; include plot captions/legends where available.
+#' @param smooth_even_grid Logical; draw smooth terms on an evenly spaced grid.
+#' @param smooth_grid_n Number of grid points for smooth-term plots.
+#' @param paginate Logical; print one chart at a time for large dashboards.
+#' @param ... Additional arguments reserved for future use.
 #'
-#' @return Invisibly returns a list with `smooth_terms` and `fixed_terms`.
+#' @return Invisibly returns a list with smooth-term, fixed-term, and dashboard
+#'   plot objects.
 #' @export
-plot.terms = function(x, ...) {
-  UseMethod("plot.terms")
-}
-
-#' @method plot.terms gamlss.longitudinal
-#' @export
-plot.terms.gamlss.longitudinal = function(
+plot_terms <- function(
   x,
-  y,
+  y = NULL,
   data = NULL,
   ci_level = 0.95,
   ncol = 4,
@@ -6157,6 +6300,52 @@ plot.terms.gamlss.longitudinal = function(
   paginate = FALSE,
   ...
 ) {
+  .plot_terms_gamlss_longitudinal(
+    x = x,
+    y = y,
+    data = data,
+    ci_level = ci_level,
+    ncol = ncol,
+    include_intercept = include_intercept,
+    plot_interactions = plot_interactions,
+    ci_col = ci_col,
+    fit_col = fit_col,
+    show_legend = show_legend,
+    smooth_even_grid = smooth_even_grid,
+    smooth_grid_n = smooth_grid_n,
+    paginate = paginate,
+    ...
+  )
+}
+
+#' @rdname plot_terms
+#' @usage NULL
+#' @rawNamespace export(plot.terms)
+plot.terms <- function(x, ...) {
+  .Deprecated("plot_terms", package = "gamlss.longitudinal")
+  plot_terms(x, ...)
+}
+
+.plot_terms_gamlss_longitudinal <- function(
+  x,
+  y = NULL,
+  data = NULL,
+  ci_level = 0.95,
+  ncol = 4,
+  include_intercept = FALSE,
+  plot_interactions = FALSE,
+  ci_col = "red",
+  fit_col = "black",
+  show_legend = TRUE,
+  smooth_even_grid = TRUE,
+  smooth_grid_n = 200,
+  paginate = FALSE,
+  ...
+) {
+  if(!inherits(x, "gamlss.longitudinal")) {
+    stop("'x' must be a fitted 'gamlss.longitudinal' object.")
+  }
+
   cat("\n=== Plotting term effects for gamlss.longitudinal object ===\n")
 
   count_plot_terms = function(obj) {
@@ -7198,6 +7387,49 @@ plot.copula_contour_compare <- function(x, lags = 1, grid_n = 45, max_pairs_over
 #'
 #' @return Invisibly returns a list with plot objects and summaries.
 #' @export
+plot_copula_diagnostics <- function(
+  x,
+  lags = 1,
+  grid_n = 35,
+  max_pairs_overlay = 300,
+  transform = "normal",
+  plot1_style = "bins",
+  contour_bins = 8,
+  time_stratified = FALSE,
+  by = NULL,
+  data = NULL,
+  tau_ylim = NULL,
+  plot2_cuts = 10,
+  tail_thresholds = c(0.05, 0.10, 0.20),
+  residual_lags = 1:3,
+  dashboard_ncol = 2,
+  plot = TRUE,
+  ...
+) {
+  plot.copula(
+    x = x,
+    lags = lags,
+    grid_n = grid_n,
+    max_pairs_overlay = max_pairs_overlay,
+    transform = transform,
+    plot1_style = plot1_style,
+    contour_bins = contour_bins,
+    time_stratified = time_stratified,
+    by = by,
+    data = data,
+    tau_ylim = tau_ylim,
+    plot2_cuts = plot2_cuts,
+    tail_thresholds = tail_thresholds,
+    residual_lags = residual_lags,
+    dashboard_ncol = dashboard_ncol,
+    plot = plot,
+    ...
+  )
+}
+
+#' @rdname plot_copula_diagnostics
+#' @method plot copula
+#' @export
 plot.copula <- function(x, lags = 1, grid_n = 35, max_pairs_overlay = 300, transform = "normal", plot1_style = "bins", contour_bins = 8, time_stratified = FALSE, by = NULL, data = NULL, tau_ylim = NULL, plot2_cuts = 10, tail_thresholds = c(0.05, 0.10, 0.20), residual_lags = 1:3, dashboard_ncol = 2, plot = TRUE, ...) {
   if (!inherits(x, "gamlss.longitudinal")) {
     stop("'x' must be a fitted 'gamlss.longitudinal' object.")
@@ -7650,7 +7882,8 @@ plot.copula <- function(x, lags = 1, grid_n = 35, max_pairs_overlay = 300, trans
   ))
 }
 
-#' @export
+#' @keywords internal
+#' @noRd
 eta_to_par=function(eta,margin_dist,copula_dist) {
   par=eta*0
   for (par_name in names(eta)) {
@@ -7706,7 +7939,8 @@ eta_to_par=function(eta,margin_dist,copula_dist) {
   fallback_zeta
 }
 
-#' @export
+#' @keywords internal
+#' @noRd
 get_starting_values = function(copula_dist,margin_dist,dataset,eta_transform=FALSE) {
 
   margin_names=unique(dataset$time)
@@ -7814,7 +8048,8 @@ get_starting_values = function(copula_dist,margin_dist,dataset,eta_transform=FAL
 
   return(return_list)
 }
-#' @export
+#' @keywords internal
+#' @noRd
 par_to_eta = function(par,copula_dist,margin_dist) {
 
   margin_par=par[names(margin_dist$parameters)]
@@ -7841,7 +8076,8 @@ par_to_eta = function(par,copula_dist,margin_dist) {
   return(return_list)
 }
 
-#' @export
+#' @keywords internal
+#' @noRd
 fit_jointreg_nocov <- function(input_par,margin_dist,copula_dist,data
                                , use_dlcopdpar=TRUE, verbose=TRUE, plot_results=TRUE
                                , crit_lik_change=0.05, start_step_size=.5, step_adjustment=.9, max_steps=5
@@ -7944,7 +8180,8 @@ calc_F_x <- function(eta_inv,mm,margin_dist,response) {
   return(margin_p)
 }
 
-#' @export
+#' @keywords internal
+#' @noRd
 get_copula_dist=function(copula_dist) {
 
   copula_dist <- .copula_family_code(copula_dist)
@@ -8133,6 +8370,17 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
     dashboard = dashboard
   ))
 }
+#' Plot marginal and pairwise distribution diagnostics
+#'
+#' @param dataset Long-format data frame with `subject`, `time`, and `response`
+#'   columns.
+#' @param dist A `gamlss.dist` family object used for diagonal marginal labels.
+#' @param offdiag_scale Character; show off-diagonal panels on response or
+#'   pseudo-observation scale.
+#' @param show_cor_stats Logical; include Pearson and Kendall correlations in
+#'   off-diagonal panel subtitles.
+#'
+#' @return A `ggpubr` arranged plot object.
 #' @export
 plotDist <- function (dataset,dist,offdiag_scale=c("response","pseudo"),show_cor_stats=TRUE) {
 
@@ -8259,7 +8507,8 @@ create_longitudinal_dataset <- function(response,covariates,labels=NA) {
   return(dataset)
 }
 
-#' @export
+#' @keywords internal
+#' @noRd
 loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, margin_dist,copula.link=NA,par.copula,par.margin,covariates_input=NA) {
 
   if (simOption==1) {
@@ -8910,7 +9159,8 @@ bvt_norm_true_SE_B0_Bt <- function(sigma_x,sigma_y,rho,n,d){
 ########## ARCHIVE ###########
 
 #Given a parameter vector starting values par = (mu,sigma,nu,tau,theta,zeta), return best fit parameters
-#' @export
+#' @keywords internal
+#' @noRd
 optim_outer <- function(par,dataset,margin_dist,copula_dist,
                         step_size=0.1,verbose=TRUE,use_dlcopdpar=TRUE) {
 
