@@ -4713,6 +4713,26 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
   eta_out=calc_eta(par_cov,mm,margin_dist,copula_link,par_s=par_s)
   eta_inv=eta_out$eta_inv; eta_dr=eta_out$eta_dr; eta=eta_out$eta; eta_dr=eta_out$eta_dr
 
+  if (identical(method, "analytical") &&
+      identical(as.character(margin_dist$family[1]), "GG") &&
+      "nu" %in% names(eta_inv)) {
+    nu_abs_min <- suppressWarnings(min(abs(as.numeric(eta_inv$nu[is.finite(eta_inv$nu)])), na.rm = TRUE))
+    if (is.finite(nu_abs_min) && nu_abs_min < 0.06) {
+      warning(
+        sprintf(
+          paste(
+            "Analytical Hessian for GG may be numerically unstable because fitted",
+            "nu is close to 0 (min |nu| = %.4g); falling back to numerical Hessian."
+          ),
+          nu_abs_min
+        ),
+        call. = FALSE
+      )
+      method <- "numderiv"
+      method_used <- "numderiv"
+    }
+  }
+
   #if(!all(is.na(par))) {response=eta_inv[["mu"]]}
   calc_lik_out=calc_likelihood_minimal(eta_inv,mm=mm$x,margin_dist,copula_dist,calc_d2=TRUE
             ,response=response,response_margin=response_margin,response_subject = response_subject)
