@@ -24,24 +24,24 @@ simulate_longitudinal_dataset(
 
 \item{times}{Vector of observed time values.}
 
-\item{margin_dist}{A \code{gamlss.dist} family object, for example \code{NO()} or
-\code{GA(mu.link = "log", sigma.link = "log")}.}
+\item{margin_dist}{A `gamlss.dist` family object, for example `NO()` or
+`GA(mu.link = "log", sigma.link = "log")`.}
 
-\item{copula_dist}{Copula family code. Supported codes are \code{"N"}, \code{"C"},
-\code{"F"}, \code{"G"}, \code{"J"}, and \code{"t"}.}
+\item{copula_dist}{Copula family code. Supported codes are `"N"`, `"C"`,
+`"F"`, `"G"`, `"J"`, and `"t"`.}
 
 \item{margin_params}{Named list of marginal distribution parameter
 specifications. Names should match the quantile function arguments, such
-as \code{mu}, \code{sigma}, \code{nu}, and \code{tau}.}
+as `mu`, `sigma`, `nu`, and `tau`.}
 
 \item{copula_params}{Named list of copula parameter specifications. Use
-\code{theta} or \code{par} for the primary copula parameter, \code{tau} to specify
-Kendall's tau instead, and \code{zeta} or \code{par2} for the t-copula degrees of
+`theta` or `par` for the primary copula parameter, `tau` to specify
+Kendall's tau instead, and `zeta` or `par2` for the t-copula degrees of
 freedom.}
 
 \item{covariates}{Optional data frame or function returning covariates. A
-data frame may have either \code{n} rows for subject-level covariates or
-\code{n * length(times)} rows for long-format covariates. A function is called
+data frame may have either `n` rows for subject-level covariates or
+`n * length(times)` rows for long-format covariates. A function is called
 with the base long-format data.}
 
 \item{seed}{Optional random seed.}
@@ -49,7 +49,7 @@ with the base long-format data.}
 \item{subject_var, time_var, response_var}{Column names for the subject, time,
 and response variables.}
 
-\item{include_truth}{If \code{TRUE}, include simulated uniforms and true
+\item{include_truth}{If `TRUE`, include simulated uniforms and true
 parameter columns.}
 }
 \value{
