@@ -23,15 +23,15 @@ sim_smooth_u(x, amplitude = 1, location = 0.5)
 sim_smooth_wiggle(x, amplitude = 1)
 }
 \arguments{
-\item{x}{Numeric input, usually scaled to \code{[0, 1]}.}
+\item{x}{Numeric input, usually scaled to `[0, 1]`.}
 
 \item{slope}{Linear slope.}
 
-\item{center}{Logical; if \code{TRUE}, center \code{x} around 0.5 for the linear shape.}
+\item{center}{Logical; if `TRUE`, center `x` around 0.5 for the linear shape.}
 
 \item{amplitude}{Effect amplitude.}
 
-\item{period}{Period of the sinusoid in units of \code{x}.}
+\item{period}{Period of the sinusoid in units of `x`.}
 
 \item{phase}{Phase shift for the sinusoid.}
 
@@ -42,10 +42,10 @@ sim_smooth_wiggle(x, amplitude = 1)
 \item{steepness}{Steepness of the sigmoid transition.}
 }
 \value{
-Numeric vector of the same length as \code{x}.
+Numeric vector of the same length as `x`.
 }
 \description{
 These helpers are intended for readable simulation specifications. They work
-best with inputs already scaled to \code{[0, 1]}, for example by
-\code{\link[=sim_rescale01]{sim_rescale01()}}.
+best with inputs already scaled to `[0, 1]`, for example by
+[sim_rescale01()].
 }

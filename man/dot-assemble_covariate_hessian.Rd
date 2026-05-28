@@ -6,9 +6,11 @@
 \usage{
 .assemble_covariate_hessian(
   object,
+  margin_d1l,
   margin_d2l,
   copula_hess,
   eta_dr,
+  eta_d2,
   mm,
   pair_cache
 )
