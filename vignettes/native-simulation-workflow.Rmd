@@ -18,10 +18,6 @@ knitr::opts_chunk$set(
   error = FALSE
 )
 
-if (!requireNamespace("gamlss.longitudinal", quietly = TRUE) &&
-    requireNamespace("pkgload", quietly = TRUE)) {
-  pkgload::load_all("..", quiet = TRUE)
-}
 ```
 
 This vignette shows an end-to-end workflow for simulated longitudinal data with
@@ -244,13 +240,16 @@ plot_copula_screen_overlay <- function(pair_data, selected_fit, grid_n = 80, bin
   density_grid <- expand.grid(z1 = z_grid, z2 = z_grid)
   density_grid$u1 <- stats::pnorm(density_grid$z1)
   density_grid$u2 <- stats::pnorm(density_grid$z2)
-  density_grid$density <- gamlss.longitudinal:::.copula_pdf(
-    density_grid$u1,
-    density_grid$u2,
-    family = selected_fit$family[1],
-    par = selected_fit$par[1],
-    par2 = selected_fit$par2[1]
-  ) * stats::dnorm(density_grid$z1) * stats::dnorm(density_grid$z2)
+  rho <- sin(pi * selected_fit$tau[1] / 2)
+  density_grid$density <- exp(
+    stats::dnorm(density_grid$z1, log = TRUE) +
+      stats::dnorm(
+        density_grid$z2,
+        mean = rho * density_grid$z1,
+        sd = sqrt(1 - rho^2),
+        log = TRUE
+      )
+  )
 
   ggplot(pair_data, aes(x = z1, y = z2)) +
     geom_bin2d(aes(fill = after_stat(density)), bins = bins) +
@@ -264,7 +263,7 @@ plot_copula_screen_overlay <- function(pair_data, selected_fit, grid_n = 80, bin
     ) +
     scale_fill_viridis_c(name = "Empirical density") +
     labs(
-      title = paste("Selected copula:", selected_fit$family[1]),
+      title = paste("Selected copula:", selected_fit$family[1], "(Gaussian tau-matched reference overlay)"),
       x = expression(Phi^-1 * (U[t])),
       y = expression(Phi^-1 * (U[t + 1]))
     ) +
@@ -387,7 +386,7 @@ print_term_dashboard(truth_term_plots, ncol = 4)
 ```
 
 ```{r fitted-terms, fig.width = 8, fig.height = 5}
-plot.terms(fit, data = dat)
+plot_terms(fit, data = dat)
 ```
 
 ## Copula Diagnostics
@@ -397,7 +396,7 @@ normal-scale pair diagnostics, fitted copula overlays, tail summaries, and
 lagged residual checks.
 
 ```{r copula-diagnostics, fig.width = 8, fig.height = 8}
-plot.copula(fit, data = dat)
+plot_copula_diagnostics(fit, data = dat)
 ```
 
 ## Next Steps
