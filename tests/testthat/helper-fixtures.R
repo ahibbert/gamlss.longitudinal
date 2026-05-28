@@ -98,30 +98,36 @@ fit_fixture_model <- function(
   suppressPackageStartupMessages({
     library(gamlss)
     library(gamlss.dist)
-    library(VineCopula)
   })
 
-  gamlss.longitudinal::gamlss.longitudinal(
-    dataset = dataset,
-    margin_dist = gamlss.dist::NO(),
-    copula_dist = "N",
-    time_var = time_var,
-    subject_var = subject_var,
-    mu.formula = mu_formula,
-    sigma.formula = sigma_formula,
-    nu.formula = nu_formula,
-    tau.formula = tau_formula,
-    theta.formula = theta_formula,
-    zeta.formula = zeta_formula,
-    start_from = start_from,
-    include_dlcopdpar = include_dlcopdpar,
-    method = method,
-    use_backtracking = use_backtracking,
-    verbose = verbose,
-    max_outer_iter = max_outer_iter,
-    max_inner_iter = max_inner_iter,
-    outer_stop_crit = outer_stop_crit,
-    inner_stop_crit = inner_stop_crit
+  withCallingHandlers(
+    gamlss.longitudinal::gamlss.longitudinal(
+      dataset = dataset,
+      margin_dist = gamlss.dist::NO(),
+      copula_dist = "N",
+      time_var = time_var,
+      subject_var = subject_var,
+      mu.formula = mu_formula,
+      sigma.formula = sigma_formula,
+      nu.formula = nu_formula,
+      tau.formula = tau_formula,
+      theta.formula = theta_formula,
+      zeta.formula = zeta_formula,
+      start_from = start_from,
+      include_dlcopdpar = include_dlcopdpar,
+      method = method,
+      use_backtracking = use_backtracking,
+      verbose = verbose,
+      max_outer_iter = max_outer_iter,
+      max_inner_iter = max_inner_iter,
+      outer_stop_crit = outer_stop_crit,
+      inner_stop_crit = inner_stop_crit
+    ),
+    warning = function(w) {
+      if (grepl("Model stopped at max_outer_iter", conditionMessage(w), fixed = TRUE)) {
+        invokeRestart("muffleWarning")
+      }
+    }
   )
 }
 
