@@ -16,14 +16,14 @@ run_adoption_benchmarks(
 )
 }
 \arguments{
-\item{scenarios}{Scenario data frame from \code{\link[=adoption_benchmark_scenarios]{adoption_benchmark_scenarios()}} or
+\item{scenarios}{Scenario data frame from [adoption_benchmark_scenarios()] or
 character scenario names.}
 
 \item{reps}{Number of simulation replicates per scenario.}
 
 \item{methods}{Optional method vector overriding scenario defaults.}
 
-\item{metrics}{Optional metrics passed to \code{\link[=summarise_benchmark_results]{summarise_benchmark_results()}}.}
+\item{metrics}{Optional metrics passed to [summarise_benchmark_results()].}
 
 \item{seed}{Base random seed.}
 
@@ -31,29 +31,17 @@ character scenario names.}
 
 \item{output_dir}{Directory for optional outputs.}
 
-\item{...}{Additional arguments passed to \code{\link[=run_coverage_simulations]{run_coverage_simulations()}}, such
+\item{...}{Additional arguments passed to [run_coverage_simulations()], such
 as iteration limits or elapsed-time limits.}
 }
 \value{
-An object of class \code{gamlss_longitudinal_adoption_benchmark} with
-\code{results}, \code{summary}, and \code{scenarios} components.
+An object of class `gamlss_longitudinal_adoption_benchmark` with
+  `results`, `summary`, and `scenarios` components.
 }
 \description{
-\code{run_adoption_benchmarks()} executes the named scenarios from
-\code{\link[=adoption_benchmark_scenarios]{adoption_benchmark_scenarios()}} through \code{\link[=run_coverage_simulations]{run_coverage_simulations()}} and
-attaches a \code{\link[=summarise_benchmark_results]{summarise_benchmark_results()}} win/tie/loss summary. It is meant
+`run_adoption_benchmarks()` executes the named scenarios from
+[adoption_benchmark_scenarios()] through [run_coverage_simulations()] and
+attaches a [summarise_benchmark_results()] win/tie/loss summary. It is meant
 for opt-in benchmark runs, vignettes, and simulation reports rather than CRAN
 tests.
-}
-\examples{
-\dontrun{
-bench <- run_adoption_benchmarks(
-  scenarios = c("gaussian_heteroskedastic", "missing_visits"),
-  reps = 25,
-  methods = c("rs_separate", "gee", "glmm", "gam"),
-  write_results = TRUE
-)
-
-bench$summary$summary
-}
 }

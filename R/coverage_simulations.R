@@ -7,6 +7,18 @@
 #' @keywords internal
 #' @noRd
 .coverage_supported_methods <- function() {
+  c("gamlss", "gamlss2", "rs_separate", "rs_joint", "cg", "gee", "glmm", "gam", "glmmTMB")
+}
+
+#' @keywords internal
+#' @noRd
+.coverage_supported_designs <- function() {
+  c("intercept", "covariate", "scale", "time_dependence", "smooth")
+}
+
+#' @keywords internal
+#' @noRd
+.coverage_default_methods <- function() {
   c("gamlss", "rs_separate", "rs_joint", "cg")
 }
 
@@ -135,7 +147,7 @@
 .coverage_make_case_grid <- function(
   families = NULL,
   copulas = .coverage_supported_copulas(),
-  methods = .coverage_supported_methods(),
+  methods = .coverage_default_methods(),
   designs = "intercept",
   include_mixed = FALSE
 ) {
@@ -148,6 +160,14 @@
   if (nrow(unsupported) > 0L) {
     bad <- ifelse(is.na(unsupported$family), families[is.na(match(families, catalog$family))], unsupported$family)
     stop("Unsupported coverage family/families: ", paste(bad, collapse = ", "), call. = FALSE)
+  }
+  bad_methods <- setdiff(methods, .coverage_supported_methods())
+  if (length(bad_methods) > 0L) {
+    stop("Unsupported coverage method(s): ", paste(bad_methods, collapse = ", "), call. = FALSE)
+  }
+  bad_designs <- setdiff(designs, .coverage_supported_designs())
+  if (length(bad_designs) > 0L) {
+    stop("Unsupported coverage design(s): ", paste(bad_designs, collapse = ", "), call. = FALSE)
   }
   grid <- expand.grid(
     family = families,
@@ -219,10 +239,73 @@
 
 #' @keywords internal
 #' @noRd
+.coverage_simulation_u_bounds <- function(family) {
+  fragile <- c(
+    "GT", "SEP", "SEP1", "SEP2", "SEP3", "SEP4",
+    "SHASH", "SST", "ST1", "ST2", "ST3", "ST4", "ST5",
+    "TF", "TF2"
+  )
+  if (family %in% fragile) c(1e-4, 1 - 1e-4) else NULL
+}
+
+#' @keywords internal
+#' @noRd
+.coverage_smooth_eta_component <- function(data, amplitude = 0.18) {
+  x <- if ("x" %in% names(data)) {
+    as.numeric(data$x)
+  } else {
+    sim_rescale01(as.numeric(data$.sim_subject_index)) - 0.5
+  }
+  x_scaled <- sim_rescale01(x)
+  wave <- sin(2 * pi * x_scaled) + 0.5 * cos(4 * pi * x_scaled)
+  wave <- wave - mean(wave, na.rm = TRUE)
+  amplitude * wave
+}
+
+#' @keywords internal
+#' @noRd
+.coverage_make_smooth_param <- function(linkfun, linkinv, base_value, amplitude = 0.18) {
+  force(linkfun)
+  force(linkinv)
+  force(base_value)
+  force(amplitude)
+  function(data) {
+    base_eta <- as.numeric(linkfun(base_value))[1L]
+    out <- linkinv(base_eta + .coverage_smooth_eta_component(data, amplitude = amplitude))
+    as.numeric(out)
+  }
+}
+
+#' @keywords internal
+#' @noRd
+.coverage_time_varying_copula_params <- function(copula) {
+  if (copula %in% c("N")) {
+    return(list(theta = function(edge_data) {
+      time_scaled <- sim_rescale01(edge_data$time_left)
+      0.1 + 0.45 * time_scaled
+    }))
+  }
+  if (copula %in% c("t")) {
+    return(list(
+      theta = function(edge_data) {
+        time_scaled <- sim_rescale01(edge_data$time_left)
+        0.1 + 0.45 * time_scaled
+      },
+      zeta = 5
+    ))
+  }
+  list(tau = function(edge_data) {
+    time_scaled <- sim_rescale01(edge_data$time_left)
+    0.1 + 0.3 * time_scaled
+  })
+}
+
+#' @keywords internal
+#' @noRd
 .coverage_simulate_case <- function(
   family,
   copula,
-  design = c("intercept", "covariate", "smooth"),
+  design = .coverage_supported_designs(),
   n = 80,
   times = 1:3,
   seed = 1,
@@ -233,12 +316,12 @@
   margin_params <- .coverage_default_margin_params(margin_dist)
   covariates <- NULL
 
-  if (design %in% c("covariate", "smooth")) {
+  if (design %in% c("covariate", "scale", "smooth")) {
     covariates <- function(base) {
       x <- sim_rescale01(as.numeric(base$.sim_subject_index))
       data.frame(x = x - mean(x), stringsAsFactors = FALSE)
     }
-    if ("mu" %in% names(margin_params)) {
+    if (identical(design, "covariate") && "mu" %in% names(margin_params)) {
       base_mu <- margin_params$mu
       margin_params$mu <- function(data) {
         x <- sim_rescale01(as.numeric(data$.sim_subject_index))
@@ -250,6 +333,45 @@
         }
       }
     }
+    if (identical(design, "smooth")) {
+      for (par_name in names(margin_params)) {
+        linkfun <- margin_dist[[paste0(par_name, ".linkfun")]]
+        linkinv <- margin_dist[[paste0(par_name, ".linkinv")]]
+        if (!is.function(linkfun) || !is.function(linkinv)) next
+        margin_params[[par_name]] <- .coverage_make_smooth_param(
+          linkfun,
+          linkinv,
+          margin_params[[par_name]],
+          amplitude = if (identical(par_name, "mu")) 0.22 else 0.14
+        )
+      }
+    }
+    if (identical(design, "scale") && "sigma" %in% names(margin_params)) {
+      base_sigma <- margin_params$sigma
+      margin_params$sigma <- function(data) {
+        x <- sim_rescale01(as.numeric(data$.sim_subject_index))
+        x <- x - mean(x)
+        pmax(base_sigma * exp(0.45 * x), .Machine$double.eps)
+      }
+    }
+  }
+
+  copula_params <- if (identical(design, "time_dependence")) {
+    .coverage_time_varying_copula_params(copula)
+  } else if (identical(design, "smooth")) {
+    copula_link <- get_copula_dist(copula)$copula_link
+    base <- .coverage_copula_params(copula, dependence = dependence)
+    if ("tau" %in% names(base)) {
+      list(tau = function(edge_data) {
+        eta <- stats::qlogis(base$tau) + .coverage_smooth_eta_component(edge_data, amplitude = 0.12)
+        stats::plogis(eta)
+      })
+    } else {
+      base$theta <- .coverage_make_smooth_param(copula_link$theta.linkfun, copula_link$theta.linkinv, base$theta, amplitude = 0.12)
+      base
+    }
+  } else {
+    .coverage_copula_params(copula, dependence = dependence)
   }
 
   simulate_longitudinal_dataset(
@@ -258,10 +380,11 @@
     margin_dist = margin_dist,
     copula_dist = copula,
     margin_params = margin_params,
-    copula_params = .coverage_copula_params(copula, dependence = dependence),
+    copula_params = copula_params,
     covariates = covariates,
     seed = seed,
-    include_truth = TRUE
+    include_truth = TRUE,
+    u_bounds = .coverage_simulation_u_bounds(family)
   )
 }
 
@@ -295,8 +418,19 @@
 .coverage_fit_formulas <- function(design) {
   if (identical(design, "covariate")) {
     list(mu = response ~ x, sigma = ~1, nu = ~1, tau = ~1, theta = ~1, zeta = ~1)
+  } else if (identical(design, "scale")) {
+    list(mu = response ~ 1, sigma = ~x, nu = ~1, tau = ~1, theta = ~1, zeta = ~1)
+  } else if (identical(design, "time_dependence")) {
+    list(mu = response ~ 1, sigma = ~1, nu = ~1, tau = ~1, theta = ~time, zeta = ~1)
   } else if (identical(design, "smooth")) {
-    list(mu = response ~ s(x, bs = "ps"), sigma = ~1, nu = ~1, tau = ~1, theta = ~1, zeta = ~1)
+    list(
+      mu = response ~ s(x, bs = "ps", k = 6),
+      sigma = ~s(x, bs = "ps", k = 6),
+      nu = ~s(x, bs = "ps", k = 6),
+      tau = ~s(x, bs = "ps", k = 6),
+      theta = ~s(x, bs = "ps", k = 6),
+      zeta = ~s(x, bs = "ps", k = 6)
+    )
   } else {
     list(mu = response ~ 1, sigma = ~1, nu = ~1, tau = ~1, theta = ~1, zeta = ~1)
   }
@@ -415,7 +549,9 @@
     if (!any(ok)) return(NULL)
     eta <- as.numeric(linkfun(dat[[truth_col]][ok]))
     if (!all(is.finite(eta))) return(NULL)
-    if (identical(design, "covariate") && "x" %in% names(dat)) {
+    varies_with_x <- identical(design, "covariate") ||
+      (identical(design, "scale") && identical(par_name, "sigma"))
+    if (isTRUE(varies_with_x) && "x" %in% names(dat)) {
       fit <- stats::lm(eta ~ dat$x[ok])
       cf <- stats::coef(fit)
       data.frame(
@@ -442,12 +578,24 @@
     theta_ok <- is.finite(dat$true_theta)
     if (any(theta_ok)) {
       theta_link <- get_copula_dist(copula)$copula_link$theta.linkfun
-      rows[[length(rows) + 1L]] <- data.frame(
-        parameter = "theta",
-        term = "intercept",
-        true_eta = mean(as.numeric(theta_link(dat$true_theta[theta_ok]))),
-        stringsAsFactors = FALSE
-      )
+      theta_eta <- as.numeric(theta_link(dat$true_theta[theta_ok]))
+      if (identical(design, "time_dependence") && "time" %in% names(dat)) {
+        fit <- stats::lm(theta_eta ~ dat$time[theta_ok])
+        cf <- stats::coef(fit)
+        rows[[length(rows) + 1L]] <- data.frame(
+          parameter = "theta",
+          term = c("intercept", "time_covariate"),
+          true_eta = as.numeric(c(cf[[1]], cf[[2]])),
+          stringsAsFactors = FALSE
+        )
+      } else {
+        rows[[length(rows) + 1L]] <- data.frame(
+          parameter = "theta",
+          term = "intercept",
+          true_eta = mean(theta_eta),
+          stringsAsFactors = FALSE
+        )
+      }
     }
   }
 
@@ -533,6 +681,80 @@
     .coverage_eta_error_class(out$term[[i]], out$abs_eta_error[[i]])
   }, character(1))
   out[order(out$parameter, out$term), , drop = FALSE]
+}
+
+#' @keywords internal
+#' @noRd
+.coverage_smooth_eta_recovery <- function(fit, dat, copula) {
+  empty <- c(
+    smooth_eta_rmse = NA_real_,
+    smooth_eta_max_abs_error = NA_real_,
+    smooth_eta_n = 0
+  )
+  if (!inherits(fit, "gamlss.longitudinal")) {
+    return(empty)
+  }
+  eta_out <- tryCatch(
+    calc_eta(
+      par_cov = fit$par,
+      mm = fit$model_matrix,
+      margin_dist = fit$margin_dist,
+      copula_link = get_copula_dist(fit$copula_dist)$copula_link,
+      par_s = fit$par_s
+    ),
+    error = function(e) NULL
+  )
+  if (is.null(eta_out) || is.null(eta_out$eta)) {
+    return(empty)
+  }
+
+  errors <- numeric(0)
+  add_errors <- function(parameter, truth) {
+    if (!parameter %in% names(eta_out$eta)) return()
+    estimate <- as.numeric(eta_out$eta[[parameter]])
+    truth <- as.numeric(truth)
+    ok <- is.finite(truth)
+    if (!any(ok)) return()
+    truth <- truth[ok]
+    if (length(estimate) == length(ok)) {
+      estimate <- estimate[ok]
+    } else if (length(estimate) != length(truth)) {
+      return()
+    }
+    valid <- is.finite(estimate) & is.finite(truth)
+    if (any(valid)) {
+      errors <<- c(errors, estimate[valid] - truth[valid])
+    }
+  }
+
+  for (parameter in names(fit$margin_dist$parameters)) {
+    truth_col <- paste0("true_", parameter)
+    if (!truth_col %in% names(dat)) next
+    linkfun <- fit$margin_dist[[paste0(parameter, ".linkfun")]]
+    if (!is.function(linkfun)) next
+    truth_eta <- tryCatch(as.numeric(linkfun(dat[[truth_col]])), error = function(e) NULL)
+    if (!is.null(truth_eta)) add_errors(parameter, truth_eta)
+  }
+
+  if ("true_theta" %in% names(dat)) {
+    theta_link <- get_copula_dist(copula)$copula_link$theta.linkfun
+    truth_eta <- tryCatch(as.numeric(theta_link(dat$true_theta)), error = function(e) NULL)
+    if (!is.null(truth_eta)) add_errors("theta", truth_eta)
+  }
+  if (identical(copula, "t") && "true_zeta" %in% names(dat)) {
+    zeta_link <- get_copula_dist(copula)$copula_link$zeta.linkfun
+    truth_eta <- tryCatch(as.numeric(zeta_link(dat$true_zeta)), error = function(e) NULL)
+    if (!is.null(truth_eta)) add_errors("zeta", truth_eta)
+  }
+
+  if (length(errors) == 0L) {
+    return(empty)
+  }
+  c(
+    smooth_eta_rmse = sqrt(mean(errors^2, na.rm = TRUE)),
+    smooth_eta_max_abs_error = max(abs(errors), na.rm = TRUE),
+    smooth_eta_n = length(errors)
+  )
 }
 
 #' @keywords internal
@@ -631,7 +853,7 @@
 .coverage_fit_gamlss2 <- function(dat, family, copula, design, max_elapsed_sec = Inf) {
   .coverage_attach_namespace("gamlss.dist")
   margin_dist <- do.call(get(family, envir = asNamespace("gamlss.dist")), list())
-  fml <- if (identical(design, "intercept")) response ~ 1 else response ~ x
+  fml <- if (design %in% c("intercept", "scale", "time_dependence")) response ~ 1 else response ~ x
   fit_vars <- unique(all.vars(fml))
   fit_vars <- fit_vars[fit_vars %in% names(dat)]
   fit_dat <- dat[, fit_vars, drop = FALSE]
@@ -715,6 +937,433 @@
   }
   attr(out, "parameter_results") <- .coverage_parameter_results(estimates, truth_eta)
   out
+}
+
+#' @keywords internal
+#' @noRd
+.coverage_standard_family <- function(family) {
+  if (family %in% c("NO", "NO2")) {
+    return(stats::gaussian())
+  }
+  if (family %in% c("PO", "ZIP", "ZIP2")) {
+    return(stats::poisson())
+  }
+  if (family %in% c("GA", "EXP")) {
+    return(stats::Gamma(link = "log"))
+  }
+  NULL
+}
+
+#' @keywords internal
+#' @noRd
+.coverage_standard_formula <- function(design, comparator) {
+  if (design %in% c("intercept", "scale", "time_dependence")) {
+    return(response ~ 1)
+  }
+  if (identical(design, "smooth") && identical(comparator, "gam")) {
+    return(response ~ s(x, bs = "ps"))
+  }
+  response ~ x
+}
+
+#' @keywords internal
+#' @noRd
+.coverage_true_margin_distribution <- function(dat, family, p = 0.9) {
+  empty <- list(q = rep(NA_real_, nrow(dat)), cdf = rep(NA_real_, nrow(dat)))
+  if (is.null(family)) {
+    return(empty)
+  }
+  margin_dist <- tryCatch(do.call(get(family, envir = asNamespace("gamlss.dist")), list()), error = function(e) NULL)
+  if (is.null(margin_dist) || is.null(margin_dist$family)) {
+    return(empty)
+  }
+  family_name <- as.character(margin_dist$family[1])
+  qfun <- tryCatch(get(paste0("q", family_name), envir = asNamespace("gamlss.dist"), inherits = FALSE), error = function(e) NULL)
+  pfun <- tryCatch(get(paste0("p", family_name), envir = asNamespace("gamlss.dist"), inherits = FALSE), error = function(e) NULL)
+  if (is.null(qfun) || is.null(pfun)) {
+    return(empty)
+  }
+  par_names <- names(margin_dist$parameters)
+  true_cols <- paste0("true_", par_names)
+  if (!all(true_cols %in% names(dat))) {
+    return(empty)
+  }
+  par_args <- stats::setNames(lapply(true_cols, function(nm) dat[[nm]]), par_names)
+  q <- tryCatch(do.call(qfun, c(list(p = p), par_args)), error = function(e) rep(NA_real_, nrow(dat)))
+  cdf <- tryCatch(do.call(pfun, c(list(q = q), par_args)), error = function(e) rep(NA_real_, nrow(dat)))
+  list(q = as.numeric(q), cdf = as.numeric(cdf))
+}
+
+#' @keywords internal
+#' @noRd
+.coverage_comparator_dispersion <- function(y, fitted, family) {
+  ok <- is.finite(y) & is.finite(fitted)
+  if (sum(ok) < 3L) {
+    return(NA_real_)
+  }
+  if (identical(family$family, "gaussian")) {
+    return(stats::sd(y[ok] - fitted[ok]))
+  }
+  if (identical(family$family, "Gamma")) {
+    mu <- pmax(fitted[ok], .Machine$double.eps)
+    pearson <- (y[ok] - mu) / mu
+    return(sum(pearson^2, na.rm = TRUE) / max(1L, sum(ok) - 1L))
+  }
+  NA_real_
+}
+
+#' @keywords internal
+#' @noRd
+.coverage_comparator_distribution <- function(y, fitted, family, q, p = 0.9) {
+  n <- length(fitted)
+  empty <- list(q = rep(NA_real_, n), cdf_at_q = rep(NA_real_, n))
+  ok <- is.finite(y) & is.finite(fitted) & is.finite(q)
+  if (!any(ok)) {
+    return(empty)
+  }
+
+  if (identical(family$family, "gaussian")) {
+    sigma_hat <- .coverage_comparator_dispersion(y, fitted, family)
+    if (!is.finite(sigma_hat) || sigma_hat <= 0) {
+      return(empty)
+    }
+    out_q <- fitted + stats::qnorm(p) * sigma_hat
+    cdf <- stats::pnorm(q, mean = fitted, sd = sigma_hat)
+  } else if (identical(family$family, "poisson")) {
+    lambda <- pmax(fitted, .Machine$double.eps)
+    out_q <- stats::qpois(p, lambda = lambda)
+    cdf <- stats::ppois(q, lambda = lambda)
+  } else if (identical(family$family, "Gamma")) {
+    dispersion <- .coverage_comparator_dispersion(y, fitted, family)
+    if (!is.finite(dispersion) || dispersion <= 0) {
+      return(empty)
+    }
+    mu <- pmax(fitted, .Machine$double.eps)
+    shape <- 1 / dispersion
+    scale <- mu * dispersion
+    out_q <- stats::qgamma(p, shape = shape, scale = scale)
+    cdf <- stats::pgamma(q, shape = shape, scale = scale)
+  } else {
+    return(empty)
+  }
+
+  list(
+    q = as.numeric(out_q),
+    cdf_at_q = pmin(pmax(as.numeric(cdf), 0), 1)
+  )
+}
+
+#' @keywords internal
+#' @noRd
+.coverage_benchmark_truth_metrics <- function(dat, fitted, family, gamlss_family = NULL) {
+  n <- nrow(dat)
+  empty <- c(
+    benchmark_mean_bias = NA_real_,
+    benchmark_mean_mae = NA_real_,
+    benchmark_mean_rmse = NA_real_,
+    benchmark_q90_mae = NA_real_,
+    benchmark_upper_tail_error_90 = NA_real_,
+    benchmark_interval_coverage_95 = NA_real_,
+    benchmark_pit_ks_p_value = NA_real_,
+    benchmark_pit_mean_abs_error = NA_real_,
+    benchmark_tail_error_lower_05 = NA_real_,
+    benchmark_tail_error_upper_05 = NA_real_
+  )
+  if (length(fitted) != n) {
+    return(empty)
+  }
+
+  out <- empty
+  if ("true_mu" %in% names(dat)) {
+    ok_truth <- is.finite(dat$true_mu) & is.finite(fitted)
+    if (any(ok_truth)) {
+      err_mu <- fitted[ok_truth] - dat$true_mu[ok_truth]
+      out["benchmark_mean_bias"] <- mean(err_mu)
+      out["benchmark_mean_mae"] <- mean(abs(err_mu))
+      out["benchmark_mean_rmse"] <- sqrt(mean(err_mu^2))
+    }
+  }
+
+  truth_dist <- .coverage_true_margin_distribution(dat, gamlss_family, p = 0.9)
+  comparator_dist <- .coverage_comparator_distribution(dat$response, fitted, family, truth_dist$q, p = 0.9)
+  ok_q90 <- is.finite(truth_dist$q) & is.finite(comparator_dist$q)
+  if (any(ok_q90)) {
+    out["benchmark_q90_mae"] <- mean(abs(comparator_dist$q[ok_q90] - truth_dist$q[ok_q90]), na.rm = TRUE)
+  }
+  ok_tail <- is.finite(truth_dist$cdf) & is.finite(comparator_dist$cdf_at_q)
+  if (any(ok_tail)) {
+    true_upper_tail <- 1 - truth_dist$cdf[ok_tail]
+    comparator_upper_tail <- 1 - comparator_dist$cdf_at_q[ok_tail]
+    out["benchmark_upper_tail_error_90"] <- mean(comparator_upper_tail - true_upper_tail, na.rm = TRUE)
+  }
+
+  ok_obs <- is.finite(dat$response) & is.finite(fitted)
+  if (!identical(family$family, "gaussian") || sum(ok_obs) < 3L) {
+    return(out)
+  }
+  sigma_hat <- stats::sd(dat$response[ok_obs] - fitted[ok_obs])
+  if (!is.finite(sigma_hat) || sigma_hat <= 0) {
+    return(out)
+  }
+  lower <- fitted[ok_obs] + stats::qnorm(0.025) * sigma_hat
+  upper <- fitted[ok_obs] + stats::qnorm(0.975) * sigma_hat
+  out["benchmark_interval_coverage_95"] <- mean(dat$response[ok_obs] >= lower & dat$response[ok_obs] <= upper)
+  pit <- stats::pnorm(dat$response[ok_obs], mean = fitted[ok_obs], sd = sigma_hat)
+  pit <- pmin(pmax(pit, 0), 1)
+  out["benchmark_pit_ks_p_value"] <- tryCatch(
+    suppressWarnings(stats::ks.test(pit, "punif")$p.value),
+    error = function(e) NA_real_
+  )
+  out["benchmark_pit_mean_abs_error"] <- abs(mean(pit, na.rm = TRUE) - 0.5)
+  out["benchmark_tail_error_lower_05"] <- mean(pit <= 0.05, na.rm = TRUE) - 0.05
+  out["benchmark_tail_error_upper_05"] <- mean(pit >= 0.95, na.rm = TRUE) - 0.05
+  out
+}
+
+#' @keywords internal
+#' @noRd
+.coverage_benchmark_gamlss_metrics <- function(dat, fit, family) {
+  n <- nrow(dat)
+  empty <- c(
+    benchmark_mae = NA_real_,
+    benchmark_rmse = NA_real_,
+    benchmark_mean_bias = NA_real_,
+    benchmark_mean_mae = NA_real_,
+    benchmark_mean_rmse = NA_real_,
+    benchmark_q90_mae = NA_real_,
+    benchmark_upper_tail_error_90 = NA_real_,
+    benchmark_interval_coverage_95 = NA_real_,
+    benchmark_pit_ks_p_value = NA_real_,
+    benchmark_pit_mean_abs_error = NA_real_,
+    benchmark_tail_error_lower_05 = NA_real_,
+    benchmark_tail_error_upper_05 = NA_real_
+  )
+  if (!inherits(fit, "gamlss.longitudinal")) {
+    return(empty)
+  }
+
+  tryCatch({
+  diag_data <- tryCatch(.gl_fitted_distribution(fit, newdata = NULL, require_response = FALSE), error = function(e) NULL)
+  if (is.null(diag_data) || length(diag_data$keep_index) == 0L) {
+    return(empty)
+  }
+  idx <- diag_data$keep_index
+  idx <- idx[idx >= 1L & idx <= n]
+  if (length(idx) == 0L) {
+    return(empty)
+  }
+
+  params <- diag_data$params
+  mu_hat <- if ("mu" %in% names(params)) as.numeric(params$mu) else as.numeric(params[[1L]])
+  fitted <- rep(NA_real_, n)
+  fitted[idx] <- mu_hat[seq_along(idx)]
+
+  out <- empty
+  ok_obs <- is.finite(dat$response) & is.finite(fitted)
+  if (any(ok_obs)) {
+    err_obs <- fitted[ok_obs] - dat$response[ok_obs]
+    out["benchmark_mae"] <- mean(abs(err_obs))
+    out["benchmark_rmse"] <- sqrt(mean(err_obs^2))
+  }
+  if ("true_mu" %in% names(dat)) {
+    ok_truth <- is.finite(dat$true_mu) & is.finite(fitted)
+    if (any(ok_truth)) {
+      err_mu <- fitted[ok_truth] - dat$true_mu[ok_truth]
+      out["benchmark_mean_bias"] <- mean(err_mu)
+      out["benchmark_mean_mae"] <- mean(abs(err_mu))
+      out["benchmark_mean_rmse"] <- sqrt(mean(err_mu^2))
+    }
+  }
+
+  truth_dist <- .coverage_true_margin_distribution(dat, family, p = 0.9)
+  fitted_q90 <- rep(NA_real_, n)
+  fitted_cdf_at_true_q90 <- rep(NA_real_, n)
+  fitted_q025 <- rep(NA_real_, n)
+  fitted_q975 <- rep(NA_real_, n)
+  fitted_pit <- rep(NA_real_, n)
+
+  fitted_q90[idx] <- tryCatch(
+    as.numeric(.gl_call_family_fun("q", diag_data$family, 0.9, params))[seq_along(idx)],
+    error = function(e) rep(NA_real_, length(idx))
+  )
+  fitted_cdf_at_true_q90[idx] <- tryCatch(
+    as.numeric(.gl_call_family_fun("p", diag_data$family, truth_dist$q[idx], params))[seq_along(idx)],
+    error = function(e) rep(NA_real_, length(idx))
+  )
+  fitted_q025[idx] <- tryCatch(
+    as.numeric(.gl_call_family_fun("q", diag_data$family, 0.025, params))[seq_along(idx)],
+    error = function(e) rep(NA_real_, length(idx))
+  )
+  fitted_q975[idx] <- tryCatch(
+    as.numeric(.gl_call_family_fun("q", diag_data$family, 0.975, params))[seq_along(idx)],
+    error = function(e) rep(NA_real_, length(idx))
+  )
+  fitted_pit[idx] <- tryCatch(
+    as.numeric(.gl_call_family_fun("p", diag_data$family, dat$response[idx], params))[seq_along(idx)],
+    error = function(e) rep(NA_real_, length(idx))
+  )
+
+  ok_q90 <- is.finite(truth_dist$q) & is.finite(fitted_q90)
+  if (any(ok_q90)) {
+    out["benchmark_q90_mae"] <- mean(abs(fitted_q90[ok_q90] - truth_dist$q[ok_q90]), na.rm = TRUE)
+  }
+  ok_tail <- is.finite(truth_dist$cdf) & is.finite(fitted_cdf_at_true_q90)
+  if (any(ok_tail)) {
+    true_upper_tail <- 1 - truth_dist$cdf[ok_tail]
+    fitted_upper_tail <- 1 - fitted_cdf_at_true_q90[ok_tail]
+    out["benchmark_upper_tail_error_90"] <- mean(fitted_upper_tail - true_upper_tail, na.rm = TRUE)
+  }
+  ok_interval <- is.finite(dat$response) & is.finite(fitted_q025) & is.finite(fitted_q975)
+  if (any(ok_interval)) {
+    out["benchmark_interval_coverage_95"] <- mean(
+      dat$response[ok_interval] >= fitted_q025[ok_interval] &
+        dat$response[ok_interval] <= fitted_q975[ok_interval]
+    )
+  }
+  ok_pit <- is.finite(fitted_pit)
+  if (sum(ok_pit) >= 3L) {
+    pit <- pmin(pmax(fitted_pit[ok_pit], 0), 1)
+    out["benchmark_pit_ks_p_value"] <- tryCatch(
+      suppressWarnings(stats::ks.test(pit, "punif")$p.value),
+      error = function(e) NA_real_
+    )
+    out["benchmark_pit_mean_abs_error"] <- abs(mean(pit, na.rm = TRUE) - 0.5)
+    out["benchmark_tail_error_lower_05"] <- mean(pit <= 0.05, na.rm = TRUE) - 0.05
+    out["benchmark_tail_error_upper_05"] <- mean(pit >= 0.95, na.rm = TRUE) - 0.05
+  }
+
+  out
+  }, error = function(e) empty)
+}
+
+#' @keywords internal
+#' @noRd
+.coverage_fit_standard_comparator <- function(dat, family, copula, design, method, max_elapsed_sec = Inf) {
+  comparator_family <- .coverage_standard_family(family)
+  start <- Sys.time()
+  truth <- .coverage_truth_summary(dat, copula)
+  true_tau <- truth["copula_tau"] %||% NA_real_
+  empty_row <- function(success, failure_type, elapsed, error = NA_character_, warning = NA_character_) {
+    data.frame(
+      method = method,
+      success = success,
+      failure_type = failure_type,
+      elapsed_sec = elapsed,
+      max_abs_error = NA_real_,
+      max_rel_error = NA_real_,
+      fitted_copula_tau = NA_real_,
+      true_copula_tau = unname(true_tau),
+      marginal_loglik = NA_real_,
+      copula_loglik = NA_real_,
+      joint_loglik = NA_real_,
+      marginal_fit_method = method,
+      fit_attempt = method,
+      fit_attempt_trace = method,
+      benchmark_comparator = method,
+      benchmark_class = NA_character_,
+      benchmark_estimator = NA_character_,
+      benchmark_mae = NA_real_,
+      benchmark_rmse = NA_real_,
+      benchmark_mean_bias = NA_real_,
+      benchmark_mean_mae = NA_real_,
+      benchmark_mean_rmse = NA_real_,
+      benchmark_q90_mae = NA_real_,
+      benchmark_upper_tail_error_90 = NA_real_,
+      benchmark_interval_coverage_95 = NA_real_,
+      benchmark_pit_ks_p_value = NA_real_,
+      benchmark_pit_mean_abs_error = NA_real_,
+      benchmark_tail_error_lower_05 = NA_real_,
+      benchmark_tail_error_upper_05 = NA_real_,
+      benchmark_error = error,
+      benchmark_warning = warning,
+      stringsAsFactors = FALSE
+    )
+  }
+
+  if (is.null(comparator_family)) {
+    elapsed <- as.numeric(difftime(Sys.time(), start, units = "secs"))
+    return(empty_row(
+      success = FALSE,
+      failure_type = "unsupported comparator family",
+      elapsed = elapsed,
+      error = paste0("No standard comparator family mapping for GAMLSS family '", family, "'.")
+    ))
+  }
+
+  dat_fit <- dat
+  dat_fit$subject <- factor(dat_fit$subject)
+  formula <- .coverage_standard_formula(design, method)
+  captured <- .coverage_capture_conditions({
+    benchmark_standard_models(
+      data = dat_fit,
+      formula = formula,
+      subject_var = "subject",
+      family = comparator_family,
+      comparators = method,
+      correlation = "exchangeable"
+    )
+  })
+  elapsed <- as.numeric(difftime(Sys.time(), start, units = "secs"))
+  if (inherits(captured$value, "error")) {
+    return(empty_row(
+      success = FALSE,
+      failure_type = .coverage_taxonomy(FALSE, conditionMessage(captured$value), captured$warnings, elapsed, max_elapsed_sec),
+      elapsed = elapsed,
+      error = conditionMessage(captured$value),
+      warning = if (length(captured$warnings)) paste(unique(captured$warnings), collapse = " | ") else NA_character_
+    ))
+  }
+
+  row <- captured$value$results[1L, , drop = FALSE]
+  success <- isTRUE(row$success) && (!is.finite(max_elapsed_sec) || elapsed <= max_elapsed_sec)
+  failure_type <- if (success) {
+    "ok"
+  } else if (!isTRUE(row$available)) {
+    "comparator unavailable"
+  } else {
+    .coverage_taxonomy(FALSE, row$error, row$warning, elapsed, max_elapsed_sec)
+  }
+  fit <- captured$value$fits[[method]]
+  fitted <- if (success && !is.null(fit)) {
+    .benchmark_predict_response(fit, dat_fit)
+  } else {
+    rep(NA_real_, nrow(dat_fit))
+  }
+  truth_metrics <- .coverage_benchmark_truth_metrics(dat_fit, fitted, comparator_family, gamlss_family = family)
+  data.frame(
+    method = method,
+    success = success,
+    failure_type = failure_type,
+    elapsed_sec = elapsed,
+    max_abs_error = row$mae,
+    max_rel_error = NA_real_,
+    fitted_copula_tau = NA_real_,
+    true_copula_tau = unname(true_tau),
+    marginal_loglik = row$logLik,
+    copula_loglik = NA_real_,
+    joint_loglik = row$logLik,
+    marginal_fit_method = row$estimator,
+    fit_attempt = method,
+    fit_attempt_trace = row$estimator,
+    benchmark_comparator = row$comparator,
+    benchmark_class = row$comparator_class,
+    benchmark_estimator = row$estimator,
+    benchmark_mae = row$mae,
+    benchmark_rmse = row$rmse,
+    benchmark_mean_bias = unname(truth_metrics[["benchmark_mean_bias"]]),
+    benchmark_mean_mae = unname(truth_metrics[["benchmark_mean_mae"]]),
+    benchmark_mean_rmse = unname(truth_metrics[["benchmark_mean_rmse"]]),
+    benchmark_q90_mae = unname(truth_metrics[["benchmark_q90_mae"]]),
+    benchmark_upper_tail_error_90 = unname(truth_metrics[["benchmark_upper_tail_error_90"]]),
+    benchmark_interval_coverage_95 = unname(truth_metrics[["benchmark_interval_coverage_95"]]),
+    benchmark_pit_ks_p_value = unname(truth_metrics[["benchmark_pit_ks_p_value"]]),
+    benchmark_pit_mean_abs_error = unname(truth_metrics[["benchmark_pit_mean_abs_error"]]),
+    benchmark_tail_error_lower_05 = unname(truth_metrics[["benchmark_tail_error_lower_05"]]),
+    benchmark_tail_error_upper_05 = unname(truth_metrics[["benchmark_tail_error_upper_05"]]),
+    benchmark_error = row$error,
+    benchmark_warning = row$warning,
+    stringsAsFactors = FALSE
+  )
 }
 
 #' @keywords internal
@@ -937,6 +1586,16 @@
     all(is.finite(as.numeric(loglik))) &&
     !inherits(fit, "error") &&
     (!is.finite(max_elapsed_sec) || elapsed <= max_elapsed_sec)
+  truth_metrics <- if (success) {
+    .coverage_benchmark_gamlss_metrics(dat, fit, family)
+  } else {
+    .coverage_benchmark_gamlss_metrics(dat, NULL, family)
+  }
+  smooth_metrics <- if (success && identical(design, "smooth")) {
+    .coverage_smooth_eta_recovery(fit, dat, copula)
+  } else {
+    c(smooth_eta_rmse = NA_real_, smooth_eta_max_abs_error = NA_real_, smooth_eta_n = 0)
+  }
   out <- data.frame(
     method = method,
     success = success,
@@ -958,12 +1617,44 @@
     fit_attempt = chosen$attempt_label,
     fit_attempt_count = chosen_idx,
     fit_attempt_trace = paste(vapply(attempts[seq_len(chosen_idx)], `[[`, character(1), "attempt_label"), collapse = " > "),
+    smooth_eta_rmse = unname(smooth_metrics[["smooth_eta_rmse"]]),
+    smooth_eta_max_abs_error = unname(smooth_metrics[["smooth_eta_max_abs_error"]]),
+    smooth_eta_n = unname(smooth_metrics[["smooth_eta_n"]]),
+    benchmark_comparator = "gamlss.longitudinal",
+    benchmark_class = "gamlss_longitudinal",
+    benchmark_estimator = paste0("gamlss.longitudinal::", method),
+    benchmark_mae = unname(truth_metrics[["benchmark_mae"]]),
+    benchmark_rmse = unname(truth_metrics[["benchmark_rmse"]]),
+    benchmark_mean_bias = unname(truth_metrics[["benchmark_mean_bias"]]),
+    benchmark_mean_mae = unname(truth_metrics[["benchmark_mean_mae"]]),
+    benchmark_mean_rmse = unname(truth_metrics[["benchmark_mean_rmse"]]),
+    benchmark_q90_mae = unname(truth_metrics[["benchmark_q90_mae"]]),
+    benchmark_upper_tail_error_90 = unname(truth_metrics[["benchmark_upper_tail_error_90"]]),
+    benchmark_interval_coverage_95 = unname(truth_metrics[["benchmark_interval_coverage_95"]]),
+    benchmark_pit_ks_p_value = unname(truth_metrics[["benchmark_pit_ks_p_value"]]),
+    benchmark_pit_mean_abs_error = unname(truth_metrics[["benchmark_pit_mean_abs_error"]]),
+    benchmark_tail_error_lower_05 = unname(truth_metrics[["benchmark_tail_error_lower_05"]]),
+    benchmark_tail_error_upper_05 = unname(truth_metrics[["benchmark_tail_error_upper_05"]]),
+    benchmark_error = NA_character_,
+    benchmark_warning = NA_character_,
     stringsAsFactors = FALSE
   )
-  attr(out, "parameter_results") <- .coverage_parameter_results(
+  parameter_results <- .coverage_parameter_results(
     .coverage_longitudinal_eta_estimates(fit),
     .coverage_true_eta_coefficients(dat, family, copula, design)
   )
+  theta_time <- parameter_results[
+    parameter_results$parameter == "theta" &
+      parameter_results$term == "time_covariate",
+    ,
+    drop = FALSE
+  ]
+  out$benchmark_theta_time_abs_error <- if (nrow(theta_time) == 1L) {
+    theta_time$abs_eta_error[[1L]]
+  } else {
+    NA_real_
+  }
+  attr(out, "parameter_results") <- parameter_results
   out
 }
 
@@ -1024,6 +1715,15 @@
     )
   } else if (identical(case$method, "gamlss2")) {
     .coverage_fit_gamlss2(dat, case$family, case$copula, case$design, max_elapsed_sec = max_elapsed_sec)
+  } else if (case$method %in% c("gee", "glmm", "gam", "glmmTMB")) {
+    .coverage_fit_standard_comparator(
+      dat,
+      family = case$family,
+      copula = case$copula,
+      design = case$design,
+      method = case$method,
+      max_elapsed_sec = max_elapsed_sec
+    )
   } else {
     .coverage_fit_longitudinal(
       dat,
@@ -1236,9 +1936,11 @@
 #' @param copulas Copula codes.
 #' @param methods Fit methods. Defaults to `"gamlss"`, `"rs_separate"`,
 #'   `"rs_joint"`, and `"cg"`. Method `"gamlss2"` is also supported when the
-#'   optional non-CRAN package is installed and explicitly requested.
-#' @param designs Simulation designs: `"intercept"`, `"covariate"`, or
-#'   `"smooth"`.
+#'   optional non-CRAN package is installed and explicitly requested. Standard
+#'   comparator methods `"gee"`, `"glmm"`, `"gam"`, and `"glmmTMB"` are
+#'   available for families that map to common mean-model families.
+#' @param designs Simulation designs: `"intercept"`, `"covariate"`,
+#'   `"scale"`, `"time_dependence"`, or `"smooth"`.
 #' @param include_mixed Logical; include mixed-support `gamlss.dist` families in
 #'   the candidate family grid.
 #' @param output_dir Directory for CSV/RDS outputs.
@@ -1252,7 +1954,7 @@
 run_coverage_simulations <- function(
   families = NULL,
   copulas = c("N", "C", "F", "G", "J", "t"),
-  methods = .coverage_supported_methods(),
+  methods = .coverage_default_methods(),
   designs = "intercept",
   include_mixed = FALSE,
   output_dir = file.path("results", "coverage_simulations"),

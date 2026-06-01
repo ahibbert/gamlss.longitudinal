@@ -226,3 +226,23 @@ using RS() optimisation and the joint likelihood by default. Select
 use dlcopdpar=FALSE to fit separately optimised models for the margin and
 copula likelihoods which can be quicker with a slight loss to overall fit.
 }
+\details{
+Formula inputs are converted to fixed-effect and smooth model matrices by
+[create_model_matrices()]. The user-supplied `time_var` is preserved for
+formulas as an internal `time_covariate` column, while an internal numeric
+`time` index is used for ordering longitudinal margins and adjacent copula
+pairs. Numeric and integer time inputs are used directly, numeric-like
+character time inputs are converted with [as.numeric()], and categorical time
+should be supplied as a factor. Ordered factors are treated with treatment
+contrasts rather than polynomial contrasts so factor-level effects are
+interpretable as level comparisons.
+
+The fitting data are converted to a plain data frame. Structurally missing
+subject-time combinations are expanded to explicit rows with missing
+responses. Response `NA` values may be present unless an entire margin or an
+adjacent copula pair has no complete responses, in which case fitting stops.
+Missing or non-finite predictor values are handled by the model-matrix
+construction path and may result in dropped or non-finite matrix rows; inspect
+`model.frame(fit, type = "expanded")`, `model.frame(fit, type = "observed")`,
+and `fit$convergence` when auditing a fit.
+}
