@@ -234,6 +234,92 @@ plot_copula_diagnostics(fit, data = dat)
 See the vignette for a complete reproducible dataset, distribution screening,
 copula selection, and diagnostic workflow.
 
+## rOpenSci Standards Notes
+
+This package is being developed against the rOpenSci statistical software
+standards for general statistical software, regression software, and
+probability-distribution software. The package is in an initially stable state
+of development, with active subsequent development expected as the longitudinal
+workflow, diagnostics, and benchmark evidence mature.
+
+### Primary References
+
+The marginal modelling framework follows GAMLSS:
+
+- Rigby, R. A. and Stasinopoulos, D. M. (2005). Generalized additive models for
+  location, scale and shape. *Journal of the Royal Statistical Society: Series
+  C*, 54, 507-554. <https://doi.org/10.1111/j.1467-9876.2005.00510.x>
+- Stasinopoulos, D. M. and Rigby, R. A. (2007). Generalized additive models for
+  location scale and shape (GAMLSS) in R. *Journal of Statistical Software*,
+  23(7), 1-46. <https://doi.org/10.18637/jss.v023.i07>
+- Stasinopoulos, D. M., Rigby, R. A., Heller, G. Z., Voudouris, V., and De
+  Bastiani, F. (2017). *Flexible Regression and Smoothing: Using GAMLSS in R*.
+  Chapman and Hall/CRC.
+
+The dependence layer uses bivariate copulas and Kendall-tau parameterisations:
+
+- Nelsen, R. B. (2006). *An Introduction to Copulas*, 2nd edition. Springer.
+  <https://doi.org/10.1007/0-387-28678-0>
+- Brechmann, E. C. and Schepsmeier, U. (2013). Modeling dependence with C- and
+  D-vine copulas: The R package CDVine. *Journal of Statistical Software*,
+  52(3), 1-27. <https://doi.org/10.18637/jss.v052.i03>
+
+### Prior Art
+
+`gamlss.longitudinal` is not a replacement for `gamlss`; it builds on
+`gamlss.dist` family objects and uses `gamlss` as the familiar marginal-model
+reference point. It adds a longitudinal first-order copula dependence layer,
+workflow helpers, diagnostics, and opt-in benchmarking scaffolds for comparing
+against common GEE, GLMM, and GAM baselines.
+
+Comparable R implementations include:
+
+- `gamlss` and `gamlss2` for distributional regression with GAMLSS margins;
+- `VineCopula` for bivariate and vine copula densities, CDFs, h-functions, and
+  parameter conversions;
+- `geepack`, `lme4`, `glmmTMB`, and `mgcv` for standard longitudinal,
+  mixed-model, and smooth mean-model baselines.
+
+### Input and Pre-processing Policy
+
+Model input must be a long-format table with one row per observed subject-time
+combination, a response in the left-hand side of `mu.formula`, a subject column,
+and a time column. The package converts tibbles and other data-frame-like inputs
+to a plain data frame for fitting.
+
+`time_var` is used in two ways. Internally, it becomes numeric `time` for margin
+ordering and adjacent-pair construction. For formulas it is preserved as
+`time_covariate`, so numeric time, factor time, and factor interactions can be
+modelled without accidentally treating a categorical visit as a continuous
+trend. Numeric-like character time is converted with `as.numeric()`; non-numeric
+character time should be converted to a factor by the user before fitting.
+Ordered factors are treated with treatment contrasts.
+
+Structurally missing subject-time rows are expanded to explicit rows with
+missing responses. Fitting stops if any margin has no observed responses, or if
+any adjacent copula pair has no complete response pairs. Predictor missingness
+and non-finite predictor values are handled by the model-matrix path; users
+should inspect `model.frame(fit, type = "expanded")`,
+`model.frame(fit, type = "observed")`, and `fit$convergence` when auditing a
+fit. The package does not promise to preserve submitted row names after grid
+expansion; case identity is represented by subject, time, and response columns.
+
+### Algorithms and Accessors
+
+Fitted objects have class `gamlss.longitudinal` and expose standard regression
+accessors: `coef()`, `confint()`, `formula()`, `terms()`, `nobs()`,
+`model.frame()`, `fitted()`, `residuals()`, `vcov()`, `logLik()`, `summary()`,
+`predict()`, `simulate()`, and `plot()`. Convergence metadata is stored in
+`fit$convergence`.
+
+Most distribution calculations delegate to `gamlss.dist` family functions or
+native copula functions. The native copula backend is tested against
+`VineCopula`; users can set
+`options(gamlss.longitudinal.copula_backend = "vinecopula")` to delegate copula
+operations where the optional package is installed. Analytical Hessian paths are
+used when available, with documented fallbacks to numerical finite-difference
+paths for difficult discrete or near-boundary cases.
+
 ## Reference
 
 Motivation for the approach and its performance compared to alternative methods

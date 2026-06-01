@@ -14,11 +14,11 @@ objects.}
 computing sequential comparisons.}
 }
 \value{
-An object of class \code{gamlss_longitudinal_likelihood_compare}.
+An object of class `gamlss_longitudinal_likelihood_compare`.
 }
 \description{
-\code{likelihood_compare()} gives a compact sequential likelihood comparison for
-nested or approximately nested \code{gamlss.longitudinal} models. It reports joint
+`likelihood_compare()` gives a compact sequential likelihood comparison for
+nested or approximately nested `gamlss.longitudinal` models. It reports joint
 log-likelihood, effective degrees of freedom, AIC, BIC, likelihood-ratio
 increments, and chi-square reference p-values.
 }
