@@ -9,7 +9,83 @@ navbar:
     right: [github]
 
 articles:
-  - title: Worked Examples
-    navbar: ~
+  - title: Start Here
+    navbar: Start Here
     contents:
+      - site-guide
+  - title: Worked Examples
+    navbar: Worked Examples
+    contents:
+      - standard-workflow
       - native-simulation-workflow
+  - title: Adoption Guides
+    navbar: Adoption Guides
+    contents:
+      - replace-gee-glmm
+      - adoption-decision-guide
+      - inference-uncertainty
+      - diagnostics-decisions
+      - replace-a-gee
+      - replace-a-random-intercept-glmm
+      - non-gaussian-longitudinal-outcomes
+      - missing-visits
+      - time-varying-dependence
+      - benchmarking-adoption
+
+reference:
+  - title: Standard Workflow
+    desc: Adoption-facing helpers for the recommended screen, fit, check, predict workflow.
+    contents:
+      - screen_margin
+      - select_copula
+      - fit_longitudinal
+      - gamlss.longitudinal
+      - summary.gamlss.longitudinal
+      - coef.gamlss.longitudinal
+      - vcov.gamlss.longitudinal
+      - logLik.gamlss.longitudinal
+  - title: Inference And Interpretation
+    desc: Reportable intervals, hypothesis tests, likelihood comparisons, and effects.
+    contents:
+      - confint.gamlss.longitudinal
+      - wald_test
+      - likelihood_compare
+      - bootstrap_inference
+      - predict.gamlss.longitudinal
+      - marginal_effects
+      - effects.gamlss.longitudinal
+      - simulate.gamlss.longitudinal
+  - title: Diagnostics
+    desc: Decision-oriented checks and visual diagnostics for fitted models.
+    contents:
+      - check_model
+      - copula_time_summary
+      - topmodels_diagnostics
+      - plotDist
+      - plot.gamlss.longitudinal
+      - plot.copula_time_summary
+      - plot.copula_contour_compare
+      - plot_copula_diagnostics
+      - plot_terms
+      - plot_fixed_terms
+      - plot_smooth_terms
+  - title: Simulation And Benchmarks
+    desc: Data generators and opt-in comparator benchmarks for adoption evidence.
+    contents:
+      - simulate_longitudinal_covariates
+      - simulate_longitudinal_dataset
+      - run_coverage_simulations
+      - benchmark_comparator_status
+      - benchmark_standard_models
+      - adoption_benchmark_scenarios
+      - run_adoption_benchmarks
+      - summarise_benchmark_results
+      - format_benchmark_report
+      - write_benchmark_report
+  - title: Link Helpers
+    desc: Link functions and simulation shape helpers used in examples and extensions.
+    contents:
+      - ends_with("_linkfun")
+      - ends_with("_linkinv")
+      - ends_with("_inv")
+      - starts_with("sim_")

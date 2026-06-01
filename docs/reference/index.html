@@ -18,7 +18,25 @@
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/native-simulation-workflow.html">Native Simulation, Copula Screening, and GAMLSS Longitudinal Fitting</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
+    <li><a class="dropdown-item" href="../articles/site-guide.html">Guide To The Articles</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Worked Examples</h6></li>
+    <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard Workflow API, Inference, and Diagnostics</a></li>
+    <li><a class="dropdown-item" href="../articles/native-simulation-workflow.html">Native Simulation, Copula Screening, and GAMLSS Longitudinal Fitting</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Adoption Guides</h6></li>
+    <li><a class="dropdown-item" href="../articles/replace-gee-glmm.html">Replacing GEE and GLMM Workflows</a></li>
+    <li><a class="dropdown-item" href="../articles/adoption-decision-guide.html">Adoption Decision Guide</a></li>
+    <li><a class="dropdown-item" href="../articles/inference-uncertainty.html">Inference and Uncertainty</a></li>
+    <li><a class="dropdown-item" href="../articles/diagnostics-decisions.html">Diagnostics As Decisions</a></li>
+    <li><a class="dropdown-item" href="../articles/replace-a-gee.html">Replace a GEE</a></li>
+    <li><a class="dropdown-item" href="../articles/replace-a-random-intercept-glmm.html">Replace a Random-Intercept GLMM</a></li>
+    <li><a class="dropdown-item" href="../articles/non-gaussian-longitudinal-outcomes.html">Non-Gaussian Longitudinal Outcomes</a></li>
+    <li><a class="dropdown-item" href="../articles/missing-visits.html">Missing Visits</a></li>
+    <li><a class="dropdown-item" href="../articles/time-varying-dependence.html">Time-Varying Dependence</a></li>
+    <li><a class="dropdown-item" href="../articles/benchmarking-adoption.html">Benchmarking Adoption Claims</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><a class="external-link nav-link" href="https://github.com/ahibbert/gamlss.longitudinal/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
@@ -33,9 +51,9 @@
     </div>
 
     <div class="section level2">
-      <h2 id="all-functions">All functions<a class="anchor" aria-label="anchor" href="#all-functions"></a></h2>
+      <h2 id="standard-workflow">Standard Workflow<a class="anchor" aria-label="anchor" href="#standard-workflow"></a></h2>
 
-
+      <div class="section-desc"><p>Adoption-facing helpers for the recommended screen, fit, check, predict workflow.</p></div>
 
 
     </div><div class="section level2">
@@ -45,34 +63,22 @@
 
       <dl><dt>
 
-          <code><a href="build_copula_pair_cache.html">build_copula_pair_cache()</a></code>
+          <code><a href="screen_margin.html">screen_margin()</a></code>
 
         </dt>
-        <dd>Calculate the likelihood components for the joint model</dd>
+        <dd>Screen candidate marginal distributions</dd>
       </dl><dl><dt>
 
-          <code><a href="calc_analytical_hessian.html">calc_analytical_hessian()</a></code>
+          <code><a href="select_copula.html">select_copula()</a></code>
 
         </dt>
-        <dd>Compute analytical (semi-analytical) Hessian for gamlss.longitudinal</dd>
+        <dd>Select a bivariate copula family from pseudo-observation pairs</dd>
       </dl><dl><dt>
 
-          <code><a href="calc_eta.html">calc_eta()</a></code>
+          <code><a href="fit_longitudinal.html">fit_longitudinal()</a></code>
 
         </dt>
-        <dd>Calculate eta, eta inverse and eta derivative based on the given parameters and model matrices</dd>
-      </dl><dl><dt>
-
-          <code><a href="copula_time_summary.html">copula_time_summary()</a></code>
-
-        </dt>
-        <dd>Summarise fitted copula parameters by time</dd>
-      </dl><dl><dt>
-
-          <code><a href="create_model_matrices.html">create_model_matrices()</a></code>
-
-        </dt>
-        <dd>Create model matrices for model fitting</dd>
+        <dd>Fit the recommended longitudinal GAMLSS-copula workflow</dd>
       </dl><dl><dt>
 
           <code><a href="gamlss.longitudinal.html">gamlss.longitudinal()</a></code>
@@ -81,34 +87,122 @@
         <dd>Fit a longitudinal joint regression model</dd>
       </dl><dl><dt>
 
-          <code><a href="link_functions.html">logit()</a></code> <code><a href="link_functions.html">logit_inv()</a></code> <code><a href="link_functions.html">dlogit()</a></code> <code><a href="link_functions.html">logit28()</a></code> <code><a href="link_functions.html">logit28_inv()</a></code> <code><a href="link_functions.html">dlogit28()</a></code> <code><a href="link_functions.html">log_2plus()</a></code> <code><a href="link_functions.html">log_2plus_inv()</a></code> <code><a href="link_functions.html">dlog_2plus()</a></code> <code><a href="link_functions.html">log_1plus()</a></code> <code><a href="link_functions.html">log_1plus_inv()</a></code> <code><a href="link_functions.html">dlog_1plus()</a></code> <code><a href="link_functions.html">dlog_inv()</a></code>
+          <code><a href="summary.gamlss.longitudinal.html">summary(<i>&lt;gamlss.longitudinal&gt;</i>)</a></code>
 
         </dt>
-        <dd>Link and inverse-link helper functions</dd>
+        <dd>Summarize a fitted gamlss.longitudinal model</dd>
+      </dl><dl><dt>
+
+          <code><a href="coef.gamlss.longitudinal.html">coef(<i>&lt;gamlss.longitudinal&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Coefficients for a fitted longitudinal GAMLSS-copula model</dd>
+      </dl><dl><dt>
+
+          <code><a href="vcov.gamlss.longitudinal.html">vcov(<i>&lt;gamlss.longitudinal&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Variance-covariance matrix for a fitted longitudinal GAMLSS-copula model</dd>
       </dl><dl><dt>
 
           <code><a href="logLik.gamlss.longitudinal.html">logLik(<i>&lt;gamlss.longitudinal&gt;</i>)</a></code>
 
         </dt>
-        <dd>This function returns the log likelihood for a fitted gamlss.longitudinal object</dd>
-      </dl><dl><dt>
+        <dd>Log-likelihood for a fitted longitudinal GAMLSS-copula model</dd>
+      </dl></div><div class="section level2">
+      <h2 id="inference-and-interpretation">Inference And Interpretation<a class="anchor" aria-label="anchor" href="#inference-and-interpretation"></a></h2>
 
-          <code><a href="plot.copula.html">plot(<i>&lt;copula&gt;</i>)</a></code>
+      <div class="section-desc"><p>Reportable intervals, hypothesis tests, likelihood comparisons, and effects.</p></div>
+
+
+    </div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="confint.gamlss.longitudinal.html">confint(<i>&lt;gamlss.longitudinal&gt;</i>)</a></code>
 
         </dt>
-        <dd>Plot copula diagnostics for a fitted gamlss.longitudinal object</dd>
+        <dd>Confidence intervals for fixed coefficients</dd>
       </dl><dl><dt>
 
-          <code><a href="plot.copula_contour_compare.html">plot(<i>&lt;copula_contour_compare&gt;</i>)</a></code>
+          <code><a href="wald_test.html">wald_test()</a></code>
 
         </dt>
-        <dd>Compare fitted and empirical copula contour surfaces</dd>
+        <dd>Wald tests for fixed coefficients</dd>
       </dl><dl><dt>
 
-          <code><a href="plot.copula_time_summary.html">plot(<i>&lt;copula_time_summary&gt;</i>)</a></code>
+          <code><a href="likelihood_compare.html">likelihood_compare()</a></code>
 
         </dt>
-        <dd>Plot fitted copula trends by time</dd>
+        <dd>Compare fitted models with likelihood-ratio summaries</dd>
+      </dl><dl><dt>
+
+          <code><a href="bootstrap_inference.html">bootstrap_inference()</a></code>
+
+        </dt>
+        <dd>Parametric bootstrap inference for fitted models</dd>
+      </dl><dl><dt>
+
+          <code><a href="predict.gamlss.longitudinal.html">predict(<i>&lt;gamlss.longitudinal&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Predict from a longitudinal GAMLSS-copula model</dd>
+      </dl><dl><dt>
+
+          <code><a href="marginal_effects.html">marginal_effects()</a></code>
+
+        </dt>
+        <dd>Counterfactual marginal effects from fitted distributional parameters</dd>
+      </dl><dl><dt>
+
+          <code><a href="effects.gamlss.longitudinal.html">effects(<i>&lt;gamlss.longitudinal&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Effects for fitted longitudinal GAMLSS-copula models</dd>
+      </dl><dl><dt>
+
+          <code><a href="simulate.gamlss.longitudinal.html">simulate(<i>&lt;gamlss.longitudinal&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Simulate responses from a longitudinal GAMLSS-copula model</dd>
+      </dl></div><div class="section level2">
+      <h2 id="diagnostics">Diagnostics<a class="anchor" aria-label="anchor" href="#diagnostics"></a></h2>
+
+      <div class="section-desc"><p>Decision-oriented checks and visual diagnostics for fitted models.</p></div>
+
+
+    </div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="check_model.html">check_model()</a></code>
+
+        </dt>
+        <dd>Check a fitted longitudinal GAMLSS-copula model</dd>
+      </dl><dl><dt>
+
+          <code><a href="copula_time_summary.html">copula_time_summary()</a></code>
+
+        </dt>
+        <dd>Summarise fitted copula parameters by time</dd>
+      </dl><dl><dt>
+
+          <code><a href="topmodels_diagnostics.html">topmodels_diagnostics</a></code> <code><a href="topmodels_diagnostics.html">pithist</a></code> <code><a href="topmodels_diagnostics.html">qqrplot</a></code> <code><a href="topmodels_diagnostics.html">wormplot</a></code> <code><a href="topmodels_diagnostics.html">rootogram</a></code> <code><a href="topmodels_diagnostics.html">proscore</a></code> <code><a href="topmodels_diagnostics.html">procast</a></code>
+
+        </dt>
+        <dd>Diagnostic generics for fitted longitudinal GAMLSS-copula models</dd>
+      </dl><dl><dt>
+
+          <code><a href="plotDist.html">plotDist()</a></code>
+
+        </dt>
+        <dd>Plot marginal and pairwise distribution diagnostics</dd>
       </dl><dl><dt>
 
           <code><a href="plot.gamlss.longitudinal.html">plot(<i>&lt;gamlss.longitudinal&gt;</i>)</a></code>
@@ -117,10 +211,28 @@
         <dd>Plot diagnostics dashboard for fitted `gamlss.longitudinal` objects</dd>
       </dl><dl><dt>
 
-          <code><a href="plot.terms.html">plot.terms()</a></code>
+          <code><a href="plot.copula_time_summary.html">plot(<i>&lt;copula_time_summary&gt;</i>)</a></code>
 
         </dt>
-        <dd>Plot term effects for a fitted `gamlss.longitudinal` object</dd>
+        <dd>Plot fitted copula trends by time</dd>
+      </dl><dl><dt>
+
+          <code><a href="plot.copula_contour_compare.html">plot(<i>&lt;copula_contour_compare&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Compare fitted and empirical copula contour surfaces</dd>
+      </dl><dl><dt>
+
+          <code><a href="plot_copula_diagnostics.html">plot_copula_diagnostics()</a></code> <code><a href="plot_copula_diagnostics.html">plot(<i>&lt;copula&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Plot copula diagnostics for a fitted gamlss.longitudinal object</dd>
+      </dl><dl><dt>
+
+          <code><a href="plot_terms.html">plot_terms()</a></code>
+
+        </dt>
+        <dd>Plot term effects for a fitted longitudinal model</dd>
       </dl><dl><dt>
 
           <code><a href="plot_fixed_terms.html">plot_fixed_terms()</a></code>
@@ -133,13 +245,18 @@
 
         </dt>
         <dd>Plot all smooth terms with confidence bands</dd>
-      </dl><dl><dt>
+      </dl></div><div class="section level2">
+      <h2 id="simulation-and-benchmarks">Simulation And Benchmarks<a class="anchor" aria-label="anchor" href="#simulation-and-benchmarks"></a></h2>
 
-          <code><a href="select_copula.html">select_copula()</a></code>
+      <div class="section-desc"><p>Data generators and opt-in comparator benchmarks for adoption evidence.</p></div>
 
-        </dt>
-        <dd>Select a bivariate copula family from pseudo-observation pairs</dd>
-      </dl><dl><dt>
+
+    </div><div class="section level2">
+
+
+
+
+      <dl><dt>
 
           <code><a href="simulate_longitudinal_covariates.html">simulate_longitudinal_covariates()</a></code>
 
@@ -151,6 +268,71 @@
 
         </dt>
         <dd>Simulate longitudinal GAMLSS-copula data</dd>
+      </dl><dl><dt>
+
+          <code><a href="run_coverage_simulations.html">run_coverage_simulations()</a></code>
+
+        </dt>
+        <dd>Run opt-in distribution/copula/method coverage simulations</dd>
+      </dl><dl><dt>
+
+          <code><a href="benchmark_comparator_status.html">benchmark_comparator_status()</a></code>
+
+        </dt>
+        <dd>List available standard longitudinal benchmark comparators</dd>
+      </dl><dl><dt>
+
+          <code><a href="benchmark_standard_models.html">benchmark_standard_models()</a></code>
+
+        </dt>
+        <dd>Fit standard GEE/GLMM/GAM comparators for adoption benchmarks</dd>
+      </dl><dl><dt>
+
+          <code><a href="adoption_benchmark_scenarios.html">adoption_benchmark_scenarios()</a></code>
+
+        </dt>
+        <dd>Return named adoption benchmark scenarios</dd>
+      </dl><dl><dt>
+
+          <code><a href="run_adoption_benchmarks.html">run_adoption_benchmarks()</a></code>
+
+        </dt>
+        <dd>Run repeated adoption benchmark scenarios</dd>
+      </dl><dl><dt>
+
+          <code><a href="summarise_benchmark_results.html">summarise_benchmark_results()</a></code>
+
+        </dt>
+        <dd>Summarise benchmark simulation results into win/tie/loss tables</dd>
+      </dl><dl><dt>
+
+          <code><a href="format_benchmark_report.html">format_benchmark_report()</a></code>
+
+        </dt>
+        <dd>Format an adoption benchmark report</dd>
+      </dl><dl><dt>
+
+          <code><a href="write_benchmark_report.html">write_benchmark_report()</a></code>
+
+        </dt>
+        <dd>Write an adoption benchmark report</dd>
+      </dl></div><div class="section level2">
+      <h2 id="link-helpers">Link Helpers<a class="anchor" aria-label="anchor" href="#link-helpers"></a></h2>
+
+      <div class="section-desc"><p>Link functions and simulation shape helpers used in examples and extensions.</p></div>
+
+
+    </div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="link_functions.html">link_functions</a></code> <code><a href="link_functions.html">logit</a></code> <code><a href="link_functions.html">logit_inv</a></code> <code><a href="link_functions.html">dlogit</a></code> <code><a href="link_functions.html">logit28</a></code> <code><a href="link_functions.html">logit28_inv</a></code> <code><a href="link_functions.html">dlogit28</a></code> <code><a href="link_functions.html">log_2plus</a></code> <code><a href="link_functions.html">log_2plus_inv</a></code> <code><a href="link_functions.html">dlog_2plus</a></code> <code><a href="link_functions.html">dlog</a></code> <code><a href="link_functions.html">dlog_inv</a></code> <code><a href="link_functions.html">dlogit_inv</a></code> <code><a href="link_functions.html">fisher_z</a></code> <code><a href="link_functions.html">fisher_z_inv</a></code> <code><a href="link_functions.html">dfisher_z_inv</a></code> <code><a href="link_functions.html">dlog_2plus_inv</a></code> <code><a href="link_functions.html">log_1plus</a></code> <code><a href="link_functions.html">log_1plus_inv</a></code> <code><a href="link_functions.html">dlog_1plus</a></code> <code><a href="link_functions.html">dlog_1plus_inv</a></code> <code><a href="link_functions.html">gumbel_linkfun</a></code> <code><a href="link_functions.html">gumbel_linkinv</a></code> <code><a href="link_functions.html">dgumbel_linkinv</a></code>
+
+        </dt>
+        <dd>Link helpers for bounded copula and distribution parameters</dd>
       </dl><dl><dt>
 
           <code><a href="sim_factor_effect.html">sim_factor_effect()</a></code>
@@ -169,14 +351,9 @@
 
         </dt>
         <dd>Simple deterministic smooth shapes for simulation truth</dd>
-      </dl><dl><dt>
-
-          <code><a href="summary.gamlss.longitudinal.html">summary(<i>&lt;gamlss.longitudinal&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Summarize a fitted gamlss.longitudinal model</dd>
       </dl></div>
-  </main></div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">
