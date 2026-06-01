@@ -38,7 +38,8 @@ Suggests:
     VineCopula,
     geepack,
     lme4,
-    mvtnorm,
+    mvtnorm
+Enhances:
     gamlss2
 Additional_repositories: https://gamlss-dev.R-universe.dev
 VignetteBuilder: knitr
