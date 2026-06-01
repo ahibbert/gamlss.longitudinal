@@ -16,7 +16,8 @@ simulate_longitudinal_dataset(
   subject_var = "subject",
   time_var = "time",
   response_var = "response",
-  include_truth = TRUE
+  include_truth = TRUE,
+  u_bounds = NULL
 )
 }
 \arguments{
@@ -51,6 +52,10 @@ and response variables.}
 
 \item{include_truth}{If `TRUE`, include simulated uniforms and true
 parameter columns.}
+
+\item{u_bounds}{Optional length-two numeric vector giving lower and upper
+bounds used to clamp simulated uniforms before applying the marginal
+quantile function. The default `NULL` leaves uniforms unchanged.}
 }
 \value{
 A long-format data frame with one row per subject-time observation.
