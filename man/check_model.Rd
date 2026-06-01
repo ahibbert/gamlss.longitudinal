@@ -19,9 +19,9 @@ via [summary.gamlss.longitudinal()].}
 }
 \value{
 An object of class `gamlss_longitudinal_check`, including a full
-\code{checks} table, a filtered \code{warnings} table for diagnostics that
-should be reviewed or reported, and a compact \code{recommendation} row for
-model role decisions.
+  `checks` table, a filtered `warnings` table for diagnostics that should be
+  reviewed or reported, and a compact `recommendation` row for model role
+  decisions.
 }
 \description{
 `check_model()` turns diagnostics into a compact set of decisions for broad

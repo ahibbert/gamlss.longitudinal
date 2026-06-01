@@ -17,27 +17,27 @@ wald_test(
 \arguments{
 \item{object}{A fitted `gamlss.longitudinal` object.}
 
-\item{terms}{Optional coefficient names or numeric indices. When \code{L} is
-\code{NULL}, these select coefficients for individual tests or a joint test.}
+\item{terms}{Optional coefficient names or numeric indices. When `L` is
+`NULL`, these select coefficients for individual tests or a joint test.}
 
 \item{L}{Optional contrast matrix. Columns must either be named with
 coefficient names or have one column per fixed coefficient in model order.}
 
 \item{rhs}{Null-hypothesis value. Either a scalar or one value per tested row.}
 
-\item{joint}{Logical; when \code{TRUE}, test selected \code{terms} jointly. Contrast
-matrices supplied through \code{L} are always tested jointly.}
+\item{joint}{Logical; when `TRUE`, test selected `terms` jointly. Contrast
+matrices supplied through `L` are always tested jointly.}
 
 \item{method}{Variance-covariance method passed to [vcov.gamlss.longitudinal()].}
 
 \item{...}{Additional arguments passed to [vcov.gamlss.longitudinal()].}
 }
 \value{
-An object of class \code{gamlss_longitudinal_wald_test}.
+An object of class `gamlss_longitudinal_wald_test`.
 }
 \description{
-\code{wald_test()} provides a small reporting-friendly hypothesis-test surface for
-fitted \code{gamlss.longitudinal} models. It uses the same variance-covariance
+`wald_test()` provides a small reporting-friendly hypothesis-test surface for
+fitted `gamlss.longitudinal` models. It uses the same variance-covariance
 route as [summary.gamlss.longitudinal()] and [confint.gamlss.longitudinal()],
 so numerical-Hessian tests should be reported as approximate.
 }

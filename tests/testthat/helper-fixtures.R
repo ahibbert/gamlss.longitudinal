@@ -93,6 +93,7 @@ fit_fixture_model <- function(
   inner_stop_crit = 1,
   method = "RS",
   use_backtracking = TRUE,
+  compute_vcov = FALSE,
   verbose = 0
 ) {
   suppressPackageStartupMessages({
@@ -117,6 +118,7 @@ fit_fixture_model <- function(
       include_dlcopdpar = include_dlcopdpar,
       method = method,
       use_backtracking = use_backtracking,
+      compute_vcov = compute_vcov,
       verbose = verbose,
       max_outer_iter = max_outer_iter,
       max_inner_iter = max_inner_iter,

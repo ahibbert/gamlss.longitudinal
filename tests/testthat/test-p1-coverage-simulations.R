@@ -280,6 +280,111 @@ test_that("coverage harness includes a tiny fixed-covariate RS subset", {
   expect_true(all(is.finite(results$marginal_loglik)))
 })
 
+test_that("coverage harness fits smooths on every active parameter for representative families", {
+  skip_on_cran()
+  skip_if_not_installed("gamlss")
+  skip_if_not_installed("gamlss.dist")
+
+  grid <- gamlss.longitudinal:::.coverage_make_case_grid(
+    families = c("NO", "GA", "PO", "ZIP", "BCPE"),
+    copulas = "N",
+    methods = c("rs_joint", "cg"),
+    designs = "smooth"
+  )
+
+  results <- gamlss.longitudinal:::.coverage_run_grid(
+    grid,
+    n = 24L,
+    times = 1:3,
+    seed = 20260902,
+    max_outer_iter = 2L,
+    max_inner_iter = 2L,
+    max_elapsed_sec = 30,
+    method_max_outer_iter = list(cg = 2L),
+    method_max_inner_iter = list(cg = 2L)
+  )
+
+  expect_true(all(results$success))
+  expect_true(all(is.finite(results$smooth_eta_rmse)))
+  expect_true(all(results$smooth_eta_rmse < 0.9))
+  expect_true(all(results$smooth_eta_n > 0))
+})
+
+test_that("coverage harness supports scale-varying benchmark designs", {
+  skip_if_not_installed("gamlss")
+  skip_if_not_installed("gamlss.dist")
+
+  grid <- gamlss.longitudinal:::.coverage_make_case_grid(
+    families = "NO",
+    copulas = "N",
+    methods = c("rs_separate", "gam"),
+    designs = "scale"
+  )
+
+  results <- gamlss.longitudinal:::.coverage_run_grid(
+    grid,
+    n = 24L,
+    times = 1:3,
+    seed = 947,
+    max_outer_iter = 2L,
+    max_inner_iter = 2L,
+    max_elapsed_sec = 15
+  )
+
+  expect_equal(unique(results$design), "scale")
+  expect_true(all(c("benchmark_interval_coverage_95", "benchmark_tail_error_upper_05") %in% names(results)))
+  parameter_results <- attr(results, "parameter_results")
+  expect_s3_class(parameter_results, "data.frame")
+  scale_truth <- parameter_results[
+    parameter_results$method == "rs_separate" &
+      parameter_results$parameter == "sigma" &
+      parameter_results$term == "x",
+    ,
+    drop = FALSE
+  ]
+  expect_equal(nrow(scale_truth), 1L)
+  expect_true(is.finite(scale_truth$true_eta))
+})
+
+test_that("coverage harness supports time-varying dependence designs", {
+  skip_if_not_installed("gamlss")
+  skip_if_not_installed("gamlss.dist")
+
+  grid <- gamlss.longitudinal:::.coverage_make_case_grid(
+    families = "NO",
+    copulas = "N",
+    methods = c("rs_separate", "gam"),
+    designs = "time_dependence"
+  )
+
+  results <- gamlss.longitudinal:::.coverage_run_grid(
+    grid,
+    n = 28L,
+    times = 1:4,
+    seed = 948,
+    max_outer_iter = 4L,
+    max_inner_iter = 3L,
+    max_elapsed_sec = 20
+  )
+
+  expect_equal(unique(results$design), "time_dependence")
+  expect_true("benchmark_theta_time_abs_error" %in% names(results))
+  longitudinal_row <- results[results$method == "rs_separate", , drop = FALSE]
+  expect_true(longitudinal_row$success)
+  expect_true(is.finite(longitudinal_row$benchmark_theta_time_abs_error))
+
+  parameter_results <- attr(results, "parameter_results")
+  theta_time <- parameter_results[
+      parameter_results$method == "rs_separate" &
+      parameter_results$parameter == "theta" &
+      parameter_results$term == "time_covariate",
+    ,
+    drop = FALSE
+  ]
+  expect_equal(nrow(theta_time), 1L)
+  expect_true(is.finite(theta_time$true_eta))
+})
+
 test_that("coverage harness records missingness and stress scenarios", {
   skip_if_not_installed("gamlss")
   skip_if_not_installed("gamlss.dist")
@@ -380,6 +485,131 @@ test_that("coverage harness can run an opt-in non-writing result set", {
   expect_s3_class(runtime_summary, "data.frame")
   expect_true(all(c("estimate_eta", "true_eta", "abs_eta_error", "eta_error_class") %in% names(parameter_results)))
   expect_true(all(c("elapsed_sec", "family", "method") %in% names(runtime_summary)))
+})
+
+test_that("coverage harness can include standard GEE/GLMM/GAM comparator rows", {
+  skip_if_not_installed("gamlss.dist")
+  skip_if_not_installed("geepack")
+  skip_if_not_installed("lme4")
+
+  grid <- gamlss.longitudinal:::.coverage_make_case_grid(
+    families = "NO",
+    copulas = "N",
+    methods = c("rs_separate", "gee", "glmm", "gam"),
+    designs = "covariate"
+  )
+
+  results <- gamlss.longitudinal:::.coverage_run_grid(
+    grid,
+    n = 24L,
+    times = 1:3,
+    seed = 990,
+    max_outer_iter = 2L,
+    max_inner_iter = 2L,
+    max_elapsed_sec = 15
+  )
+
+  expect_equal(sort(results$method), sort(c("rs_separate", "gee", "glmm", "gam")))
+  longitudinal_row <- results[results$method == "rs_separate", , drop = FALSE]
+  expect_true(longitudinal_row$success)
+  expect_equal(longitudinal_row$benchmark_class, "gamlss_longitudinal")
+  expect_true(is.finite(longitudinal_row$benchmark_rmse))
+  expect_true(is.finite(longitudinal_row$benchmark_mean_rmse))
+  expect_true(is.finite(longitudinal_row$benchmark_q90_mae))
+  expect_true(is.finite(longitudinal_row$benchmark_upper_tail_error_90))
+  expect_true(is.finite(longitudinal_row$benchmark_interval_coverage_95))
+  comparator_rows <- results[results$method %in% c("gee", "glmm", "gam"), , drop = FALSE]
+  expect_true(all(comparator_rows$success))
+  expect_true(all(is.finite(comparator_rows$benchmark_rmse)))
+  expect_true(all(c(
+    "benchmark_comparator",
+    "benchmark_estimator",
+    "benchmark_mae",
+    "benchmark_rmse",
+    "benchmark_mean_bias",
+    "benchmark_mean_mae",
+    "benchmark_mean_rmse",
+    "benchmark_q90_mae",
+    "benchmark_upper_tail_error_90",
+    "benchmark_interval_coverage_95",
+    "benchmark_pit_ks_p_value",
+    "benchmark_tail_error_lower_05",
+    "benchmark_tail_error_upper_05"
+  ) %in% names(results)))
+  expect_true(all(is.finite(comparator_rows$benchmark_mean_rmse)))
+  expect_true(all(is.finite(comparator_rows$benchmark_q90_mae)))
+  expect_true(all(is.finite(comparator_rows$benchmark_upper_tail_error_90)))
+  expect_true(all(is.finite(comparator_rows$benchmark_interval_coverage_95)))
+  expect_true(all(comparator_rows$benchmark_interval_coverage_95 >= 0 & comparator_rows$benchmark_interval_coverage_95 <= 1))
+
+  summary <- summarise_benchmark_results(
+    results,
+    metrics = c("benchmark_mean_rmse", "benchmark_interval_coverage_95", "elapsed_sec")
+  )
+  expect_s3_class(summary, "gamlss_longitudinal_benchmark_summary")
+  expect_true(all(c("summary", "case_results", "metric_catalog") %in% names(summary)))
+  expect_true(any(summary$summary$metric == "benchmark_mean_rmse"))
+  expect_true(any(summary$case_results$result %in% c("win", "tie", "loss")))
+})
+
+test_that("coverage benchmark metrics include non-Gaussian q90 and tail checks", {
+  skip_if_not_installed("gamlss.dist")
+
+  grid <- gamlss.longitudinal:::.coverage_make_case_grid(
+    families = c("GA", "PO"),
+    copulas = "N",
+    methods = "gam",
+    designs = "covariate"
+  )
+
+  results <- gamlss.longitudinal:::.coverage_run_grid(
+    grid,
+    n = 24L,
+    times = 1:3,
+    seed = 992,
+    max_elapsed_sec = 15
+  )
+
+  expect_equal(sort(unique(results$family)), c("GA", "PO"))
+  expect_true(all(results$success))
+  expect_true(all(is.finite(results$benchmark_mean_rmse)))
+  expect_true(all(is.finite(results$benchmark_q90_mae)))
+  expect_true(all(is.finite(results$benchmark_upper_tail_error_90)))
+  expect_true(all(is.na(results$benchmark_interval_coverage_95)))
+
+  summary <- summarise_benchmark_results(
+    results,
+    metrics = c("benchmark_q90_mae", "benchmark_upper_tail_error_90")
+  )
+  expect_true(all(c("benchmark_q90_mae", "benchmark_upper_tail_error_90") %in% summary$metric_catalog$metric))
+})
+
+test_that("coverage harness records unsupported standard comparator families", {
+  skip_if_not_installed("gamlss.dist")
+
+  grid <- gamlss.longitudinal:::.coverage_make_case_grid(
+    families = "BCPE",
+    copulas = "N",
+    methods = "gee",
+    designs = "intercept"
+  )
+
+  results <- gamlss.longitudinal:::.coverage_run_grid(
+    grid,
+    n = 12L,
+    times = 1:3,
+    seed = 991,
+    max_elapsed_sec = 15
+  )
+
+  expect_equal(results$method, "gee")
+  expect_false(results$success)
+  expect_equal(results$failure_type, "unsupported comparator family")
+  expect_match(results$benchmark_error, "No standard comparator family mapping")
+  expect_true("benchmark_mean_rmse" %in% names(results))
+  expect_true(is.na(results$benchmark_mean_rmse))
+  expect_true("benchmark_q90_mae" %in% names(results))
+  expect_true(is.na(results$benchmark_q90_mae))
 })
 
 test_that("package ships CRAN-safe JSS replication entry point", {
