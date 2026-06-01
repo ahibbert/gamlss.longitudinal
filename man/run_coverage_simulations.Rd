@@ -7,7 +7,7 @@
 run_coverage_simulations(
   families = NULL,
   copulas = c("N", "C", "F", "G", "J", "t"),
-  methods = .coverage_supported_methods(),
+  methods = .coverage_default_methods(),
   designs = "intercept",
   include_mixed = FALSE,
   output_dir = file.path("results", "coverage_simulations"),
@@ -23,10 +23,12 @@ run_coverage_simulations(
 
 \item{methods}{Fit methods. Defaults to `"gamlss"`, `"rs_separate"`,
 `"rs_joint"`, and `"cg"`. Method `"gamlss2"` is also supported when the
-optional non-CRAN package is installed and explicitly requested.}
+optional non-CRAN package is installed and explicitly requested. Standard
+comparator methods `"gee"`, `"glmm"`, `"gam"`, and `"glmmTMB"` are
+available for families that map to common mean-model families.}
 
-\item{designs}{Simulation designs: `"intercept"`, `"covariate"`, or
-`"smooth"`.}
+\item{designs}{Simulation designs: `"intercept"`, `"covariate"`,
+`"scale"`, `"time_dependence"`, or `"smooth"`.}
 
 \item{include_mixed}{Logical; include mixed-support `gamlss.dist` families in
 the candidate family grid.}
