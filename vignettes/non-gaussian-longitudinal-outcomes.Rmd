@@ -1,0 +1,198 @@
+---
+title: "Non-Gaussian Longitudinal Outcomes"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Non-Gaussian Longitudinal Outcomes}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+This guide is for longitudinal outcomes where a Gaussian working model is too
+thin: positive skewed responses, counts, zero-heavy responses, bounded
+measurements, or outcomes where tail probabilities matter. These are the cases
+where `gamlss.longitudinal` should feel like a natural first model rather than
+a specialist fallback.
+
+## Why Not Just A GEE Or GLMM?
+
+GEEs and GLMMs can be excellent mean models. They are less direct when the
+scientific question is distributional:
+
+- What is the 90th percentile under treatment?
+- Does treatment change variability, not just the mean?
+- Are upper-tail events clustered within subjects?
+- Does a Poisson or Gamma mean model hide dispersion or asymmetry?
+- Are predicted probabilities calibrated across the response range?
+
+For these questions, start by choosing a response distribution, then model its
+parameters and the longitudinal dependence.
+
+## Positive Continuous Outcomes
+
+For positive skewed outcomes, start with Gamma, inverse Gaussian, Weibull, or
+other supported positive margins.
+
+```{r positive-screen}
+screen_margin(
+  dat,
+  response_var = "response",
+  candidate_families = c("GA", "IG", "WEI", "LOGNO")
+)
+```
+
+Then fit a distributional model. Put the main mean-scale question in `mu`, and
+use `sigma` when variability changes by time, treatment, or baseline risk.
+
+```{r positive-fit}
+fit_pos <- fit_longitudinal(
+  dataset = dat,
+  margin_dist = gamlss.dist::GA(mu.link = "log", sigma.link = "log"),
+  copula_dist = "N",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment + time + age_scaled,
+  sigma.formula = ~ treatment + time,
+  theta.formula = ~ time
+)
+
+check_model(fit_pos)$checks
+```
+
+Report response-scale quantities:
+
+```{r positive-answers}
+predict(fit_pos, type = "response", se.fit = TRUE, interval = "confidence")
+predict(fit_pos, type = "quantile", probs = c(0.1, 0.5, 0.9))
+predict(fit_pos, type = "probability", q = 10, direction = "above")
+
+marginal_effects(
+  fit_pos,
+  newdata = dat,
+  variable = "treatment",
+  parameter = "mu",
+  se.fit = TRUE
+)
+```
+
+## Count Outcomes
+
+For counts, begin with Poisson only if the count process is plausibly simple.
+Move to overdispersed or zero-adjusted families when screening and diagnostics
+support it.
+
+```{r count-screen}
+screen_margin(
+  count_dat,
+  response_var = "response",
+  candidate_families = c("PO", "NBI", "NBII", "ZIP", "ZINBI")
+)
+```
+
+```{r count-fit}
+fit_count <- fit_longitudinal(
+  dataset = count_dat,
+  margin_dist = gamlss.dist::NBI(),
+  copula_dist = "N",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment + time + age_scaled,
+  sigma.formula = ~ treatment,
+  theta.formula = ~ 1
+)
+
+check_model(fit_count)$tail
+```
+
+For applied reporting, avoid stopping at log-link coefficients. Give predicted
+means, selected probabilities, upper-tail risks, or simulated trajectories.
+
+```{r count-answers}
+predict(fit_count, type = "response")
+predict(fit_count, type = "quantile", probs = c(0.5, 0.9, 0.95))
+simulate(fit_count, nsim = 100, type = "copula")
+```
+
+## Diagnostics That Matter More For Non-Gaussian Outcomes
+
+Use `check_model()` as the first diagnostic pass:
+
+```{r diagnostics}
+check <- check_model(fit_pos)
+check$checks
+check$pit
+check$tail
+check$residual_dependence
+```
+
+Read the warnings literally:
+
+- Marginal calibration warnings mean the chosen response family is still wrong.
+- Tail warnings mean the model is missing high or low outcome risk.
+- Residual dependence warnings mean the copula is not absorbing the repeated
+  measurement association.
+- Convergence or Hessian warnings mean inference should be described as
+  approximate or revisited with simpler formulas.
+
+For a fuller checklist of coefficient, response-mean, quantile, and simulation
+uncertainty language, see `vignette("inference-uncertainty", package =
+"gamlss.longitudinal")`.
+
+## Benchmark The Claim
+
+Use adoption benchmarks when claiming that the distributional model improves on
+standard mean-model practice.
+
+```{r benchmark}
+positive_bench <- run_adoption_benchmarks(
+  scenarios = "gamma_positive",
+  reps = 50,
+  methods = c("rs_separate", "gee", "glmm", "gam"),
+  max_elapsed_sec = 60,
+  write_results = TRUE
+)
+
+positive_bench$summary$summary
+```
+
+For counts:
+
+```{r count-benchmark}
+count_bench <- run_adoption_benchmarks(
+  scenarios = "poisson_count",
+  reps = 50,
+  methods = c("rs_separate", "gee", "glmm", "gam"),
+  max_elapsed_sec = 60,
+  write_results = TRUE
+)
+
+count_bench$summary$summary
+```
+
+Use the benchmark summary to make narrow claims: mean prediction, interval
+calibration, 90th percentile error, upper-tail behaviour, convergence, or
+runtime. A model that wins on the mean but loses on tails is not a
+distributional replacement.
+
+For non-Gaussian comparator rows, the most useful first checks are:
+
+- `benchmark_q90_mae`: how far the model-implied 90th percentile is from the
+  simulated truth.
+- `benchmark_upper_tail_error_90`: whether the model over- or under-predicts
+  probability above the true 90th percentile.
+- `benchmark_mean_rmse`: whether the response mean is still competitive.
+
+## When To Keep The Simpler Model
+
+Keep a GEE or GLMM as the primary model when the response family is routine,
+diagnostics are clean, the scientific estimand is only a marginal or
+subject-specific mean, and quantiles or tail probabilities would not change the
+decision. In that setting, `gamlss.longitudinal` is still a useful sensitivity
+analysis for distributional assumptions.

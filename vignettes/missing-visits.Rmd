@@ -1,0 +1,154 @@
+---
+title: "Missing Visits"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Missing Visits}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+This guide is for longitudinal panels where subjects miss scheduled follow-up
+visits. The goal is to make the missingness explicit before fitting the model,
+then use diagnostics and benchmark sensitivity checks to decide whether the
+GAMLSS-copula workflow is stable enough to be the primary analysis.
+
+## Start With The Visit Pattern
+
+Before fitting a model, summarize the observed time grid:
+
+```{r visit-pattern}
+visit_table <- with(dat, table(subject, time))
+visit_counts <- rowSums(visit_table > 0)
+table(visit_counts)
+
+missing_by_time <- aggregate(
+  response ~ time,
+  data = transform(dat, response = !is.na(response)),
+  FUN = function(x) mean(!x)
+)
+missing_by_time
+```
+
+Use this step to separate common cases:
+
+- Sporadic missing outcomes on an otherwise regular grid.
+- Dropped visit rows where a scheduled time is absent for some subjects.
+- Informative dropout, where missingness depends on prior outcomes or risk.
+
+The first two are reasonable starting points for the current workflow. The
+third needs sensitivity analysis and may need an explicit missingness model
+outside this package.
+
+## Fit The Longitudinal Model
+
+Keep the first model simple. Use formulas that are stable under the observed
+visit pattern, then add distributional or dependence complexity only when
+diagnostics support it.
+
+```{r fit}
+fit <- fit_longitudinal(
+  dataset = dat,
+  margin_dist = gamlss.dist::NO(),
+  copula_dist = "N",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment + time + age_scaled,
+  sigma.formula = ~ treatment + time,
+  theta.formula = ~ 1
+)
+```
+
+If visits are irregular or the time grid is sparse, start with
+`theta.formula = ~ 1`. Move to a time-varying dependence formula only when
+there are enough adjacent observations to estimate it.
+
+## Diagnostics
+
+```{r check}
+check <- check_model(fit)
+check$checks
+check$residual_dependence
+check$tail
+```
+
+Focus on three warnings:
+
+- Remaining residual dependence can mean the missing visits changed the
+  effective dependence pattern.
+- Marginal calibration warnings can mean the response distribution is being
+  distorted by selective missingness.
+- Tail warnings can mean high-risk subjects are more likely to miss visits or
+  drop out.
+
+Use `simulate()` to inspect whether fitted trajectories look plausible under
+the observed visit pattern:
+
+```{r simulate}
+sim <- simulate(fit, nsim = 100, type = "copula")
+```
+
+## Prediction With Missing Visits
+
+Predictions for observed rows are straightforward:
+
+```{r predict-observed}
+predict(fit, type = "response", se.fit = TRUE, interval = "confidence")
+predict(fit, type = "quantile", probs = c(0.1, 0.5, 0.9))
+```
+
+For a complete target grid, build `newdata` deliberately. Do not silently treat
+unobserved visits as observed outcomes.
+
+```{r predict-grid}
+target_grid <- expand.grid(
+  subject = unique(dat$subject),
+  time = sort(unique(dat$time)),
+  KEEP.OUT.ATTRS = FALSE
+)
+
+target_grid <- merge(
+  target_grid,
+  unique(dat[c("subject", "treatment", "age_scaled")]),
+  by = "subject",
+  all.x = TRUE
+)
+
+predict(fit, newdata = target_grid, type = "response", se.fit = TRUE)
+```
+
+## Sensitivity Benchmark
+
+Use the built-in missing-visits adoption scenario as a first wiring check:
+
+```{r benchmark}
+missing_bench <- run_adoption_benchmarks(
+  scenarios = "missing_visits",
+  reps = 50,
+  methods = c("rs_separate", "gee", "glmm", "gam"),
+  max_elapsed_sec = 60,
+  write_results = TRUE
+)
+
+missing_bench$summary$summary
+```
+
+Read this as a stability check, not proof that missingness is ignorable. If the
+model wins or ties under missing visits but fails under complete data, the
+problem is probably not missingness. If it is stable under complete data but
+fails under missing visits, report the missingness sensitivity directly.
+
+## When To Be Cautious
+
+Be cautious when missingness depends on previous responses, when entire tails of
+the outcome distribution are absent after dropout, or when time-varying
+dependence is estimated from very few adjacent pairs. In those settings,
+`gamlss.longitudinal` can still be a useful outcome model, but the primary
+analysis needs a missingness strategy that matches the scientific design.
