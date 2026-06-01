@@ -11,8 +11,8 @@
 <script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.4.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Fit Longitudinal Data Using GAMLSS Margins and Copula Dependence Structures">
-<meta name="description" content="Fits longitudinal Gaussian additive models for location, scale and shape (GAMLSS) with flexible copula dependence structures across time. Supports various copula families (Gaussian, Clayton, Frank, Gumbel, Joe) with custom links and includes comprehensive diagnostic and visualization tools.">
-<meta property="og:description" content="Fits longitudinal Gaussian additive models for location, scale and shape (GAMLSS) with flexible copula dependence structures across time. Supports various copula families (Gaussian, Clayton, Frank, Gumbel, Joe) with custom links and includes comprehensive diagnostic and visualization tools.">
+<meta name="description" content="Fits longitudinal generalized additive models for location, scale and shape (GAMLSS) with flexible copula dependence structures across time. Provides adoption-focused helpers for marginal-family screening, longitudinal fitting, inference, prediction, simulation, diagnostics, and opt-in benchmarks against common GEE, GLMM, and GAM baselines.">
+<meta property="og:description" content="Fits longitudinal generalized additive models for location, scale and shape (GAMLSS) with flexible copula dependence structures across time. Provides adoption-focused helpers for marginal-family screening, longitudinal fitting, inference, prediction, simulation, diagnostics, and opt-in benchmarks against common GEE, GLMM, and GAM baselines.">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -35,7 +35,25 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="articles/native-simulation-workflow.html">Native Simulation, Copula Screening, and GAMLSS Longitudinal Fitting</a></li>
+<li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
+    <li><a class="dropdown-item" href="articles/site-guide.html">Guide To The Articles</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Worked Examples</h6></li>
+    <li><a class="dropdown-item" href="articles/standard-workflow.html">Standard Workflow API, Inference, and Diagnostics</a></li>
+    <li><a class="dropdown-item" href="articles/native-simulation-workflow.html">Native Simulation, Copula Screening, and GAMLSS Longitudinal Fitting</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Adoption Guides</h6></li>
+    <li><a class="dropdown-item" href="articles/replace-gee-glmm.html">Replacing GEE and GLMM Workflows</a></li>
+    <li><a class="dropdown-item" href="articles/adoption-decision-guide.html">Adoption Decision Guide</a></li>
+    <li><a class="dropdown-item" href="articles/inference-uncertainty.html">Inference and Uncertainty</a></li>
+    <li><a class="dropdown-item" href="articles/diagnostics-decisions.html">Diagnostics As Decisions</a></li>
+    <li><a class="dropdown-item" href="articles/replace-a-gee.html">Replace a GEE</a></li>
+    <li><a class="dropdown-item" href="articles/replace-a-random-intercept-glmm.html">Replace a Random-Intercept GLMM</a></li>
+    <li><a class="dropdown-item" href="articles/non-gaussian-longitudinal-outcomes.html">Non-Gaussian Longitudinal Outcomes</a></li>
+    <li><a class="dropdown-item" href="articles/missing-visits.html">Missing Visits</a></li>
+    <li><a class="dropdown-item" href="articles/time-varying-dependence.html">Time-Varying Dependence</a></li>
+    <li><a class="dropdown-item" href="articles/benchmarking-adoption.html">Benchmarking Adoption Claims</a></li>
   </ul>
 </li>
       </ul>
@@ -70,7 +88,7 @@
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>The package currently depends on <code>gamlss2</code>, which should be installed from the GAMLSS R-universe before installing <code>gamlss.longitudinal</code> from GitHub:</p>
+<p>The core package can be installed from GitHub with CRAN dependencies. Some optional benchmarking and JSS replication comparisons use <code>gamlss2</code>; install it from the GAMLSS R-universe only when running those opt-in workflows:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span></span>
 <span>  <span class="st">"gamlss2"</span>,</span>
@@ -83,37 +101,153 @@
 <span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"ahibbert/gamlss.longitudinal"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="worked-example">Worked Example<a class="anchor" aria-label="anchor" href="#worked-example"></a>
+<h2 id="article-guide">Article Guide<a class="anchor" aria-label="anchor" href="#article-guide"></a>
 </h2>
-<p>The main worked example is now maintained as a vignette:</p>
+<p>Start with the article guide when browsing the package site or repository:</p>
 <ul>
-<li>Source: <a href="vignettes/native-simulation-workflow.Rmd"><code>vignettes/native-simulation-workflow.Rmd</code></a>
-</li>
-<li>Rendered preview, when built locally: <a href="vignettes/native-simulation-workflow.html"><code>vignettes/native-simulation-workflow.html</code></a>
+<li>Guide to the articles: <a href="vignettes/site-guide.Rmd"><code>vignettes/site-guide.Rmd</code></a>
 </li>
 </ul>
-<p>The vignette demonstrates:</p>
+<p>The main worked examples are:</p>
+<ul>
+<li>Standard workflow API, inference, and diagnostics: <a href="vignettes/standard-workflow.Rmd"><code>vignettes/standard-workflow.Rmd</code></a>
+</li>
+<li>Native simulation, copula screening, and fitting: <a href="vignettes/native-simulation-workflow.Rmd"><code>vignettes/native-simulation-workflow.Rmd</code></a>
+</li>
+</ul>
+<p>Focused adoption guides:</p>
+<ul>
+<li>Adoption guide: <a href="vignettes/replace-gee-glmm.Rmd"><code>vignettes/replace-gee-glmm.Rmd</code></a>
+</li>
+<li>Adoption decision guide: <a href="vignettes/adoption-decision-guide.Rmd"><code>vignettes/adoption-decision-guide.Rmd</code></a>
+</li>
+<li>Inference and uncertainty: <a href="vignettes/inference-uncertainty.Rmd"><code>vignettes/inference-uncertainty.Rmd</code></a>
+</li>
+<li>Diagnostics as decisions: <a href="vignettes/diagnostics-decisions.Rmd"><code>vignettes/diagnostics-decisions.Rmd</code></a>
+</li>
+<li>Replace a GEE: <a href="vignettes/replace-a-gee.Rmd"><code>vignettes/replace-a-gee.Rmd</code></a>
+</li>
+<li>Replace a random-intercept GLMM: <a href="vignettes/replace-a-random-intercept-glmm.Rmd"><code>vignettes/replace-a-random-intercept-glmm.Rmd</code></a>
+</li>
+<li>Non-Gaussian longitudinal outcomes: <a href="vignettes/non-gaussian-longitudinal-outcomes.Rmd"><code>vignettes/non-gaussian-longitudinal-outcomes.Rmd</code></a>
+</li>
+<li>Missing visits: <a href="vignettes/missing-visits.Rmd"><code>vignettes/missing-visits.Rmd</code></a>
+</li>
+<li>Time-varying dependence: <a href="vignettes/time-varying-dependence.Rmd"><code>vignettes/time-varying-dependence.Rmd</code></a>
+</li>
+<li>Benchmarking adoption claims: <a href="vignettes/benchmarking-adoption.Rmd"><code>vignettes/benchmarking-adoption.Rmd</code></a>
+</li>
+<li>Benchmark investigation: <a href="inst/benchmarks/gee-glmm-investigation.html"><code>inst/benchmarks/gee-glmm-investigation.md</code></a>
+</li>
+</ul>
+<p>The native simulation vignette demonstrates:</p>
 <ul>
 <li>native longitudinal data simulation,</li>
-<li>exploratory <code>plotDist()</code> diagnostics,</li>
+<li>exploratory <code><a href="reference/plotDist.html">plotDist()</a></code> diagnostics,</li>
 <li>marginal family screening with <code><a href="https://rdrr.io/pkg/gamlss/man/fitDist.html" class="external-link">gamlss::fitDist()</a></code>,</li>
 <li>native copula family screening with <code><a href="reference/select_copula.html">select_copula()</a></code>,</li>
 <li>fitting a longitudinal GAMLSS-copula model,</li>
 <li>
-<code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code>, <code><a href="reference/plot.terms.html">plot.terms()</a></code>, and <code><a href="reference/plot.copula.html">plot.copula()</a></code> diagnostics,</li>
+<code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code>, <code><a href="reference/plot_terms.html">plot_terms()</a></code>, and <code><a href="reference/plot_copula_diagnostics.html">plot_copula_diagnostics()</a></code> diagnostics,</li>
 <li>comparison between simulated truth and fitted effects.</li>
 </ul>
-<p>To render the vignette locally:</p>
+<p>To render the two worked examples locally:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span>RSTUDIO_PANDOC <span class="op">=</span> <span class="st">"C:/Program Files/Quarto/bin/tools"</span><span class="op">)</span></span>
+<span><span class="fu">rmarkdown</span><span class="fu">::</span><span class="fu"><a href="https://pkgs.rstudio.com/rmarkdown/reference/render.html" class="external-link">render</a></span><span class="op">(</span><span class="st">"vignettes/standard-workflow.Rmd"</span><span class="op">)</span></span>
 <span><span class="fu">rmarkdown</span><span class="fu">::</span><span class="fu"><a href="https://pkgs.rstudio.com/rmarkdown/reference/render.html" class="external-link">render</a></span><span class="op">(</span><span class="st">"vignettes/native-simulation-workflow.Rmd"</span><span class="op">)</span></span></code></pre></div>
 <p>If Pandoc is already available to R, the <code><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv()</a></code> line is not needed.</p>
+</div>
+<div class="section level2">
+<h2 id="standard-workflow">Standard Workflow<a class="anchor" aria-label="anchor" href="#standard-workflow"></a>
+</h2>
+<p>The adoption-facing workflow is:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">margin_screen</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/screen_margin.html">screen_margin</a></span><span class="op">(</span><span class="va">dat</span>, response_var <span class="op">=</span> <span class="st">"response"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">copula_screen</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/select_copula.html">select_copula</a></span><span class="op">(</span></span>
+<span>  data <span class="op">=</span> <span class="va">dat</span>,</span>
+<span>  u_var <span class="op">=</span> <span class="st">"u"</span>,</span>
+<span>  subject_var <span class="op">=</span> <span class="st">"subject"</span>,</span>
+<span>  time_var <span class="op">=</span> <span class="st">"time"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fit_longitudinal.html">fit_longitudinal</a></span><span class="op">(</span></span>
+<span>  dataset <span class="op">=</span> <span class="va">dat</span>,</span>
+<span>  margin_dist <span class="op">=</span> <span class="fu">gamlss.dist</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/gamlss.dist/man/GA.html" class="external-link">GA</a></span><span class="op">(</span>mu.link <span class="op">=</span> <span class="st">"log"</span>, sigma.link <span class="op">=</span> <span class="st">"log"</span><span class="op">)</span>,</span>
+<span>  time_var <span class="op">=</span> <span class="st">"time"</span>,</span>
+<span>  subject_var <span class="op">=</span> <span class="st">"subject"</span>,</span>
+<span>  mu.formula <span class="op">=</span> <span class="va">response</span> <span class="op">~</span> <span class="va">treatment</span> <span class="op">+</span> <span class="va">time</span> <span class="op">+</span> <span class="fu">s</span><span class="op">(</span><span class="va">age_scaled</span>, bs <span class="op">=</span> <span class="st">"ps"</span><span class="op">)</span>,</span>
+<span>  sigma.formula <span class="op">=</span> <span class="op">~</span> <span class="va">treatment</span> <span class="op">+</span> <span class="va">time</span>,</span>
+<span>  theta.formula <span class="op">=</span> <span class="op">~</span> <span class="va">time</span>,</span>
+<span>  copula_dist <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">copula_screen</span>, <span class="st">"selected"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="reference/check_model.html">check_model</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="reference/check_model.html">check_model</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/copula_time_summary.html">copula_time_summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/wald_test.html">wald_test</a></span><span class="op">(</span><span class="va">fit</span>, terms <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"mu.treatment"</span>, <span class="st">"sigma.treatment"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/likelihood_compare.html">likelihood_compare</a></span><span class="op">(</span><span class="va">fit_reduced</span>, <span class="va">fit</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/bootstrap_inference.html">bootstrap_inference</a></span><span class="op">(</span><span class="va">fit</span>, R <span class="op">=</span> <span class="fl">200</span>, terms <span class="op">=</span> <span class="st">"mu.treatment"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"response"</span>, se.fit <span class="op">=</span> <span class="cn">TRUE</span>, interval <span class="op">=</span> <span class="st">"confidence"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"quantile"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"probability"</span>, q <span class="op">=</span> <span class="fl">10</span>, direction <span class="op">=</span> <span class="st">"above"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate</a></span><span class="op">(</span><span class="va">fit</span>, nsim <span class="op">=</span> <span class="fl">10</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/marginal_effects.html">marginal_effects</a></span><span class="op">(</span><span class="va">fit</span>, newdata <span class="op">=</span> <span class="va">dat</span>, variable <span class="op">=</span> <span class="st">"treatment"</span>, se.fit <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/stats/effects.html" class="external-link">effects</a></span><span class="op">(</span><span class="va">fit</span>, newdata <span class="op">=</span> <span class="va">dat</span>, variable <span class="op">=</span> <span class="st">"treatment"</span>, se.fit <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<p><code><a href="reference/check_model.html">check_model()</a></code> is intended as the first diagnostic pass for applied users. It summarises convergence, scoring, PIT calibration, tail calibration, residual dependence, copula summaries, and plain-language diagnostic decisions.</p>
+<p>Use <a href="vignettes/inference-uncertainty.Rmd"><code>vignettes/inference-uncertainty.Rmd</code></a> when reporting uncertainty. It separates likelihood/Hessian coefficient intervals, numerical-Hessian fallbacks, delta-method response-mean intervals, and simulation-based trajectory summaries. Use <a href="vignettes/diagnostics-decisions.Rmd"><code>vignettes/diagnostics-decisions.Rmd</code></a> when deciding whether diagnostic warnings support a primary model, sensitivity model, or revised specification.</p>
+<p>For simulation papers and applied sensitivity analyses, the package also has an opt-in comparator scaffold:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/benchmark_standard_models.html">benchmark_standard_models</a></span><span class="op">(</span></span>
+<span>  data <span class="op">=</span> <span class="va">dat</span>,</span>
+<span>  formula <span class="op">=</span> <span class="va">response</span> <span class="op">~</span> <span class="va">treatment</span> <span class="op">+</span> <span class="va">time</span> <span class="op">+</span> <span class="va">age_scaled</span>,</span>
+<span>  subject_var <span class="op">=</span> <span class="st">"subject"</span>,</span>
+<span>  family <span class="op">=</span> <span class="st">"gaussian"</span>,</span>
+<span>  comparators <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"gee"</span>, <span class="st">"glmm"</span>, <span class="st">"gam"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>This fits standard baselines when optional packages are installed and reports availability, success, runtime, and simple response-scale prediction error. For repeated simulation evidence, include those comparators explicitly in the coverage harness:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/run_coverage_simulations.html">run_coverage_simulations</a></span><span class="op">(</span></span>
+<span>  families <span class="op">=</span> <span class="st">"NO"</span>,</span>
+<span>  copulas <span class="op">=</span> <span class="st">"N"</span>,</span>
+<span>  methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rs_separate"</span>, <span class="st">"gee"</span>, <span class="st">"glmm"</span>, <span class="st">"gam"</span><span class="op">)</span>,</span>
+<span>  designs <span class="op">=</span> <span class="st">"covariate"</span>,</span>
+<span>  write_results <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>Comparator rows include truth-aware mean metrics such as <code>benchmark_mean_rmse</code> when simulations include <code>true_mu</code>, plus distribution-aware <code>benchmark_q90_mae</code> and <code>benchmark_upper_tail_error_90</code> diagnostics for Gaussian, Gamma, and Poisson comparators. Gaussian comparator rows also include residual-calibrated PIT, tail, and 95% interval diagnostics. Time-varying dependence scenarios include <code>benchmark_theta_time_abs_error</code> for the fitted copula time effect. Use <code><a href="reference/summarise_benchmark_results.html">summarise_benchmark_results()</a></code> to turn repeated simulation rows into win/tie/loss summaries by metric and estimand:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">bench_summary</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/summarise_benchmark_results.html">summarise_benchmark_results</a></span><span class="op">(</span></span>
+<span>  <span class="va">results</span>,</span>
+<span>  metrics <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"benchmark_mean_rmse"</span>, <span class="st">"benchmark_q90_mae"</span>, <span class="st">"benchmark_upper_tail_error_90"</span>, <span class="st">"elapsed_sec"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">bench_summary</span></span></code></pre></div>
+<p>For a named benchmark plan that is ready to run outside CRAN checks:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/adoption_benchmark_scenarios.html">adoption_benchmark_scenarios</a></span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">bench</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/run_adoption_benchmarks.html">run_adoption_benchmarks</a></span><span class="op">(</span></span>
+<span>  scenarios <span class="op">=</span> <span class="st">"gaussian_heteroskedastic"</span>,</span>
+<span>  reps <span class="op">=</span> <span class="fl">25</span>,</span>
+<span>  methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rs_separate"</span>, <span class="st">"gee"</span>, <span class="st">"glmm"</span>, <span class="st">"gam"</span><span class="op">)</span>,</span>
+<span>  write_results <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">bench</span><span class="op">$</span><span class="va">summary</span><span class="op">$</span><span class="va">summary</span></span></code></pre></div>
+<p>For a longer reproducible campaign, run the shipped opt-in benchmark script:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">script</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span></span>
+<span>  <span class="st">"benchmarks"</span>,</span>
+<span>  <span class="st">"run-adoption-benchmarks.R"</span>,</span>
+<span>  package <span class="op">=</span> <span class="st">"gamlss.longitudinal"</span></span>
+<span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/source.html" class="external-link">source</a></span><span class="op">(</span><span class="va">script</span><span class="op">)</span></span></code></pre></div>
+<p>Set <code>GAMLSS_LONGITUDINAL_ADOPTION_REPS</code>, <code>GAMLSS_LONGITUDINAL_ADOPTION_SCENARIOS</code>, <code>GAMLSS_LONGITUDINAL_ADOPTION_METHODS</code>, and <code>GAMLSS_LONGITUDINAL_ADOPTION_OUTPUT_DIR</code> before sourcing the script to control the benchmark campaign and output location. The script writes CSV/RDS outputs and an <code>adoption_benchmark_report.md</code> file. If results are already in memory, use <code>write_benchmark_report(bench)</code> to create the Markdown evidence report. Read the scenario-level report sections when making adoption claims; the aggregate table is only an orientation because each scenario targets a different estimand.</p>
 </div>
 <div class="section level2">
 <h2 id="minimal-fit-skeleton">Minimal Fit Skeleton<a class="anchor" aria-label="anchor" href="#minimal-fit-skeleton"></a>
 </h2>
 <p>The core model call looks like this:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gamlss.longitudinal.html">gamlss.longitudinal</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">dat</span>,</span>
 <span>  margin_dist <span class="op">=</span> <span class="fu">gamlss.dist</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/gamlss.dist/man/GA.html" class="external-link">GA</a></span><span class="op">(</span>mu.link <span class="op">=</span> <span class="st">"log"</span>, sigma.link <span class="op">=</span> <span class="st">"log"</span><span class="op">)</span>,</span>
@@ -126,8 +260,8 @@
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/plot.terms.html">plot.terms</a></span><span class="op">(</span><span class="va">fit</span>, data <span class="op">=</span> <span class="va">dat</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/plot.copula.html">plot.copula</a></span><span class="op">(</span><span class="va">fit</span>, data <span class="op">=</span> <span class="va">dat</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="reference/plot_terms.html">plot_terms</a></span><span class="op">(</span><span class="va">fit</span>, data <span class="op">=</span> <span class="va">dat</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/plot_copula_diagnostics.html">plot_copula_diagnostics</a></span><span class="op">(</span><span class="va">fit</span>, data <span class="op">=</span> <span class="va">dat</span><span class="op">)</span></span></code></pre></div>
 <p>See the vignette for a complete reproducible dataset, distribution screening, copula selection, and diagnostic workflow.</p>
 </div>
 <div class="section level2">

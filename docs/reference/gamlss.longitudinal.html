@@ -28,7 +28,25 @@ copula likelihoods which can be quicker with a slight loss to overall fit."></he
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/native-simulation-workflow.html">Native Simulation, Copula Screening, and GAMLSS Longitudinal Fitting</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
+    <li><a class="dropdown-item" href="../articles/site-guide.html">Guide To The Articles</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Worked Examples</h6></li>
+    <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard Workflow API, Inference, and Diagnostics</a></li>
+    <li><a class="dropdown-item" href="../articles/native-simulation-workflow.html">Native Simulation, Copula Screening, and GAMLSS Longitudinal Fitting</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Adoption Guides</h6></li>
+    <li><a class="dropdown-item" href="../articles/replace-gee-glmm.html">Replacing GEE and GLMM Workflows</a></li>
+    <li><a class="dropdown-item" href="../articles/adoption-decision-guide.html">Adoption Decision Guide</a></li>
+    <li><a class="dropdown-item" href="../articles/inference-uncertainty.html">Inference and Uncertainty</a></li>
+    <li><a class="dropdown-item" href="../articles/diagnostics-decisions.html">Diagnostics As Decisions</a></li>
+    <li><a class="dropdown-item" href="../articles/replace-a-gee.html">Replace a GEE</a></li>
+    <li><a class="dropdown-item" href="../articles/replace-a-random-intercept-glmm.html">Replace a Random-Intercept GLMM</a></li>
+    <li><a class="dropdown-item" href="../articles/non-gaussian-longitudinal-outcomes.html">Non-Gaussian Longitudinal Outcomes</a></li>
+    <li><a class="dropdown-item" href="../articles/missing-visits.html">Missing Visits</a></li>
+    <li><a class="dropdown-item" href="../articles/time-varying-dependence.html">Time-Varying Dependence</a></li>
+    <li><a class="dropdown-item" href="../articles/benchmarking-adoption.html">Benchmarking Adoption Claims</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><a class="external-link nav-link" href="https://github.com/ahibbert/gamlss.longitudinal/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
@@ -72,7 +90,7 @@ copula likelihoods which can be quicker with a slight loss to overall fit.</p>
 <span>  inner_stop_crit <span class="op">=</span> <span class="cn">NA</span>,</span>
 <span>  outer_stop_crit <span class="op">=</span> <span class="cn">NA</span>,</span>
 <span>  start_step_size <span class="op">=</span> <span class="fl">0.5</span>,</span>
-<span>  step_adjustment <span class="op">=</span> <span class="fl">0.5</span>,</span>
+<span>  step_adjustment <span class="op">=</span> <span class="cn">NA</span>,</span>
 <span>  max_steps <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>  start_from <span class="op">=</span> <span class="cn">NA</span>,</span>
 <span>  warm_start_joint <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -81,7 +99,7 @@ copula likelihoods which can be quicker with a slight loss to overall fit.</p>
 <span>  plot_results <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  true_val <span class="op">=</span> <span class="cn">NA</span>,</span>
 <span>  method <span class="op">=</span> <span class="st">"RS"</span>,</span>
-<span>  max_outer_iter <span class="op">=</span> <span class="fl">1000</span>,</span>
+<span>  max_outer_iter <span class="op">=</span> <span class="fl">100</span>,</span>
 <span>  max_inner_iter <span class="op">=</span> <span class="fl">100</span>,</span>
 <span>  max_negative_outer_streak <span class="op">=</span> <span class="fl">10</span>,</span>
 <span>  max_elapsed_sec <span class="op">=</span> <span class="cn">Inf</span>,</span>
@@ -94,15 +112,22 @@ copula likelihoods which can be quicker with a slight loss to overall fit.</p>
 <span>  cg_step_tol <span class="op">=</span> <span class="cn">NA</span>,</span>
 <span>  cg_update_lambda <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  cg_lambda_update_every <span class="op">=</span> <span class="fl">10</span>,</span>
+<span>  cg_max_lambda_updates <span class="op">=</span> <span class="cn">NA</span>,</span>
+<span>  cg_raw_loglik_drop_tol <span class="op">=</span> <span class="fl">10</span>,</span>
 <span>  cg_line_search <span class="op">=</span> <span class="st">"best"</span>,</span>
 <span>  cg_max_line_search_evals <span class="op">=</span> <span class="fl">60</span>,</span>
 <span>  cg_gradient_method <span class="op">=</span> <span class="st">"forward"</span>,</span>
+<span>  discrete_score_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"analytical"</span>, <span class="st">"finite"</span><span class="op">)</span>,</span>
+<span>  cg_zeta_hessian <span class="op">=</span> <span class="st">"analytical"</span>,</span>
+<span>  cg_hessian_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"analytical"</span>, <span class="st">"finite"</span>, <span class="st">"auto"</span><span class="op">)</span>,</span>
 <span>  compute_vcov <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  vcov_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"analytical"</span>, <span class="st">"numderiv"</span><span class="op">)</span>,</span>
 <span>  vcov_numderiv <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  use_Rcpp <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  lambda_start <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>  lambda_penalty_K <span class="op">=</span> <span class="fl">2</span></span>
+<span>  lambda_penalty_K <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>  rs_update_lambda <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  rs_smooth_trust_radius <span class="op">=</span> <span class="cn">Inf</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -110,13 +135,26 @@ copula likelihoods which can be quicker with a slight loss to overall fit.</p>
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
 
 
-<dl><dt id="arg-margin-dist">margin_dist<a class="anchor" aria-label="anchor" href="#arg-margin-dist"></a></dt>
+<dl><dt id="arg-dataset">dataset<a class="anchor" aria-label="anchor" href="#arg-dataset"></a></dt>
+<dd><p>Long-format data frame containing the response, subject, time,
+and covariate columns.</p></dd>
+
+
+<dt id="arg-margin-dist">margin_dist<a class="anchor" aria-label="anchor" href="#arg-margin-dist"></a></dt>
 <dd><p>Marginal distribution specified as a gamlss family object,
 e.g. GA(), NO(), PO(), NBI(), etc.</p></dd>
 
 
 <dt id="arg-copula-dist">copula_dist<a class="anchor" aria-label="anchor" href="#arg-copula-dist"></a></dt>
 <dd><p>Copula distribution code, one of "N", "C", "F", "G", "J", or "t".</p></dd>
+
+
+<dt id="arg-time-var">time_var<a class="anchor" aria-label="anchor" href="#arg-time-var"></a></dt>
+<dd><p>Name of the time variable in `dataset`.</p></dd>
+
+
+<dt id="arg-subject-var">subject_var<a class="anchor" aria-label="anchor" href="#arg-subject-var"></a></dt>
+<dd><p>Name of the subject identifier in `dataset`.</p></dd>
 
 
 <dt id="arg-mu-formula">mu.formula<a class="anchor" aria-label="anchor" href="#arg-mu-formula"></a></dt>
@@ -270,6 +308,18 @@ smoother penalties during CG iterations.</p></dd>
 outer iterations. Use `1` to update every CG iteration.</p></dd>
 
 
+<dt id="arg-cg-max-lambda-updates">cg_max_lambda_updates<a class="anchor" aria-label="anchor" href="#arg-cg-max-lambda-updates"></a></dt>
+<dd><p>Integer; for `method = "CG"` only. Maximum
+number of smoother penalty update rounds. Use `NA` for no cap.</p></dd>
+
+
+<dt id="arg-cg-raw-loglik-drop-tol">cg_raw_loglik_drop_tol<a class="anchor" aria-label="anchor" href="#arg-cg-raw-loglik-drop-tol"></a></dt>
+<dd><p>Numeric; for `method = "CG"` only. Stop CG as
+not converged if the raw joint log-likelihood drops this far below the best
+raw joint log-likelihood seen after at least one lambda update. Use `NA` to
+disable.</p></dd>
+
+
 <dt id="arg-cg-line-search">cg_line_search<a class="anchor" aria-label="anchor" href="#arg-cg-line-search"></a></dt>
 <dd><p>Character; for `method = "CG"` only. `"best"` evaluates
 candidate steps up to `cg_max_line_search_evals` before taking the largest
@@ -288,6 +338,26 @@ one-sided finite differences, and `"central"` uses two-sided finite
 differences.</p></dd>
 
 
+<dt id="arg-discrete-score-method">discrete_score_method<a class="anchor" aria-label="anchor" href="#arg-discrete-score-method"></a></dt>
+<dd><p>Character. For discrete margins using exact
+rectangle likelihoods, choose `"analytical"` for vectorised rectangle-score
+assembly or `"finite"` for slow row-wise finite-difference scores.</p></dd>
+
+
+<dt id="arg-cg-zeta-hessian">cg_zeta_hessian<a class="anchor" aria-label="anchor" href="#arg-cg-zeta-hessian"></a></dt>
+<dd><p>Character; for `method = "CG"` only. `"analytical"`
+uses the analytical Hessian for the zeta block, while `"finite"` replaces
+the zeta-zeta block with central finite differences of the raw joint
+log-likelihood.</p></dd>
+
+
+<dt id="arg-cg-hessian-method">cg_hessian_method<a class="anchor" aria-label="anchor" href="#arg-cg-hessian-method"></a></dt>
+<dd><p>Character; for `method = "CG"` only. `"analytical"`
+uses the semi-analytical Hessian for Newton steps, `"finite"` uses a full
+finite-difference Hessian, and `"auto"` tries analytical then falls back to
+finite differences when needed.</p></dd>
+
+
 <dt id="arg-compute-vcov">compute_vcov<a class="anchor" aria-label="anchor" href="#arg-compute-vcov"></a></dt>
 <dd><p>Logical; if `TRUE` (default), compute and store the
 model variance-covariance output at the end of fitting.</p></dd>
@@ -295,7 +365,8 @@ model variance-covariance output at the end of fitting.</p></dd>
 
 <dt id="arg-vcov-method">vcov_method<a class="anchor" aria-label="anchor" href="#arg-vcov-method"></a></dt>
 <dd><p>Character; fit-time vcov method when `compute_vcov = TRUE`.
-One of `"numderiv"` or `"analytical"`.</p></dd>
+One of `"analytical"` or `"numderiv"`. Analytical vcov falls back to the
+numerical reference path if the analytical Hessian cannot be inverted.</p></dd>
 
 
 <dt id="arg-vcov-numderiv">vcov_numderiv<a class="anchor" aria-label="anchor" href="#arg-vcov-numderiv"></a></dt>
@@ -305,6 +376,27 @@ One of `"numderiv"` or `"analytical"`.</p></dd>
 
 <dt id="arg-use-rcpp">use_Rcpp<a class="anchor" aria-label="anchor" href="#arg-use-rcpp"></a></dt>
 <dd><p>Use Rcpp for matrix operations</p></dd>
+
+
+<dt id="arg-lambda-start">lambda_start<a class="anchor" aria-label="anchor" href="#arg-lambda-start"></a></dt>
+<dd><p>Optional starting value for smooth-term penalties.</p></dd>
+
+
+<dt id="arg-lambda-penalty-k">lambda_penalty_K<a class="anchor" aria-label="anchor" href="#arg-lambda-penalty-k"></a></dt>
+<dd><p>Penalty strength used when updating smooth-term
+smoothing parameters.</p></dd>
+
+
+<dt id="arg-rs-update-lambda">rs_update_lambda<a class="anchor" aria-label="anchor" href="#arg-rs-update-lambda"></a></dt>
+<dd><p>Logical; for `method = "RS"` only. If `TRUE`,
+update smoothing parameters by the RS GAIC step; if `FALSE`, keep
+`lambda_start` fixed.</p></dd>
+
+
+<dt id="arg-rs-smooth-trust-radius">rs_smooth_trust_radius<a class="anchor" aria-label="anchor" href="#arg-rs-smooth-trust-radius"></a></dt>
+<dd><p>Numeric; for `method = "RS"` only. Optional
+L2 trust radius applied separately to each smooth coefficient block after
+the RS weighted least-squares proposal. Use `Inf` to disable.</p></dd>
 
 </dl></div>
 
