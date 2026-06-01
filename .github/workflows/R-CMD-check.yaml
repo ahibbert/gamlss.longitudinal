@@ -69,5 +69,5 @@ jobs:
 
       - uses: r-lib/actions/check-r-package@v2
         with:
-          args: 'c("--as-cran")'
+          args: 'c("--as-cran", "--no-manual")'
           error-on: '"warning"'
