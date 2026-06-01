@@ -12,3 +12,5 @@ tests/REGRESSION_TEST_PLAN.md
 results/
 examples/
 .codex-backups/
+.codex_backups/
+.vscode/
