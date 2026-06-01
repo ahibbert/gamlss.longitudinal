@@ -1,0 +1,306 @@
+---
+title: "Standard Workflow API, Inference, and Diagnostics"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Standard Workflow API, Inference, and Diagnostics}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+This vignette is the recommended starting workflow for applied longitudinal
+analyses with `gamlss.longitudinal`. It is deliberately narrow: get the margin
+roughly right, choose a plausible dependence model, fit the longitudinal model,
+check the result, then report response-scale answers.
+
+Use this as the default path before moving to the focused guides for replacing
+a GEE, replacing a random-intercept GLMM, handling non-Gaussian outcomes,
+missing visits, or time-varying dependence.
+
+## Functions Covered
+
+This vignette demonstrates or describes every user-facing function added for
+the standard adoption workflow.
+
+| Function | Where it appears | Purpose |
+|---|---|---|
+| `screen_margin()` | Step 1 | Screen candidate marginal distributions before fitting dependence. |
+| `print.margin_screen()` | Step 1 | Automatically prints the ordered margin screen. |
+| `fit_longitudinal()` | Step 3 | Fit the recommended GAMLSS-copula workflow with adoption-friendly defaults. |
+| `confint.gamlss.longitudinal()` | Step 3 | Report coefficient confidence intervals through the standard `confint()` generic. |
+| `wald_test()` | Step 3 | Run individual, joint, or contrast-matrix Wald tests. |
+| `likelihood_compare()` | Step 3 | Compare nested or approximately nested longitudinal fits. |
+| `bootstrap_inference()` | Step 3 | Run parametric simulation-and-refit coefficient uncertainty checks. |
+| `print.gamlss_longitudinal_wald_test()` | Step 3 | Automatically prints `wald_test()` output. |
+| `print.gamlss_longitudinal_likelihood_compare()` | Step 3 | Automatically prints likelihood comparison output. |
+| `print.gamlss_longitudinal_bootstrap()` | Step 3 | Automatically prints bootstrap summaries. |
+| `check_model()` | Step 4 | Return decision-oriented diagnostics, warnings, and a model-role recommendation. |
+| `print.gamlss_longitudinal_check()` | Step 4 | Automatically prints the diagnostic object. |
+| `plot.gamlss_longitudinal_check()` | Step 4 | Draw stored PIT, QQ, worm, and rootogram diagnostics through `plot(check)`. |
+| `predict.gamlss.longitudinal()` | Step 5 | Return means, parameters, quantiles, CDFs, densities, probabilities, and uncertainty intervals. |
+| `simulate.gamlss.longitudinal()` | Step 5 | Simulate marginal or copula-preserving fitted responses. |
+| `marginal_effects()` | Step 5 | Summarize counterfactual response-scale effects. |
+| `effects.gamlss.longitudinal()` | Step 5 | Provide a familiar `effects()` alias for `marginal_effects()`. |
+
+## Data Requirements
+
+Start with one row per subject and visit. The model needs:
+
+- a response column;
+- a subject identifier;
+- a visit, time, or occasion variable;
+- scientific predictors for the margin;
+- optional predictors for scale, shape, or dependence.
+
+```{r data-shape}
+str(dat)
+table(dat$subject)
+table(dat$time)
+```
+
+Unbalanced panels and missing visits are allowed, but the missingness mechanism
+still needs to be part of the scientific judgement. See
+`vignette("missing-visits", package = "gamlss.longitudinal")` for that case.
+
+## Step 1: Screen The Margin
+
+Screen the response distribution before fitting the longitudinal dependence
+model. This is not the final model; it is a fast way to avoid starting with an
+obviously poor family.
+
+```{r margin-screen}
+margin_screen <- screen_margin(
+  dat,
+  response_var = "response",
+  families = c("NO", "GA", "LOGNO", "PO")
+)
+
+margin_screen
+```
+
+Use the screen as a shortlist, then choose a family that makes scientific sense.
+For example, positive skewed outcomes often start with `GA()` or `LOGNO()`,
+counts with `PO()`, and approximately symmetric continuous outcomes with
+`NO()`.
+
+```{r margin-family}
+margin_dist <- gamlss.dist::GA(mu.link = "log", sigma.link = "log")
+```
+
+## Step 2: Screen The Copula
+
+Use `select_copula()` to compare dependence families. If pseudo-observations
+are already available, pass them through `u_var`. In a real analysis, they
+usually come from a preliminary marginal model or a workflow-specific
+pre-processing step.
+
+```{r copula-screen}
+copula_screen <- select_copula(
+  data = dat,
+  u_var = "u",
+  subject_var = "subject",
+  time_var = "time",
+  families = c("N", "C", "F", "G", "J", "t")
+)
+
+copula_screen
+copula_dist <- attr(copula_screen, "selected")
+```
+
+The selected family is a starting point, not a guarantee. Dependence diagnostics
+after the full fit matter more than the screen.
+
+## Step 3: Fit The Longitudinal Model
+
+Put the main scientific effects in `mu.formula`. Add `sigma.formula` when spread
+changes across time, treatment, or baseline covariates. Add `theta.formula` when
+dependence plausibly changes over follow-up or with subject-level predictors.
+
+```{r fit}
+fit <- fit_longitudinal(
+  dataset = dat,
+  margin_dist = margin_dist,
+  copula_dist = copula_dist,
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment + time + s(age_scaled, bs = "ps"),
+  sigma.formula = ~ treatment + time,
+  theta.formula = ~ time,
+  compute_vcov = FALSE,
+  run_checks = TRUE
+)
+```
+
+For final reporting, request variance-covariance output on the final model:
+
+```{r final-vcov}
+summary(fit, include_vcov = TRUE)
+confint(fit)
+wald_test(fit, terms = "mu.treatment")
+likelihood_compare(fit_reduced, fit)
+
+boot <- bootstrap_inference(fit, R = 200, terms = "mu.treatment")
+boot
+```
+
+See `vignette("inference-uncertainty", package = "gamlss.longitudinal")` for
+the reporting language around Hessian, numerical-Hessian, delta-method, and
+simulation-based uncertainty.
+See `vignette("diagnostics-decisions", package = "gamlss.longitudinal")` for
+the decision language around marginal, tail, dependence, and inference warnings.
+
+## Step 4: Check Before Interpreting
+
+Run `check_model()` before interpreting coefficients or predictions.
+
+```{r check}
+check <- check_model(fit, include_vcov = TRUE)
+check
+check$warnings
+check$recommendation
+plot(check)
+copula_time_summary(fit)
+```
+
+Treat the output as a decision aid:
+
+- marginal warnings mean the response family or parameter formulas need work;
+- tail warnings mean quantile or probability claims are not yet trustworthy;
+- residual-dependence warnings mean the copula family or `theta.formula` may be
+  underfitting longitudinal association;
+- inference warnings mean intervals should be reported as approximate or the
+  model should be simplified.
+
+Only move to primary-model reporting once the diagnostics match the intended
+estimand.
+
+## Step 5: Report Applied Answers
+
+Prefer response-scale summaries over raw coefficient tables when communicating
+with applied collaborators.
+
+```{r applied-answers}
+predict(
+  fit,
+  newdata = dat,
+  type = "response",
+  se.fit = TRUE,
+  interval = "confidence"
+)
+
+predict(
+  fit,
+  newdata = dat,
+  type = "parameters"
+)
+
+predict(
+  fit,
+  newdata = dat,
+  type = "quantile",
+  probs = c(0.1, 0.5, 0.9)
+)
+
+predict(
+  fit,
+  newdata = dat,
+  type = "cdf",
+  q = 10
+)
+
+predict(
+  fit,
+  newdata = dat,
+  type = "density",
+  y = 10
+)
+
+predict(
+  fit,
+  newdata = dat,
+  type = "probability",
+  q = 10,
+  direction = "above"
+)
+
+marginal_effects(
+  fit,
+  newdata = dat,
+  variable = "treatment",
+  parameter = "mu",
+  se.fit = TRUE
+)
+
+effects(
+  fit,
+  newdata = dat,
+  variable = "treatment",
+  parameter = "mu",
+  se.fit = TRUE
+)
+```
+
+If the target is a trajectory or a dependence-sensitive event, simulate from the
+fitted model:
+
+```{r simulation}
+sim_marginal <- simulate(fit, nsim = 100, type = "marginal", seed = 1)
+sim_copula <- simulate(fit, nsim = 100, type = "copula", seed = 1)
+```
+
+## Step 6: Compare Against Familiar Models
+
+A replacement claim needs a sensitivity comparison. Use the built-in benchmark
+scaffold for a quick check, then the adoption benchmark runner for repeated
+simulation evidence.
+
+```{r comparator}
+benchmark_standard_models(
+  data = dat,
+  formula = response ~ treatment + time + age_scaled,
+  subject_var = "subject",
+  family = "gaussian",
+  comparators = c("gee", "glmm", "gam")
+)
+```
+
+For repeated evidence:
+
+```{r adoption-benchmark}
+bench <- run_adoption_benchmarks(
+  scenarios = "gaussian_heteroskedastic",
+  reps = 25,
+  methods = c("rs_separate", "gee", "glmm", "gam"),
+  write_results = TRUE
+)
+
+write_benchmark_report(bench)
+```
+
+Use `vignette("benchmarking-adoption", package = "gamlss.longitudinal")` for
+scenario-level benchmark reporting.
+
+## Minimal Reporting Checklist
+
+A complete applied report should state:
+
+1. why a distributional longitudinal model was needed;
+2. the margin family and copula family;
+3. which predictors entered `mu`, `sigma`, and `theta`;
+4. the main `check_model()` decisions;
+5. the inference route used for intervals;
+6. the response-scale estimands reported;
+7. the GEE, GLMM, or GAM sensitivity result.
+
+If the report only needs a marginal mean and the diagnostics do not suggest
+distributional or dependence problems, a GEE may still be the better primary
+model. The goal is not to replace familiar models everywhere; it is to make the
+GAMLSS-copula workflow the standard when margins, tails, heteroskedasticity, or
+dependence are part of the answer.

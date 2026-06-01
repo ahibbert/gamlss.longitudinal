@@ -1,0 +1,203 @@
+---
+title: "Diagnostics As Decisions"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Diagnostics As Decisions}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+Diagnostics should decide what happens next. In `gamlss.longitudinal`, the
+first diagnostic pass is `check_model()`: it combines numerical summaries,
+plain-language checks, reportable warnings, and standard diagnostic plots.
+
+The goal is not to create a longer residual-plot ritual. The goal is to answer:
+
+- is the marginal distribution credible enough for the estimand?
+- are tails and quantiles calibrated well enough to report?
+- does dependence remain after the copula?
+- is inference stable enough to cite?
+- should the model be primary, sensitivity-only, or revised?
+
+## Run The Diagnostic Check
+
+```{r check}
+check <- check_model(
+  fit,
+  include_vcov = TRUE,
+  include_plots = TRUE
+)
+
+check
+check$warnings
+check$recommendation
+plot(check)
+```
+
+`check$checks` contains the full table, including rows where no major automatic
+warning was triggered. `check$warnings` is the report-facing subset containing
+`concern`, `review`, and `note` rows.
+
+```{r check-tables}
+check$checks
+check$warnings
+check$recommendation
+check$decisions
+```
+
+## Marginal Calibration
+
+The marginal distribution is the foundation of a GAMLSS-copula model. If the
+margin is wrong, dependence and tail conclusions can also be wrong.
+
+Use:
+
+```{r marginal-calibration}
+check$pit
+plot(check, which = "pithist")
+plot(check, which = "qqrplot")
+plot(check, which = "wormplot")
+```
+
+Decision language:
+
+- PIT uniformity concerns mean the chosen family or covariate formulas are not
+  explaining the response distribution well enough.
+- A pattern in the QQ or worm plot points to systematic underfit, not a random
+  nuisance.
+- Revise `margin_dist`, `mu.formula`, `sigma.formula`, or shape-parameter
+  formulas before making distributional claims.
+
+Possible next actions:
+
+- try a skewed, heavy-tailed, zero-inflated, or count-specific family;
+- add known scale drivers to `sigma.formula`;
+- simplify unstable smooths before adding more parameters;
+- keep a GEE or GLMM as primary if the distributional model does not improve
+  the applied answer.
+
+## Tail Calibration
+
+Tail diagnostics matter when reporting quantiles, threshold probabilities,
+extreme outcomes, or safety events.
+
+```{r tail-calibration}
+check$tail
+plot(check, which = "rootogram")
+predict(fit, type = "quantile", probs = c(0.05, 0.5, 0.95))
+```
+
+Decision language:
+
+- upper-tail underfit means high outcomes occur more often than the fitted
+  margin expects;
+- lower-tail underfit means low outcomes occur more often than expected;
+- tail warnings should be resolved before using the model as primary for tail
+  probabilities.
+
+Possible next actions:
+
+- use a heavier-tailed or asymmetric family;
+- add distributional covariates to scale or shape parameters;
+- report tail estimates as sensitivity-only if diagnostics remain unresolved.
+
+## Residual Dependence
+
+The copula is meant to absorb longitudinal association left after the margin.
+Residual dependence warnings mean the chosen copula family or `theta.formula`
+may be too simple.
+
+```{r dependence}
+check$residual_dependence
+check$copula
+copula_time_summary(fit)
+plot_copula_diagnostics(fit, data = dat)
+```
+
+Decision language:
+
+- residual dependence after the copula means subject trajectories are still
+  more associated than the model expects;
+- time-varying association should usually be tested with `theta.formula = ~ time`
+  or another scientifically motivated dependence formula;
+- a random-intercept GLMM or exchangeable GEE may remain a useful sensitivity
+  model, but it does not answer the same dependence question as a time-varying
+  copula.
+
+Possible next actions:
+
+- compare copula families with `select_copula()`;
+- add time or baseline predictors to `theta.formula`;
+- inspect scenario-level benchmarks for `benchmark_theta_time_abs_error` when
+  dependence recovery is the target.
+
+## Inference Warnings
+
+Inference warnings are about whether standard errors, intervals, and tests are
+stable enough to report.
+
+```{r inference}
+summary(fit, include_vcov = TRUE)
+confint(fit)
+check$warnings[check$warnings$area == "inference", ]
+```
+
+Decision language:
+
+- analytical Hessian inference is the preferred fast likelihood-based route
+  when available;
+- numerical Hessian inference should be described as approximate;
+- convergence, identifiability, or boundary concerns should be reported and
+  investigated, not hidden.
+
+For detailed reporting language, use
+`vignette("inference-uncertainty", package = "gamlss.longitudinal")`.
+
+## Primary Or Sensitivity?
+
+Use the diagnostic result to decide the model's role.
+
+`check$recommendation` gives a compact first pass:
+
+- `primary_candidate` means no major automatic warnings were triggered;
+- `primary_candidate_with_caveats` means notes or review-level diagnostics
+  should be reported;
+- `revise_before_primary` means at least one concern should be addressed before
+  using the model as the primary analysis.
+
+| Diagnostic state | Suggested role |
+|---|---|
+| No major warnings; estimand needs distribution/tails/dependence | Primary model candidate |
+| Mean is stable but tails or dependence remain unresolved | Sensitivity model |
+| Marginal calibration is poor | Revise before interpreting |
+| Dependence remains after the copula | Revise copula or `theta.formula` |
+| Inference is fragile in a small sample | Sensitivity model plus simulation |
+| GEE/GLMM answers the estimand more simply | Keep GEE/GLMM primary |
+
+## Reporting Template
+
+A concise diagnostics paragraph can look like this:
+
+> We reviewed marginal calibration, tail calibration, residual dependence, and
+> inference diagnostics using `check_model()`. The model showed no unresolved
+> marginal or tail warnings, and normal-score residual dependence was small
+> after the fitted copula. Coefficient intervals used the reported
+> variance-covariance route; numerical-Hessian intervals, if used, were treated
+> as approximate.
+
+If diagnostics do flag problems, state them plainly:
+
+> The GAMLSS-copula model was retained as a sensitivity analysis because
+> `check_model()` flagged unresolved upper-tail misfit. The GEE remained the
+> primary analysis for the marginal mean estimand.
+
+This is the trust-building habit: diagnostics should either support the richer
+model or explain why a simpler model remains primary.
