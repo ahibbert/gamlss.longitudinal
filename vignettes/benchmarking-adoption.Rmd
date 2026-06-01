@@ -1,0 +1,195 @@
+---
+title: "Benchmarking Adoption Claims"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Benchmarking Adoption Claims}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+This guide is for building evidence that `gamlss.longitudinal` should replace
+a GEE or GLMM in a specific class of longitudinal problems. It is not meant to
+produce one universal leaderboard. Each benchmark scenario names the applied
+claim, the data-generating setting, the comparator methods, and the metrics
+that decide whether the claim is supported.
+
+For the decision rubric that separates primary-model use from sensitivity-model
+use, see `vignette("adoption-decision-guide", package = "gamlss.longitudinal")`.
+
+## Scenario Plan
+
+Start by inspecting the built-in adoption scenarios:
+
+```{r scenarios}
+scenarios <- adoption_benchmark_scenarios()
+scenarios[, c("scenario", "family", "copula", "design", "missingness", "claim")]
+```
+
+The initial scenarios are deliberately narrow:
+
+- Gaussian outcomes with a true scale-varying margin, where calibration matters.
+- Positive skewed outcomes where mean-only models can miss quantiles and tails.
+- Count outcomes where dispersion and upper-tail behaviour matter.
+- Gaussian outcomes where adjacent-time dependence changes over follow-up.
+- Missing-visit panels where the workflow should remain stable.
+
+These are the first places where a GAMLSS-copula model should be able to make a
+credible adoption case. If it only ties on those scenarios, the package should
+be described as a sensitivity model rather than a replacement.
+
+## Smoke Run
+
+Use a tiny run while developing benchmark code:
+
+```{r smoke}
+smoke <- run_adoption_benchmarks(
+  scenarios = "gaussian_heteroskedastic",
+  reps = 2,
+  methods = c("rs_separate", "gee", "glmm", "gam"),
+  max_elapsed_sec = 20,
+  write_results = FALSE
+)
+
+smoke
+smoke$summary$summary
+```
+
+This is a wiring check only. It confirms that the scenario can be simulated,
+each comparator can be attempted, and the result table can be summarized.
+
+## Full Opt-In Run
+
+Run the full benchmark outside CRAN checks and ordinary unit tests:
+
+```{r full-run}
+bench <- run_adoption_benchmarks(
+  reps = 100,
+  methods = c("rs_separate", "gee", "glmm", "gam"),
+  max_elapsed_sec = 60,
+  write_results = TRUE
+)
+
+bench$summary$summary
+write_benchmark_report(bench)
+```
+
+The saved result rows are intentionally verbose. They include convergence,
+runtime, likelihood summaries where meaningful, truth-aware mean error,
+model-implied 90th percentile error, upper-tail error at the true 90th
+percentile, residual-calibrated interval diagnostics for Gaussian baselines,
+PIT calibration, and tail errors where available.
+
+`write_benchmark_report()` creates a Markdown report with both aggregate and
+scenario-level sections. Use the scenario-level sections for adoption claims:
+they are filtered to each scenario's declared primary metrics, so a count or
+positive-outcome scenario is not accidentally interpreted through a Gaussian
+interval metric that was not part of its claim.
+
+## Minimum Standard For A Public Claim
+
+Treat small benchmark runs as wiring checks. A public package-site or manuscript
+claim should be based on a locked scenario plan, a recorded comparator
+availability table, and enough repetitions that the scenario-level conclusions
+are stable.
+
+Before writing that `gamlss.longitudinal` replaces a GEE or GLMM for a problem
+class, save:
+
+- the scenario table from `adoption_benchmark_scenarios()`;
+- the package availability table from `benchmark_comparator_status()`;
+- the raw result CSV and RDS from `run_adoption_benchmarks()`;
+- the Markdown report from `write_benchmark_report()`;
+- the scenario-level primary metrics used for the claim;
+- the cases where a simpler GEE or GLMM remains faster, clearer, or equally
+  accurate for the target estimand.
+
+This keeps the adoption claim narrow enough to trust.
+
+## Reading The Summary
+
+`summarise_benchmark_results()` labels each method within each scenario and
+replicate as a win, tie, loss, or missing result for each metric. The scoring
+rules depend on the estimand:
+
+- Mean errors and runtime are lower-is-better.
+- 90th percentile error is lower-is-better.
+- Time-varying dependence error is lower-is-better.
+- Bias and tail errors target zero.
+- 95% interval coverage targets 0.95.
+- PIT Kolmogorov-Smirnov p-values are higher-is-better.
+
+That means a method can win one estimand and lose another. This is a feature,
+not a nuisance: it prevents a mean-only model from being declared the winner
+when it predicts the mean well but misses tail behaviour.
+
+## Reporting Claims
+
+Use benchmark language that matches the evidence:
+
+```{r report-table}
+bench$summary$summary[
+  bench$summary$summary$metric %in% c(
+    "benchmark_mean_rmse",
+    "benchmark_q90_mae",
+    "benchmark_upper_tail_error_90",
+    "benchmark_interval_coverage_95",
+    "benchmark_tail_error_upper_05",
+    "elapsed_sec"
+  ),
+]
+```
+
+For scenario-specific claims, inspect the Markdown report or the case-level
+table:
+
+```{r scenario-report}
+report <- format_benchmark_report(bench)
+grep("Scenario-Level Headline Results", report, value = TRUE)
+
+bench$summary$case_results[
+  bench$summary$case_results$benchmark_scenario == "time_varying_dependence" &
+    bench$summary$case_results$metric == "benchmark_theta_time_abs_error",
+]
+```
+
+Good benchmark claims are specific:
+
+- "The GAMLSS-copula workflow wins or ties on interval calibration and tail
+  behaviour in the Gaussian heteroskedastic scenario."
+- "The GLMM is faster, but tail diagnostics show undercoverage in the positive
+  skewed scenario."
+- "The benchmark is inconclusive for count outcomes because a comparator failed
+  often enough to reduce the effective comparison set."
+
+Avoid broad claims such as "this package beats GLMMs". Broad claims are hard to
+defend and easy to misread. The goal is to show where a richer longitudinal
+distributional model changes the applied answer.
+
+## Current Extended-Run Lesson
+
+A local 20-replicate run across the five built-in scenarios is useful as a
+directional check, not as final evidence. In that run all 400 fits succeeded.
+The scenario-level report suggested:
+
+- `rs_separate` was the only method scoring the time-varying dependence
+  estimand, because the standard baselines do not model changing copula
+  dependence.
+- `rs_separate` led the heteroskedastic Gaussian scenario on the 90th-percentile
+  metric and was competitive on mean RMSE.
+- `rs_separate` led the missing-visits scenario on the declared interval and
+  mean metrics.
+- GEE remained the fastest method and was strongest in the positive and count
+  scenarios under these simple data-generating mechanisms.
+
+That is exactly the kind of result the benchmark framework should make visible:
+the package has a clearer adoption case when distributional calibration or
+dependence is the estimand, while simple marginal-mean use cases may still
+prefer a GEE.
