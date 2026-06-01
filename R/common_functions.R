@@ -1,7 +1,7 @@
 #' @importFrom rlang .data
 #' @importFrom graphics abline contour hist par plot.new
 #' @importFrom methods formalArgs
-#' @importFrom stats aggregate as.formula ave complete.cases contr.treatment contrasts "contrasts<-" cor optim qnorm rbeta rgamma rnorm runif setNames var
+#' @importFrom stats aggregate as.formula ave complete.cases contr.treatment contrasts "contrasts<-" cor effects fitted formula model.frame nobs optim qnorm rbeta residuals rgamma rnorm runif setNames terms var
 #' @importFrom utils capture.output head
 #' @importFrom gamlss gamlss coefAll
 #' @importFrom gamlss.dist NO qZISICHEL
@@ -643,6 +643,25 @@ utils::globalVariables(c(
 #' use dlcopdpar=FALSE to fit separately optimised models for the margin and
 #' copula likelihoods which can be quicker with a slight loss to overall fit.
 #'
+#' Formula inputs are converted to fixed-effect and smooth model matrices by
+#' [create_model_matrices()]. The user-supplied `time_var` is preserved for
+#' formulas as an internal `time_covariate` column, while an internal numeric
+#' `time` index is used for ordering longitudinal margins and adjacent copula
+#' pairs. Numeric and integer time inputs are used directly, numeric-like
+#' character time inputs are converted with [as.numeric()], and categorical time
+#' should be supplied as a factor. Ordered factors are treated with treatment
+#' contrasts rather than polynomial contrasts so factor-level effects are
+#' interpretable as level comparisons.
+#'
+#' The fitting data are converted to a plain data frame. Structurally missing
+#' subject-time combinations are expanded to explicit rows with missing
+#' responses. Response `NA` values may be present unless an entire margin or an
+#' adjacent copula pair has no complete responses, in which case fitting stops.
+#' Missing or non-finite predictor values are handled by the model-matrix
+#' construction path and may result in dropped or non-finite matrix rows; inspect
+#' `model.frame(fit, type = "expanded")`, `model.frame(fit, type = "observed")`,
+#' and `fit$convergence` when auditing a fit.
+#'
 #' @param dataset Long-format data frame containing the response, subject, time,
 #'   and covariate columns.
 #' @param margin_dist Marginal distribution specified as a gamlss family object,
@@ -1213,6 +1232,27 @@ gamlss.longitudinal=function(dataset,
     dataset = dataset
   ))
 
+  .warn_rank_deficient_model_matrices <- function(mm_x) {
+    for (parameter in names(mm_x)) {
+      X <- mm_x[[parameter]]
+      if (!is.matrix(X) && !is.data.frame(X)) next
+      X <- as.matrix(X)
+      if (nrow(X) == 0L || ncol(X) < 2L) next
+      finite_rows <- stats::complete.cases(X)
+      if (sum(finite_rows) < 2L) next
+      qr_x <- qr(X[finite_rows, , drop = FALSE])
+      if (qr_x$rank < ncol(X)) {
+        warning(
+          "Fixed-effect model matrix for parameter '", parameter,
+          "' is rank deficient; estimates may be non-identifiable.",
+          call. = FALSE
+        )
+      }
+    }
+    invisible(NULL)
+  }
+  .warn_rank_deficient_model_matrices(mm$x)
+
   warm_start_info <- list(
     used = FALSE,
     outer_iter = 0L,
@@ -1663,7 +1703,7 @@ gamlss.longitudinal=function(dataset,
       if(copula_dist %in% c("N", "t") &&
          "theta" %in% names(eta_inv) &&
          any(abs(eta_inv$theta) >= 0.999, na.rm = TRUE)) return(NULL)
-      positive_names <- intersect(names(eta_inv), c("mu", "sigma", "tau", "zeta"))
+      positive_names <- intersect(names(eta_inv), c("sigma", "tau", "zeta"))
       for(pn in positive_names) {
         if(any(eta_inv[[pn]] <= 1e-8, na.rm = TRUE)) return(NULL)
       }
@@ -2863,6 +2903,19 @@ gamlss.longitudinal=function(dataset,
 
   return_list=list(par_cov,log_lik_history,par_history,calc_lik_out_end,mm,margin_dist,copula_dist,include_dlcopdpar,dataset$response,dataset$time,dataset$subject,par_s,lambda_s,df_s,weights_final)
   names(return_list)=c("par","log_lik_history","par_history","calc_lik_out_end","model_matrix","margin_dist","copula_dist","include_dlcopdpar","response","response_margin","response_subject","par_s","lambda_s","df_s","weights")
+  return_list$dataset <- dataset
+  return_list$dataset_original <- dataset_original
+  return_list$response_var <- response_var
+  return_list$time_var <- time_var
+  return_list$subject_var <- subject_var
+  return_list$formulas <- list(
+    mu = mu.formula,
+    sigma = sigma.formula,
+    nu = nu.formula,
+    tau = tau.formula,
+    theta = theta.formula,
+    zeta = zeta.formula
+  )
   return_list$formulas_int <- list(
     mu = mu.formula.int,
     sigma = sigma.formula.int,
@@ -4653,6 +4706,142 @@ logLik.gamlss.longitudinal=function(object, ...) {
 #' @export
 coef.gamlss.longitudinal=function(object, ...) {
   return(object$par)
+}
+
+#' Access components of a fitted longitudinal GAMLSS-copula model
+#'
+#' These S3 methods expose the standard regression components expected by
+#' model-auditing workflows: formulas, terms, observation counts, model frames,
+#' fitted values, and residuals. They return the expanded internal data by
+#' default because `gamlss.longitudinal()` represents structurally missing
+#' subject-time combinations explicitly.
+#'
+#' @param x,object,formula A fitted `gamlss.longitudinal` object.
+#' @param parameter Distributional parameter to extract. Defaults to `"mu"`.
+#' @param internal Logical; return internally translated formulas when `TRUE`.
+#' @param type Observation-count, model-frame, or residual type.
+#' @param finite Logical; restrict fitted values or residuals to finite observed
+#'   responses and finite fitted parameters.
+#' @param ... Additional arguments reserved for future methods.
+#'
+#' @return A formula, terms object, integer count, data frame, or numeric vector.
+#' @name gamlss_longitudinal_accessors
+NULL
+
+#' @rdname gamlss_longitudinal_accessors
+#' @export
+formula.gamlss.longitudinal <- function(x, parameter = c("mu", "sigma", "nu", "tau", "theta", "zeta"), internal = FALSE, ...) {
+  parameter <- match.arg(parameter)
+  formulas <- if (isTRUE(internal)) x$formulas_int else x$formulas
+  fml <- formulas[[parameter]]
+  if (inherits(fml, "formula")) {
+    return(fml)
+  }
+  stats::as.formula(fml)
+}
+
+#' @rdname gamlss_longitudinal_accessors
+#' @export
+terms.gamlss.longitudinal <- function(x, parameter = c("mu", "sigma", "nu", "tau", "theta", "zeta"), internal = FALSE, ...) {
+  stats::terms(formula.gamlss.longitudinal(x, parameter = parameter, internal = internal, ...))
+}
+
+#' @rdname gamlss_longitudinal_accessors
+#' @export
+nobs.gamlss.longitudinal <- function(object, type = c("observed", "expanded", "submitted"), ...) {
+  type <- match.arg(type)
+  if (identical(type, "submitted") && !is.null(object$dataset_original)) {
+    return(nrow(object$dataset_original))
+  }
+  if (identical(type, "expanded") && !is.null(object$dataset)) {
+    return(nrow(object$dataset))
+  }
+  sum(is.finite(object$response))
+}
+
+#' @rdname gamlss_longitudinal_accessors
+#' @export
+model.frame.gamlss.longitudinal <- function(formula, type = c("expanded", "observed", "submitted"), ...) {
+  object <- formula
+  type <- match.arg(type)
+  out <- if (identical(type, "submitted") && !is.null(object$dataset_original)) {
+    as.data.frame(object$dataset_original, stringsAsFactors = FALSE)
+  } else {
+    as.data.frame(object$dataset, stringsAsFactors = FALSE)
+  }
+  if (identical(type, "observed") && "response" %in% names(out)) {
+    out <- out[is.finite(out$response), , drop = FALSE]
+  }
+  rownames(out) <- NULL
+  out
+}
+
+.gl_fitted_parameter_values <- function(object, parameter = "mu") {
+  copula_link <- get_copula_dist(object$copula_dist)$copula_link
+  eta_out <- calc_eta(
+    par_cov = object$par,
+    mm = object$model_matrix,
+    margin_dist = object$margin_dist,
+    copula_link = copula_link,
+    par_s = object$par_s
+  )
+  params <- eta_out$eta_inv[names(object$margin_dist$parameters)]
+  if (!parameter %in% names(params)) {
+    stop("Parameter '", parameter, "' is not available in the fitted margin.", call. = FALSE)
+  }
+  as.numeric(params[[parameter]])
+}
+
+#' @rdname gamlss_longitudinal_accessors
+#' @export
+fitted.gamlss.longitudinal <- function(object, parameter = "mu", finite = FALSE, ...) {
+  fit <- .gl_fitted_parameter_values(object, parameter = parameter)
+  if (isTRUE(finite)) {
+    keep <- is.finite(object$response) & is.finite(fit)
+    fit <- fit[keep]
+  }
+  fit
+}
+
+#' @rdname gamlss_longitudinal_accessors
+#' @export
+residuals.gamlss.longitudinal <- function(object, type = c("response", "pearson", "quantile"), finite = TRUE, ...) {
+  type <- match.arg(type)
+  mu <- .gl_fitted_parameter_values(object, parameter = "mu")
+  y <- as.numeric(object$response)
+  keep <- is.finite(y) & is.finite(mu)
+
+  if (identical(type, "response")) {
+    out <- y - mu
+  } else if (identical(type, "pearson")) {
+    sigma <- if ("sigma" %in% names(object$margin_dist$parameters)) {
+      .gl_fitted_parameter_values(object, parameter = "sigma")
+    } else {
+      rep(stats::sd(y, na.rm = TRUE), length(y))
+    }
+    sigma <- pmax(as.numeric(sigma), .Machine$double.eps)
+    out <- (y - mu) / sigma
+    keep <- keep & is.finite(sigma)
+  } else {
+    copula_link <- get_copula_dist(object$copula_dist)$copula_link
+    eta_out <- calc_eta(
+      par_cov = object$par,
+      mm = object$model_matrix,
+      margin_dist = object$margin_dist,
+      copula_link = copula_link,
+      par_s = object$par_s
+    )
+    params <- eta_out$eta_inv[names(object$margin_dist$parameters)]
+    pit <- .gl_call_family_fun("p", object$margin_dist$family[1], y, params)
+    pit <- pmin(pmax(pit, .Machine$double.eps), 1 - .Machine$double.eps)
+    out <- stats::qnorm(pit)
+    keep <- keep & is.finite(out)
+  }
+
+  if (isTRUE(finite)) {
+    out <- out[keep]
+  }
+  out
 }
 
 #' Variance-covariance matrix for a fitted longitudinal GAMLSS-copula model
@@ -8544,6 +8733,21 @@ copula_time_summary <- function(object, lags = 1, stat = c("mean", "median")) {
   )
   class(out) <- "copula_time_summary"
   out
+}
+
+#' @export
+print.copula_time_summary <- function(x, digits = max(3, getOption("digits") - 3), ...) {
+  cat("\nCopula Dependence Summary\n")
+  cat("-------------------------\n")
+  if (!is.null(x$time_summary)) {
+    cat("\nFitted dependence by time:\n")
+    print(x$time_summary, digits = digits, row.names = FALSE)
+  }
+  if (!is.null(x$pair_summary)) {
+    cat("\nAdjacent-pair dependence:\n")
+    print(x$pair_summary, digits = digits, row.names = FALSE)
+  }
+  invisible(x)
 }
 
 #' Plot fitted copula trends by time

@@ -114,6 +114,14 @@ procast <- function(object, ...) {
     }
   }
 
+  # Fitting keeps the original user time scale as `time_covariate` for
+  # formulas, while `time` is used internally for ordering/pairing. Recreate
+  # that column for prediction data supplied with either original or internal
+  # names.
+  if (!"time_covariate" %in% names(nd) && "time" %in% names(nd)) {
+    nd$time_covariate <- nd$time
+  }
+
   if (!"time" %in% names(nd) && "time" %in% names(object$model_matrix$x$mu)) {
     nd$time <- NA
   }

@@ -16,7 +16,7 @@
 A data frame from [marginal_effects()].
 }
 \description{
-\code{effects.gamlss.longitudinal()} is a convenience alias for
-[marginal_effects()] so users can reach for the familiar \code{effects()} generic
+`effects.gamlss.longitudinal()` is a convenience alias for
+[marginal_effects()] so users can reach for the familiar `effects()` generic
 when interpreting fitted distributional parameters.
 }

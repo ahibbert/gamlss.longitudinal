@@ -196,6 +196,9 @@ simulate_longitudinal_covariates <- function(data, subject = list(), observation
 #'   and response variables.
 #' @param include_truth If `TRUE`, include simulated uniforms and true
 #'   parameter columns.
+#' @param u_bounds Optional length-two numeric vector giving lower and upper
+#'   bounds used to clamp simulated uniforms before applying the marginal
+#'   quantile function. The default `NULL` leaves uniforms unchanged.
 #'
 #' @return A long-format data frame with one row per subject-time observation.
 #' @export
@@ -211,7 +214,8 @@ simulate_longitudinal_dataset <- function(
   subject_var = "subject",
   time_var = "time",
   response_var = "response",
-  include_truth = TRUE
+  include_truth = TRUE,
+  u_bounds = NULL
 ) {
   if (!is.null(seed)) {
     old_seed <- if (exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)) {
@@ -254,6 +258,14 @@ simulate_longitudinal_dataset <- function(
   )
 
   long$.sim_u <- as.vector(t(u_mat))
+  if (!is.null(u_bounds)) {
+    if (!is.numeric(u_bounds) || length(u_bounds) != 2L ||
+        any(!is.finite(u_bounds)) || u_bounds[1L] < 0 ||
+        u_bounds[2L] > 1 || u_bounds[1L] >= u_bounds[2L]) {
+      stop("u_bounds must be NULL or a finite increasing length-two vector inside [0, 1].", call. = FALSE)
+    }
+    long$.sim_u <- pmin(pmax(long$.sim_u, u_bounds[1L]), u_bounds[2L])
+  }
   qfun <- .sim_margin_quantile_function(margin_dist)
   qargs <- list(p = long$.sim_u)
   for (param_name in names(margin_params)) {

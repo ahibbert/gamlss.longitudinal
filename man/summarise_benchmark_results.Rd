@@ -33,8 +33,7 @@ An object of class `gamlss_longitudinal_benchmark_summary` with
 \description{
 `summarise_benchmark_results()` turns rows from [run_coverage_simulations()]
 or `benchmark_standard_models()`-style outputs into compact evidence tables.
-Each metric is scored according to its estimand: lower mean, response, and
-quantile error is better, dependence-recovery error is lower-is-better,
+Each metric is scored according to its estimand: lower error is better,
 coverage targets 0.95, calibration/tail errors target 0, and runtime is
 lower-is-better.
 }

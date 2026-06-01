@@ -60,7 +60,7 @@ log_2plus <- function(x) {
 log_2plus_inv <- function(x) {
   y=exp(x)+2
   #Adjust for error when close to two.
-  close_to_boundary <- is.finite(y) & y == 2
+  close_to_boundary <- is.finite(y) & abs(y - 2) <= .Machine$double.eps
   y[close_to_boundary]=y[close_to_boundary]+0.00001
   return(y)
 }
@@ -113,7 +113,7 @@ log_1plus <- function(x) {
 #' @export
 log_1plus_inv <- function(x) {
   y = exp(x) + 1
-  close_to_boundary <- is.finite(y) & y == 1
+  close_to_boundary <- is.finite(y) & abs(y - 1) <= .Machine$double.eps
   y[close_to_boundary] = y[close_to_boundary] + 0.00001
   return(y)
 }
