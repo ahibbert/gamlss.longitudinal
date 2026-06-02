@@ -2,6 +2,8 @@
 ^\.Rproj\.user$
 ^_pkgdown\.yml$
 ^cran-comments\.md$
+^LICENSE\.md$
+^THIRD-PARTY-NOTICES\.md$
 ^R \(testing\)$
 ^Rplots\.pdf$
 ^auto_open_plots\.sh$
