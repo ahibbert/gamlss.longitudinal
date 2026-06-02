@@ -51,8 +51,7 @@ available.}
 \item{top_n}{Number of rows for "slowest" and "largest error" tables.}
 }
 \value{
-Invisibly returns a list with \code{tex_file}, \code{pdf_file}, and
-\code{compiled}.
+Invisibly returns a list with \code{tex_file}, \code{pdf_file}, and \code{compiled}.
 }
 \description{
 Write a LaTeX summary report for coverage simulations
