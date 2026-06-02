@@ -657,10 +657,11 @@ utils::globalVariables(c(
 #' subject-time combinations are expanded to explicit rows with missing
 #' responses. Response `NA` values may be present unless an entire margin or an
 #' adjacent copula pair has no complete responses, in which case fitting stops.
-#' Missing or non-finite predictor values are handled by the model-matrix
-#' construction path and may result in dropped or non-finite matrix rows; inspect
-#' `model.frame(fit, type = "expanded")`, `model.frame(fit, type = "observed")`,
-#' and `fit$convergence` when auditing a fit.
+#' Submitted predictor values must be observed and finite. Response `NA` values
+#' represent missing outcomes, but response `NaN`, `Inf`, and `-Inf` values stop
+#' before fitting. The package does not impute missing values; structurally
+#' inserted rows are represented in `model.frame(fit, type = "expanded")`, while
+#' observed response rows are available from `model.frame(fit, type = "observed")`.
 #'
 #' @param dataset Long-format data frame containing the response, subject, time,
 #'   and covariate columns.
@@ -929,6 +930,7 @@ gamlss.longitudinal=function(dataset,
   } else {
     dataset <- as.data.frame(dataset, stringsAsFactors = FALSE)
   }
+  .gl_validate_tabular_shape(dataset, context = "dataset")
 
   # Validate and prepare input data
   if(all(is.na(time_var)) || all(is.na(subject_var))) {
@@ -936,7 +938,7 @@ gamlss.longitudinal=function(dataset,
          "Please specify:\n",
          "  - time_var: column name for time/margin variable (e.g., 'time')\n",
          "  - subject_var: column name for subject ID variable (e.g., 'subject')\n",
-         "Example: gamlss.longitudinal(..., time_var='time', subject_var='subject')")
+         "Example: gamlss_longitudinal(..., time_var='time', subject_var='subject')")
   }
 
   # Validate dataset contains required columns
@@ -994,6 +996,11 @@ gamlss.longitudinal=function(dataset,
       stop("ERROR: time must be numeric-like unless supplied as factor.\n",
            "If time is categorical for formulas/interactions, convert it to factor before fitting.")
     }
+    warning(
+      "Converted character time variable '", time_var,
+      "' to numeric for fitting; convert it to factor before fitting if visits are categorical.",
+      call. = FALSE
+    )
     dataset$time <- time_numeric
     dataset$time_covariate <- time_numeric
   } else {
@@ -1005,8 +1012,8 @@ gamlss.longitudinal=function(dataset,
     dataset$subject <- as.character(dataset$subject)
   }
 
-  if (any(is.na(dataset$time)) || any(is.na(dataset$subject))) {
-    stop("ERROR: time and subject variables cannot contain NA values.")
+  if (any(is.na(dataset$time)) || any(is.na(dataset$subject)) || any(!is.finite(dataset$time))) {
+    stop("ERROR: time and subject variables cannot contain missing or non-finite values.")
   }
 
   # Robust formula normalizer:
@@ -1067,6 +1074,12 @@ gamlss.longitudinal=function(dataset,
   tau.formula.int   <- translate_formula_vars(tau.formula,   formula_var_map, response_name = "response", require_lhs = FALSE)
   theta.formula.int <- translate_formula_vars(theta.formula, formula_var_map, response_name = "response", require_lhs = FALSE)
   zeta.formula.int  <- translate_formula_vars(zeta.formula,  formula_var_map, response_name = "response", require_lhs = FALSE)
+
+  .gl_validate_fitting_data_policy(
+    dataset,
+    formulas = list(mu.formula.int, sigma.formula.int, nu.formula.int, tau.formula.int, theta.formula.int, zeta.formula.int),
+    response_name = "response"
+  )
 
   if(verbose > 1) {
     cat("Input validation successful.\n")
@@ -1282,7 +1295,7 @@ gamlss.longitudinal=function(dataset,
     warm_err <- NULL
     tryCatch({
       warm_output <- capture.output({
-        warm_fit <- gamlss.longitudinal(
+        warm_fit <- gamlss_longitudinal(
           dataset = dataset_original,
           margin_dist = margin_dist,
           copula_dist = copula_dist,
@@ -2989,6 +3002,22 @@ gamlss.longitudinal=function(dataset,
   return(return_list)
 }
 
+#' Fit a longitudinal GAMLSS-copula model
+#'
+#' `gamlss_longitudinal()` is the preferred underscore-named entry point for
+#' direct model fitting. It calls [gamlss.longitudinal()] unchanged and returns
+#' the same fitted object class, so existing S3 methods continue to dispatch on
+#' `"gamlss.longitudinal"`.
+#'
+#' @param ... Arguments passed unchanged to [gamlss.longitudinal()].
+#'
+#' @return A fitted `gamlss.longitudinal` object.
+#' @seealso [gamlss.longitudinal()], [fit_longitudinal()]
+#' @export
+gamlss_longitudinal <- function(...) {
+  gamlss.longitudinal(...)
+}
+
 normalize_lag_time <- function(time) {
   if (is.factor(time)) {
     time <- as.character(time)
@@ -3001,6 +3030,129 @@ normalize_lag_time <- function(time) {
     time <- time_numeric
   }
   time - 1
+}
+
+.gl_validate_tabular_shape <- function(dataset, context = "dataset") {
+  if (!is.data.frame(dataset)) {
+    return(invisible(NULL))
+  }
+  if (nrow(dataset) == 0L) {
+    stop("ERROR: ", context, " must contain at least one row.", call. = FALSE)
+  }
+  if (ncol(dataset) == 0L) {
+    stop("ERROR: ", context, " must contain at least one column.", call. = FALSE)
+  }
+
+  list_cols <- names(dataset)[vapply(dataset, is.list, logical(1))]
+  if (length(list_cols) > 0L) {
+    stop(
+      "ERROR: ", context, " contains unsupported list-column(s): ",
+      paste(list_cols, collapse = ", "),
+      ". Flatten or remove list-columns before fitting.",
+      call. = FALSE
+    )
+  }
+
+  matrix_cols <- names(dataset)[vapply(dataset, function(x) is.matrix(x) || is.data.frame(x), logical(1))]
+  if (length(matrix_cols) > 0L) {
+    stop(
+      "ERROR: ", context, " contains unsupported matrix/data-frame column(s): ",
+      paste(matrix_cols, collapse = ", "),
+      ". Expand these columns into ordinary vector columns before fitting.",
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
+}
+
+.gl_formula_variables <- function(...) {
+  formulas <- list(...)
+  unique(unlist(lapply(formulas, function(fml) all.vars(stats::as.formula(fml))), use.names = FALSE))
+}
+
+.gl_validate_fitting_data_policy <- function(dataset, formulas, response_name = "response") {
+  formula_vars <- unique(unlist(lapply(formulas, function(fml) all.vars(stats::as.formula(fml))), use.names = FALSE))
+  missing_vars <- setdiff(formula_vars, names(dataset))
+  if (length(missing_vars) > 0L) {
+    stop(
+      "ERROR: formula variable(s) not found in dataset after internal name mapping: ",
+      paste(missing_vars, collapse = ", "),
+      call. = FALSE
+    )
+  }
+
+  response <- dataset[[response_name]]
+  if (!is.numeric(response) && !is.integer(response)) {
+    stop("ERROR: response variable must be numeric for gamlss.longitudinal().", call. = FALSE)
+  }
+  if (any(is.nan(response) | is.infinite(response))) {
+    stop("ERROR: response variable contains NaN or Inf values; only finite values or NA are allowed.", call. = FALSE)
+  }
+
+  predictor_vars <- setdiff(formula_vars, response_name)
+  unsupported <- character(0)
+  nonfinite <- character(0)
+  missing <- character(0)
+  character_predictors <- character(0)
+
+  for (nm in predictor_vars) {
+    col <- dataset[[nm]]
+    supported <- is.numeric(col) || is.integer(col) || is.logical(col) ||
+      is.factor(col) || is.character(col)
+    if (!supported) {
+      unsupported <- c(unsupported, nm)
+      next
+    }
+    if (is.numeric(col) || is.integer(col)) {
+      if (any(is.nan(col) | is.infinite(col))) {
+        nonfinite <- c(nonfinite, nm)
+      }
+      if (any(is.na(col))) {
+        missing <- c(missing, nm)
+      }
+    } else if (is.factor(col) || is.character(col) || is.logical(col)) {
+      if (any(is.na(col))) {
+        missing <- c(missing, nm)
+      }
+      if (is.character(col)) {
+        character_predictors <- c(character_predictors, nm)
+      }
+    }
+  }
+
+  if (length(unsupported) > 0L) {
+    stop(
+      "ERROR: predictor column(s) have unsupported classes: ",
+      paste(unsupported, collapse = ", "),
+      ". Use numeric, integer, logical, factor, ordered factor, or character columns.",
+      call. = FALSE
+    )
+  }
+  if (length(nonfinite) > 0L) {
+    stop(
+      "ERROR: predictor column(s) contain NaN or Inf values: ",
+      paste(unique(nonfinite), collapse = ", "),
+      ". Clean non-finite predictor values before fitting.",
+      call. = FALSE
+    )
+  }
+  if (length(missing) > 0L) {
+    stop(
+      "ERROR: predictor column(s) contain missing values in submitted rows: ",
+      paste(unique(missing), collapse = ", "),
+      ". Missing responses and structurally missing visits are allowed, but predictor values must be observed.",
+      call. = FALSE
+    )
+  }
+  if (length(character_predictors) > 0L) {
+    warning(
+      "Character predictor column(s) will be treated as unordered categorical variables: ",
+      paste(unique(character_predictors), collapse = ", "),
+      ". Convert to factor to control level ordering explicitly.",
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
 }
 
 #' Create model matrices for model fitting
@@ -3035,7 +3187,8 @@ create_model_matrices<-function(
     copula.family="N",
     copula.link=NA,
     dataset=NA,
-    quiet_gamlss2=TRUE
+    quiet_gamlss2=TRUE,
+    preserve_factor_levels=FALSE
 ) {
 
   dataset_mm <- dataset
@@ -3124,8 +3277,10 @@ create_model_matrices<-function(
     for (nm in names(data_out)) {
       col <- data_out[[nm]]
       if (is.factor(col)) {
-        col <- droplevels(col)
         col <- normalize_ordered_factor(col)
+        if (!isTRUE(preserve_factor_levels)) {
+          col <- droplevels(col)
+        }
         data_out[[nm]] <- col
       } else if (is.numeric(col) || is.integer(col)) {
         col[!is.finite(col)] <- NA
