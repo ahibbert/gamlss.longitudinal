@@ -7,24 +7,24 @@
 check_model(object, include_vcov = FALSE, include_plots = TRUE, ...)
 }
 \arguments{
-\item{object}{A fitted `gamlss.longitudinal` object.}
+\item{object}{A fitted \code{gamlss.longitudinal} object.}
 
 \item{include_vcov}{Logical; include variance-covariance inference metadata
-via [summary.gamlss.longitudinal()].}
+via \code{\link[=summary.gamlss.longitudinal]{summary.gamlss.longitudinal()}}.}
 
 \item{include_plots}{Logical; include standard diagnostic plot objects.}
 
-\item{...}{Passed to [summary.gamlss.longitudinal()] when `include_vcov` is
-`TRUE`.}
+\item{...}{Passed to \code{\link[=summary.gamlss.longitudinal]{summary.gamlss.longitudinal()}} when \code{include_vcov} is
+\code{TRUE}.}
 }
 \value{
-An object of class `gamlss_longitudinal_check`, including a full
-  `checks` table, a filtered `warnings` table for diagnostics that should be
-  reviewed or reported, and a compact `recommendation` row for model role
-  decisions.
+An object of class \code{gamlss_longitudinal_check}, including a full
+\code{checks} table, a filtered \code{warnings} table for diagnostics that should be
+reviewed or reported, and a compact \code{recommendation} row for model role
+decisions.
 }
 \description{
-`check_model()` turns diagnostics into a compact set of decisions for broad
+\code{check_model()} turns diagnostics into a compact set of decisions for broad
 applied use. It does not replace visual inspection, but it provides a stable
 first pass over convergence, marginal calibration, residual dependence, and
 scoring summaries.

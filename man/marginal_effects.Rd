@@ -18,28 +18,28 @@ marginal_effects(
 )
 }
 \arguments{
-\item{object}{A fitted `gamlss.longitudinal` object.}
+\item{object}{A fitted \code{gamlss.longitudinal} object.}
 
 \item{newdata}{Data used as the counterfactual baseline.}
 
 \item{variable}{Single variable to vary.}
 
-\item{values}{Values to assign to `variable`. Defaults to observed factor
+\item{values}{Values to assign to \code{variable}. Defaults to observed factor
 levels for factors/characters or the 25th, 50th, and 75th percentiles for
 numeric variables.}
 
-\item{parameter}{Distributional parameter to summarize, usually `"mu"`.}
+\item{parameter}{Distributional parameter to summarize, usually \code{"mu"}.}
 
 \item{reference}{Optional reference value. Defaults to the first value.}
 
-\item{se.fit}{Logical; when `TRUE` and `parameter = "mu"`, attach
+\item{se.fit}{Logical; when \code{TRUE} and \code{parameter = "mu"}, attach
 approximate delta-method standard errors for response-scale averages.}
 
-\item{level}{Confidence level used when `se.fit = TRUE`.}
+\item{level}{Confidence level used when \code{se.fit = TRUE}.}
 
-\item{vcov_method}{Variance-covariance method passed to [vcov.gamlss.longitudinal()].}
+\item{vcov_method}{Variance-covariance method passed to \code{\link[=vcov.gamlss.longitudinal]{vcov.gamlss.longitudinal()}}.}
 
-\item{...}{Additional arguments passed to [predict.gamlss.longitudinal()].}
+\item{...}{Additional arguments passed to \code{\link[=predict.gamlss.longitudinal]{predict.gamlss.longitudinal()}}.}
 }
 \value{
 A data frame with average fitted parameter values and contrasts.

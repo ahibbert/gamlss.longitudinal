@@ -17,32 +17,32 @@ run_coverage_simulations(
 }
 \arguments{
 \item{families}{Optional family names. Defaults to all supported non-mixed
-`gamlss.dist` families with `q`, `p`, and `d` functions.}
+\code{gamlss.dist} families with \code{q}, \code{p}, and \code{d} functions.}
 
 \item{copulas}{Copula codes.}
 
-\item{methods}{Fit methods. Defaults to `"gamlss"`, `"rs_separate"`,
-`"rs_joint"`, and `"cg"`. Method `"gamlss2"` is also supported when the
+\item{methods}{Fit methods. Defaults to \code{"gamlss"}, \code{"rs_separate"},
+\code{"rs_joint"}, and \code{"cg"}. Method \code{"gamlss2"} is also supported when the
 optional non-CRAN package is installed and explicitly requested. Standard
-comparator methods `"gee"`, `"glmm"`, `"gam"`, and `"glmmTMB"` are
+comparator methods \code{"gee"}, \code{"glmm"}, \code{"gam"}, and \code{"glmmTMB"} are
 available for families that map to common mean-model families.}
 
-\item{designs}{Simulation designs: `"intercept"`, `"covariate"`,
-`"scale"`, `"time_dependence"`, or `"smooth"`.}
+\item{designs}{Simulation designs: \code{"intercept"}, \code{"covariate"},
+\code{"scale"}, \code{"time_dependence"}, or \code{"smooth"}.}
 
-\item{include_mixed}{Logical; include mixed-support `gamlss.dist` families in
+\item{include_mixed}{Logical; include mixed-support \code{gamlss.dist} families in
 the candidate family grid.}
 
 \item{output_dir}{Directory for CSV/RDS outputs.}
 
-\item{write_results}{Write result files when `TRUE`.}
+\item{write_results}{Write result files when \code{TRUE}.}
 
-\item{...}{Passed to the grid runner, e.g. `n`, `times`, `max_outer_iter`,
-`dependence`, `missingness`, and `start_mode`.}
+\item{...}{Passed to the grid runner, e.g. \code{n}, \code{times}, \code{max_outer_iter},
+\code{dependence}, \code{missingness}, and \code{start_mode}.}
 }
 \value{
 A data frame of per-fit results. The return value also carries
-  `"parameter_results"` and `"runtime_summary"` attributes.
+\code{"parameter_results"} and \code{"runtime_summary"} attributes.
 }
 \description{
 Run opt-in distribution/copula/method coverage simulations

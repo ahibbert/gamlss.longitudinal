@@ -28,5 +28,5 @@
 \title{Link helpers for bounded copula and distribution parameters}
 \description{
 These helpers provide simple link, inverse-link, and derivative functions
-used by `gamlss.longitudinal` parameter transformations.
+used by \code{gamlss.longitudinal} parameter transformations.
 }

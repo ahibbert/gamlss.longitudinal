@@ -22,26 +22,26 @@ benchmark_standard_models(
 
 \item{subject_var}{Subject identifier column.}
 
-\item{family}{A base R family object or one of `"gaussian"`, `"poisson"`,
-`"binomial"`, or `"gamma"`.}
+\item{family}{A base R family object or one of \code{"gaussian"}, \code{"poisson"},
+\code{"binomial"}, or \code{"gamma"}.}
 
-\item{comparators}{Character vector containing any of `"gee"`, `"glmm"`,
-`"gam"`, and `"glmmTMB"`.}
+\item{comparators}{Character vector containing any of \code{"gee"}, \code{"glmm"},
+\code{"gam"}, and \code{"glmmTMB"}.}
 
-\item{correlation}{Working correlation passed to `geepack::geeglm()`.}
+\item{correlation}{Working correlation passed to \code{geepack::geeglm()}.}
 
-\item{add_subject_re_to_gam}{Logical; add `s(subject, bs = "re")` to the GAM
+\item{add_subject_re_to_gam}{Logical; add \code{s(subject, bs = "re")} to the GAM
 comparator.}
 
 \item{...}{Additional arguments passed to each comparator fit.}
 }
 \value{
-An object of class `gamlss_longitudinal_benchmark` with `results`
-  and `fits` components.
+An object of class \code{gamlss_longitudinal_benchmark} with \code{results}
+and \code{fits} components.
 }
 \description{
-`benchmark_standard_models()` is an opt-in scaffold for comparing
-`gamlss.longitudinal` with models users already know. It is intentionally
+\code{benchmark_standard_models()} is an opt-in scaffold for comparing
+\code{gamlss.longitudinal} with models users already know. It is intentionally
 narrow: fit common mean-model baselines, record whether they ran, and return
 simple timing and response-scale prediction metrics. Simulation studies can
 build coverage, calibration, tail, and trajectory metrics on top of this.

@@ -16,6 +16,6 @@
 )
 }
 \description{
-H[a,b] = X_a' diag(w_ab) X_b  where w_ab[i] = d2l/(deta_a deta_b)[i]
+\verb{H[a,b] = X_a' diag(w_ab) X_b}, where \verb{w_ab[i] = d2l/(deta_a deta_b)[i]}.
 }
 \keyword{internal}

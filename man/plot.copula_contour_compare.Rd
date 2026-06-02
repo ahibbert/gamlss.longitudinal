@@ -18,7 +18,7 @@
 )
 }
 \arguments{
-\item{x}{A fitted `gamlss.longitudinal` object.}
+\item{x}{A fitted \code{gamlss.longitudinal} object.}
 
 \item{lags}{Integer lags to assess, measured in ordered time steps.}
 

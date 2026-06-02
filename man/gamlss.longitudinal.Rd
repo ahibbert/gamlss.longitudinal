@@ -70,9 +70,9 @@ e.g. GA(), NO(), PO(), NBI(), etc.}
 
 \item{copula_dist}{Copula distribution code, one of "N", "C", "F", "G", "J", or "t".}
 
-\item{time_var}{Name of the time variable in `dataset`.}
+\item{time_var}{Name of the time variable in \code{dataset}.}
 
-\item{subject_var}{Name of the subject identifier in `dataset`.}
+\item{subject_var}{Name of the subject identifier in \code{dataset}.}
 
 \item{mu.formula}{Formula for the mean parameter of the marginal distribution}
 
@@ -89,14 +89,14 @@ e.g. GA(), NO(), PO(), NBI(), etc.}
 \item{include_dlcopdpar}{Include the derivative of the copula likelihood with respect
 to the margin parameters in the joint likelihood.}
 
-\item{check_dlcopdpar_gradient}{If `TRUE`, run an optional finite-difference
-diagnostic for the margin score contribution when `include_dlcopdpar = TRUE`.}
+\item{check_dlcopdpar_gradient}{If \code{TRUE}, run an optional finite-difference
+diagnostic for the margin score contribution when \code{include_dlcopdpar = TRUE}.}
 
-\item{inner_stop_crit}{Stopping criterion for the inner loop. If `NA` or
-`NULL`, an automatic data-adaptive value is used.}
+\item{inner_stop_crit}{Stopping criterion for the inner loop. If \code{NA} or
+\code{NULL}, an automatic data-adaptive value is used.}
 
-\item{outer_stop_crit}{Stopping criterion for the outer loop. If `NA` or
-`NULL`, an automatic data-adaptive value is used.}
+\item{outer_stop_crit}{Stopping criterion for the outer loop. If \code{NA} or
+\code{NULL}, an automatic data-adaptive value is used.}
 
 \item{start_step_size}{Initial step size for the backfitting algorithm}
 
@@ -106,8 +106,8 @@ diagnostic for the margin score contribution when `include_dlcopdpar = TRUE`.}
 
 \item{start_from}{Starting values for the parameters if needed}
 
-\item{warm_start_joint}{Logical; if `TRUE` (default), RS joint fits started
-without explicit `start_from` first run a short separate RS stabilisation
+\item{warm_start_joint}{Logical; if \code{TRUE} (default), RS joint fits started
+without explicit \code{start_from} first run a short separate RS stabilisation
 phase and use those coefficients as the joint starting values.}
 
 \item{warm_start_joint_iter}{Integer; number of separate RS outer iterations
@@ -131,77 +131,77 @@ log-likelihood changes allowed before stopping.}
 \item{max_elapsed_sec}{Optional maximum elapsed fitting time in seconds.
 If finite, the optimiser stops with an error once this budget is exceeded.}
 
-\item{use_backtracking}{Logical; if `TRUE` (default), apply step-halving
+\item{use_backtracking}{Logical; if \code{TRUE} (default), apply step-halving
 backtracking to reject downhill inner updates.}
 
 \item{backtracking_max_halves}{Integer; maximum number of consecutive
 step halvings attempted after a rejected update before taking no step.}
 
-\item{cg_max_stall}{Integer; for `method = "CG"` only. Maximum number of
+\item{cg_max_stall}{Integer; for \code{method = "CG"} only. Maximum number of
 consecutive outer iterations where no improving step is found before CG stops.}
 
-\item{cg_max_delta}{Numeric; for `method = "CG"` only. Maximum absolute
+\item{cg_max_delta}{Numeric; for \code{method = "CG"} only. Maximum absolute
 coefficient step size used to limit Newton/trust-region updates.}
 
-\item{cg_armijo_c1}{Numeric; for `method = "CG"` only. Minimum improvement
+\item{cg_armijo_c1}{Numeric; for \code{method = "CG"} only. Minimum improvement
 threshold used by the line-search acceptance rule.}
 
-\item{cg_grad_tol}{Numeric; for `method = "CG"` only. Penalized-gradient
-infinity-norm convergence tolerance. If `NA`, selected from `outer_stop_crit`.}
+\item{cg_grad_tol}{Numeric; for \code{method = "CG"} only. Penalized-gradient
+infinity-norm convergence tolerance. If \code{NA}, selected from \code{outer_stop_crit}.}
 
-\item{cg_step_tol}{Numeric; for `method = "CG"` only. Accepted-step L2
-convergence tolerance. If `NA`, selected from `outer_stop_crit`.}
+\item{cg_step_tol}{Numeric; for \code{method = "CG"} only. Accepted-step L2
+convergence tolerance. If \code{NA}, selected from \code{outer_stop_crit}.}
 
-\item{cg_update_lambda}{Logical; for `method = "CG"` only. If `TRUE`, update
+\item{cg_update_lambda}{Logical; for \code{method = "CG"} only. If \code{TRUE}, update
 smoother penalties during CG iterations.}
 
-\item{cg_lambda_update_every}{Integer; for `method = "CG"` only. When
-`cg_update_lambda = TRUE`, update each smoother's lambda every this many
-outer iterations. Use `1` to update every CG iteration.}
+\item{cg_lambda_update_every}{Integer; for \code{method = "CG"} only. When
+\code{cg_update_lambda = TRUE}, update each smoother's lambda every this many
+outer iterations. Use \code{1} to update every CG iteration.}
 
-\item{cg_max_lambda_updates}{Integer; for `method = "CG"` only. Maximum
-number of smoother penalty update rounds. Use `NA` for no cap.}
+\item{cg_max_lambda_updates}{Integer; for \code{method = "CG"} only. Maximum
+number of smoother penalty update rounds. Use \code{NA} for no cap.}
 
-\item{cg_raw_loglik_drop_tol}{Numeric; for `method = "CG"` only. Stop CG as
+\item{cg_raw_loglik_drop_tol}{Numeric; for \code{method = "CG"} only. Stop CG as
 not converged if the raw joint log-likelihood drops this far below the best
-raw joint log-likelihood seen after at least one lambda update. Use `NA` to
+raw joint log-likelihood seen after at least one lambda update. Use \code{NA} to
 disable.}
 
-\item{cg_line_search}{Character; for `method = "CG"` only. `"best"` evaluates
-candidate steps up to `cg_max_line_search_evals` before taking the largest
-improvement, while `"first"` accepts the first improving candidate step.}
+\item{cg_line_search}{Character; for \code{method = "CG"} only. \code{"best"} evaluates
+candidate steps up to \code{cg_max_line_search_evals} before taking the largest
+improvement, while \code{"first"} accepts the first improving candidate step.}
 
-\item{cg_max_line_search_evals}{Integer; for `method = "CG"` only. Optional
+\item{cg_max_line_search_evals}{Integer; for \code{method = "CG"} only. Optional
 cap on the number of candidate likelihood evaluations per outer iteration.}
 
-\item{cg_gradient_method}{Character; for `method = "CG"` only.
-`"analytical"` uses the same score components as RS, `"forward"` uses
-one-sided finite differences, and `"central"` uses two-sided finite
+\item{cg_gradient_method}{Character; for \code{method = "CG"} only.
+\code{"analytical"} uses the same score components as RS, \code{"forward"} uses
+one-sided finite differences, and \code{"central"} uses two-sided finite
 differences.}
 
 \item{discrete_score_method}{Character. For discrete margins using exact
-rectangle likelihoods, choose `"analytical"` for vectorised rectangle-score
-assembly or `"finite"` for slow row-wise finite-difference scores.}
+rectangle likelihoods, choose \code{"analytical"} for vectorised rectangle-score
+assembly or \code{"finite"} for slow row-wise finite-difference scores.}
 
-\item{cg_zeta_hessian}{Character; for `method = "CG"` only. `"analytical"`
-uses the analytical Hessian for the zeta block, while `"finite"` replaces
+\item{cg_zeta_hessian}{Character; for \code{method = "CG"} only. \code{"analytical"}
+uses the analytical Hessian for the zeta block, while \code{"finite"} replaces
 the zeta-zeta block with central finite differences of the raw joint
 log-likelihood.}
 
-\item{cg_hessian_method}{Character; for `method = "CG"` only. `"analytical"`
-uses the semi-analytical Hessian for Newton steps, `"finite"` uses a full
-finite-difference Hessian, and `"auto"` tries analytical then falls back to
+\item{cg_hessian_method}{Character; for \code{method = "CG"} only. \code{"analytical"}
+uses the semi-analytical Hessian for Newton steps, \code{"finite"} uses a full
+finite-difference Hessian, and \code{"auto"} tries analytical then falls back to
 finite differences when needed.}
 
-\item{compute_vcov}{Logical; if `TRUE` (default), compute and store the
+\item{compute_vcov}{Logical; if \code{TRUE} (default), compute and store the
 model variance-covariance output at the end of fitting.}
 
-\item{vcov_method}{Character; fit-time vcov method when `compute_vcov = TRUE`.
-One of `"analytical"` or `"numderiv"`. Analytical vcov falls back to the
+\item{vcov_method}{Character; fit-time vcov method when \code{compute_vcov = TRUE}.
+One of \code{"analytical"} or \code{"numderiv"}. Analytical vcov falls back to the
 numerical reference path if the analytical Hessian cannot be inverted.}
 
-\item{vcov_numderiv}{Logical; passed to `vcov.gamlss.longitudinal()` when
-`compute_vcov = TRUE`.}
+\item{vcov_numderiv}{Logical; passed to \code{vcov.gamlss.longitudinal()} when
+\code{compute_vcov = TRUE}.}
 
 \item{use_Rcpp}{Use Rcpp for matrix operations}
 
@@ -210,13 +210,13 @@ numerical reference path if the analytical Hessian cannot be inverted.}
 \item{lambda_penalty_K}{Penalty strength used when updating smooth-term
 smoothing parameters.}
 
-\item{rs_update_lambda}{Logical; for `method = "RS"` only. If `TRUE`,
-update smoothing parameters by the RS GAIC step; if `FALSE`, keep
-`lambda_start` fixed.}
+\item{rs_update_lambda}{Logical; for \code{method = "RS"} only. If \code{TRUE},
+update smoothing parameters by the RS GAIC step; if \code{FALSE}, keep
+\code{lambda_start} fixed.}
 
-\item{rs_smooth_trust_radius}{Numeric; for `method = "RS"` only. Optional
+\item{rs_smooth_trust_radius}{Numeric; for \code{method = "RS"} only. Optional
 L2 trust radius applied separately to each smooth coefficient block after
-the RS weighted least-squares proposal. Use `Inf` to disable.}
+the RS weighted least-squares proposal. Use \code{Inf} to disable.}
 }
 \description{
 This function fits a longitudinal model to a dataset with gamlss margins
@@ -228,21 +228,21 @@ copula likelihoods which can be quicker with a slight loss to overall fit.
 }
 \details{
 Formula inputs are converted to fixed-effect and smooth model matrices by
-[create_model_matrices()]. The user-supplied `time_var` is preserved for
-formulas as an internal `time_covariate` column, while an internal numeric
-`time` index is used for ordering longitudinal margins and adjacent copula
+\code{create_model_matrices()}. The user-supplied \code{time_var} is preserved for
+formulas as an internal \code{time_covariate} column, while an internal numeric
+\code{time} index is used for ordering longitudinal margins and adjacent copula
 pairs. Numeric and integer time inputs are used directly, numeric-like
-character time inputs are converted with [as.numeric()], and categorical time
+character time inputs are converted with \code{\link[=as.numeric]{as.numeric()}}, and categorical time
 should be supplied as a factor. Ordered factors are treated with treatment
 contrasts rather than polynomial contrasts so factor-level effects are
 interpretable as level comparisons.
 
 The fitting data are converted to a plain data frame. Structurally missing
 subject-time combinations are expanded to explicit rows with missing
-responses. Response `NA` values may be present unless an entire margin or an
+responses. Response \code{NA} values may be present unless an entire margin or an
 adjacent copula pair has no complete responses, in which case fitting stops.
 Missing or non-finite predictor values are handled by the model-matrix
 construction path and may result in dropped or non-finite matrix rows; inspect
-`model.frame(fit, type = "expanded")`, `model.frame(fit, type = "observed")`,
-and `fit$convergence` when auditing a fit.
+\code{model.frame(fit, type = "expanded")}, \code{model.frame(fit, type = "observed")},
+and \code{fit$convergence} when auditing a fit.
 }

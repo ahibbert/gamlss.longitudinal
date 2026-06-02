@@ -7,7 +7,7 @@
 \method{plot}{copula_time_summary}(x, ..., lags = 1, stat = c("mean", "median"), plot = TRUE)
 }
 \arguments{
-\item{x}{A `copula_time_summary` object or a fitted `gamlss.longitudinal` object.}
+\item{x}{A \code{copula_time_summary} object or a fitted \code{gamlss.longitudinal} object.}
 
 \item{...}{Additional arguments (currently unused).}
 

@@ -16,7 +16,7 @@
 )
 }
 \arguments{
-\item{object}{A fitted `gamlss.longitudinal` object.}
+\item{object}{A fitted \code{gamlss.longitudinal} object.}
 
 \item{par}{Optional parameter list for evaluating uncertainty away from the
 fitted coefficients.}
