@@ -1945,6 +1945,13 @@
 #'   the candidate family grid.
 #' @param output_dir Directory for CSV/RDS outputs.
 #' @param write_results Write result files when `TRUE`.
+#' @param write_summary Write a LaTeX summary report when `TRUE` and
+#'   `write_results` is also `TRUE`.
+#' @param compile_summary_pdf Compile the LaTeX summary to PDF when `TRUE` and
+#'   a LaTeX installation is available.
+#' @param smooth_results_file Optional smooth smoke-test CSV to include in the
+#'   generated summary report.
+#' @param report_title Title for the generated summary report.
 #' @param ... Passed to the grid runner, e.g. `n`, `times`, `max_outer_iter`,
 #'   `dependence`, `missingness`, and `start_mode`.
 #'
@@ -1959,6 +1966,10 @@ run_coverage_simulations <- function(
   include_mixed = FALSE,
   output_dir = file.path("results", "coverage_simulations"),
   write_results = TRUE,
+  write_summary = TRUE,
+  compile_summary_pdf = FALSE,
+  smooth_results_file = NULL,
+  report_title = "Coverage Simulation Summary",
   ...
 ) {
   grid <- .coverage_make_case_grid(
@@ -1974,20 +1985,37 @@ run_coverage_simulations <- function(
     stamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
     parameter_results <- attr(results, "parameter_results")
     runtime_summary <- attr(results, "runtime_summary")
-    utils::write.csv(results, file.path(output_dir, paste0("coverage_results_", stamp, ".csv")), row.names = FALSE)
+    results_file <- file.path(output_dir, paste0("coverage_results_", stamp, ".csv"))
+    parameter_results_file <- file.path(output_dir, paste0("coverage_parameter_results_", stamp, ".csv"))
+    runtime_summary_file <- file.path(output_dir, paste0("coverage_runtime_summary_", stamp, ".csv"))
+    summary_file <- file.path(output_dir, paste0("coverage_summary_", stamp, ".tex"))
+    utils::write.csv(results, results_file, row.names = FALSE)
     saveRDS(results, file.path(output_dir, paste0("coverage_results_", stamp, ".rds")))
     if (!is.null(parameter_results) && nrow(parameter_results) > 0L) {
       utils::write.csv(
         parameter_results,
-        file.path(output_dir, paste0("coverage_parameter_results_", stamp, ".csv")),
+        parameter_results_file,
         row.names = FALSE
       )
     }
     if (!is.null(runtime_summary) && nrow(runtime_summary) > 0L) {
       utils::write.csv(
         runtime_summary,
-        file.path(output_dir, paste0("coverage_runtime_summary_", stamp, ".csv")),
+        runtime_summary_file,
         row.names = FALSE
+      )
+    }
+    if (isTRUE(write_summary)) {
+      write_coverage_summary_report(
+        results = results,
+        parameter_results = parameter_results,
+        smooth_results_file = smooth_results_file,
+        results_file = results_file,
+        parameter_results_file = if (file.exists(parameter_results_file)) parameter_results_file else NULL,
+        output_tex = summary_file,
+        compile_pdf = compile_summary_pdf,
+        title = report_title,
+        run_label = paste0("coverage_results_", stamp)
       )
     }
   }
