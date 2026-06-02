@@ -286,11 +286,11 @@
 #'
 #' Returns a list with named elements:
 #'   cop_d2l_margin  – matrix (n_obs x n_margin_par x n_margin_par) flattened
-#'                     as a list[[par1]][[par2]] each of length n_obs
+#'                     as `list[[par1]][[par2]]`, each of length n_obs
 #'   cop_d2l_theta   – length n_obs vector: d2 log c / d theta^2
 #'   cop_d2l_zeta    – length n_obs vector or NULL
 #'   cop_d2l_thetazeta – length n_obs vector or NULL
-#'   cop_d2l_margin_theta – list[[par_name]] length n_obs: d2logc/(dpar dtheta)
+#'   cop_d2l_margin_theta – `list[[par_name]]` length n_obs: d2logc/(dpar dtheta)
 #'
 #' @keywords internal
 .calc_copula_hessian_contributions <- function(
@@ -623,7 +623,7 @@
 
 #' Assemble the full covariate Hessian from per-observation second derivatives
 #'
-#' H[a,b] = X_a' diag(w_ab) X_b  where w_ab[i] = d2l/(deta_a deta_b)[i]
+#' `H[a,b] = X_a' diag(w_ab) X_b`, where `w_ab[i] = d2l/(deta_a deta_b)[i]`.
 #'
 #' @keywords internal
 .assemble_covariate_hessian <- function(
@@ -848,7 +848,7 @@
 #' expected Fisher information (y-independent) rather than the observed
 #' second derivative.
 #'
-#' Returns a list[[pn1]][[pn2]] of length n_obs.
+#' Returns a `list[[pn1]][[pn2]]` of length n_obs.
 #' @keywords internal
 .calc_margin_d2l_fd <- function(eta_inv, mm, margin_dist, response, h = 1e-4) {
   margin_pars <- names(mm$x)[names(mm$x) %in% c("mu", "sigma", "nu", "tau")]
@@ -921,7 +921,7 @@
 
 #' Extract per-observation margin log-likelihood second derivatives
 #'
-#' Returns a list[[pn1]][[pn2]] each of length n_obs, sourced from the
+#' Returns a `list[[pn1]][[pn2]]`, each of length n_obs, sourced from the
 #' gamlss family d2ldm2, d2ldmdd, ... functions already called in
 #' calc_likelihood_minimal.
 #'
