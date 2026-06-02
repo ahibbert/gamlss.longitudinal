@@ -113,6 +113,36 @@ write_coverage_summary_report <- function(
       "\\end{table}"
     )
   }
+  tex_longtable <- function(df, caption, align = NULL, font = "\\scriptsize") {
+    if (is.null(df) || nrow(df) == 0L) {
+      return(c("\\paragraph{" %+% esc(caption) %+% "} No rows available."))
+    }
+    if (is.null(align)) align <- paste(rep("l", ncol(df)), collapse = "")
+    header <- paste(esc(names(df)), collapse = " & ")
+    body <- apply(df, 1L, function(row) paste(esc(row), collapse = " & "))
+    c(
+      "\\begingroup",
+      "\\setlength{\\tabcolsep}{2pt}",
+      "\\begin{center}",
+      font,
+      paste0("\\begin{longtable}{", align, "}"),
+      paste0("\\caption{", esc(caption), "}\\\\"),
+      "\\toprule",
+      paste0(header, " \\\\"),
+      "\\midrule",
+      "\\endfirsthead",
+      paste0("\\multicolumn{", ncol(df), "}{l}{\\scriptsize\\emph{", esc(caption), " continued}}\\\\"),
+      "\\toprule",
+      paste0(header, " \\\\"),
+      "\\midrule",
+      "\\endhead",
+      paste0(body, " \\\\"),
+      "\\bottomrule",
+      "\\end{longtable}",
+      "\\end{center}",
+      "\\endgroup"
+    )
+  }
   `%+%` <- function(a, b) paste0(a, b)
 
   success_tab <- as.data.frame.matrix(table(results$method, results$success))
@@ -190,6 +220,7 @@ write_coverage_summary_report <- function(
   eta_summary_df <- NULL
   eta_class_df <- NULL
   eta_worst_df <- NULL
+  eta_concern_df <- NULL
   if (!is.null(parameter_results) && nrow(parameter_results) > 0L && "abs_eta_error" %in% names(parameter_results)) {
     eta <- parameter_results[is.finite(parameter_results$abs_eta_error), , drop = FALSE]
     if (nrow(eta) > 0L) {
@@ -237,6 +268,24 @@ write_coverage_summary_report <- function(
         check.names = FALSE,
         stringsAsFactors = FALSE
       )
+      if ("eta_error_class" %in% names(eta)) {
+        eta_concern <- eta[eta$eta_error_class == "concern", , drop = FALSE]
+        eta_concern <- eta_concern[order(-eta_concern$abs_eta_error), , drop = FALSE]
+        if (nrow(eta_concern) > 0L) {
+          eta_concern_df <- data.frame(
+            Family = eta_concern$family,
+            Copula = eta_concern$copula,
+            Method = eta_concern$method,
+            Parameter = eta_concern$parameter,
+            Term = if ("term" %in% names(eta_concern)) eta_concern$term else "",
+            `Estimate eta` = fmt_num(eta_concern$estimate_eta, 3),
+            `True eta` = fmt_num(eta_concern$true_eta, 3),
+            `Abs. error` = fmt_num(eta_concern$abs_eta_error, 3),
+            check.names = FALSE,
+            stringsAsFactors = FALSE
+          )
+        }
+      }
     }
   }
 
@@ -249,6 +298,36 @@ write_coverage_summary_report <- function(
   if ("joint_review_class" %in% names(results)) {
     joint_tab <- as.data.frame.matrix(table(results$method, results$joint_review_class))
     joint_df <- data.frame(Method = rownames(joint_tab), joint_tab, row.names = NULL, check.names = FALSE)
+  }
+  likelihood_review_df <- NULL
+  likelihood_review <- rep(FALSE, nrow(results))
+  if ("margin_review_class" %in% names(results)) {
+    likelihood_review <- likelihood_review | results$margin_review_class == "review"
+  }
+  if ("joint_review_class" %in% names(results)) {
+    likelihood_review <- likelihood_review | results$joint_review_class == "review"
+  }
+  likelihood_review <- results[likelihood_review %in% TRUE, , drop = FALSE]
+  if (nrow(likelihood_review) > 0L) {
+    likelihood_review <- likelihood_review[order(
+      likelihood_review$family,
+      likelihood_review$copula,
+      likelihood_review$method
+    ), , drop = FALSE]
+    likelihood_review_df <- data.frame(
+      Family = likelihood_review$family,
+      Copula = likelihood_review$copula,
+      Method = likelihood_review$method,
+      `M class` = likelihood_review$margin_review_class,
+      `M gap %` = fmt_num(likelihood_review$margin_gap_pct_vs_reference, 2),
+      `J class` = likelihood_review$joint_review_class,
+      `J delta %` = fmt_num(likelihood_review$joint_delta_pct_vs_rs_separate, 2),
+      `Marg LL` = fmt_num(likelihood_review$marginal_loglik, 2),
+      `Joint LL` = fmt_num(likelihood_review$joint_loglik, 2),
+      Sec = fmt_num(likelihood_review$elapsed_sec, 2),
+      check.names = FALSE,
+      stringsAsFactors = FALSE
+    )
   }
 
   smooth_df <- NULL
@@ -290,6 +369,7 @@ write_coverage_summary_report <- function(
     "\\usepackage[margin=1in]{geometry}",
     "\\usepackage{booktabs}",
     "\\usepackage{array}",
+    "\\usepackage{longtable}",
     "\\usepackage{hyperref}",
     "",
     paste0("\\title{", esc(title), "}"),
@@ -339,6 +419,16 @@ write_coverage_summary_report <- function(
     "",
     "\\section*{Interpretation}",
     "A clean fit-success table means the supported family/copula/method combinations completed with finite likelihoods under the recorded simulation design. Runtime and recovery tables should be used to identify targeted optimisation or larger replicated recovery studies.",
+    "",
+    "\\appendix",
+    "\\section{Detailed Review Rows}",
+    "This appendix lists all rows requiring manual review under the current coverage thresholds.",
+    "\\subsection{Parameter Recovery Concerns}",
+    "Rows below are all eta-scale parameter recovery entries classified as \\texttt{concern}.",
+    if (!is.null(eta_concern_df)) tex_longtable(eta_concern_df, "All parameter recovery concern rows") else "No parameter recovery concern rows were recorded.",
+    "\\subsection{Likelihood Review Rows}",
+    "Rows below are all fits where either marginal or joint likelihood review class is \\texttt{review}.",
+    if (!is.null(likelihood_review_df)) tex_longtable(likelihood_review_df, "All likelihood review rows", font = "\\tiny") else "No likelihood review rows were recorded.",
     "",
     "\\end{document}"
   )
