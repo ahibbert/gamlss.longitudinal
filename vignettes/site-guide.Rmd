@@ -1,8 +1,8 @@
 ---
-title: "Guide To The Articles"
+title: "Overview of Support Articles"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Guide To The Articles}
+  %\VignetteIndexEntry{Overview of Support Articles}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -24,41 +24,41 @@ inference, diagnostics, benchmarks, or migration from GEE and GLMM models.
 Read these first if you want the shortest path from data to an interpretable
 longitudinal model.
 
-| Article | Use it for |
-|---|---|
-| `vignette("standard-workflow", package = "gamlss.longitudinal")` | The recommended screen, fit, check, infer, predict, and simulate workflow. |
-| `vignette("native-simulation-workflow", package = "gamlss.longitudinal")` | A full simulated example with known truth, copula screening, fitting, and diagnostics. |
+| Article title | R code | Purpose |
+|---|---|---|
+| [Standard Workflow API, Inference, and Diagnostics](standard-workflow.html) | `vignette("standard-workflow", package = "gamlss.longitudinal")` | The recommended screen, fit, check, infer, predict, and simulate workflow. |
+| [Native Simulation, Copula Screening, and GAMLSS Longitudinal Fitting](native-simulation-workflow.html) | `vignette("native-simulation-workflow", package = "gamlss.longitudinal")` | A full simulated example with known truth, copula screening, fitting, and diagnostics. |
 
 ## Core Workflow Components
 
 Use these when reviewing one part of an analysis.
 
-| Article | Use it for |
-|---|---|
-| `vignette("inference-uncertainty", package = "gamlss.longitudinal")` | Confidence intervals, Wald tests, likelihood comparisons, bootstrap inference, and uncertainty language. |
-| `vignette("diagnostics-decisions", package = "gamlss.longitudinal")` | `check_model()`, warnings, model-role recommendations, tail checks, and dependence diagnostics. |
-| `vignette("benchmarking-adoption", package = "gamlss.longitudinal")` | Scenario-level benchmark evidence against GEE, GLMM, and GAM baselines. |
-| `vignette("adoption-decision-guide", package = "gamlss.longitudinal")` | Deciding whether the model should be primary, sensitivity-only, or not used. |
+| Article title | R code | Use it for |
+|---|---|---|
+| [Inference and Uncertainty](inference-uncertainty.html) | `vignette("inference-uncertainty", package = "gamlss.longitudinal")` | Confidence intervals, Wald tests, likelihood comparisons, bootstrap inference, and uncertainty language. |
+| [Diagnostics As Decisions](diagnostics-decisions.html) | `vignette("diagnostics-decisions", package = "gamlss.longitudinal")` | `check_model()`, warnings, model-role recommendations, tail checks, and dependence diagnostics. |
+| [Benchmarking Adoption Claims](benchmarking-adoption.html) | `vignette("benchmarking-adoption", package = "gamlss.longitudinal")` | Scenario-level benchmark evidence against GEE, GLMM, and GAM baselines. |
+| [Adoption Decision Guide](adoption-decision-guide.html) | `vignette("adoption-decision-guide", package = "gamlss.longitudinal")` | Deciding whether the model should be primary, sensitivity-only, or not used. |
 
 ## Migration From Familiar Models
 
 Use these when starting from an existing GEE or GLMM habit.
 
-| Article | Use it for |
-|---|---|
-| `vignette("replace-gee-glmm", package = "gamlss.longitudinal")` | A high-level translation from GEE/GLMM concepts to GAMLSS-copula concepts. |
-| `vignette("replace-a-gee", package = "gamlss.longitudinal")` | Replacing a marginal mean GEE when distributional or dependence features matter. |
-| `vignette("replace-a-random-intercept-glmm", package = "gamlss.longitudinal")` | Replacing a random-intercept GLMM when the random effect is mainly a dependence device. |
+| Article title | R code | Use it for |
+|---|---|---|
+| [Replacing GEE and GLMM Workflows](replace-gee-glmm.html) | `vignette("replace-gee-glmm", package = "gamlss.longitudinal")` | A high-level translation from GEE/GLMM concepts to GAMLSS-copula concepts. |
+| [Replace a GEE](replace-a-gee.html) | `vignette("replace-a-gee", package = "gamlss.longitudinal")` | Replacing a marginal mean GEE when distributional or dependence features matter. |
+| [Replace a Random-Intercept GLMM](replace-a-random-intercept-glmm.html) | `vignette("replace-a-random-intercept-glmm", package = "gamlss.longitudinal")` | Replacing a random-intercept GLMM when the random effect is mainly a dependence device. |
 
 ## Problem-Specific Guides
 
 Use these for common applied wrinkles.
 
-| Article | Use it for |
-|---|---|
-| `vignette("non-gaussian-longitudinal-outcomes", package = "gamlss.longitudinal")` | Positive, skewed, count, tail-sensitive, or otherwise non-Gaussian responses. |
-| `vignette("missing-visits", package = "gamlss.longitudinal")` | Unbalanced panels, absent visits, and missingness-sensitive reporting. |
-| `vignette("time-varying-dependence", package = "gamlss.longitudinal")` | Modelling changing longitudinal association with `theta.formula`. |
+| Article title | R code | Use it for |
+|---|---|---|
+| [Non-Gaussian Longitudinal Outcomes](non-gaussian-longitudinal-outcomes.html) | `vignette("non-gaussian-longitudinal-outcomes", package = "gamlss.longitudinal")` | Positive, skewed, count, tail-sensitive, or otherwise non-Gaussian responses. |
+| [Missing Visits](missing-visits.html) | `vignette("missing-visits", package = "gamlss.longitudinal")` | Unbalanced panels, absent visits, and missingness-sensitive reporting. |
+| [Time-Varying Dependence](time-varying-dependence.html) | `vignette("time-varying-dependence", package = "gamlss.longitudinal")` | Modelling changing longitudinal association with `theta.formula`. |
 
 ## Reference Pages
 
