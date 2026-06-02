@@ -487,6 +487,52 @@ test_that("coverage harness can run an opt-in non-writing result set", {
   expect_true(all(c("elapsed_sec", "family", "method") %in% names(runtime_summary)))
 })
 
+test_that("coverage summary report is generated from multi-copula result rows", {
+  results <- data.frame(
+    family = rep(c("NO", "PO"), each = 4),
+    copula = rep(c("N", "C"), each = 2, times = 2),
+    design = "intercept",
+    method = rep(c("gamlss2", "rs_separate"), times = 4),
+    success = TRUE,
+    converged = TRUE,
+    failure_type = "ok",
+    elapsed_sec = c(0.1, 0.5, 0.2, 0.8, 0.1, 0.6, 0.2, 0.9),
+    marginal_loglik = -10,
+    joint_loglik = -9,
+    margin_review_class = rep(c("reference", "excellent"), times = 4),
+    joint_review_class = rep(c("not_applicable", "acceptable"), times = 4),
+    stringsAsFactors = FALSE
+  )
+  parameter_results <- data.frame(
+    family = c("NO", "PO"),
+    copula = c("N", "C"),
+    method = c("rs_separate", "rs_separate"),
+    parameter = c("mu", "mu"),
+    true_eta = c(0, 1),
+    estimate_eta = c(0.1, 1.2),
+    abs_eta_error = c(0.1, 0.2),
+    eta_error_class = c("acceptable", "acceptable"),
+    stringsAsFactors = FALSE
+  )
+  out_tex <- file.path(tempdir(), "coverage-summary-test.tex")
+
+  report <- write_coverage_summary_report(
+    results = results,
+    parameter_results = parameter_results,
+    output_tex = out_tex,
+    compile_pdf = FALSE,
+    run_label = "unit-test"
+  )
+
+  expect_true(file.exists(out_tex))
+  expect_false(report$compiled)
+  txt <- readLines(out_tex, warn = FALSE)
+  expect_true(any(grepl("Fit success by copula and method", txt, fixed = TRUE)))
+  expect_true(any(grepl("N", txt, fixed = TRUE)))
+  expect_true(any(grepl("C", txt, fixed = TRUE)))
+  expect_true(any(grepl("Eta-scale absolute error summary", txt, fixed = TRUE)))
+})
+
 test_that("coverage harness can include standard GEE/GLMM/GAM comparator rows", {
   skip_if_not_installed("gamlss.dist")
   skip_if_not_installed("geepack")

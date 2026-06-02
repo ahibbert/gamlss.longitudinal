@@ -12,6 +12,10 @@ run_coverage_simulations(
   include_mixed = FALSE,
   output_dir = file.path("results", "coverage_simulations"),
   write_results = TRUE,
+  write_summary = TRUE,
+  compile_summary_pdf = FALSE,
+  smooth_results_file = NULL,
+  report_title = "Coverage Simulation Summary",
   ...
 )
 }
@@ -36,6 +40,17 @@ the candidate family grid.}
 \item{output_dir}{Directory for CSV/RDS outputs.}
 
 \item{write_results}{Write result files when \code{TRUE}.}
+
+\item{write_summary}{Write a LaTeX summary report when \code{TRUE} and
+\code{write_results} is also \code{TRUE}.}
+
+\item{compile_summary_pdf}{Compile the LaTeX summary to PDF when \code{TRUE} and
+a LaTeX installation is available.}
+
+\item{smooth_results_file}{Optional smooth smoke-test CSV to include in the
+generated summary report.}
+
+\item{report_title}{Title for the generated summary report.}
 
 \item{...}{Passed to the grid runner, e.g. \code{n}, \code{times}, \code{max_outer_iter},
 \code{dependence}, \code{missingness}, and \code{start_mode}.}
