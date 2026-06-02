@@ -1383,7 +1383,7 @@
   formulas <- .coverage_fit_formulas(design)
   fit <- NULL
   invisible(utils::capture.output({
-    fit <- gamlss.longitudinal(
+    fit <- gamlss_longitudinal(
       dataset = dat,
       margin_dist = margin_dist,
       copula_dist = copula,
@@ -1439,7 +1439,7 @@
   captured <- .coverage_capture_conditions({
     fit <- NULL
     invisible(utils::capture.output({
-      fit <- gamlss.longitudinal(
+      fit <- gamlss_longitudinal(
         dataset = dat,
         margin_dist = margin_dist,
         copula_dist = copula,
