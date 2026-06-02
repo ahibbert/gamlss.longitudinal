@@ -9,7 +9,7 @@
 #' This helper is intended as a lightweight family-screening step. It estimates
 #' a constant dependence parameter for each candidate family; richer covariate
 #' or smooth dependence structures should be fitted afterwards with
-#' [gamlss.longitudinal()].
+#' [gamlss_longitudinal()].
 #'
 #' @param data Optional long-format data frame.
 #' @param object Optional fitted `gamlss.longitudinal` object.
