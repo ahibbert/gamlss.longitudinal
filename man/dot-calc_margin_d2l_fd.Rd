@@ -13,6 +13,6 @@ expected Fisher information (y-independent) rather than the observed
 second derivative.
 }
 \details{
-Returns a list[[pn1]][[pn2]] of length n_obs.
+Returns a \code{list[[pn1]][[pn2]]} of length n_obs.
 }
 \keyword{internal}

@@ -7,16 +7,16 @@
 \method{effects}{gamlss.longitudinal}(object, ...)
 }
 \arguments{
-\item{object}{A fitted `gamlss.longitudinal` object.}
+\item{object}{A fitted \code{gamlss.longitudinal} object.}
 
-\item{...}{Arguments passed to [marginal_effects()], including `newdata`,
-`variable`, `values`, `parameter`, and `se.fit`.}
+\item{...}{Arguments passed to \code{\link[=marginal_effects]{marginal_effects()}}, including \code{newdata},
+\code{variable}, \code{values}, \code{parameter}, and \code{se.fit}.}
 }
 \value{
-A data frame from [marginal_effects()].
+A data frame from \code{\link[=marginal_effects]{marginal_effects()}}.
 }
 \description{
-`effects.gamlss.longitudinal()` is a convenience alias for
-[marginal_effects()] so users can reach for the familiar `effects()` generic
+\code{effects.gamlss.longitudinal()} is a convenience alias for
+\code{\link[=marginal_effects]{marginal_effects()}} so users can reach for the familiar \code{effects()} generic
 when interpreting fitted distributional parameters.
 }

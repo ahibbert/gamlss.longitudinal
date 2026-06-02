@@ -13,8 +13,8 @@ adoption_benchmark_scenarios(scenarios = NULL)
 A data frame with one row per benchmark scenario.
 }
 \description{
-`adoption_benchmark_scenarios()` defines a small, opinionated benchmark plan
-for comparing `gamlss.longitudinal` with GEE/GLMM/GAM defaults. The scenarios
-are designed to be executable through [run_adoption_benchmarks()] while also
+\code{adoption_benchmark_scenarios()} defines a small, opinionated benchmark plan
+for comparing \code{gamlss.longitudinal} with GEE/GLMM/GAM defaults. The scenarios
+are designed to be executable through \code{\link[=run_adoption_benchmarks]{run_adoption_benchmarks()}} while also
 documenting the applied claim each scenario is meant to test.
 }

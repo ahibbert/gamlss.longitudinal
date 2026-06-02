@@ -10,7 +10,7 @@ sim_rescale01(x)
 \item{x}{Numeric vector.}
 }
 \value{
-Numeric vector scaled to `[0, 1]`. Constant finite inputs return 0.
+Numeric vector scaled to \verb{[0, 1]}. Constant finite inputs return 0.
 }
 \description{
 Rescale a numeric vector to the unit interval

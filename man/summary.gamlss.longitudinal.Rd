@@ -7,27 +7,29 @@
 \method{summary}{gamlss.longitudinal}(object, include_vcov = TRUE, numderiv = FALSE, ci_level = 0.95, ...)
 }
 \arguments{
-\item{object}{A fitted object of class `gamlss.longitudinal`.}
+\item{object}{A fitted object of class \code{gamlss.longitudinal}.}
 
-\item{include_vcov}{Logical; if `TRUE`, compute and include variance-covariance
-output via `vcov.gamlss.longitudinal()`.}
+\item{include_vcov}{Logical; if \code{TRUE}, compute and include variance-covariance
+output via \code{vcov.gamlss.longitudinal()}.}
 
-\item{numderiv}{Logical passed to `vcov.gamlss.longitudinal()`.}
+\item{numderiv}{Logical passed to \code{vcov.gamlss.longitudinal()}.}
 
 \item{ci_level}{Confidence level for coefficient intervals.}
 
-\item{...}{Additional arguments passed to `vcov.gamlss.longitudinal()`.}
+\item{...}{Additional arguments passed to \code{vcov.gamlss.longitudinal()}.}
 }
 \value{
-An object of class `summary.gamlss.longitudinal` containing:
-- model dimensions and parameter counts,
-- likelihood and information criteria,
-- fixed-effect coefficient table,
-- optional `vcov` output.
+An object of class \code{summary.gamlss.longitudinal} containing:
+\itemize{
+\item model dimensions and parameter counts,
+\item likelihood and information criteria,
+\item fixed-effect coefficient table,
+\item optional \code{vcov} output.
+}
 }
 \description{
 Creates a compact summary of key model diagnostics and coefficient estimates
-for a fitted `gamlss.longitudinal` object. By default it wraps
-`vcov.gamlss.longitudinal()` to provide standard errors and confidence
+for a fitted \code{gamlss.longitudinal} object. By default it wraps
+\code{vcov.gamlss.longitudinal()} to provide standard errors and confidence
 intervals for fixed effects.
 }

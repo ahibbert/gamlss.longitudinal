@@ -14,17 +14,17 @@
 )
 }
 \arguments{
-\item{object}{A fitted `gamlss.longitudinal` object.}
+\item{object}{A fitted \code{gamlss.longitudinal} object.}
 
 \item{nsim}{Number of simulated response columns.}
 
 \item{seed}{Optional random seed.}
 
 \item{newdata}{Optional new data. Copula-preserving simulation is currently
-available for fitted data only; `newdata` uses marginal simulation.}
+available for fitted data only; \code{newdata} uses marginal simulation.}
 
-\item{type}{`"copula"` preserves the fitted first-order dependence on fitted
-data. `"marginal"` simulates independently from fitted marginal
+\item{type}{\code{"copula"} preserves the fitted first-order dependence on fitted
+data. \code{"marginal"} simulates independently from fitted marginal
 distributions.}
 
 \item{...}{Additional arguments reserved for future methods.}

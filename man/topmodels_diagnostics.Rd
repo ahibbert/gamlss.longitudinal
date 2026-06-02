@@ -10,6 +10,6 @@
 \alias{procast}
 \title{Diagnostic generics for fitted longitudinal GAMLSS-copula models}
 \description{
-These generics dispatch to methods for `gamlss.longitudinal` objects and
+These generics dispatch to methods for \code{gamlss.longitudinal} objects and
 return either diagnostic plot objects, scoring summaries, or forecast data.
 }

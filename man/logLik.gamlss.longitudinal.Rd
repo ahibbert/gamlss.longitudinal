@@ -7,7 +7,7 @@
 \method{logLik}{gamlss.longitudinal}(object, ...)
 }
 \arguments{
-\item{object}{A fitted `gamlss.longitudinal` object.}
+\item{object}{A fitted \code{gamlss.longitudinal} object.}
 
 \item{...}{Additional arguments, currently unused.}
 }
