@@ -36,25 +36,25 @@ devtools::install_github("ahibbert/gamlss.longitudinal")
 
 Start with the article guide when browsing the package site or repository:
 
-- Guide to the articles: [`vignettes/site-guide.Rmd`](vignettes/site-guide.Rmd)
+- Guide to the articles: [Guide to the articles](https://ahibbert.github.io/gamlss.longitudinal/articles/site-guide.html)
 
 The main worked examples are:
 
-- Standard workflow API, inference, and diagnostics: [`vignettes/standard-workflow.Rmd`](vignettes/standard-workflow.Rmd)
-- Native simulation, copula screening, and fitting: [`vignettes/native-simulation-workflow.Rmd`](vignettes/native-simulation-workflow.Rmd)
+- Standard workflow API, inference, and diagnostics: [Standard workflow](https://ahibbert.github.io/gamlss.longitudinal/articles/standard-workflow.html)
+- Native simulation, copula screening, and fitting: [Native simulation workflow](https://ahibbert.github.io/gamlss.longitudinal/articles/native-simulation-workflow.html)
 
 Focused adoption guides:
 
-- Adoption guide: [`vignettes/replace-gee-glmm.Rmd`](vignettes/replace-gee-glmm.Rmd)
-- Adoption decision guide: [`vignettes/adoption-decision-guide.Rmd`](vignettes/adoption-decision-guide.Rmd)
-- Inference and uncertainty: [`vignettes/inference-uncertainty.Rmd`](vignettes/inference-uncertainty.Rmd)
-- Diagnostics as decisions: [`vignettes/diagnostics-decisions.Rmd`](vignettes/diagnostics-decisions.Rmd)
-- Replace a GEE: [`vignettes/replace-a-gee.Rmd`](vignettes/replace-a-gee.Rmd)
-- Replace a random-intercept GLMM: [`vignettes/replace-a-random-intercept-glmm.Rmd`](vignettes/replace-a-random-intercept-glmm.Rmd)
-- Non-Gaussian longitudinal outcomes: [`vignettes/non-gaussian-longitudinal-outcomes.Rmd`](vignettes/non-gaussian-longitudinal-outcomes.Rmd)
-- Missing visits: [`vignettes/missing-visits.Rmd`](vignettes/missing-visits.Rmd)
-- Time-varying dependence: [`vignettes/time-varying-dependence.Rmd`](vignettes/time-varying-dependence.Rmd)
-- Benchmarking adoption claims: [`vignettes/benchmarking-adoption.Rmd`](vignettes/benchmarking-adoption.Rmd)
+- Adoption guide: [Replacing GEE and GLMM workflows](https://ahibbert.github.io/gamlss.longitudinal/articles/replace-gee-glmm.html)
+- Adoption decision guide: [Adoption decision guide](https://ahibbert.github.io/gamlss.longitudinal/articles/adoption-decision-guide.html)
+- Inference and uncertainty: [Inference and uncertainty](https://ahibbert.github.io/gamlss.longitudinal/articles/inference-uncertainty.html)
+- Diagnostics as decisions: [Diagnostics as decisions](https://ahibbert.github.io/gamlss.longitudinal/articles/diagnostics-decisions.html)
+- Replace a GEE: [Replace a GEE](https://ahibbert.github.io/gamlss.longitudinal/articles/replace-a-gee.html)
+- Replace a random-intercept GLMM: [Replace a random-intercept GLMM](https://ahibbert.github.io/gamlss.longitudinal/articles/replace-a-random-intercept-glmm.html)
+- Non-Gaussian longitudinal outcomes: [Non-Gaussian longitudinal outcomes](https://ahibbert.github.io/gamlss.longitudinal/articles/non-gaussian-longitudinal-outcomes.html)
+- Missing visits: [Missing visits](https://ahibbert.github.io/gamlss.longitudinal/articles/missing-visits.html)
+- Time-varying dependence: [Time-varying dependence](https://ahibbert.github.io/gamlss.longitudinal/articles/time-varying-dependence.html)
+- Benchmarking adoption claims: [Benchmarking adoption claims](https://ahibbert.github.io/gamlss.longitudinal/articles/benchmarking-adoption.html)
 - Benchmark investigation: [`inst/benchmarks/gee-glmm-investigation.md`](inst/benchmarks/gee-glmm-investigation.md)
 
 The native simulation vignette demonstrates:
@@ -120,11 +120,11 @@ effects(fit, newdata = dat, variable = "treatment", se.fit = TRUE)
 summarises convergence, scoring, PIT calibration, tail calibration, residual
 dependence, copula summaries, and plain-language diagnostic decisions.
 
-Use [`vignettes/inference-uncertainty.Rmd`](vignettes/inference-uncertainty.Rmd)
+Use the [inference and uncertainty article](https://ahibbert.github.io/gamlss.longitudinal/articles/inference-uncertainty.html)
 when reporting uncertainty. It separates likelihood/Hessian coefficient
 intervals, numerical-Hessian fallbacks, delta-method response-mean intervals,
 and simulation-based trajectory summaries.
-Use [`vignettes/diagnostics-decisions.Rmd`](vignettes/diagnostics-decisions.Rmd)
+Use the [diagnostics as decisions article](https://ahibbert.github.io/gamlss.longitudinal/articles/diagnostics-decisions.html)
 when deciding whether diagnostic warnings support a primary model, sensitivity
 model, or revised specification.
 
