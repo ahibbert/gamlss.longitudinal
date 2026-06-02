@@ -20,41 +20,41 @@
 )
 }
 \arguments{
-\item{object}{A fitted `gamlss.longitudinal` object.}
+\item{object}{A fitted \code{gamlss.longitudinal} object.}
 
 \item{newdata}{Optional new data. If omitted, fitted rows are used.}
 
-\item{type}{Prediction type: `"response"` returns the fitted `mu` parameter,
-`"parameters"` returns all fitted marginal distribution parameters,
-`"quantile"` returns fitted marginal quantiles, `"cdf"`/`"density"`
-evaluate the fitted marginal CDF or density, and `"probability"` returns
+\item{type}{Prediction type: \code{"response"} returns the fitted \code{mu} parameter,
+\code{"parameters"} returns all fitted marginal distribution parameters,
+\code{"quantile"} returns fitted marginal quantiles, \code{"cdf"}/\code{"density"}
+evaluate the fitted marginal CDF or density, and \code{"probability"} returns
 probabilities below or above a threshold.}
 
-\item{probs}{Quantile probabilities when `type = "quantile"`.}
+\item{probs}{Quantile probabilities when \code{type = "quantile"}.}
 
-\item{q}{Threshold value for `type = "cdf"` or `type = "probability"`.
-Defaults to observed responses for `type = "cdf"` when available.}
+\item{q}{Threshold value for \code{type = "cdf"} or \code{type = "probability"}.
+Defaults to observed responses for \code{type = "cdf"} when available.}
 
-\item{y}{Evaluation value for `type = "density"`. Defaults to observed
+\item{y}{Evaluation value for \code{type = "density"}. Defaults to observed
 responses when available.}
 
-\item{direction}{Probability direction for `type = "probability"`.}
+\item{direction}{Probability direction for \code{type = "probability"}.}
 
-\item{se.fit}{Logical; for `type = "response"`, return approximate
+\item{se.fit}{Logical; for \code{type = "response"}, return approximate
 delta-method standard errors for the fitted response mean.}
 
-\item{interval}{Interval type. `"confidence"` adds response-scale confidence
-limits when `type = "response"`.}
+\item{interval}{Interval type. \code{"confidence"} adds response-scale confidence
+limits when \code{type = "response"}.}
 
-\item{level}{Confidence level for `interval = "confidence"`.}
+\item{level}{Confidence level for \code{interval = "confidence"}.}
 
-\item{vcov_method}{Variance-covariance method passed to [vcov.gamlss.longitudinal()].}
+\item{vcov_method}{Variance-covariance method passed to \code{\link[=vcov.gamlss.longitudinal]{vcov.gamlss.longitudinal()}}.}
 
 \item{...}{Additional arguments reserved for future methods.}
 }
 \value{
-A numeric vector for `type = "response"` unless standard errors or
-  intervals are requested; a data frame otherwise.
+A numeric vector for \code{type = "response"} unless standard errors or
+intervals are requested; a data frame otherwise.
 }
 \description{
 Predict from a longitudinal GAMLSS-copula model

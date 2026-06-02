@@ -7,7 +7,7 @@
 copula_time_summary(object, lags = 1, stat = c("mean", "median"))
 }
 \arguments{
-\item{object}{A fitted `gamlss.longitudinal` object.}
+\item{object}{A fitted \code{gamlss.longitudinal} object.}
 
 \item{lags}{Integer lags to assess, measured in ordered time steps.}
 

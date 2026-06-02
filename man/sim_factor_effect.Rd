@@ -12,10 +12,10 @@ sim_factor_effect(x, effects, reference = NULL)
 \item{effects}{Named numeric vector of effects.}
 
 \item{reference}{Optional reference level to prepend with effect 0 when it is
-not already present in `effects`.}
+not already present in \code{effects}.}
 }
 \value{
-Numeric vector of effects aligned with `x`.
+Numeric vector of effects aligned with \code{x}.
 }
 \description{
 Look up named effects for a factor-like variable

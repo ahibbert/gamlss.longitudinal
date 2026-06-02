@@ -46,7 +46,7 @@ plot_copula_diagnostics(
 )
 }
 \arguments{
-\item{x}{A fitted `gamlss.longitudinal` object.}
+\item{x}{A fitted \code{gamlss.longitudinal} object.}
 
 \item{lags}{Integer lags to assess, measured in ordered time steps.}
 
@@ -54,7 +54,8 @@ plot_copula_diagnostics(
 
 \item{max_pairs_overlay}{Maximum number of paired observations used for the fitted overlay.}
 
-\item{transform}{Character; "uniform" (default) shows empirical copula on [0,1], "normal" transforms to standard normal scale.}
+\item{transform}{Character; "uniform" (default) shows empirical copula on
+the unit interval, "normal" transforms to standard normal scale.}
 
 \item{plot1_style}{Character; "bins" (default) draws a binned empirical layer, "scatter" draws points.}
 
@@ -63,13 +64,13 @@ plot_copula_diagnostics(
 \item{time_stratified}{Logical; if TRUE, facet both plots by time pair.}
 
 \item{by}{Optional grouping variable name for stratified plots. Defaults to
-time-pair grouping when NULL. Use `data` for covariates not stored on the
+time-pair grouping when NULL. Use \code{data} for covariates not stored on the
 fitted pair object (for example gender).}
 
-\item{data}{Optional data frame used when grouping by a covariate via `by`.}
+\item{data}{Optional data frame used when grouping by a covariate via \code{by}.}
 
 \item{tau_ylim}{Optional numeric vector of length 2 specifying y-axis limits
-for Kendall's tau chart(s). If `NULL` (default), y-axis scales are automatic.}
+for Kendall's tau chart(s). If \code{NULL} (default), y-axis scales are automatic.}
 
 \item{plot2_cuts}{Integer number of quantile-based cuts used in plot 2 (default 10).}
 

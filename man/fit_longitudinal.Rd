@@ -31,7 +31,7 @@ fit_longitudinal(
 \arguments{
 \item{dataset}{Long-format data frame.}
 
-\item{margin_dist}{Marginal `gamlss.dist` family object.}
+\item{margin_dist}{Marginal \code{gamlss.dist} family object.}
 
 \item{time_var, subject_var}{Column names identifying time and subject.}
 
@@ -41,35 +41,35 @@ fit_longitudinal(
 
 \item{theta.formula, zeta.formula}{Copula parameter formulas.}
 
-\item{copula_dist}{Optional copula family code. If `NULL`,
-`fit_longitudinal()` selects from `u_var` when available, otherwise uses
-`"N"` as a conservative default.}
+\item{copula_dist}{Optional copula family code. If \code{NULL},
+\code{fit_longitudinal()} selects from \code{u_var} when available, otherwise uses
+\code{"N"} as a conservative default.}
 
-\item{auto_select_copula}{Logical; when `TRUE` and pseudo-observations are
-available, call [select_copula()].}
+\item{auto_select_copula}{Logical; when \code{TRUE} and pseudo-observations are
+available, call \code{\link[=select_copula]{select_copula()}}.}
 
 \item{u_var}{Optional pseudo-observation column used for copula screening.
-If omitted and `dataset` has a column named `"u"`, that column is used.}
+If omitted and \code{dataset} has a column named \code{"u"}, that column is used.}
 
 \item{copula_families}{Candidate copula family codes for screening.}
 
-\item{run_checks}{Logical; attach `check_model(..., include_plots = FALSE)`
+\item{run_checks}{Logical; attach \code{check_model(..., include_plots = FALSE)}
 to the returned object.}
 
 \item{method, include_dlcopdpar, compute_vcov, verbose}{Defaults passed to
-[gamlss.longitudinal()].}
+\code{\link[=gamlss.longitudinal]{gamlss.longitudinal()}}.}
 
-\item{warm_start_joint}{Logical; default `FALSE` for the high-level workflow
+\item{warm_start_joint}{Logical; default \code{FALSE} for the high-level workflow
 because it favors reliability over a faster but more fragile warm-start
-phase. Advanced users can set this to `TRUE`.}
+phase. Advanced users can set this to \code{TRUE}.}
 
-\item{...}{Additional arguments passed to [gamlss.longitudinal()].}
+\item{...}{Additional arguments passed to \code{\link[=gamlss.longitudinal]{gamlss.longitudinal()}}.}
 }
 \value{
-A fitted `gamlss.longitudinal` object with a `workflow` component.
+A fitted \code{gamlss.longitudinal} object with a \code{workflow} component.
 }
 \description{
-`fit_longitudinal()` is a golden-path wrapper around [gamlss.longitudinal()]
+\code{fit_longitudinal()} is a golden-path wrapper around \code{\link[=gamlss.longitudinal]{gamlss.longitudinal()}}
 with adoption-friendly defaults. It optionally screens the copula family
 from a pseudo-observation column and stores workflow metadata on the fitted
 object.

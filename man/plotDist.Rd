@@ -12,10 +12,10 @@ plotDist(
 )
 }
 \arguments{
-\item{dataset}{Long-format data frame with `subject`, `time`, and `response`
+\item{dataset}{Long-format data frame with \code{subject}, \code{time}, and \code{response}
 columns.}
 
-\item{dist}{A `gamlss.dist` family object used for diagonal marginal labels.}
+\item{dist}{A \code{gamlss.dist} family object used for diagonal marginal labels.}
 
 \item{offdiag_scale}{Character; show off-diagonal panels on response or
 pseudo-observation scale.}
@@ -24,7 +24,7 @@ pseudo-observation scale.}
 off-diagonal panel subtitles.}
 }
 \value{
-A `ggpubr` arranged plot object.
+A \code{ggpubr} arranged plot object.
 }
 \description{
 Plot marginal and pairwise distribution diagnostics

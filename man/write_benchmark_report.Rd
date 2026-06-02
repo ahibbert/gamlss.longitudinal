@@ -16,24 +16,24 @@ write_benchmark_report(
 )
 }
 \arguments{
-\item{benchmark}{A `gamlss_longitudinal_adoption_benchmark` object from
-[run_adoption_benchmarks()] or a results data frame accepted by
-[summarise_benchmark_results()].}
+\item{benchmark}{A \code{gamlss_longitudinal_adoption_benchmark} object from
+\code{\link[=run_adoption_benchmarks]{run_adoption_benchmarks()}} or a results data frame accepted by
+\code{\link[=summarise_benchmark_results]{summarise_benchmark_results()}}.}
 
 \item{path}{Markdown output path.}
 
 \item{title}{Report title.}
 
 \item{comparator_status}{Optional comparator availability table. Defaults to
-[benchmark_comparator_status()].}
+\code{\link[=benchmark_comparator_status]{benchmark_comparator_status()}}.}
 
-\item{metrics}{Optional metric vector used when `benchmark` is a raw results
+\item{metrics}{Optional metric vector used when \code{benchmark} is a raw results
 data frame.}
 
 \item{include_case_results}{Logical; include per-case win/tie/loss rows.}
 
 \item{max_case_rows}{Maximum case rows to include when
-`include_case_results = TRUE`.}
+\code{include_case_results = TRUE}.}
 
 \item{digits}{Significant digits for numeric report tables.}
 }

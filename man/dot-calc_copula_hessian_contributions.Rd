@@ -20,11 +20,11 @@ w.r.t. natural parameters of the margin and copula is assembled here.
 }
 \details{
 Returns a list with named elements:
-  cop_d2l_margin  – matrix (n_obs x n_margin_par x n_margin_par) flattened
-                    as a list[[par1]][[par2]] each of length n_obs
-  cop_d2l_theta   – length n_obs vector: d2 log c / d theta^2
-  cop_d2l_zeta    – length n_obs vector or NULL
-  cop_d2l_thetazeta – length n_obs vector or NULL
-  cop_d2l_margin_theta – list[[par_name]] length n_obs: d2logc/(dpar dtheta)
+cop_d2l_margin  – matrix (n_obs x n_margin_par x n_margin_par) flattened
+as \code{list[[par1]][[par2]]}, each of length n_obs
+cop_d2l_theta   – length n_obs vector: d2 log c / d theta^2
+cop_d2l_zeta    – length n_obs vector or NULL
+cop_d2l_thetazeta – length n_obs vector or NULL
+cop_d2l_margin_theta – \code{list[[par_name]]} length n_obs: d2logc/(dpar dtheta)
 }
 \keyword{internal}

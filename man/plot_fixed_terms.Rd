@@ -25,9 +25,9 @@ plot_fixed_terms(
 )
 }
 \arguments{
-\item{object}{A fitted `gamlss.longitudinal` object.}
+\item{object}{A fitted \code{gamlss.longitudinal} object.}
 
-\item{vcov_obj}{Optional output from `vcov(object, ...)`. If `NULL`, this is
+\item{vcov_obj}{Optional output from \code{vcov(object, ...)}. If \code{NULL}, this is
 computed internally with the analytical vcov path.}
 
 \item{ci_level}{Confidence level for pointwise intervals.}
@@ -68,8 +68,8 @@ errors, and confidence limits for each fixed term.
 }
 \description{
 This utility plots fixed-effect term contributions for a fitted
-`gamlss.longitudinal` object using coefficient uncertainty from
-`vcov.gamlss.longitudinal()`.
+\code{gamlss.longitudinal} object using coefficient uncertainty from
+\code{vcov.gamlss.longitudinal()}.
 }
 \details{
 For each fixed-effect design-matrix column \eqn{x_j}, it plots
