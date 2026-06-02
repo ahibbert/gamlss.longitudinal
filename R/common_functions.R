@@ -644,7 +644,7 @@ utils::globalVariables(c(
 #' copula likelihoods which can be quicker with a slight loss to overall fit.
 #'
 #' Formula inputs are converted to fixed-effect and smooth model matrices by
-#' [create_model_matrices()]. The user-supplied `time_var` is preserved for
+#' `create_model_matrices()`. The user-supplied `time_var` is preserved for
 #' formulas as an internal `time_covariate` column, while an internal numeric
 #' `time` index is used for ordering longitudinal margins and adjacent copula
 #' pairs. Numeric and integer time inputs are used directly, numeric-like
@@ -7732,7 +7732,8 @@ plot.copula_contour_compare <- function(x, lags = 1, grid_n = 45, max_pairs_over
 #' @param lags Integer lags to assess, measured in ordered time steps.
 #' @param grid_n Grid size used for contour averaging.
 #' @param max_pairs_overlay Maximum number of paired observations used for the fitted overlay.
-#' @param transform Character; "uniform" (default) shows empirical copula on [0,1], "normal" transforms to standard normal scale.
+#' @param transform Character; "uniform" (default) shows empirical copula on
+#'   the unit interval, "normal" transforms to standard normal scale.
 #' @param plot1_style Character; "bins" (default) draws a binned empirical layer, "scatter" draws points.
 #' @param contour_bins Integer number of contour levels for the fitted copula overlay in plot 1.
 #' @param time_stratified Logical; if TRUE, facet both plots by time pair.
