@@ -44,4 +44,5 @@ Enhances:
 Additional_repositories: https://gamlss-dev.R-universe.dev
 VignetteBuilder: knitr
 Config/testthat/edition: 3
+Roxygen: list(markdown = TRUE, roclets = c("namespace", "rd", "srr::srr_stats_roclet"))
 RoxygenNote: 7.3.3
