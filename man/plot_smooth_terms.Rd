@@ -23,9 +23,9 @@ plot_smooth_terms(
 )
 }
 \arguments{
-\item{object}{A fitted `gamlss.longitudinal` object.}
+\item{object}{A fitted \code{gamlss.longitudinal} object.}
 
-\item{vcov_obj}{Optional output from `vcov(object, ...)`. If `NULL`, this is
+\item{vcov_obj}{Optional output from \code{vcov(object, ...)}. If \code{NULL}, this is
 computed internally with the analytical vcov path.}
 
 \item{data}{Optional data frame containing original covariates used for the
@@ -48,7 +48,7 @@ x-axis variable of each smooth.}
 \item{even_grid}{Logical; if TRUE, plot smooths on an evenly spaced x-grid
 built over observed x-range.}
 
-\item{grid_n}{Number of grid points when `even_grid = TRUE`.}
+\item{grid_n}{Number of grid points when \code{even_grid = TRUE}.}
 
 \item{fallback_to_index}{Logical; if x variable cannot be inferred, plot
 against row index.}
@@ -63,7 +63,7 @@ Invisibly returns a nested list with x, fitted values, standard
 errors, and confidence limits for each smooth term.
 }
 \description{
-This utility plots every smooth term in a fitted `gamlss.longitudinal` object
+This utility plots every smooth term in a fitted \code{gamlss.longitudinal} object
 and computes pointwise confidence bands using the smooth coefficient
-covariance matrices returned by `vcov.gamlss.longitudinal()`.
+covariance matrices returned by \code{vcov.gamlss.longitudinal()}.
 }

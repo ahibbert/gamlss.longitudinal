@@ -7,7 +7,7 @@
 .get_margin_d1l(margin_deriv, mm)
 }
 \description{
-Returns a list[[pn1]][[pn2]] each of length n_obs, sourced from the
+Returns a \code{list[[pn1]][[pn2]]}, each of length n_obs, sourced from the
 gamlss family d2ldm2, d2ldmdd, ... functions already called in
 calc_likelihood_minimal.
 }

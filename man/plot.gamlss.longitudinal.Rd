@@ -2,7 +2,7 @@
 % Please edit documentation in R/common_functions.R
 \name{plot.gamlss.longitudinal}
 \alias{plot.gamlss.longitudinal}
-\title{Plot diagnostics dashboard for fitted `gamlss.longitudinal` objects}
+\title{Plot diagnostics dashboard for fitted \code{gamlss.longitudinal} objects}
 \usage{
 \method{plot}{gamlss.longitudinal}(
   x,
@@ -17,15 +17,15 @@
 )
 }
 \arguments{
-\item{x}{A fitted `gamlss.longitudinal` object.}
+\item{x}{A fitted \code{gamlss.longitudinal} object.}
 
 \item{y}{Unused; included for S3 generic compatibility.}
 
-\item{data}{Optional data frame used as fallback for `newdata` plotting.}
+\item{data}{Optional data frame used as fallback for \code{newdata} plotting.}
 
 \item{newdata}{Optional data frame for the newdata forecast panel.}
 
-\item{newdata_n}{Number of rows to use from `data` when `newdata` is NULL.}
+\item{newdata_n}{Number of rows to use from \code{data} when \code{newdata} is NULL.}
 
 \item{quantiles}{Quantiles for forecast panels.}
 
@@ -40,10 +40,12 @@ Invisibly returns a list of generated plot/data objects.
 }
 \description{
 Displays six ggplot-based panels by default:
-1) PIT histogram
-2) QQ residual plot
-3) Worm plot
-4) Rootogram
-5) Fitted-data quantile forecast plot
-6) Newdata quantile forecast plot (if `newdata` or `data` supplied)
+\enumerate{
+\item PIT histogram
+\item QQ residual plot
+\item Worm plot
+\item Rootogram
+\item Fitted-data quantile forecast plot
+\item Newdata quantile forecast plot (if \code{newdata} or \code{data} supplied)
+}
 }

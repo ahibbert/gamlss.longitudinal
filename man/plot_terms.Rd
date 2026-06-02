@@ -23,7 +23,7 @@ plot_terms(
 )
 }
 \arguments{
-\item{x}{A fitted `gamlss.longitudinal` object.}
+\item{x}{A fitted \code{gamlss.longitudinal} object.}
 
 \item{y}{Unused; included for compatibility with older calls.}
 
@@ -53,7 +53,7 @@ plots.}
 }
 \value{
 Invisibly returns a list with smooth-term, fixed-term, and dashboard
-  plot objects.
+plot objects.
 }
 \description{
 Plot term effects for a fitted longitudinal model

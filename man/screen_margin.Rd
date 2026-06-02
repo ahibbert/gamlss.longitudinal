@@ -17,27 +17,27 @@ screen_margin(
 }
 \arguments{
 \item{response}{Numeric response vector. For the common
-`screen_margin(dat, response_var = "y")` call, a data frame supplied here
-is treated as `data`.}
+\code{screen_margin(dat, response_var = "y")} call, a data frame supplied here
+is treated as \code{data}.}
 
 \item{data}{Optional data frame containing the response.}
 
-\item{response_var}{Optional response column name in `data`.}
+\item{response_var}{Optional response column name in \code{data}.}
 
-\item{type}{Optional `gamlss::fitDist()` type. If `NULL`, a simple heuristic
-uses `"counts"` for non-negative integer responses, `"realplus"` for
-positive continuous responses, and `"realAll"` otherwise.}
+\item{type}{Optional \code{gamlss::fitDist()} type. If \code{NULL}, a simple heuristic
+uses \code{"counts"} for non-negative integer responses, \code{"realplus"} for
+positive continuous responses, and \code{"realAll"} otherwise.}
 
 \item{families}{Optional character vector used to filter the returned table.}
 
-\item{try.gamlss, trace, ...}{Passed to [gamlss::fitDist()].}
+\item{try.gamlss, trace, ...}{Passed to \code{\link[gamlss:fitDist]{gamlss::fitDist()}}.}
 }
 \value{
 A data frame ordered by AIC. The selected family is also stored in
-  the `"selected"` attribute.
+the \code{"selected"} attribute.
 }
 \description{
-`screen_margin()` is a lightweight wrapper around [gamlss::fitDist()] for
+\code{screen_margin()} is a lightweight wrapper around \code{\link[gamlss:fitDist]{gamlss::fitDist()}} for
 the recommended longitudinal workflow: choose a plausible marginal family,
-then fit dependence with [gamlss.longitudinal()].
+then fit dependence with \code{\link[=gamlss.longitudinal]{gamlss.longitudinal()}}.
 }

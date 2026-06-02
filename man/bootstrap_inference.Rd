@@ -17,7 +17,7 @@ bootstrap_inference(
 )
 }
 \arguments{
-\item{object}{A fitted `gamlss.longitudinal` object.}
+\item{object}{A fitted \code{gamlss.longitudinal} object.}
 
 \item{R}{Number of bootstrap replicates.}
 
@@ -25,25 +25,25 @@ bootstrap_inference(
 
 \item{level}{Confidence level for percentile intervals.}
 
-\item{simulation_type}{Passed to [simulate.gamlss.longitudinal()]. Use
-`"copula"` to preserve fitted dependence or `"marginal"` for independent
+\item{simulation_type}{Passed to \code{\link[=simulate.gamlss.longitudinal]{simulate.gamlss.longitudinal()}}. Use
+\code{"copula"} to preserve fitted dependence or \code{"marginal"} for independent
 fitted-margin simulation.}
 
 \item{seed}{Optional random seed.}
 
 \item{fit_args}{Optional named list of arguments passed to each refit, such
-as `max_outer_iter`, `max_inner_iter`, or convergence tolerances.}
+as \code{max_outer_iter}, \code{max_inner_iter}, or convergence tolerances.}
 
 \item{keep_fits}{Logical; keep successful refitted model objects.}
 
-\item{...}{Additional arguments passed to [simulate.gamlss.longitudinal()].}
+\item{...}{Additional arguments passed to \code{\link[=simulate.gamlss.longitudinal]{simulate.gamlss.longitudinal()}}.}
 }
 \value{
-An object of class `gamlss_longitudinal_bootstrap`.
+An object of class \code{gamlss_longitudinal_bootstrap}.
 }
 \description{
-`bootstrap_inference()` simulates responses from a fitted
-`gamlss.longitudinal` model, refits the same model to each simulated response,
+\code{bootstrap_inference()} simulates responses from a fitted
+\code{gamlss.longitudinal} model, refits the same model to each simulated response,
 and summarizes the bootstrap distribution of selected fixed coefficients.
 It is intended for opt-in applied uncertainty checks and should be run with
 enough replicates outside CRAN-time tests for final reporting.

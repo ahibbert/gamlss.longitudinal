@@ -14,10 +14,10 @@ summarise_benchmark_results(
 )
 }
 \arguments{
-\item{results}{Data frame returned by [run_coverage_simulations()].}
+\item{results}{Data frame returned by \code{\link[=run_coverage_simulations]{run_coverage_simulations()}}.}
 
 \item{metrics}{Optional metric columns to summarise. Defaults to all known
-benchmark metrics present in `results`.}
+benchmark metrics present in \code{results}.}
 
 \item{group_cols}{Columns defining one simulation case before method-level
 comparison.}
@@ -27,12 +27,12 @@ comparison.}
 \item{absolute_tolerance}{Absolute score gap treated as a tie/win.}
 }
 \value{
-An object of class `gamlss_longitudinal_benchmark_summary` with
-  `summary`, `case_results`, and `metric_catalog` components.
+An object of class \code{gamlss_longitudinal_benchmark_summary} with
+\code{summary}, \code{case_results}, and \code{metric_catalog} components.
 }
 \description{
-`summarise_benchmark_results()` turns rows from [run_coverage_simulations()]
-or `benchmark_standard_models()`-style outputs into compact evidence tables.
+\code{summarise_benchmark_results()} turns rows from \code{\link[=run_coverage_simulations]{run_coverage_simulations()}}
+or \code{benchmark_standard_models()}-style outputs into compact evidence tables.
 Each metric is scored according to its estimand: lower error is better,
 coverage targets 0.95, calibration/tail errors target 0, and runtime is
 lower-is-better.

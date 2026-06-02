@@ -7,15 +7,15 @@
 \method{confint}{gamlss.longitudinal}(object, parm = NULL, level = 0.95, method = "analytical", ...)
 }
 \arguments{
-\item{object}{A fitted `gamlss.longitudinal` object.}
+\item{object}{A fitted \code{gamlss.longitudinal} object.}
 
 \item{parm}{Optional coefficient names or numeric indices.}
 
 \item{level}{Confidence level.}
 
-\item{method}{Variance-covariance method passed to [vcov.gamlss.longitudinal()].}
+\item{method}{Variance-covariance method passed to \code{\link[=vcov.gamlss.longitudinal]{vcov.gamlss.longitudinal()}}.}
 
-\item{...}{Additional arguments passed to [vcov.gamlss.longitudinal()].}
+\item{...}{Additional arguments passed to \code{\link[=vcov.gamlss.longitudinal]{vcov.gamlss.longitudinal()}}.}
 }
 \value{
 A matrix with lower and upper confidence limits.

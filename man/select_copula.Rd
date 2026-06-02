@@ -23,23 +23,23 @@ select_copula(
 \arguments{
 \item{data}{Optional long-format data frame.}
 
-\item{object}{Optional fitted `gamlss.longitudinal` object.}
+\item{object}{Optional fitted \code{gamlss.longitudinal} object.}
 
 \item{u1, u2}{Optional vectors of paired pseudo-observations.}
 
-\item{u}{Optional row-aligned vector of pseudo-observations for `data`.}
+\item{u}{Optional row-aligned vector of pseudo-observations for \code{data}.}
 
-\item{u_var}{Optional name of a pseudo-observation column in `data`.}
+\item{u_var}{Optional name of a pseudo-observation column in \code{data}.}
 
 \item{subject_var, time_var}{Subject and time column names used when building
-adjacent-time pairs from `data`.}
+adjacent-time pairs from \code{data}.}
 
-\item{families}{Candidate copula family codes. Supported values are `"N"`,
-`"C"`, `"F"`, `"G"`, `"J"`, and `"t"`.}
+\item{families}{Candidate copula family codes. Supported values are \code{"N"},
+\code{"C"}, \code{"F"}, \code{"G"}, \code{"J"}, and \code{"t"}.}
 
 \item{lags}{Positive integer lag(s) used when forming adjacent pairs.}
 
-\item{criterion}{Ranking criterion, one of `"AIC"`, `"BIC"`, or `"logLik"`.}
+\item{criterion}{Ranking criterion, one of \code{"AIC"}, \code{"BIC"}, or \code{"logLik"}.}
 
 \item{t_df_grid}{Degrees-of-freedom grid used for the t-copula screen.}
 
@@ -47,19 +47,19 @@ adjacent-time pairs from `data`.}
 }
 \value{
 A data frame with one row per family and class
-  `copula_selection`. The selected family is stored in the `selected`
-  attribute.
+\code{copula_selection}. The selected family is stored in the \code{selected}
+attribute.
 }
 \description{
 Screens supported copula families by maximising their native copula
 log-likelihood on adjacent-time pseudo-observation pairs. Pseudo-observations
-can be supplied directly as `u1`/`u2`, supplied as a row-aligned uniform
-vector or column in `data`, or computed from a fitted
-`gamlss.longitudinal` object.
+can be supplied directly as \code{u1}/\code{u2}, supplied as a row-aligned uniform
+vector or column in \code{data}, or computed from a fitted
+\code{gamlss.longitudinal} object.
 }
 \details{
 This helper is intended as a lightweight family-screening step. It estimates
 a constant dependence parameter for each candidate family; richer covariate
 or smooth dependence structures should be fitted afterwards with
-[gamlss.longitudinal()].
+\code{\link[=gamlss.longitudinal]{gamlss.longitudinal()}}.
 }
