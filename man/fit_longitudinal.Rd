@@ -57,19 +57,19 @@ If omitted and \code{dataset} has a column named \code{"u"}, that column is used
 to the returned object.}
 
 \item{method, include_dlcopdpar, compute_vcov, verbose}{Defaults passed to
-\code{\link[=gamlss.longitudinal]{gamlss.longitudinal()}}.}
+\code{\link[=gamlss_longitudinal]{gamlss_longitudinal()}}.}
 
 \item{warm_start_joint}{Logical; default \code{FALSE} for the high-level workflow
 because it favors reliability over a faster but more fragile warm-start
 phase. Advanced users can set this to \code{TRUE}.}
 
-\item{...}{Additional arguments passed to \code{\link[=gamlss.longitudinal]{gamlss.longitudinal()}}.}
+\item{...}{Additional arguments passed to \code{\link[=gamlss_longitudinal]{gamlss_longitudinal()}}.}
 }
 \value{
 A fitted \code{gamlss.longitudinal} object with a \code{workflow} component.
 }
 \description{
-\code{fit_longitudinal()} is a golden-path wrapper around \code{\link[=gamlss.longitudinal]{gamlss.longitudinal()}}
+\code{fit_longitudinal()} is a golden-path wrapper around \code{\link[=gamlss_longitudinal]{gamlss_longitudinal()}}
 with adoption-friendly defaults. It optionally screens the copula family
 from a pseudo-observation column and stores workflow metadata on the fitted
 object.

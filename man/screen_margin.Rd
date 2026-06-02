@@ -39,5 +39,5 @@ the \code{"selected"} attribute.
 \description{
 \code{screen_margin()} is a lightweight wrapper around \code{\link[gamlss:fitDist]{gamlss::fitDist()}} for
 the recommended longitudinal workflow: choose a plausible marginal family,
-then fit dependence with \code{\link[=gamlss.longitudinal]{gamlss.longitudinal()}}.
+then fit dependence with \code{\link[=gamlss_longitudinal]{gamlss_longitudinal()}}.
 }
