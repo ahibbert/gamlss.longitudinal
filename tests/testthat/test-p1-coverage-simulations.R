@@ -499,8 +499,10 @@ test_that("coverage summary report is generated from multi-copula result rows", 
     elapsed_sec = c(0.1, 0.5, 0.2, 0.8, 0.1, 0.6, 0.2, 0.9),
     marginal_loglik = -10,
     joint_loglik = -9,
-    margin_review_class = rep(c("reference", "excellent"), times = 4),
-    joint_review_class = rep(c("not_applicable", "acceptable"), times = 4),
+    margin_gap_pct_vs_reference = c(NA, 0.5, NA, 10, NA, 0.7, NA, 1.2),
+    joint_delta_pct_vs_rs_separate = c(NA, 0, NA, -3, NA, 0, NA, -0.5),
+    margin_review_class = c("reference", "excellent", "reference", "review", "reference", "excellent", "reference", "excellent"),
+    joint_review_class = c("not_applicable", "acceptable", "not_applicable", "review", "not_applicable", "acceptable", "not_applicable", "acceptable"),
     stringsAsFactors = FALSE
   )
   parameter_results <- data.frame(
@@ -511,7 +513,7 @@ test_that("coverage summary report is generated from multi-copula result rows", 
     true_eta = c(0, 1),
     estimate_eta = c(0.1, 1.2),
     abs_eta_error = c(0.1, 0.2),
-    eta_error_class = c("acceptable", "acceptable"),
+    eta_error_class = c("acceptable", "concern"),
     stringsAsFactors = FALSE
   )
   out_tex <- file.path(tempdir(), "coverage-summary-test.tex")
@@ -531,6 +533,9 @@ test_that("coverage summary report is generated from multi-copula result rows", 
   expect_true(any(grepl("N", txt, fixed = TRUE)))
   expect_true(any(grepl("C", txt, fixed = TRUE)))
   expect_true(any(grepl("Eta-scale absolute error summary", txt, fixed = TRUE)))
+  expect_true(any(grepl("Detailed Review Rows", txt, fixed = TRUE)))
+  expect_true(any(grepl("All parameter recovery concern rows", txt, fixed = TRUE)))
+  expect_true(any(grepl("All likelihood review rows", txt, fixed = TRUE)))
 })
 
 test_that("coverage harness can include standard GEE/GLMM/GAM comparator rows", {
