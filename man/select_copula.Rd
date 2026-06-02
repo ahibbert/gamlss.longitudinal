@@ -61,5 +61,5 @@ vector or column in \code{data}, or computed from a fitted
 This helper is intended as a lightweight family-screening step. It estimates
 a constant dependence parameter for each candidate family; richer covariate
 or smooth dependence structures should be fitted afterwards with
-\code{\link[=gamlss.longitudinal]{gamlss.longitudinal()}}.
+\code{\link[=gamlss_longitudinal]{gamlss_longitudinal()}}.
 }
