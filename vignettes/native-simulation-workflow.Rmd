@@ -282,7 +282,7 @@ flexible than `mu` and `theta`, because scale smooths are harder to recover from
 finite samples.
 
 ```{r fit-model}
-fit <- gamlss.longitudinal(
+fit <- gamlss_longitudinal(
   dataset = dat,
   margin_dist = GA(mu.link = "log", sigma.link = "log"),
   copula_dist = "C",

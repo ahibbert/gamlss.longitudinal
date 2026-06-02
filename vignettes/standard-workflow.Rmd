@@ -15,10 +15,10 @@ knitr::opts_chunk$set(
 )
 ```
 
-This vignette is the recommended starting workflow for applied longitudinal
-analyses with `gamlss.longitudinal`. It is deliberately narrow: get the margin
-roughly right, choose a plausible dependence model, fit the longitudinal model,
-check the result, then report response-scale answers.
+This vignette gives the minimal standard workflow for applied longitudinal
+analyses with `gamlss.longitudinal`, highlighting key functions. It is deliberately narrow: get the margin
+roughly right, choose a reasonable copula / dependence structure, fit the longitudinal model,
+check the result, then report response-scale answers. 
 
 Use this as the default path before moving to the focused guides for replacing
 a GEE, replacing a random-intercept GLMM, handling non-Gaussian outcomes,
@@ -29,25 +29,32 @@ missing visits, or time-varying dependence.
 This vignette demonstrates or describes every user-facing function added for
 the standard adoption workflow.
 
-| Function | Where it appears | Purpose |
-|---|---|---|
-| `screen_margin()` | Step 1 | Screen candidate marginal distributions before fitting dependence. |
-| `print.margin_screen()` | Step 1 | Automatically prints the ordered margin screen. |
-| `fit_longitudinal()` | Step 3 | Fit the recommended GAMLSS-copula workflow with adoption-friendly defaults. |
-| `confint.gamlss.longitudinal()` | Step 3 | Report coefficient confidence intervals through the standard `confint()` generic. |
-| `wald_test()` | Step 3 | Run individual, joint, or contrast-matrix Wald tests. |
-| `likelihood_compare()` | Step 3 | Compare nested or approximately nested longitudinal fits. |
-| `bootstrap_inference()` | Step 3 | Run parametric simulation-and-refit coefficient uncertainty checks. |
-| `print.gamlss_longitudinal_wald_test()` | Step 3 | Automatically prints `wald_test()` output. |
-| `print.gamlss_longitudinal_likelihood_compare()` | Step 3 | Automatically prints likelihood comparison output. |
-| `print.gamlss_longitudinal_bootstrap()` | Step 3 | Automatically prints bootstrap summaries. |
-| `check_model()` | Step 4 | Return decision-oriented diagnostics, warnings, and a model-role recommendation. |
-| `print.gamlss_longitudinal_check()` | Step 4 | Automatically prints the diagnostic object. |
-| `plot.gamlss_longitudinal_check()` | Step 4 | Draw stored PIT, QQ, worm, and rootogram diagnostics through `plot(check)`. |
-| `predict.gamlss.longitudinal()` | Step 5 | Return means, parameters, quantiles, CDFs, densities, probabilities, and uncertainty intervals. |
-| `simulate.gamlss.longitudinal()` | Step 5 | Simulate marginal or copula-preserving fitted responses. |
-| `marginal_effects()` | Step 5 | Summarize counterfactual response-scale effects. |
-| `effects.gamlss.longitudinal()` | Step 5 | Provide a familiar `effects()` alias for `marginal_effects()`. |
+| Function | Purpose |
+|---|---|
+| **Step 1: Screen the margin** |  |
+| `screen_margin()` | Screen candidate marginal distributions before fitting dependence. |
+| `print.margin_screen()` | Automatically prints the ordered margin screen. |
+| **Step 2: Screen the copula** |  |
+| `select_copula()` | Select a starting copula based on pseudo-observations from a fitted margin. |
+| **Step 3: Fit and quantify uncertainty** |  |
+| `fit_longitudinal()` | Fit the recommended GAMLSS-copula workflow with adoption-friendly defaults. |
+| `gamlss_longitudinal()` | Direct low-level constructor for users who need full control over fitting options. |
+| `confint.gamlss.longitudinal()` | Report coefficient confidence intervals through the standard `confint()` generic. |
+| `wald_test()` | Run individual, joint, or contrast-matrix Wald tests. |
+| `likelihood_compare()` | Compare nested or approximately nested longitudinal fits. |
+| `bootstrap_inference()` | Run parametric simulation-and-refit coefficient uncertainty checks. |
+| `print.gamlss_longitudinal_wald_test()` | Automatically prints `wald_test()` output. |
+| `print.gamlss_longitudinal_likelihood_compare()` | Automatically prints likelihood comparison output. |
+| `print.gamlss_longitudinal_bootstrap()` | Automatically prints bootstrap summaries. |
+| **Step 4: Check before interpreting** |  |
+| `check_model()` | Return decision-oriented diagnostics, warnings, and a model-role recommendation. |
+| `print.gamlss_longitudinal_check()` | Automatically prints the diagnostic object. |
+| `plot.gamlss_longitudinal_check()` | Draw stored PIT, QQ, worm, and rootogram diagnostics through `plot(check)`. |
+| **Step 5: Report applied answers** |  |
+| `predict.gamlss.longitudinal()` | Return means, parameters, quantiles, CDFs, densities, probabilities, and uncertainty intervals. |
+| `simulate.gamlss.longitudinal()` | Simulate marginal or copula-preserving fitted responses. |
+| `marginal_effects()` | Summarize counterfactual response-scale effects. |
+| `effects.gamlss.longitudinal()` | Provide a familiar `effects()` alias for `marginal_effects()`. |
 
 ## Data Requirements
 
@@ -58,6 +65,38 @@ Start with one row per subject and visit. The model needs:
 - a visit, time, or occasion variable;
 - scientific predictors for the margin;
 - optional predictors for scale, shape, or dependence.
+
+The small simulated dataset below has the required structure and can be used to
+run the workflow chunks.
+
+```{r simulated-data}
+set.seed(1)
+
+n_subjects <- 40
+visit_times <- 0:3
+dat <- expand.grid(
+  subject = seq_len(n_subjects),
+  time = visit_times
+)
+
+subject_covariates <- data.frame(
+  subject = seq_len(n_subjects),
+  treatment = rep(c("control", "active"), length.out = n_subjects),
+  age_scaled = as.numeric(scale(rnorm(n_subjects, mean = 55, sd = 10))),
+  subject_shift = rnorm(n_subjects, sd = 0.35)
+)
+
+dat <- merge(dat, subject_covariates, by = "subject")
+dat$treatment <- factor(dat$treatment)
+dat$true_mu <- exp(1.6 + 0.35 * (dat$treatment == "active") + 0.12 * dat$time + dat$subject_shift)
+dat$true_sigma <- exp(-0.5 + 0.08 * dat$time)
+dat$response <- rgamma(
+  nrow(dat),
+  shape = 1 / dat$true_sigma^2,
+  scale = dat$true_mu * dat$true_sigma^2
+)
+dat$subject_shift <- NULL
+```
 
 ```{r data-shape}
 str(dat)
@@ -96,10 +135,27 @@ margin_dist <- gamlss.dist::GA(mu.link = "log", sigma.link = "log")
 
 ## Step 2: Screen The Copula
 
-Use `select_copula()` to compare dependence families. If pseudo-observations
-are already available, pass them through `u_var`. In a real analysis, they
-usually come from a preliminary marginal model or a workflow-specific
-pre-processing step.
+Use `select_copula()` to compare dependence families. The easiest route is to
+fit a lightweight marginal model using the screened family, convert the
+responses to pseudo-observations, and pass those values directly to
+`select_copula()`.
+
+```{r margin-pseudo-observations}
+margin_fit <- gamlss::gamlss(
+  response ~ treatment + time + age_scaled,
+  sigma.fo = ~ treatment + time,
+  family = margin_dist,
+  data = dat,
+  trace = FALSE
+)
+
+dat$u <- gamlss.dist::pGA(
+  q = dat$response,
+  mu = fitted(margin_fit, what = "mu"),
+  sigma = fitted(margin_fit, what = "sigma")
+)
+dat$u <- pmin(pmax(dat$u, 1e-6), 1 - 1e-6)
+```
 
 ```{r copula-screen}
 copula_screen <- select_copula(
