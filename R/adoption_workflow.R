@@ -2,7 +2,7 @@
 #'
 #' `screen_margin()` is a lightweight wrapper around [gamlss::fitDist()] for
 #' the recommended longitudinal workflow: choose a plausible marginal family,
-#' then fit dependence with [gamlss.longitudinal()].
+#' then fit dependence with [gamlss_longitudinal()].
 #'
 #' @param response Numeric response vector. For the common
 #'   `screen_margin(dat, response_var = "y")` call, a data frame supplied here
@@ -122,7 +122,7 @@ print.margin_screen <- function(x, ..., n = 10L) {
 
 #' Fit the recommended longitudinal GAMLSS-copula workflow
 #'
-#' `fit_longitudinal()` is a golden-path wrapper around [gamlss.longitudinal()]
+#' `fit_longitudinal()` is a golden-path wrapper around [gamlss_longitudinal()]
 #' with adoption-friendly defaults. It optionally screens the copula family
 #' from a pseudo-observation column and stores workflow metadata on the fitted
 #' object.
@@ -147,8 +147,8 @@ print.margin_screen <- function(x, ..., n = 10L) {
 #'   because it favors reliability over a faster but more fragile warm-start
 #'   phase. Advanced users can set this to `TRUE`.
 #' @param method,include_dlcopdpar,compute_vcov,verbose Defaults passed to
-#'   [gamlss.longitudinal()].
-#' @param ... Additional arguments passed to [gamlss.longitudinal()].
+#'   [gamlss_longitudinal()].
+#' @param ... Additional arguments passed to [gamlss_longitudinal()].
 #'
 #' @return A fitted `gamlss.longitudinal` object with a `workflow` component.
 #' @export
@@ -199,7 +199,7 @@ fit_longitudinal <- function(
     }
   }
 
-  fit <- gamlss.longitudinal(
+  fit <- gamlss_longitudinal(
     dataset = dataset,
     margin_dist = margin_dist,
     copula_dist = copula_dist,
@@ -388,7 +388,7 @@ predict.gamlss.longitudinal <- function(
   }
   copula_link <- get_copula_dist(object$copula_dist)$copula_link
   nd <- .gl_prepare_newdata_internal(object, newdata, require_response = FALSE)
-  do.call(
+  mm_use <- do.call(
     create_model_matrices,
     list(
       mu.formula = object$formulas_int$mu,
@@ -401,9 +401,11 @@ predict.gamlss.longitudinal <- function(
       copula.family = object$copula_dist,
       copula.link = copula_link,
       dataset = nd,
-      quiet_gamlss2 = TRUE
+      quiet_gamlss2 = TRUE,
+      preserve_factor_levels = TRUE
     )
   )
+  .gl_align_model_matrix_columns(mm_use, object$model_matrix)
 }
 
 .gl_predict_response_se <- function(object, newdata = NULL, method = "analytical", ...) {
@@ -769,7 +771,7 @@ print.gamlss_longitudinal_likelihood_compare <- function(x, digits = max(3, getO
     ),
     fit_args
   )
-  do.call(gamlss.longitudinal, args)
+  do.call(gamlss_longitudinal, args)
 }
 
 #' Parametric bootstrap inference for fitted models
