@@ -212,10 +212,10 @@ different estimand.
 
 ## Minimal Fit Skeleton
 
-The core model call looks like this:
+The direct constructor uses the underscore spelling for new code:
 
 ```r
-fit <- gamlss.longitudinal(
+fit <- gamlss_longitudinal(
   dataset = dat,
   margin_dist = gamlss.dist::GA(mu.link = "log", sigma.link = "log"),
   copula_dist = "C",
@@ -248,6 +248,8 @@ The same compliance claims are also encoded as `srr` roxygen tags in
 [`R/srr-stats-standards.R`](R/srr-stats-standards.R), so the package can be
 checked with the rOpenSci [`srr`](https://ropensci-review-tools.github.io/srr/)
 tools.
+Developer-facing terminology, input policy, numerical-method notes, and
+extended-test instructions are in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ### Primary References
 
