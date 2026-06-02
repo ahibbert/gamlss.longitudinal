@@ -241,8 +241,9 @@ The fitting data are converted to a plain data frame. Structurally missing
 subject-time combinations are expanded to explicit rows with missing
 responses. Response \code{NA} values may be present unless an entire margin or an
 adjacent copula pair has no complete responses, in which case fitting stops.
-Missing or non-finite predictor values are handled by the model-matrix
-construction path and may result in dropped or non-finite matrix rows; inspect
-\code{model.frame(fit, type = "expanded")}, \code{model.frame(fit, type = "observed")},
-and \code{fit$convergence} when auditing a fit.
+Submitted predictor values must be observed and finite. Response \code{NA} values
+represent missing outcomes, but response \code{NaN}, \code{Inf}, and \code{-Inf} values stop
+before fitting. The package does not impute missing values; structurally
+inserted rows are represented in \code{model.frame(fit, type = "expanded")}, while
+observed response rows are available from \code{model.frame(fit, type = "observed")}.
 }
