@@ -1,3 +1,41 @@
+test_that("T000 underscore constructor preserves dotted S3 surface", {
+  suppressPackageStartupMessages(library(gamlss.dist))
+
+  dat <- make_fixture_factor_time_interaction(n_subject = 12L)
+  fit <- capture_warnings(
+    gamlss.longitudinal::gamlss_longitudinal(
+      dataset = dat,
+      margin_dist = gamlss.dist::NO(),
+      copula_dist = "N",
+      time_var = "time_raw",
+      subject_var = "id",
+      mu.formula = y ~ time_raw * gender + age,
+      sigma.formula = ~ time_raw + gender,
+      theta.formula = ~ time_raw,
+      include_dlcopdpar = FALSE,
+      method = "RS",
+      warm_start_joint = FALSE,
+      max_outer_iter = 2,
+      max_inner_iter = 2,
+      outer_stop_crit = 1,
+      inner_stop_crit = 1,
+      compute_vcov = FALSE,
+      verbose = 0
+    )
+  )$value
+
+  expect_s3_class(fit, "gamlss.longitudinal")
+  expect_false(inherits(fit, "gamlss_longitudinal"))
+  expect_identical(stats::coef(fit), fit$par)
+
+  s <- summary(fit, include_vcov = FALSE)
+  expect_s3_class(s, "summary.gamlss.longitudinal")
+
+  pred <- stats::predict(fit)
+  expect_type(pred, "double")
+  expect_equal(length(pred), length(fit$response))
+})
+
 test_that("T001 factor time is preserved as model covariate", {
   dat <- make_fixture_factor_time_interaction()
 
