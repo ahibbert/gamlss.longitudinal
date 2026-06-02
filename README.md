@@ -242,6 +242,13 @@ probability-distribution software. The package is in an initially stable state
 of development, with active subsequent development expected as the longitudinal
 workflow, diagnostics, and benchmark evidence mature.
 
+For a standard-by-standard reviewer crosswalk, see
+[`inst/standards/ropensci-srr-compliance.md`](inst/standards/ropensci-srr-compliance.md).
+The same compliance claims are also encoded as `srr` roxygen tags in
+[`R/srr-stats-standards.R`](R/srr-stats-standards.R), so the package can be
+checked with the rOpenSci [`srr`](https://ropensci-review-tools.github.io/srr/)
+tools.
+
 ### Primary References
 
 The marginal modelling framework follows GAMLSS:
