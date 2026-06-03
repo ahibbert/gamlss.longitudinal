@@ -106,7 +106,7 @@ fit <- gamlss_longitudinal(
 )
 
 check_model(fit)
-plot(check_model(fit))
+plot(fit)
 copula_time_summary(fit)
 wald_test(fit, terms = c("mu.treatment", "sigma.treatment"))
 likelihood_compare(fit_reduced, fit)
@@ -116,7 +116,6 @@ predict(fit, type = "quantile")
 predict(fit, type = "probability", q = 10, direction = "above")
 simulate(fit, nsim = 10)
 marginal_effects(fit, newdata = dat, variable = "treatment", se.fit = TRUE)
-effects(fit, newdata = dat, variable = "treatment", se.fit = TRUE)
 ```
 
 `check_model()` is intended as the first diagnostic pass for applied users. It

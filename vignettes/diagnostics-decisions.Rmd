@@ -17,7 +17,8 @@ knitr::opts_chunk$set(
 
 Diagnostics should decide what happens next. In `gamlss.longitudinal`, the
 first diagnostic pass is `check_model()`: it combines numerical summaries,
-plain-language checks, reportable warnings, and standard diagnostic plots.
+plain-language checks, and reportable warnings. Use `plot(fit)` and the
+explicit diagnostic helpers for visual review.
 
 The goal is not to create a longer residual-plot ritual. The goal is to answer:
 
@@ -32,14 +33,13 @@ The goal is not to create a longer residual-plot ritual. The goal is to answer:
 ```{r check}
 check <- check_model(
   fit,
-  include_vcov = TRUE,
-  include_plots = TRUE
+  include_vcov = TRUE
 )
 
 check
 check$warnings
 check$recommendation
-plot(check)
+plot(fit)
 ```
 
 `check$checks` contains the full table, including rows where no major automatic
@@ -62,9 +62,9 @@ Use:
 
 ```{r marginal-calibration}
 check$pit
-plot(check, which = "pithist")
-plot(check, which = "qqrplot")
-plot(check, which = "wormplot")
+pithist(fit)
+qqrplot(fit)
+wormplot(fit)
 ```
 
 Decision language:
@@ -91,7 +91,7 @@ extreme outcomes, or safety events.
 
 ```{r tail-calibration}
 check$tail
-plot(check, which = "rootogram")
+rootogram(fit)
 predict(fit, type = "quantile", probs = c(0.05, 0.5, 0.95))
 ```
 

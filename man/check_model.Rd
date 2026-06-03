@@ -4,7 +4,7 @@
 \alias{check_model}
 \title{Check a fitted longitudinal GAMLSS-copula model}
 \usage{
-check_model(object, include_vcov = FALSE, include_plots = TRUE, ...)
+check_model(object, include_vcov = FALSE, include_plots = FALSE, ...)
 }
 \arguments{
 \item{object}{A fitted \code{gamlss.longitudinal} object.}
@@ -12,7 +12,9 @@ check_model(object, include_vcov = FALSE, include_plots = TRUE, ...)
 \item{include_vcov}{Logical; include variance-covariance inference metadata
 via \code{\link[=summary.gamlss.longitudinal]{summary.gamlss.longitudinal()}}.}
 
-\item{include_plots}{Logical; include standard diagnostic plot objects.}
+\item{include_plots}{Logical; include standard diagnostic plot objects in
+\code{check$plots}. Visual review should usually use \code{plot(object)} or the
+explicit diagnostic helpers instead.}
 
 \item{...}{Passed to \code{\link[=summary.gamlss.longitudinal]{summary.gamlss.longitudinal()}} when \code{include_vcov} is
 \code{TRUE}.}

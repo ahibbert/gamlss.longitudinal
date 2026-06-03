@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Replacing GEE and GLMM Workflows</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Replacing GEE and GLMM Workflows</h1>
+
+
+
+<p>This guide is for analysts who would usually start with a GEE or
+GLMM. The goal is not to claim that those models are obsolete in every
+setting. The goal is to make the GAMLSS-copula workflow the default when
+the response distribution, heteroskedasticity, tails, asymmetry, or
+time-varying dependence matter.</p>
+<p>For focused migration examples, see the companion guides
+<code>vignette(&quot;replace-a-gee&quot;, package = &quot;gamlss.longitudinal&quot;)</code>
+and
+<code>vignette(&quot;replace-a-random-intercept-glmm&quot;, package = &quot;gamlss.longitudinal&quot;)</code>.
+For the default end-to-end workflow, see
+<code>vignette(&quot;standard-workflow&quot;, package = &quot;gamlss.longitudinal&quot;)</code>.
+For a primary-model versus sensitivity-model decision rubric, see
+<code>vignette(&quot;adoption-decision-guide&quot;, package = &quot;gamlss.longitudinal&quot;)</code>.
+For distribution-first analyses, see
+<code>vignette(&quot;non-gaussian-longitudinal-outcomes&quot;, package = &quot;gamlss.longitudinal&quot;)</code>.
+For incomplete panels, see
+<code>vignette(&quot;missing-visits&quot;, package = &quot;gamlss.longitudinal&quot;)</code>.
+For changing longitudinal association, see
+<code>vignette(&quot;time-varying-dependence&quot;, package = &quot;gamlss.longitudinal&quot;)</code>.
+For simulation evidence, see
+<code>vignette(&quot;benchmarking-adoption&quot;, package = &quot;gamlss.longitudinal&quot;)</code>.
+For reporting intervals and uncertainty, see
+<code>vignette(&quot;inference-uncertainty&quot;, package = &quot;gamlss.longitudinal&quot;)</code>.
+For diagnostic decision rules, see
+<code>vignette(&quot;diagnostics-decisions&quot;, package = &quot;gamlss.longitudinal&quot;)</code>.</p>
+<div id="translation-table" class="section level2">
+<h2>Translation Table</h2>
+<table>
+<colgroup>
+<col width="50%" />
+<col width="50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>GEE/GLMM habit</th>
+<th><code>gamlss.longitudinal</code> equivalent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Pick a mean model</td>
+<td>Model <code>mu.formula</code></td>
+</tr>
+<tr class="even">
+<td>Pick a variance/random-effect structure</td>
+<td>Model <code>sigma.formula</code> and copula dependence</td>
+</tr>
+<tr class="odd">
+<td>Choose a working correlation</td>
+<td>Use <code>select_copula()</code> and <code>theta.formula</code></td>
+</tr>
+<tr class="even">
+<td>Check residual plots</td>
+<td>Use <code>check_model()</code>, <code>plot()</code>,
+<code>plot_terms()</code>, and
+<code>plot_copula_diagnostics()</code></td>
+</tr>
+<tr class="odd">
+<td>Interpret fixed effects</td>
+<td>Use <code>summary()</code> or <code>marginal_effects()</code></td>
+</tr>
+<tr class="even">
+<td>Predict means or intervals</td>
+<td>Use <code>predict(type = &quot;response&quot;)</code> and
+<code>predict(type = &quot;quantile&quot;)</code></td>
+</tr>
+<tr class="odd">
+<td>Simulate fitted trajectories</td>
+<td>Use <code>simulate(type = &quot;copula&quot;)</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="standard-workflow" class="section level2">
+<h2>Standard Workflow</h2>
+<p>Start by screening the marginal response. This is deliberately
+marginal: it is only a guide before the longitudinal dependence model is
+fitted.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>margin_screen <span class="ot">&lt;-</span> <span class="fu">screen_margin</span>(dat, <span class="at">response_var =</span> <span class="st">&quot;response&quot;</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>margin_screen</span></code></pre></div>
+<p>Then screen copula families from pseudo-observations. In real
+analyses these usually come from a preliminary marginal model; in
+simulations they may be stored directly.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>copula_screen <span class="ot">&lt;-</span> <span class="fu">select_copula</span>(</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="at">u_var =</span> <span class="st">&quot;u&quot;</span>,</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>  <span class="at">subject_var =</span> <span class="st">&quot;subject&quot;</span>,</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>  <span class="at">time_var =</span> <span class="st">&quot;time&quot;</span>,</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>  <span class="at">families =</span> <span class="fu">c</span>(<span class="st">&quot;N&quot;</span>, <span class="st">&quot;C&quot;</span>, <span class="st">&quot;F&quot;</span>, <span class="st">&quot;G&quot;</span>, <span class="st">&quot;J&quot;</span>, <span class="st">&quot;t&quot;</span>)</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>)</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>copula_screen</span></code></pre></div>
+<p>Fit the longitudinal model with distributional formulas using
+<code>gamlss_longitudinal()</code>. Keep copula screening and model
+checking explicit: use <code>select_copula()</code> before fitting and
+<code>check_model()</code> after fitting. A typical first model puts the
+main scientific effects in <code>mu</code>, obvious heteroskedasticity
+in <code>sigma</code>, and time or subject-level drivers of dependence
+in <code>theta</code>.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">gamlss_longitudinal</span>(</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>  <span class="at">dataset =</span> dat,</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>  <span class="at">margin_dist =</span> gamlss.dist<span class="sc">::</span><span class="fu">GA</span>(<span class="at">mu.link =</span> <span class="st">&quot;log&quot;</span>, <span class="at">sigma.link =</span> <span class="st">&quot;log&quot;</span>),</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>  <span class="at">copula_dist =</span> <span class="fu">attr</span>(copula_screen, <span class="st">&quot;selected&quot;</span>),</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>  <span class="at">time_var =</span> <span class="st">&quot;time&quot;</span>,</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>  <span class="at">subject_var =</span> <span class="st">&quot;subject&quot;</span>,</span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>  <span class="at">mu.formula =</span> response <span class="sc">~</span> treatment <span class="sc">+</span> time <span class="sc">+</span> <span class="fu">s</span>(age_scaled, <span class="at">bs =</span> <span class="st">&quot;ps&quot;</span>),</span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a>  <span class="at">sigma.formula =</span> <span class="sc">~</span> treatment <span class="sc">+</span> time,</span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>  <span class="at">theta.formula =</span> <span class="sc">~</span> time</span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>)</span></code></pre></div>
+<p>Use <code>check_model()</code> as the first diagnostic pass. It
+returns numeric summaries, plain-language decisions, tail calibration
+summaries, and optional plot objects.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>check <span class="ot">&lt;-</span> <span class="fu">check_model</span>(fit)</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>check</span></code></pre></div>
+<p>For applied interpretation, prefer predictions and counterfactual
+summaries over raw coefficient inspection.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">predict</span>(fit, <span class="at">type =</span> <span class="st">&quot;quantile&quot;</span>, <span class="at">probs =</span> <span class="fu">c</span>(<span class="fl">0.1</span>, <span class="fl">0.5</span>, <span class="fl">0.9</span>))</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="fu">predict</span>(fit, <span class="at">type =</span> <span class="st">&quot;response&quot;</span>, <span class="at">se.fit =</span> <span class="cn">TRUE</span>, <span class="at">interval =</span> <span class="st">&quot;confidence&quot;</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="fu">marginal_effects</span>(</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>  fit,</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>  <span class="at">variable =</span> <span class="st">&quot;treatment&quot;</span>,</span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>  <span class="at">parameter =</span> <span class="st">&quot;mu&quot;</span>,</span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a>  <span class="at">se.fit =</span> <span class="cn">TRUE</span></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>)</span></code></pre></div>
+</div>
+<div id="inference-language" class="section level2">
+<h2>Inference Language</h2>
+<p>For a fuller guide to reporting uncertainty, see
+<code>vignette(&quot;inference-uncertainty&quot;, package = &quot;gamlss.longitudinal&quot;)</code>.</p>
+<p>For coefficient intervals, use <code>confint(fit)</code>. The
+reported intervals depend on the variance-covariance route requested
+through <code>vcov()</code>: analytical Hessian when available,
+numerical Hessian when requested or used as a fallback, and cached
+fit-time covariance when present. When numerical Hessians are used,
+describe the intervals as approximate numerical-Hessian likelihood
+intervals.</p>
+<p>For coefficient hypotheses, use
+<code>wald_test(fit, terms = ...)</code> or a custom contrast matrix.
+These tests use the same variance-covariance route as
+<code>summary()</code> and <code>confint()</code>, so the same Hessian
+and fallback caveats apply. For nested model comparisons, use
+<code>likelihood_compare(reduced, full)</code> and state that the
+comparison uses the fitted joint likelihood.</p>
+<p>Prediction intervals from
+<code>predict(..., se.fit = TRUE, interval = &quot;confidence&quot;)</code> are
+delta-method intervals for the fitted response mean. They are designed
+for fast applied summaries, not as a replacement for bootstrap or
+simulation-based uncertainty when the full trajectory distribution is
+the target.</p>
+</div>
+<div id="benchmarking-against-familiar-models" class="section level2">
+<h2>Benchmarking Against Familiar Models</h2>
+<p>For a quick sensitivity comparison,
+<code>benchmark_standard_models()</code> fits common baselines when
+their optional packages are installed. The result is not a full
+simulation study by itself; it is a standardized fitting record that can
+feed coverage, calibration, and tail-behavior benchmarks.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>bench <span class="ot">&lt;-</span> <span class="fu">benchmark_standard_models</span>(</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  <span class="at">formula =</span> response <span class="sc">~</span> treatment <span class="sc">+</span> time <span class="sc">+</span> age_scaled,</span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>  <span class="at">subject_var =</span> <span class="st">&quot;subject&quot;</span>,</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>  <span class="at">family =</span> <span class="st">&quot;gaussian&quot;</span>,</span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>  <span class="at">comparators =</span> <span class="fu">c</span>(<span class="st">&quot;gee&quot;</span>, <span class="st">&quot;glmm&quot;</span>, <span class="st">&quot;gam&quot;</span>)</span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>)</span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a>bench</span></code></pre></div>
+<p>Use the benchmark table to separate different questions: GEEs
+estimate marginal mean effects, GLMMs estimate conditional mean effects,
+GAMs focus on smooth mean structure, and
+<code>gamlss.longitudinal</code> models the response distribution and
+dependence jointly. That distinction matters when claiming a win, tie,
+or loss.</p>
+<p>For repeated simulation evidence, request these comparators in
+<code>run_coverage_simulations()</code>:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>results <span class="ot">&lt;-</span> <span class="fu">run_coverage_simulations</span>(</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>  <span class="at">families =</span> <span class="st">&quot;NO&quot;</span>,</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>  <span class="at">copulas =</span> <span class="st">&quot;N&quot;</span>,</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>  <span class="at">methods =</span> <span class="fu">c</span>(<span class="st">&quot;rs_separate&quot;</span>, <span class="st">&quot;gee&quot;</span>, <span class="st">&quot;glmm&quot;</span>, <span class="st">&quot;gam&quot;</span>),</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>  <span class="at">designs =</span> <span class="st">&quot;covariate&quot;</span>,</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>  <span class="at">write_results =</span> <span class="cn">FALSE</span></span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>)</span></code></pre></div>
+<p>In simulated runs, <code>benchmark_mean_bias</code>,
+<code>benchmark_mean_mae</code>, and <code>benchmark_mean_rmse</code>
+compare each standard model’s fitted mean against the simulated
+<code>true_mu</code>. Gaussian comparator rows also include
+residual-calibrated PIT, tail, and 95% interval diagnostics. Those are
+useful screens for misspecification, while formal coverage claims should
+still come from repeated simulation summaries.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>bench_summary <span class="ot">&lt;-</span> <span class="fu">summarise_benchmark_results</span>(</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>  results,</span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>  <span class="at">metrics =</span> <span class="fu">c</span>(<span class="st">&quot;benchmark_mean_rmse&quot;</span>, <span class="st">&quot;benchmark_interval_coverage_95&quot;</span>, <span class="st">&quot;elapsed_sec&quot;</span>)</span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>)</span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a>bench_summary</span></code></pre></div>
+<p>The summary labels each method as a win, tie, loss, or missing within
+each simulation case, then aggregates those labels by metric. Lower
+error and runtime are better, interval coverage targets 0.95, and
+calibration/tail errors target 0.</p>
+</div>
+<div id="when-not-to-use-this-package" class="section level2">
+<h2>When Not To Use This Package</h2>
+<p>Use a simpler GEE or GLMM when the scientific question is only about
+a marginal mean, the response distribution is well handled by a standard
+family, the dependence model is nuisance-only, and the added
+distributional complexity would not change decisions.</p>
+<p>Be cautious when the number of subjects is very small, the time grid
+is sparse or irregular in ways not represented by adjacent-time copulas,
+the chosen distribution is weakly identified, or the model requires
+random effects that are the scientific target rather than a device for
+dependence.</p>
+<p>In those cases, <code>gamlss.longitudinal</code> can still be useful
+as a sensitivity analysis, but it should not be oversold as an automatic
+replacement.</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
