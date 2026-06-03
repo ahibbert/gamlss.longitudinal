@@ -174,7 +174,7 @@ test_that("T159 standard fit inspection plotting helpers are available", {
 
   margin_plot <- suppressWarnings(plot_margin_fit(
     dat,
-    family = gamlss.dist::NO(),
+    margin_dist = gamlss.dist::NO(),
     response_var = "response",
     plot = FALSE
   ))
@@ -192,7 +192,7 @@ test_that("T159 standard fit inspection plotting helpers are available", {
   )
   copula_plot <- suppressWarnings(plot_copula_fit(
     data = dat,
-    copula = copula_screen,
+    copula_dist = copula_screen,
     response_var = "response",
     margin_dist = gamlss.dist::NO(),
     subject_var = "subject",
@@ -204,26 +204,59 @@ test_that("T159 standard fit inspection plotting helpers are available", {
 
   grid_plot <- suppressWarnings(plot_dist(
     dat,
-    gamlss.dist::NO(),
-    offdiag_scale = "pseudo",
+    margin_dist = gamlss.dist::NO(),
+    subject_var = "subject",
+    time_var = "time",
+    response_var = "response",
     overlay = "margin"
   ))
   expect_false(is.null(grid_plot))
 
   fit <- fit_fixture_model(dat0, include_dlcopdpar = TRUE)
-  model_margin_plot <- suppressWarnings(plot_margin_fit(fit, plot = FALSE))
-  model_copula_plot <- suppressWarnings(plot_copula_fit(object = fit, plot = FALSE))
-  model_copula_overlay_plot <- suppressWarnings(plot_copula_overlay(object = fit, plot = FALSE))
+  raw_grid_plot <- suppressWarnings(plot_dist(
+    dat,
+    subject_var = "subject",
+    time_var = "time",
+    response_var = "response"
+  ))
+  model_margin_plot <- suppressWarnings(plot_margin_fit(data = dat0, fit = fit, plot = FALSE))
+  model_copula_plot <- suppressWarnings(plot_copula_fit(data = dat0, fit = fit, plot = FALSE))
+  model_copula_overlay_plot <- suppressWarnings(plot_copula_overlay(data = dat0, fit = fit, plot = FALSE))
   model_grid_plot <- suppressWarnings(plot_dist(
     dat,
-    gamlss.dist::NO(),
-    offdiag_scale = "pseudo",
-    fit = fit,
-    overlay = "model"
+    fit = fit
   ))
 
+  expect_false(is.null(raw_grid_plot))
   expect_s3_class(model_margin_plot$plot, "ggplot")
   expect_s3_class(model_copula_plot$plot, "ggplot")
   expect_s3_class(model_copula_overlay_plot$plot, "ggplot")
   expect_false(is.null(model_grid_plot))
+
+  expect_error(
+    plot_margin_fit(dat, family = gamlss.dist::NO(), response_var = "response", plot = FALSE),
+    "margin_dist"
+  )
+  expect_error(
+    plot_copula_fit(
+      data = dat,
+      copula = copula_screen,
+      response_var = "response",
+      margin_dist = gamlss.dist::NO(),
+      subject_var = "subject",
+      time_var = "time",
+      plot = FALSE
+    ),
+    "copula_dist"
+  )
+  expect_error(
+    plot_dist(
+      dat,
+      dist = gamlss.dist::NO(),
+      subject_var = "subject",
+      time_var = "time",
+      response_var = "response"
+    ),
+    "margin_dist"
+  )
 })
