@@ -467,6 +467,46 @@ confint.gamlss.longitudinal <- function(
   out
 }
 
+.resolve_coefficient_terms <- function(terms, coefficient_names, arg = "terms") {
+  if (is.null(terms)) {
+    return(seq_along(coefficient_names))
+  }
+
+  if (!is.character(terms)) {
+    idx <- terms
+    if (length(idx) == 0L || any(is.na(idx)) || any(idx < 1L) || any(idx > length(coefficient_names))) {
+      stop(sprintf("'%s' contains unknown coefficient names or indices.", arg), call. = FALSE)
+    }
+    return(as.integer(idx))
+  }
+
+  if (length(terms) == 0L || any(is.na(terms)) || any(!nzchar(terms))) {
+    stop(sprintf("'%s' contains unknown coefficient names or indices.", arg), call. = FALSE)
+  }
+
+  idx_list <- lapply(terms, function(term) {
+    exact <- match(term, coefficient_names)
+    if (!is.na(exact)) {
+      return(exact)
+    }
+    prefix_idx <- which(startsWith(coefficient_names, term))
+    if (length(prefix_idx) == 0L) {
+      return(prefix_idx)
+    }
+    suffix <- substring(coefficient_names[prefix_idx], nchar(term) + 1L)
+    main_idx <- prefix_idx[!grepl(":", suffix, fixed = TRUE)]
+    if (length(main_idx) > 0L) {
+      return(main_idx)
+    }
+    prefix_idx
+  })
+  missing <- vapply(idx_list, length, integer(1)) == 0L
+  if (any(missing)) {
+    stop(sprintf("'%s' contains unknown coefficient names or indices.", arg), call. = FALSE)
+  }
+  unique(as.integer(unlist(idx_list, use.names = FALSE)))
+}
+
 #' Wald tests for fixed coefficients
 #'
 #' `wald_test()` provides a small reporting-friendly hypothesis-test surface for
@@ -475,8 +515,9 @@ confint.gamlss.longitudinal <- function(
 #' so numerical-Hessian tests should be reported as approximate.
 #'
 #' @param object A fitted `gamlss.longitudinal` object.
-#' @param terms Optional coefficient names or numeric indices. When `L` is
-#'   `NULL`, these select coefficients for individual tests or a joint test.
+#' @param terms Optional coefficient names, coefficient-name prefixes, or numeric
+#'   indices. When `L` is `NULL`, these select coefficients for individual tests
+#'   or a joint test.
 #' @param L Optional contrast matrix. Columns must either be named with
 #'   coefficient names or have one column per fixed coefficient in model order.
 #' @param rhs Null-hypothesis value. Either a scalar or one value per tested row.
@@ -544,17 +585,7 @@ wald_test <- function(
     }
     joint <- TRUE
   } else {
-    idx <- if (is.null(terms)) {
-      seq_along(estimates)
-    } else if (is.character(terms)) {
-      match(terms, names(estimates))
-    } else {
-      terms
-    }
-    if (any(is.na(idx)) || any(idx < 1L) || any(idx > length(estimates))) {
-      stop("'terms' contains unknown coefficient names or indices.", call. = FALSE)
-    }
-    idx <- as.integer(idx)
+    idx <- .resolve_coefficient_terms(terms, names(estimates), arg = "terms")
     L <- diag(length(estimates))[idx, , drop = FALSE]
     colnames(L) <- names(estimates)
     rownames(L) <- names(estimates)[idx]
@@ -760,7 +791,8 @@ print.gamlss_longitudinal_likelihood_compare <- function(x, digits = max(3, getO
 #'
 #' @param object A fitted `gamlss.longitudinal` object.
 #' @param R Number of bootstrap replicates.
-#' @param terms Optional coefficient names or numeric indices to summarize.
+#' @param terms Optional coefficient names, coefficient-name prefixes, or numeric
+#'   indices to summarize.
 #' @param level Confidence level for percentile intervals.
 #' @param simulation_type Passed to [simulate.gamlss.longitudinal()]. Use
 #'   `"copula"` to preserve fitted dependence or `"marginal"` for independent
@@ -796,16 +828,7 @@ bootstrap_inference <- function(
   }
   simulation_type <- match.arg(simulation_type)
   estimates <- stats::coef(object)
-  idx <- if (is.null(terms)) {
-    seq_along(estimates)
-  } else if (is.character(terms)) {
-    match(terms, names(estimates))
-  } else {
-    terms
-  }
-  if (any(is.na(idx)) || any(idx < 1L) || any(idx > length(estimates))) {
-    stop("'terms' contains unknown coefficient names or indices.", call. = FALSE)
-  }
+  idx <- .resolve_coefficient_terms(terms, names(estimates), arg = "terms")
   terms_use <- names(estimates)[idx]
   if (!is.null(seed)) {
     old_seed <- if (exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)) {
