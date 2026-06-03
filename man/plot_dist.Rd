@@ -6,27 +6,40 @@
 \title{Plot marginal and pairwise distribution diagnostics}
 \usage{
 plot_dist(
-  dataset,
-  dist,
-  offdiag_scale = c("response", "pseudo"),
+  dataset = NULL,
+  margin_dist = NULL,
+  subject_var = NULL,
+  time_var = NULL,
+  response_var = NULL,
+  offdiag_scale = c("pseudo", "response"),
+  transform = c("normal", "uniform"),
   show_cor_stats = TRUE,
   fit = NULL,
-  overlay = c("none", "margin", "copula", "model"),
-  copula = NULL,
+  overlay = NULL,
+  copula_dist = NULL,
   grid_n = 80,
-  contour_bins = 8
+  contour_bins = 8,
+  ...
 )
 
 plotDist(...)
 }
 \arguments{
-\item{dataset}{Long-format data frame with \code{subject}, \code{time}, and \code{response}
-columns.}
+\item{dataset}{Optional long-format data frame. Required unless \code{fit}
+contains stored data.}
 
-\item{dist}{A \code{gamlss.dist} family object used for diagonal marginal labels.}
+\item{margin_dist}{Optional \code{gamlss.dist} family object used for diagonal
+marginal overlays.}
+
+\item{subject_var, time_var, response_var}{Column names identifying subjects,
+time points, and responses. Required for raw data and inferred from \code{fit}
+when possible.}
 
 \item{offdiag_scale}{Character; show off-diagonal panels on response or
 pseudo-observation scale.}
+
+\item{transform}{Character; transform pseudo-observation off-diagonal panels
+to normal-score or uniform scale.}
 
 \item{show_cor_stats}{Logical; include Pearson and Kendall correlations in
 off-diagonal panel subtitles.}
@@ -39,7 +52,7 @@ margin and copula overlays.}
 \code{"copula"} overlays a selected copula on pseudo-observation off-diagonal
 panels, and \code{"model"} overlays the final fitted model using \code{fit}.}
 
-\item{copula}{Optional \code{copula_selection} result or one-row selection table
+\item{copula_dist}{Optional \code{copula_selection} result or one-row selection table
 used when \code{overlay = "copula"}.}
 
 \item{grid_n}{Grid size used for density overlays.}
