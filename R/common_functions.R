@@ -767,7 +767,7 @@ utils::globalVariables(c(
 #' the RS weighted least-squares proposal. Use `Inf` to disable.
 #'
 #' @export
-gamlss.longitudinal=function(dataset,
+gamlss_longitudinal=function(dataset,
                         margin_dist,
                         copula_dist,
                         time_var=NA,
@@ -3013,21 +3013,7 @@ gamlss.longitudinal=function(dataset,
   return(return_list)
 }
 
-#' Fit a longitudinal GAMLSS-copula model
-#'
-#' `gamlss_longitudinal()` is the preferred underscore-named entry point for
-#' direct model fitting. It calls [gamlss.longitudinal()] unchanged and returns
-#' the same fitted object class, so existing S3 methods continue to dispatch on
-#' `"gamlss.longitudinal"`.
-#'
-#' @param ... Arguments passed unchanged to [gamlss.longitudinal()].
-#'
-#' @return A fitted `gamlss.longitudinal` object.
-#' @seealso [gamlss.longitudinal()], [fit_longitudinal()]
-#' @export
-gamlss_longitudinal <- function(...) {
-  gamlss.longitudinal(...)
-}
+gamlss.longitudinal <- gamlss_longitudinal
 
 normalize_lag_time <- function(time) {
   if (is.factor(time)) {
@@ -3094,7 +3080,7 @@ normalize_lag_time <- function(time) {
 
   response <- dataset[[response_name]]
   if (!is.numeric(response) && !is.integer(response)) {
-    stop("ERROR: response variable must be numeric for gamlss.longitudinal().", call. = FALSE)
+    stop("ERROR: response variable must be numeric for gamlss_longitudinal().", call. = FALSE)
   }
   if (any(is.nan(response) | is.infinite(response))) {
     stop("ERROR: response variable contains NaN or Inf values; only finite values or NA are allowed.", call. = FALSE)
@@ -4879,7 +4865,7 @@ coef.gamlss.longitudinal=function(object, ...) {
 #' These S3 methods expose the standard regression components expected by
 #' model-auditing workflows: formulas, terms, observation counts, model frames,
 #' fitted values, and residuals. They return the expanded internal data by
-#' default because `gamlss.longitudinal()` represents structurally missing
+#' default because `gamlss_longitudinal()` represents structurally missing
 #' subject-time combinations explicitly.
 #'
 #' @param x,object,formula A fitted `gamlss.longitudinal` object.

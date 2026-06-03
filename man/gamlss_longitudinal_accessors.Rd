@@ -58,6 +58,6 @@ A formula, terms object, integer count, data frame, or numeric vector.
 These S3 methods expose the standard regression components expected by
 model-auditing workflows: formulas, terms, observation counts, model frames,
 fitted values, and residuals. They return the expanded internal data by
-default because \code{gamlss.longitudinal()} represents structurally missing
+default because \code{gamlss_longitudinal()} represents structurally missing
 subject-time combinations explicitly.
 }

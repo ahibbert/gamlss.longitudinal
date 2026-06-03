@@ -327,7 +327,7 @@ interpretable:
 
 - Gaussian longitudinal outcome with heteroskedasticity:
   compare `geepack::geeglm()`, `lme4::lmer()`, `mgcv::gam()`, and
-  `fit_longitudinal()` with the `scale` design on variance calibration,
+  `gamlss_longitudinal()` with the `scale` design on variance calibration,
   prediction intervals, tail behaviour, residual dependence, and runtime.
 - Gamma or log-normal positive outcome:
   compare GEE/GLMM mean fits against GAMLSS-copula margins on mean prediction,
