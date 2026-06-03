@@ -53,6 +53,7 @@ test_that("run_adoption_benchmarks executes a small opt-in scenario", {
   report <- format_benchmark_report(bench)
   expect_type(report, "character")
   expect_true(any(grepl("Headline Results", report, fixed = TRUE)))
+  expect_true(any(grepl("Benchmark Interpretation", report, fixed = TRUE)))
   expect_true(any(grepl("Scenario-Level Headline Results", report, fixed = TRUE)))
   expect_true(any(grepl("Scenario-Level Win/Tie/Loss Summary", report, fixed = TRUE)))
   expect_true(any(grepl("Interpretation Notes", report, fixed = TRUE)))
@@ -200,6 +201,10 @@ test_that("benchmark_standard_models can score the supplied primary fit", {
   expect_true(all(c("benchmark_mae", "benchmark_rmse") %in% names(bench$results)))
   expect_true(is.finite(bench$results$benchmark_rmse[bench$results$method == "primary"]))
   expect_true("primary" %in% names(bench$fits))
+  expect_s3_class(bench$interpretation, "gamlss_longitudinal_benchmark_interpretation")
+  expect_s3_class(bench$interpretation$leaders, "data.frame")
+  expect_true(any(bench$interpretation$leaders$domain == "mean / marginal response fit"))
+  expect_true(any(bench$interpretation$leaders$primary_leads_or_ties))
 
   summary <- summarise_benchmark_results(
     bench$results,
@@ -208,6 +213,52 @@ test_that("benchmark_standard_models can score the supplied primary fit", {
   )
   expect_s3_class(summary, "gamlss_longitudinal_benchmark_summary")
   expect_true(any(summary$case_results$method == "primary"))
+
+  printed <- utils::capture.output(print(bench))
+  expect_true(any(grepl("Benchmark Interpretation", printed, fixed = TRUE)))
+  expect_true(any(grepl("primary leads or ties on", printed, fixed = TRUE)))
+})
+
+test_that("benchmark interpretation groups metrics into readable domains", {
+  domains <- .benchmark_metric_domain(
+    c(
+      "benchmark_mean_rmse",
+      "benchmark_rmse",
+      "benchmark_q90_mae",
+      "benchmark_interval_coverage_95",
+      "benchmark_theta_time_abs_error",
+      "elapsed_sec"
+    ),
+    c("mean", "observed_response", "quantile", "interval", "dependence", "runtime")
+  )
+
+  expect_equal(domains[1], "mean / marginal response fit")
+  expect_equal(domains[2], "mean / marginal response fit")
+  expect_equal(domains[3], "distributional prediction / shape")
+  expect_equal(domains[4], "distributional prediction / shape")
+  expect_equal(domains[5], "dependence")
+  expect_equal(domains[6], "runtime")
+})
+
+test_that("benchmark interpretation excludes failed and unavailable rows from leaders", {
+  results <- data.frame(
+    method = c("gamlss.longitudinal", "glmmTMB"),
+    comparator = c("gamlss.longitudinal", "glmmTMB"),
+    available = c(TRUE, FALSE),
+    success = c(TRUE, FALSE),
+    benchmark_rmse = c(0.2, NA_real_),
+    elapsed_sec = c(1.0, 0.001),
+    error = c(NA_character_, "glmmTMB package is not installed"),
+    stringsAsFactors = FALSE
+  )
+
+  interpretation <- .benchmark_interpretation(results, primary_method = "gamlss.longitudinal")
+
+  expect_true(any(interpretation$unsupported$method == "glmmTMB"))
+  expect_false(any(grepl("glmmTMB", interpretation$leaders$leading_methods, fixed = TRUE)))
+  runtime <- interpretation$leaders[interpretation$leaders$metric == "elapsed_sec", , drop = FALSE]
+  expect_true(runtime$primary_leads_or_ties)
+  expect_false(runtime$standard_leads_or_ties)
 })
 
 test_that("benchmark_standard_models reports observed distribution diagnostics", {
