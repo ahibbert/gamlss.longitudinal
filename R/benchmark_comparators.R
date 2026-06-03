@@ -660,6 +660,7 @@ write_benchmark_report <- function(
     return(list(
       fit = NULL,
       row = data.frame(
+        method = comparator,
         comparator = comparator,
         comparator_class = status_row$comparator_class,
         estimator = status_row$estimator,
@@ -672,6 +673,8 @@ write_benchmark_report <- function(
         AIC = NA_real_,
         mae = NA_real_,
         rmse = NA_real_,
+        benchmark_mae = NA_real_,
+        benchmark_rmse = NA_real_,
         warning = NA_character_,
         error = paste0("Package '", status_row$package, "' is not installed."),
         stringsAsFactors = FALSE
@@ -744,6 +747,7 @@ write_benchmark_report <- function(
   list(
     fit = fit,
     row = data.frame(
+      method = comparator,
       comparator = comparator,
       comparator_class = status_row$comparator_class,
       estimator = status_row$estimator,
@@ -756,8 +760,112 @@ write_benchmark_report <- function(
       AIC = aic,
       mae = unname(scores[["mae"]]),
       rmse = unname(scores[["rmse"]]),
+      benchmark_mae = unname(scores[["mae"]]),
+      benchmark_rmse = unname(scores[["rmse"]]),
       warning = if (length(warnings)) paste(unique(warnings), collapse = " | ") else NA_character_,
       error = if (is.null(error)) NA_character_ else error,
+      stringsAsFactors = FALSE
+    )
+  )
+}
+
+.benchmark_scalar_fit_stat <- function(expr, preferred = "joint") {
+  value <- tryCatch(expr, error = function(e) NA_real_)
+  if (is.data.frame(value)) {
+    if (preferred %in% names(value)) {
+      value <- value[[preferred]]
+    } else {
+      value <- value[[1L]]
+    }
+  } else if (is.matrix(value)) {
+    if (preferred %in% colnames(value)) {
+      value <- value[, preferred]
+    } else if (preferred %in% rownames(value)) {
+      value <- value[preferred, ]
+    } else {
+      value <- value[[1L]]
+    }
+  }
+  if (length(value) == 0L) {
+    return(NA_real_)
+  }
+  if (!is.null(names(value)) && preferred %in% names(value)) {
+    value <- value[[preferred]]
+  } else {
+    value <- value[[1L]]
+  }
+  value <- suppressWarnings(as.numeric(value))
+  if (length(value) == 0L || !is.finite(value[[1L]])) {
+    return(NA_real_)
+  }
+  value[[1L]]
+}
+
+.benchmark_supplied_fit_aic <- function(fit) {
+  aic <- .benchmark_scalar_fit_stat(stats::AIC(fit))
+  if (is.finite(aic)) {
+    return(aic)
+  }
+  if (inherits(fit, "gamlss.longitudinal")) {
+    summary_obj <- tryCatch(summary(fit, include_vcov = FALSE), error = function(e) NULL)
+    value <- summary_obj$fit$AIC %||% NA_real_
+    value <- suppressWarnings(as.numeric(value))
+    if (length(value) > 0L && is.finite(value[[1L]])) {
+      return(value[[1L]])
+    }
+  }
+  NA_real_
+}
+
+.benchmark_supplied_fit_one <- function(fit, data, formula, fit_name) {
+  if (is.null(fit)) {
+    return(NULL)
+  }
+  fit_name <- as.character(fit_name)[1L]
+  class_name <- class(fit)[1L]
+  comparator_class <- if (inherits(fit, "gamlss.longitudinal")) {
+    "gamlss_longitudinal"
+  } else {
+    class_name
+  }
+  estimator <- if (inherits(fit, "gamlss.longitudinal")) {
+    "gamlss.longitudinal::gamlss_longitudinal"
+  } else {
+    class_name
+  }
+  package <- if (inherits(fit, "gamlss.longitudinal")) {
+    "gamlss.longitudinal"
+  } else {
+    NA_character_
+  }
+
+  y <- .benchmark_response(formula, data)
+  pred <- .benchmark_predict_response(fit, data)
+  scores <- .benchmark_score_predictions(as.numeric(y), pred)
+  success <- any(is.finite(pred))
+  ll <- if (success) .benchmark_scalar_fit_stat(stats::logLik(fit)) else NA_real_
+  aic <- if (success) .benchmark_supplied_fit_aic(fit) else NA_real_
+
+  list(
+    fit = fit,
+    row = data.frame(
+      method = fit_name,
+      comparator = fit_name,
+      comparator_class = comparator_class,
+      estimator = estimator,
+      package = package,
+      available = TRUE,
+      success = success,
+      elapsed_sec = NA_real_,
+      nobs = nrow(data),
+      logLik = ll,
+      AIC = aic,
+      mae = unname(scores[["mae"]]),
+      rmse = unname(scores[["rmse"]]),
+      benchmark_mae = unname(scores[["mae"]]),
+      benchmark_rmse = unname(scores[["rmse"]]),
+      warning = NA_character_,
+      error = if (success) NA_character_ else "Prediction failed or returned no finite response-scale values.",
       stringsAsFactors = FALSE
     )
   )
@@ -767,9 +875,10 @@ write_benchmark_report <- function(
 #'
 #' `benchmark_standard_models()` is an opt-in scaffold for comparing
 #' `gamlss.longitudinal` with models users already know. It is intentionally
-#' narrow: fit common mean-model baselines, record whether they ran, and return
-#' simple timing and response-scale prediction metrics. Simulation studies can
-#' build coverage, calibration, tail, and trajectory metrics on top of this.
+#' narrow: optionally score an already-fitted primary model, fit common
+#' mean-model baselines, record whether they ran, and return simple timing and
+#' response-scale prediction metrics. Simulation studies can build coverage,
+#' calibration, tail, and trajectory metrics on top of this.
 #'
 #' @param data Long-format data frame.
 #' @param formula Mean-model formula used by the comparator models.
@@ -781,6 +890,10 @@ write_benchmark_report <- function(
 #' @param correlation Working correlation passed to `geepack::geeglm()`.
 #' @param add_subject_re_to_gam Logical; add `s(subject, bs = "re")` to the GAM
 #'   comparator.
+#' @param fit Optional already-fitted primary model to score beside the standard
+#'   comparators. For a `gamlss.longitudinal` fit, response-scale predictions
+#'   are obtained with `predict(fit, newdata = data, type = "response")`.
+#' @param fit_name Label used for the supplied `fit` row.
 #' @param ... Additional arguments passed to each comparator fit.
 #'
 #' @return An object of class `gamlss_longitudinal_benchmark` with `results`
@@ -794,6 +907,8 @@ benchmark_standard_models <- function(
   comparators = c("gee", "glmm", "gam"),
   correlation = "exchangeable",
   add_subject_re_to_gam = TRUE,
+  fit = NULL,
+  fit_name = "gamlss.longitudinal",
   ...
 ) {
   data <- as.data.frame(data, stringsAsFactors = FALSE)
@@ -808,8 +923,16 @@ benchmark_standard_models <- function(
   if (length(bad) > 0L) {
     stop("Unknown comparator(s): ", paste(bad, collapse = ", "), call. = FALSE)
   }
+  if (!is.null(fit)) {
+    if (!is.character(fit_name) || length(fit_name) != 1L || is.na(fit_name) || !nzchar(fit_name)) {
+      stop("'fit_name' must be a single non-empty character value.", call. = FALSE)
+    }
+    if (fit_name %in% comparators) {
+      stop("'fit_name' must not duplicate a standard comparator name.", call. = FALSE)
+    }
+  }
 
-  runs <- lapply(comparators, function(comparator) {
+  comparator_runs <- lapply(comparators, function(comparator) {
     .benchmark_fit_one(
       data = data,
       formula = formula,
@@ -821,9 +944,17 @@ benchmark_standard_models <- function(
       ...
     )
   })
+  supplied_run <- .benchmark_supplied_fit_one(
+    fit = fit,
+    data = data,
+    formula = formula,
+    fit_name = fit_name
+  )
+  runs <- c(if (!is.null(supplied_run)) list(supplied_run), comparator_runs)
+  fit_names <- c(if (!is.null(supplied_run)) fit_name, comparators)
   out <- list(
     results = do.call(rbind, lapply(runs, `[[`, "row")),
-    fits = stats::setNames(lapply(runs, `[[`, "fit"), comparators),
+    fits = stats::setNames(lapply(runs, `[[`, "fit"), fit_names),
     formula = formula,
     subject_var = subject_var,
     family = family$family
@@ -859,6 +990,8 @@ print.gamlss_longitudinal_benchmark <- function(x, digits = max(3, getOption("di
       "benchmark_pit_ks_p_value",
       "benchmark_tail_error_lower_05",
       "benchmark_tail_error_upper_05",
+      "smooth_eta_rmse",
+      "smooth_eta_max_abs_error",
       "elapsed_sec"
     ),
     estimand = c(
@@ -875,6 +1008,8 @@ print.gamlss_longitudinal_benchmark <- function(x, digits = max(3, getOption("di
       "calibration",
       "tail",
       "tail",
+      "smooth",
+      "smooth",
       "runtime"
     ),
     score_rule = c(
@@ -891,9 +1026,11 @@ print.gamlss_longitudinal_benchmark <- function(x, digits = max(3, getOption("di
       "higher",
       "absolute",
       "absolute",
+      "lower",
+      "lower",
       "lower"
     ),
-    target = c(NA, NA, 0, NA, NA, NA, 0, NA, 0.95, NA, 1, 0, 0, NA),
+    target = c(NA, NA, 0, NA, NA, NA, 0, NA, 0.95, NA, 1, 0, 0, NA, NA, NA),
     stringsAsFactors = FALSE
   )
 }

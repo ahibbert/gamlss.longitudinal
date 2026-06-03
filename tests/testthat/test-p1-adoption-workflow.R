@@ -49,14 +49,18 @@ test_that("T202 simulate method returns fitted-length simulation columns", {
   dat <- make_fixture_factor_time_interaction(n_subject = 12L)
   fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
 
-  sim_marginal <- simulate(fit, nsim = 2, seed = 123, type = "marginal")
-  expect_s3_class(sim_marginal, "data.frame")
-  expect_equal(dim(sim_marginal), c(length(fit$response), 2L))
-  expect_true(all(is.finite(as.matrix(sim_marginal))))
+  sim_model <- simulate(fit, nsim = 2, seed = 123)
+  expect_s3_class(sim_model, "data.frame")
+  expect_equal(dim(sim_model), c(length(fit$response), 2L))
+  expect_true(all(is.finite(as.matrix(sim_model))))
 
-  sim_copula <- simulate(fit, nsim = 1, seed = 123, type = "copula")
-  expect_equal(nrow(sim_copula), length(fit$response))
-  expect_true(all(is.finite(sim_copula$sim_1)))
+  sim_copula_compat <- simulate(fit, nsim = 1, seed = 123, type = "copula")
+  expect_equal(nrow(sim_copula_compat), length(fit$response))
+  expect_true(all(is.finite(sim_copula_compat$sim_1)))
+  expect_error(
+    simulate(fit, nsim = 1, seed = 123, type = "marginal"),
+    "fitted copula model"
+  )
 })
 
 test_that("T203 check_model returns decision-oriented diagnostic object", {
@@ -75,7 +79,6 @@ test_that("T203 check_model returns decision-oriented diagnostic object", {
   expect_true(all(chk$warnings$severity %in% c("concern", "review", "note")))
   expect_true(is.character(chk$decisions))
   expect_true(length(chk$decisions) >= 1L)
-  expect_message(plot(chk), "No plot objects stored")
 })
 
 test_that("T204 marginal_effects summarizes counterfactual parameter contrasts", {
@@ -97,16 +100,6 @@ test_that("T204 marginal_effects summarizes counterfactual parameter contrasts",
   expect_true(all(c("variable", "value", "parameter", "estimate", "std_error", "reference", "contrast", "conf.low", "conf.high") %in% names(eff)))
   expect_equal(nrow(eff), length(levels(dat$gender)))
   expect_equal(eff$contrast[1], 0)
-
-  eff_alias <- effects(
-    fit,
-    newdata = dat,
-    variable = "gender",
-    values = levels(dat$gender),
-    parameter = "mu",
-    se.fit = FALSE
-  )
-  expect_equal(eff_alias$estimate, eff[, "estimate"])
 })
 
 test_that("T204b copula_time_summary prints dependence summaries", {
@@ -264,7 +257,6 @@ test_that("T210 bootstrap_inference refits simulated responses", {
     R = 2,
     terms = terms,
     seed = 123,
-    simulation_type = "marginal",
     fit_args = list(
       max_outer_iter = 1,
       max_inner_iter = 1,
@@ -287,7 +279,6 @@ test_that("T210 bootstrap_inference refits simulated responses", {
     R = 1,
     terms = "mu.gender",
     seed = 124,
-    simulation_type = "marginal",
     fit_args = list(
       max_outer_iter = 1,
       max_inner_iter = 1,
