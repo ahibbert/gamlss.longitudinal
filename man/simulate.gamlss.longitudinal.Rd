@@ -4,14 +4,7 @@
 \alias{simulate.gamlss.longitudinal}
 \title{Simulate responses from a longitudinal GAMLSS-copula model}
 \usage{
-\method{simulate}{gamlss.longitudinal}(
-  object,
-  nsim = 1,
-  seed = NULL,
-  newdata = NULL,
-  type = c("copula", "marginal"),
-  ...
-)
+\method{simulate}{gamlss.longitudinal}(object, nsim = 1, seed = NULL, newdata = NULL, ...)
 }
 \arguments{
 \item{object}{A fitted \code{gamlss.longitudinal} object.}
@@ -20,12 +13,8 @@
 
 \item{seed}{Optional random seed.}
 
-\item{newdata}{Optional new data. Copula-preserving simulation is currently
-available for fitted data only; \code{newdata} uses marginal simulation.}
-
-\item{type}{\code{"copula"} preserves the fitted first-order dependence on fitted
-data. \code{"marginal"} simulates independently from fitted marginal
-distributions.}
+\item{newdata}{Optional new data. Simulation from the fitted copula model is
+currently available for fitted data only.}
 
 \item{...}{Additional arguments reserved for future methods.}
 }
