@@ -79,7 +79,7 @@ copula_screen <- select_copula(
 ```
 
 ```{r fit}
-fit <- fit_longitudinal(
+fit <- gamlss_longitudinal(
   dataset = dat,
   margin_dist = gamlss.dist::NO(),
   copula_dist = attr(copula_screen, "selected"),
@@ -95,7 +95,7 @@ For a count response, choose a supported count margin during screening and fit
 that family instead:
 
 ```{r count-fit}
-count_fit <- fit_longitudinal(
+count_fit <- gamlss_longitudinal(
   dataset = count_dat,
   margin_dist = gamlss.dist::PO(),
   copula_dist = "N",
