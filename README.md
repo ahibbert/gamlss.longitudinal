@@ -94,7 +94,7 @@ copula_selection <- select_copula(
 )
 copula_dist <- best_fit_family(copula_selection)
 
-fit <- fit_longitudinal(
+fit <- gamlss_longitudinal(
   dataset = dat,
   margin_dist = margin_dist,
   time_var = "time",
