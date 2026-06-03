@@ -467,7 +467,32 @@ confint.gamlss.longitudinal <- function(
   out
 }
 
-.resolve_coefficient_terms <- function(terms, coefficient_names, arg = "terms") {
+.fixed_term_coefficient_names <- function(object) {
+  if (!inherits(object, "gamlss.longitudinal") || is.null(object$model_matrix$x)) {
+    return(NULL)
+  }
+
+  out <- list()
+  for (parameter in names(object$model_matrix$x)) {
+    X <- object$model_matrix$x[[parameter]]
+    if (is.null(X)) next
+    col_names <- colnames(X)
+    if (length(col_names) == 0L) next
+
+    assign <- attr(X, "assign")
+    term_labels <- attr(X, "term.labels")
+    if (length(assign) != length(col_names) || length(term_labels) == 0L) next
+
+    for (term_idx in seq_along(term_labels)) {
+      cols <- col_names[assign == term_idx]
+      if (length(cols) == 0L) next
+      out[[paste(parameter, term_labels[[term_idx]], sep = ".")]] <- paste(parameter, cols, sep = ".")
+    }
+  }
+  out
+}
+
+.resolve_coefficient_terms <- function(terms, coefficient_names, arg = "terms", term_map = NULL) {
   if (is.null(terms)) {
     return(seq_along(coefficient_names))
   }
@@ -488,6 +513,13 @@ confint.gamlss.longitudinal <- function(
     exact <- match(term, coefficient_names)
     if (!is.na(exact)) {
       return(exact)
+    }
+    if (!is.null(term_map) && term %in% names(term_map)) {
+      mapped_idx <- match(term_map[[term]], coefficient_names)
+      mapped_idx <- mapped_idx[!is.na(mapped_idx)]
+      if (length(mapped_idx) > 0L) {
+        return(mapped_idx)
+      }
     }
     prefix_idx <- which(startsWith(coefficient_names, term))
     if (length(prefix_idx) == 0L) {
@@ -515,9 +547,9 @@ confint.gamlss.longitudinal <- function(
 #' so numerical-Hessian tests should be reported as approximate.
 #'
 #' @param object A fitted `gamlss.longitudinal` object.
-#' @param terms Optional coefficient names, coefficient-name prefixes, or numeric
-#'   indices. When `L` is `NULL`, these select coefficients for individual tests
-#'   or a joint test.
+#' @param terms Optional coefficient names, formula-term names such as
+#'   `"mu.treatment"`, coefficient-name prefixes, or numeric indices. When `L`
+#'   is `NULL`, these select coefficients for individual tests or a joint test.
 #' @param L Optional contrast matrix. Columns must either be named with
 #'   coefficient names or have one column per fixed coefficient in model order.
 #' @param rhs Null-hypothesis value. Either a scalar or one value per tested row.
@@ -585,7 +617,12 @@ wald_test <- function(
     }
     joint <- TRUE
   } else {
-    idx <- .resolve_coefficient_terms(terms, names(estimates), arg = "terms")
+    idx <- .resolve_coefficient_terms(
+      terms,
+      names(estimates),
+      arg = "terms",
+      term_map = .fixed_term_coefficient_names(object)
+    )
     L <- diag(length(estimates))[idx, , drop = FALSE]
     colnames(L) <- names(estimates)
     rownames(L) <- names(estimates)[idx]
@@ -791,8 +828,9 @@ print.gamlss_longitudinal_likelihood_compare <- function(x, digits = max(3, getO
 #'
 #' @param object A fitted `gamlss.longitudinal` object.
 #' @param R Number of bootstrap replicates.
-#' @param terms Optional coefficient names, coefficient-name prefixes, or numeric
-#'   indices to summarize.
+#' @param terms Optional coefficient names, formula-term names such as
+#'   `"mu.treatment"`, coefficient-name prefixes, or numeric indices to
+#'   summarize.
 #' @param level Confidence level for percentile intervals.
 #' @param seed Optional random seed.
 #' @param fit_args Optional named list of arguments passed to each refit, such
@@ -831,7 +869,12 @@ bootstrap_inference <- function(
     dots$simulation_type <- NULL
   }
   estimates <- stats::coef(object)
-  idx <- .resolve_coefficient_terms(terms, names(estimates), arg = "terms")
+  idx <- .resolve_coefficient_terms(
+    terms,
+    names(estimates),
+    arg = "terms",
+    term_map = .fixed_term_coefficient_names(object)
+  )
   terms_use <- names(estimates)[idx]
   if (!is.null(seed)) {
     old_seed <- if (exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)) {

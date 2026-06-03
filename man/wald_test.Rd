@@ -17,9 +17,9 @@ wald_test(
 \arguments{
 \item{object}{A fitted \code{gamlss.longitudinal} object.}
 
-\item{terms}{Optional coefficient names, coefficient-name prefixes, or numeric
-indices. When \code{L} is \code{NULL}, these select coefficients for individual tests
-or a joint test.}
+\item{terms}{Optional coefficient names, formula-term names such as
+\code{"mu.treatment"}, coefficient-name prefixes, or numeric indices. When \code{L}
+is \code{NULL}, these select coefficients for individual tests or a joint test.}
 
 \item{L}{Optional contrast matrix. Columns must either be named with
 coefficient names or have one column per fixed coefficient in model order.}

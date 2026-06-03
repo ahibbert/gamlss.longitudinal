@@ -20,8 +20,9 @@ bootstrap_inference(
 
 \item{R}{Number of bootstrap replicates.}
 
-\item{terms}{Optional coefficient names, coefficient-name prefixes, or numeric
-indices to summarize.}
+\item{terms}{Optional coefficient names, formula-term names such as
+\code{"mu.treatment"}, coefficient-name prefixes, or numeric indices to
+summarize.}
 
 \item{level}{Confidence level for percentile intervals.}
 
