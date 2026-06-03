@@ -2,18 +2,23 @@
 % Please edit documentation in R/benchmark_comparators.R
 \name{benchmark_standard_models}
 \alias{benchmark_standard_models}
-\title{Fit standard GEE/GLMM/GAM comparators for adoption benchmarks}
+\title{Fit standard longitudinal comparator models for adoption benchmarks}
 \usage{
 benchmark_standard_models(
   data,
   formula,
   subject_var,
   family = "gaussian",
-  comparators = c("gee", "glmm", "gam"),
+  comparators = c("glm", "gee", "glmm", "gam", "gamm"),
   correlation = "exchangeable",
-  add_subject_re_to_gam = TRUE,
+  add_subject_re_to_gamm = TRUE,
+  add_subject_re_to_gam = NULL,
   fit = NULL,
   fit_name = "gamlss.longitudinal",
+  distributional_metrics = TRUE,
+  truth_family = NULL,
+  quantile_prob = 0.9,
+  interval_level = 0.95,
   ...
 )
 }
@@ -27,19 +32,33 @@ benchmark_standard_models(
 \item{family}{A base R family object or one of \code{"gaussian"}, \code{"poisson"},
 \code{"binomial"}, or \code{"gamma"}.}
 
-\item{comparators}{Character vector containing any of \code{"gee"}, \code{"glmm"},
-\code{"gam"}, and \code{"glmmTMB"}.}
+\item{comparators}{Character vector containing any of \code{"glm"}, \code{"gee"},
+\code{"glmm"}, \code{"gam"}, \code{"gamm"}, and \code{"glmmTMB"}.}
 
 \item{correlation}{Working correlation passed to \code{geepack::geeglm()}.}
 
-\item{add_subject_re_to_gam}{Logical; add \code{s(subject, bs = "re")} to the GAM
-comparator.}
+\item{add_subject_re_to_gamm}{Logical; add \code{s(subject, bs = "re")} to the
+GAMM comparator.}
+
+\item{add_subject_re_to_gam}{Deprecated alias for \code{add_subject_re_to_gamm}.}
 
 \item{fit}{Optional already-fitted primary model to score beside the standard
 comparators. For a \code{gamlss.longitudinal} fit, response-scale predictions
 are obtained with \code{predict(fit, newdata = data, type = "response")}.}
 
 \item{fit_name}{Label used for the supplied \code{fit} row.}
+
+\item{distributional_metrics}{Logical; compute interval coverage, PIT
+calibration, tail-frequency diagnostics, and truth-aware quantile/tail
+metrics when enough information is available.}
+
+\item{truth_family}{Optional \code{gamlss.dist} family name used to derive true
+quantiles from \code{true_*} columns. Defaults are inferred from \code{family}.}
+
+\item{quantile_prob}{Probability used for the benchmark quantile and upper
+tail metrics.}
+
+\item{interval_level}{Prediction interval level used for empirical coverage.}
 
 \item{...}{Additional arguments passed to each comparator fit.}
 }
@@ -51,7 +70,7 @@ and \code{fits} components.
 \code{benchmark_standard_models()} is an opt-in scaffold for comparing
 \code{gamlss.longitudinal} with models users already know. It is intentionally
 narrow: optionally score an already-fitted primary model, fit common
-mean-model baselines, record whether they ran, and return simple timing and
-response-scale prediction metrics. Simulation studies can build coverage,
-calibration, tail, and trajectory metrics on top of this.
+mean-model baselines, record whether they ran, and return timing,
+response-scale prediction metrics, and distributional diagnostics when the
+fitted model family supports them.
 }
