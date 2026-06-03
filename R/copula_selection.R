@@ -16,6 +16,16 @@
 #' @param u1,u2 Optional vectors of paired pseudo-observations.
 #' @param u Optional row-aligned vector of pseudo-observations for `data`.
 #' @param u_var Optional name of a pseudo-observation column in `data`.
+#' @param response_var Optional response column name in `data`. Used to create
+#'   pseudo-observations automatically when `u1`/`u2`, `u`, `u_var`, and
+#'   `object` are not supplied.
+#' @param margin_dist Optional `gamlss.dist` family object used to fit the
+#'   temporary marginal model for automatic pseudo-observations. If omitted,
+#'   [select_margin()] is called and a warning is issued.
+#' @param mu.formula,sigma.formula,nu.formula,tau.formula Optional temporary
+#'   marginal model formulas used when `select_copula()` creates
+#'   pseudo-observations from `response_var`. If omitted, intercept-only
+#'   formulas are used.
 #' @param subject_var,time_var Subject and time column names used when building
 #'   adjacent-time pairs from `data`.
 #' @param families Candidate copula family codes. Supported values are `"N"`,
@@ -36,6 +46,12 @@ select_copula <- function(
   u2 = NULL,
   u = NULL,
   u_var = NULL,
+  response_var = NULL,
+  margin_dist = NULL,
+  mu.formula = NULL,
+  sigma.formula = NULL,
+  nu.formula = NULL,
+  tau.formula = NULL,
   subject_var = "subject",
   time_var = "time",
   families = c("N", "C", "F", "G", "J", "t"),
@@ -58,6 +74,12 @@ select_copula <- function(
     u2 = u2,
     u = u,
     u_var = u_var,
+    response_var = response_var,
+    margin_dist = margin_dist,
+    mu.formula = mu.formula,
+    sigma.formula = sigma.formula,
+    nu.formula = nu.formula,
+    tau.formula = tau.formula,
     subject_var = subject_var,
     time_var = time_var,
     lags = lags
@@ -82,11 +104,55 @@ select_copula <- function(
   rownames(out) <- NULL
   attr(out, "selected") <- out$family[1]
   attr(out, "criterion") <- criterion
+  attr(out, "margin_selection") <- attr(pairs, "margin_selection")
+  attr(out, "pseudo_observation_source") <- attr(pairs, "pseudo_observation_source")
   class(out) <- c("copula_selection", "data.frame")
   out
 }
 
-.select_copula_pairs <- function(data, object, u1, u2, u, u_var, subject_var, time_var, lags) {
+#' @export
+best_fit.copula_selection <- function(x, ...) {
+  if (nrow(x) == 0L) {
+    return(list(
+      family = NA_character_,
+      criterion = attr(x, "criterion")
+    ))
+  }
+  row <- as.list(as.data.frame(x)[1L, , drop = FALSE])
+  row$criterion <- attr(x, "criterion")
+  row
+}
+
+#' @export
+best_fit_family.copula_selection <- function(x, ...) {
+  best_fit(x)$family
+}
+
+#' @export
+`$.copula_selection` <- function(x, name) {
+  if (identical(name, "best_fit")) {
+    return(best_fit(x))
+  }
+  .subset2(as.data.frame(x), name, exact = FALSE)
+}
+
+.select_copula_pairs <- function(
+  data,
+  object,
+  u1,
+  u2,
+  u,
+  u_var,
+  response_var,
+  margin_dist,
+  mu.formula,
+  sigma.formula,
+  nu.formula,
+  tau.formula,
+  subject_var,
+  time_var,
+  lags
+) {
   if (!is.null(u1) || !is.null(u2)) {
     if (is.null(u1) || is.null(u2)) {
       stop("Both u1 and u2 must be supplied for direct pseudo-observation pairs.", call. = FALSE)
@@ -121,14 +187,171 @@ select_copula <- function(
       u_var <- ".u"
     }
     if (is.null(u_var)) {
-      stop("Provide u_var or u when selecting from data.", call. = FALSE)
+      auto <- .select_copula_auto_u(
+        data = data,
+        response_var = response_var,
+        margin_dist = margin_dist,
+        mu.formula = mu.formula,
+        sigma.formula = sigma.formula,
+        nu.formula = nu.formula,
+        tau.formula = tau.formula
+      )
+      data <- auto$data
+      u_var <- auto$u_var
     }
   }
 
   if (!all(c(subject_var, time_var, u_var) %in% names(data))) {
     stop("data must contain subject_var, time_var, and u_var columns.", call. = FALSE)
   }
-  .select_copula_adjacent_pairs(data, subject_var = subject_var, time_var = time_var, u_var = u_var, lags = lags)
+  pairs <- .select_copula_adjacent_pairs(data, subject_var = subject_var, time_var = time_var, u_var = u_var, lags = lags)
+  if (exists("auto", inherits = FALSE)) {
+    attr(pairs, "margin_selection") <- auto$margin_selection
+    attr(pairs, "pseudo_observation_source") <- auto$source
+  } else if (!is.null(object)) {
+    attr(pairs, "pseudo_observation_source") <- "fitted_object"
+  } else if (!is.null(u) || identical(u_var, ".u")) {
+    attr(pairs, "pseudo_observation_source") <- "u"
+  } else {
+    attr(pairs, "pseudo_observation_source") <- u_var
+  }
+  pairs
+}
+
+.select_copula_auto_u <- function(
+  data,
+  response_var,
+  margin_dist,
+  mu.formula,
+  sigma.formula,
+  nu.formula,
+  tau.formula
+) {
+  if (is.null(response_var) || !is.character(response_var) || length(response_var) != 1L) {
+    stop(
+      "Provide u_var, u, u1/u2, object, or response_var so select_copula() can create pseudo-observations.",
+      call. = FALSE
+    )
+  }
+  if (!response_var %in% names(data)) {
+    stop("response_var='", response_var, "' not found in 'data'.", call. = FALSE)
+  }
+
+  margin_selection <- NULL
+  if (is.null(margin_dist)) {
+    warning(
+      "'margin_dist' was not supplied; select_copula() is selecting a temporary marginal distribution with select_margin().",
+      call. = FALSE
+    )
+    margin_selection <- suppressWarnings(suppressMessages(
+      select_margin(data, response_var = response_var, trace = FALSE)
+    ))
+    margin_dist <- best_fit_family(margin_selection)
+    if (is.null(margin_dist)) {
+      stop("select_margin() did not return a usable marginal family.", call. = FALSE)
+    }
+  }
+
+  pfun <- tryCatch(
+    get(paste0("p", margin_dist$family[1]), envir = asNamespace("gamlss.dist"), mode = "function", inherits = FALSE),
+    error = function(e) NULL
+  )
+  if (is.null(pfun)) {
+    stop("'margin_dist' must provide a gamlss.dist CDF function.", call. = FALSE)
+  }
+
+  mu.formula <- .select_copula_response_formula(mu.formula, response_var)
+  args <- list(
+    formula = mu.formula,
+    family = margin_dist,
+    data = data,
+    trace = FALSE
+  )
+  parameter_names <- names(margin_dist$parameters)
+  if ("sigma" %in% parameter_names) args$sigma.fo <- .select_copula_rhs_formula(sigma.formula)
+  if ("nu" %in% parameter_names) args$nu.fo <- .select_copula_rhs_formula(nu.formula)
+  if ("tau" %in% parameter_names) args$tau.fo <- .select_copula_rhs_formula(tau.formula)
+
+  formula_vars <- unique(unlist(
+    lapply(
+      c(list(args$formula), args[c("sigma.fo", "nu.fo", "tau.fo")]),
+      function(formula) if (is.null(formula)) character(0) else all.vars(stats::as.formula(formula))
+    ),
+    use.names = FALSE
+  ))
+  missing_vars <- setdiff(formula_vars, names(data))
+  if (length(missing_vars) > 0L) {
+    stop(
+      "Temporary marginal formula variable(s) not found in data: ",
+      paste(missing_vars, collapse = ", "),
+      call. = FALSE
+    )
+  }
+  keep <- is.finite(data[[response_var]]) & stats::complete.cases(data[, formula_vars, drop = FALSE])
+  if (sum(keep) < 3L) {
+    stop("Need at least three complete response rows to create pseudo-observations.", call. = FALSE)
+  }
+  data_fit <- data[keep, , drop = FALSE]
+  args$data <- data_fit[, formula_vars, drop = FALSE]
+
+  margin_fit <- tryCatch(
+    do.call(gamlss::gamlss, args),
+    error = function(e) {
+      stop("Temporary marginal model for copula selection failed: ", conditionMessage(e), call. = FALSE)
+    }
+  )
+
+  cdf_args <- list(q = data_fit[[response_var]], y = data_fit[[response_var]], x = data_fit[[response_var]])
+  for (parameter in parameter_names) {
+    cdf_args[[parameter]] <- stats::fitted(margin_fit, what = parameter)
+  }
+  fixed_unlinked_values <- attr(margin_dist, "fixed_unlinked_values")
+  if (length(fixed_unlinked_values) > 0L) {
+    for (parameter in names(fixed_unlinked_values)) {
+      value <- fixed_unlinked_values[[parameter]]
+      if (is.numeric(value) && length(value) == 1L && is.finite(value)) {
+        cdf_args[[parameter]] <- rep(value, nrow(data_fit))
+      }
+    }
+  }
+  cdf_args <- cdf_args[names(cdf_args) %in% formalArgs(pfun)]
+  u <- tryCatch(
+    do.call(pfun, cdf_args),
+    error = function(e) {
+      stop("Could not compute pseudo-observations from the temporary marginal model: ", conditionMessage(e), call. = FALSE)
+    }
+  )
+  u_full <- rep(NA_real_, nrow(data))
+  u_full[keep] <- .copula_clamp01(u)
+  data[[".u_auto"]] <- u_full
+  list(
+    data = data,
+    u_var = ".u_auto",
+    margin_selection = margin_selection,
+    source = if (is.null(margin_selection)) "margin_dist" else "select_margin"
+  )
+}
+
+.select_copula_response_formula <- function(formula, response_var) {
+  if (is.null(formula)) {
+    return(stats::as.formula(paste(response_var, "~ 1")))
+  }
+  formula <- stats::as.formula(formula)
+  if (length(formula) == 2L) {
+    return(stats::as.formula(paste(response_var, deparse(formula), sep = " ")))
+  }
+  formula
+}
+
+.select_copula_rhs_formula <- function(formula) {
+  if (is.null(formula)) {
+    return(~1)
+  }
+  formula <- stats::as.formula(formula)
+  if (length(formula) == 3L) {
+    return(stats::as.formula(paste("~", deparse(formula[[3L]]))))
+  }
+  formula
 }
 
 .select_copula_u_from_fit <- function(object) {
