@@ -3,17 +3,19 @@
 #' @return A data frame describing optional comparator backends.
 #' @export
 benchmark_comparator_status <- function() {
-  packages <- c("geepack", "lme4", "mgcv", "glmmTMB")
+  packages <- c("stats", "geepack", "lme4", "mgcv", "mgcv", "glmmTMB")
   data.frame(
-    comparator = c("gee", "glmm", "gam", "glmmTMB"),
-    comparator_class = c("gee", "glmm", "gamm", "glmm"),
-    estimator = c("geepack::geeglm", "lme4::lmer/glmer", "mgcv::gam", "glmmTMB::glmmTMB"),
+    comparator = c("glm", "gee", "glmm", "gam", "gamm", "glmmTMB"),
+    comparator_class = c("glm", "gee", "glmm", "gam", "gamm", "glmm"),
+    estimator = c("stats::glm", "geepack::geeglm", "lme4::lmer/glmer", "mgcv::gam", "mgcv::gam + s(subject, bs = 're')", "glmmTMB::glmmTMB"),
     package = packages,
     available = vapply(packages, requireNamespace, logical(1), quietly = TRUE),
     role = c(
+      "independence mean baseline",
       "marginal mean baseline with working correlation",
       "random-intercept conditional mean baseline",
-      "smooth mean baseline with optional subject random effect",
+      "independence smooth mean baseline",
+      "smooth mean baseline with subject random-effect smooth",
       "optional flexible GLMM baseline"
     ),
     stringsAsFactors = FALSE
@@ -613,6 +615,15 @@ write_benchmark_report <- function(
   stats::as.formula(paste(deparse(formula), "+ s(", .benchmark_backtick(subject_var), ", bs = 're')"))
 }
 
+.benchmark_formula_has_smooth <- function(formula) {
+  term_obj <- tryCatch(
+    stats::terms(stats::as.formula(formula), specials = "s"),
+    error = function(e) NULL
+  )
+  specials <- attr(term_obj, "specials")
+  length(specials$s) > 0L
+}
+
 .benchmark_response <- function(formula, data) {
   response_var <- all.vars(stats::as.formula(formula))[1L]
   if (!response_var %in% names(data)) {
@@ -643,7 +654,277 @@ write_benchmark_report <- function(
   )
 }
 
-.benchmark_fit_one <- function(data, formula, subject_var, family, comparator, correlation, add_subject_re_to_gam, ...) {
+.benchmark_empty_result_row <- function(
+  status_row,
+  comparator,
+  available,
+  success,
+  elapsed_sec,
+  nobs,
+  warning = NA_character_,
+  error = NA_character_
+) {
+  data.frame(
+    method = comparator,
+    comparator = comparator,
+    comparator_class = status_row$comparator_class,
+    estimator = status_row$estimator,
+    package = status_row$package,
+    available = available,
+    success = success,
+    elapsed_sec = elapsed_sec,
+    nobs = nobs,
+    logLik = NA_real_,
+    AIC = NA_real_,
+    mae = NA_real_,
+    rmse = NA_real_,
+    benchmark_mae = NA_real_,
+    benchmark_rmse = NA_real_,
+    as.list(.benchmark_distribution_metric_empty()),
+    warning = warning,
+    error = error,
+    stringsAsFactors = FALSE
+  )
+}
+
+.benchmark_distribution_metric_empty <- function() {
+  c(
+    benchmark_mean_bias = NA_real_,
+    benchmark_mean_mae = NA_real_,
+    benchmark_mean_rmse = NA_real_,
+    benchmark_q90_mae = NA_real_,
+    benchmark_upper_tail_error_90 = NA_real_,
+    benchmark_theta_time_abs_error = NA_real_,
+    benchmark_interval_coverage_95 = NA_real_,
+    benchmark_pit_ks_p_value = NA_real_,
+    benchmark_pit_mean_abs_error = NA_real_,
+    benchmark_tail_error_lower_05 = NA_real_,
+    benchmark_tail_error_upper_05 = NA_real_
+  )
+}
+
+.benchmark_truth_family <- function(family, truth_family = NULL) {
+  if (!is.null(truth_family)) {
+    return(as.character(truth_family)[1L])
+  }
+  if (identical(family$family, "gaussian")) return("NO")
+  if (identical(family$family, "Gamma")) return("GA")
+  if (identical(family$family, "poisson")) return("PO")
+  if (identical(family$family, "binomial")) return("BI")
+  NA_character_
+}
+
+.benchmark_response_data <- function(data, formula) {
+  response_var <- all.vars(stats::as.formula(formula))[1L]
+  dat <- as.data.frame(data, stringsAsFactors = FALSE)
+  dat$response <- dat[[response_var]]
+  dat
+}
+
+.benchmark_predictive_distribution <- function(y, fitted, family, p = 0.9, interval_level = 0.95) {
+  n <- length(fitted)
+  empty <- list(
+    q_p = rep(NA_real_, n),
+    lower = rep(NA_real_, n),
+    upper = rep(NA_real_, n),
+    pit = rep(NA_real_, n)
+  )
+  ok <- is.finite(y) & is.finite(fitted)
+  if (!any(ok)) {
+    return(empty)
+  }
+  alpha <- (1 - interval_level) / 2
+
+  if (identical(family$family, "gaussian")) {
+    sigma_hat <- .coverage_comparator_dispersion(y, fitted, family)
+    if (!is.finite(sigma_hat) || sigma_hat <= 0) return(empty)
+    q_p <- fitted + stats::qnorm(p) * sigma_hat
+    lower <- fitted + stats::qnorm(alpha) * sigma_hat
+    upper <- fitted + stats::qnorm(1 - alpha) * sigma_hat
+    pit <- stats::pnorm(y, mean = fitted, sd = sigma_hat)
+  } else if (identical(family$family, "poisson")) {
+    lambda <- pmax(fitted, .Machine$double.eps)
+    q_p <- stats::qpois(p, lambda = lambda)
+    lower <- stats::qpois(alpha, lambda = lambda)
+    upper <- stats::qpois(1 - alpha, lambda = lambda)
+    pit <- stats::ppois(y, lambda = lambda)
+  } else if (identical(family$family, "binomial")) {
+    prob <- pmin(pmax(fitted, .Machine$double.eps), 1 - .Machine$double.eps)
+    q_p <- stats::qbinom(p, size = 1, prob = prob)
+    lower <- stats::qbinom(alpha, size = 1, prob = prob)
+    upper <- stats::qbinom(1 - alpha, size = 1, prob = prob)
+    pit <- stats::pbinom(y, size = 1, prob = prob)
+  } else if (identical(family$family, "Gamma")) {
+    dispersion <- .coverage_comparator_dispersion(y, fitted, family)
+    if (!is.finite(dispersion) || dispersion <= 0) return(empty)
+    mu <- pmax(fitted, .Machine$double.eps)
+    shape <- 1 / dispersion
+    scale <- mu * dispersion
+    q_p <- stats::qgamma(p, shape = shape, scale = scale)
+    lower <- stats::qgamma(alpha, shape = shape, scale = scale)
+    upper <- stats::qgamma(1 - alpha, shape = shape, scale = scale)
+    pit <- stats::pgamma(y, shape = shape, scale = scale)
+  } else {
+    return(empty)
+  }
+
+  list(
+    q_p = as.numeric(q_p),
+    lower = as.numeric(lower),
+    upper = as.numeric(upper),
+    pit = pmin(pmax(as.numeric(pit), 0), 1)
+  )
+}
+
+.benchmark_distribution_summaries <- function(y, fitted, family, data, formula, truth_family = NULL, p = 0.9, interval_level = 0.95) {
+  out <- .benchmark_distribution_metric_empty()
+  dat <- .benchmark_response_data(data, formula)
+
+  if ("true_mu" %in% names(dat)) {
+    ok_truth <- is.finite(dat$true_mu) & is.finite(fitted)
+    if (any(ok_truth)) {
+      err_mu <- fitted[ok_truth] - dat$true_mu[ok_truth]
+      out["benchmark_mean_bias"] <- mean(err_mu)
+      out["benchmark_mean_mae"] <- mean(abs(err_mu))
+      out["benchmark_mean_rmse"] <- sqrt(mean(err_mu^2))
+    }
+  }
+
+  pred_dist <- .benchmark_predictive_distribution(y, fitted, family, p = p, interval_level = interval_level)
+  truth_dist <- .coverage_true_margin_distribution(
+    dat,
+    family = .benchmark_truth_family(family, truth_family = truth_family),
+    p = p
+  )
+
+  ok_q <- is.finite(pred_dist$q_p) & is.finite(truth_dist$q)
+  if (any(ok_q)) {
+    out["benchmark_q90_mae"] <- mean(abs(pred_dist$q_p[ok_q] - truth_dist$q[ok_q]), na.rm = TRUE)
+  }
+
+  comparator_at_truth <- .coverage_comparator_distribution(y, fitted, family, truth_dist$q, p = p)
+  ok_tail <- is.finite(comparator_at_truth$cdf_at_q) & is.finite(truth_dist$cdf)
+  if (any(ok_tail)) {
+    out["benchmark_upper_tail_error_90"] <- mean(
+      (1 - comparator_at_truth$cdf_at_q[ok_tail]) - (1 - truth_dist$cdf[ok_tail]),
+      na.rm = TRUE
+    )
+  }
+
+  ok_interval <- is.finite(y) & is.finite(pred_dist$lower) & is.finite(pred_dist$upper)
+  if (any(ok_interval)) {
+    out["benchmark_interval_coverage_95"] <- mean(y[ok_interval] >= pred_dist$lower[ok_interval] & y[ok_interval] <= pred_dist$upper[ok_interval])
+  }
+
+  ok_pit <- is.finite(pred_dist$pit)
+  if (sum(ok_pit) >= 3L) {
+    pit <- pred_dist$pit[ok_pit]
+    out["benchmark_pit_ks_p_value"] <- tryCatch(
+      suppressWarnings(stats::ks.test(pit, "punif")$p.value),
+      error = function(e) NA_real_
+    )
+    out["benchmark_pit_mean_abs_error"] <- abs(mean(pit, na.rm = TRUE) - 0.5)
+    out["benchmark_tail_error_lower_05"] <- mean(pit <= 0.05, na.rm = TRUE) - 0.05
+    out["benchmark_tail_error_upper_05"] <- mean(pit >= 0.95, na.rm = TRUE) - 0.05
+  }
+
+  out
+}
+
+.benchmark_predict_gamlss_vector <- function(fit, data, type, value_name = NULL, ...) {
+  pred <- tryCatch(stats::predict(fit, newdata = data, type = type, ...), error = function(e) NULL)
+  if (is.null(pred)) {
+    return(rep(NA_real_, nrow(data)))
+  }
+  if (is.data.frame(pred)) {
+    if (!is.null(value_name) && value_name %in% names(pred)) {
+      pred <- pred[[value_name]]
+    } else {
+      pred <- pred[[ncol(pred)]]
+    }
+  }
+  pred <- as.numeric(pred)
+  if (length(pred) != nrow(data)) {
+    return(rep(NA_real_, nrow(data)))
+  }
+  pred
+}
+
+.benchmark_gamlss_distribution_summaries <- function(fit, data, formula, truth_family = NULL, p = 0.9, interval_level = 0.95) {
+  out <- .benchmark_distribution_metric_empty()
+  y <- as.numeric(.benchmark_response(formula, data))
+  fitted <- .benchmark_predict_response(fit, data)
+  dat <- .benchmark_response_data(data, formula)
+
+  if ("true_mu" %in% names(dat)) {
+    ok_truth <- is.finite(dat$true_mu) & is.finite(fitted)
+    if (any(ok_truth)) {
+      err_mu <- fitted[ok_truth] - dat$true_mu[ok_truth]
+      out["benchmark_mean_bias"] <- mean(err_mu)
+      out["benchmark_mean_mae"] <- mean(abs(err_mu))
+      out["benchmark_mean_rmse"] <- sqrt(mean(err_mu^2))
+    }
+  }
+
+  alpha <- (1 - interval_level) / 2
+  q_pred <- tryCatch(stats::predict(fit, newdata = data, type = "quantile", probs = c(alpha, 1 - alpha, p)), error = function(e) NULL)
+  q_cols <- if (is.data.frame(q_pred) && ncol(q_pred) >= 6L) q_pred[(ncol(q_pred) - 2L):ncol(q_pred)] else NULL
+  lower <- if (!is.null(q_cols)) as.numeric(q_cols[[1L]]) else rep(NA_real_, nrow(data))
+  upper <- if (!is.null(q_cols)) as.numeric(q_cols[[2L]]) else rep(NA_real_, nrow(data))
+  q_p <- if (!is.null(q_cols)) as.numeric(q_cols[[3L]]) else rep(NA_real_, nrow(data))
+
+  pit <- .benchmark_predict_gamlss_vector(fit, data, type = "cdf", value_name = "cdf", q = y)
+  truth_dist <- .coverage_true_margin_distribution(
+    dat,
+    family = .benchmark_truth_family(stats::gaussian(), truth_family = truth_family %||% fit$margin_dist$family[1]),
+    p = p
+  )
+  cdf_at_truth_q <- .benchmark_predict_gamlss_vector(fit, data, type = "cdf", value_name = "cdf", q = truth_dist$q)
+
+  ok_q <- is.finite(q_p) & is.finite(truth_dist$q)
+  if (any(ok_q)) {
+    out["benchmark_q90_mae"] <- mean(abs(q_p[ok_q] - truth_dist$q[ok_q]), na.rm = TRUE)
+  }
+
+  ok_tail <- is.finite(cdf_at_truth_q) & is.finite(truth_dist$cdf)
+  if (any(ok_tail)) {
+    out["benchmark_upper_tail_error_90"] <- mean((1 - cdf_at_truth_q[ok_tail]) - (1 - truth_dist$cdf[ok_tail]), na.rm = TRUE)
+  }
+
+  ok_interval <- is.finite(y) & is.finite(lower) & is.finite(upper)
+  if (any(ok_interval)) {
+    out["benchmark_interval_coverage_95"] <- mean(y[ok_interval] >= lower[ok_interval] & y[ok_interval] <= upper[ok_interval])
+  }
+
+  ok_pit <- is.finite(pit)
+  if (sum(ok_pit) >= 3L) {
+    pit <- pmin(pmax(pit[ok_pit], 0), 1)
+    out["benchmark_pit_ks_p_value"] <- tryCatch(
+      suppressWarnings(stats::ks.test(pit, "punif")$p.value),
+      error = function(e) NA_real_
+    )
+    out["benchmark_pit_mean_abs_error"] <- abs(mean(pit, na.rm = TRUE) - 0.5)
+    out["benchmark_tail_error_lower_05"] <- mean(pit <= 0.05, na.rm = TRUE) - 0.05
+    out["benchmark_tail_error_upper_05"] <- mean(pit >= 0.95, na.rm = TRUE) - 0.05
+  }
+
+  out
+}
+
+.benchmark_fit_one <- function(
+  data,
+  formula,
+  subject_var,
+  family,
+  comparator,
+  correlation,
+  add_subject_re_to_gamm,
+  distributional_metrics = TRUE,
+  truth_family = NULL,
+  quantile_prob = 0.9,
+  interval_level = 0.95,
+  ...
+) {
   status <- benchmark_comparator_status()
   status_row <- status[match(comparator, status$comparator), , drop = FALSE]
   if (nrow(status_row) != 1L || is.na(status_row$comparator)) {
@@ -659,32 +940,53 @@ write_benchmark_report <- function(
     elapsed <- as.numeric(difftime(Sys.time(), start, units = "secs"))
     return(list(
       fit = NULL,
-      row = data.frame(
-        method = comparator,
+      row = .benchmark_empty_result_row(
+        status_row = status_row,
         comparator = comparator,
-        comparator_class = status_row$comparator_class,
-        estimator = status_row$estimator,
-        package = status_row$package,
         available = FALSE,
         success = FALSE,
         elapsed_sec = elapsed,
         nobs = nrow(data),
-        logLik = NA_real_,
-        AIC = NA_real_,
-        mae = NA_real_,
-        rmse = NA_real_,
-        benchmark_mae = NA_real_,
-        benchmark_rmse = NA_real_,
-        warning = NA_character_,
-        error = paste0("Package '", status_row$package, "' is not installed."),
-        stringsAsFactors = FALSE
+        error = paste0("Package '", status_row$package, "' is not installed.")
+      )
+    ))
+  }
+
+  smooth_comparators <- c("gam", "gamm")
+  if (!comparator %in% smooth_comparators && .benchmark_formula_has_smooth(formula)) {
+    elapsed <- as.numeric(difftime(Sys.time(), start, units = "secs"))
+    return(list(
+      fit = NULL,
+      row = .benchmark_empty_result_row(
+        status_row = status_row,
+        comparator = comparator,
+        available = TRUE,
+        success = FALSE,
+        elapsed_sec = elapsed,
+        nobs = nrow(data),
+        error = paste0(
+          "Smooth terms via s(...) are only supported for 'gam' and 'gamm' comparators; ",
+          "comparator '", comparator, "' cannot fit them."
+        )
       )
     ))
   }
 
   captured <- withCallingHandlers(
     tryCatch({
-      if (identical(comparator, "gee")) {
+      if (identical(comparator, "glm")) {
+        do.call(
+          stats::glm,
+          c(
+            list(
+              formula = formula,
+              data = data,
+              family = family
+            ),
+            list(...)
+          )
+        )
+      } else if (identical(comparator, "gee")) {
         data$.benchmark_subject_id <- data[[subject_var]]
         do.call(
           geepack::geeglm,
@@ -707,12 +1009,14 @@ write_benchmark_report <- function(
           lme4::glmer(f_re, data = data, family = family, ...)
         }
       } else if (identical(comparator, "gam")) {
-        f_gam <- if (isTRUE(add_subject_re_to_gam)) {
+        mgcv::gam(formula, data = data, family = family, method = "REML", ...)
+      } else if (identical(comparator, "gamm")) {
+        f_gamm <- if (isTRUE(add_subject_re_to_gamm)) {
           .benchmark_formula_with_subject_re_smooth(formula, subject_var)
         } else {
           formula
         }
-        mgcv::gam(f_gam, data = data, family = family, method = "REML", ...)
+        mgcv::gam(f_gamm, data = data, family = family, method = "REML", ...)
       } else {
         f_tmb <- .benchmark_formula_with_random_intercept(formula, subject_var)
         glmmTMB_fit <- getExportedValue("glmmTMB", "glmmTMB")
@@ -733,6 +1037,20 @@ write_benchmark_report <- function(
   y <- .benchmark_response(formula, data)
   pred <- if (success) .benchmark_predict_response(fit, data) else rep(NA_real_, length(y))
   scores <- .benchmark_score_predictions(as.numeric(y), pred)
+  distribution_scores <- if (success && isTRUE(distributional_metrics)) {
+    .benchmark_distribution_summaries(
+      y = as.numeric(y),
+      fitted = pred,
+      family = family,
+      data = data,
+      formula = formula,
+      truth_family = truth_family,
+      p = quantile_prob,
+      interval_level = interval_level
+    )
+  } else {
+    .benchmark_distribution_metric_empty()
+  }
   ll <- if (success && !identical(comparator, "gee")) {
     as.numeric(tryCatch(stats::logLik(fit), error = function(e) NA_real_))
   } else {
@@ -762,6 +1080,7 @@ write_benchmark_report <- function(
       rmse = unname(scores[["rmse"]]),
       benchmark_mae = unname(scores[["mae"]]),
       benchmark_rmse = unname(scores[["rmse"]]),
+      as.list(distribution_scores),
       warning = if (length(warnings)) paste(unique(warnings), collapse = " | ") else NA_character_,
       error = if (is.null(error)) NA_character_ else error,
       stringsAsFactors = FALSE
@@ -817,7 +1136,17 @@ write_benchmark_report <- function(
   NA_real_
 }
 
-.benchmark_supplied_fit_one <- function(fit, data, formula, fit_name) {
+.benchmark_supplied_fit_one <- function(
+  fit,
+  data,
+  formula,
+  family,
+  fit_name,
+  distributional_metrics = TRUE,
+  truth_family = NULL,
+  quantile_prob = 0.9,
+  interval_level = 0.95
+) {
   if (is.null(fit)) {
     return(NULL)
   }
@@ -843,6 +1172,29 @@ write_benchmark_report <- function(
   pred <- .benchmark_predict_response(fit, data)
   scores <- .benchmark_score_predictions(as.numeric(y), pred)
   success <- any(is.finite(pred))
+  distribution_scores <- if (success && isTRUE(distributional_metrics) && inherits(fit, "gamlss.longitudinal")) {
+    .benchmark_gamlss_distribution_summaries(
+      fit = fit,
+      data = data,
+      formula = formula,
+      truth_family = truth_family,
+      p = quantile_prob,
+      interval_level = interval_level
+    )
+  } else if (success && isTRUE(distributional_metrics)) {
+    .benchmark_distribution_summaries(
+      y = as.numeric(y),
+      fitted = pred,
+      family = family,
+      data = data,
+      formula = formula,
+      truth_family = truth_family,
+      p = quantile_prob,
+      interval_level = interval_level
+    )
+  } else {
+    .benchmark_distribution_metric_empty()
+  }
   ll <- if (success) .benchmark_scalar_fit_stat(stats::logLik(fit)) else NA_real_
   aic <- if (success) .benchmark_supplied_fit_aic(fit) else NA_real_
 
@@ -864,6 +1216,7 @@ write_benchmark_report <- function(
       rmse = unname(scores[["rmse"]]),
       benchmark_mae = unname(scores[["mae"]]),
       benchmark_rmse = unname(scores[["rmse"]]),
+      as.list(distribution_scores),
       warning = NA_character_,
       error = if (success) NA_character_ else "Prediction failed or returned no finite response-scale values.",
       stringsAsFactors = FALSE
@@ -871,29 +1224,38 @@ write_benchmark_report <- function(
   )
 }
 
-#' Fit standard GEE/GLMM/GAM comparators for adoption benchmarks
+#' Fit standard longitudinal comparator models for adoption benchmarks
 #'
 #' `benchmark_standard_models()` is an opt-in scaffold for comparing
 #' `gamlss.longitudinal` with models users already know. It is intentionally
 #' narrow: optionally score an already-fitted primary model, fit common
-#' mean-model baselines, record whether they ran, and return simple timing and
-#' response-scale prediction metrics. Simulation studies can build coverage,
-#' calibration, tail, and trajectory metrics on top of this.
+#' mean-model baselines, record whether they ran, and return timing,
+#' response-scale prediction metrics, and distributional diagnostics when the
+#' fitted model family supports them.
 #'
 #' @param data Long-format data frame.
 #' @param formula Mean-model formula used by the comparator models.
 #' @param subject_var Subject identifier column.
 #' @param family A base R family object or one of `"gaussian"`, `"poisson"`,
 #'   `"binomial"`, or `"gamma"`.
-#' @param comparators Character vector containing any of `"gee"`, `"glmm"`,
-#'   `"gam"`, and `"glmmTMB"`.
+#' @param comparators Character vector containing any of `"glm"`, `"gee"`,
+#'   `"glmm"`, `"gam"`, `"gamm"`, and `"glmmTMB"`.
 #' @param correlation Working correlation passed to `geepack::geeglm()`.
-#' @param add_subject_re_to_gam Logical; add `s(subject, bs = "re")` to the GAM
-#'   comparator.
+#' @param add_subject_re_to_gamm Logical; add `s(subject, bs = "re")` to the
+#'   GAMM comparator.
+#' @param add_subject_re_to_gam Deprecated alias for `add_subject_re_to_gamm`.
 #' @param fit Optional already-fitted primary model to score beside the standard
 #'   comparators. For a `gamlss.longitudinal` fit, response-scale predictions
 #'   are obtained with `predict(fit, newdata = data, type = "response")`.
 #' @param fit_name Label used for the supplied `fit` row.
+#' @param distributional_metrics Logical; compute interval coverage, PIT
+#'   calibration, tail-frequency diagnostics, and truth-aware quantile/tail
+#'   metrics when enough information is available.
+#' @param truth_family Optional `gamlss.dist` family name used to derive true
+#'   quantiles from `true_*` columns. Defaults are inferred from `family`.
+#' @param quantile_prob Probability used for the benchmark quantile and upper
+#'   tail metrics.
+#' @param interval_level Prediction interval level used for empirical coverage.
 #' @param ... Additional arguments passed to each comparator fit.
 #'
 #' @return An object of class `gamlss_longitudinal_benchmark` with `results`
@@ -904,19 +1266,39 @@ benchmark_standard_models <- function(
   formula,
   subject_var,
   family = "gaussian",
-  comparators = c("gee", "glmm", "gam"),
+  comparators = c("glm", "gee", "glmm", "gam", "gamm"),
   correlation = "exchangeable",
-  add_subject_re_to_gam = TRUE,
+  add_subject_re_to_gamm = TRUE,
+  add_subject_re_to_gam = NULL,
   fit = NULL,
   fit_name = "gamlss.longitudinal",
+  distributional_metrics = TRUE,
+  truth_family = NULL,
+  quantile_prob = 0.9,
+  interval_level = 0.95,
   ...
 ) {
   data <- as.data.frame(data, stringsAsFactors = FALSE)
   if (!is.character(subject_var) || length(subject_var) != 1L || !subject_var %in% names(data)) {
     stop("'subject_var' must be a single column name in 'data'.", call. = FALSE)
   }
+  if (!is.null(add_subject_re_to_gam)) {
+    warning(
+      "'add_subject_re_to_gam' is deprecated; use 'add_subject_re_to_gamm' instead.",
+      call. = FALSE
+    )
+    add_subject_re_to_gamm <- add_subject_re_to_gam
+  }
   formula <- stats::as.formula(formula)
   family <- .benchmark_family(family)
+  quantile_prob <- as.numeric(quantile_prob)[1L]
+  interval_level <- as.numeric(interval_level)[1L]
+  if (!is.finite(quantile_prob) || quantile_prob <= 0 || quantile_prob >= 1) {
+    stop("'quantile_prob' must be a probability strictly between 0 and 1.", call. = FALSE)
+  }
+  if (!is.finite(interval_level) || interval_level <= 0 || interval_level >= 1) {
+    stop("'interval_level' must be a probability strictly between 0 and 1.", call. = FALSE)
+  }
   comparators <- unique(as.character(comparators))
   valid <- benchmark_comparator_status()$comparator
   bad <- setdiff(comparators, valid)
@@ -940,7 +1322,11 @@ benchmark_standard_models <- function(
       family = family,
       comparator = comparator,
       correlation = correlation,
-      add_subject_re_to_gam = add_subject_re_to_gam,
+      add_subject_re_to_gamm = add_subject_re_to_gamm,
+      distributional_metrics = distributional_metrics,
+      truth_family = truth_family,
+      quantile_prob = quantile_prob,
+      interval_level = interval_level,
       ...
     )
   })
@@ -948,7 +1334,12 @@ benchmark_standard_models <- function(
     fit = fit,
     data = data,
     formula = formula,
-    fit_name = fit_name
+    family = family,
+    fit_name = fit_name,
+    distributional_metrics = distributional_metrics,
+    truth_family = truth_family,
+    quantile_prob = quantile_prob,
+    interval_level = interval_level
   )
   runs <- c(if (!is.null(supplied_run)) list(supplied_run), comparator_runs)
   fit_names <- c(if (!is.null(supplied_run)) fit_name, comparators)
