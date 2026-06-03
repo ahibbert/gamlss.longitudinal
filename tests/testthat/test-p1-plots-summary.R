@@ -143,6 +143,8 @@ test_that("T157 copula plot wrappers remain available after install", {
 
   expect_true(is.list(p1))
   expect_true(all(c("plots", "dashboard", "fit_data", "pair_data", "quartile_summary") %in% names(p1)))
+  expect_equal(length(p1$plots), 9L)
+  expect_true("rosenblatt_qq" %in% names(p1$plots))
   expect_true(is.list(p2))
   expect_true(all(c("plots", "dashboard", "grid", "metrics") %in% names(p2)))
 })
@@ -160,4 +162,68 @@ test_that("T158 old plotting entry points delegate with lifecycle warnings", {
   old_copula <- suppressWarnings(plot.copula(fit, plot = FALSE))
   expect_true(is.list(old_copula))
   expect_true(all(c("plots", "dashboard", "fit_data", "pair_data", "quartile_summary") %in% names(old_copula)))
+})
+
+test_that("T159 standard fit inspection plotting helpers are available", {
+  dat0 <- make_fixture_factor_time_interaction(n_subject = 12L)
+  dat <- data.frame(
+    subject = dat0$id,
+    time = dat0$time_raw,
+    response = dat0$y
+  )
+
+  margin_plot <- suppressWarnings(plot_margin_fit(
+    dat,
+    family = gamlss.dist::NO(),
+    response_var = "response",
+    plot = FALSE
+  ))
+  expect_s3_class(margin_plot$plot, "ggplot")
+  expect_true(all(c("plot", "data", "density") %in% names(margin_plot)))
+
+  copula_screen <- select_copula(
+    data = dat,
+    response_var = "response",
+    margin_dist = gamlss.dist::NO(),
+    subject_var = "subject",
+    time_var = "time",
+    families = c("N", "C"),
+    min_pairs = 5
+  )
+  copula_plot <- suppressWarnings(plot_copula_fit(
+    data = dat,
+    copula = copula_screen,
+    response_var = "response",
+    margin_dist = gamlss.dist::NO(),
+    subject_var = "subject",
+    time_var = "time",
+    plot = FALSE
+  ))
+  expect_s3_class(copula_plot$plot, "ggplot")
+  expect_true(all(c("plot", "pair_data", "density") %in% names(copula_plot)))
+
+  grid_plot <- suppressWarnings(plot_dist(
+    dat,
+    gamlss.dist::NO(),
+    offdiag_scale = "pseudo",
+    overlay = "margin"
+  ))
+  expect_false(is.null(grid_plot))
+
+  fit <- fit_fixture_model(dat0, include_dlcopdpar = TRUE)
+  model_margin_plot <- suppressWarnings(plot_margin_fit(fit, plot = FALSE))
+  model_copula_plot <- suppressWarnings(plot_copula_fit(object = fit, plot = FALSE))
+  model_copula_overlay_plot <- suppressWarnings(plot_copula_overlay(object = fit, plot = FALSE))
+  model_grid_plot <- suppressWarnings(plot_dist(
+    dat,
+    gamlss.dist::NO(),
+    offdiag_scale = "pseudo",
+    fit = fit,
+    overlay = "model"
+  ))
+
+  expect_s3_class(model_margin_plot$plot, "ggplot")
+  expect_s3_class(model_copula_plot$plot, "ggplot")
+  expect_s3_class(model_copula_overlay_plot$plot, "ggplot")
+  expect_false(is.null(model_grid_plot))
 })
