@@ -102,7 +102,7 @@ fit_fixture_model <- function(
   })
 
   withCallingHandlers(
-    gamlss.longitudinal::gamlss.longitudinal(
+    gamlss.longitudinal::gamlss_longitudinal(
       dataset = dataset,
       margin_dist = gamlss.dist::NO(),
       copula_dist = "N",

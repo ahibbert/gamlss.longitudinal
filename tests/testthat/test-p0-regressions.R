@@ -88,6 +88,48 @@ test_that("T004 dlcopdpar TRUE/FALSE parity smoke test", {
   expect_setequal(names(fit_false$par), names(fit_true$par))
 })
 
+test_that("T004b warm-start convergence warnings do not escape final converged fit", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 12L)
+  escaped_warnings <- character(0)
+  fit <- NULL
+
+  capture.output({
+    fit <- withCallingHandlers(
+      gamlss.longitudinal::gamlss_longitudinal(
+        dataset = dat,
+        margin_dist = gamlss.dist::NO(),
+        copula_dist = "N",
+        time_var = "time_raw",
+        subject_var = "id",
+        mu.formula = y ~ time_raw * gender + age,
+        sigma.formula = ~ time_raw + gender,
+        theta.formula = ~ time_raw,
+        include_dlcopdpar = TRUE,
+        warm_start_joint = TRUE,
+        warm_start_joint_iter = 2L,
+        max_outer_iter = 10L,
+        max_inner_iter = 2L,
+        outer_stop_crit = 1,
+        inner_stop_crit = 1,
+        compute_vcov = FALSE,
+        verbose = 0
+      ),
+      warning = function(w) {
+        escaped_warnings <<- c(escaped_warnings, conditionMessage(w))
+        invokeRestart("muffleWarning")
+      }
+    )
+  })
+
+  expect_true(isTRUE(fit$convergence$converged))
+  expect_false(any(grepl("Model stopped at max_outer_iter", escaped_warnings, fixed = TRUE)))
+  expect_true(any(grepl(
+    "Model stopped at max_outer_iter",
+    fit$warm_start_joint$captured_warnings,
+    fixed = TRUE
+  )))
+})
+
 test_that("T005 baseline fit fingerprint stays stable with use_backtracking FALSE", {
   dat <- make_fixture_factor_time_interaction(n_subject = 24L)
 

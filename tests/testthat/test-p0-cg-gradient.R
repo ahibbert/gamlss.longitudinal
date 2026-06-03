@@ -13,7 +13,7 @@ test_that("CG analytical gradient matches finite differences on a tiny model", {
   dat$response <- 1 + 0.2 * dat$x + 0.1 * dat$time + stats::rnorm(nrow(dat), sd = 0.4)
 
   fit <- withCallingHandlers(
-    gamlss.longitudinal(
+    gamlss_longitudinal(
       dat,
       gamlss.dist::NO(),
       "N",
