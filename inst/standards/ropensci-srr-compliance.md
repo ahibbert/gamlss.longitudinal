@@ -97,7 +97,7 @@ Status meanings:
 | ID | Status | Evidence / change needed |
 |---|---|---|
 | RE1.0 | Met | Primary model interface uses formulas. |
-| RE1.1 | Met | `gamlss.longitudinal()` and `fit_longitudinal()` document formula inputs. |
+| RE1.1 | Met | `gamlss_longitudinal()` documents formula inputs. |
 | RE1.2 | Met | Formula inputs are converted through model-frame/model-matrix machinery. |
 | RE1.3 | Met | Subject/time metadata is retained and row-name loss after expansion is documented and tested. |
 | RE1.3a | Met | Accessor tests cover observed and expanded model-frame reconstruction. |
