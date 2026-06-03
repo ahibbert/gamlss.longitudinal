@@ -160,7 +160,7 @@ Other standard functions for outputs of regression models are also available, su
 confint(fit)
 
 #Wald test
-wald_test(fit, terms = "mu.treatment")
+wald_test(fit)
 
 # Likelihood ratio test
 fit_reduced <- gamlss_longitudinal(
@@ -294,8 +294,7 @@ marginal_effects(
 If the target is a dependence-sensitive event, simulate from the fitted model:
 
 ```{r simulation}
-sim_marginal <- simulate(fit, nsim = 100, type = "marginal", seed = 1)
-sim_copula <- simulate(fit, nsim = 100, type = "copula", seed = 1)
+sim_model <- simulate(fit, nsim = 100, seed = 1)
 ```
 
 ## Optional: Compare/benchmark to familiar models: gee (geepack), glmm (lme4), gam (mgcv)
