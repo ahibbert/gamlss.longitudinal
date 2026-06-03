@@ -206,6 +206,25 @@ test_that("T208 wald_test returns individual and joint hypothesis tests", {
   expect_equal(contrast$df, 1)
 })
 
+test_that("T208b wald_test accepts coefficient-name prefixes", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 10L)
+  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+  prefixed_terms <- names(fit$par)[startsWith(names(fit$par), "mu.gender")]
+
+  expect_gt(length(prefixed_terms), 0L)
+
+  wt <- wald_test(fit, terms = "mu.gender", method = "numderiv", progress = FALSE)
+  expect_equal(wt$term, prefixed_terms)
+
+  time_terms <- names(fit$par)[startsWith(names(fit$par), "mu.time_covariate") & !grepl(":", names(fit$par), fixed = TRUE)]
+  wt_time <- wald_test(fit, terms = "mu.time_covariate", method = "numderiv", progress = FALSE)
+  expect_equal(wt_time$term, time_terms)
+
+  joint <- wald_test(fit, terms = "mu.gender", joint = TRUE, method = "numderiv", progress = FALSE)
+  expect_true(isTRUE(attr(joint, "joint")))
+  expect_equal(joint$df, length(prefixed_terms))
+})
+
 test_that("T209 likelihood_compare returns sequential LR summaries", {
   dat <- make_fixture_factor_time_interaction(n_subject = 10L)
   reduced <- suppressWarnings(gamlss_longitudinal(
@@ -261,4 +280,21 @@ test_that("T210 bootstrap_inference refits simulated responses", {
   expect_equal(boot$summary$term, terms)
   expect_true(all(c("estimate", "bootstrap_mean", "bootstrap_se", "conf.low", "conf.high", "successful_replicates") %in% names(boot$summary)))
   expect_equal(nrow(boot$replicates), 2L)
+
+  prefix_terms <- names(fit$par)[startsWith(names(fit$par), "mu.gender")]
+  boot_prefix <- bootstrap_inference(
+    fit,
+    R = 1,
+    terms = "mu.gender",
+    seed = 124,
+    simulation_type = "marginal",
+    fit_args = list(
+      max_outer_iter = 1,
+      max_inner_iter = 1,
+      outer_stop_crit = 1,
+      inner_stop_crit = 1,
+      use_backtracking = FALSE
+    )
+  )
+  expect_equal(boot_prefix$summary$term, prefix_terms)
 })
