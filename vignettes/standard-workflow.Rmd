@@ -54,7 +54,7 @@ This workflow is designed to be able to be used on a dataset of your choice (wit
 ```{r simulated-data}
 # Simulate example dataset
 dat <- simulate_longitudinal_dataset(
-  n = 40,
+  n = 100,
   times = 0:3,
   margin_dist = GG(),
   copula_dist = "N",
@@ -134,7 +134,7 @@ For the included simulated example, we know there is a binary treatment effect a
 
 ```{r fit}
 # Fit longitudinal gamlss model
-fit <- fit_longitudinal(
+fit <- gamlss_longitudinal(
   dataset = dat,
   margin_dist = margin_dist,
   copula_dist = copula_dist,
