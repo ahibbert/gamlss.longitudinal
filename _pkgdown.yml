@@ -36,7 +36,8 @@ reference:
   - title: Standard Workflow
     desc: Adoption-facing helpers for the recommended screen, fit, check, predict workflow.
     contents:
-      - screen_margin
+      - select_margin
+      - best_fit
       - select_copula
       - fit_longitudinal
       - gamlss.longitudinal

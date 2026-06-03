@@ -15,21 +15,34 @@ knitr::opts_chunk$set(
 )
 ```
 
-The articles are organized around the way most users arrive at
-`gamlss.longitudinal`: first learn the standard workflow, then go deeper on
-inference, diagnostics, benchmarks, or migration from GEE and GLMM models.
+Welcome to the support page for **gamlss_longitudinal** !
+
+This package provides a easy to use for fitting longitudinal regression models with gamlss margins and copulas for dependence.
+
+This page is organised around your use case. In 'Start Here' we provide a basic workflow (which you can apply directly to your own dataset) and a more detailed worked example which uses a simulated dataset using the built in simulation features. The following sections provide more detail for each of the components of the workflow, and worked examples for migrating from a GEE or GLMM structure to a longitudinal gamlss-based analysis
+
+Please report any bugs or issues on our github at https://github.com/ahibbert/gamlss.longitudinal/issues or feel free to reach out to the maintainer at a.d.hibbert@gmail.com for any clarifications.
+
+This work is largely based on published research by Aydin Sareff-Hibbert and Gillian Heller:
+https://arxiv.org/abs/2410.11892
+https://arxiv.org/abs/2410.11892 (update to gamlss_longitudinal paper)
 
 ## Start Here
+
+Installation:
+```
+remotes::install_github("ahibbert/gamlss.longitudinal")
+```
 
 Read these first if you want the shortest path from data to an interpretable
 longitudinal model.
 
-| Article title | R code | Purpose |
+| Article title | Access from R | Purpose |
 |---|---|---|
-| [Standard Workflow API, Inference, and Diagnostics](standard-workflow.html) | `vignette("standard-workflow", package = "gamlss.longitudinal")` | The recommended screen, fit, check, infer, predict, and simulate workflow. |
-| [Native Simulation, Copula Screening, and GAMLSS Longitudinal Fitting](native-simulation-workflow.html) | `vignette("native-simulation-workflow", package = "gamlss.longitudinal")` | A full simulated example with known truth, copula screening, fitting, and diagnostics. |
+| [Simple workflow](standard-workflow.html) | `vignette("standard-workflow", package = "gamlss.longitudinal")` | The recommended screen, fit, check, infer, predict, and simulate workflow. |
+| [Detailed worked example](native-simulation-workflow.html) | `vignette("native-simulation-workflow", package = "gamlss.longitudinal")` | A full simulated example with known truth, copula screening, fitting, and diagnostics. |
 
-## Core Workflow Components
+## Core Workflow Components (COME BACK TO UPDATE THIS SECTION)
 
 Use these when reviewing one part of an analysis.
 
