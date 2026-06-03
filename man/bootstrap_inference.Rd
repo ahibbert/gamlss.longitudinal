@@ -9,7 +9,6 @@ bootstrap_inference(
   R = 100,
   terms = NULL,
   level = 0.95,
-  simulation_type = c("copula", "marginal"),
   seed = NULL,
   fit_args = list(),
   keep_fits = FALSE,
@@ -25,10 +24,6 @@ bootstrap_inference(
 indices to summarize.}
 
 \item{level}{Confidence level for percentile intervals.}
-
-\item{simulation_type}{Passed to \code{\link[=simulate.gamlss.longitudinal]{simulate.gamlss.longitudinal()}}. Use
-\code{"copula"} to preserve fitted dependence or \code{"marginal"} for independent
-fitted-margin simulation.}
 
 \item{seed}{Optional random seed.}
 
