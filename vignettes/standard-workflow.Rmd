@@ -291,7 +291,7 @@ marginal_effects(
 )
 ```
 
-If the target is a dependence-sensitive event, simulate from the fitted model:
+Simulate from the fitted model as desired, for a total of `nsim` replications. Note that simulation uses both copula and margin structure so dependence is maintained in simulations.
 
 ```{r simulation}
 sim_model <- simulate(fit, nsim = 100, seed = 1)
@@ -302,15 +302,31 @@ sim_model <- simulate(fit, nsim = 100, seed = 1)
 Since we know most users would be considering a longitudinal gamlss model as an alternative to existing solutions using gees, gam or glmms we provide easy to use comparison tools to benchmark longitudinal gamlss models to existing methods.
 
 ```{r comparator}
-# Fit comparison models and summarise fits
-benchmark_standard_models(
+# Fit comparison models and summarise fits for a model with linear age term
+bench_nosmooth <- benchmark_standard_models(
   data = dat,
   formula = response ~ treatment + time + age_scaled,
   subject_var = "subject",
   family = "gamma",
-  comparators = c("gee", "glmm", "gam")
+  fit = fit_reduced
 )
+
+print(bench_nosmooth)
+
+# Fit comparison models and summarise fits for a model with smooth age term
+bench_smooth <- benchmark_standard_models(
+  data = dat,
+  formula = response ~ treatment + time + s(age_scaled),
+  subject_var = "subject",
+  family = "gamma",
+  fit = fit
+)
+
+print(bench_smooth)
+
 ```
+
+In general, note that the purpose of the gamlss.longitudinal model is to accurately capture the full joint distribution shape. If the item of interest is just the mean, then gamlss.longitudinal is unlikely to provide large gains except for where distributions are clearly non-standard. By modelling the whole joint outcome distribution we can more accurately answer quesitons such as whether quantiles, tail risks, or uncertainty (SEs, confidence intervals, prediction intervals) change in a meaningful way. In addition, note that the consumption of degrees of freedom for calculation of accurate conditional AICs for random effect models can be substantial compared to the small number of parameters needed to fit a copula-based dependence structure.
 
 We provide additional information on comparisons in other vignettes: `vignette("benchmarking-adoption", package = "gamlss.longitudinal")` for scenario-level benchmark reporting.
 
