@@ -794,9 +794,6 @@ print.gamlss_longitudinal_likelihood_compare <- function(x, digits = max(3, getO
 #' @param terms Optional coefficient names, coefficient-name prefixes, or numeric
 #'   indices to summarize.
 #' @param level Confidence level for percentile intervals.
-#' @param simulation_type Passed to [simulate.gamlss.longitudinal()]. Use
-#'   `"copula"` to preserve fitted dependence or `"marginal"` for independent
-#'   fitted-margin simulation.
 #' @param seed Optional random seed.
 #' @param fit_args Optional named list of arguments passed to each refit, such
 #'   as `max_outer_iter`, `max_inner_iter`, or convergence tolerances.
@@ -810,7 +807,6 @@ bootstrap_inference <- function(
   R = 100,
   terms = NULL,
   level = 0.95,
-  simulation_type = c("copula", "marginal"),
   seed = NULL,
   fit_args = list(),
   keep_fits = FALSE,
@@ -826,7 +822,14 @@ bootstrap_inference <- function(
   if (!is.list(fit_args) || (length(fit_args) > 0L && (is.null(names(fit_args)) || any(names(fit_args) == "")))) {
     stop("'fit_args' must be a named list.", call. = FALSE)
   }
-  simulation_type <- match.arg(simulation_type)
+  dots <- list(...)
+  if ("simulation_type" %in% names(dots)) {
+    simulation_type <- dots$simulation_type
+    if (!identical(simulation_type, "copula")) {
+      stop("'simulation_type' is no longer supported; bootstrap_inference() simulates from the fitted copula model.", call. = FALSE)
+    }
+    dots$simulation_type <- NULL
+  }
   estimates <- stats::coef(object)
   idx <- .resolve_coefficient_terms(terms, names(estimates), arg = "terms")
   terms_use <- names(estimates)[idx]
@@ -848,7 +851,7 @@ bootstrap_inference <- function(
     set.seed(seed)
   }
 
-  sim <- simulate(object, nsim = R, type = simulation_type, ...)
+  sim <- do.call(simulate, c(list(object = object, nsim = R), dots))
   boot_coef <- matrix(NA_real_, nrow = R, ncol = length(terms_use))
   colnames(boot_coef) <- terms_use
   errors <- rep(NA_character_, R)
@@ -898,7 +901,7 @@ bootstrap_inference <- function(
     successful_replicates = sum(stats::complete.cases(boot_coef)),
     failed_replicates = sum(!is.na(errors)),
     level = level,
-    simulation_type = simulation_type,
+    simulation_type = "copula",
     fits = fits
   )
   class(out) <- "gamlss_longitudinal_bootstrap"
@@ -910,21 +913,10 @@ print.gamlss_longitudinal_bootstrap <- function(x, digits = max(3, getOption("di
   cat("\nParametric Bootstrap for gamlss.longitudinal\n")
   cat("-------------------------------------------\n")
   cat("Replicates:", x$R, "\n")
-  cat("Simulation type:", x$simulation_type, "\n")
+  cat("Simulation:", "fitted copula model", "\n")
   cat("Failed refits:", x$failed_replicates, "\n\n")
   print(x$summary, digits = digits, row.names = FALSE)
   invisible(x)
-}
-
-.gl_simulate_marginal_matrix <- function(object, diag_data, nsim) {
-  qfun <- get(paste0("q", diag_data$family), envir = asNamespace("gamlss.dist"), inherits = FALSE)
-  out <- matrix(NA_real_, nrow = length(diag_data$subject), ncol = nsim)
-  for (j in seq_len(nsim)) {
-    args <- c(list(p = stats::runif(nrow(out))), diag_data$params)
-    args <- args[names(args) %in% formalArgs(qfun)]
-    out[, j] <- do.call(qfun, args)
-  }
-  out
 }
 
 .gl_simulate_copula_matrix <- function(object, diag_data, nsim) {
@@ -983,11 +975,8 @@ print.gamlss_longitudinal_bootstrap <- function(x, digits = max(3, getOption("di
 #' @param object A fitted `gamlss.longitudinal` object.
 #' @param nsim Number of simulated response columns.
 #' @param seed Optional random seed.
-#' @param newdata Optional new data. Copula-preserving simulation is currently
-#'   available for fitted data only; `newdata` uses marginal simulation.
-#' @param type `"copula"` preserves the fitted first-order dependence on fitted
-#'   data. `"marginal"` simulates independently from fitted marginal
-#'   distributions.
+#' @param newdata Optional new data. Simulation from the fitted copula model is
+#'   currently available for fitted data only.
 #' @param ... Additional arguments reserved for future methods.
 #'
 #' @return A data frame with one column per simulation.
@@ -998,16 +987,24 @@ simulate.gamlss.longitudinal <- function(
   nsim = 1,
   seed = NULL,
   newdata = NULL,
-  type = c("copula", "marginal"),
   ...
 ) {
-  type <- match.arg(type)
   if (!inherits(object, "gamlss.longitudinal")) {
     stop("'object' must be a fitted 'gamlss.longitudinal' object.", call. = FALSE)
   }
   nsim <- as.integer(nsim)
   if (!is.finite(nsim) || nsim < 1L) {
     stop("'nsim' must be a positive integer.", call. = FALSE)
+  }
+  dots <- list(...)
+  if ("type" %in% names(dots)) {
+    type <- dots$type
+    if (!identical(type, "copula")) {
+      stop("'type' is no longer supported; simulate() always uses the fitted copula model.", call. = FALSE)
+    }
+  }
+  if (!is.null(newdata)) {
+    stop("Copula-preserving simulation with 'newdata' is not yet implemented.", call. = FALSE)
   }
 
   if (!is.null(seed)) {
@@ -1028,14 +1025,12 @@ simulate.gamlss.longitudinal <- function(
     set.seed(seed)
   }
 
-  diag_data <- .gl_fitted_distribution(object, newdata = newdata, require_response = FALSE)
-  sim_mat <- if (type == "copula" && is.null(newdata)) {
-    .gl_simulate_copula_matrix(object, diag_data, nsim)
-  } else {
-    if (type == "copula" && !is.null(newdata)) {
-      warning("Copula-preserving simulation with 'newdata' is not yet implemented; using marginal simulation.", call. = FALSE)
-    }
-    .gl_simulate_marginal_matrix(object, diag_data, nsim)
+  diag_data <- .gl_fitted_distribution(object, newdata = NULL, require_response = TRUE)
+  sim_mat <- .gl_simulate_copula_matrix(object, diag_data, nsim)
+  if (nrow(sim_mat) != length(object$response)) {
+    full_sim_mat <- matrix(NA_real_, nrow = length(object$response), ncol = nsim)
+    full_sim_mat[diag_data$keep_index, ] <- sim_mat
+    sim_mat <- full_sim_mat
   }
 
   out <- as.data.frame(sim_mat, stringsAsFactors = FALSE)
