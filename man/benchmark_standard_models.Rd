@@ -12,6 +12,8 @@ benchmark_standard_models(
   comparators = c("gee", "glmm", "gam"),
   correlation = "exchangeable",
   add_subject_re_to_gam = TRUE,
+  fit = NULL,
+  fit_name = "gamlss.longitudinal",
   ...
 )
 }
@@ -33,6 +35,12 @@ benchmark_standard_models(
 \item{add_subject_re_to_gam}{Logical; add \code{s(subject, bs = "re")} to the GAM
 comparator.}
 
+\item{fit}{Optional already-fitted primary model to score beside the standard
+comparators. For a \code{gamlss.longitudinal} fit, response-scale predictions
+are obtained with \code{predict(fit, newdata = data, type = "response")}.}
+
+\item{fit_name}{Label used for the supplied \code{fit} row.}
+
 \item{...}{Additional arguments passed to each comparator fit.}
 }
 \value{
@@ -42,7 +50,8 @@ and \code{fits} components.
 \description{
 \code{benchmark_standard_models()} is an opt-in scaffold for comparing
 \code{gamlss.longitudinal} with models users already know. It is intentionally
-narrow: fit common mean-model baselines, record whether they ran, and return
-simple timing and response-scale prediction metrics. Simulation studies can
-build coverage, calibration, tail, and trajectory metrics on top of this.
+narrow: optionally score an already-fitted primary model, fit common
+mean-model baselines, record whether they ran, and return simple timing and
+response-scale prediction metrics. Simulation studies can build coverage,
+calibration, tail, and trajectory metrics on top of this.
 }
