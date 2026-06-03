@@ -258,8 +258,8 @@ fit_longitudinal <- function(
   run_checks = TRUE,
   method = "RS",
   include_dlcopdpar = TRUE,
-  compute_vcov = FALSE,
-  warm_start_joint = FALSE,
+  compute_vcov = TRUE,
+  warm_start_joint = TRUE,
   verbose = 0,
   ...
 ) {
