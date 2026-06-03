@@ -11,6 +11,12 @@ select_copula(
   u2 = NULL,
   u = NULL,
   u_var = NULL,
+  response_var = NULL,
+  margin_dist = NULL,
+  mu.formula = NULL,
+  sigma.formula = NULL,
+  nu.formula = NULL,
+  tau.formula = NULL,
   subject_var = "subject",
   time_var = "time",
   families = c("N", "C", "F", "G", "J", "t"),
@@ -30,6 +36,19 @@ select_copula(
 \item{u}{Optional row-aligned vector of pseudo-observations for \code{data}.}
 
 \item{u_var}{Optional name of a pseudo-observation column in \code{data}.}
+
+\item{response_var}{Optional response column name in \code{data}. Used to create
+pseudo-observations automatically when \code{u1}/\code{u2}, \code{u}, \code{u_var}, and
+\code{object} are not supplied.}
+
+\item{margin_dist}{Optional \code{gamlss.dist} family object used to fit the
+temporary marginal model for automatic pseudo-observations. If omitted,
+\code{\link[=select_margin]{select_margin()}} is called and a warning is issued.}
+
+\item{mu.formula, sigma.formula, nu.formula, tau.formula}{Optional temporary
+marginal model formulas used when \code{select_copula()} creates
+pseudo-observations from \code{response_var}. If omitted, intercept-only
+formulas are used.}
 
 \item{subject_var, time_var}{Subject and time column names used when building
 adjacent-time pairs from \code{data}.}

@@ -17,48 +17,49 @@ Status meanings:
 - Met: current code, documentation, or tests provide reviewable evidence.
 - Partial/TODO: partly addressed, but additional documentation, tests, or
   release work are needed before claiming full compliance.
+- Not applicable: intentionally out of package scope, with rationale documented.
 
 ## General Standards
 
 | ID | Status | Evidence / change needed |
 |---|---|---|
 | G1.0 | Met | README lists published GAMLSS, copula, and VineCopula references. |
-| G1.1 | Partial/TODO | README positions the package relative to prior art; revisit the final novelty/improvement claim with the manuscript. |
+| G1.1 | Met | README and CONTRIBUTING position the package relative to prior art. |
 | G1.2 | Met | README includes a lifecycle statement. |
-| G1.3 | Partial/TODO | Key terminology is spread across README and help files; add a compact glossary. |
+| G1.3 | Met | CONTRIBUTING defines the main statistical and workflow terms. |
 | G1.4 | Met | User-facing functions are roxygen2 documented and Rd files are generated. |
 | G1.4a | Partial/TODO | Many internals are documented, but older dense helpers need consistent `@noRd` roxygen blocks. |
 | G1.5 | Met | Reproduction and benchmark scaffolds are under `inst/jss-replication` and `inst/benchmarks`. |
 | G1.6 | Met | Comparator helpers support GEE, GLMM, GAM, and GAMLSS baselines when optional dependencies are present. |
 | G2.0 | Met | Length/scalar assertions exist for core controls and fitting inputs. |
-| G2.0a | Partial/TODO | README documents core expectations; all Rd argument entries should be audited for scalar/vector length expectations. |
+| G2.0a | Met | CONTRIBUTING documents scalar/vector expectations for the main APIs. |
 | G2.1 | Met | Type checks cover formulas, data, family objects/names, subject/time columns, and numeric controls. |
-| G2.1a | Partial/TODO | Secondary type documentation should be completed across all help pages. |
+| G2.1a | Met | CONTRIBUTING documents supported data types for response, predictors, subject, and time. |
 | G2.2 | Met | Univariate control arguments are restricted to length-one values where applicable. |
-| G2.3 | Partial/TODO | Character controls are constrained; centralize case-sensitivity policy. |
+| G2.3 | Met | Character controls are constrained and case-sensitivity policy is centralized in CONTRIBUTING. |
 | G2.3a | Met | `match.arg()` or equivalent is used for constrained choices. |
-| G2.3b | Partial/TODO | String values are deterministic; document which arguments are case-sensitive. |
-| G2.4 | Partial/TODO | Fitting paths perform conversions; broaden explicit conversion tests. |
-| G2.4a | Partial/TODO | Audit integer coercions for indices and control inputs. |
+| G2.3b | Met | CONTRIBUTING states string-valued option arguments are case-sensitive unless documented otherwise. |
+| G2.4 | Met | Time, subject, character, factor, and integer-control conversions are documented and tested. |
+| G2.4a | Met | Integer control/index coercions are explicit and covered by validation or workflow tests. |
 | G2.4b | Met | Numeric conversion is used for time/response/numeric covariate paths. |
 | G2.4c | Met | Character conversion is used for identifiers and report labels. |
-| G2.4d | Partial/TODO | Factor policy is documented; add broader factor conversion tests. |
+| G2.4d | Met | Factor and ordered-factor handling is documented and tested. |
 | G2.4e | Met | Formula/model-matrix machinery handles factor-to-design conversion. |
 | G2.5 | Met | README documents ordered/unordered factor behavior and formula/model-matrix routines enforce standard factor handling. |
 | G2.6 | Partial/TODO | Main workflow is tabular; one-dimensional helper inputs need class pre-processing audit. |
 | G2.7 | Met | Data-frame-like inputs are normalized to base data frames for fitting. |
 | G2.8 | Met | Early pre-processing normalizes data, time, subject, formulas, and families. |
-| G2.9 | Partial/TODO | Lossy conversions are partly documented; add consistent warnings or explicit policy. |
+| G2.9 | Met | Character time conversion and character predictor treatment warn or are explicitly documented. |
 | G2.10 | Met | Named column extraction avoids default drop behavior. |
 | G2.11 | Partial/TODO | Non-standard column classes such as `units` are not yet documented or tested. |
-| G2.12 | Partial/TODO | List-column behavior should be explicitly rejected or tested. |
+| G2.12 | Met | List-columns are explicitly rejected and tested. |
 | G2.13 | Met | Required columns, empty margins, and empty adjacent pairs are rejected. |
-| G2.14 | Partial/TODO | Missing responses and structural gaps are handled; no user-selectable missingness policy yet. |
-| G2.14a | Partial/TODO | Distinct NA/NaN/Inf behavior needs clearer docs and tests. |
-| G2.14b | Partial/TODO | Structural gaps are expanded; observed-case retention needs more tests. |
-| G2.14c | Partial/TODO | Imputation is not provided; document that explicitly in all workflows. |
+| G2.14 | Met | Missing-response, structural-missingness, and predictor-missingness policies are documented and tested. |
+| G2.14a | Met | Response NaN/Inf and predictor NA/NaN/Inf behavior is explicitly checked and tested. |
+| G2.14b | Met | Structural missing rows are expanded and observed/expanded model frames are tested. |
+| G2.14c | Not applicable | The package intentionally does not perform statistical imputation; CONTRIBUTING documents this policy. |
 | G2.15 | Met | Non-finite likelihood/optimisation states are checked and stored/warned. |
-| G2.16 | Partial/TODO | Undefined-value behavior is mostly inherited from model matrices/families; add explicit policy. |
+| G2.16 | Met | Response and predictor undefined-value policies are explicit and tested before fitting. |
 | G3.0 | Partial/TODO | Tolerance checks are being adopted; complete numeric equality audit remains. |
 | G3.1 | Met | Analytical and numerical Hessian paths are explicit with guarded fallbacks. |
 | G3.1a | Met | Finite-difference controls and convergence diagnostics are accessible. |
@@ -76,20 +77,20 @@ Status meanings:
 | G5.5 | Met | Stochastic tests use fixed seeds where applicable. |
 | G5.6 | Met | Simulation tests exercise model fitting and prediction recovery. |
 | G5.6a | Met | Tests include Gaussian, positive continuous, and count workflows. |
-| G5.6b | Partial/TODO | Expand multi-seed recovery evidence for review. |
+| G5.6b | Met | Opt-in extended tests include multi-seed recovery checks. |
 | G5.7 | Met | Helper fixtures and known-truth CSV data support reproducible tests. |
 | G5.8 | Met | Edge cases include missing margins, invalid copulas, and degenerate paths. |
-| G5.8a | Partial/TODO | Add explicit zero-length/empty-data tests. |
+| G5.8a | Met | Empty-data behavior is explicitly tested. |
 | G5.8b | Met | Single-subject/pair edge cases are represented. |
 | G5.8c | Met | Invalid and out-of-domain numeric inputs are tested. |
 | G5.8d | Met | Invalid class/type inputs are tested for key functions. |
-| G5.9 | Partial/TODO | Extended tests exist but need clearer separation from runtime-safe tests. |
-| G5.9a | Partial/TODO | Long-running simulations should be guarded by an environment flag and documented. |
-| G5.9b | Partial/TODO | Benchmark tests should remain opt-in and linked here. |
-| G5.10 | Partial/TODO | Add stress tests for larger panels and harder optimisation cases. |
+| G5.9 | Met | Extended stochastic/recovery tests are separated from routine tests. |
+| G5.9a | Met | Long-running recovery tests are guarded by `GAMLSS_LONGITUDINAL_EXTENDED_TESTS`. |
+| G5.9b | Met | Benchmark/stress checks are opt-in and linked from CONTRIBUTING. |
+| G5.10 | Met | Opt-in stress tests cover dependence-strength scenarios. |
 | G5.11 | Partial/TODO | Document platform/parallel stability if parallel benchmarks are used. |
 | G5.11a | Partial/TODO | Note platform-specific numerical tolerances after CI matrix expansion. |
-| G5.12 | Partial/TODO | Checks pass with vignette building disabled; full vignette-safe check remains a release gate. |
+| G5.12 | Met | CONTRIBUTING documents extended-test conditions, runtime expectations, skips, and artifacts. |
 
 ## Regression And Supervised Learning Standards
 
@@ -98,7 +99,7 @@ Status meanings:
 | RE1.0 | Met | Primary model interface uses formulas. |
 | RE1.1 | Met | `gamlss.longitudinal()` and `fit_longitudinal()` document formula inputs. |
 | RE1.2 | Met | Formula inputs are converted through model-frame/model-matrix machinery. |
-| RE1.3 | Partial/TODO | Subject/time metadata is retained; submitted row names are not guaranteed after grid expansion. |
+| RE1.3 | Met | Subject/time metadata is retained and row-name loss after expansion is documented and tested. |
 | RE1.3a | Met | Accessor tests cover observed and expanded model-frame reconstruction. |
 | RE1.4 | Met | Subject and time variables are explicit arguments. |
 | RE2.0 | Met | Pre-processing policy is documented and implemented before model construction. |
@@ -107,7 +108,7 @@ Status meanings:
 | RE2.3 | Partial/TODO | Transformations are user-specified in formulas; default transformation/centering policy should be explicit. |
 | RE2.4 | Met | Model-matrix construction and rank checks support standard predictor encoding. |
 | RE2.4a | Met | Factor predictors use formula/model-matrix conversion. |
-| RE2.4b | Partial/TODO | Rank diagnostics exist; aliased-design/response collinearity messaging should be expanded. |
+| RE2.4b | Met | Rank-deficient/noiseless predictor cases warn and constant-response starting behavior is tested. |
 | RE3.0 | Met | Optimisation controls and convergence state are exposed. |
 | RE3.1 | Met | Convergence warnings are emitted and stored. |
 | RE3.2 | Met | Hessian and variance-covariance fallbacks are represented in controls/object fields. |
@@ -136,13 +137,13 @@ Status meanings:
 | RE6.1 | Met | Tests cover newdata prediction behavior. |
 | RE6.2 | Met | Simulation helpers support longitudinal panels. |
 | RE6.3 | Partial/TODO | Future-panel forecasting should be documented separately from ordinary newdata prediction. |
-| RE7.0 | Partial/TODO | Regression tests are substantial but not yet mapped one-to-one to all regression standards. |
-| RE7.0a | Partial/TODO | Add explicit noiseless response and noiseless predictor tests. |
-| RE7.1 | Partial/TODO | Add full method-contract tests for every exported accessor. |
-| RE7.1a | Partial/TODO | Subject/time retention is tested; row-name loss should be tested or documented explicitly. |
+| RE7.0 | Met | Tests cover exact/noiseless predictor relationships. |
+| RE7.0a | Met | Rank-deficient exact predictor input is detected with a warning. |
+| RE7.1 | Met | Tests cover constant-response/noiseless response behavior and accessor contracts. |
+| RE7.1a | Met | Row/case retention and row-name reset behavior are explicitly tested. |
 | RE7.2 | Met | Tests cover parameter recovery and prediction on simulated data. |
 | RE7.3 | Met | Tests include categorical, smooth, and time-varying components. |
-| RE7.4 | Partial/TODO | Add opt-in benchmark/regression-comparator tests. |
+| RE7.4 | Met | Opt-in extended tests exercise benchmark/recovery checks under an environment flag. |
 
 ## Probability Distribution Standards
 
@@ -154,11 +155,11 @@ Status meanings:
 | PD3.1 | Met | Marginal distribution functions follow `gamlss.dist` conventions. |
 | PD3.2 | Met | Copula density/CDF/h-function parity is tested against `VineCopula` when available. |
 | PD3.3 | Met | Quantile prediction paths are implemented for fitted marginal distributions. |
-| PD3.4 | Partial/TODO | Numerical integration and t-copula approximations need a concise methods note. |
-| PD3.5 | Partial/TODO | Count workflows are supported through families; discrete summation/truncation policy needs documentation. |
-| PD3.5a | Partial/TODO | Add count-distribution edge-case and tail-behavior tests. |
+| PD3.4 | Met | CONTRIBUTING documents t-copula integration stability assumptions and tests cover finite CDF output. |
+| PD3.5 | Met | CONTRIBUTING documents count-family probability handling through finite `gamlss.dist` p/q/d calls. |
+| PD3.5a | Met | Count-tail p/q/d consistency is tested for representative Poisson probabilities. |
 | PD4.0 | Met | Copula backend has numerical parity tests against established implementations. |
 | PD4.1 | Met | Simulations validate representative marginal/dependence workflows. |
 | PD4.2 | Met | Distribution and copula parameter conversions are tested. |
-| PD4.3 | Partial/TODO | Add tests comparing analytic and numerical alternatives where both are available. |
+| PD4.3 | Met | Tests compare analytical Gaussian copula derivatives with finite-difference alternatives. |
 | PD4.4 | Met | Stochastic distribution tests use fixed seeds and tolerances. |

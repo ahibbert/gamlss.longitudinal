@@ -61,7 +61,7 @@ The native simulation vignette demonstrates:
 
 - native longitudinal data simulation,
 - exploratory `plotDist()` diagnostics,
-- marginal family screening with `gamlss::fitDist()`,
+- marginal family selection with `select_margin()` and `gamlss::fitDist()`,
 - native copula family screening with `select_copula()`,
 - fitting a longitudinal GAMLSS-copula model,
 - `summary()`, `plot()`, `plot_terms()`, and `plot_copula_diagnostics()` diagnostics,
@@ -82,24 +82,27 @@ If Pandoc is already available to R, the `Sys.setenv()` line is not needed.
 The adoption-facing workflow is:
 
 ```r
-margin_screen <- screen_margin(dat, response_var = "response")
+margin_selection <- select_margin(dat, response_var = "response")
+margin_dist <- best_fit_family(margin_selection)
 
-copula_screen <- select_copula(
+copula_selection <- select_copula(
   data = dat,
-  u_var = "u",
+  response_var = "response",
+  margin_dist = margin_dist,
   subject_var = "subject",
   time_var = "time"
 )
+copula_dist <- best_fit_family(copula_selection)
 
 fit <- fit_longitudinal(
   dataset = dat,
-  margin_dist = gamlss.dist::GA(mu.link = "log", sigma.link = "log"),
+  margin_dist = margin_dist,
   time_var = "time",
   subject_var = "subject",
   mu.formula = response ~ treatment + time + s(age_scaled, bs = "ps"),
   sigma.formula = ~ treatment + time,
   theta.formula = ~ time,
-  copula_dist = attr(copula_screen, "selected")
+  copula_dist = copula_dist
 )
 
 check_model(fit)
