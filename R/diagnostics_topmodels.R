@@ -132,11 +132,65 @@ procast <- function(object, ...) {
     nd$response <- NA_real_
   }
 
+  if (!is.null(object$dataset)) {
+    factor_cols <- names(object$dataset)[vapply(object$dataset, is.factor, logical(1))]
+    for (nm in intersect(factor_cols, names(nd))) {
+      train_col <- object$dataset[[nm]]
+      train_levels <- levels(train_col)
+      nd_values <- as.character(nd[[nm]])
+      unknown <- setdiff(unique(nd_values[!is.na(nd_values)]), train_levels)
+      if (length(unknown) > 0L) {
+        stop(
+          "newdata column '", nm, "' contains level(s) not seen during fitting: ",
+          paste(unknown, collapse = ", "),
+          call. = FALSE
+        )
+      }
+      nd[[nm]] <- factor(nd_values, levels = train_levels, ordered = is.ordered(train_col))
+      if (is.ordered(train_col) && length(train_levels) > 1L) {
+        contr <- contr.treatment(length(train_levels))
+        colnames(contr) <- train_levels[-1]
+        contrasts(nd[[nm]]) <- contr
+      }
+    }
+  }
+
   if (require_response && all(is.na(nd$response))) {
     stop("newdata must include a response column (or mapped response variable) for this operation.")
   }
 
   nd
+}
+
+.gl_align_model_matrix_columns <- function(mm_use, mm_reference) {
+  if (is.null(mm_use) || is.null(mm_reference)) {
+    return(mm_use)
+  }
+
+  for (par_name in intersect(names(mm_reference$x), names(mm_use$x))) {
+    ref_cols <- colnames(mm_reference$x[[par_name]])
+    use_cols <- colnames(mm_use$x[[par_name]])
+    missing_cols <- setdiff(ref_cols, use_cols)
+
+    if (length(missing_cols) > 0L) {
+      for (col_name in missing_cols) {
+        mm_use$x[[par_name]][[col_name]] <- 0
+      }
+    }
+
+    extra_cols <- setdiff(colnames(mm_use$x[[par_name]]), ref_cols)
+    if (length(extra_cols) > 0L) {
+      mm_use$x[[par_name]] <- mm_use$x[[par_name]][
+        ,
+        setdiff(colnames(mm_use$x[[par_name]]), extra_cols),
+        drop = FALSE
+      ]
+    }
+
+    mm_use$x[[par_name]] <- mm_use$x[[par_name]][, ref_cols, drop = FALSE]
+  }
+
+  mm_use
 }
 
 .gl_fitted_distribution <- function(object, newdata = NULL, require_response = TRUE) {
@@ -167,9 +221,11 @@ procast <- function(object, ...) {
         copula.family = object$copula_dist,
         copula.link = copula_link,
         dataset = nd,
-        quiet_gamlss2 = TRUE
+        quiet_gamlss2 = TRUE,
+        preserve_factor_levels = TRUE
       )
     )
+    mm_use <- .gl_align_model_matrix_columns(mm_use, object$model_matrix)
 
     response <- nd$response
     response_margin <- nd$time
