@@ -220,7 +220,7 @@ The direct constructor uses the underscore spelling for new code:
 ```r
 fit <- gamlss_longitudinal(
   dataset = dat,
-  margin_dist = gamlss.dist::GA(mu.link = "log", sigma.link = "log"),
+  margin_dist = GA(mu.link = "log", sigma.link = "log"),
   copula_dist = "C",
   time_var = "time",
   subject_var = "subject",
@@ -279,7 +279,8 @@ The dependence layer uses bivariate copulas and Kendall-tau parameterisations:
 ### Prior Art
 
 `gamlss.longitudinal` is not a replacement for `gamlss`; it builds on
-`gamlss.dist` family objects and uses `gamlss` as the familiar marginal-model
+`gamlss.dist` family objects, attaches `gamlss.dist` for direct access to
+families such as `GA()`, and uses `gamlss` as the familiar marginal-model
 reference point. It adds a longitudinal first-order copula dependence layer,
 workflow helpers, diagnostics, and opt-in benchmarking scaffolds for comparing
 against common GEE, GLMM, and GAM baselines.
