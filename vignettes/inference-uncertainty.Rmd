@@ -199,7 +199,6 @@ boot <- bootstrap_inference(
   fit,
   R = 200,
   terms = c("mu.treatment", "sigma.treatment"),
-  simulation_type = "copula",
   seed = 1,
   fit_args = list(max_outer_iter = 20, max_inner_iter = 20)
 )
