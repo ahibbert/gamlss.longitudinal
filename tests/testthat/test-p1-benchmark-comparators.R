@@ -102,6 +102,36 @@ test_that("benchmark_standard_models fits the always-available GAM comparator", 
   expect_true(inherits(bench$fits$gam, "gam"))
 })
 
+test_that("benchmark_standard_models can score the supplied primary fit", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 10L)
+  dat$id <- factor(dat$id)
+  primary_fit <- stats::lm(y ~ time_raw + gender + age, data = dat)
+
+  bench <- benchmark_standard_models(
+    data = dat,
+    formula = y ~ time_raw + gender + age,
+    subject_var = "id",
+    family = "gaussian",
+    comparators = "gam",
+    fit = primary_fit,
+    fit_name = "primary"
+  )
+
+  expect_equal(bench$results$method, c("primary", "gam"))
+  expect_equal(bench$results$comparator, c("primary", "gam"))
+  expect_true(all(c("benchmark_mae", "benchmark_rmse") %in% names(bench$results)))
+  expect_true(is.finite(bench$results$benchmark_rmse[bench$results$method == "primary"]))
+  expect_true("primary" %in% names(bench$fits))
+
+  summary <- summarise_benchmark_results(
+    bench$results,
+    metrics = c("benchmark_rmse", "elapsed_sec"),
+    group_cols = NULL
+  )
+  expect_s3_class(summary, "gamlss_longitudinal_benchmark_summary")
+  expect_true(any(summary$case_results$method == "primary"))
+})
+
 test_that("benchmark_standard_models fits GEE and GLMM comparators when installed", {
   skip_if_not_installed("geepack")
   skip_if_not_installed("lme4")
@@ -173,4 +203,31 @@ test_that("summarise_benchmark_results creates win/tie/loss summaries", {
   coverage_cases <- out$case_results[out$case_results$metric == "benchmark_interval_coverage_95", , drop = FALSE]
   expect_true(coverage_cases$result[match("glmm", coverage_cases$method)] %in% c("win", "tie"))
   expect_true(coverage_cases$result[match("gam", coverage_cases$method)] %in% c("win", "tie"))
+})
+
+test_that("summarise_benchmark_results recognises smooth recovery metrics", {
+  results <- data.frame(
+    family = "NO",
+    copula = "N",
+    design = "smooth",
+    n_subject = 20L,
+    n_time = 3L,
+    dependence = "moderate",
+    missingness = "none",
+    start_mode = "default",
+    method = c("rs_separate", "gam"),
+    smooth_eta_rmse = c(0.12, NA_real_),
+    smooth_eta_max_abs_error = c(0.20, NA_real_),
+    stringsAsFactors = FALSE
+  )
+
+  out <- summarise_benchmark_results(
+    results,
+    metrics = c("smooth_eta_rmse", "smooth_eta_max_abs_error")
+  )
+
+  expect_true(all(c("smooth_eta_rmse", "smooth_eta_max_abs_error") %in% out$metric_catalog$metric))
+  expect_true(all(out$metric_catalog$estimand == "smooth"))
+  expect_true(any(out$case_results$method == "rs_separate"))
+  expect_true(any(out$case_results$result == "missing"))
 })
