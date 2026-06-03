@@ -48,7 +48,7 @@ For diagnostic decision rules, see
 | Pick a variance/random-effect structure | Model `sigma.formula` and copula dependence |
 | Choose a working correlation | Use `select_copula()` and `theta.formula` |
 | Check residual plots | Use `check_model()`, `plot()`, `plot_terms()`, and `plot_copula_diagnostics()` |
-| Interpret fixed effects | Use `summary()`, `marginal_effects()`, or `effects()` |
+| Interpret fixed effects | Use `summary()` or `marginal_effects()` |
 | Predict means or intervals | Use `predict(type = "response")` and `predict(type = "quantile")` |
 | Simulate fitted trajectories | Use `simulate(type = "copula")` |
 

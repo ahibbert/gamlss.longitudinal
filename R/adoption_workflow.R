@@ -1191,7 +1191,9 @@ simulate.gamlss.longitudinal <- function(
 #' @param object A fitted `gamlss.longitudinal` object.
 #' @param include_vcov Logical; include variance-covariance inference metadata
 #'   via [summary.gamlss.longitudinal()].
-#' @param include_plots Logical; include standard diagnostic plot objects.
+#' @param include_plots Logical; include standard diagnostic plot objects in
+#'   `check$plots`. Visual review should usually use `plot(object)` or the
+#'   explicit diagnostic helpers instead.
 #' @param ... Passed to [summary.gamlss.longitudinal()] when `include_vcov` is
 #'   `TRUE`.
 #'
@@ -1200,7 +1202,7 @@ simulate.gamlss.longitudinal <- function(
 #'   reviewed or reported, and a compact `recommendation` row for model role
 #'   decisions.
 #' @export
-check_model <- function(object, include_vcov = FALSE, include_plots = TRUE, ...) {
+check_model <- function(object, include_vcov = FALSE, include_plots = FALSE, ...) {
   if (!inherits(object, "gamlss.longitudinal")) {
     stop("'object' must be a fitted 'gamlss.longitudinal' object.", call. = FALSE)
   }
@@ -1300,57 +1302,6 @@ print.gamlss_longitudinal_check <- function(x, digits = max(3, getOption("digits
     cat("* ", msg, "\n", sep = "")
   }
   invisible(x)
-}
-
-#' @export
-plot.gamlss_longitudinal_check <- function(
-  x,
-  which = c("pithist", "qqrplot", "wormplot", "rootogram"),
-  ...
-) {
-  if (!inherits(x, "gamlss_longitudinal_check")) {
-    stop("'x' must be a 'gamlss_longitudinal_check' object.", call. = FALSE)
-  }
-  which <- match.arg(which, several.ok = TRUE)
-  if (is.null(x$plots) || length(x$plots) == 0L) {
-    message("No plot objects stored. Re-run check_model(..., include_plots = TRUE).")
-    return(invisible(x))
-  }
-  available <- intersect(which, names(x$plots))
-  missing <- setdiff(which, names(x$plots))
-  if (length(missing) > 0L) {
-    warning(
-      "Requested diagnostic plot(s) not stored: ",
-      paste(missing, collapse = ", "),
-      call. = FALSE
-    )
-  }
-  if (length(available) == 0L) {
-    message("No requested diagnostic plot objects are available.")
-    return(invisible(x))
-  }
-  for (nm in available) {
-    if (!is.null(x$plots[[nm]])) {
-      print(x$plots[[nm]])
-    }
-  }
-  invisible(x)
-}
-
-#' Effects for fitted longitudinal GAMLSS-copula models
-#'
-#' `effects.gamlss.longitudinal()` is a convenience alias for
-#' [marginal_effects()] so users can reach for the familiar `effects()` generic
-#' when interpreting fitted distributional parameters.
-#'
-#' @param object A fitted `gamlss.longitudinal` object.
-#' @param ... Arguments passed to [marginal_effects()], including `newdata`,
-#'   `variable`, `values`, `parameter`, and `se.fit`.
-#'
-#' @return A data frame from [marginal_effects()].
-#' @export
-effects.gamlss.longitudinal <- function(object, ...) {
-  marginal_effects(object, ...)
 }
 
 #' Counterfactual marginal effects from fitted distributional parameters

@@ -163,10 +163,20 @@ confint(fit)
 wald_test(fit, terms = "mu.treatment")
 
 # Likelihood ratio test
+fit_reduced <- gamlss_longitudinal(
+  dataset = dat,
+  margin_dist = margin_dist,
+  copula_dist = copula_dist,
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment + time,
+  sigma.formula = ~ treatment + time,
+  theta.formula = ~ time
+)
 likelihood_compare(fit_reduced, fit)
 
 # Bootstrapped confidence intervals (WARNING: Can take a long time to run since it's refitting for each R)
-boot <- bootstrap_inference(fit, R = 100)
+boot <- bootstrap_inference(fit, R = 20)
 print(boot)
 ```
 
@@ -217,7 +227,7 @@ Treat the output as a decision aid:
 
 Ideally all warnings should be rectified and diagnostics accepted as satisfactory prior to moving to reporting.
 
-## Step 4: Simulation and prediction
+## Optional: Simulation and prediction
 
 Multiple options are provided for prediction including on response and parameter scale, by quantiles, cdf, density or probability, and reporting by marginal effect.
 
@@ -279,15 +289,6 @@ marginal_effects(
   parameter = "mu",
   se.fit = TRUE
 )
-
-# Calculate average response across a covariate for the margin
-effects(
-  fit,
-  newdata = dat,
-  variable = "treatment",
-  parameter = "mu",
-  se.fit = TRUE
-)
 ```
 
 If the target is a dependence-sensitive event, simulate from the fitted model:
@@ -297,7 +298,7 @@ sim_marginal <- simulate(fit, nsim = 100, type = "marginal", seed = 1)
 sim_copula <- simulate(fit, nsim = 100, type = "copula", seed = 1)
 ```
 
-## Step 5 (optional): Compare/benchmark to familiar models: gee (geepack), glmm (lme4), gam (mgcv)
+## Optional: Compare/benchmark to familiar models: gee (geepack), glmm (lme4), gam (mgcv)
 
 Since we know most users would be considering a longitudinal gamlss model as an alternative to existing solutions using gees, gam or glmms we provide easy to use comparison tools to benchmark longitudinal gamlss models to existing methods.
 
