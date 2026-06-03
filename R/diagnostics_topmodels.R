@@ -42,10 +42,16 @@ procast <- function(object, ...) {
 
 .gl_get_family_fun <- function(family_name, prefix) {
   fun_name <- paste0(prefix, family_name)
-  if (!exists(fun_name, mode = "function")) {
-    stop("Distribution function '", fun_name, "' is not available in the current session.")
+  if (exists(fun_name, envir = asNamespace("gamlss.dist"), mode = "function", inherits = FALSE)) {
+    return(get(fun_name, envir = asNamespace("gamlss.dist"), mode = "function", inherits = FALSE))
   }
-  get(fun_name, mode = "function")
+  if (exists(fun_name, mode = "function")) {
+    return(get(fun_name, mode = "function"))
+  }
+  stop(
+    "Distribution function '", fun_name,
+    "' is not available in gamlss.dist or the current session."
+  )
 }
 
 .gl_call_family_fun <- function(prefix, family_name, x, params, extra_args = list()) {
