@@ -29,6 +29,9 @@ test_that("select_copula recovers the simulated family from native pseudo-observ
     expect_s3_class(selected, "copula_selection")
     expect_equal(attr(selected, "selected"), family)
     expect_equal(selected$family[1], family)
+    expect_equal(selected$best_fit$family, family)
+    expect_equal(best_fit(selected)$family, family)
+    expect_equal(best_fit_family(selected), family)
     expect_true(all(is.finite(selected$logLik)))
     expect_true(all(is.finite(selected$AIC)))
   }
@@ -56,4 +59,75 @@ test_that("select_copula accepts direct pseudo-observation pairs", {
   )
 
   expect_equal(attr(selected, "selected"), "C")
+})
+
+test_that("select_copula creates pseudo-observations from a supplied margin", {
+  dat <- simulate_longitudinal_dataset(
+    n = 80,
+    times = 1:4,
+    margin_dist = gamlss.dist::NO(),
+    margin_params = list(mu = 0, sigma = 1),
+    copula_dist = "N",
+    copula_params = list(theta = 0.5),
+    seed = 456
+  )
+
+  selected <- select_copula(
+    data = dat,
+    response_var = "response",
+    margin_dist = gamlss.dist::NO(),
+    families = c("N", "C"),
+    min_pairs = 10
+  )
+
+  expect_s3_class(selected, "copula_selection")
+  expect_true(best_fit_family(selected) %in% c("N", "C"))
+  expect_equal(attr(selected, "pseudo_observation_source"), "margin_dist")
+  expect_null(attr(selected, "margin_selection"))
+  expect_true(all(is.finite(selected$AIC)))
+})
+
+test_that("select_copula can auto-select the temporary margin with a warning", {
+  skip_if_not_installed("gamlss")
+
+  dat <- simulate_longitudinal_dataset(
+    n = 30,
+    times = 1:4,
+    margin_dist = gamlss.dist::NO(),
+    margin_params = list(mu = 0, sigma = 1),
+    copula_dist = "N",
+    copula_params = list(theta = 0.4),
+    seed = 789
+  )
+
+  captured <- capture_warnings(suppressMessages(
+    select_copula(
+      data = dat,
+      response_var = "response",
+      families = "N",
+      min_pairs = 10
+    )
+  ))
+  selected <- captured$value
+
+  expect_true(any(grepl("margin_dist", captured$warnings, fixed = TRUE)))
+  expect_s3_class(selected, "copula_selection")
+  expect_equal(best_fit_family(selected), "N")
+  expect_equal(attr(selected, "pseudo_observation_source"), "select_margin")
+  expect_s3_class(attr(selected, "margin_selection"), "margin_selection")
+})
+
+test_that("select_copula accepts fitted longitudinal objects", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 10L)
+  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+
+  selected <- select_copula(
+    object = fit,
+    families = "N",
+    min_pairs = 10
+  )
+
+  expect_s3_class(selected, "copula_selection")
+  expect_equal(best_fit_family(selected), "N")
+  expect_equal(attr(selected, "pseudo_observation_source"), "fitted_object")
 })
