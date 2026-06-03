@@ -1,11 +1,91 @@
-#' Screen candidate marginal distributions
+#' Extract the best-fitting candidate from a selection result
 #'
-#' `screen_margin()` is a lightweight wrapper around [gamlss::fitDist()] for
+#' @param x A selection result, such as from [select_margin()] or
+#'   [select_copula()].
+#' @param ... Reserved for methods.
+#'
+#' @return `best_fit()` returns a list of selected-fit metadata.
+#'   `best_fit_family()` returns the family value that can be supplied directly
+#'   to fitting helpers.
+#' @export
+best_fit <- function(x, ...) {
+  UseMethod("best_fit")
+}
+
+#' @rdname best_fit
+#' @export
+best_fit_family <- function(x, ...) {
+  UseMethod("best_fit_family")
+}
+
+.margin_family_object <- function(family_name) {
+  if (length(family_name) != 1L || is.na(family_name) || !nzchar(family_name)) {
+    return(NULL)
+  }
+  family_fun <- tryCatch(
+    get(family_name, envir = asNamespace("gamlss.dist"), mode = "function", inherits = FALSE),
+    error = function(e) NULL
+  )
+  if (is.null(family_fun)) {
+    return(NULL)
+  }
+  tryCatch(do.call(family_fun, list()), error = function(e) NULL)
+}
+
+#' @export
+best_fit.margin_selection <- function(x, ...) {
+  if (nrow(x) == 0L) {
+    return(list(
+      family_name = NA_character_,
+      family = NULL,
+      rank = NA_integer_,
+      AIC = NA_real_,
+      type = attr(x, "response_type")
+    ))
+  }
+  row <- as.data.frame(x)[1L, , drop = FALSE]
+  family_name <- as.character(row$family[[1L]])
+  row_meta <- as.list(row)
+  row_meta$family <- NULL
+  c(
+    list(
+      family_name = family_name,
+      family = .margin_family_object(family_name)
+    ),
+    row_meta
+  )
+}
+
+#' @export
+best_fit.margin_screen <- best_fit.margin_selection
+
+#' @export
+best_fit_family.margin_selection <- function(x, ...) {
+  best_fit(x)$family
+}
+
+#' @export
+best_fit_family.margin_screen <- best_fit_family.margin_selection
+
+#' @export
+`$.margin_selection` <- function(x, name) {
+  if (identical(name, "best_fit")) {
+    return(best_fit(x))
+  }
+  .subset2(as.data.frame(x), name, exact = FALSE)
+}
+
+#' @export
+`$.margin_screen` <- `$.margin_selection`
+
+#' Select candidate marginal distributions
+#'
+#' `select_margin()` is a lightweight wrapper around [gamlss::fitDist()] for
 #' the recommended longitudinal workflow: choose a plausible marginal family,
 #' then fit dependence with [gamlss_longitudinal()].
 #'
 #' @param response Numeric response vector. For the common
-#'   `screen_margin(dat, response_var = "y")` call, a data frame supplied here
+#'   `select_margin(dat, response_var = "y")` call, a data frame supplied here
 #'   is treated as `data`.
 #' @param data Optional data frame containing the response.
 #' @param response_var Optional response column name in `data`.
@@ -15,10 +95,12 @@
 #' @param families Optional character vector used to filter the returned table.
 #' @param try.gamlss,trace,... Passed to [gamlss::fitDist()].
 #'
-#' @return A data frame ordered by AIC. The selected family is also stored in
-#'   the `"selected"` attribute.
+#' @return A data frame ordered by AIC and class `margin_selection`. The
+#'   selected family is also stored in the `"selected"` attribute for backward
+#'   compatibility. Use [best_fit()] or [best_fit_family()] to extract the
+#'   selected family in a fitting-friendly form.
 #' @export
-screen_margin <- function(
+select_margin <- function(
   response = NULL,
   data = NULL,
   response_var = NULL,
@@ -90,7 +172,7 @@ screen_margin <- function(
   out <- out[order(out$AIC), , drop = FALSE]
   rownames(out) <- NULL
   out$rank <- seq_len(nrow(out))
-  out$delta_AIC <- out$AIC - min(out$AIC, na.rm = TRUE)
+  out$delta_AIC <- if (nrow(out) > 0L) out$AIC - min(out$AIC, na.rm = TRUE) else numeric(0)
   out$supported_by_longitudinal <- vapply(out$family, function(family) {
     all(vapply(
       paste0(c("d", "p", "q"), family),
@@ -103,8 +185,14 @@ screen_margin <- function(
 
   attr(out, "selected") <- if (nrow(out) > 0L) out$family[[1L]] else NA_character_
   attr(out, "response_type") <- type
-  class(out) <- c("margin_screen", class(out))
+  class(out) <- c("margin_selection", "margin_screen", class(out))
   out
+}
+
+#' @rdname select_margin
+#' @export
+screen_margin <- function(...) {
+  select_margin(...)
 }
 
 #' @export
@@ -191,7 +279,7 @@ fit_longitudinal <- function(
         time_var = time_var,
         families = copula_families
       )
-      copula_dist <- attr(copula_screen, "selected")
+      copula_dist <- best_fit_family(copula_screen)
       copula_source <- paste0("select_copula:", u_var)
     } else {
       copula_dist <- "N"
