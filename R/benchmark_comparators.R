@@ -381,24 +381,234 @@ print.gamlss_longitudinal_adoption_benchmark <- function(x, digits = max(3, getO
   out
 }
 
+.benchmark_metric_domain <- function(metric, estimand = NULL) {
+  metric <- as.character(metric)
+  estimand <- as.character(estimand %||% rep(NA_character_, length(metric)))
+  out <- rep("other", length(metric))
+  out[grepl("^benchmark_mean_", metric) | metric %in% c("benchmark_rmse", "benchmark_mae")] <- "mean / marginal response fit"
+  out[metric %in% c(
+    "benchmark_q90_mae",
+    "benchmark_upper_tail_error_90",
+    "benchmark_interval_coverage_95",
+    "benchmark_pit_mean_abs_error",
+    "benchmark_pit_ks_p_value",
+    "benchmark_tail_error_lower_05",
+    "benchmark_tail_error_upper_05"
+  ) | estimand %in% c("quantile", "tail", "interval", "calibration")] <- "distributional prediction / shape"
+  out[metric %in% "benchmark_theta_time_abs_error" | estimand %in% "dependence"] <- "dependence"
+  out[metric %in% "elapsed_sec" | estimand %in% "runtime"] <- "runtime"
+  out[grepl("^smooth_", metric) | estimand %in% "smooth"] <- "smooth recovery"
+  out
+}
+
+.benchmark_infer_primary_method <- function(results) {
+  results <- as.data.frame(results, stringsAsFactors = FALSE)
+  if (!"method" %in% names(results)) {
+    return(NULL)
+  }
+  methods <- unique(as.character(results$method))
+  if ("gamlss.longitudinal" %in% methods) {
+    return("gamlss.longitudinal")
+  }
+  if ("rs_separate" %in% methods) {
+    return("rs_separate")
+  }
+  NULL
+}
+
+.benchmark_interpretation_unsupported <- function(results) {
+  results <- as.data.frame(results, stringsAsFactors = FALSE)
+  if (nrow(results) == 0L || !"method" %in% names(results)) {
+    return(data.frame())
+  }
+  available <- if ("available" %in% names(results)) !is.na(results$available) & results$available == TRUE else rep(TRUE, nrow(results))
+  success <- if ("success" %in% names(results)) !is.na(results$success) & results$success == TRUE else rep(TRUE, nrow(results))
+  eligible <- available & success
+  if (all(eligible)) {
+    return(data.frame())
+  }
+  reason <- rep("unsupported or failed", nrow(results))
+  if ("available" %in% names(results)) {
+    reason[!available] <- "unavailable"
+  }
+  if ("success" %in% names(results)) {
+    reason[available & !success] <- "failed or unsupported"
+  }
+  error <- if ("error" %in% names(results)) as.character(results$error) else NA_character_
+  out <- data.frame(
+    method = as.character(results$method[!eligible]),
+    comparator = if ("comparator" %in% names(results)) as.character(results$comparator[!eligible]) else as.character(results$method[!eligible]),
+    reason = reason[!eligible],
+    error = error[!eligible],
+    stringsAsFactors = FALSE
+  )
+  out <- unique(out)
+  rownames(out) <- NULL
+  out
+}
+
+.benchmark_interpretation <- function(
+  results,
+  primary_method = NULL,
+  metrics = NULL,
+  tie_tolerance = 0.05,
+  absolute_tolerance = 1e-8
+) {
+  results <- as.data.frame(results, stringsAsFactors = FALSE)
+  if (!"method" %in% names(results)) {
+    stop("'results' must contain a 'method' column.", call. = FALSE)
+  }
+  if (!is.null(primary_method)) {
+    primary_method <- as.character(primary_method)
+    primary_method <- primary_method[primary_method %in% as.character(results$method)]
+  }
+  unsupported <- .benchmark_interpretation_unsupported(results)
+  available <- if ("available" %in% names(results)) !is.na(results$available) & results$available == TRUE else rep(TRUE, nrow(results))
+  success <- if ("success" %in% names(results)) !is.na(results$success) & results$success == TRUE else rep(TRUE, nrow(results))
+  eligible <- results[available & success, , drop = FALSE]
+
+  empty_leaders <- data.frame(
+    domain = character(),
+    metric = character(),
+    estimand = character(),
+    primary_leads_or_ties = logical(),
+    standard_leads_or_ties = logical(),
+    primary_methods = character(),
+    standard_methods = character(),
+    leading_methods = character(),
+    stringsAsFactors = FALSE
+  )
+
+  summary <- NULL
+  leaders <- empty_leaders
+  if (nrow(eligible) > 0L) {
+    summary <- tryCatch(
+      summarise_benchmark_results(
+        eligible,
+        metrics = metrics,
+        group_cols = NULL,
+        tie_tolerance = tie_tolerance,
+        absolute_tolerance = absolute_tolerance
+      ),
+      error = function(e) NULL
+    )
+  }
+  if (!is.null(summary) && nrow(summary$case_results) > 0L) {
+    case_results <- summary$case_results
+    finite <- is.finite(case_results$value)
+    leading <- case_results[finite & case_results$result %in% c("win", "tie"), , drop = FALSE]
+    if (nrow(leading) > 0L) {
+      rows <- lapply(split(seq_len(nrow(leading)), leading$metric, drop = TRUE), function(idx) {
+        x <- leading[idx, , drop = FALSE]
+        primary <- x$method[x$method %in% primary_method]
+        standard <- x$method[!(x$method %in% primary_method)]
+        data.frame(
+          domain = .benchmark_metric_domain(x$metric[[1L]], x$estimand[[1L]]),
+          metric = x$metric[[1L]],
+          estimand = x$estimand[[1L]],
+          primary_leads_or_ties = length(primary) > 0L,
+          standard_leads_or_ties = length(standard) > 0L,
+          primary_methods = paste(unique(primary), collapse = ", "),
+          standard_methods = paste(unique(standard), collapse = ", "),
+          leading_methods = paste(unique(x$method), collapse = ", "),
+          stringsAsFactors = FALSE
+        )
+      })
+      leaders <- do.call(rbind, rows)
+      leaders <- leaders[order(leaders$domain, leaders$metric), , drop = FALSE]
+      rownames(leaders) <- NULL
+    }
+  }
+
+  out <- list(
+    primary_method = primary_method,
+    leaders = leaders,
+    unsupported = unsupported,
+    summary = summary
+  )
+  class(out) <- "gamlss_longitudinal_benchmark_interpretation"
+  out
+}
+
+.benchmark_interpretation_join_metrics <- function(x) {
+  if (length(x) == 0L) {
+    return("none")
+  }
+  paste(unique(x), collapse = ", ")
+}
+
+.benchmark_interpretation_lines <- function(interpretation) {
+  if (is.null(interpretation) || !inherits(interpretation, "gamlss_longitudinal_benchmark_interpretation")) {
+    return(character())
+  }
+  leaders <- as.data.frame(interpretation$leaders, stringsAsFactors = FALSE)
+  primary_method <- interpretation$primary_method
+  if (nrow(leaders) == 0L) {
+    lines <- "- No finite supported benchmark metrics were available for interpretation."
+  } else {
+    domains <- unique(leaders$domain)
+    lines <- unlist(lapply(domains, function(domain) {
+      x <- leaders[leaders$domain == domain, , drop = FALSE]
+      if (length(primary_method) > 0L) {
+        c(
+          paste0("- ", domain, ": ", primary_method[[1L]], " leads or ties on: ", .benchmark_interpretation_join_metrics(x$metric[x$primary_leads_or_ties])),
+          paste0("- ", domain, ": Standard comparators lead or tie on: ", .benchmark_interpretation_join_metrics(x$metric[x$standard_leads_or_ties]))
+        )
+      } else {
+        paste0(
+          "- ",
+          domain,
+          ": leading method(s): ",
+          paste(paste0(x$metric, " (", x$leading_methods, ")"), collapse = "; ")
+        )
+      }
+    }), use.names = FALSE)
+  }
+  unsupported <- as.data.frame(interpretation$unsupported, stringsAsFactors = FALSE)
+  if (nrow(unsupported) > 0L) {
+    unsupported_label <- paste(unique(paste0(unsupported$method, " [", unsupported$reason, "]")), collapse = ", ")
+    lines <- c(lines, paste0("- Unavailable or unsupported rows were not used as metric leaders: ", unsupported_label, "."))
+  }
+  lines
+}
+
 .benchmark_report_inputs <- function(benchmark, metrics = NULL) {
   if (inherits(benchmark, "gamlss_longitudinal_adoption_benchmark")) {
+    primary_method <- .benchmark_infer_primary_method(benchmark$results)
     return(list(
       results = benchmark$results,
       summary = benchmark$summary,
       scenarios = benchmark$scenarios,
       reps = benchmark$reps,
-      metrics = benchmark$metrics
+      metrics = benchmark$metrics,
+      interpretation = .benchmark_interpretation(benchmark$results, primary_method = primary_method, metrics = benchmark$metrics),
+      primary_method = primary_method
+    ))
+  }
+  if (inherits(benchmark, "gamlss_longitudinal_benchmark")) {
+    interpretation <- benchmark$interpretation %||% .benchmark_interpretation(benchmark$results, primary_method = benchmark$primary_method)
+    summary <- interpretation$summary %||% summarise_benchmark_results(benchmark$results, group_cols = NULL)
+    return(list(
+      results = benchmark$results,
+      summary = summary,
+      scenarios = NULL,
+      reps = 1L,
+      metrics = summary$metric_catalog$metric,
+      interpretation = interpretation,
+      primary_method = benchmark$primary_method
     ))
   }
   results <- as.data.frame(benchmark, stringsAsFactors = FALSE)
   summary <- summarise_benchmark_results(results, metrics = metrics)
+  primary_method <- .benchmark_infer_primary_method(results)
   list(
     results = results,
     summary = summary,
     scenarios = NULL,
     reps = length(unique(results$benchmark_rep %||% 1L)),
-    metrics = summary$metric_catalog$metric
+    metrics = summary$metric_catalog$metric,
+    interpretation = .benchmark_interpretation(results, primary_method = primary_method, metrics = metrics),
+    primary_method = primary_method
   )
 }
 
@@ -490,6 +700,10 @@ format_benchmark_report <- function(
       columns = c("metric", "estimand", "method", "n", "n_finite", "wins", "ties", "losses", "missing", "win_or_tie_rate", "median_value", "median_score"),
       digits = digits
     ),
+    "",
+    "## Benchmark Interpretation",
+    "",
+    .benchmark_interpretation_lines(inputs$interpretation),
     "",
     "## Scenario-Level Headline Results",
     "",
@@ -1258,8 +1472,8 @@ write_benchmark_report <- function(
 #' @param interval_level Prediction interval level used for empirical coverage.
 #' @param ... Additional arguments passed to each comparator fit.
 #'
-#' @return An object of class `gamlss_longitudinal_benchmark` with `results`
-#'   and `fits` components.
+#' @return An object of class `gamlss_longitudinal_benchmark` with `results`,
+#'   `fits`, and `interpretation` components.
 #' @export
 benchmark_standard_models <- function(
   data,
@@ -1343,12 +1557,16 @@ benchmark_standard_models <- function(
   )
   runs <- c(if (!is.null(supplied_run)) list(supplied_run), comparator_runs)
   fit_names <- c(if (!is.null(supplied_run)) fit_name, comparators)
+  results <- do.call(rbind, lapply(runs, `[[`, "row"))
+  primary_method <- if (!is.null(supplied_run)) fit_name else NULL
   out <- list(
-    results = do.call(rbind, lapply(runs, `[[`, "row")),
+    results = results,
     fits = stats::setNames(lapply(runs, `[[`, "fit"), fit_names),
     formula = formula,
     subject_var = subject_var,
-    family = family$family
+    family = family$family,
+    primary_method = primary_method,
+    interpretation = .benchmark_interpretation(results, primary_method = primary_method)
   )
   class(out) <- "gamlss_longitudinal_benchmark"
   out
@@ -1362,6 +1580,12 @@ print.gamlss_longitudinal_benchmark <- function(x, digits = max(3, getOption("di
   cat("Subject:", x$subject_var, "\n")
   cat("Family:", x$family, "\n\n")
   print(x$results, digits = digits, row.names = FALSE)
+  lines <- .benchmark_interpretation_lines(x$interpretation)
+  if (length(lines) > 0L) {
+    cat("\nBenchmark Interpretation\n")
+    cat("------------------------\n")
+    cat(paste(lines, collapse = "\n"), "\n", sep = "")
+  }
   invisible(x)
 }
 
