@@ -9,10 +9,11 @@ Description: Fits longitudinal generalized additive models for location, scale
     Provides adoption-focused helpers for marginal-family screening,
     longitudinal fitting, inference, prediction, simulation, diagnostics, and
     opt-in benchmarks against common GEE, GLMM, and GAM baselines.
-Depends: R (>= 4.1.0)
+Depends:
+    R (>= 4.1.0),
+    gamlss.dist
 Imports:
     gamlss,
-    gamlss.dist,
     rlang,
     latex2exp,
     ggplot2,
