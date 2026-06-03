@@ -149,7 +149,7 @@ test_that("RS discrete rectangle score modes both fit finite tiny DEL models", {
   dat$y <- gamlss.dist::rDEL(nrow(dat), mu = exp(1 + 0.1 * dat$x), sigma = 0.7, nu = 0.45)
 
   fit_once <- function(score_method) {
-    suppressWarnings(gamlss.longitudinal::gamlss.longitudinal(
+    suppressWarnings(gamlss.longitudinal::gamlss_longitudinal(
       dataset = dat,
       margin_dist = gamlss.dist::DEL(),
       copula_dist = "C",

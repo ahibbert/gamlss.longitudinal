@@ -121,28 +121,34 @@ test_that("T204b copula_time_summary prints dependence summaries", {
   expect_true(all(c("theta_fit", "tau_fit") %in% names(dep$time_summary)))
 })
 
-test_that("T205 screen_margin returns an ordered candidate table", {
+test_that("T205 select_margin and screen_margin return ordered candidate tables with best-fit accessors", {
   skip_if_not_installed("gamlss")
 
   y <- rnorm(30)
-  screen <- suppressWarnings(suppressMessages(screen_margin(y, type = "realAll", try.gamlss = FALSE, trace = FALSE)))
+  screen <- suppressWarnings(suppressMessages(select_margin(y, type = "realAll", try.gamlss = FALSE, trace = FALSE)))
 
+  expect_s3_class(screen, "margin_selection")
   expect_s3_class(screen, "margin_screen")
   expect_true(all(c("family", "AIC", "type") %in% names(screen)))
   expect_true(nrow(screen) >= 1L)
   expect_equal(attr(screen, "selected"), screen$family[[1L]])
   expect_true(all(c("rank", "delta_AIC", "supported_by_longitudinal") %in% names(screen)))
+  expect_equal(screen$best_fit$family_name, screen$family[[1L]])
+  expect_equal(best_fit(screen)$family_name, screen$family[[1L]])
+  expect_equal(best_fit_family(screen)$family[1], screen$family[[1L]])
 
   dat <- data.frame(response = y)
   from_data <- suppressWarnings(suppressMessages(screen_margin(dat, response_var = "response", type = "realAll", try.gamlss = FALSE, trace = FALSE)))
+  expect_s3_class(from_data, "margin_selection")
   expect_s3_class(from_data, "margin_screen")
   expect_equal(attr(from_data, "selected"), from_data$family[[1L]])
+  expect_equal(best_fit_family(from_data)$family[1], from_data$family[[1L]])
 })
 
-test_that("T206 fit_longitudinal records golden-path workflow metadata", {
+test_that("T206 gamlss_longitudinal is the single public fitter", {
   dat <- make_fixture_factor_time_interaction(n_subject = 10L)
 
-  fit <- suppressWarnings(fit_longitudinal(
+  fit <- suppressWarnings(gamlss_longitudinal(
     dataset = dat,
     margin_dist = NO(),
     time_var = "time_raw",
@@ -151,7 +157,6 @@ test_that("T206 fit_longitudinal records golden-path workflow metadata", {
     sigma.formula = ~time_raw,
     theta.formula = ~1,
     copula_dist = "N",
-    run_checks = TRUE,
     max_outer_iter = 2,
     max_inner_iter = 2,
     outer_stop_crit = 1,
@@ -160,9 +165,8 @@ test_that("T206 fit_longitudinal records golden-path workflow metadata", {
   ))
 
   expect_s3_class(fit, "gamlss.longitudinal")
-  expect_equal(fit$workflow$interface, "fit_longitudinal")
-  expect_equal(fit$workflow$copula_source, "user")
-  expect_s3_class(fit$workflow$check, "gamlss_longitudinal_check")
+  expect_null(fit$workflow)
+  expect_s3_class(check_model(fit, include_plots = FALSE), "gamlss_longitudinal_check")
 })
 
 test_that("T207 confint returns coefficient intervals users can cite", {
@@ -204,7 +208,7 @@ test_that("T208 wald_test returns individual and joint hypothesis tests", {
 
 test_that("T209 likelihood_compare returns sequential LR summaries", {
   dat <- make_fixture_factor_time_interaction(n_subject = 10L)
-  reduced <- suppressWarnings(fit_longitudinal(
+  reduced <- suppressWarnings(gamlss_longitudinal(
     dataset = dat,
     margin_dist = NO(),
     time_var = "time_raw",
@@ -213,7 +217,6 @@ test_that("T209 likelihood_compare returns sequential LR summaries", {
     sigma.formula = ~1,
     theta.formula = ~1,
     copula_dist = "N",
-    run_checks = FALSE,
     compute_vcov = FALSE,
     max_outer_iter = 2,
     max_inner_iter = 2,
