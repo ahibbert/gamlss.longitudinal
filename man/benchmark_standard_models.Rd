@@ -63,8 +63,8 @@ tail metrics.}
 \item{...}{Additional arguments passed to each comparator fit.}
 }
 \value{
-An object of class \code{gamlss_longitudinal_benchmark} with \code{results}
-and \code{fits} components.
+An object of class \code{gamlss_longitudinal_benchmark} with \code{results},
+\code{fits}, and \code{interpretation} components.
 }
 \description{
 \code{benchmark_standard_models()} is an opt-in scaffold for comparing

@@ -61,7 +61,9 @@ reference:
       - check_model
       - copula_time_summary
       - topmodels_diagnostics
-      - plotDist
+      - plot_dist
+      - plot_margin_fit
+      - plot_copula_fit
       - plot.gamlss.longitudinal
       - plot.copula_time_summary
       - plot.copula_contour_compare
