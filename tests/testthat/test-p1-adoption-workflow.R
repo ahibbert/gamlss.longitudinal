@@ -218,6 +218,33 @@ test_that("T208b wald_test accepts coefficient-name prefixes", {
   expect_equal(joint$df, length(prefixed_terms))
 })
 
+test_that("T208c wald_test resolves factor formula terms to all level coefficients", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 12L)
+  treatments <- c("active", "control", "placebo")
+  dat$treatment <- factor(treatments[(dat$id %% length(treatments)) + 1L], levels = treatments)
+  dat$treatmentcontrol_score <- as.numeric(dat$id) / max(dat$id)
+  fit <- fit_fixture_model(
+    dat,
+    include_dlcopdpar = TRUE,
+    mu_formula = "y ~ time_raw + treatment + treatmentcontrol_score",
+    sigma_formula = "~ time_raw + treatment"
+  )
+
+  expected_terms <- paste(
+    "mu",
+    colnames(fit$model_matrix$x$mu)[attr(fit$model_matrix$x$mu, "assign") == 2L],
+    sep = "."
+  )
+  expect_equal(expected_terms, c("mu.treatmentcontrol", "mu.treatmentplacebo"))
+
+  wt <- wald_test(fit, terms = "mu.treatment", method = "numderiv", progress = FALSE)
+  expect_equal(wt$term, expected_terms)
+  expect_false("mu.treatmentcontrol_score" %in% wt$term)
+
+  joint <- wald_test(fit, terms = "mu.treatment", joint = TRUE, method = "numderiv", progress = FALSE)
+  expect_equal(joint$df, length(expected_terms))
+})
+
 test_that("T209 likelihood_compare returns sequential LR summaries", {
   dat <- make_fixture_factor_time_interaction(n_subject = 10L)
   reduced <- suppressWarnings(gamlss_longitudinal(
