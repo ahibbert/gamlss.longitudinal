@@ -60,7 +60,7 @@ Focused adoption guides:
 The native simulation vignette demonstrates:
 
 - native longitudinal data simulation,
-- exploratory `plotDist()` diagnostics,
+- exploratory `plot_dist()`, `plot_margin_fit()`, and `plot_copula_fit()` diagnostics,
 - marginal family selection with `select_margin()` and `gamlss::fitDist()`,
 - native copula family screening with `select_copula()`,
 - fitting a longitudinal GAMLSS-copula model,
