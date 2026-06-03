@@ -537,6 +537,13 @@ print.gamlss_longitudinal_adoption_benchmark <- function(x, digits = max(3, getO
   paste(unique(x), collapse = ", ")
 }
 
+.benchmark_interpretation_area <- function(domain) {
+  out <- as.character(domain)
+  out[out == "distributional prediction / shape"] <- "distributional"
+  out[out == "mean / marginal response fit"] <- "mean fit"
+  out
+}
+
 .benchmark_interpretation_lines <- function(interpretation) {
   if (is.null(interpretation) || !inherits(interpretation, "gamlss_longitudinal_benchmark_interpretation")) {
     return(character())
@@ -570,6 +577,84 @@ print.gamlss_longitudinal_adoption_benchmark <- function(x, digits = max(3, getO
     lines <- c(lines, paste0("- Unavailable or unsupported rows were not used as metric leaders: ", unsupported_label, "."))
   }
   lines
+}
+
+.benchmark_interpretation_table <- function(interpretation) {
+  if (is.null(interpretation) || !inherits(interpretation, "gamlss_longitudinal_benchmark_interpretation")) {
+    return(data.frame())
+  }
+  leaders <- as.data.frame(interpretation$leaders, stringsAsFactors = FALSE)
+  if (nrow(leaders) == 0L) {
+    return(data.frame())
+  }
+  primary_method <- interpretation$primary_method
+  if (length(primary_method) > 0L) {
+    out <- data.frame(
+      area = .benchmark_interpretation_area(leaders$domain),
+      metric = leaders$metric,
+      primary = ifelse(leaders$primary_leads_or_ties, "lead/tie", "-"),
+      standard = ifelse(leaders$standard_leads_or_ties, "lead/tie", "-"),
+      leaders = leaders$leading_methods,
+      stringsAsFactors = FALSE
+    )
+  } else {
+    out <- data.frame(
+      area = .benchmark_interpretation_area(leaders$domain),
+      metric = leaders$metric,
+      leaders = leaders$leading_methods,
+      stringsAsFactors = FALSE
+    )
+  }
+  rownames(out) <- NULL
+  out
+}
+
+.benchmark_standard_metric_columns <- function(results) {
+  catalog_metrics <- .benchmark_metric_catalog()$metric
+  requested <- c("elapsed_sec", "nobs", "logLik", "AIC", "mae", "rmse", catalog_metrics)
+  unique(intersect(requested, names(results)))
+}
+
+.benchmark_model_status_table <- function(results) {
+  results <- as.data.frame(results, stringsAsFactors = FALSE)
+  columns <- c(
+    "method",
+    "comparator_class",
+    "estimator",
+    "package",
+    "available",
+    "success"
+  )
+  optional_columns <- c("warning", "error")
+  optional_columns <- intersect(optional_columns, names(results))
+  optional_columns <- optional_columns[vapply(results[optional_columns], function(x) any(!is.na(x)), logical(1))]
+  columns <- c(columns, optional_columns)
+  columns <- intersect(columns, names(results))
+  out <- results[, columns, drop = FALSE]
+  rownames(out) <- NULL
+  out
+}
+
+.benchmark_metric_matrix <- function(results) {
+  results <- as.data.frame(results, stringsAsFactors = FALSE)
+  if (!"method" %in% names(results)) {
+    return(data.frame())
+  }
+  metrics <- .benchmark_standard_metric_columns(results)
+  if (length(metrics) == 0L) {
+    return(data.frame())
+  }
+  has_value <- vapply(results[, metrics, drop = FALSE], function(x) any(!is.na(x)), logical(1))
+  metrics <- metrics[has_value]
+  if (length(metrics) == 0L) {
+    return(data.frame())
+  }
+  method_names <- make.unique(as.character(results$method))
+  values <- t(as.matrix(results[, metrics, drop = FALSE]))
+  colnames(values) <- method_names
+  out <- data.frame(metric = rownames(values), values, check.names = FALSE, stringsAsFactors = FALSE)
+  rownames(out) <- NULL
+  out
 }
 
 .benchmark_report_inputs <- function(benchmark, metrics = NULL) {
@@ -1579,12 +1664,44 @@ print.gamlss_longitudinal_benchmark <- function(x, digits = max(3, getOption("di
   cat("Formula:", deparse(x$formula), "\n")
   cat("Subject:", x$subject_var, "\n")
   cat("Family:", x$family, "\n\n")
-  print(x$results, digits = digits, row.names = FALSE)
-  lines <- .benchmark_interpretation_lines(x$interpretation)
-  if (length(lines) > 0L) {
+
+  cat("Model Status\n")
+  cat("------------\n")
+  print(.benchmark_model_status_table(x$results), digits = digits, row.names = FALSE)
+
+  metric_table <- .benchmark_metric_matrix(x$results)
+  if (nrow(metric_table) > 0L) {
+    cat("\nBenchmark Metrics\n")
+    cat("-----------------\n")
+    print(metric_table, digits = digits, row.names = FALSE)
+  }
+
+  interpretation_table <- .benchmark_interpretation_table(x$interpretation)
+  if (nrow(interpretation_table) > 0L) {
     cat("\nBenchmark Interpretation\n")
     cat("------------------------\n")
-    cat(paste(lines, collapse = "\n"), "\n", sep = "")
+    if (length(x$interpretation$primary_method) > 0L) {
+      cat("Primary method:", x$interpretation$primary_method[[1L]], "\n\n")
+    }
+    print(interpretation_table, digits = digits, row.names = FALSE)
+  } else {
+    lines <- .benchmark_interpretation_lines(x$interpretation)
+    if (length(lines) > 0L) {
+      cat("\nBenchmark Interpretation\n")
+      cat("------------------------\n")
+      cat(paste(lines, collapse = "\n"), "\n", sep = "")
+    }
+  }
+
+  unsupported <- if (!is.null(x$interpretation)) {
+    as.data.frame(x$interpretation$unsupported, stringsAsFactors = FALSE)
+  } else {
+    data.frame()
+  }
+  if (nrow(unsupported) > 0L) {
+    cat("\nRows Excluded From Interpretation\n")
+    cat("---------------------------------\n")
+    print(unsupported, digits = digits, row.names = FALSE)
   }
   invisible(x)
 }

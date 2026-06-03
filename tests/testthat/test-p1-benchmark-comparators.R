@@ -215,8 +215,11 @@ test_that("benchmark_standard_models can score the supplied primary fit", {
   expect_true(any(summary$case_results$method == "primary"))
 
   printed <- utils::capture.output(print(bench))
+  expect_true(any(grepl("Model Status", printed, fixed = TRUE)))
+  expect_true(any(grepl("Benchmark Metrics", printed, fixed = TRUE)))
   expect_true(any(grepl("Benchmark Interpretation", printed, fixed = TRUE)))
-  expect_true(any(grepl("primary leads or ties on", printed, fixed = TRUE)))
+  expect_true(any(grepl("lead/tie", printed, fixed = TRUE)))
+  expect_true(any(grepl("benchmark_rmse", printed, fixed = TRUE)))
 })
 
 test_that("benchmark interpretation groups metrics into readable domains", {
