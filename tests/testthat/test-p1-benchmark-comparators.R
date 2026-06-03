@@ -3,7 +3,7 @@ test_that("benchmark comparator status records optional backends", {
 
   expect_s3_class(status, "data.frame")
   expect_true(all(c("comparator", "estimator", "package", "available", "role") %in% names(status)))
-  expect_equal(sort(status$comparator), sort(c("gee", "glmm", "gam", "glmmTMB")))
+  expect_equal(sort(status$comparator), sort(c("glm", "gee", "glmm", "gam", "gamm", "glmmTMB")))
   expect_type(status$available, "logical")
 })
 
@@ -102,6 +102,84 @@ test_that("benchmark_standard_models fits the always-available GAM comparator", 
   expect_true(inherits(bench$fits$gam, "gam"))
 })
 
+test_that("benchmark_standard_models default comparators cover independence and longitudinal baselines", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 8L)
+  dat$id <- factor(dat$id)
+
+  bench <- benchmark_standard_models(
+    data = dat,
+    formula = y ~ time_raw + gender + age,
+    subject_var = "id",
+    family = "gaussian"
+  )
+
+  expect_equal(bench$results$comparator, c("glm", "gee", "glmm", "gam", "gamm"))
+  expect_false("glmmTMB" %in% bench$results$comparator)
+})
+
+test_that("benchmark_standard_models fits GLM, GAM, and GAMM linear formula comparators", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 10L)
+  dat$id <- factor(dat$id)
+
+  bench <- benchmark_standard_models(
+    data = dat,
+    formula = y ~ time_raw + gender + age,
+    subject_var = "id",
+    family = "gaussian",
+    comparators = c("glm", "gam", "gamm")
+  )
+
+  expect_equal(bench$results$comparator, c("glm", "gam", "gamm"))
+  expect_true(all(bench$results$available))
+  expect_true(all(bench$results$success))
+  expect_true(inherits(bench$fits$glm, "glm"))
+  expect_true(inherits(bench$fits$gam, "gam"))
+  expect_true(inherits(bench$fits$gamm, "gam"))
+})
+
+test_that("benchmark_standard_models supports smooths for GAM and GAMM only", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 10L)
+  dat$id <- factor(dat$id)
+
+  bench <- benchmark_standard_models(
+    data = dat,
+    formula = y ~ time_raw + gender + s(age, bs = "ps"),
+    subject_var = "id",
+    family = "gaussian",
+    comparators = c("glm", "gam", "gamm")
+  )
+
+  expect_false(bench$results$success[bench$results$comparator == "glm"])
+  expect_match(
+    bench$results$error[bench$results$comparator == "glm"],
+    "Smooth terms via s\\(\\.\\.\\.\\) are only supported",
+    perl = TRUE
+  )
+  expect_true(bench$results$success[bench$results$comparator == "gam"])
+  expect_true(bench$results$success[bench$results$comparator == "gamm"])
+})
+
+test_that("benchmark_standard_models records smooth failures for GEE and GLMM when installed", {
+  skip_if_not_installed("geepack")
+  skip_if_not_installed("lme4")
+
+  dat <- make_fixture_factor_time_interaction(n_subject = 10L)
+  dat$id <- factor(dat$id)
+
+  bench <- benchmark_standard_models(
+    data = dat,
+    formula = y ~ time_raw + gender + s(age, bs = "ps"),
+    subject_var = "id",
+    family = "gaussian",
+    comparators = c("gee", "glmm")
+  )
+
+  expect_equal(bench$results$comparator, c("gee", "glmm"))
+  expect_true(all(bench$results$available))
+  expect_false(any(bench$results$success))
+  expect_true(all(grepl("Smooth terms via s\\(\\.\\.\\.\\) are only supported", bench$results$error)))
+})
+
 test_that("benchmark_standard_models can score the supplied primary fit", {
   dat <- make_fixture_factor_time_interaction(n_subject = 10L)
   dat$id <- factor(dat$id)
@@ -130,6 +208,61 @@ test_that("benchmark_standard_models can score the supplied primary fit", {
   )
   expect_s3_class(summary, "gamlss_longitudinal_benchmark_summary")
   expect_true(any(summary$case_results$method == "primary"))
+})
+
+test_that("benchmark_standard_models reports observed distribution diagnostics", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 10L)
+  dat$id <- factor(dat$id)
+
+  bench <- benchmark_standard_models(
+    data = dat,
+    formula = y ~ time_raw + gender + age,
+    subject_var = "id",
+    family = "gaussian",
+    comparators = "gam"
+  )
+
+  metric_cols <- c(
+    "benchmark_theta_time_abs_error",
+    "benchmark_interval_coverage_95",
+    "benchmark_pit_ks_p_value",
+    "benchmark_pit_mean_abs_error",
+    "benchmark_tail_error_lower_05",
+    "benchmark_tail_error_upper_05"
+  )
+  expect_true(all(metric_cols %in% names(bench$results)))
+  observed_cols <- setdiff(metric_cols, "benchmark_theta_time_abs_error")
+  expect_true(is.na(bench$results$benchmark_theta_time_abs_error))
+  expect_true(all(is.finite(unlist(bench$results[observed_cols]))))
+  expect_true(bench$results$benchmark_interval_coverage_95 >= 0)
+  expect_true(bench$results$benchmark_interval_coverage_95 <= 1)
+})
+
+test_that("benchmark_standard_models reports truth-aware quantile and tail metrics", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 12L)
+  dat$id <- factor(dat$id)
+  t_num <- as.integer(dat$time_raw)
+  g_num <- ifelse(dat$gender == "M", 1, 0)
+  dat$true_mu <- 1.5 + 0.25 * t_num + 0.4 * g_num + 0.3 * t_num * g_num + 0.01 * dat$age
+  dat$true_sigma <- 0.15
+
+  bench <- benchmark_standard_models(
+    data = dat,
+    formula = y ~ time_raw + gender + age,
+    subject_var = "id",
+    family = "gaussian",
+    comparators = "gam",
+    truth_family = "NO"
+  )
+
+  expect_true(all(c(
+    "benchmark_mean_rmse",
+    "benchmark_q90_mae",
+    "benchmark_upper_tail_error_90"
+  ) %in% names(bench$results)))
+  expect_true(is.finite(bench$results$benchmark_mean_rmse))
+  expect_true(is.finite(bench$results$benchmark_q90_mae))
+  expect_true(is.finite(bench$results$benchmark_upper_tail_error_90))
 })
 
 test_that("benchmark_standard_models fits GEE and GLMM comparators when installed", {
