@@ -39,8 +39,7 @@ reference:
       - select_margin
       - best_fit
       - select_copula
-      - fit_longitudinal
-      - gamlss.longitudinal
+      - gamlss_longitudinal
       - summary.gamlss.longitudinal
       - coef.gamlss.longitudinal
       - vcov.gamlss.longitudinal
