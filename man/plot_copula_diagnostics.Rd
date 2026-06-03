@@ -20,7 +20,7 @@ plot_copula_diagnostics(
   plot2_cuts = 10,
   tail_thresholds = c(0.05, 0.1, 0.2),
   residual_lags = 1:3,
-  dashboard_ncol = 2,
+  dashboard_ncol = 3,
   plot = TRUE,
   ...
 )
@@ -40,7 +40,7 @@ plot_copula_diagnostics(
   plot2_cuts = 10,
   tail_thresholds = c(0.05, 0.1, 0.2),
   residual_lags = 1:3,
-  dashboard_ncol = 2,
+  dashboard_ncol = 3,
   plot = TRUE,
   ...
 )
