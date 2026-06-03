@@ -3373,9 +3373,13 @@ create_model_matrices<-function(
         stats::reformulate(termlabels = fixed_terms, intercept = has_intercept)
       }
       X_fixed <- stats::model.matrix(fixed_formula, data = data_for_par)
+      fixed_assign <- attr(X_fixed, "assign")
+      fixed_term_labels <- attr(stats::terms(fixed_formula), "term.labels")
       colnames(X_fixed) <- sub("^\\(Intercept\\)$", "intercept", colnames(X_fixed))
       colnames(X_fixed) <- normalize_time_covariate_colnames(colnames(X_fixed))
       mm_x[[parameter]] <- as.data.frame(X_fixed, check.names = FALSE)
+      attr(mm_x[[parameter]], "assign") <- fixed_assign
+      attr(mm_x[[parameter]], "term.labels") <- fixed_term_labels
     } else {
       mm_x[[parameter]] <- data.frame(row.names = seq_len(nrow(data_for_par)))
     }
