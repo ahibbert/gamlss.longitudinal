@@ -312,7 +312,7 @@ test_that("native t copula fit matches stored regression values", {
   options(gamlss.longitudinal.copula_backend = "native")
   invisible(utils::capture.output(
     fit <- suppressWarnings(
-      gamlss.longitudinal::gamlss.longitudinal(
+      gamlss.longitudinal::gamlss_longitudinal(
         dataset = dat,
         margin_dist = gamlss.dist::NO(),
         copula_dist = "t",

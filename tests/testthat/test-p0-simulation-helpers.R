@@ -144,7 +144,7 @@ test_that("simulated fixed Normal Gaussian parameters recover under separate RS"
     seed = 101
   )
 
-  fit <- gamlss.longitudinal(
+  fit <- gamlss_longitudinal(
     dataset = dat,
     margin_dist = gamlss.dist::NO(),
     copula_dist = "N",

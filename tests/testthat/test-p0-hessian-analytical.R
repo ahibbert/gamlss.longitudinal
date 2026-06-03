@@ -76,7 +76,7 @@ test_that("T009 analytical Hessian warns for near-boundary GG and tracks numeric
   })
 
   dat <- make_fixture_factor_time_interaction(n_subject = 40L)
-  fit <- suppressWarnings(gamlss.longitudinal::gamlss.longitudinal(
+  fit <- suppressWarnings(gamlss.longitudinal::gamlss_longitudinal(
     dataset = dat,
     margin_dist = gamlss.dist::GG(),
     copula_dist = "N",
@@ -144,7 +144,7 @@ test_that("T010 DEL analytical Hessian falls back under exact rectangle likeliho
     library(gamlss.dist)
   })
 
-  fit <- gamlss.longitudinal::gamlss.longitudinal(
+  fit <- gamlss.longitudinal::gamlss_longitudinal(
     dataset = make_del_count_fixture(n_subject = 36L),
     margin_dist = gamlss.dist::DEL(),
     copula_dist = "N",
@@ -183,7 +183,7 @@ test_that("T011 analytical Hessian warns for zero-heavy discrete margins", {
     library(gamlss.dist)
   })
 
-  fit <- suppressWarnings(gamlss.longitudinal::gamlss.longitudinal(
+  fit <- suppressWarnings(gamlss.longitudinal::gamlss_longitudinal(
     dataset = make_zip_count_fixture(n_subject = 18L),
     margin_dist = gamlss.dist::ZIP(),
     copula_dist = "N",
