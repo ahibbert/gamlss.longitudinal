@@ -34,7 +34,6 @@ intended to mirror a real analysis:
 
 ```{r packages}
 library(gamlss.longitudinal)
-library(gamlss.dist)
 library(ggplot2)
 ```
 

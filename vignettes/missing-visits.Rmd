@@ -54,7 +54,7 @@ visit pattern, then add distributional or dependence complexity only when
 diagnostics support it.
 
 ```{r fit}
-fit <- fit_longitudinal(
+fit <- gamlss_longitudinal(
   dataset = dat,
   margin_dist = gamlss.dist::NO(),
   copula_dist = "N",
