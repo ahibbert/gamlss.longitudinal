@@ -508,7 +508,7 @@ and bootstrap inference.</p>
 <span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="fu">confint</span>(fit)</span>
 <span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a></span>
 <span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="co">#Wald test</span></span>
-<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="fu">wald_test</span>(fit, <span class="at">terms =</span> <span class="st">&quot;mu.treatment&quot;</span>)</span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="fu">wald_test</span>(fit)</span>
 <span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a></span>
 <span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="co"># Likelihood ratio test</span></span>
 <span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a>fit_reduced <span class="ot">&lt;-</span> <span class="fu">gamlss_longitudinal</span>(</span>
@@ -637,10 +637,10 @@ reporting by marginal effect.</p>
 <span id="cb11-55"><a href="#cb11-55" tabindex="-1"></a>  <span class="at">parameter =</span> <span class="st">&quot;mu&quot;</span>,</span>
 <span id="cb11-56"><a href="#cb11-56" tabindex="-1"></a>  <span class="at">se.fit =</span> <span class="cn">TRUE</span></span>
 <span id="cb11-57"><a href="#cb11-57" tabindex="-1"></a>)</span></code></pre></div>
-<p>If the target is a dependence-sensitive event, simulate from the
-fitted model:</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>sim_marginal <span class="ot">&lt;-</span> <span class="fu">simulate</span>(fit, <span class="at">nsim =</span> <span class="dv">100</span>, <span class="at">type =</span> <span class="st">&quot;marginal&quot;</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span>
-<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>sim_copula <span class="ot">&lt;-</span> <span class="fu">simulate</span>(fit, <span class="at">nsim =</span> <span class="dv">100</span>, <span class="at">type =</span> <span class="st">&quot;copula&quot;</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span></code></pre></div>
+<p>Simulate from the fitted model as desired, for a total of
+<code>nsim</code> replications. Note that simulation uses both copula
+and margin structure so dependence is maintained in simulations.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>sim_model <span class="ot">&lt;-</span> <span class="fu">simulate</span>(fit, <span class="at">nsim =</span> <span class="dv">100</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span></code></pre></div>
 </div>
 <div id="optional-comparebenchmark-to-familiar-models-gee-geepack-glmm-lme4-gam-mgcv" class="section level2">
 <h2>Optional: Compare/benchmark to familiar models: gee (geepack), glmm
@@ -649,14 +649,38 @@ fitted model:</p>
 model as an alternative to existing solutions using gees, gam or glmms
 we provide easy to use comparison tools to benchmark longitudinal gamlss
 models to existing methods.</p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="co"># Fit comparison models and summarise fits</span></span>
-<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="fu">benchmark_standard_models</span>(</span>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="co"># Fit comparison models and summarise fits for a model with linear age term</span></span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a>bench_nosmooth <span class="ot">&lt;-</span> <span class="fu">benchmark_standard_models</span>(</span>
 <span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
 <span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a>  <span class="at">formula =</span> response <span class="sc">~</span> treatment <span class="sc">+</span> time <span class="sc">+</span> age_scaled,</span>
 <span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a>  <span class="at">subject_var =</span> <span class="st">&quot;subject&quot;</span>,</span>
 <span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a>  <span class="at">family =</span> <span class="st">&quot;gamma&quot;</span>,</span>
-<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a>  <span class="at">comparators =</span> <span class="fu">c</span>(<span class="st">&quot;gee&quot;</span>, <span class="st">&quot;glmm&quot;</span>, <span class="st">&quot;gam&quot;</span>)</span>
-<span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a>)</span></code></pre></div>
+<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a>  <span class="at">fit =</span> fit_reduced</span>
+<span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a>)</span>
+<span id="cb13-9"><a href="#cb13-9" tabindex="-1"></a></span>
+<span id="cb13-10"><a href="#cb13-10" tabindex="-1"></a><span class="fu">print</span>(bench_nosmooth)</span>
+<span id="cb13-11"><a href="#cb13-11" tabindex="-1"></a></span>
+<span id="cb13-12"><a href="#cb13-12" tabindex="-1"></a><span class="co"># Fit comparison models and summarise fits for a model with smooth age term</span></span>
+<span id="cb13-13"><a href="#cb13-13" tabindex="-1"></a>bench_smooth <span class="ot">&lt;-</span> <span class="fu">benchmark_standard_models</span>(</span>
+<span id="cb13-14"><a href="#cb13-14" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
+<span id="cb13-15"><a href="#cb13-15" tabindex="-1"></a>  <span class="at">formula =</span> response <span class="sc">~</span> treatment <span class="sc">+</span> time <span class="sc">+</span> <span class="fu">s</span>(age_scaled),</span>
+<span id="cb13-16"><a href="#cb13-16" tabindex="-1"></a>  <span class="at">subject_var =</span> <span class="st">&quot;subject&quot;</span>,</span>
+<span id="cb13-17"><a href="#cb13-17" tabindex="-1"></a>  <span class="at">family =</span> <span class="st">&quot;gamma&quot;</span>,</span>
+<span id="cb13-18"><a href="#cb13-18" tabindex="-1"></a>  <span class="at">fit =</span> fit</span>
+<span id="cb13-19"><a href="#cb13-19" tabindex="-1"></a>)</span>
+<span id="cb13-20"><a href="#cb13-20" tabindex="-1"></a></span>
+<span id="cb13-21"><a href="#cb13-21" tabindex="-1"></a><span class="fu">print</span>(bench_smooth)</span></code></pre></div>
+<p>In general, note that the purpose of the gamlss.longitudinal model is
+to accurately capture the full joint distribution shape. If the item of
+interest is just the mean, then gamlss.longitudinal is unlikely to
+provide large gains except for where distributions are clearly
+non-standard. By modelling the whole joint outcome distribution we can
+more accurately answer quesitons such as whether quantiles, tail risks,
+or uncertainty (SEs, confidence intervals, prediction intervals) change
+in a meaningful way. In addition, note that the consumption of degrees
+of freedom for calculation of accurate conditional AICs for random
+effect models can be substantial compared to the small number of
+parameters needed to fit a copula-based dependence structure.</p>
 <p>We provide additional information on comparisons in other vignettes:
 <code>vignette(&quot;benchmarking-adoption&quot;, package = &quot;gamlss.longitudinal&quot;)</code>
 for scenario-level benchmark reporting.</p>
