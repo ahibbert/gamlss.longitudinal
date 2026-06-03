@@ -5,9 +5,10 @@
 \title{Plot an observed marginal response with a fitted GAMLSS density overlay}
 \usage{
 plot_margin_fit(
-  x,
-  family = NULL,
+  x = NULL,
+  margin_dist = NULL,
   data = NULL,
+  fit = NULL,
   response_var = "response",
   bins = 30,
   grid_n = 200,
@@ -21,11 +22,14 @@ plot_margin_fit(
 \item{x}{Numeric response vector, data frame, or fitted
 \code{gamlss.longitudinal} object.}
 
-\item{family}{A \code{gamlss.dist} family object, family name, or
-\code{margin_selection} result. Required for raw data and ignored for fitted
-longitudinal models.}
+\item{margin_dist}{A \code{gamlss.dist} family object, family name, or
+\code{margin_selection} result. Required for raw data unless \code{fit} is supplied.}
 
 \item{data}{Optional data frame containing the response.}
+
+\item{fit}{Optional fitted \code{gamlss.longitudinal} object. When supplied, the
+fitted marginal density is overlaid using the model distribution and
+row-specific fitted parameters.}
 
 \item{response_var}{Response column name when \code{x} or \code{data} is a data frame.}
 
