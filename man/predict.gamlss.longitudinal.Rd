@@ -59,3 +59,15 @@ intervals are requested; a data frame otherwise.
 \description{
 Predict from a longitudinal GAMLSS-copula model
 }
+\details{
+\code{predict()} returns marginal summaries from the fitted distribution at each
+requested row. The fitted copula/dependence structure is not used to condition a
+row's prediction on that subject's other observed responses. Instead,
+dependence affects prediction indirectly through the coefficients estimated by
+the joint copula likelihood, and through \code{se.fit}/confidence intervals when
+the covariance matrix is computed from the joint model. Use
+\code{\link[=simulate.gamlss.longitudinal]{simulate.gamlss.longitudinal()}} for
+fitted-data trajectory simulation that preserves the fitted copula dependence
+structure. Copula-preserving simulation for \code{newdata} is not currently
+implemented.
+}

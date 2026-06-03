@@ -257,6 +257,17 @@ print.margin_screen <- function(x, ..., n = 10L) {
 #' @param vcov_method Variance-covariance method passed to [vcov.gamlss.longitudinal()].
 #' @param ... Additional arguments reserved for future methods.
 #'
+#' @details
+#' `predict()` returns marginal summaries from the fitted distribution at each
+#' requested row. The fitted copula/dependence structure is not used to
+#' condition a row's prediction on that subject's other observed responses.
+#' Instead, dependence affects prediction indirectly through the coefficients
+#' estimated by the joint copula likelihood, and through `se.fit`/confidence
+#' intervals when the covariance matrix is computed from the joint model. Use
+#' [simulate.gamlss.longitudinal()] for fitted-data trajectory simulation that
+#' preserves the fitted copula dependence structure. Copula-preserving
+#' simulation for `newdata` is not currently implemented.
+#'
 #' @return A numeric vector for `type = "response"` unless standard errors or
 #'   intervals are requested; a data frame otherwise.
 #' @export
