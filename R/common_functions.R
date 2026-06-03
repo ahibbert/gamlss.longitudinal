@@ -9075,6 +9075,26 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
 
 #' @keywords internal
 #' @noRd
+.plot_reject_old_call_args <- function(call, old_args) {
+  call_names <- names(as.list(call)[-1L])
+  old_used <- intersect(call_names[!is.na(call_names) & nzchar(call_names)], old_args)
+  if (length(old_used) == 0L) {
+    return(invisible(NULL))
+  }
+  replacements <- c(
+    family = "margin_dist",
+    dist = "margin_dist",
+    copula = "copula_dist",
+    selected_fit = "copula_dist"
+  )
+  msg <- vapply(old_used, function(arg) {
+    paste0("'", arg, "' has been removed; use '", replacements[[arg]], "' instead")
+  }, character(1), USE.NAMES = FALSE)
+  stop(paste(msg, collapse = "; "), call. = FALSE)
+}
+
+#' @keywords internal
+#' @noRd
 .plot_margin_family_name <- function(family) {
   if (is.character(family$family)) {
     family$family[1]
@@ -9213,6 +9233,7 @@ plot_margin_fit <- function(
   plot = TRUE,
   ...
 ) {
+  .plot_reject_old_call_args(sys.call(), old_args = c("family"))
   .plot_reject_old_args(list(...), old_args = c("family"))
 
   if (inherits(x, "gamlss.longitudinal") && is.null(fit)) {
@@ -9318,6 +9339,40 @@ plot_margin_fit <- function(
 
 #' @keywords internal
 #' @noRd
+.plot_copula_candidate_families <- function(copula) {
+  if (!is.character(copula) || length(copula) < 1L || any(is.na(copula))) {
+    stop("'copula_dist' must be a copula_selection result, one-row selection data frame, or family code.", call. = FALSE)
+  }
+  if (length(copula) == 1L && tolower(copula) %in% c("best", "auto")) {
+    return(c("N", "C", "F", "G", "J", "t"))
+  }
+  vapply(copula, .copula_family_code, character(1), USE.NAMES = FALSE)
+}
+
+#' @keywords internal
+#' @noRd
+.plot_copula_resolve_spec <- function(copula, pair_data = NULL, min_pairs = 3L) {
+  if (is.character(copula)) {
+    if (is.null(pair_data)) {
+      return(list(spec = .plot_copula_selection_spec(copula[1L]), selection = NULL))
+    }
+    pair_data <- pair_data[is.finite(pair_data$u1) & is.finite(pair_data$u2), , drop = FALSE]
+    if (nrow(pair_data) < min_pairs) {
+      stop("Need at least ", min_pairs, " finite pseudo-observation pairs to fit the copula overlay.", call. = FALSE)
+    }
+    selection <- select_copula(
+      u1 = pair_data$u1,
+      u2 = pair_data$u2,
+      families = .plot_copula_candidate_families(copula),
+      min_pairs = min_pairs
+    )
+    return(list(spec = .plot_copula_selection_spec(selection), selection = selection))
+  }
+  list(spec = .plot_copula_selection_spec(copula), selection = if (inherits(copula, "copula_selection")) copula else NULL)
+}
+
+#' @keywords internal
+#' @noRd
 .plot_copula_density_for_spec <- function(pair_data, spec, grid_n, max_pairs_overlay) {
   pair_data$theta_pair <- if ("theta_pair" %in% names(pair_data)) pair_data$theta_pair else rep(spec$par, nrow(pair_data))
   pair_data$zeta_pair <- if ("zeta_pair" %in% names(pair_data)) pair_data$zeta_pair else rep(spec$par2, nrow(pair_data))
@@ -9353,7 +9408,9 @@ plot_margin_fit <- function(
 #' @param data Optional long-format data frame. If a fitted
 #'   `gamlss.longitudinal` object is supplied here, it is treated as `fit`.
 #' @param copula_dist A `copula_selection` result, one-row selection data frame,
-#'   or family code. Required unless `fit` is supplied.
+#'   family code(s), or `"best"`/`"auto"` to screen all supported families.
+#'   Character values are fitted to the supplied pseudo-observation pairs before
+#'   the overlay is drawn. Required unless `fit` is supplied.
 #' @param fit Optional fitted `gamlss.longitudinal` object.
 #' @param object Optional alias for `fit`.
 #' @param u1,u2 Optional direct paired pseudo-observations.
@@ -9380,10 +9437,8 @@ plot_margin_fit <- function(
 plot_copula_fit <- function(
   data = NULL,
   copula_dist = NULL,
-  copula = NULL,
   fit = NULL,
   object = NULL,
-  selected_fit = NULL,
   u1 = NULL,
   u2 = NULL,
   u = NULL,
@@ -9401,13 +9456,8 @@ plot_copula_fit <- function(
   plot = TRUE,
   ...
 ) {
+  .plot_reject_old_call_args(sys.call(), old_args = c("copula", "selected_fit"))
   .plot_reject_old_args(list(...), old_args = c("copula", "selected_fit"))
-  if (!missing(copula)) {
-    stop("'copula' has been removed; use 'copula_dist' instead.", call. = FALSE)
-  }
-  if (!missing(selected_fit)) {
-    stop("'selected_fit' has been removed; use 'copula_dist' instead.", call. = FALSE)
-  }
   transform <- match.arg(transform)
   if (inherits(data, "gamlss.longitudinal") && is.null(fit) && is.null(object)) {
     fit <- data
@@ -9430,11 +9480,11 @@ plot_copula_fit <- function(
       par2 = 0,
       tau = NA_real_
     )
+    selection <- NULL
   } else {
     if (is.null(copula_dist)) {
       stop("Supply 'copula_dist' or a fitted 'fit'.", call. = FALSE)
     }
-    spec <- .plot_copula_selection_spec(copula_dist)
     pair_data <- .select_copula_pairs(
       data = data,
       object = NULL,
@@ -9452,13 +9502,18 @@ plot_copula_fit <- function(
       time_var = time_var,
       lags = lags
     )
-    pair_data$theta_pair <- rep(spec$par, nrow(pair_data))
-    pair_data$zeta_pair <- rep(spec$par2, nrow(pair_data))
   }
 
   pair_data <- pair_data[is.finite(pair_data$u1) & is.finite(pair_data$u2), , drop = FALSE]
   if (nrow(pair_data) < 3L) {
     stop("Need at least three finite pseudo-observation pairs to plot a copula overlay.", call. = FALSE)
+  }
+  if (is.null(fit)) {
+    resolved <- .plot_copula_resolve_spec(copula_dist, pair_data = pair_data, min_pairs = 3L)
+    spec <- resolved$spec
+    selection <- resolved$selection
+    pair_data$theta_pair <- rep(spec$par, nrow(pair_data))
+    pair_data$zeta_pair <- rep(spec$par2, nrow(pair_data))
   }
 
   density_grid <- .plot_copula_density_for_spec(pair_data, spec, grid_n = grid_n, max_pairs_overlay = max_pairs_overlay)
@@ -9490,7 +9545,13 @@ plot_copula_fit <- function(
     print(p)
   }
 
-  invisible(list(plot = p, pair_data = pair_data, density = density_grid))
+  invisible(list(
+    plot = p,
+    pair_data = pair_data,
+    density = density_grid,
+    copula = spec,
+    selection = selection
+  ))
 }
 
 #' @rdname plot_copula_fit
@@ -9498,10 +9559,8 @@ plot_copula_fit <- function(
 plot_copula_overlay <- function(
   data = NULL,
   copula_dist = NULL,
-  copula = NULL,
   fit = NULL,
   object = NULL,
-  selected_fit = NULL,
   u1 = NULL,
   u2 = NULL,
   u = NULL,
@@ -9519,12 +9578,7 @@ plot_copula_overlay <- function(
   plot = TRUE,
   ...
 ) {
-  if (!missing(copula)) {
-    stop("'copula' has been removed; use 'copula_dist' instead.", call. = FALSE)
-  }
-  if (!missing(selected_fit)) {
-    stop("'selected_fit' has been removed; use 'copula_dist' instead.", call. = FALSE)
-  }
+  .plot_reject_old_call_args(sys.call(), old_args = c("copula", "selected_fit"))
   plot_copula_fit(
     data = data,
     copula_dist = copula_dist,
@@ -9669,15 +9723,12 @@ plot_dist <- function (
   fit = NULL,
   overlay = NULL,
   copula_dist = NULL,
-  copula = NULL,
   grid_n = 80,
   contour_bins = 8,
   ...
 ) {
-  .plot_reject_old_args(list(...), old_args = c("dist", "family"))
-  if (!missing(copula)) {
-    stop("'copula' has been removed; use 'copula_dist' instead.", call. = FALSE)
-  }
+  .plot_reject_old_call_args(sys.call(), old_args = c("dist", "family", "copula"))
+  .plot_reject_old_args(list(...), old_args = c("dist", "family", "copula"))
   if (!is.null(fit) && !inherits(fit, "gamlss.longitudinal")) {
     stop("'fit' must be a fitted 'gamlss.longitudinal' object.", call. = FALSE)
   }
@@ -10589,7 +10640,15 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
 
   dataset<-create_longitudinal_dataset(response,covariates,labels=c("subject","time","response","age","year","gender"))
 
-        if(plot_dist==TRUE) {plot_dist(dataset,margin_dist)}
+        if(plot_dist==TRUE) {
+          plot_dist(
+            dataset,
+            margin_dist = margin_dist,
+            subject_var = "subject",
+            time_var = "time",
+            response_var = "response"
+          )
+        }
 
   return(dataset)
 }

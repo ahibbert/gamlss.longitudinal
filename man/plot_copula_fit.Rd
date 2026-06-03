@@ -7,9 +7,9 @@
 \usage{
 plot_copula_fit(
   data = NULL,
-  copula = NULL,
+  copula_dist = NULL,
+  fit = NULL,
   object = NULL,
-  selected_fit = NULL,
   u1 = NULL,
   u2 = NULL,
   u = NULL,
@@ -30,9 +30,9 @@ plot_copula_fit(
 
 plot_copula_overlay(
   data = NULL,
-  copula = NULL,
+  copula_dist = NULL,
+  fit = NULL,
   object = NULL,
-  selected_fit = NULL,
   u1 = NULL,
   u2 = NULL,
   u = NULL,
@@ -53,15 +53,16 @@ plot_copula_overlay(
 }
 \arguments{
 \item{data}{Optional long-format data frame. If a fitted
-\code{gamlss.longitudinal} object is supplied here, it is treated as \code{object}.}
+\code{gamlss.longitudinal} object is supplied here, it is treated as \code{fit}.}
 
-\item{copula}{A \code{copula_selection} result, one-row selection data frame, or
-family code. Required unless \code{object} is supplied.}
+\item{copula_dist}{A \code{copula_selection} result, one-row selection data frame,
+family code(s), or \code{"best"}/\code{"auto"} to screen all supported families.
+Character values are fitted to the supplied pseudo-observation pairs before
+the overlay is drawn. Required unless \code{fit} is supplied.}
 
-\item{object}{Optional fitted \code{gamlss.longitudinal} object.}
+\item{fit}{Optional fitted \code{gamlss.longitudinal} object.}
 
-\item{selected_fit}{Deprecated alias for \code{copula}, useful when replacing old
-vignette-local helpers.}
+\item{object}{Optional alias for \code{fit}.}
 
 \item{u1, u2}{Optional direct paired pseudo-observations.}
 
