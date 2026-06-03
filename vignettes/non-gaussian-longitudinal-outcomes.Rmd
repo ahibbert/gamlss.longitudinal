@@ -52,7 +52,7 @@ Then fit a distributional model. Put the main mean-scale question in `mu`, and
 use `sigma` when variability changes by time, treatment, or baseline risk.
 
 ```{r positive-fit}
-fit_pos <- fit_longitudinal(
+fit_pos <- gamlss_longitudinal(
   dataset = dat,
   margin_dist = gamlss.dist::GA(mu.link = "log", sigma.link = "log"),
   copula_dist = "N",
@@ -97,7 +97,7 @@ screen_margin(
 ```
 
 ```{r count-fit}
-fit_count <- fit_longitudinal(
+fit_count <- gamlss_longitudinal(
   dataset = count_dat,
   margin_dist = gamlss.dist::NBI(),
   copula_dist = "N",

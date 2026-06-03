@@ -42,7 +42,7 @@ large longitudinal likelihoods can make Hessian work expensive. For final
 reporting, either compute it at fit time or request it when summarising.
 
 ```{r fit}
-fit <- fit_longitudinal(
+fit <- gamlss_longitudinal(
   dataset = dat,
   margin_dist = gamlss.dist::GA(mu.link = "log", sigma.link = "log"),
   copula_dist = "C",

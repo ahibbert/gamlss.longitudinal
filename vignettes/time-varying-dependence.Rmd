@@ -39,7 +39,7 @@ support the extra parameter.
 ## Fit A Constant-Dependence Model First
 
 ```{r constant-fit}
-fit_constant <- fit_longitudinal(
+fit_constant <- gamlss_longitudinal(
   dataset = dat,
   margin_dist = gamlss.dist::NO(),
   copula_dist = "N",
@@ -57,7 +57,7 @@ check_constant$residual_dependence
 If residual dependence remains, fit a time-varying dependence model:
 
 ```{r time-fit}
-fit_time <- fit_longitudinal(
+fit_time <- gamlss_longitudinal(
   dataset = dat,
   margin_dist = gamlss.dist::NO(),
   copula_dist = "N",
@@ -77,7 +77,7 @@ copula_time_summary(fit_time)
 For more complex patterns, use smooth terms cautiously:
 
 ```{r smooth-time-fit}
-fit_smooth_time <- fit_longitudinal(
+fit_smooth_time <- gamlss_longitudinal(
   dataset = dat,
   margin_dist = gamlss.dist::NO(),
   copula_dist = "N",

@@ -77,15 +77,15 @@ copula_screen <- select_copula(
 copula_screen
 ```
 
-Fit the longitudinal model with distributional formulas. The high-level
-`fit_longitudinal()` wrapper keeps the common workflow compact, records the
-screening choices used, and attaches a first-pass `check_model()` result.
+Fit the longitudinal model with distributional formulas using
+`gamlss_longitudinal()`. Keep copula screening and model checking explicit:
+use `select_copula()` before fitting and `check_model()` after fitting.
 A typical first model puts the main scientific effects in `mu`, obvious
 heteroskedasticity in `sigma`, and time or subject-level drivers of dependence
 in `theta`.
 
 ```{r fit}
-fit <- fit_longitudinal(
+fit <- gamlss_longitudinal(
   dataset = dat,
   margin_dist = gamlss.dist::GA(mu.link = "log", sigma.link = "log"),
   copula_dist = attr(copula_screen, "selected"),
