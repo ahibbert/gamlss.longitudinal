@@ -7925,7 +7925,7 @@ plot_copula_diagnostics <- function(
   plot2_cuts = 10,
   tail_thresholds = c(0.05, 0.10, 0.20),
   residual_lags = 1:3,
-  dashboard_ncol = 2,
+  dashboard_ncol = 3,
   plot = TRUE,
   ...
 ) {
@@ -7953,7 +7953,7 @@ plot_copula_diagnostics <- function(
 #' @rdname plot_copula_diagnostics
 #' @method plot copula
 #' @export
-plot.copula <- function(x, lags = 1, grid_n = 35, max_pairs_overlay = 300, transform = "normal", plot1_style = "bins", contour_bins = 8, time_stratified = FALSE, by = NULL, data = NULL, tau_ylim = NULL, plot2_cuts = 10, tail_thresholds = c(0.05, 0.10, 0.20), residual_lags = 1:3, dashboard_ncol = 2, plot = TRUE, ...) {
+plot.copula <- function(x, lags = 1, grid_n = 35, max_pairs_overlay = 300, transform = "normal", plot1_style = "bins", contour_bins = 8, time_stratified = FALSE, by = NULL, data = NULL, tau_ylim = NULL, plot2_cuts = 10, tail_thresholds = c(0.05, 0.10, 0.20), residual_lags = 1:3, dashboard_ncol = 3, plot = TRUE, ...) {
   if (!inherits(x, "gamlss.longitudinal")) {
     stop("'x' must be a fitted 'gamlss.longitudinal' object.")
   }
@@ -8225,6 +8225,31 @@ plot.copula <- function(x, lags = 1, grid_n = 35, max_pairs_overlay = 300, trans
       ggplot2::theme_minimal()
   }
 
+  rosenblatt_z <- rosenblatt_df$z[is.finite(rosenblatt_df$z)]
+  if (length(rosenblatt_z) == 0) {
+    p_ros_qq <- .copula_v2_message_plot(
+      title = "Rosenblatt Normal QQ",
+      subtitle = "Conditional copula scores should follow N(0, 1)",
+      message = "No finite Rosenblatt residuals"
+    )
+  } else {
+    rosenblatt_qq_df <- data.frame(
+      theoretical = stats::qnorm(stats::ppoints(length(rosenblatt_z))),
+      observed = sort(rosenblatt_z),
+      stringsAsFactors = FALSE
+    )
+    p_ros_qq <- ggplot2::ggplot(rosenblatt_qq_df, ggplot2::aes(x = theoretical, y = observed)) +
+      ggplot2::geom_abline(intercept = 0, slope = 1, color = "#666666", linetype = "dashed") +
+      ggplot2::geom_point(color = "#4d4d4d", alpha = 0.55, size = 1.2) +
+      ggplot2::labs(
+        title = "Rosenblatt Normal QQ",
+        subtitle = "Conditional copula scores should follow N(0, 1)",
+        x = "Theoretical normal quantile",
+        y = "Observed normal score"
+      ) +
+      ggplot2::theme_minimal()
+  }
+
   if (nrow(rosenblatt_pair_df) == 0 || all(!is.finite(rosenblatt_pair_df$z_prev)) || all(!is.finite(rosenblatt_pair_df$z_curr))) {
     p_ros_lag <- .copula_v2_message_plot(
       title = "Rosenblatt Lag Plot",
@@ -8364,7 +8389,7 @@ plot.copula <- function(x, lags = 1, grid_n = 35, max_pairs_overlay = 300, trans
       ggplot2::theme_minimal()
   }
 
-  dashboard_plots <- list(p1, p2, p_ros_time, p_ros_lag, p_kendall, p_tail, p_cond_tail, p_lag_summary)
+  dashboard_plots <- list(p1, p2, p_ros_time, p_ros_qq, p_ros_lag, p_kendall, p_tail, p_cond_tail, p_lag_summary)
   dashboard <- do.call(
     ggpubr::ggarrange,
     c(
@@ -8385,6 +8410,7 @@ plot.copula <- function(x, lags = 1, grid_n = 35, max_pairs_overlay = 300, trans
       empirical_overlay = p1,
       quartile_correlation = p2,
       rosenblatt_by_time = p_ros_time,
+      rosenblatt_qq = p_ros_qq,
       rosenblatt_lag = p_ros_lag,
       kendall_function = p_kendall,
       tail_cooccurrence = p_tail,
@@ -8983,6 +9009,458 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
     dashboard = dashboard
   ))
 }
+#' @keywords internal
+#' @noRd
+.plot_margin_resolve_family <- function(family) {
+  if (inherits(family, "margin_selection") || inherits(family, "margin_screen")) {
+    family <- best_fit_family(family)
+  }
+  if (is.character(family) && length(family) == 1L) {
+    family <- .margin_family_object(family)
+  }
+  if (is.null(family) || is.null(family$family) || is.null(family$parameters)) {
+    stop("'family' must be a gamlss.dist family object, family name, or margin_selection result.", call. = FALSE)
+  }
+  family
+}
+
+#' @keywords internal
+#' @noRd
+.plot_margin_family_name <- function(family) {
+  if (is.character(family$family)) {
+    family$family[1]
+  } else {
+    as.character(family$family[[1L]])
+  }
+}
+
+#' @keywords internal
+#' @noRd
+.plot_margin_response <- function(x = NULL, data = NULL, response_var = "response") {
+  if (!is.null(data)) {
+    data <- as.data.frame(data, stringsAsFactors = FALSE)
+    if (!is.character(response_var) || length(response_var) != 1L || !response_var %in% names(data)) {
+      stop("'response_var' must name a response column in 'data'.", call. = FALSE)
+    }
+    return(as.numeric(data[[response_var]]))
+  }
+  if (is.data.frame(x)) {
+    if (!is.character(response_var) || length(response_var) != 1L || !response_var %in% names(x)) {
+      stop("'response_var' must name a response column in 'x'.", call. = FALSE)
+    }
+    return(as.numeric(x[[response_var]]))
+  }
+  as.numeric(x)
+}
+
+#' @keywords internal
+#' @noRd
+.plot_margin_constant_params <- function(y, family) {
+  y <- as.numeric(y)
+  y <- y[is.finite(y)]
+  if (length(y) < 3L) {
+    stop("Need at least three finite response values to fit a marginal overlay.", call. = FALSE)
+  }
+
+  fit <- gamlss::gamlss(y ~ 1, family = family, trace = FALSE)
+  params <- lapply(names(family$parameters), function(par_name) {
+    as.numeric(stats::fitted(fit, what = par_name))
+  })
+  names(params) <- names(family$parameters)
+  params
+}
+
+#' @keywords internal
+#' @noRd
+.plot_margin_density_grid <- function(y, family, params, grid_n = 200, group = NULL) {
+  y <- as.numeric(y)
+  keep <- is.finite(y)
+  y <- y[keep]
+  params <- lapply(params, function(x) {
+    x <- as.numeric(x)
+    if (length(x) == length(keep)) {
+      x[keep]
+    } else {
+      rep(x, length.out = length(y))
+    }
+  })
+  if (!is.null(group)) {
+    group <- as.character(group)[keep]
+  }
+
+  if (length(y) < 1L) {
+    return(data.frame(response = numeric(), density = numeric(), split_group = character()))
+  }
+
+  family_name <- .plot_margin_family_name(family)
+  response_range <- range(y, na.rm = TRUE)
+  pad <- diff(response_range) * 0.04
+  if (!is.finite(pad) || pad <= 0) {
+    pad <- max(abs(response_range), 1) * 0.04
+  }
+
+  build_one <- function(idx, group_name = "All") {
+    yy <- y[idx]
+    x_grid <- seq(min(yy, na.rm = TRUE) - pad, max(yy, na.rm = TRUE) + pad, length.out = grid_n)
+    density <- vapply(x_grid, function(x_value) {
+      par_i <- lapply(params, function(p) p[idx])
+      mean(.gl_call_family_fun("d", family_name, rep(x_value, length(idx)), par_i), na.rm = TRUE)
+    }, numeric(1), USE.NAMES = FALSE)
+    data.frame(
+      response = x_grid,
+      density = density,
+      split_group = group_name,
+      stringsAsFactors = FALSE
+    )
+  }
+
+  if (is.null(group)) {
+    return(build_one(seq_along(y)))
+  }
+
+  groups <- unique(group[!is.na(group)])
+  out <- lapply(groups, function(g) build_one(which(group == g), group_name = g))
+  do.call(rbind, out)
+}
+
+#' Plot an observed marginal response with a fitted GAMLSS density overlay
+#'
+#' `plot_margin_fit()` replaces the common exploratory use of
+#' `gamlss::histDist()` with a ggplot-based helper that also understands final
+#' `gamlss.longitudinal` fits. With raw data it fits the supplied family as an
+#' intercept-only marginal model. With a fitted longitudinal model it overlays
+#' the average row-specific fitted marginal density.
+#'
+#' @param x Numeric response vector, data frame, or fitted
+#'   `gamlss.longitudinal` object.
+#' @param family A `gamlss.dist` family object, family name, or
+#'   `margin_selection` result. Required for raw data and ignored for fitted
+#'   longitudinal models.
+#' @param data Optional data frame containing the response.
+#' @param response_var Response column name when `x` or `data` is a data frame.
+#' @param bins Number of histogram bins.
+#' @param grid_n Number of grid points used for the fitted density.
+#' @param by_time Logical; facet the plot by time. For fitted longitudinal
+#'   models, fitted densities are averaged within each time point.
+#' @param time_var Time column name used when `by_time = TRUE` for raw data.
+#' @param plot Logical; if TRUE, print the plot.
+#' @param ... Additional arguments reserved for future methods.
+#'
+#' @return Invisibly returns a list containing the plot, observed data, and
+#'   fitted density grid.
+#' @export
+plot_margin_fit <- function(
+  x,
+  family = NULL,
+  data = NULL,
+  response_var = "response",
+  bins = 30,
+  grid_n = 200,
+  by_time = FALSE,
+  time_var = "time",
+  plot = TRUE,
+  ...
+) {
+  if (inherits(x, "gamlss.longitudinal")) {
+    diag_data <- .gl_fitted_distribution(x, newdata = NULL, require_response = TRUE)
+    family <- x$margin_dist
+    obs <- data.frame(
+      response = diag_data$response,
+      split_group = as.character(diag_data$time),
+      stringsAsFactors = FALSE
+    )
+    density_grid <- .plot_margin_density_grid(
+      y = diag_data$response,
+      family = family,
+      params = diag_data$params,
+      grid_n = grid_n,
+      group = if (isTRUE(by_time)) diag_data$time else NULL
+    )
+  } else {
+    family <- .plot_margin_resolve_family(family)
+    y <- .plot_margin_response(x = x, data = data, response_var = response_var)
+    raw_data <- if (!is.null(data)) as.data.frame(data, stringsAsFactors = FALSE) else if (is.data.frame(x)) as.data.frame(x, stringsAsFactors = FALSE) else NULL
+
+    if (isTRUE(by_time)) {
+      if (is.null(raw_data) || !time_var %in% names(raw_data)) {
+        stop("Raw-data time faceting requires 'data' or data-frame 'x' containing 'time_var'.", call. = FALSE)
+      }
+      obs <- data.frame(response = y, split_group = as.character(raw_data[[time_var]]), stringsAsFactors = FALSE)
+      density_grid <- do.call(rbind, lapply(names(split(obs, obs$split_group)), function(group_name) {
+        df <- split(obs, obs$split_group)[[group_name]]
+        params <- .plot_margin_constant_params(df$response, family)
+        grid <- .plot_margin_density_grid(df$response, family, params, grid_n = grid_n)
+        grid$split_group <- group_name
+        grid
+      }))
+    } else {
+      obs <- data.frame(response = y, split_group = "All", stringsAsFactors = FALSE)
+      params <- .plot_margin_constant_params(y, family)
+      density_grid <- .plot_margin_density_grid(y, family, params, grid_n = grid_n)
+    }
+  }
+
+  family_name <- .plot_margin_family_name(family)
+  p <- ggplot2::ggplot(obs, ggplot2::aes(x = .data$response)) +
+    ggplot2::geom_histogram(ggplot2::aes(y = ggplot2::after_stat(density)), bins = bins, fill = "#d9d9d9", color = "white", na.rm = TRUE) +
+    ggplot2::geom_line(data = density_grid, ggplot2::aes(x = .data$response, y = .data$density), inherit.aes = FALSE, color = "#e41a1c", linewidth = 1) +
+    ggplot2::labs(
+      title = paste0("Marginal Fit: ", family_name),
+      x = "Response",
+      y = "Density"
+    ) +
+    ggplot2::theme_minimal()
+
+  if (isTRUE(by_time)) {
+    p <- p + ggplot2::facet_wrap(~split_group, scales = "free_y")
+  }
+
+  if (isTRUE(plot)) {
+    print(p)
+  }
+
+  invisible(list(plot = p, data = obs, density = density_grid))
+}
+
+#' @keywords internal
+#' @noRd
+.plot_copula_selection_spec <- function(copula) {
+  if (inherits(copula, "copula_selection")) {
+    copula <- as.data.frame(copula)[1L, , drop = FALSE]
+  }
+  if (is.character(copula) && length(copula) == 1L) {
+    family <- .copula_family_code(copula)
+    par <- switch(family, N = 0, F = 0, t = 0, C = 1e-8, G = 1 + 1e-8, J = 1 + 1e-8, 0)
+    par2 <- if (identical(family, "t")) 4 else 0
+    return(list(family = family, par = par, par2 = par2, tau = 0))
+  }
+  if (is.data.frame(copula) && nrow(copula) >= 1L) {
+    family <- .copula_family_code(as.character(copula$family[1L]))
+    par <- if ("par" %in% names(copula)) as.numeric(copula$par[1L]) else NA_real_
+    par2 <- if ("par2" %in% names(copula)) as.numeric(copula$par2[1L]) else 0
+    tau <- if ("tau" %in% names(copula)) as.numeric(copula$tau[1L]) else NA_real_
+    if (!is.finite(par) && is.finite(tau)) {
+      par <- .copula_tau_to_par(family, tau)
+    }
+    return(list(family = family, par = par, par2 = par2, tau = tau))
+  }
+  stop("'copula' must be a copula_selection result, one-row selection data frame, or family code.", call. = FALSE)
+}
+
+#' @keywords internal
+#' @noRd
+.plot_copula_density_for_spec <- function(pair_data, spec, grid_n, max_pairs_overlay) {
+  pair_data$theta_pair <- if ("theta_pair" %in% names(pair_data)) pair_data$theta_pair else rep(spec$par, nrow(pair_data))
+  pair_data$zeta_pair <- if ("zeta_pair" %in% names(pair_data)) pair_data$zeta_pair else rep(spec$par2, nrow(pair_data))
+  .copula_v2_average_density_grid(
+    family_num = spec$family,
+    pair_data = pair_data,
+    grid_n = grid_n,
+    max_pairs_overlay = max_pairs_overlay
+  )
+}
+
+#' @keywords internal
+#' @noRd
+.plot_copula_transform_grid <- function(density_grid, transform) {
+  if (identical(transform, "normal")) {
+    z1 <- stats::qnorm(.copula_v2_clamp01(density_grid$u1))
+    z2 <- stats::qnorm(.copula_v2_clamp01(density_grid$u2))
+    density_grid$density <- density_grid$density * stats::dnorm(z1) * stats::dnorm(z2)
+    density_grid$u1 <- z1
+    density_grid$u2 <- z2
+  }
+  density_grid
+}
+
+#' Plot empirical pseudo-observation pairs with a fitted copula overlay
+#'
+#' `plot_copula_fit()` and `plot_copula_overlay()` standardise the
+#' copula-screen visual check used in examples and vignettes. They accept raw
+#' pseudo-observations plus a `select_copula()` result, or a final
+#' `gamlss.longitudinal` fit whose row-specific fitted copula density is
+#' averaged over paired observations.
+#'
+#' @param data Optional long-format data frame. If a fitted
+#'   `gamlss.longitudinal` object is supplied here, it is treated as `object`.
+#' @param copula A `copula_selection` result, one-row selection data frame, or
+#'   family code. Required unless `object` is supplied.
+#' @param object Optional fitted `gamlss.longitudinal` object.
+#' @param selected_fit Deprecated alias for `copula`, useful when replacing old
+#'   vignette-local helpers.
+#' @param u1,u2 Optional direct paired pseudo-observations.
+#' @param u Optional row-aligned pseudo-observation vector for `data`.
+#' @param u_var Optional pseudo-observation column name in `data`.
+#' @param response_var Optional response column name used to create temporary
+#'   pseudo-observations when `u`, `u_var`, and `u1`/`u2` are absent.
+#' @param margin_dist Optional margin family used when creating temporary
+#'   pseudo-observations from `response_var`.
+#' @param subject_var,time_var Subject and time column names.
+#' @param lags Positive integer lag(s) used when forming pairs.
+#' @param transform Character; either `"normal"` or `"uniform"`.
+#' @param grid_n Grid size for fitted density contours.
+#' @param bins Number of empirical two-dimensional bins.
+#' @param contour_bins Number of fitted contour levels.
+#' @param max_pairs_overlay Maximum paired observations used when averaging
+#'   fitted copula densities.
+#' @param plot Logical; if TRUE, print the plot.
+#' @param ... Additional arguments reserved for future methods.
+#'
+#' @return Invisibly returns a list containing the plot, pair data, and fitted
+#'   density grid.
+#' @export
+plot_copula_fit <- function(
+  data = NULL,
+  copula = NULL,
+  object = NULL,
+  selected_fit = NULL,
+  u1 = NULL,
+  u2 = NULL,
+  u = NULL,
+  u_var = NULL,
+  response_var = NULL,
+  margin_dist = NULL,
+  subject_var = "subject",
+  time_var = "time",
+  lags = 1,
+  transform = c("normal", "uniform"),
+  grid_n = 80,
+  bins = 28,
+  contour_bins = 8,
+  max_pairs_overlay = 300,
+  plot = TRUE,
+  ...
+) {
+  transform <- match.arg(transform)
+  if (inherits(data, "gamlss.longitudinal") && is.null(object)) {
+    object <- data
+    data <- NULL
+  }
+  if (is.null(copula) && !is.null(selected_fit)) {
+    copula <- selected_fit
+  }
+
+  if (!is.null(object)) {
+    fit_data <- .copula_v2_fit_data(object)
+    pair_data <- .copula_v2_pair_data(fit_data, lags = lags)
+    copula_spec <- get_copula_dist(object$copula_dist)
+    spec <- list(
+      family = .copula_family_code(copula_spec$copula_dist),
+      par = NA_real_,
+      par2 = 0,
+      tau = NA_real_
+    )
+  } else {
+    if (is.null(copula)) {
+      stop("Supply 'copula' or a fitted 'object'.", call. = FALSE)
+    }
+    spec <- .plot_copula_selection_spec(copula)
+    pair_data <- .select_copula_pairs(
+      data = data,
+      object = NULL,
+      u1 = u1,
+      u2 = u2,
+      u = u,
+      u_var = u_var,
+      response_var = response_var,
+      margin_dist = margin_dist,
+      mu.formula = NULL,
+      sigma.formula = NULL,
+      nu.formula = NULL,
+      tau.formula = NULL,
+      subject_var = subject_var,
+      time_var = time_var,
+      lags = lags
+    )
+    pair_data$theta_pair <- rep(spec$par, nrow(pair_data))
+    pair_data$zeta_pair <- rep(spec$par2, nrow(pair_data))
+  }
+
+  pair_data <- pair_data[is.finite(pair_data$u1) & is.finite(pair_data$u2), , drop = FALSE]
+  if (nrow(pair_data) < 3L) {
+    stop("Need at least three finite pseudo-observation pairs to plot a copula overlay.", call. = FALSE)
+  }
+
+  density_grid <- .plot_copula_density_for_spec(pair_data, spec, grid_n = grid_n, max_pairs_overlay = max_pairs_overlay)
+  density_grid <- .plot_copula_transform_grid(density_grid, transform)
+  pair_plot <- .copula_v2_transform_data(pair_data, transform = transform)
+
+  x_label <- if (transform == "normal") expression(Phi^-1 * (U[t])) else expression(U[t])
+  y_label <- if (transform == "normal") expression(Phi^-1 * (U[t + 1])) else expression(U[t + 1])
+
+  p <- ggplot2::ggplot(pair_plot, ggplot2::aes(x = .data$u1, y = .data$u2)) +
+    ggplot2::geom_bin2d(ggplot2::aes(fill = ggplot2::after_stat(density)), bins = bins, alpha = 0.85) +
+    ggplot2::geom_contour(
+      data = density_grid,
+      ggplot2::aes(x = .data$u1, y = .data$u2, z = .data$density),
+      inherit.aes = FALSE,
+      color = "white",
+      linewidth = 0.8,
+      bins = contour_bins
+    ) +
+    ggplot2::scale_fill_gradient(low = "#f7f7f7", high = "#2166ac", name = "Empirical") +
+    ggplot2::labs(
+      title = paste0("Copula Overlay: ", spec$family),
+      x = x_label,
+      y = y_label
+    ) +
+    ggplot2::theme_minimal()
+
+  if (isTRUE(plot)) {
+    print(p)
+  }
+
+  invisible(list(plot = p, pair_data = pair_data, density = density_grid))
+}
+
+#' @rdname plot_copula_fit
+#' @export
+plot_copula_overlay <- function(
+  data = NULL,
+  copula = NULL,
+  object = NULL,
+  selected_fit = NULL,
+  u1 = NULL,
+  u2 = NULL,
+  u = NULL,
+  u_var = NULL,
+  response_var = NULL,
+  margin_dist = NULL,
+  subject_var = "subject",
+  time_var = "time",
+  lags = 1,
+  transform = c("normal", "uniform"),
+  grid_n = 80,
+  bins = 28,
+  contour_bins = 8,
+  max_pairs_overlay = 300,
+  plot = TRUE,
+  ...
+) {
+  plot_copula_fit(
+    data = data,
+    copula = copula,
+    object = object,
+    selected_fit = selected_fit,
+    u1 = u1,
+    u2 = u2,
+    u = u,
+    u_var = u_var,
+    response_var = response_var,
+    margin_dist = margin_dist,
+    subject_var = subject_var,
+    time_var = time_var,
+    lags = lags,
+    transform = transform,
+    grid_n = grid_n,
+    bins = bins,
+    contour_bins = contour_bins,
+    max_pairs_overlay = max_pairs_overlay,
+    plot = plot,
+    ...
+  )
+}
+
 #' Plot marginal and pairwise distribution diagnostics
 #'
 #' @param dataset Long-format data frame with `subject`, `time`, and `response`
@@ -8992,15 +9470,65 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
 #'   pseudo-observation scale.
 #' @param show_cor_stats Logical; include Pearson and Kendall correlations in
 #'   off-diagonal panel subtitles.
+#' @param fit Optional fitted `gamlss.longitudinal` object used for final-model
+#'   margin and copula overlays.
+#' @param overlay Character; `"none"` preserves the historical plot,
+#'   `"margin"` overlays fitted marginal densities on diagonal panels,
+#'   `"copula"` overlays a selected copula on pseudo-observation off-diagonal
+#'   panels, and `"model"` overlays the final fitted model using `fit`.
+#' @param copula Optional `copula_selection` result or one-row selection table
+#'   used when `overlay = "copula"`.
+#' @param grid_n Grid size used for density overlays.
+#' @param contour_bins Number of copula contour levels.
+#' @param ... Compatibility arguments passed from `plotDist()` to
+#'   `plot_dist()`.
 #'
 #' @return A `ggpubr` arranged plot object.
 #' @export
-plotDist <- function (dataset,dist,offdiag_scale=c("response","pseudo"),show_cor_stats=TRUE) {
+plot_dist <- function (
+  dataset,
+  dist,
+  offdiag_scale = c("response", "pseudo"),
+  show_cor_stats = TRUE,
+  fit = NULL,
+  overlay = c("none", "margin", "copula", "model"),
+  copula = NULL,
+  grid_n = 80,
+  contour_bins = 8
+) {
 
   offdiag_scale <- match.arg(offdiag_scale)
+  overlay <- match.arg(overlay)
+  if (overlay == "model" && is.null(fit)) {
+    stop("'fit' is required when overlay = 'model'.", call. = FALSE)
+  }
+  if (overlay == "copula" && is.null(copula)) {
+    stop("'copula' is required when overlay = 'copula'.", call. = FALSE)
+  }
+  if (overlay %in% c("copula", "model") && offdiag_scale != "pseudo") {
+    warning("Copula overlays are only drawn when offdiag_scale = 'pseudo'.", call. = FALSE)
+  }
 
   time_values <- sort(unique(dataset[, "time"]))
   num_margins=length(time_values)
+  dist <- .plot_margin_resolve_family(dist)
+
+  fit_diag_data <- NULL
+  fit_pair_data <- NULL
+  fit_copula_spec <- NULL
+  if (!is.null(fit)) {
+    fit_diag_data <- .gl_fitted_distribution(fit, newdata = NULL, require_response = TRUE)
+    fit_data <- .copula_v2_fit_data(fit)
+    fit_pair_data <- .copula_v2_pair_data(fit_data, lags = seq_len(max(1L, num_margins - 1L)))
+    fit_copula_spec <- get_copula_dist(fit$copula_dist)
+    fit_copula_spec <- list(
+      family = .copula_family_code(fit_copula_spec$copula_dist),
+      par = NA_real_,
+      par2 = 0,
+      tau = NA_real_
+    )
+  }
+  copula_spec <- if (!is.null(copula)) .plot_copula_selection_spec(copula) else NULL
 
   margin_data=list()
   margin_pseudo=list()
@@ -9016,7 +9544,7 @@ plotDist <- function (dataset,dist,offdiag_scale=c("response","pseudo"),show_cor
   ##plot.new()
   #par(mfrow=c(1,num_margins))
 
-  #for (i in 1:num_margins) {histDist(margin_data[[i]],family=dist,xlab=TeX(paste("$Y_",i,"$")),main=paste("Histogram of margin",i,"and fitted",dist))}
+  # Historical base graphics margin inspection is now covered by plot_margin_fit().
   #invisible(readline(prompt="Press [enter] to continue"))
 
   plots=list()
@@ -9028,9 +9556,46 @@ plotDist <- function (dataset,dist,offdiag_scale=c("response","pseudo"),show_cor
         input_data=data.frame(X1 = margin_data[[i]]$response)
         x_lab <- latex2exp::TeX(paste("$Y_",i,"$"))
 
-        p <- ggplot2::ggplot(input_data, ggplot2::aes(x=X1)) +
-          ggplot2::geom_histogram(bins=30, na.rm=TRUE) +
-          ggplot2::labs(x = x_lab)
+        p <- ggplot2::ggplot(input_data, ggplot2::aes(x=X1))
+        if (overlay %in% c("margin", "model")) {
+          p <- p + ggplot2::geom_histogram(ggplot2::aes(y = ggplot2::after_stat(density)), bins=30, na.rm=TRUE)
+        } else {
+          p <- p + ggplot2::geom_histogram(bins=30, na.rm=TRUE)
+        }
+        p <- p + ggplot2::labs(x = x_lab)
+
+        if (overlay == "margin") {
+          params <- .plot_margin_constant_params(input_data$X1, dist)
+          density_grid <- .plot_margin_density_grid(input_data$X1, dist, params, grid_n = grid_n)
+          p <- p +
+            ggplot2::geom_line(
+              data = density_grid,
+              ggplot2::aes(x = .data$response, y = .data$density),
+              inherit.aes = FALSE,
+              color = "#e41a1c",
+              linewidth = 0.8
+            ) +
+            ggplot2::labs(y = "Density")
+        }
+
+        if (overlay == "model") {
+          keep_time <- as.character(fit_diag_data$time) == as.character(time_values[i])
+          density_grid <- .plot_margin_density_grid(
+            fit_diag_data$response[keep_time],
+            fit$margin_dist,
+            lapply(fit_diag_data$params, function(x) x[keep_time]),
+            grid_n = grid_n
+          )
+          p <- p +
+            ggplot2::geom_line(
+              data = density_grid,
+              ggplot2::aes(x = .data$response, y = .data$density),
+              inherit.aes = FALSE,
+              color = "#e41a1c",
+              linewidth = 0.8
+            ) +
+            ggplot2::labs(y = "Density")
+        }
       }
       if(i!=j) {
         if (offdiag_scale == "pseudo") {
@@ -9075,6 +9640,64 @@ plotDist <- function (dataset,dist,offdiag_scale=c("response","pseudo"),show_cor
 
           p <- p + ggplot2::labs(subtitle = stats_lab)
         }
+
+        if (offdiag_scale == "pseudo" && overlay == "copula") {
+          contour_grid <- .plot_copula_density_for_spec(
+            data.frame(
+              u1 = input_data$X1,
+              u2 = input_data$X2,
+              theta_pair = rep(copula_spec$par, nrow(input_data)),
+              zeta_pair = rep(copula_spec$par2, nrow(input_data))
+            ),
+            copula_spec,
+            grid_n = grid_n,
+            max_pairs_overlay = 300
+          )
+          contour_grid$X1 <- contour_grid$u1
+          contour_grid$X2 <- contour_grid$u2
+          p <- p + ggplot2::geom_contour(
+            data = contour_grid,
+            ggplot2::aes(x = .data$X1, y = .data$X2, z = .data$density),
+            inherit.aes = FALSE,
+            color = "#e41a1c",
+            linewidth = 0.8,
+            bins = contour_bins
+          )
+        }
+
+        if (offdiag_scale == "pseudo" && overlay == "model") {
+          left_idx <- min(i, j)
+          right_idx <- max(i, j)
+          pd <- fit_pair_data[
+            as.character(fit_pair_data$time_left) == as.character(time_values[left_idx]) &
+              as.character(fit_pair_data$time_right) == as.character(time_values[right_idx]),
+            ,
+            drop = FALSE
+          ]
+          if (nrow(pd) > 2L) {
+            contour_grid <- .plot_copula_density_for_spec(
+              pd,
+              fit_copula_spec,
+              grid_n = grid_n,
+              max_pairs_overlay = 300
+            )
+            if (i < j) {
+              contour_grid$X1 <- contour_grid$u1
+              contour_grid$X2 <- contour_grid$u2
+            } else {
+              contour_grid$X1 <- contour_grid$u2
+              contour_grid$X2 <- contour_grid$u1
+            }
+            p <- p + ggplot2::geom_contour(
+              data = contour_grid,
+              ggplot2::aes(x = .data$X1, y = .data$X2, z = .data$density),
+              inherit.aes = FALSE,
+              color = "#e41a1c",
+              linewidth = 0.8,
+              bins = contour_bins
+            )
+          }
+        }
       }
 
       plots[[z]]=p
@@ -9083,6 +9706,13 @@ plotDist <- function (dataset,dist,offdiag_scale=c("response","pseudo"),show_cor
   }
   ggpubr::ggarrange(plotlist=plots,ncol=num_margins,nrow=num_margins)
 
+}
+
+#' @rdname plot_dist
+#' @export
+plotDist <- function(...) {
+  warning("plotDist() is retained for compatibility; use plot_dist() instead.", call. = FALSE)
+  plot_dist(...)
 }
 #' @keywords internal
 #' @noRd
@@ -9737,7 +10367,7 @@ loadDataset <- function(simOption=5,plot_dist=FALSE,n=100,d=3,copula_dist=NA, ma
 
   dataset<-create_longitudinal_dataset(response,covariates,labels=c("subject","time","response","age","year","gender"))
 
-  if(plot_dist==TRUE) {plotDist(dataset,margin_dist)}
+        if(plot_dist==TRUE) {plot_dist(dataset,margin_dist)}
 
   return(dataset)
 }
