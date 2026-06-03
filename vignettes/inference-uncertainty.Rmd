@@ -279,7 +279,6 @@ Suggested reporting language:
 Use `marginal_effects()` for counterfactual contrasts that are easier to explain
 than coefficient changes, especially with nonlinear links, non-Gaussian
 margins, or distributional parameters.
-The familiar `effects()` generic is also available as an alias.
 
 ```{r marginal-effects}
 eff <- marginal_effects(
@@ -290,14 +289,6 @@ eff <- marginal_effects(
   se.fit = TRUE
 )
 eff
-
-effects(
-  fit,
-  newdata = dat,
-  variable = "treatment",
-  parameter = "mu",
-  se.fit = TRUE
-)
 ```
 
 The uncertainty is variance-covariance based and inherits the same Hessian or

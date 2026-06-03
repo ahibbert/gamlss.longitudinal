@@ -239,12 +239,26 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 
-<p>The articles are organized around the way most users arrive at
-<code>gamlss.longitudinal</code>: first learn the standard workflow,
-then go deeper on inference, diagnostics, benchmarks, or migration from
-GEE and GLMM models.</p>
+<p>Welcome to the support page for <strong>gamlss_longitudinal</strong>
+!</p>
+<p>This package provides a easy to use for fitting longitudinal
+regression models with gamlss margins and copulas for dependence.</p>
+<p>This page is organised around your use case. In ‘Start Here’ we
+provide a basic workflow (which you can apply directly to your own
+dataset) and a more detailed worked example which uses a simulated
+dataset using the built in simulation features. The following sections
+provide more detail for each of the components of the workflow, and
+worked examples for migrating from a GEE or GLMM structure to a
+longitudinal gamlss-based analysis</p>
+<p>Please report any bugs or issues on our github at <a href="https://github.com/ahibbert/gamlss.longitudinal/issues" class="uri">https://github.com/ahibbert/gamlss.longitudinal/issues</a>
+or feel free to reach out to the maintainer at <a href="mailto:a.d.hibbert@gmail.com" class="email">a.d.hibbert@gmail.com</a> for any clarifications.</p>
+<p>This work is largely based on published research by Aydin
+Sareff-Hibbert and Gillian Heller: <a href="https://arxiv.org/abs/2410.11892" class="uri">https://arxiv.org/abs/2410.11892</a> <a href="https://arxiv.org/abs/2410.11892" class="uri">https://arxiv.org/abs/2410.11892</a> (update to
+gamlss_longitudinal paper)</p>
 <div id="start-here" class="section level2">
 <h2>Start Here</h2>
+<p>Installation:</p>
+<pre><code>remotes::install_github(&quot;ahibbert/gamlss.longitudinal&quot;)</code></pre>
 <p>Read these first if you want the shortest path from data to an
 interpretable longitudinal model.</p>
 <table>
@@ -256,21 +270,20 @@ interpretable longitudinal model.</p>
 <thead>
 <tr class="header">
 <th>Article title</th>
-<th>R code</th>
+<th>Access from R</th>
 <th>Purpose</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="standard-workflow.html">Standard Workflow API, Inference,
-and Diagnostics</a></td>
+<td><a href="standard-workflow.html">Simple workflow</a></td>
 <td><code>vignette(&quot;standard-workflow&quot;, package = &quot;gamlss.longitudinal&quot;)</code></td>
 <td>The recommended screen, fit, check, infer, predict, and simulate
 workflow.</td>
 </tr>
 <tr class="even">
-<td><a href="native-simulation-workflow.html">Native Simulation, Copula
-Screening, and GAMLSS Longitudinal Fitting</a></td>
+<td><a href="native-simulation-workflow.html">Detailed worked
+example</a></td>
 <td><code>vignette(&quot;native-simulation-workflow&quot;, package = &quot;gamlss.longitudinal&quot;)</code></td>
 <td>A full simulated example with known truth, copula screening,
 fitting, and diagnostics.</td>
@@ -278,8 +291,8 @@ fitting, and diagnostics.</td>
 </tbody>
 </table>
 </div>
-<div id="core-workflow-components" class="section level2">
-<h2>Core Workflow Components</h2>
+<div id="core-workflow-components-come-back-to-update-this-section" class="section level2">
+<h2>Core Workflow Components (COME BACK TO UPDATE THIS SECTION)</h2>
 <p>Use these when reviewing one part of an analysis.</p>
 <table>
 <colgroup>

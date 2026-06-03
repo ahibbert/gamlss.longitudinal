@@ -12,7 +12,7 @@
 
 
 
-<title>Standard Workflow API, Inference, and Diagnostics</title>
+<title>Standard workflow: screening, fit, inference, diagnostics, and simulation</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -337,414 +337,334 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 
-<h1 class="title toc-ignore">Standard Workflow API, Inference, and
-Diagnostics</h1>
+<h1 class="title toc-ignore">Standard workflow: screening, fit,
+inference, diagnostics, and simulation</h1>
 
 
 
 <p>This vignette gives the minimal standard workflow for applied
-longitudinal analyses with <code>gamlss.longitudinal</code>,
-highlighting key functions. It is deliberately narrow: get the margin
-roughly right, choose a reasonable copula / dependence structure, fit
-the longitudinal model, check the result, then report response-scale
-answers.</p>
-<p>Use this as the default path before moving to the focused guides for
-replacing a GEE, replacing a random-intercept GLMM, handling
-non-Gaussian outcomes, missing visits, or time-varying dependence.</p>
-<div id="functions-covered" class="section level2">
-<h2>Functions Covered</h2>
-<p>This vignette demonstrates or describes every user-facing function
-added for the standard adoption workflow.</p>
-<table>
-<colgroup>
-<col width="50%" />
-<col width="50%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>Function</th>
-<th>Purpose</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>Step 1: Screen the margin</strong></td>
-<td></td>
-</tr>
-<tr class="even">
-<td><code>screen_margin()</code></td>
-<td>Screen candidate marginal distributions before fitting
-dependence.</td>
-</tr>
-<tr class="odd">
-<td><code>print.margin_screen()</code></td>
-<td>Automatically prints the ordered margin screen.</td>
-</tr>
-<tr class="even">
-<td><strong>Step 2: Screen the copula</strong></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td><code>select_copula()</code></td>
-<td>Select a starting copula based on pseudo-observations from a fitted
-margin.</td>
-</tr>
-<tr class="even">
-<td><strong>Step 3: Fit and quantify uncertainty</strong></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td><code>fit_longitudinal()</code></td>
-<td>Fit the recommended GAMLSS-copula workflow with adoption-friendly
-defaults.</td>
-</tr>
-<tr class="even">
-<td><code>gamlss_longitudinal()</code></td>
-<td>Direct low-level constructor for users who need full control over
-fitting options.</td>
-</tr>
-<tr class="odd">
-<td><code>confint.gamlss.longitudinal()</code></td>
-<td>Report coefficient confidence intervals through the standard
-<code>confint()</code> generic.</td>
-</tr>
-<tr class="even">
-<td><code>wald_test()</code></td>
-<td>Run individual, joint, or contrast-matrix Wald tests.</td>
-</tr>
-<tr class="odd">
-<td><code>likelihood_compare()</code></td>
-<td>Compare nested or approximately nested longitudinal fits.</td>
-</tr>
-<tr class="even">
-<td><code>bootstrap_inference()</code></td>
-<td>Run parametric simulation-and-refit coefficient uncertainty
-checks.</td>
-</tr>
-<tr class="odd">
-<td><code>print.gamlss_longitudinal_wald_test()</code></td>
-<td>Automatically prints <code>wald_test()</code> output.</td>
-</tr>
-<tr class="even">
-<td><code>print.gamlss_longitudinal_likelihood_compare()</code></td>
-<td>Automatically prints likelihood comparison output.</td>
-</tr>
-<tr class="odd">
-<td><code>print.gamlss_longitudinal_bootstrap()</code></td>
-<td>Automatically prints bootstrap summaries.</td>
-</tr>
-<tr class="even">
-<td><strong>Step 4: Check before interpreting</strong></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td><code>check_model()</code></td>
-<td>Return decision-oriented diagnostics, warnings, and a model-role
-recommendation.</td>
-</tr>
-<tr class="even">
-<td><code>print.gamlss_longitudinal_check()</code></td>
-<td>Automatically prints the diagnostic object.</td>
-</tr>
-<tr class="odd">
-<td><code>plot.gamlss_longitudinal_check()</code></td>
-<td>Draw stored PIT, QQ, worm, and rootogram diagnostics through
-<code>plot(check)</code>.</td>
-</tr>
-<tr class="even">
-<td><strong>Step 5: Report applied answers</strong></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td><code>predict.gamlss.longitudinal()</code></td>
-<td>Return means, parameters, quantiles, CDFs, densities, probabilities,
-and uncertainty intervals.</td>
-</tr>
-<tr class="even">
-<td><code>simulate.gamlss.longitudinal()</code></td>
-<td>Simulate marginal or copula-preserving fitted responses.</td>
-</tr>
-<tr class="odd">
-<td><code>marginal_effects()</code></td>
-<td>Summarize counterfactual response-scale effects.</td>
-</tr>
-<tr class="even">
-<td><code>effects.gamlss.longitudinal()</code></td>
-<td>Provide a familiar <code>effects()</code> alias for
-<code>marginal_effects()</code>.</td>
-</tr>
-</tbody>
-</table>
+longitudinal analyses with <code>gamlss.longitudinal</code>.</p>
+<p>We include a suggested set of steps and functions including short
+descriptions of each, while excluding outputs inline to minimise the
+complexity of reviewing the file. The idea is to allow the user to
+quickly pickup the relevant code and apply to either their own dataset
+or the included simulated dataset.</p>
+<p>For a worked through example with more detailed review of outputs and
+diagnostics, including their interpretation, please review the detailed
+worked example: <a href="native-simulation-workflow.html">Detailed
+worked example</a>.</p>
+<p>The key parts are:</p>
+<ol style="list-style-type: decimal">
+<li>Select marginal distribution and copula function</li>
+<li>Fit model, review outputs and compare fits</li>
+<li>Review model diagnostics</li>
+<li>(Optional) Predict and simulate</li>
+<li>(Optional) Compare to common models: gee, glmm, gam</li>
+</ol>
+<p>1-3 are the core model building workflow, while 4-5 provide
+additional tools for analaysis depening on user needs.</p>
+<div id="installation" class="section level2">
+<h2>Installation</h2>
+<p>For now installation is available directly from the project’s github
+repository. You may need to install the package ‘remotes’ through
+<code>install.packages(&quot;remotes&quot;)</code>.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;ahibbert/gamlss.longitudinal&quot;</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">library</span>(gamlss.longitudinal)</span></code></pre></div>
 </div>
 <div id="data-requirements" class="section level2">
 <h2>Data Requirements</h2>
-<p>Start with one row per subject and visit. The model needs:</p>
+<p>The dataset should be structured as one row per subject and
+timepoint. The dataset should include:</p>
 <ul>
-<li>a response column;</li>
+<li>the response variable;</li>
 <li>a subject identifier;</li>
-<li>a visit, time, or occasion variable;</li>
-<li>scientific predictors for the margin;</li>
-<li>optional predictors for scale, shape, or dependence.</li>
+<li>a visit, time, or occasion identifier;</li>
+<li>any covariates for analysis.</li>
 </ul>
-<p>The small simulated dataset below has the required structure and can
-be used to run the workflow chunks.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
-<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>n_subjects <span class="ot">&lt;-</span> <span class="dv">40</span></span>
-<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>visit_times <span class="ot">&lt;-</span> <span class="dv">0</span><span class="sc">:</span><span class="dv">3</span></span>
-<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(</span>
-<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a>  <span class="at">subject =</span> <span class="fu">seq_len</span>(n_subjects),</span>
-<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>  <span class="at">time =</span> visit_times</span>
-<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>)</span>
-<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a></span>
-<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a>subject_covariates <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a>  <span class="at">subject =</span> <span class="fu">seq_len</span>(n_subjects),</span>
-<span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a>  <span class="at">treatment =</span> <span class="fu">rep</span>(<span class="fu">c</span>(<span class="st">&quot;control&quot;</span>, <span class="st">&quot;active&quot;</span>), <span class="at">length.out =</span> n_subjects),</span>
-<span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a>  <span class="at">age_scaled =</span> <span class="fu">as.numeric</span>(<span class="fu">scale</span>(<span class="fu">rnorm</span>(n_subjects, <span class="at">mean =</span> <span class="dv">55</span>, <span class="at">sd =</span> <span class="dv">10</span>))),</span>
-<span id="cb1-14"><a href="#cb1-14" tabindex="-1"></a>  <span class="at">subject_shift =</span> <span class="fu">rnorm</span>(n_subjects, <span class="at">sd =</span> <span class="fl">0.35</span>)</span>
-<span id="cb1-15"><a href="#cb1-15" tabindex="-1"></a>)</span>
-<span id="cb1-16"><a href="#cb1-16" tabindex="-1"></a></span>
-<span id="cb1-17"><a href="#cb1-17" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">merge</span>(dat, subject_covariates, <span class="at">by =</span> <span class="st">&quot;subject&quot;</span>)</span>
-<span id="cb1-18"><a href="#cb1-18" tabindex="-1"></a>dat<span class="sc">$</span>treatment <span class="ot">&lt;-</span> <span class="fu">factor</span>(dat<span class="sc">$</span>treatment)</span>
-<span id="cb1-19"><a href="#cb1-19" tabindex="-1"></a>dat<span class="sc">$</span>true_mu <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fl">1.6</span> <span class="sc">+</span> <span class="fl">0.35</span> <span class="sc">*</span> (dat<span class="sc">$</span>treatment <span class="sc">==</span> <span class="st">&quot;active&quot;</span>) <span class="sc">+</span> <span class="fl">0.12</span> <span class="sc">*</span> dat<span class="sc">$</span>time <span class="sc">+</span> dat<span class="sc">$</span>subject_shift)</span>
-<span id="cb1-20"><a href="#cb1-20" tabindex="-1"></a>dat<span class="sc">$</span>true_sigma <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="fl">0.5</span> <span class="sc">+</span> <span class="fl">0.08</span> <span class="sc">*</span> dat<span class="sc">$</span>time)</span>
-<span id="cb1-21"><a href="#cb1-21" tabindex="-1"></a>dat<span class="sc">$</span>response <span class="ot">&lt;-</span> <span class="fu">rgamma</span>(</span>
-<span id="cb1-22"><a href="#cb1-22" tabindex="-1"></a>  <span class="fu">nrow</span>(dat),</span>
-<span id="cb1-23"><a href="#cb1-23" tabindex="-1"></a>  <span class="at">shape =</span> <span class="dv">1</span> <span class="sc">/</span> dat<span class="sc">$</span>true_sigma<span class="sc">^</span><span class="dv">2</span>,</span>
-<span id="cb1-24"><a href="#cb1-24" tabindex="-1"></a>  <span class="at">scale =</span> dat<span class="sc">$</span>true_mu <span class="sc">*</span> dat<span class="sc">$</span>true_sigma<span class="sc">^</span><span class="dv">2</span></span>
-<span id="cb1-25"><a href="#cb1-25" tabindex="-1"></a>)</span>
-<span id="cb1-26"><a href="#cb1-26" tabindex="-1"></a>dat<span class="sc">$</span>subject_shift <span class="ot">&lt;-</span> <span class="cn">NULL</span></span></code></pre></div>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">str</span>(dat)</span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">table</span>(dat<span class="sc">$</span>subject)</span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="fu">table</span>(dat<span class="sc">$</span>time)</span></code></pre></div>
-<p>Unbalanced panels and missing visits are allowed, but the missingness
-mechanism still needs to be part of the scientific judgement. See
+<p>This workflow is designed to be able to be used on a dataset of your
+choice (with the suggested structure). Alternatively, the small
+simulated dataset below has the required structure and can be used to
+run the workflow end to end.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># Simulate example dataset</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">simulate_longitudinal_dataset</span>(</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="at">n =</span> <span class="dv">100</span>,</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>  <span class="at">times =</span> <span class="dv">0</span><span class="sc">:</span><span class="dv">3</span>,</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>  <span class="at">margin_dist =</span> <span class="fu">GG</span>(),</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>  <span class="at">copula_dist =</span> <span class="st">&quot;N&quot;</span>,</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>  <span class="at">margin_params =</span> <span class="fu">list</span>(</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>    <span class="at">mu =</span> <span class="cf">function</span>(d) <span class="fu">exp</span>(<span class="fl">1.6</span> <span class="sc">+</span> <span class="fl">0.35</span> <span class="sc">*</span> (d<span class="sc">$</span>treatment <span class="sc">==</span> <span class="st">&quot;active&quot;</span>) <span class="sc">+</span> <span class="fl">0.12</span> <span class="sc">*</span> d<span class="sc">$</span>time <span class="sc">+</span> d<span class="sc">$</span>subject_shift),</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>    <span class="at">sigma =</span> <span class="cf">function</span>(d) <span class="fu">exp</span>(<span class="sc">-</span><span class="fl">0.5</span> <span class="sc">+</span> <span class="fl">0.08</span> <span class="sc">*</span> d<span class="sc">$</span>time)</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>  ),</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>  <span class="at">copula_params =</span> <span class="fu">list</span>(<span class="at">theta =</span> <span class="fl">0.4</span>),</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>  <span class="at">covariates =</span> <span class="cf">function</span>(d) {</span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>    <span class="fu">simulate_longitudinal_covariates</span>(d, <span class="at">subject =</span> <span class="fu">list</span>(</span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>      <span class="at">treatment =</span> <span class="cf">function</span>(s) <span class="fu">factor</span>(<span class="fu">rep</span>(<span class="fu">c</span>(<span class="st">&quot;control&quot;</span>, <span class="st">&quot;active&quot;</span>), <span class="at">length.out =</span> <span class="fu">nrow</span>(s))),</span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>      <span class="at">age_scaled =</span> <span class="cf">function</span>(s) <span class="fu">as.numeric</span>(<span class="fu">scale</span>(<span class="fu">rnorm</span>(<span class="fu">nrow</span>(s), <span class="at">mean =</span> <span class="dv">55</span>, <span class="at">sd =</span> <span class="dv">10</span>))),</span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>      <span class="at">subject_shift =</span> <span class="cf">function</span>(s) <span class="fu">rnorm</span>(<span class="fu">nrow</span>(s), <span class="at">sd =</span> <span class="fl">0.35</span>)</span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>    ))</span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>  },</span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">1</span></span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>)</span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="co"># Review data completeness / counts by time, subject</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="fu">str</span>(dat)</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="fu">table</span>(dat<span class="sc">$</span>subject)</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="fu">table</span>(dat<span class="sc">$</span>time)</span></code></pre></div>
+<p>Missing responses are allowed but not directly accounted for as part
+of model fit so the missingness mechanism still needs to be reviewed as
+part of model assessment ideally. Missingness at random is generally
+well managed by the model, but if there is missingness not at random
+this may affect results. See
 <code>vignette(&quot;missing-visits&quot;, package = &quot;gamlss.longitudinal&quot;)</code>
 for that case.</p>
 </div>
-<div id="step-1-screen-the-margin" class="section level2">
-<h2>Step 1: Screen The Margin</h2>
-<p>Screen the response distribution before fitting the longitudinal
-dependence model. This is not the final model; it is a fast way to avoid
-starting with an obviously poor family.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>margin_screen <span class="ot">&lt;-</span> <span class="fu">screen_margin</span>(</span>
-<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>  dat,</span>
-<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>  <span class="at">response_var =</span> <span class="st">&quot;response&quot;</span>,</span>
-<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>  <span class="at">families =</span> <span class="fu">c</span>(<span class="st">&quot;NO&quot;</span>, <span class="st">&quot;GA&quot;</span>, <span class="st">&quot;LOGNO&quot;</span>, <span class="st">&quot;PO&quot;</span>)</span>
-<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>)</span>
-<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a></span>
-<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>margin_screen</span></code></pre></div>
-<p>Use the screen as a shortlist, then choose a family that makes
-scientific sense. For example, positive skewed outcomes often start with
-<code>GA()</code> or <code>LOGNO()</code>, counts with
-<code>PO()</code>, and approximately symmetric continuous outcomes with
-<code>NO()</code>.</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>margin_dist <span class="ot">&lt;-</span> gamlss.dist<span class="sc">::</span><span class="fu">GA</span>(<span class="at">mu.link =</span> <span class="st">&quot;log&quot;</span>, <span class="at">sigma.link =</span> <span class="st">&quot;log&quot;</span>)</span></code></pre></div>
+<div id="step-1-select-margin-distribution-and-copula-function" class="section level2">
+<h2>Step 1: Select margin distribution and copula function</h2>
+<p>First, we review the shape of the response distribution (margin) and
+choose the best fitting distribution.
+<strong>gamlss_longitudinal</strong> supports all non-mixed response
+types from the <strong>gamlss.dist</strong> library of
+distributions.</p>
+<p>For simplicty, we provide the function <code>select_margin()</code>
+which fits the available gamlss distributions and provides a sorted list
+of fits by AIC, and confirms if they are supported by
+gamlss_longitudinal. This can be limited to certain fits such as
+specific distributions, e.g. <code>families = c(&quot;PO&quot;, &quot;GA&quot;)</code> or
+response types, e.g. <code>type=realplus</code>.</p>
+<p>In general, we would suggest using the top fitting distributions as a
+shortlist that can later be revisited once covariates are incorporated
+into the fit.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># Select best-fitting margin distribution</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>margin_selection <span class="ot">&lt;-</span> <span class="fu">select_margin</span>(</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  dat,</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  <span class="at">response_var =</span> <span class="st">&quot;response&quot;</span></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>)</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="fu">print</span>(margin_selection)</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>margin_dist <span class="ot">&lt;-</span> <span class="fu">best_fit_family</span>(margin_selection)</span></code></pre></div>
+<p>We then select our starting copula based on the chosen marginal
+distribution. The function <code>select_copula()</code> is used to
+compare dependence copula functions. When <code>response_var</code> and
+<code>margin_dist</code> are supplied, pseudo-observations are created
+automatically from a temporary marginal GAMLSS fit.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="co"># Select best-fitting copula distribution</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>copula_selection <span class="ot">&lt;-</span> <span class="fu">select_copula</span>(</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>  <span class="at">response_var =</span> <span class="st">&quot;response&quot;</span>,</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>  <span class="at">margin_dist =</span> margin_dist,</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>  <span class="at">subject_var =</span> <span class="st">&quot;subject&quot;</span>,</span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>  <span class="at">time_var =</span> <span class="st">&quot;time&quot;</span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>)</span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="fu">print</span>(copula_selection)</span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a></span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a>copula_dist <span class="ot">&lt;-</span> <span class="fu">best_fit_family</span>(copula_selection)</span></code></pre></div>
+<p>The selected family is a starting point. Dependence diagnostics after
+the full fit matter more than the screen as dependence shape can change
+a lot after covariates are accounted for in the margins.</p>
 </div>
-<div id="step-2-screen-the-copula" class="section level2">
-<h2>Step 2: Screen The Copula</h2>
-<p>Use <code>select_copula()</code> to compare dependence families. The
-easiest route is to fit a lightweight marginal model using the screened
-family, convert the responses to pseudo-observations, and pass those
-values directly to <code>select_copula()</code>.</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>margin_fit <span class="ot">&lt;-</span> gamlss<span class="sc">::</span><span class="fu">gamlss</span>(</span>
-<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>  response <span class="sc">~</span> treatment <span class="sc">+</span> time <span class="sc">+</span> age_scaled,</span>
-<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>  <span class="at">sigma.fo =</span> <span class="sc">~</span> treatment <span class="sc">+</span> time,</span>
-<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>  <span class="at">family =</span> margin_dist,</span>
-<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
-<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>  <span class="at">trace =</span> <span class="cn">FALSE</span></span>
-<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>)</span>
-<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a></span>
-<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a>dat<span class="sc">$</span>u <span class="ot">&lt;-</span> gamlss.dist<span class="sc">::</span><span class="fu">pGA</span>(</span>
-<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>  <span class="at">q =</span> dat<span class="sc">$</span>response,</span>
-<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a>  <span class="at">mu =</span> <span class="fu">fitted</span>(margin_fit, <span class="at">what =</span> <span class="st">&quot;mu&quot;</span>),</span>
-<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a>  <span class="at">sigma =</span> <span class="fu">fitted</span>(margin_fit, <span class="at">what =</span> <span class="st">&quot;sigma&quot;</span>)</span>
-<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a>)</span>
-<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a>dat<span class="sc">$</span>u <span class="ot">&lt;-</span> <span class="fu">pmin</span>(<span class="fu">pmax</span>(dat<span class="sc">$</span>u, <span class="fl">1e-6</span>), <span class="dv">1</span> <span class="sc">-</span> <span class="fl">1e-6</span>)</span></code></pre></div>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>copula_screen <span class="ot">&lt;-</span> <span class="fu">select_copula</span>(</span>
-<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
-<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  <span class="at">u_var =</span> <span class="st">&quot;u&quot;</span>,</span>
-<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>  <span class="at">subject_var =</span> <span class="st">&quot;subject&quot;</span>,</span>
-<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>  <span class="at">time_var =</span> <span class="st">&quot;time&quot;</span>,</span>
-<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>  <span class="at">families =</span> <span class="fu">c</span>(<span class="st">&quot;N&quot;</span>, <span class="st">&quot;C&quot;</span>, <span class="st">&quot;F&quot;</span>, <span class="st">&quot;G&quot;</span>, <span class="st">&quot;J&quot;</span>, <span class="st">&quot;t&quot;</span>)</span>
-<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>)</span>
-<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a></span>
-<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a>copula_screen</span>
-<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a>copula_dist <span class="ot">&lt;-</span> <span class="fu">attr</span>(copula_screen, <span class="st">&quot;selected&quot;</span>)</span></code></pre></div>
-<p>The selected family is a starting point, not a guarantee. Dependence
-diagnostics after the full fit matter more than the screen.</p>
-</div>
-<div id="step-3-fit-the-longitudinal-model" class="section level2">
-<h2>Step 3: Fit The Longitudinal Model</h2>
-<p>Put the main scientific effects in <code>mu.formula</code>. Add
-<code>sigma.formula</code> when spread changes across time, treatment,
-or baseline covariates. Add <code>theta.formula</code> when dependence
-plausibly changes over follow-up or with subject-level predictors.</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">fit_longitudinal</span>(</span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>  <span class="at">dataset =</span> dat,</span>
-<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>  <span class="at">margin_dist =</span> margin_dist,</span>
-<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>  <span class="at">copula_dist =</span> copula_dist,</span>
-<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>  <span class="at">time_var =</span> <span class="st">&quot;time&quot;</span>,</span>
-<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>  <span class="at">subject_var =</span> <span class="st">&quot;subject&quot;</span>,</span>
-<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>  <span class="at">mu.formula =</span> response <span class="sc">~</span> treatment <span class="sc">+</span> time <span class="sc">+</span> <span class="fu">s</span>(age_scaled, <span class="at">bs =</span> <span class="st">&quot;ps&quot;</span>),</span>
-<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>  <span class="at">sigma.formula =</span> <span class="sc">~</span> treatment <span class="sc">+</span> time,</span>
-<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a>  <span class="at">theta.formula =</span> <span class="sc">~</span> time,</span>
-<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a>  <span class="at">compute_vcov =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a>  <span class="at">run_checks =</span> <span class="cn">TRUE</span></span>
-<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a>)</span></code></pre></div>
-<p>For final reporting, request variance-covariance output on the final
-model:</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="fu">summary</span>(fit, <span class="at">include_vcov =</span> <span class="cn">TRUE</span>)</span>
+<div id="step-2-fit-the-longitudinal-gamlss-model-and-review-key-outputs" class="section level2">
+<h2>Step 2: Fit the longitudinal gamlss model and review key
+outputs</h2>
+<p>Depending on the margin distribution selected and the copula function
+selected, it’s possible to depend variables on any parameter for the
+margin: <code>mu.formula</code> which is generally the mean,
+<code>sigma.formula</code> which is generally the variance parameter,
+<code>nu.formula</code>, <code>tau.formula</code>, and for the copula:
+<code>theta.formula</code> and <code>zeta.formula</code>.</p>
+<p>Other than the covariate formulas, the model requires the user
+specify the subject and time variables in the provided dataset through
+parameters <code>time_var</code> and <code>subject_var</code>. The user
+should also specify the chosen margin distribution in functional form
+(i.e. <code>GA()</code>) as well as the selected distributions for the
+margin and copula (initially based on screening in the previous
+step).</p>
+<p>For the included simulated example, we know there is a binary
+treatment effect and a time effect on both the mean,
+<code>mu.formula</code>, and the variance, <code>sigma.formula</code>.
+In addition, there is a smooth age-effect on the mean. There is also
+increasing correlation over time which we capture with a covariate in
+<code>theta.formula</code>.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co"># Fit longitudinal gamlss model</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">gamlss_longitudinal</span>(</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  <span class="at">dataset =</span> dat,</span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>  <span class="at">margin_dist =</span> margin_dist,</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>  <span class="at">copula_dist =</span> copula_dist,</span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>  <span class="at">time_var =</span> <span class="st">&quot;time&quot;</span>,</span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>  <span class="at">subject_var =</span> <span class="st">&quot;subject&quot;</span>,</span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a>  <span class="at">mu.formula =</span> response <span class="sc">~</span> treatment <span class="sc">+</span> time <span class="sc">+</span> <span class="fu">s</span>(age_scaled, <span class="at">bs =</span> <span class="st">&quot;ps&quot;</span>),</span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a>  <span class="at">sigma.formula =</span> <span class="sc">~</span> treatment <span class="sc">+</span> time,</span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a>  <span class="at">theta.formula =</span> <span class="sc">~</span> time</span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a>)</span></code></pre></div>
+<p>You can then review a summary of the fit including covariate
+estimates, standard errors and significance alongside model selection
+criteria: AIC, BIC and log likelihood.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co"># Model summary</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="fu">summary</span>(fit)</span></code></pre></div>
+<p>Other standard functions for outputs of regression models are also
+available, such as confidence intervals, wald tests, likelihood ratios
+and bootstrap inference.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="co"># Confidence intervals</span></span>
 <span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="fu">confint</span>(fit)</span>
-<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="fu">wald_test</span>(fit, <span class="at">terms =</span> <span class="st">&quot;mu.treatment&quot;</span>)</span>
-<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="fu">likelihood_compare</span>(fit_reduced, fit)</span>
-<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a></span>
-<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a>boot <span class="ot">&lt;-</span> <span class="fu">bootstrap_inference</span>(fit, <span class="at">R =</span> <span class="dv">200</span>, <span class="at">terms =</span> <span class="st">&quot;mu.treatment&quot;</span>)</span>
-<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a>boot</span></code></pre></div>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="co">#Wald test</span></span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="fu">wald_test</span>(fit, <span class="at">terms =</span> <span class="st">&quot;mu.treatment&quot;</span>)</span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="co"># Likelihood ratio test</span></span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a>fit_reduced <span class="ot">&lt;-</span> <span class="fu">gamlss_longitudinal</span>(</span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a>  <span class="at">dataset =</span> dat,</span>
+<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a>  <span class="at">margin_dist =</span> margin_dist,</span>
+<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a>  <span class="at">copula_dist =</span> copula_dist,</span>
+<span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a>  <span class="at">time_var =</span> <span class="st">&quot;time&quot;</span>,</span>
+<span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a>  <span class="at">subject_var =</span> <span class="st">&quot;subject&quot;</span>,</span>
+<span id="cb8-14"><a href="#cb8-14" tabindex="-1"></a>  <span class="at">mu.formula =</span> response <span class="sc">~</span> treatment <span class="sc">+</span> time,</span>
+<span id="cb8-15"><a href="#cb8-15" tabindex="-1"></a>  <span class="at">sigma.formula =</span> <span class="sc">~</span> treatment <span class="sc">+</span> time,</span>
+<span id="cb8-16"><a href="#cb8-16" tabindex="-1"></a>  <span class="at">theta.formula =</span> <span class="sc">~</span> time</span>
+<span id="cb8-17"><a href="#cb8-17" tabindex="-1"></a>)</span>
+<span id="cb8-18"><a href="#cb8-18" tabindex="-1"></a><span class="fu">likelihood_compare</span>(fit_reduced, fit)</span>
+<span id="cb8-19"><a href="#cb8-19" tabindex="-1"></a></span>
+<span id="cb8-20"><a href="#cb8-20" tabindex="-1"></a><span class="co"># Bootstrapped confidence intervals (</span><span class="al">WARNING</span><span class="co">: Can take a long time to run since it&#39;s refitting for each R)</span></span>
+<span id="cb8-21"><a href="#cb8-21" tabindex="-1"></a>boot <span class="ot">&lt;-</span> <span class="fu">bootstrap_inference</span>(fit, <span class="at">R =</span> <span class="dv">20</span>)</span>
+<span id="cb8-22"><a href="#cb8-22" tabindex="-1"></a><span class="fu">print</span>(boot)</span></code></pre></div>
 <p>See
 <code>vignette(&quot;inference-uncertainty&quot;, package = &quot;gamlss.longitudinal&quot;)</code>
 for the reporting language around Hessian, numerical-Hessian,
-delta-method, and simulation-based uncertainty. See
+delta-method, and simulation-based uncertainty.</p>
+<p>See
 <code>vignette(&quot;diagnostics-decisions&quot;, package = &quot;gamlss.longitudinal&quot;)</code>
 for the decision language around marginal, tail, dependence, and
 inference warnings.</p>
 </div>
-<div id="step-4-check-before-interpreting" class="section level2">
-<h2>Step 4: Check Before Interpreting</h2>
-<p>Run <code>check_model()</code> before interpreting coefficients or
-predictions.</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>check <span class="ot">&lt;-</span> <span class="fu">check_model</span>(fit, <span class="at">include_vcov =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>check</span>
-<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>check<span class="sc">$</span>warnings</span>
-<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a>check<span class="sc">$</span>recommendation</span>
-<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="fu">plot</span>(check)</span>
-<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a><span class="fu">copula_time_summary</span>(fit)</span></code></pre></div>
-<p>Treat the output as a decision aid:</p>
+<div id="step-3-diagnostics" class="section level2">
+<h2>Step 3: Diagnostics</h2>
+<p>We provide a built-in check_model() function which highlights any
+warnings and recommendations in plain language from the fit diagnostics
+incuding convergence errors or unusual looking fit statistics.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># Model checks</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>check <span class="ot">&lt;-</span> <span class="fu">check_model</span>(fit, <span class="at">include_vcov =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>check</span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a>check<span class="sc">$</span>warnings</span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a>check<span class="sc">$</span>recommendation</span></code></pre></div>
+<p>To visually review the fits for both margin and the dependence copula
+we provide plotting functions directly on the fit object:
+<code>plot(fit)</code> and <code>plot_copula_diagnostics(fit)</code>.
+For the margin plots, we include standard margin diagnostics:</p>
 <ul>
-<li>marginal warnings mean the response family or parameter formulas
-need work;</li>
-<li>tail warnings mean quantile or probability claims are not yet
-trustworthy;</li>
-<li>residual-dependence warnings mean the copula family or
-<code>theta.formula</code> may be underfitting longitudinal
-association;</li>
-<li>inference warnings mean intervals should be reported as approximate
-or the model should be simplified.</li>
+<li>PIT histogram,</li>
+<li>QQ plot,</li>
+<li>Worm plot, and</li>
+<li>Rootogram.</li>
 </ul>
-<p>Only move to primary-model reporting once the diagnostics match the
-intended estimand.</p>
+<p>For the copula we include empirical copula v fitted density and
+correlation by quantile, Rosenblatt residuals and lag plot, ordered
+fitted versus observed density, tail co-occurrence and exceedence, and
+residual dependence by lag.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># View margin diagnostics</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="fu">plot</span>(fit)</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="co"># View dependence diagnostics</span></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="fu">plot_copula_diagnostics</span>(fit)</span></code></pre></div>
+<p>Treat the output as a decision aid: - convergence warnings mean
+either not enough iterations have been allowed, or model is misspecified
+- marginal warnings mean the response family or parameter formulas may
+need adjustment; - tail warnings mean quantile or probability claims are
+not yet trustworthy; - residual-dependence warnings mean the copula
+family or <code>theta.formula</code> / <code>zeta.formula</code> may be
+misspecified; - inference warnings mean intervals should be reported as
+approximate or the model should be simplified.</p>
+<p>Ideally all warnings should be rectified and diagnostics accepted as
+satisfactory prior to moving to reporting.</p>
 </div>
-<div id="step-5-report-applied-answers" class="section level2">
-<h2>Step 5: Report Applied Answers</h2>
-<p>Prefer response-scale summaries over raw coefficient tables when
-communicating with applied collaborators.</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">predict</span>(</span>
-<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>  fit,</span>
-<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
-<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;response&quot;</span>,</span>
-<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>  <span class="at">se.fit =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a>  <span class="at">interval =</span> <span class="st">&quot;confidence&quot;</span></span>
-<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a>)</span>
-<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a></span>
-<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a><span class="fu">predict</span>(</span>
-<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a>  fit,</span>
-<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
-<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;parameters&quot;</span></span>
-<span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a>)</span>
-<span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a></span>
-<span id="cb10-15"><a href="#cb10-15" tabindex="-1"></a><span class="fu">predict</span>(</span>
-<span id="cb10-16"><a href="#cb10-16" tabindex="-1"></a>  fit,</span>
-<span id="cb10-17"><a href="#cb10-17" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
-<span id="cb10-18"><a href="#cb10-18" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;quantile&quot;</span>,</span>
-<span id="cb10-19"><a href="#cb10-19" tabindex="-1"></a>  <span class="at">probs =</span> <span class="fu">c</span>(<span class="fl">0.1</span>, <span class="fl">0.5</span>, <span class="fl">0.9</span>)</span>
-<span id="cb10-20"><a href="#cb10-20" tabindex="-1"></a>)</span>
-<span id="cb10-21"><a href="#cb10-21" tabindex="-1"></a></span>
-<span id="cb10-22"><a href="#cb10-22" tabindex="-1"></a><span class="fu">predict</span>(</span>
-<span id="cb10-23"><a href="#cb10-23" tabindex="-1"></a>  fit,</span>
-<span id="cb10-24"><a href="#cb10-24" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
-<span id="cb10-25"><a href="#cb10-25" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;cdf&quot;</span>,</span>
-<span id="cb10-26"><a href="#cb10-26" tabindex="-1"></a>  <span class="at">q =</span> <span class="dv">10</span></span>
-<span id="cb10-27"><a href="#cb10-27" tabindex="-1"></a>)</span>
-<span id="cb10-28"><a href="#cb10-28" tabindex="-1"></a></span>
-<span id="cb10-29"><a href="#cb10-29" tabindex="-1"></a><span class="fu">predict</span>(</span>
-<span id="cb10-30"><a href="#cb10-30" tabindex="-1"></a>  fit,</span>
-<span id="cb10-31"><a href="#cb10-31" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
-<span id="cb10-32"><a href="#cb10-32" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;density&quot;</span>,</span>
-<span id="cb10-33"><a href="#cb10-33" tabindex="-1"></a>  <span class="at">y =</span> <span class="dv">10</span></span>
-<span id="cb10-34"><a href="#cb10-34" tabindex="-1"></a>)</span>
-<span id="cb10-35"><a href="#cb10-35" tabindex="-1"></a></span>
-<span id="cb10-36"><a href="#cb10-36" tabindex="-1"></a><span class="fu">predict</span>(</span>
-<span id="cb10-37"><a href="#cb10-37" tabindex="-1"></a>  fit,</span>
-<span id="cb10-38"><a href="#cb10-38" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
-<span id="cb10-39"><a href="#cb10-39" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;probability&quot;</span>,</span>
-<span id="cb10-40"><a href="#cb10-40" tabindex="-1"></a>  <span class="at">q =</span> <span class="dv">10</span>,</span>
-<span id="cb10-41"><a href="#cb10-41" tabindex="-1"></a>  <span class="at">direction =</span> <span class="st">&quot;above&quot;</span></span>
-<span id="cb10-42"><a href="#cb10-42" tabindex="-1"></a>)</span>
-<span id="cb10-43"><a href="#cb10-43" tabindex="-1"></a></span>
-<span id="cb10-44"><a href="#cb10-44" tabindex="-1"></a><span class="fu">marginal_effects</span>(</span>
-<span id="cb10-45"><a href="#cb10-45" tabindex="-1"></a>  fit,</span>
-<span id="cb10-46"><a href="#cb10-46" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
-<span id="cb10-47"><a href="#cb10-47" tabindex="-1"></a>  <span class="at">variable =</span> <span class="st">&quot;treatment&quot;</span>,</span>
-<span id="cb10-48"><a href="#cb10-48" tabindex="-1"></a>  <span class="at">parameter =</span> <span class="st">&quot;mu&quot;</span>,</span>
-<span id="cb10-49"><a href="#cb10-49" tabindex="-1"></a>  <span class="at">se.fit =</span> <span class="cn">TRUE</span></span>
-<span id="cb10-50"><a href="#cb10-50" tabindex="-1"></a>)</span>
-<span id="cb10-51"><a href="#cb10-51" tabindex="-1"></a></span>
-<span id="cb10-52"><a href="#cb10-52" tabindex="-1"></a><span class="fu">effects</span>(</span>
-<span id="cb10-53"><a href="#cb10-53" tabindex="-1"></a>  fit,</span>
-<span id="cb10-54"><a href="#cb10-54" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
-<span id="cb10-55"><a href="#cb10-55" tabindex="-1"></a>  <span class="at">variable =</span> <span class="st">&quot;treatment&quot;</span>,</span>
-<span id="cb10-56"><a href="#cb10-56" tabindex="-1"></a>  <span class="at">parameter =</span> <span class="st">&quot;mu&quot;</span>,</span>
-<span id="cb10-57"><a href="#cb10-57" tabindex="-1"></a>  <span class="at">se.fit =</span> <span class="cn">TRUE</span></span>
-<span id="cb10-58"><a href="#cb10-58" tabindex="-1"></a>)</span></code></pre></div>
-<p>If the target is a trajectory or a dependence-sensitive event,
-simulate from the fitted model:</p>
-<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>sim_marginal <span class="ot">&lt;-</span> <span class="fu">simulate</span>(fit, <span class="at">nsim =</span> <span class="dv">100</span>, <span class="at">type =</span> <span class="st">&quot;marginal&quot;</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span>
-<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>sim_copula <span class="ot">&lt;-</span> <span class="fu">simulate</span>(fit, <span class="at">nsim =</span> <span class="dv">100</span>, <span class="at">type =</span> <span class="st">&quot;copula&quot;</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span></code></pre></div>
+<div id="optional-simulation-and-prediction" class="section level2">
+<h2>Optional: Simulation and prediction</h2>
+<p>Multiple options are provided for prediction including on response
+and parameter scale, by quantiles, cdf, density or probability, and
+reporting by marginal effect.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="co"># Predict the response on response scale with confidence interval</span></span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a><span class="fu">predict</span>(</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>  fit,</span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;response&quot;</span>,</span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a>  <span class="at">se.fit =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a>  <span class="at">interval =</span> <span class="st">&quot;confidence&quot;</span></span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a>)</span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a></span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a><span class="co"># Predict the estimated parameter values for mu, sigma etc.</span></span>
+<span id="cb11-11"><a href="#cb11-11" tabindex="-1"></a><span class="fu">predict</span>(</span>
+<span id="cb11-12"><a href="#cb11-12" tabindex="-1"></a>  fit,</span>
+<span id="cb11-13"><a href="#cb11-13" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
+<span id="cb11-14"><a href="#cb11-14" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;parameters&quot;</span></span>
+<span id="cb11-15"><a href="#cb11-15" tabindex="-1"></a>)</span>
+<span id="cb11-16"><a href="#cb11-16" tabindex="-1"></a></span>
+<span id="cb11-17"><a href="#cb11-17" tabindex="-1"></a><span class="co"># Predict specified quantiles</span></span>
+<span id="cb11-18"><a href="#cb11-18" tabindex="-1"></a><span class="fu">predict</span>(</span>
+<span id="cb11-19"><a href="#cb11-19" tabindex="-1"></a>  fit,</span>
+<span id="cb11-20"><a href="#cb11-20" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
+<span id="cb11-21"><a href="#cb11-21" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;quantile&quot;</span>,</span>
+<span id="cb11-22"><a href="#cb11-22" tabindex="-1"></a>  <span class="at">probs =</span> <span class="fu">c</span>(<span class="fl">0.1</span>, <span class="fl">0.5</span>, <span class="fl">0.9</span>)</span>
+<span id="cb11-23"><a href="#cb11-23" tabindex="-1"></a>)</span>
+<span id="cb11-24"><a href="#cb11-24" tabindex="-1"></a></span>
+<span id="cb11-25"><a href="#cb11-25" tabindex="-1"></a><span class="co"># Predict cdf</span></span>
+<span id="cb11-26"><a href="#cb11-26" tabindex="-1"></a><span class="fu">predict</span>(</span>
+<span id="cb11-27"><a href="#cb11-27" tabindex="-1"></a>  fit,</span>
+<span id="cb11-28"><a href="#cb11-28" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
+<span id="cb11-29"><a href="#cb11-29" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;cdf&quot;</span>,</span>
+<span id="cb11-30"><a href="#cb11-30" tabindex="-1"></a>  <span class="at">q =</span> <span class="dv">10</span></span>
+<span id="cb11-31"><a href="#cb11-31" tabindex="-1"></a>)</span>
+<span id="cb11-32"><a href="#cb11-32" tabindex="-1"></a></span>
+<span id="cb11-33"><a href="#cb11-33" tabindex="-1"></a><span class="co"># Predict probability density</span></span>
+<span id="cb11-34"><a href="#cb11-34" tabindex="-1"></a><span class="fu">predict</span>(</span>
+<span id="cb11-35"><a href="#cb11-35" tabindex="-1"></a>  fit,</span>
+<span id="cb11-36"><a href="#cb11-36" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
+<span id="cb11-37"><a href="#cb11-37" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;density&quot;</span>,</span>
+<span id="cb11-38"><a href="#cb11-38" tabindex="-1"></a>  <span class="at">y =</span> <span class="dv">10</span></span>
+<span id="cb11-39"><a href="#cb11-39" tabindex="-1"></a>)</span>
+<span id="cb11-40"><a href="#cb11-40" tabindex="-1"></a></span>
+<span id="cb11-41"><a href="#cb11-41" tabindex="-1"></a><span class="co"># Predict observation probability (either above or below response value)</span></span>
+<span id="cb11-42"><a href="#cb11-42" tabindex="-1"></a><span class="fu">predict</span>(</span>
+<span id="cb11-43"><a href="#cb11-43" tabindex="-1"></a>  fit,</span>
+<span id="cb11-44"><a href="#cb11-44" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
+<span id="cb11-45"><a href="#cb11-45" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;probability&quot;</span>,</span>
+<span id="cb11-46"><a href="#cb11-46" tabindex="-1"></a>  <span class="at">q =</span> <span class="dv">10</span>,</span>
+<span id="cb11-47"><a href="#cb11-47" tabindex="-1"></a>  <span class="at">direction =</span> <span class="st">&quot;above&quot;</span></span>
+<span id="cb11-48"><a href="#cb11-48" tabindex="-1"></a>)</span>
+<span id="cb11-49"><a href="#cb11-49" tabindex="-1"></a></span>
+<span id="cb11-50"><a href="#cb11-50" tabindex="-1"></a><span class="co"># Calculate average response across a covariate for the margin</span></span>
+<span id="cb11-51"><a href="#cb11-51" tabindex="-1"></a><span class="fu">marginal_effects</span>(</span>
+<span id="cb11-52"><a href="#cb11-52" tabindex="-1"></a>  fit,</span>
+<span id="cb11-53"><a href="#cb11-53" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
+<span id="cb11-54"><a href="#cb11-54" tabindex="-1"></a>  <span class="at">variable =</span> <span class="st">&quot;treatment&quot;</span>,</span>
+<span id="cb11-55"><a href="#cb11-55" tabindex="-1"></a>  <span class="at">parameter =</span> <span class="st">&quot;mu&quot;</span>,</span>
+<span id="cb11-56"><a href="#cb11-56" tabindex="-1"></a>  <span class="at">se.fit =</span> <span class="cn">TRUE</span></span>
+<span id="cb11-57"><a href="#cb11-57" tabindex="-1"></a>)</span></code></pre></div>
+<p>If the target is a dependence-sensitive event, simulate from the
+fitted model:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>sim_marginal <span class="ot">&lt;-</span> <span class="fu">simulate</span>(fit, <span class="at">nsim =</span> <span class="dv">100</span>, <span class="at">type =</span> <span class="st">&quot;marginal&quot;</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>sim_copula <span class="ot">&lt;-</span> <span class="fu">simulate</span>(fit, <span class="at">nsim =</span> <span class="dv">100</span>, <span class="at">type =</span> <span class="st">&quot;copula&quot;</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span></code></pre></div>
 </div>
-<div id="step-6-compare-against-familiar-models" class="section level2">
-<h2>Step 6: Compare Against Familiar Models</h2>
-<p>A replacement claim needs a sensitivity comparison. Use the built-in
-benchmark scaffold for a quick check, then the adoption benchmark runner
-for repeated simulation evidence.</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="fu">benchmark_standard_models</span>(</span>
-<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
-<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a>  <span class="at">formula =</span> response <span class="sc">~</span> treatment <span class="sc">+</span> time <span class="sc">+</span> age_scaled,</span>
-<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>  <span class="at">subject_var =</span> <span class="st">&quot;subject&quot;</span>,</span>
-<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a>  <span class="at">family =</span> <span class="st">&quot;gaussian&quot;</span>,</span>
-<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a>  <span class="at">comparators =</span> <span class="fu">c</span>(<span class="st">&quot;gee&quot;</span>, <span class="st">&quot;glmm&quot;</span>, <span class="st">&quot;gam&quot;</span>)</span>
-<span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a>)</span></code></pre></div>
-<p>For repeated evidence:</p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a>bench <span class="ot">&lt;-</span> <span class="fu">run_adoption_benchmarks</span>(</span>
-<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a>  <span class="at">scenarios =</span> <span class="st">&quot;gaussian_heteroskedastic&quot;</span>,</span>
-<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a>  <span class="at">reps =</span> <span class="dv">25</span>,</span>
-<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a>  <span class="at">methods =</span> <span class="fu">c</span>(<span class="st">&quot;rs_separate&quot;</span>, <span class="st">&quot;gee&quot;</span>, <span class="st">&quot;glmm&quot;</span>, <span class="st">&quot;gam&quot;</span>),</span>
-<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a>  <span class="at">write_results =</span> <span class="cn">TRUE</span></span>
-<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a>)</span>
-<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a></span>
-<span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a><span class="fu">write_benchmark_report</span>(bench)</span></code></pre></div>
-<p>Use
+<div id="optional-comparebenchmark-to-familiar-models-gee-geepack-glmm-lme4-gam-mgcv" class="section level2">
+<h2>Optional: Compare/benchmark to familiar models: gee (geepack), glmm
+(lme4), gam (mgcv)</h2>
+<p>Since we know most users would be considering a longitudinal gamlss
+model as an alternative to existing solutions using gees, gam or glmms
+we provide easy to use comparison tools to benchmark longitudinal gamlss
+models to existing methods.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="co"># Fit comparison models and summarise fits</span></span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="fu">benchmark_standard_models</span>(</span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a>  <span class="at">formula =</span> response <span class="sc">~</span> treatment <span class="sc">+</span> time <span class="sc">+</span> age_scaled,</span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a>  <span class="at">subject_var =</span> <span class="st">&quot;subject&quot;</span>,</span>
+<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a>  <span class="at">family =</span> <span class="st">&quot;gamma&quot;</span>,</span>
+<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a>  <span class="at">comparators =</span> <span class="fu">c</span>(<span class="st">&quot;gee&quot;</span>, <span class="st">&quot;glmm&quot;</span>, <span class="st">&quot;gam&quot;</span>)</span>
+<span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a>)</span></code></pre></div>
+<p>We provide additional information on comparisons in other vignettes:
 <code>vignette(&quot;benchmarking-adoption&quot;, package = &quot;gamlss.longitudinal&quot;)</code>
 for scenario-level benchmark reporting.</p>
 </div>
-<div id="minimal-reporting-checklist" class="section level2">
-<h2>Minimal Reporting Checklist</h2>
-<p>A complete applied report should state:</p>
-<ol style="list-style-type: decimal">
-<li>why a distributional longitudinal model was needed;</li>
-<li>the margin family and copula family;</li>
-<li>which predictors entered <code>mu</code>, <code>sigma</code>, and
-<code>theta</code>;</li>
-<li>the main <code>check_model()</code> decisions;</li>
-<li>the inference route used for intervals;</li>
-<li>the response-scale estimands reported;</li>
-<li>the GEE, GLMM, or GAM sensitivity result.</li>
-</ol>
-<p>If the report only needs a marginal mean and the diagnostics do not
-suggest distributional or dependence problems, a GEE may still be the
-better primary model. The goal is not to replace familiar models
-everywhere; it is to make the GAMLSS-copula workflow the standard when
-margins, tails, heteroskedasticity, or dependence are part of the
-answer.</p>
+<div id="section" class="section level2">
+<h2></h2>
+<p>For a more detailed workthrough example, including interpretation of
+model fit and diagnostics, please review the <a href="native-simulation-workflow.html">Detailed worked example</a>.</p>
 </div>
 
 
