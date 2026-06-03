@@ -75,7 +75,6 @@ enough replicates outside CRAN-time tests for final reporting.</p>
 <span>  R <span class="op">=</span> <span class="fl">100</span>,</span>
 <span>  terms <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  level <span class="op">=</span> <span class="fl">0.95</span>,</span>
-<span>  simulation_type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"copula"</span>, <span class="st">"marginal"</span><span class="op">)</span>,</span>
 <span>  seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  fit_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  keep_fits <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -101,12 +100,6 @@ enough replicates outside CRAN-time tests for final reporting.</p>
 
 <dt id="arg-level">level<a class="anchor" aria-label="anchor" href="#arg-level"></a></dt>
 <dd><p>Confidence level for percentile intervals.</p></dd>
-
-
-<dt id="arg-simulation-type">simulation_type<a class="anchor" aria-label="anchor" href="#arg-simulation-type"></a></dt>
-<dd><p>Passed to [simulate.gamlss.longitudinal()]. Use
-<code>"copula"</code> to preserve fitted dependence or <code>"marginal"</code> for independent
-fitted-margin simulation.</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
