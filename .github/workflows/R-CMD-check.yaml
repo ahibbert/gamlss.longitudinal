@@ -3,9 +3,19 @@ name: R-CMD-check
 on:
   push:
     branches: [main, master]
+    paths-ignore:
+      - 'docs/**'
+      - 'paper/**'
+      - 'results/**'
+      - '_targets/**'
+      - '*.tar.gz'
   pull_request:
     branches: [main, master]
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -38,6 +48,7 @@ jobs:
         with:
           r-version: ${{ matrix.config.r }}
           use-public-rspm: true
+          Ncpus: 2
           extra-repositories: |
             https://gamlss-dev.R-universe.dev
 
