@@ -26,22 +26,16 @@ subject-by-time matrices, or functions of the generated design data."></head><bo
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
-    <li><a class="dropdown-item" href="../articles/site-guide.html">Guide To The Articles</a></li>
+    <li><a class="dropdown-item" href="../articles/site-guide.html">Overview of Support Articles</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Worked Examples</h6></li>
-    <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard Workflow API, Inference, and Diagnostics</a></li>
-    <li><a class="dropdown-item" href="../articles/native-simulation-workflow.html">Native Simulation, Copula Screening, and GAMLSS Longitudinal Fitting</a></li>
+    <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard workflow: screening, fit, inference, diagnostics, and simulation</a></li>
+    <li><a class="dropdown-item" href="../articles/native-simulation-workflow.html">Detailed worked example for a longitudinal gamlss model fit</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Adoption Guides</h6></li>
-    <li><a class="dropdown-item" href="../articles/replace-gee-glmm.html">Replacing GEE and GLMM Workflows</a></li>
     <li><a class="dropdown-item" href="../articles/adoption-decision-guide.html">Adoption Decision Guide</a></li>
     <li><a class="dropdown-item" href="../articles/inference-uncertainty.html">Inference and Uncertainty</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics-decisions.html">Diagnostics As Decisions</a></li>
-    <li><a class="dropdown-item" href="../articles/replace-a-gee.html">Replace a GEE</a></li>
-    <li><a class="dropdown-item" href="../articles/replace-a-random-intercept-glmm.html">Replace a Random-Intercept GLMM</a></li>
-    <li><a class="dropdown-item" href="../articles/non-gaussian-longitudinal-outcomes.html">Non-Gaussian Longitudinal Outcomes</a></li>
-    <li><a class="dropdown-item" href="../articles/missing-visits.html">Missing Visits</a></li>
-    <li><a class="dropdown-item" href="../articles/time-varying-dependence.html">Time-Varying Dependence</a></li>
     <li><a class="dropdown-item" href="../articles/benchmarking-adoption.html">Benchmarking Adoption Claims</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><a class="external-link nav-link" href="https://github.com/ahibbert/gamlss.longitudinal/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -97,32 +91,32 @@ subject-by-time matrices, or functions of the generated design data.</p>
 
 
 <dt id="arg-margin-dist">margin_dist<a class="anchor" aria-label="anchor" href="#arg-margin-dist"></a></dt>
-<dd><p>A `gamlss.dist` family object, for example `NO()` or
-`GA(mu.link = "log", sigma.link = "log")`.</p></dd>
+<dd><p>A <code>gamlss.dist</code> family object, for example <code>NO()</code> or
+<code>GA(mu.link = "log", sigma.link = "log")</code>.</p></dd>
 
 
 <dt id="arg-copula-dist">copula_dist<a class="anchor" aria-label="anchor" href="#arg-copula-dist"></a></dt>
-<dd><p>Copula family code. Supported codes are `"N"`, `"C"`,
-`"F"`, `"G"`, `"J"`, and `"t"`.</p></dd>
+<dd><p>Copula family code. Supported codes are <code>"N"</code>, <code>"C"</code>,
+<code>"F"</code>, <code>"G"</code>, <code>"J"</code>, and <code>"t"</code>.</p></dd>
 
 
 <dt id="arg-margin-params">margin_params<a class="anchor" aria-label="anchor" href="#arg-margin-params"></a></dt>
 <dd><p>Named list of marginal distribution parameter
 specifications. Names should match the quantile function arguments, such
-as `mu`, `sigma`, `nu`, and `tau`.</p></dd>
+as <code>mu</code>, <code>sigma</code>, <code>nu</code>, and <code>tau</code>.</p></dd>
 
 
 <dt id="arg-copula-params">copula_params<a class="anchor" aria-label="anchor" href="#arg-copula-params"></a></dt>
 <dd><p>Named list of copula parameter specifications. Use
-`theta` or `par` for the primary copula parameter, `tau` to specify
-Kendall's tau instead, and `zeta` or `par2` for the t-copula degrees of
+<code>theta</code> or <code>par</code> for the primary copula parameter, <code>tau</code> to specify
+Kendall's tau instead, and <code>zeta</code> or <code>par2</code> for the t-copula degrees of
 freedom.</p></dd>
 
 
 <dt id="arg-covariates">covariates<a class="anchor" aria-label="anchor" href="#arg-covariates"></a></dt>
 <dd><p>Optional data frame or function returning covariates. A
-data frame may have either `n` rows for subject-level covariates or
-`n * length(times)` rows for long-format covariates. A function is called
+data frame may have either <code>n</code> rows for subject-level covariates or
+<code>n * length(times)</code> rows for long-format covariates. A function is called
 with the base long-format data.</p></dd>
 
 
@@ -136,14 +130,14 @@ and response variables.</p></dd>
 
 
 <dt id="arg-include-truth">include_truth<a class="anchor" aria-label="anchor" href="#arg-include-truth"></a></dt>
-<dd><p>If `TRUE`, include simulated uniforms and true
+<dd><p>If <code>TRUE</code>, include simulated uniforms and true
 parameter columns.</p></dd>
 
 
 <dt id="arg-u-bounds">u_bounds<a class="anchor" aria-label="anchor" href="#arg-u-bounds"></a></dt>
 <dd><p>Optional length-two numeric vector giving lower and upper
 bounds used to clamp simulated uniforms before applying the marginal
-quantile function. The default `NULL` leaves uniforms unchanged.</p></dd>
+quantile function. The default <code>NULL</code> leaves uniforms unchanged.</p></dd>
 
 </dl></div>
     <div class="section level2">
