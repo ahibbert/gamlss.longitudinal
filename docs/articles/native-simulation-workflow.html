@@ -5,12 +5,12 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Native Simulation, Copula Screening, and GAMLSS Longitudinal Fitting • gamlss.longitudinal</title>
+<title>Detailed worked example for a longitudinal gamlss model fit • gamlss.longitudinal</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.4.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Native Simulation, Copula Screening, and GAMLSS Longitudinal Fitting">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Detailed worked example for a longitudinal gamlss model fit">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -35,22 +35,16 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
-    <li><a class="dropdown-item" href="../articles/site-guide.html">Guide To The Articles</a></li>
+    <li><a class="dropdown-item" href="../articles/site-guide.html">Overview of Support Articles</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Worked Examples</h6></li>
-    <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard Workflow API, Inference, and Diagnostics</a></li>
-    <li><a class="dropdown-item" href="../articles/native-simulation-workflow.html">Native Simulation, Copula Screening, and GAMLSS Longitudinal Fitting</a></li>
+    <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard workflow: screening, fit, inference, diagnostics, and simulation</a></li>
+    <li><a class="dropdown-item" href="../articles/native-simulation-workflow.html">Detailed worked example for a longitudinal gamlss model fit</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Adoption Guides</h6></li>
-    <li><a class="dropdown-item" href="../articles/replace-gee-glmm.html">Replacing GEE and GLMM Workflows</a></li>
     <li><a class="dropdown-item" href="../articles/adoption-decision-guide.html">Adoption Decision Guide</a></li>
     <li><a class="dropdown-item" href="../articles/inference-uncertainty.html">Inference and Uncertainty</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics-decisions.html">Diagnostics As Decisions</a></li>
-    <li><a class="dropdown-item" href="../articles/replace-a-gee.html">Replace a GEE</a></li>
-    <li><a class="dropdown-item" href="../articles/replace-a-random-intercept-glmm.html">Replace a Random-Intercept GLMM</a></li>
-    <li><a class="dropdown-item" href="../articles/non-gaussian-longitudinal-outcomes.html">Non-Gaussian Longitudinal Outcomes</a></li>
-    <li><a class="dropdown-item" href="../articles/missing-visits.html">Missing Visits</a></li>
-    <li><a class="dropdown-item" href="../articles/time-varying-dependence.html">Time-Varying Dependence</a></li>
     <li><a class="dropdown-item" href="../articles/benchmarking-adoption.html">Benchmarking Adoption Claims</a></li>
   </ul>
 </li>
@@ -70,7 +64,7 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
 
-      <h1>Native Simulation, Copula Screening, and GAMLSS Longitudinal Fitting</h1>
+      <h1>Detailed worked example for a longitudinal gamlss model fit</h1>
             
       
       <small class="dont-index">Source: <a href="https://github.com/ahibbert/gamlss.longitudinal/blob/HEAD/vignettes/native-simulation-workflow.Rmd" class="external-link"><code>vignettes/native-simulation-workflow.Rmd</code></a></small>
@@ -79,27 +73,61 @@
 
     
     
-<p>This vignette shows an end-to-end workflow for simulated longitudinal
-data with GAMLSS margins and native copula dependence. The example is
-simulated so that we can compare the fitted model with the known truth,
-but the same workflow is intended to mirror a real analysis:</p>
-<ol style="list-style-type: decimal">
-<li>simulate or load longitudinal data,</li>
-<li>inspect the marginal response and pairwise dependence,</li>
-<li>choose a marginal distribution,</li>
-<li>screen candidate copula families,</li>
+<style type="text/css">
+.figure {
+  text-align: center;
+}
+
+.figure img {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 100%;
+}
+
+details {
+  margin: 1rem 0;
+}
+
+details summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+</style>
+<p>This vignette shows an end-to-end workflow for fitting a simulated
+longitudinal dataset with a longitudinal gamlss model with gamlss
+margins and copula dependence using
+<strong>gamlss.longitudinal</strong>.</p>
+<p>The example is simulated so that we can compare the fitted model with
+the known truth, but the same workflow would be intended for a real
+dataset (excluding simulation of the dataset, of course).</p>
+<p>The workflow is:</p>
+<ol start="0" style="list-style-type: decimal">
+<li>simulate a longitudinal dataset using
+<code><a href="../reference/simulate_longitudinal_dataset.html">simulate_longitudinal_dataset()</a></code>,</li>
+<li>inspect the marginal response, covariates, missingness, and pairwise
+dependence,</li>
+<li>select a marginal distribution and copula family,</li>
 <li>fit the longitudinal model,</li>
-<li>inspect model, term, and copula diagnostics.</li>
+<li>review inference and model diagnostics,</li>
+<li>answer applied questions with prediction, marginal effects,
+simulation, and benchmark comparisons.</li>
 </ol>
+<p>Because this is a regression workflow, the code below separates
+exploratory screening from modelling decisions. In a real analysis, the
+main estimand, scientifically important covariates, factor reference
+levels, transformations, and sensitivity checks should be chosen before
+treating coefficient estimates as confirmatory evidence.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ahibbert.github.io/gamlss.longitudinal/">gamlss.longitudinal</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://www.gamlss.com/" class="external-link">gamlss.dist</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span></code></pre></div>
 <div class="section level2">
 <h2 id="simulate-data">Simulate Data<a class="anchor" aria-label="anchor" href="#simulate-data"></a>
 </h2>
-<p>We simulate a balanced dataset with 300 subjects and 5 time points.
-The response is Gamma distributed. Each subject has:</p>
+<p>We simulate a balanced dataset with 120 subjects and 5 time points.
+The response is generalized gamma distributed, with 10% response
+missingness added at random conditional on observed time, treatment, and
+age. Each subject has:</p>
 <ul>
 <li>a three-level treatment group: <code>control</code>,
 <code>low</code>, or <code>high</code>;</li>
@@ -107,34 +135,43 @@ The response is Gamma distributed. Each subject has:</p>
 <li>a repeated observation time scaled to <code>[0, 1]</code>.</li>
 </ul>
 <p>The marginal mean has treatment, time, and nonlinear age effects. The
-marginal scale has treatment, time, and a simple U-shaped age effect.
-The dependence structure is Clayton, with its parameter varying smoothly
-with age and linearly with time.</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+marginal scale has deliberately visible treatment, time, and age effects
+so the fitted term diagnostics have something meaningful to recover. A
+generalized gamma shape term pushes the marginal distribution away from
+a plain Gamma screen. The dependence structure is Clayton, with its
+parameter increasing strongly over time so adjacent visits become more
+correlated later in follow-up.</p>
+<details><summary>
+Simulation code
+</summary><div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">20260521</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">n_subject</span> <span class="op">&lt;-</span> <span class="fl">300</span></span>
+<span><span class="va">n_subject</span> <span class="op">&lt;-</span> <span class="fl">120</span></span>
 <span><span class="va">time_points</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span>, length.out <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">treatment_effect</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>control <span class="op">=</span> <span class="fl">0</span>, low <span class="op">=</span> <span class="fl">0.20</span>, high <span class="op">=</span> <span class="fl">0.45</span><span class="op">)</span></span>
+<span><span class="va">treatment_effect</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>control <span class="op">=</span> <span class="fl">0</span>, low <span class="op">=</span> <span class="fl">0.30</span>, high <span class="op">=</span> <span class="fl">0.65</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">truth_mu_age_smooth</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="../reference/sim_smooth_shapes.html">sim_smooth_bump</a></span><span class="op">(</span><span class="va">x</span>, amplitude <span class="op">=</span> <span class="fl">0.45</span>, location <span class="op">=</span> <span class="fl">0.62</span>, width <span class="op">=</span> <span class="fl">0.18</span><span class="op">)</span> <span class="op">+</span></span>
-<span>    <span class="fu"><a href="../reference/sim_smooth_shapes.html">sim_smooth_sin</a></span><span class="op">(</span><span class="va">x</span>, amplitude <span class="op">=</span> <span class="fl">0.12</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/sim_smooth_shapes.html">sim_smooth_bump</a></span><span class="op">(</span><span class="va">x</span>, amplitude <span class="op">=</span> <span class="fl">0.60</span>, location <span class="op">=</span> <span class="fl">0.62</span>, width <span class="op">=</span> <span class="fl">0.18</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="../reference/sim_smooth_shapes.html">sim_smooth_sin</a></span><span class="op">(</span><span class="va">x</span>, amplitude <span class="op">=</span> <span class="fl">0.16</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
 <span><span class="va">truth_sigma_age_smooth</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="../reference/sim_smooth_shapes.html">sim_smooth_u</a></span><span class="op">(</span><span class="va">x</span>, amplitude <span class="op">=</span> <span class="fl">1.00</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/sim_smooth_shapes.html">sim_smooth_u</a></span><span class="op">(</span><span class="va">x</span>, amplitude <span class="op">=</span> <span class="fl">0.45</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">truth_nu_age_smooth</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="../reference/sim_smooth_shapes.html">sim_smooth_sigmoid</a></span><span class="op">(</span><span class="va">x</span>, amplitude <span class="op">=</span> <span class="fl">0.35</span>, location <span class="op">=</span> <span class="fl">0.45</span>, steepness <span class="op">=</span> <span class="fl">9</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
 <span><span class="va">truth_theta_age_smooth</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="../reference/sim_smooth_shapes.html">sim_smooth_bump</a></span><span class="op">(</span><span class="va">x</span>, amplitude <span class="op">=</span> <span class="fl">0.55</span>, location <span class="op">=</span> <span class="fl">0.45</span>, width <span class="op">=</span> <span class="fl">0.22</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/sim_smooth_shapes.html">sim_smooth_bump</a></span><span class="op">(</span><span class="va">x</span>, amplitude <span class="op">=</span> <span class="fl">0.25</span>, location <span class="op">=</span> <span class="fl">0.45</span>, width <span class="op">=</span> <span class="fl">0.22</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
 <span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_longitudinal_dataset.html">simulate_longitudinal_dataset</a></span><span class="op">(</span></span>
 <span>  n <span class="op">=</span> <span class="va">n_subject</span>,</span>
 <span>  times <span class="op">=</span> <span class="va">time_points</span>,</span>
-<span>  margin_dist <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/gamlss.dist/man/GA.html" class="external-link">GA</a></span><span class="op">(</span>mu.link <span class="op">=</span> <span class="st">"log"</span>, sigma.link <span class="op">=</span> <span class="st">"log"</span><span class="op">)</span>,</span>
+<span>  margin_dist <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/gamlss.dist/man/GG.html" class="external-link">GG</a></span><span class="op">(</span>mu.link <span class="op">=</span> <span class="st">"log"</span>, sigma.link <span class="op">=</span> <span class="st">"log"</span>, nu.link <span class="op">=</span> <span class="st">"identity"</span><span class="op">)</span>,</span>
 <span>  copula_dist <span class="op">=</span> <span class="st">"C"</span>,</span>
 <span>  covariates <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">base</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="fu"><a href="../reference/simulate_longitudinal_covariates.html">simulate_longitudinal_covariates</a></span><span class="op">(</span></span>
@@ -158,25 +195,29 @@ with age and linearly with time.</p>
 <span>      <span class="va">age_scaled</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sim_rescale01.html">sim_rescale01</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">age</span><span class="op">)</span></span>
 <span>      <span class="va">eta_mu</span> <span class="op">&lt;-</span> <span class="fl">1.00</span> <span class="op">+</span></span>
 <span>        <span class="fu"><a href="../reference/sim_factor_effect.html">sim_factor_effect</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">treatment</span>, <span class="va">treatment_effect</span><span class="op">)</span> <span class="op">+</span></span>
-<span>        <span class="fl">0.20</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">time_scaled</span> <span class="op">+</span></span>
+<span>        <span class="fl">0.35</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">time_scaled</span> <span class="op">+</span></span>
 <span>        <span class="fu">truth_mu_age_smooth</span><span class="op">(</span><span class="va">age_scaled</span><span class="op">)</span></span>
 <span>      <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">eta_mu</span><span class="op">)</span></span>
 <span>    <span class="op">}</span>,</span>
 <span>    sigma <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">d</span><span class="op">)</span> <span class="op">{</span></span>
 <span>      <span class="va">age_scaled</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sim_rescale01.html">sim_rescale01</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">age</span><span class="op">)</span></span>
-<span>      <span class="va">eta_sigma</span> <span class="op">&lt;-</span> <span class="op">-</span><span class="fl">0.75</span> <span class="op">+</span></span>
-<span>        <span class="fl">0.12</span> <span class="op">*</span> <span class="fu"><a href="../reference/sim_factor_effect.html">sim_factor_effect</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">treatment</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>control <span class="op">=</span> <span class="fl">0</span>, low <span class="op">=</span> <span class="fl">1</span>, high <span class="op">=</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>        <span class="fl">0.10</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">time_scaled</span> <span class="op">+</span></span>
+<span>      <span class="va">eta_sigma</span> <span class="op">&lt;-</span> <span class="op">-</span><span class="fl">1.05</span> <span class="op">+</span></span>
+<span>        <span class="fl">0.25</span> <span class="op">*</span> <span class="fu"><a href="../reference/sim_factor_effect.html">sim_factor_effect</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">treatment</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>control <span class="op">=</span> <span class="fl">0</span>, low <span class="op">=</span> <span class="fl">1</span>, high <span class="op">=</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>        <span class="fl">1.25</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">time_scaled</span> <span class="op">+</span></span>
 <span>        <span class="fu">truth_sigma_age_smooth</span><span class="op">(</span><span class="va">age_scaled</span><span class="op">)</span></span>
 <span>      <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">eta_sigma</span><span class="op">)</span></span>
+<span>    <span class="op">}</span>,</span>
+<span>    nu <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">d</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="va">age_scaled</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sim_rescale01.html">sim_rescale01</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">age</span><span class="op">)</span></span>
+<span>      <span class="fl">1.15</span> <span class="op">+</span> <span class="fl">0.55</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">time_scaled</span> <span class="op">+</span> <span class="fu">truth_nu_age_smooth</span><span class="op">(</span><span class="va">age_scaled</span><span class="op">)</span></span>
 <span>    <span class="op">}</span></span>
 <span>  <span class="op">)</span>,</span>
 <span>  copula_params <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>    theta <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="op">{</span></span>
 <span>      <span class="va">age_scaled</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sim_rescale01.html">sim_rescale01</a></span><span class="op">(</span><span class="va">e</span><span class="op">$</span><span class="va">age</span><span class="op">)</span></span>
 <span>      <span class="va">time_left_scaled</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sim_rescale01.html">sim_rescale01</a></span><span class="op">(</span><span class="va">e</span><span class="op">$</span><span class="va">time_left</span><span class="op">)</span></span>
-<span>      <span class="va">eta_theta</span> <span class="op">&lt;-</span> <span class="fl">0.05</span> <span class="op">+</span></span>
-<span>        <span class="fl">0.20</span> <span class="op">*</span> <span class="va">time_left_scaled</span> <span class="op">+</span></span>
+<span>      <span class="va">eta_theta</span> <span class="op">&lt;-</span> <span class="op">-</span><span class="fl">0.70</span> <span class="op">+</span></span>
+<span>        <span class="fl">1.80</span> <span class="op">*</span> <span class="va">time_left_scaled</span> <span class="op">+</span></span>
 <span>        <span class="fu">truth_theta_age_smooth</span><span class="op">(</span><span class="va">age_scaled</span><span class="op">)</span></span>
 <span>      <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">eta_theta</span><span class="op">)</span></span>
 <span>    <span class="op">}</span></span>
@@ -185,324 +226,419 @@ with age and linearly with time.</p>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">dat</span><span class="op">$</span><span class="va">age_scaled</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sim_rescale01.html">sim_rescale01</a></span><span class="op">(</span><span class="va">dat</span><span class="op">$</span><span class="va">age</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">missing_weight</span> <span class="op">&lt;-</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/Logistic.html" class="external-link">plogis</a></span><span class="op">(</span></span>
+<span>  <span class="op">-</span><span class="fl">0.70</span> <span class="op">+</span></span>
+<span>    <span class="fl">1.15</span> <span class="op">*</span> <span class="va">dat</span><span class="op">$</span><span class="va">time_scaled</span> <span class="op">+</span></span>
+<span>    <span class="fl">0.45</span> <span class="op">*</span> <span class="op">(</span><span class="va">dat</span><span class="op">$</span><span class="va">treatment</span> <span class="op">==</span> <span class="st">"high"</span><span class="op">)</span> <span class="op">-</span></span>
+<span>    <span class="fl">0.30</span> <span class="op">*</span> <span class="va">dat</span><span class="op">$</span><span class="va">age_scaled</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">missing_rows</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">dat</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  size <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fl">0.10</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">dat</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  replace <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  prob <span class="op">=</span> <span class="va">missing_weight</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">dat</span><span class="op">$</span><span class="va">response</span><span class="op">[</span><span class="va">missing_rows</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="cn">NA_real_</span></span>
+<span><span class="va">dat</span><span class="op">$</span><span class="va">response_missing</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">dat</span><span class="op">$</span><span class="va">response</span><span class="op">)</span></span>
+<span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">dat</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   subject time response treatment      age time_scaled         u  true_mu</span></span>
-<span><span class="co">#&gt; 1       1 0.00 5.469907      high 67.78847        0.00 0.7081970 4.465262</span></span>
-<span><span class="co">#&gt; 2       1 0.25 4.210676      high 67.78847        0.25 0.5138537 4.694201</span></span>
-<span><span class="co">#&gt; 3       1 0.50 4.157061      high 67.78847        0.50 0.4801521 4.934878</span></span>
-<span><span class="co">#&gt; 4       1 0.75 4.426001      high 67.78847        0.75 0.4922706 5.187894</span></span>
-<span><span class="co">#&gt; 5       1 1.00 6.579618      high 67.78847        1.00 0.6955325 5.453883</span></span>
-<span><span class="co">#&gt; 6       2 0.00 2.147849       low 37.49718        0.00 0.1770005 4.021825</span></span>
-<span><span class="co">#&gt;   true_sigma true_theta true_zeta age_scaled</span></span>
-<span><span class="co">#&gt; 1  0.5999732         NA        NA  0.9533162</span></span>
-<span><span class="co">#&gt; 2  0.6151616   1.094351         0  0.9533162</span></span>
-<span><span class="co">#&gt; 3  0.6307345   1.169794         0  0.9533162</span></span>
-<span><span class="co">#&gt; 4  0.6467016   1.250439         0  0.9533162</span></span>
-<span><span class="co">#&gt; 5  0.6630729   1.336643         0  0.9533162</span></span>
-<span><span class="co">#&gt; 6  0.5133536         NA        NA  0.2773443</span></span></code></pre></div>
+<span><span class="co">#&gt;   subject time   response treatment      age time_scaled         u  true_mu</span></span>
+<span><span class="co">#&gt; 1       1 0.00 10.5193913      high 34.63283        0.00 0.9161976 6.341008</span></span>
+<span><span class="co">#&gt; 2       1 0.25  9.9952850      high 34.63283        0.25 0.8088648 6.920844</span></span>
+<span><span class="co">#&gt; 3       1 0.50  4.3193839      high 34.63283        0.50 0.4132885 7.553702</span></span>
+<span><span class="co">#&gt; 4       1 0.75         NA      high 34.63283        0.75 0.5084325 8.244429</span></span>
+<span><span class="co">#&gt; 5       1 1.00  0.1297988      high 34.63283        1.00 0.2628540 8.998319</span></span>
+<span><span class="co">#&gt; 6       2 0.00         NA       low 55.90383        0.00 0.8430505 5.550461</span></span>
+<span><span class="co">#&gt;   true_sigma  true_nu true_theta true_zeta age_scaled response_missing</span></span>
+<span><span class="co">#&gt; 1  0.4478539 1.010216         NA        NA  0.2066231            FALSE</span></span>
+<span><span class="co">#&gt; 2  0.6121436 1.147716  0.5686895         0  0.2066231            FALSE</span></span>
+<span><span class="co">#&gt; 3  0.8367012 1.285216  1.0362198         0  0.2066231            FALSE</span></span>
+<span><span class="co">#&gt; 4  1.1436349 1.422716  1.8881156         0  0.2066231             TRUE</span></span>
+<span><span class="co">#&gt; 5  1.5631636 1.560216  3.4403710         0  0.2066231            FALSE</span></span>
+<span><span class="co">#&gt; 6  0.4375933 1.287600         NA        NA  0.6859182             TRUE</span></span></code></pre></div>
+</details><p>For real data, this is also the point to check the analysis-ready
+data frame: one row per subject-time combination, stable subject
+identifiers, correctly ordered time values, intended factor reference
+levels, and missing response patterns. Continuous variables used in
+smooths or interactions are often easier to interpret and fit when
+centered or scaled before modelling.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">dat</span><span class="op">)</span></span>
+<span><span class="co">#&gt; 'data.frame':    600 obs. of  14 variables:</span></span>
+<span><span class="co">#&gt;  $ subject         : Factor w/ 120 levels "1","2","3","4",..: 1 1 1 1 1 2 2 2 2 2 ...</span></span>
+<span><span class="co">#&gt;  $ time            : num  0 0.25 0.5 0.75 1 0 0.25 0.5 0.75 1 ...</span></span>
+<span><span class="co">#&gt;  $ response        : num  10.52 10 4.32 NA 0.13 ...</span></span>
+<span><span class="co">#&gt;  $ treatment       : Factor w/ 3 levels "control","low",..: 3 3 3 3 3 2 2 2 2 2 ...</span></span>
+<span><span class="co">#&gt;  $ age             : num  34.6 34.6 34.6 34.6 34.6 ...</span></span>
+<span><span class="co">#&gt;  $ time_scaled     : num  0 0.25 0.5 0.75 1 0 0.25 0.5 0.75 1 ...</span></span>
+<span><span class="co">#&gt;  $ u               : num  0.916 0.809 0.413 0.508 0.263 ...</span></span>
+<span><span class="co">#&gt;  $ true_mu         : num  6.34 6.92 7.55 8.24 9 ...</span></span>
+<span><span class="co">#&gt;  $ true_sigma      : num  0.448 0.612 0.837 1.144 1.563 ...</span></span>
+<span><span class="co">#&gt;  $ true_nu         : num  1.01 1.15 1.29 1.42 1.56 ...</span></span>
+<span><span class="co">#&gt;  $ true_theta      : num  NA 0.569 1.036 1.888 3.44 ...</span></span>
+<span><span class="co">#&gt;  $ true_zeta       : num  NA 0 0 0 0 NA 0 0 0 0 ...</span></span>
+<span><span class="co">#&gt;  $ age_scaled      : num  0.207 0.207 0.207 0.207 0.207 ...</span></span>
+<span><span class="co">#&gt;  $ response_missing: logi  FALSE FALSE FALSE TRUE FALSE TRUE ...</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">dat</span><span class="op">$</span><span class="va">treatment</span><span class="op">)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; control     low    high </span></span>
+<span><span class="co">#&gt;     150     210     240</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">dat</span><span class="op">$</span><span class="va">time</span><span class="op">)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;    0 0.25  0.5 0.75    1 </span></span>
+<span><span class="co">#&gt;  120  120  120  120  120</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">dat</span><span class="op">$</span><span class="va">response_missing</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 0.1</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/stats/aggregate.html" class="external-link">aggregate</a></span><span class="op">(</span><span class="va">true_sigma</span> <span class="op">~</span> <span class="va">time</span>, <span class="va">dat</span>, <span class="va">mean</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   time true_sigma</span></span>
+<span><span class="co">#&gt; 1 0.00  0.4244534</span></span>
+<span><span class="co">#&gt; 2 0.25  0.5801591</span></span>
+<span><span class="co">#&gt; 3 0.50  0.7929834</span></span>
+<span><span class="co">#&gt; 4 0.75  1.0838798</span></span>
+<span><span class="co">#&gt; 5 1.00  1.4814881</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/stats/aggregate.html" class="external-link">aggregate</a></span><span class="op">(</span><span class="va">true_nu</span> <span class="op">~</span> <span class="va">time</span>, <span class="va">dat</span>, <span class="va">mean</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   time  true_nu</span></span>
+<span><span class="co">#&gt; 1 0.00 1.159516</span></span>
+<span><span class="co">#&gt; 2 0.25 1.297016</span></span>
+<span><span class="co">#&gt; 3 0.50 1.434516</span></span>
+<span><span class="co">#&gt; 4 0.75 1.572016</span></span>
+<span><span class="co">#&gt; 5 1.00 1.709516</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/stats/aggregate.html" class="external-link">aggregate</a></span><span class="op">(</span><span class="va">true_theta</span> <span class="op">~</span> <span class="va">time</span>, <span class="va">dat</span>, <span class="va">mean</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   time true_theta</span></span>
+<span><span class="co">#&gt; 1 0.25  0.5639027</span></span>
+<span><span class="co">#&gt; 2 0.50  1.0274978</span></span>
+<span><span class="co">#&gt; 3 0.75  1.8722230</span></span>
+<span><span class="co">#&gt; 4 1.00  3.4114128</span></span></code></pre></div>
+<p><code><a href="../reference/check_missingness.html">check_missingness()</a></code> screens whether response missingness
+is associated with observed features. A significant predictor
+association is compatible with MAR conditional on those features; it
+does not prove MNAR, and a nonsignificant screen cannot rule MNAR
+out.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">missingness_check</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/check_missingness.html">check_missingness</a></span><span class="op">(</span></span>
+<span>  <span class="va">dat</span>,</span>
+<span>  response_var <span class="op">=</span> <span class="st">"response"</span>,</span>
+<span>  time_var <span class="op">=</span> <span class="st">"time"</span>,</span>
+<span>  subject_var <span class="op">=</span> <span class="st">"subject"</span>,</span>
+<span>  predictors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"time_scaled"</span>, <span class="st">"treatment"</span>, <span class="st">"age_scaled"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">missingness_check</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Response Missingness Check</span></span>
+<span><span class="co">#&gt; --------------------------</span></span>
+<span><span class="co">#&gt;    n n_missing prop_missing</span></span>
+<span><span class="co">#&gt;  600        60          0.1</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Assessment: no_detected_covariate_association </span></span>
+<span><span class="co">#&gt; No observed predictor association was detected at alpha = 0.05 . This is compatible with MCAR, but MNAR cannot be ruled out from observed data alone.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Predictor tests:</span></span>
+<span><span class="co">#&gt;         term statistic df p_value</span></span>
+<span><span class="co">#&gt;         time    0.0000  0      NA</span></span>
+<span><span class="co">#&gt;  time_scaled    0.0000  0      NA</span></span>
+<span><span class="co">#&gt;    treatment    5.7599  2 0.05614</span></span>
+<span><span class="co">#&gt;   age_scaled    0.3881  1 0.53329</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="inspect-the-response">Inspect The Response<a class="anchor" aria-label="anchor" href="#inspect-the-response"></a>
 </h2>
-<p><code><a href="../reference/plotDist.html">plotDist()</a></code> gives a compact view of the marginal response
-distribution at each time point and the pairwise dependence between time
-points. The off-diagonal panels use pseudo-observations here, so the
-dependence pattern is shown on a copula scale.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/plotDist.html">plotDist</a></span><span class="op">(</span><span class="va">dat</span>, <span class="fu"><a href="https://rdrr.io/pkg/gamlss.dist/man/GA.html" class="external-link">GA</a></span><span class="op">(</span>mu.link <span class="op">=</span> <span class="st">"log"</span>, sigma.link <span class="op">=</span> <span class="st">"log"</span><span class="op">)</span>, offdiag_scale <span class="op">=</span> <span class="st">"pseudo"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="native-simulation-workflow_files/figure-html/plot-dist-1.png" width="768"></p>
+<p><code><a href="../reference/plot_dist.html">plot_dist()</a></code> gives a compact view of the marginal
+response distribution at each time point and the pairwise dependence
+between time points. The off-diagonal panels use pseudo-observations
+here, so the dependence pattern is shown on a copula scale. In this
+simulation, the diagonal panels should become more right-skewed over
+time, and later adjacent-visit panels should show stronger
+dependence.</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_dist.html">plot_dist</a></span><span class="op">(</span></span>
+<span>  <span class="va">dat</span>,</span>
+<span>  margin_dist <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/gamlss.dist/man/GG.html" class="external-link">GG</a></span><span class="op">(</span>mu.link <span class="op">=</span> <span class="st">"log"</span>, sigma.link <span class="op">=</span> <span class="st">"log"</span>, nu.link <span class="op">=</span> <span class="st">"identity"</span><span class="op">)</span>,</span>
+<span>  subject_var <span class="op">=</span> <span class="st">"subject"</span>,</span>
+<span>  time_var <span class="op">=</span> <span class="st">"time"</span>,</span>
+<span>  response_var <span class="op">=</span> <span class="st">"response"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><img src="native-simulation-workflow_files/figure-html/plot-dist-1.png" alt="Matrix plot of marginal response distributions and pairwise dependence by time." width="88%" style="display: block; margin: auto;"></p>
 </div>
 <div class="section level2">
 <h2 id="choose-a-marginal-distribution">Choose A Marginal Distribution<a class="anchor" aria-label="anchor" href="#choose-a-marginal-distribution"></a>
 </h2>
-<p>For positive continuous responses, <code><a href="https://rdrr.io/pkg/gamlss/man/fitDist.html" class="external-link">gamlss::fitDist()</a></code> is
-a useful marginal screen. It does not account for longitudinal
-dependence, so it should be treated as a guide rather than as the final
-model choice.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">margin_screen_fits</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">margin_screen</span><span class="op">$</span><span class="va">fits</span><span class="op">)</span>,</span>
-<span>  AIC <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">margin_screen</span><span class="op">$</span><span class="va">fits</span><span class="op">)</span>,</span>
-<span>  row.names <span class="op">=</span> <span class="cn">NULL</span></span>
+<p>For positive continuous responses, <code><a href="../reference/select_margin.html">select_margin()</a></code> gives
+a ranked marginal screen using <code><a href="https://rdrr.io/pkg/gamlss/man/fitDist.html" class="external-link">gamlss::fitDist()</a></code> and marks
+whether each family is supported by <code><a href="../reference/gamlss_longitudinal.html">gamlss_longitudinal()</a></code>.
+This screen does not account for longitudinal dependence or covariates,
+so it is a shortlist rather than the final model.</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">margin_selection</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/select_margin.html">select_margin</a></span><span class="op">(</span></span>
+<span>  <span class="va">dat</span>,</span>
+<span>  response_var <span class="op">=</span> <span class="st">"response"</span>,</span>
+<span>  type <span class="op">=</span> <span class="st">"realplus"</span>,</span>
+<span>  try.gamlss <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  trace <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
+<span><span class="co">#&gt;   |                                                                              |                                                                      |   0%  |                                                                              |===                                                                   |   4%  |                                                                              |======                                                                |   9%  |                                                                              |=========                                                             |  13%  |                                                                              |============                                                          |  17%  |                                                                              |===============                                                       |  22%  |                                                                              |==================                                                    |  26%  |                                                                              |=====================                                                 |  30%  |                                                                              |========================                                              |  35%  |                                                                              |===========================                                           |  39%  |                                                                              |==============================                                        |  43%  |                                                                              |=================================                                     |  48%  |                                                                              |=====================================                                 |  52%  |                                                                              |========================================                              |  57%  |                                                                              |===========================================                           |  61%  |                                                                              |==============================================                        |  65%  |                                                                              |=================================================                     |  70%  |                                                                              |====================================================                  |  74%  |                                                                              |=======================================================               |  78%  |                                                                              |==========================================================            |  83%  |                                                                              |=============================================================         |  87%  |                                                                              |================================================================      |  91%  |                                                                              |===================================================================   |  96%  |                                                                              |======================================================================| 100%</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">margin_screen_fits</span>, <span class="fl">10</span><span class="op">)</span></span>
-<span><span class="co">#&gt;    family      AIC</span></span>
-<span><span class="co">#&gt; 1     GIG 6700.166</span></span>
-<span><span class="co">#&gt; 2      GG 6702.249</span></span>
-<span><span class="co">#&gt; 3    BCPE 6702.677</span></span>
-<span><span class="co">#&gt; 4   BCPEo 6702.677</span></span>
-<span><span class="co">#&gt; 5   BCCGo 6702.740</span></span>
-<span><span class="co">#&gt; 6    BCCG 6702.740</span></span>
-<span><span class="co">#&gt; 7     GB2 6704.272</span></span>
-<span><span class="co">#&gt; 8     BCT 6704.740</span></span>
-<span><span class="co">#&gt; 9    BCTo 6704.740</span></span>
-<span><span class="co">#&gt; 10     GA 6717.304</span></span>
+<span><span class="va">margin_selection</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Marginal Distribution Screen</span></span>
+<span><span class="co">#&gt; ----------------------------</span></span>
+<span><span class="co">#&gt; Selected: BCPEo </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;  family      AIC     type rank    delta_AIC supported_by_longitudinal</span></span>
+<span><span class="co">#&gt;   BCPEo 2720.409 realplus    1 0.000000e+00                      TRUE</span></span>
+<span><span class="co">#&gt;    BCPE 2720.409 realplus    2 4.547474e-12                      TRUE</span></span>
+<span><span class="co">#&gt;    BCTo 2723.818 realplus    3 3.409273e+00                      TRUE</span></span>
+<span><span class="co">#&gt;     BCT 2723.818 realplus    4 3.409273e+00                      TRUE</span></span>
+<span><span class="co">#&gt;    BCCG 2738.099 realplus    5 1.768978e+01                      TRUE</span></span>
+<span><span class="co">#&gt;   BCCGo 2738.099 realplus    6 1.768978e+01                      TRUE</span></span>
+<span><span class="co">#&gt;     GB2 2748.624 realplus    7 2.821493e+01                      TRUE</span></span>
+<span><span class="co">#&gt;      GG 2790.710 realplus    8 7.030097e+01                      TRUE</span></span>
+<span><span class="co">#&gt;      GA 2807.901 realplus    9 8.749231e+01                      TRUE</span></span>
+<span><span class="co">#&gt;     GIG 2809.901 realplus   10 8.949231e+01                      TRUE</span></span>
 <span></span>
-<span><span class="va">best_margin</span> <span class="op">&lt;-</span> <span class="va">margin_screen_fits</span><span class="op">[</span><span class="fl">1</span>, , drop <span class="op">=</span> <span class="cn">FALSE</span><span class="op">]</span></span>
-<span><span class="va">best_margin</span></span>
-<span><span class="co">#&gt;   family      AIC</span></span>
-<span><span class="co">#&gt; 1    GIG 6700.166</span></span></code></pre></div>
-<p>The screen is marginal, and this example continues with the Gamma
-family because the fitted longitudinal model will handle covariates,
-smooth effects, and within-subject dependence.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">gamlss</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/gamlss/man/histDist.html" class="external-link">histDist</a></span><span class="op">(</span></span>
-<span>  <span class="va">dat</span><span class="op">$</span><span class="va">response</span>,</span>
-<span>  family <span class="op">=</span> <span class="va">GA</span>,</span>
-<span>  nbins <span class="op">=</span> <span class="fl">30</span>,</span>
-<span>  main <span class="op">=</span> <span class="st">"Gamma Fit To The Marginal Response"</span>,</span>
-<span>  xlab <span class="op">=</span> <span class="st">"Response"</span></span>
+<span><span class="va">margin_choice</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/best_fit.html">best_fit</a></span><span class="op">(</span><span class="va">margin_selection</span><span class="op">)</span></span>
+<span><span class="va">margin_choice</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"family_name"</span>, <span class="st">"rank"</span>, <span class="st">"AIC"</span>, <span class="st">"delta_AIC"</span>, <span class="st">"supported_by_longitudinal"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt; $family_name</span></span>
+<span><span class="co">#&gt; [1] "BCPEo"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $rank</span></span>
+<span><span class="co">#&gt; [1] 1</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $AIC</span></span>
+<span><span class="co">#&gt; [1] 2720.409</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $delta_AIC</span></span>
+<span><span class="co">#&gt; [1] 0</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $supported_by_longitudinal</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span>
+<span></span>
+<span><span class="va">screened_margin_dist</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/best_fit.html">best_fit_family</a></span><span class="op">(</span><span class="va">margin_selection</span><span class="op">)</span></span>
+<span><span class="va">screened_margin_family</span> <span class="op">&lt;-</span> <span class="va">margin_choice</span><span class="op">$</span><span class="va">family_name</span></span>
+<span><span class="va">margin_dist</span> <span class="op">&lt;-</span> <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">screened_margin_family</span>, <span class="st">"GG"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/gamlss.dist/man/GG.html" class="external-link">GG</a></span><span class="op">(</span>mu.link <span class="op">=</span> <span class="st">"log"</span>, sigma.link <span class="op">=</span> <span class="st">"log"</span>, nu.link <span class="op">=</span> <span class="st">"identity"</span><span class="op">)</span></span>
+<span><span class="op">}</span> <span class="kw">else</span> <span class="op">{</span></span>
+<span>  <span class="va">screened_margin_dist</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<p>The detailed model fit starts from the screened marginal family
+rather than the known simulation truth. The explicit <code><a href="https://rdrr.io/pkg/gamlss.dist/man/GG.html" class="external-link">GG()</a></code>
+branch only fixes interpretable link functions when the selected family
+is generalized gamma.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_margin_fit.html">plot_margin_fit</a></span><span class="op">(</span></span>
+<span>  <span class="va">dat</span>,</span>
+<span>  margin_dist <span class="op">=</span> <span class="va">margin_dist</span>,</span>
+<span>  response_var <span class="op">=</span> <span class="st">"response"</span>,</span>
+<span>  bins <span class="op">=</span> <span class="fl">30</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p><img src="native-simulation-workflow_files/figure-html/marginal-histdist-1.png" width="672"></p>
-<pre><code><span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Family:  c("GA", "Gamma") </span></span>
-<span><span class="co">#&gt; Fitting method: "nlminb" </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Call:  gamlssML(formula = dat$response, family = "GA") </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Mu Coefficients:</span></span>
-<span><span class="co">#&gt; [1]  1.494</span></span>
-<span><span class="co">#&gt; Sigma Coefficients:</span></span>
-<span><span class="co">#&gt; [1]  -0.5557</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  Degrees of Freedom for the fit: 2 Residual Deg. of Freedom   1498 </span></span>
-<span><span class="co">#&gt; Global Deviance:     6713.3 </span></span>
-<span><span class="co">#&gt;             AIC:     6717.3 </span></span>
-<span><span class="co">#&gt;             SBC:     6727.93</span></span></code></pre>
+<p><img src="native-simulation-workflow_files/figure-html/marginal-fit-overlay-1.png" alt="Histogram of observed responses with fitted generalized gamma marginal distribution overlay." width="85%" style="display: block; margin: auto;"></p>
 </div>
 <div class="section level2">
 <h2 id="choose-a-copula-family">Choose A Copula Family<a class="anchor" aria-label="anchor" href="#choose-a-copula-family"></a>
 </h2>
 <p>The native <code><a href="../reference/select_copula.html">select_copula()</a></code> helper screens candidate
-copula families using copula log-likelihoods on pseudo-observation
-pairs. In real data, those pseudo-observations would usually come from a
-preliminary marginal fit. Because this example is simulated, we can use
-the stored truth uniforms to demonstrate the family-screening step
-directly.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">copula_family_screen</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/select_copula.html">select_copula</a></span><span class="op">(</span></span>
+copula families using copula log-likelihoods on adjacent-time
+pseudo-observation pairs. In the standard workflow, pseudo-observations
+are created automatically from the observed response and selected
+marginal distribution.</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">copula_selection</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/select_copula.html">select_copula</a></span><span class="op">(</span></span>
 <span>  data <span class="op">=</span> <span class="va">dat</span>,</span>
-<span>  u_var <span class="op">=</span> <span class="st">"u"</span>,</span>
+<span>  response_var <span class="op">=</span> <span class="st">"response"</span>,</span>
+<span>  margin_dist <span class="op">=</span> <span class="va">margin_dist</span>,</span>
+<span>  subject_var <span class="op">=</span> <span class="st">"subject"</span>,</span>
+<span>  time_var <span class="op">=</span> <span class="st">"time"</span>,</span>
 <span>  families <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"N"</span>, <span class="st">"C"</span>, <span class="st">"F"</span>, <span class="st">"G"</span>, <span class="st">"J"</span>, <span class="st">"t"</span><span class="op">)</span>,</span>
 <span>  t_df_grid <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3</span>, <span class="fl">4</span>, <span class="fl">6</span>, <span class="fl">10</span>, <span class="fl">20</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">copula_family_screen</span></span>
-<span><span class="co">#&gt;   family       par par2       tau   logLik       AIC       BIC n_pairs</span></span>
-<span><span class="co">#&gt; 1      C 1.4889362    0 0.4267594 402.7804 -803.5608 -798.4707    1200</span></span>
-<span><span class="co">#&gt; 2      t 0.6472423    6 0.4481556 338.6017 -673.2034 -663.0233    1200</span></span>
-<span><span class="co">#&gt; 3      N 0.6428578    0 0.4445028 323.6303 -645.2605 -640.1705    1200</span></span>
-<span><span class="co">#&gt; 4      F 4.8315088    0 0.4459697 302.5838 -603.1675 -598.0775    1200</span></span>
-<span><span class="co">#&gt; 5      G 1.6613156    0 0.3980674 244.3951 -486.7901 -481.7001    1200</span></span>
-<span><span class="co">#&gt; 6      J 1.7047225    0 0.2817272 134.2733 -266.5465 -261.4565    1200</span></span></code></pre></div>
-<p>The next plot overlays the selected copula density on a binned view
-of adjacent pairs after transforming the pseudo-observations to
-standard-normal scale.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">make_adjacent_pairs</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">data</span>, <span class="va">subject_var</span> <span class="op">=</span> <span class="st">"subject"</span>, <span class="va">time_var</span> <span class="op">=</span> <span class="st">"time"</span>, <span class="va">u_var</span> <span class="op">=</span> <span class="st">"u"</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">data</span> <span class="op">&lt;-</span> <span class="va">data</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">data</span><span class="op">[[</span><span class="va">subject_var</span><span class="op">]</span><span class="op">]</span>, <span class="va">data</span><span class="op">[[</span><span class="va">time_var</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>, , drop <span class="op">=</span> <span class="cn">FALSE</span><span class="op">]</span></span>
-<span>  <span class="va">pair_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/split.html" class="external-link">split</a></span><span class="op">(</span><span class="va">data</span>, <span class="va">data</span><span class="op">[[</span><span class="va">subject_var</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="va">x</span> <span class="op">&lt;-</span> <span class="va">x</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">x</span><span class="op">[[</span><span class="va">time_var</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>, , drop <span class="op">=</span> <span class="cn">FALSE</span><span class="op">]</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>      u1 <span class="op">=</span> <span class="va">x</span><span class="op">[[</span><span class="va">u_var</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="op">-</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">]</span>,</span>
-<span>      u2 <span class="op">=</span> <span class="va">x</span><span class="op">[[</span><span class="va">u_var</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="op">-</span><span class="fl">1</span><span class="op">]</span></span>
-<span>    <span class="op">)</span></span>
-<span>  <span class="op">}</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="va">pair_list</span><span class="op">)</span></span>
-<span><span class="op">}</span></span>
+<span><span class="va">copula_selection</span></span>
+<span><span class="co">#&gt;   family        par par2       tau   logLik        AIC        BIC n_pairs</span></span>
+<span><span class="co">#&gt; 1      t  0.7506443    6 0.5405135 690.4608 -1376.9216 -1368.9689     394</span></span>
+<span><span class="co">#&gt; 2      G  3.2219568    0 0.6896296 677.6086 -1353.2172 -1349.2408     394</span></span>
+<span><span class="co">#&gt; 3      N  0.7572337    0 0.5468993 671.2170 -1340.4341 -1336.4577     394</span></span>
+<span><span class="co">#&gt; 4      C  0.8604447    0 0.3008080 669.8804 -1337.7609 -1333.7845     394</span></span>
+<span><span class="co">#&gt; 5      F 10.7450201    0 0.6847151 492.2707  -982.5414  -978.5650     394</span></span>
+<span><span class="co">#&gt; 6      J  7.7111267    0 0.7761975 439.3928  -876.7857  -872.8093     394</span></span>
 <span></span>
-<span><span class="va">plot_copula_screen_overlay</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">pair_data</span>, <span class="va">selected_fit</span>, <span class="va">grid_n</span> <span class="op">=</span> <span class="fl">80</span>, <span class="va">bins</span> <span class="op">=</span> <span class="fl">28</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">pair_data</span><span class="op">$</span><span class="va">z1</span> <span class="op">&lt;-</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">qnorm</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">pmin</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">pmax</a></span><span class="op">(</span><span class="va">pair_data</span><span class="op">$</span><span class="va">u1</span>, <span class="fl">0.001</span><span class="op">)</span>, <span class="fl">0.999</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="va">pair_data</span><span class="op">$</span><span class="va">z2</span> <span class="op">&lt;-</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">qnorm</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">pmin</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">pmax</a></span><span class="op">(</span><span class="va">pair_data</span><span class="op">$</span><span class="va">u2</span>, <span class="fl">0.001</span><span class="op">)</span>, <span class="fl">0.999</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">copula_choice</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/best_fit.html">best_fit</a></span><span class="op">(</span><span class="va">copula_selection</span><span class="op">)</span></span>
+<span><span class="va">copula_choice</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"family"</span>, <span class="st">"rank"</span>, <span class="st">"AIC"</span>, <span class="st">"delta_AIC"</span>, <span class="st">"tau"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt; $family</span></span>
+<span><span class="co">#&gt; [1] "t"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $&lt;NA&gt;</span></span>
+<span><span class="co">#&gt; NULL</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $AIC</span></span>
+<span><span class="co">#&gt; [1] -1376.922</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $&lt;NA&gt;</span></span>
+<span><span class="co">#&gt; NULL</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $tau</span></span>
+<span><span class="co">#&gt; [1] 0.5405135</span></span>
 <span></span>
-<span>  <span class="va">z_grid</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="op">-</span><span class="fl">2.75</span>, <span class="fl">2.75</span>, length.out <span class="op">=</span> <span class="va">grid_n</span><span class="op">)</span></span>
-<span>  <span class="va">density_grid</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/expand.grid.html" class="external-link">expand.grid</a></span><span class="op">(</span>z1 <span class="op">=</span> <span class="va">z_grid</span>, z2 <span class="op">=</span> <span class="va">z_grid</span><span class="op">)</span></span>
-<span>  <span class="va">density_grid</span><span class="op">$</span><span class="va">u1</span> <span class="op">&lt;-</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">pnorm</a></span><span class="op">(</span><span class="va">density_grid</span><span class="op">$</span><span class="va">z1</span><span class="op">)</span></span>
-<span>  <span class="va">density_grid</span><span class="op">$</span><span class="va">u2</span> <span class="op">&lt;-</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">pnorm</a></span><span class="op">(</span><span class="va">density_grid</span><span class="op">$</span><span class="va">z2</span><span class="op">)</span></span>
-<span>  <span class="va">rho</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Trig.html" class="external-link">sin</a></span><span class="op">(</span><span class="va">pi</span> <span class="op">*</span> <span class="va">selected_fit</span><span class="op">$</span><span class="va">tau</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span> <span class="op">/</span> <span class="fl">2</span><span class="op">)</span></span>
-<span>  <span class="va">density_grid</span><span class="op">$</span><span class="va">density</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span></span>
-<span>    <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">dnorm</a></span><span class="op">(</span><span class="va">density_grid</span><span class="op">$</span><span class="va">z1</span>, log <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">+</span></span>
-<span>      <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">dnorm</a></span><span class="op">(</span></span>
-<span>        <span class="va">density_grid</span><span class="op">$</span><span class="va">z2</span>,</span>
-<span>        mean <span class="op">=</span> <span class="va">rho</span> <span class="op">*</span> <span class="va">density_grid</span><span class="op">$</span><span class="va">z1</span>,</span>
-<span>        sd <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">rho</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span>,</span>
-<span>        log <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span>      <span class="op">)</span></span>
-<span>  <span class="op">)</span></span>
+<span><span class="va">screened_copula_dist</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/best_fit.html">best_fit_family</a></span><span class="op">(</span><span class="va">copula_selection</span><span class="op">)</span></span>
+<span><span class="va">copula_dist</span> <span class="op">&lt;-</span> <span class="va">screened_copula_dist</span></span></code></pre></div>
+<p>The separate marginal and copula screens are intentionally
+lightweight. As an additional screen,
+<code><a href="../reference/select_joint_distribution.html">select_joint_distribution()</a></code> ranks margin-copula
+combinations by fitting simple joint longitudinal models. This is
+slower, but it confirms whether the separate screens point in the same
+direction.</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">top_margin_families</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span></span>
+<span>  <span class="va">margin_selection</span><span class="op">$</span><span class="va">family</span><span class="op">[</span><span class="va">margin_selection</span><span class="op">$</span><span class="va">supported_by_longitudinal</span><span class="op">]</span>,</span>
+<span>  <span class="fl">10</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">joint_screen_margins</span> <span class="op">&lt;-</span> <span class="va">screened_margin_family</span></span>
 <span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">pair_data</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">z1</span>, y <span class="op">=</span> <span class="va">z2</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_bin_2d.html" class="external-link">geom_bin2d</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>fill <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes_eval.html" class="external-link">after_stat</a></span><span class="op">(</span><span class="va">density</span><span class="op">)</span><span class="op">)</span>, bins <span class="op">=</span> <span class="va">bins</span><span class="op">)</span> <span class="op">+</span></span>
-<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_contour.html" class="external-link">geom_contour</a></span><span class="op">(</span></span>
-<span>      data <span class="op">=</span> <span class="va">density_grid</span>,</span>
-<span>      <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">z1</span>, y <span class="op">=</span> <span class="va">z2</span>, z <span class="op">=</span> <span class="va">density</span><span class="op">)</span>,</span>
-<span>      inherit.aes <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>      color <span class="op">=</span> <span class="st">"white"</span>,</span>
-<span>      linewidth <span class="op">=</span> <span class="fl">0.75</span>,</span>
-<span>      bins <span class="op">=</span> <span class="fl">8</span></span>
-<span>    <span class="op">)</span> <span class="op">+</span></span>
-<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_viridis.html" class="external-link">scale_fill_viridis_c</a></span><span class="op">(</span>name <span class="op">=</span> <span class="st">"Empirical density"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span></span>
-<span>      title <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Selected copula:"</span>, <span class="va">selected_fit</span><span class="op">$</span><span class="va">family</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>, <span class="st">"(Gaussian tau-matched reference overlay)"</span><span class="op">)</span>,</span>
-<span>      x <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/expression.html" class="external-link">expression</a></span><span class="op">(</span><span class="va">Phi</span><span class="op">^</span><span class="op">-</span><span class="fl">1</span> <span class="op">*</span> <span class="op">(</span><span class="va">U</span><span class="op">[</span><span class="va">t</span><span class="op">]</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>      y <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/expression.html" class="external-link">expression</a></span><span class="op">(</span><span class="va">Phi</span><span class="op">^</span><span class="op">-</span><span class="fl">1</span> <span class="op">*</span> <span class="op">(</span><span class="va">U</span><span class="op">[</span><span class="va">t</span> <span class="op">+</span> <span class="fl">1</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
-<span>    <span class="op">)</span> <span class="op">+</span></span>
-<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="op">}</span></span>
+<span><span class="va">joint_selection</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/select_joint_distribution.html">select_joint_distribution</a></span><span class="op">(</span></span>
+<span>  data <span class="op">=</span> <span class="va">dat</span>,</span>
+<span>  response_var <span class="op">=</span> <span class="st">"response"</span>,</span>
+<span>  subject_var <span class="op">=</span> <span class="st">"subject"</span>,</span>
+<span>  time_var <span class="op">=</span> <span class="st">"time"</span>,</span>
+<span>  margin_families <span class="op">=</span> <span class="va">joint_screen_margins</span>,</span>
+<span>  copula_families <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"N"</span>, <span class="st">"C"</span>, <span class="st">"F"</span>, <span class="st">"G"</span>, <span class="st">"J"</span>, <span class="st">"t"</span><span class="op">)</span>,</span>
+<span>  fit_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    max_outer_iter <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>    max_inner_iter <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>    outer_stop_crit <span class="op">=</span> <span class="fl">1e-2</span>,</span>
+<span>    inner_stop_crit <span class="op">=</span> <span class="fl">1e-2</span>,</span>
+<span>    use_backtracking <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  trace <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">pair_data</span> <span class="op">&lt;-</span> <span class="fu">make_adjacent_pairs</span><span class="op">(</span><span class="va">dat</span><span class="op">)</span></span>
-<span><span class="fu">plot_copula_screen_overlay</span><span class="op">(</span><span class="va">pair_data</span>, <span class="va">copula_family_screen</span><span class="op">[</span><span class="fl">1</span>, , drop <span class="op">=</span> <span class="cn">FALSE</span><span class="op">]</span><span class="op">)</span></span></code></pre></div>
-<p><img src="native-simulation-workflow_files/figure-html/copula-screen-overlay-1.png" width="624"></p>
+<span><span class="va">joint_selection</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Joint Distribution Screen</span></span>
+<span><span class="co">#&gt; -------------------------</span></span>
+<span><span class="co">#&gt; Selected: BCPEo+J </span></span>
+<span><span class="co">#&gt; Criterion: AIC </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;  rank margin_family copula_family    logLik      AIC      BIC EDF converged</span></span>
+<span><span class="co">#&gt;     1         BCPEo             J -1867.601 3745.202 3767.186   5     FALSE</span></span>
+<span><span class="co">#&gt;     2         BCPEo             G -1885.866 3781.733 3803.717   5     FALSE</span></span>
+<span><span class="co">#&gt;     3         BCPEo             F -1925.329 3860.658 3882.642   5     FALSE</span></span>
+<span><span class="co">#&gt;     4         BCPEo             N -1942.966 3895.933 3917.917   5     FALSE</span></span>
+<span><span class="co">#&gt;     5         BCPEo             t -1943.557 3899.115 3925.497   6     FALSE</span></span>
+<span><span class="co">#&gt;     6         BCPEo             C -2125.422 4260.844 4282.829   5     FALSE</span></span>
+<span><span class="co">#&gt;  elapsed_sec error</span></span>
+<span><span class="co">#&gt;     1.149612  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;     1.053563  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;     1.421244  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;     1.071386  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;     1.550268  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;     1.103009  &lt;NA&gt;</span></span>
+<span></span>
+<span><span class="va">joint_choice</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/best_fit.html">best_fit</a></span><span class="op">(</span><span class="va">joint_selection</span><span class="op">)</span></span>
+<span><span class="va">joint_choice</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"margin_family_name"</span>, <span class="st">"copula_family"</span>, <span class="st">"rank"</span>, <span class="st">"AIC"</span>, <span class="st">"delta_AIC"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt; $margin_family_name</span></span>
+<span><span class="co">#&gt; [1] "BCPEo"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $copula_family</span></span>
+<span><span class="co">#&gt; [1] "J"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $rank</span></span>
+<span><span class="co">#&gt; [1] 1</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $AIC</span></span>
+<span><span class="co">#&gt; [1] 3745.202</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $delta_AIC</span></span>
+<span><span class="co">#&gt; [1] 0</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  screen <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"separate"</span>, <span class="st">"joint"</span><span class="op">)</span>,</span>
+<span>  margin <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">screened_margin_family</span>, <span class="va">joint_choice</span><span class="op">$</span><span class="va">margin_family_name</span><span class="op">)</span>,</span>
+<span>  copula <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">copula_dist</span>, <span class="va">joint_choice</span><span class="op">$</span><span class="va">copula_family</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt;     screen margin copula</span></span>
+<span><span class="co">#&gt; 1 separate  BCPEo      t</span></span>
+<span><span class="co">#&gt; 2    joint  BCPEo      J</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="fit-the-longitudinal-model">Fit The Longitudinal Model<a class="anchor" aria-label="anchor" href="#fit-the-longitudinal-model"></a>
 </h2>
 <p>The final model uses smooth age effects in the marginal mean,
-marginal scale, and copula dependence parameter. The example keeps
-<code>sigma</code> slightly less flexible than <code>mu</code> and
-<code>theta</code>, because scale smooths are harder to recover from
-finite samples.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gamlss.longitudinal.html">gamlss.longitudinal</a></span><span class="op">(</span></span>
+marginal scale, generalized-gamma shape, and copula dependence
+parameter. The example makes the time effects on <code>mu</code> and
+<code>sigma</code>, and the treatment effect on <code>sigma</code>,
+intentionally strong enough that the fitted term diagnostics can recover
+them with useful uncertainty bands.</p>
+<p>Before fitting, decide what the regression model is meant to
+estimate. Here the primary questions are how treatment and time affect
+the marginal mean, whether the scale changes across treatment, time, and
+age, and whether within-subject dependence changes with time and age.
+The factor levels were fixed at simulation time so <code>control</code>
+is the reference group, and <code>age_scaled</code> was put on
+<code>[0, 1]</code> so smooths and copula terms are easier to fit and
+compare. The spline basis dimensions (<code>k</code>) are deliberately
+modest: large enough to represent the known smooths, but not so large
+that the scale and dependence submodels become hard to interpret.</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gamlss_longitudinal.html">gamlss_longitudinal</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">dat</span>,</span>
-<span>  margin_dist <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/gamlss.dist/man/GA.html" class="external-link">GA</a></span><span class="op">(</span>mu.link <span class="op">=</span> <span class="st">"log"</span>, sigma.link <span class="op">=</span> <span class="st">"log"</span><span class="op">)</span>,</span>
-<span>  copula_dist <span class="op">=</span> <span class="st">"C"</span>,</span>
+<span>  margin_dist <span class="op">=</span> <span class="va">margin_dist</span>,</span>
+<span>  copula_dist <span class="op">=</span> <span class="va">copula_dist</span>,</span>
 <span>  time_var <span class="op">=</span> <span class="st">"time"</span>,</span>
 <span>  subject_var <span class="op">=</span> <span class="st">"subject"</span>,</span>
 <span>  mu.formula <span class="op">=</span> <span class="va">response</span> <span class="op">~</span> <span class="va">treatment</span> <span class="op">+</span> <span class="va">time_scaled</span> <span class="op">+</span> <span class="fu">s</span><span class="op">(</span><span class="va">age_scaled</span>, bs <span class="op">=</span> <span class="st">"ps"</span>, k <span class="op">=</span> <span class="fl">8</span><span class="op">)</span>,</span>
 <span>  sigma.formula <span class="op">=</span> <span class="op">~</span> <span class="va">treatment</span> <span class="op">+</span> <span class="va">time_scaled</span> <span class="op">+</span> <span class="fu">s</span><span class="op">(</span><span class="va">age_scaled</span>, bs <span class="op">=</span> <span class="st">"ps"</span>, k <span class="op">=</span> <span class="fl">5</span><span class="op">)</span>,</span>
-<span>  theta.formula <span class="op">=</span> <span class="op">~</span> <span class="va">time_scaled</span> <span class="op">+</span> <span class="fu">s</span><span class="op">(</span><span class="va">age_scaled</span>, bs <span class="op">=</span> <span class="st">"ps"</span>, k <span class="op">=</span> <span class="fl">8</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; Missingness Summary (by time):</span></span>
-<span><span class="co">#&gt;   time n_total n_na_response n_observed_response</span></span>
-<span><span class="co">#&gt; 1 0.00     300             0                 300</span></span>
-<span><span class="co">#&gt; 2 0.25     300             0                 300</span></span>
-<span><span class="co">#&gt; 3 0.50     300             0                 300</span></span>
-<span><span class="co">#&gt; 4 0.75     300             0                 300</span></span>
-<span><span class="co">#&gt; 5 1.00     300             0                 300</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Consecutive Pair Completeness:</span></span>
-<span><span class="co">#&gt;   time1 time2 complete_pairs total_pairs total_observations</span></span>
-<span><span class="co">#&gt; 1  0.00  0.25            300         300               1500</span></span>
-<span><span class="co">#&gt; 2  0.25  0.50            300         300               1500</span></span>
-<span><span class="co">#&gt; 3  0.50  0.75            300         300               1500</span></span>
-<span><span class="co">#&gt; 4  0.75  1.00            300         300               1500</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Running separate RS warm-start phase for 5 outer iteration(s) before joint RS fit...</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Using automatic step_adjustment=1 for joint RS.</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Using stop criteria: inner_stop_crit= 0.000573566 | outer_stop_crit= 0.00286783 </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; OUTER ITERATION: 1</span></span>
-<span><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
-<span><span class="co">#&gt; -2867.8316412 -2866.9393909     0.8922503 </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; OUTER ITERATION: 2</span></span>
-<span><span class="co">#&gt; Optimising smoothing parameter for mu - s(age_scaled, bs = "ps", k = 8)</span></span>
-<span><span class="co">#&gt; Optimising smoothing parameter for sigma - s(age_scaled, bs = "ps", k = 5)</span></span>
-<span><span class="co">#&gt; Optimising smoothing parameter for theta - s(age_scaled, bs = "ps", k = 8)</span></span>
-<span><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
-<span><span class="co">#&gt; -2.866939e+03 -2.866924e+03  1.530269e-02 </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; OUTER ITERATION: 3</span></span>
-<span><span class="co">#&gt; Optimising smoothing parameter for mu - s(age_scaled, bs = "ps", k = 8)</span></span>
-<span><span class="co">#&gt; Optimising smoothing parameter for sigma - s(age_scaled, bs = "ps", k = 5)</span></span>
-<span><span class="co">#&gt; Optimising smoothing parameter for theta - s(age_scaled, bs = "ps", k = 8)</span></span>
-<span><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
-<span><span class="co">#&gt; -2.866924e+03 -2.866924e+03  4.121971e-04 </span></span>
-<span><span class="co">#&gt;        joint </span></span>
-<span><span class="co">#&gt; 0.0004121971 </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; OUTER CONVERGED</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ############ MODEL FIT ############</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Margin distribution: Gamma</span></span>
-<span><span class="co">#&gt; Copula distribution: C</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Parameter count: 10</span></span>
-<span><span class="co">#&gt; Observations: 1500</span></span>
-<span><span class="co">#&gt; Margins: 5</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Total time (seconds): 3.08</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;                        estimate</span></span>
-<span><span class="co">#&gt; theta.intercept      0.41750829</span></span>
-<span><span class="co">#&gt; theta.time_scaled    0.19260978</span></span>
-<span><span class="co">#&gt; sigma.intercept     -0.66510530</span></span>
-<span><span class="co">#&gt; sigma.treatmentlow   0.08781015</span></span>
-<span><span class="co">#&gt; sigma.treatmenthigh  0.10499993</span></span>
-<span><span class="co">#&gt; sigma.time_scaled    0.02134235</span></span>
-<span><span class="co">#&gt; mu.intercept         1.22785928</span></span>
-<span><span class="co">#&gt; mu.treatmentlow      0.12699004</span></span>
-<span><span class="co">#&gt; mu.treatmenthigh     0.35696557</span></span>
-<span><span class="co">#&gt; mu.time_scaled       0.14253816</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Model Selection Criteria:</span></span>
-<span><span class="co">#&gt;           marginal     copula       joint</span></span>
-<span><span class="co">#&gt; LogLik -3265.35266  398.42899 -2866.92368</span></span>
-<span><span class="co">#&gt; AIC     6559.97283 -787.51505  5772.45778</span></span>
-<span><span class="co">#&gt; BIC     6637.72518 -762.69456  5875.03062</span></span>
-<span><span class="co">#&gt; EDF       14.63375    4.67146    19.30521</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ####################################</span></span>
-<span><span class="co">#&gt; Calculating variance-covariance matrix at fit completion...</span></span>
-<span><span class="co">#&gt; Analytical Hessian: computing eta and likelihood components...</span></span>
-<span><span class="co">#&gt; Analytical Hessian: computing CDF derivatives...</span></span>
-<span><span class="co">#&gt; Analytical Hessian: assembling copula Hessian contributions...</span></span>
-<span><span class="co">#&gt; Analytical Hessian: extracting margin second derivatives...</span></span>
-<span><span class="co">#&gt; Analytical Hessian: assembling covariate Hessian matrix...</span></span>
-<span><span class="co">#&gt; Analytical Hessian: done.</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Smooth term variance estimates for mu:s(age_scaled, bs = "ps", k = 8)</span></span>
-<span><span class="co">#&gt;   Basis coefficients SE: min=0.0260, max=0.0773, mean=0.0416</span></span>
-<span><span class="co">#&gt;   Fitted values SE: min=0.0000, max=0.0903, mean=0.0145</span></span>
-<span><span class="co">#&gt;   Effective DF: 4.44 (trace of smoother matrix)</span></span>
-<span><span class="co">#&gt;   Smoothing parameter lambda: 202.2090</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Smooth term variance estimates for sigma:s(age_scaled, bs = "ps", k = 5)</span></span>
-<span><span class="co">#&gt;   Basis coefficients SE: min=0.0348, max=0.0725, mean=0.0501</span></span>
-<span><span class="co">#&gt;   Fitted values SE: min=0.0000, max=0.0926, mean=0.0081</span></span>
-<span><span class="co">#&gt;   Effective DF: 2.19 (trace of smoother matrix)</span></span>
-<span><span class="co">#&gt;   Smoothing parameter lambda: 192.9291</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Smooth term variance estimates for theta:s(age_scaled, bs = "ps", k = 8)</span></span>
-<span><span class="co">#&gt;   Basis coefficients SE: min=0.1888, max=0.6790, mean=0.3814</span></span>
-<span><span class="co">#&gt;   Fitted values SE: min=0.0001, max=0.4759, mean=0.0511</span></span>
-<span><span class="co">#&gt;   Effective DF: 2.67 (trace of smoother matrix)</span></span>
-<span><span class="co">#&gt;   Smoothing parameter lambda: 161.7672</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span>  nu.formula <span class="op">=</span> <span class="op">~</span> <span class="va">time_scaled</span> <span class="op">+</span> <span class="fu">s</span><span class="op">(</span><span class="va">age_scaled</span>, bs <span class="op">=</span> <span class="st">"ps"</span>, k <span class="op">=</span> <span class="fl">5</span><span class="op">)</span>,</span>
+<span>  theta.formula <span class="op">=</span> <span class="op">~</span> <span class="va">time_scaled</span> <span class="op">+</span> <span class="fu">s</span><span class="op">(</span><span class="va">age_scaled</span>, bs <span class="op">=</span> <span class="st">"ps"</span>, k <span class="op">=</span> <span class="fl">8</span><span class="op">)</span>,</span>
+<span>  max_outer_iter <span class="op">=</span> <span class="fl">8</span>,</span>
+<span>  max_inner_iter <span class="op">=</span> <span class="fl">8</span>,</span>
+<span>  outer_stop_crit <span class="op">=</span> <span class="fl">1e-3</span>,</span>
+<span>  inner_stop_crit <span class="op">=</span> <span class="fl">1e-3</span>,</span>
+<span>  verbose <span class="op">=</span> <span class="fl">0</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; GAMLSS Longitudinal Model Summary</span></span>
 <span><span class="co">#&gt; --------------------------------</span></span>
-<span><span class="co">#&gt; Margin distribution: GA </span></span>
-<span><span class="co">#&gt; Copula distribution: C </span></span>
-<span><span class="co">#&gt; Observations: 1500  | Subjects: 300  | Time points: 5 </span></span>
-<span><span class="co">#&gt; Fixed coefficients: 10  | Smooth terms: 3  | Smooth EDF: 9.3052 </span></span>
+<span><span class="co">#&gt; Margin distribution: BCPEo </span></span>
+<span><span class="co">#&gt; Copula distribution: t </span></span>
+<span><span class="co">#&gt; Observations: 600  | Subjects: 120  | Time points: 5 </span></span>
+<span><span class="co">#&gt; Fixed coefficients: 14  | Smooth terms: 4  | Smooth EDF: 13.8177 </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Fixed coefficients:</span></span>
 <span><span class="co">#&gt; --------------------</span></span>
 <span><span class="co">#&gt;   [mu]</span></span>
 <span><span class="co">#&gt;     term                 estimate  std_error   p_value  signif</span></span>
-<span><span class="co">#&gt;     mu.intercept           1.2279     0.0375  &lt;0.00001  ***   </span></span>
-<span><span class="co">#&gt;     mu.treatmentlow        0.1270     0.0469   0.00674  **    </span></span>
-<span><span class="co">#&gt;     mu.treatmenthigh       0.3570     0.0446  &lt;0.00001  ***   </span></span>
-<span><span class="co">#&gt;     mu.time_scaled         0.1425     0.0392   0.00028  ***   </span></span>
+<span><span class="co">#&gt;     mu.intercept          -0.5046     0.0000   0.00000  ***   </span></span>
+<span><span class="co">#&gt;     mu.treatmentlow       -0.0336     0.0000   0.00000  ***   </span></span>
+<span><span class="co">#&gt;     mu.treatmenthigh       0.1586     0.0004   0.00000  ***   </span></span>
+<span><span class="co">#&gt;     mu.time_scaled        -0.1575     0.0000   0.00000  ***   </span></span>
 <span><span class="co">#&gt;   --------------------</span></span>
 <span><span class="co">#&gt;   [sigma]</span></span>
 <span><span class="co">#&gt;     term                 estimate  std_error   p_value  signif</span></span>
-<span><span class="co">#&gt;     sigma.intercept       -0.6651     0.0389  &lt;0.00001  ***   </span></span>
-<span><span class="co">#&gt;     sigma.treatmentlow     0.0878     0.0421   0.03715  *     </span></span>
-<span><span class="co">#&gt;     sigma.treatmenthigh    0.1050     0.0396   0.00799  **    </span></span>
-<span><span class="co">#&gt;     sigma.time_scaled      0.0213     0.0418   0.60956        </span></span>
+<span><span class="co">#&gt;     sigma.intercept       24.3130     0.2318   0.00000  ***   </span></span>
+<span><span class="co">#&gt;     sigma.treatmentlow     0.9654     0.3761   0.01025  *     </span></span>
+<span><span class="co">#&gt;     sigma.treatmenthigh    2.4771     0.4200  &lt;0.00001  ***   </span></span>
+<span><span class="co">#&gt;     sigma.time_scaled     -9.1215     0.2517  &lt;0.00001  ***   </span></span>
+<span><span class="co">#&gt;   --------------------</span></span>
+<span><span class="co">#&gt;   [nu]</span></span>
+<span><span class="co">#&gt;     term                 estimate  std_error   p_value  signif</span></span>
+<span><span class="co">#&gt;     nu.intercept           6.9952     0.0049   0.00000  ***   </span></span>
+<span><span class="co">#&gt;     nu.time_scaled        -6.2678     0.0045   0.00000  ***   </span></span>
+<span><span class="co">#&gt;   --------------------</span></span>
+<span><span class="co">#&gt;   [tau]</span></span>
+<span><span class="co">#&gt;     term                 estimate  std_error   p_value  signif</span></span>
+<span><span class="co">#&gt;     tau.intercept         -3.0487     0.0127   0.00000  ***   </span></span>
 <span><span class="co">#&gt;   --------------------</span></span>
 <span><span class="co">#&gt;   [theta]</span></span>
 <span><span class="co">#&gt;     term                 estimate  std_error   p_value  signif</span></span>
-<span><span class="co">#&gt;     theta.intercept        0.4175     0.0792  &lt;0.00001  ***   </span></span>
-<span><span class="co">#&gt;     theta.time_scaled      0.1926     0.1331   0.14779        </span></span>
+<span><span class="co">#&gt;     theta.intercept        0.6184     0.1178  &lt;0.00001  ***   </span></span>
+<span><span class="co">#&gt;     theta.time_scaled      0.0700     0.2405   0.77114        </span></span>
+<span><span class="co">#&gt;   --------------------</span></span>
+<span><span class="co">#&gt;   [zeta]</span></span>
+<span><span class="co">#&gt;     term                 estimate  std_error   p_value  signif</span></span>
+<span><span class="co">#&gt;     zeta.intercept        -2.3364     0.6656   0.00045  ***   </span></span>
 <span><span class="co">#&gt;   Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Smooth terms:</span></span>
@@ -510,22 +646,360 @@ finite samples.</p>
 <span><span class="co">#&gt;  parameter                     smooth_term</span></span>
 <span><span class="co">#&gt;         mu s(age_scaled, bs = "ps", k = 8)</span></span>
 <span><span class="co">#&gt;      sigma s(age_scaled, bs = "ps", k = 5)</span></span>
+<span><span class="co">#&gt;         nu s(age_scaled, bs = "ps", k = 5)</span></span>
 <span><span class="co">#&gt;      theta s(age_scaled, bs = "ps", k = 8)</span></span>
 <span><span class="co">#&gt; Use plot(object) to visualize smooth and fixed terms with confidence bands.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Model Selection Criteria:</span></span>
 <span><span class="co">#&gt; --------------------</span></span>
 <span><span class="co">#&gt;          marginal    copula      joint</span></span>
-<span><span class="co">#&gt; LogLik -3265.3527  398.4290 -2866.9237</span></span>
-<span><span class="co">#&gt; AIC     6559.9728 -787.5151  5772.4578</span></span>
-<span><span class="co">#&gt; BIC     6637.7252 -762.6946  5875.0306</span></span>
-<span><span class="co">#&gt; EDF       14.6338    4.6715    19.3052</span></span>
+<span><span class="co">#&gt; LogLik -1448.4821  122.7265 -1325.7556</span></span>
+<span><span class="co">#&gt; AIC     2940.6959 -233.5493  2707.1466</span></span>
+<span><span class="co">#&gt; BIC     3036.8382 -207.3792  2829.4589</span></span>
+<span><span class="co">#&gt; EDF       21.8658    5.9519    27.8177</span></span>
 <span><span class="co">#&gt; --------------------------------</span></span></code></pre></div>
+<p>The summary gives coefficient estimates, uncertainty, and model fit
+statistics. The marginal mean (<code>mu</code>), marginal scale
+(<code>sigma</code>), generalized-gamma shape (<code>nu</code>), and
+copula dependence (<code>theta</code>) coefficients answer different
+questions, so they should not be read as a single “effect” table. Mean
+effects describe the response location, scale effects describe
+heterogeneity or dispersion, shape effects describe remaining
+distributional asymmetry, and dependence effects describe within-subject
+association after the marginal model has been accounted for.</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">coef_names</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">inference_terms</span> <span class="op">&lt;-</span> <span class="va">coef_names</span><span class="op">[</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grepl</a></span><span class="op">(</span><span class="st">"^mu\\.treatment|^mu\\.time_scaled|^sigma\\.treatment|^sigma\\.time_scaled|^nu\\.time_scaled|^theta\\.time_scaled"</span>, <span class="va">coef_names</span><span class="op">)</span></span>
+<span><span class="op">]</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint</a></span><span class="op">(</span><span class="va">fit</span>, parm <span class="op">=</span> <span class="va">inference_terms</span><span class="op">)</span></span>
+<span><span class="co">#&gt;                           2.5 %      97.5 %</span></span>
+<span><span class="co">#&gt; theta.time_scaled   -0.40144019  0.54136155</span></span>
+<span><span class="co">#&gt; nu.time_scaled      -6.27667715 -6.25897361</span></span>
+<span><span class="co">#&gt; sigma.treatmentlow   0.22838524  1.70248160</span></span>
+<span><span class="co">#&gt; sigma.treatmenthigh  1.65395494  3.30019131</span></span>
+<span><span class="co">#&gt; sigma.time_scaled   -9.61484196 -8.62807447</span></span>
+<span><span class="co">#&gt; mu.treatmentlow     -0.03362805 -0.03358144</span></span>
+<span><span class="co">#&gt; mu.treatmenthigh     0.15783215  0.15927602</span></span>
+<span><span class="co">#&gt; mu.time_scaled      -0.15752965 -0.15746989</span></span>
+<span></span>
+<span><span class="fu"><a href="../reference/wald_test.html">wald_test</a></span><span class="op">(</span><span class="va">fit</span>, terms <span class="op">=</span> <span class="st">"mu.treatment"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Wald Test for gamlss.longitudinal</span></span>
+<span><span class="co">#&gt; ---------------------------------</span></span>
+<span><span class="co">#&gt; Test type: individual </span></span>
+<span><span class="co">#&gt; VCOV method: analytical </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;              term estimate rhs std_error statistic p_value     method</span></span>
+<span><span class="co">#&gt;   mu.treatmentlow  -0.0336   0 1.189e-05     -2827       0 analytical</span></span>
+<span><span class="co">#&gt;  mu.treatmenthigh   0.1586   0 0.000e+00       Inf       0 analytical</span></span>
+<span><span class="fu"><a href="../reference/wald_test.html">wald_test</a></span><span class="op">(</span><span class="va">fit</span>, terms <span class="op">=</span> <span class="st">"theta.time_scaled"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Wald Test for gamlss.longitudinal</span></span>
+<span><span class="co">#&gt; ---------------------------------</span></span>
+<span><span class="co">#&gt; Test type: individual </span></span>
+<span><span class="co">#&gt; VCOV method: analytical </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;               term estimate rhs std_error statistic p_value     method</span></span>
+<span><span class="co">#&gt;  theta.time_scaled  0.06996   0    0.2405    0.2909  0.7711 analytical</span></span></code></pre></div>
+<p>Likelihood comparisons are useful for planned sensitivity checks when
+models are nested or approximately nested and fitted to the same
+observed rows. Here we compare the main model to a simpler model with
+linear age effects and a simpler dependence formula.</p>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit_reduced</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gamlss_longitudinal.html">gamlss_longitudinal</a></span><span class="op">(</span></span>
+<span>  dataset <span class="op">=</span> <span class="va">dat</span>,</span>
+<span>  margin_dist <span class="op">=</span> <span class="va">margin_dist</span>,</span>
+<span>  copula_dist <span class="op">=</span> <span class="va">copula_dist</span>,</span>
+<span>  time_var <span class="op">=</span> <span class="st">"time"</span>,</span>
+<span>  subject_var <span class="op">=</span> <span class="st">"subject"</span>,</span>
+<span>  mu.formula <span class="op">=</span> <span class="va">response</span> <span class="op">~</span> <span class="va">treatment</span> <span class="op">+</span> <span class="va">time_scaled</span> <span class="op">+</span> <span class="va">age_scaled</span>,</span>
+<span>  sigma.formula <span class="op">=</span> <span class="op">~</span> <span class="va">treatment</span> <span class="op">+</span> <span class="va">time_scaled</span> <span class="op">+</span> <span class="va">age_scaled</span>,</span>
+<span>  nu.formula <span class="op">=</span> <span class="op">~</span> <span class="va">time_scaled</span>,</span>
+<span>  theta.formula <span class="op">=</span> <span class="op">~</span> <span class="va">time_scaled</span>,</span>
+<span>  max_outer_iter <span class="op">=</span> <span class="fl">6</span>,</span>
+<span>  max_inner_iter <span class="op">=</span> <span class="fl">6</span>,</span>
+<span>  outer_stop_crit <span class="op">=</span> <span class="fl">1e-3</span>,</span>
+<span>  inner_stop_crit <span class="op">=</span> <span class="fl">1e-3</span>,</span>
+<span>  verbose <span class="op">=</span> <span class="fl">0</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/likelihood_compare.html">likelihood_compare</a></span><span class="op">(</span>reduced <span class="op">=</span> <span class="va">fit_reduced</span>, main <span class="op">=</span> <span class="va">fit</span><span class="op">)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Likelihood Comparison for gamlss.longitudinal</span></span>
+<span><span class="co">#&gt; --------------------------------------------</span></span>
+<span><span class="co">#&gt; Sequential LR rows compare each model with the previous row.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;    model n_obs    df logLik  AIC  BIC delta_df LR_statistic   p_value</span></span>
+<span><span class="co">#&gt;  reduced   600 16.00  -1342 2717 2787       NA           NA        NA</span></span>
+<span><span class="co">#&gt;     main   600 27.82  -1326 2707 2829    11.82        33.02 0.0008616</span></span></code></pre></div>
+<p>For final reporting, bootstrap inference can be used as a robustness
+check on selected terms. This refits the model for each simulated
+dataset, so the small <code>R</code> below is only to show the workflow;
+applied analyses need many more replicates.</p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">boot</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bootstrap_inference.html">bootstrap_inference</a></span><span class="op">(</span></span>
+<span>  <span class="va">fit</span>,</span>
+<span>  R <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  terms <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"mu.treatment"</span>, <span class="st">"theta.time_scaled"</span><span class="op">)</span>,</span>
+<span>  seed <span class="op">=</span> <span class="fl">20260521</span>,</span>
+<span>  fit_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    max_outer_iter <span class="op">=</span> <span class="fl">4</span>,</span>
+<span>    max_inner_iter <span class="op">=</span> <span class="fl">4</span>,</span>
+<span>    outer_stop_crit <span class="op">=</span> <span class="fl">1e-2</span>,</span>
+<span>    inner_stop_crit <span class="op">=</span> <span class="fl">1e-2</span>,</span>
+<span>    use_backtracking <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">boot</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Parametric Bootstrap for gamlss.longitudinal</span></span>
+<span><span class="co">#&gt; -------------------------------------------</span></span>
+<span><span class="co">#&gt; Replicates: 1 </span></span>
+<span><span class="co">#&gt; Simulation: fitted copula model </span></span>
+<span><span class="co">#&gt; Failed refits: 0 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;               term estimate bootstrap_mean bootstrap_se conf.low conf.high</span></span>
+<span><span class="co">#&gt;    mu.treatmentlow -0.03360       -0.05743           NA -0.05743  -0.05743</span></span>
+<span><span class="co">#&gt;   mu.treatmenthigh  0.15855        0.15317           NA  0.15317   0.15317</span></span>
+<span><span class="co">#&gt;  theta.time_scaled  0.06996        0.20795           NA  0.20795   0.20795</span></span>
+<span><span class="co">#&gt;  successful_replicates</span></span>
+<span><span class="co">#&gt;                      1</span></span>
+<span><span class="co">#&gt;                      1</span></span>
+<span><span class="co">#&gt;                      1</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="model-checks">Model Checks<a class="anchor" aria-label="anchor" href="#model-checks"></a>
+</h2>
+<p><code><a href="../reference/check_model.html">check_model()</a></code> turns the main diagnostics into a compact
+decision object. It does not replace visual review, but it gives a
+useful first pass over convergence, calibration, tail behaviour,
+residual dependence, and inference quality. The residual-dependence flag
+uses a practical correlation cutoff, not a formal test; here we use
+<code>0.25</code> so very small remaining correlations are reviewed
+visually rather than treated as automatic failures.</p>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">check</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/check_model.html">check_model</a></span><span class="op">(</span><span class="va">fit</span>, include_vcov <span class="op">=</span> <span class="cn">TRUE</span>, dependence_cor_cutoff <span class="op">=</span> <span class="fl">0.25</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">check</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; GAMLSS Longitudinal Model Check</span></span>
+<span><span class="co">#&gt; ------------------------------</span></span>
+<span><span class="co">#&gt; Margin distribution: BCPEo </span></span>
+<span><span class="co">#&gt; Copula distribution: t </span></span>
+<span><span class="co">#&gt; Converged: no </span></span>
+<span><span class="co">#&gt; Joint logLik: -1326 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Scoring summary:</span></span>
+<span><span class="co">#&gt;   logs   mae   mse   dss</span></span>
+<span><span class="co">#&gt;  2.682 4.524 45.97 42.33</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; PIT summary:</span></span>
+<span><span class="co">#&gt;    n   mean     sd expected_sd ks_p_value</span></span>
+<span><span class="co">#&gt;  540 0.4238 0.2392      0.2887  2.492e-17</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Tail calibration:</span></span>
+<span><span class="co">#&gt;  threshold   lower   upper expected lower_ratio upper_ratio</span></span>
+<span><span class="co">#&gt;       0.05 0.09259 0.00000     0.05       1.852      0.0000</span></span>
+<span><span class="co">#&gt;       0.10 0.12407 0.01111     0.10       1.241      0.1111</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Residual dependence:</span></span>
+<span><span class="co">#&gt;  lag normal_score_cor cutoff</span></span>
+<span><span class="co">#&gt;    1           0.6956   0.25</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Diagnostic checks:</span></span>
+<span><span class="co">#&gt;                  area severity</span></span>
+<span><span class="co">#&gt;           convergence  concern</span></span>
+<span><span class="co">#&gt;  marginal_calibration  concern</span></span>
+<span><span class="co">#&gt;            dependence  concern</span></span>
+<span><span class="co">#&gt;                                                                              message</span></span>
+<span><span class="co">#&gt;                                                       Convergence was not confirmed.</span></span>
+<span><span class="co">#&gt;                       The marginal distribution is off by the PIT uniformity screen.</span></span>
+<span><span class="co">#&gt;  Dependence remains after the copula in normal-score residuals (|lag-1 cor| &gt; 0.25).</span></span>
+<span><span class="co">#&gt;                                                                                                                                           action</span></span>
+<span><span class="co">#&gt;                                                                        Refit with more iterations, different starts, or a simpler specification.</span></span>
+<span><span class="co">#&gt;                                                Inspect PIT, QQ, worm, and rootogram diagnostics; try a richer margin or covariate specification.</span></span>
+<span><span class="co">#&gt;  Consider a different copula family, time-varying dependence, richer serial structure, or a sensitivity refit before treating this as a failure.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Warnings to report:</span></span>
+<span><span class="co">#&gt;                  area severity</span></span>
+<span><span class="co">#&gt;           convergence  concern</span></span>
+<span><span class="co">#&gt;  marginal_calibration  concern</span></span>
+<span><span class="co">#&gt;            dependence  concern</span></span>
+<span><span class="co">#&gt;                                                                              message</span></span>
+<span><span class="co">#&gt;                                                       Convergence was not confirmed.</span></span>
+<span><span class="co">#&gt;                       The marginal distribution is off by the PIT uniformity screen.</span></span>
+<span><span class="co">#&gt;  Dependence remains after the copula in normal-score residuals (|lag-1 cor| &gt; 0.25).</span></span>
+<span><span class="co">#&gt;                                                                                                                                           action</span></span>
+<span><span class="co">#&gt;                                                                        Refit with more iterations, different starts, or a simpler specification.</span></span>
+<span><span class="co">#&gt;                                                Inspect PIT, QQ, worm, and rootogram diagnostics; try a richer margin or covariate specification.</span></span>
+<span><span class="co">#&gt;  Consider a different copula family, time-varying dependence, richer serial structure, or a sensitivity refit before treating this as a failure.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Recommendation:</span></span>
+<span><span class="co">#&gt;                   role</span></span>
+<span><span class="co">#&gt;  revise_before_primary</span></span>
+<span><span class="co">#&gt;                                                                                               message</span></span>
+<span><span class="co">#&gt;  At least one diagnostic concern should be addressed before using this model as the primary analysis.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Decisions:</span></span>
+<span><span class="co">#&gt; * Convergence was not confirmed. Refit with more iterations, different starts, or a simpler specification.</span></span>
+<span><span class="co">#&gt; * The marginal distribution is off by the PIT uniformity screen. Inspect PIT, QQ, worm, and rootogram diagnostics; try a richer margin or covariate specification.</span></span>
+<span><span class="co">#&gt; * Dependence remains after the copula in normal-score residuals (|lag-1 cor| &gt; 0.25). Consider a different copula family, time-varying dependence, richer serial structure, or a sensitivity refit before treating this as a failure.</span></span>
+<span><span class="va">check</span><span class="op">$</span><span class="va">warnings</span></span>
+<span><span class="co">#&gt;                   area severity</span></span>
+<span><span class="co">#&gt; 1          convergence  concern</span></span>
+<span><span class="co">#&gt; 2 marginal_calibration  concern</span></span>
+<span><span class="co">#&gt; 3           dependence  concern</span></span>
+<span><span class="co">#&gt;                                                                               message</span></span>
+<span><span class="co">#&gt; 1                                                      Convergence was not confirmed.</span></span>
+<span><span class="co">#&gt; 2                      The marginal distribution is off by the PIT uniformity screen.</span></span>
+<span><span class="co">#&gt; 3 Dependence remains after the copula in normal-score residuals (|lag-1 cor| &gt; 0.25).</span></span>
+<span><span class="co">#&gt;                                                                                                                                            action</span></span>
+<span><span class="co">#&gt; 1                                                                       Refit with more iterations, different starts, or a simpler specification.</span></span>
+<span><span class="co">#&gt; 2                                               Inspect PIT, QQ, worm, and rootogram diagnostics; try a richer margin or covariate specification.</span></span>
+<span><span class="co">#&gt; 3 Consider a different copula family, time-varying dependence, richer serial structure, or a sensitivity refit before treating this as a failure.</span></span>
+<span><span class="va">check</span><span class="op">$</span><span class="va">recommendation</span></span>
+<span><span class="co">#&gt;                    role</span></span>
+<span><span class="co">#&gt; 1 revise_before_primary</span></span>
+<span><span class="co">#&gt;                                                                                                message</span></span>
+<span><span class="co">#&gt; 1 At least one diagnostic concern should be addressed before using this model as the primary analysis.</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="sensitivity-screens">Sensitivity Screens<a class="anchor" aria-label="anchor" href="#sensitivity-screens"></a>
+</h2>
+<p>After the first full fit, revisit the modelling choices that were
+shortlisted up front. The code below refits the same regression
+structure across the initial top 10 supported marginal families and all
+native copula families. It is intentionally collapsed in the rendered
+workflow because it is a fit-intensive sensitivity review.</p>
+<details><summary>
+Margin-copula sensitivity code
+</summary><div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">sensitivity_selection</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/select_joint_distribution.html">select_joint_distribution</a></span><span class="op">(</span></span>
+<span>  data <span class="op">=</span> <span class="va">dat</span>,</span>
+<span>  response_var <span class="op">=</span> <span class="st">"response"</span>,</span>
+<span>  subject_var <span class="op">=</span> <span class="st">"subject"</span>,</span>
+<span>  time_var <span class="op">=</span> <span class="st">"time"</span>,</span>
+<span>  margin_families <span class="op">=</span> <span class="va">top_margin_families</span>,</span>
+<span>  copula_families <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"N"</span>, <span class="st">"C"</span>, <span class="st">"F"</span>, <span class="st">"G"</span>, <span class="st">"J"</span>, <span class="st">"t"</span><span class="op">)</span>,</span>
+<span>  fit_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    mu.formula <span class="op">=</span> <span class="va">response</span> <span class="op">~</span> <span class="va">treatment</span> <span class="op">+</span> <span class="va">time_scaled</span> <span class="op">+</span> <span class="fu">s</span><span class="op">(</span><span class="va">age_scaled</span>, bs <span class="op">=</span> <span class="st">"ps"</span>, k <span class="op">=</span> <span class="fl">8</span><span class="op">)</span>,</span>
+<span>    sigma.formula <span class="op">=</span> <span class="op">~</span> <span class="va">treatment</span> <span class="op">+</span> <span class="va">time_scaled</span> <span class="op">+</span> <span class="fu">s</span><span class="op">(</span><span class="va">age_scaled</span>, bs <span class="op">=</span> <span class="st">"ps"</span>, k <span class="op">=</span> <span class="fl">5</span><span class="op">)</span>,</span>
+<span>    nu.formula <span class="op">=</span> <span class="op">~</span> <span class="va">time_scaled</span> <span class="op">+</span> <span class="fu">s</span><span class="op">(</span><span class="va">age_scaled</span>, bs <span class="op">=</span> <span class="st">"ps"</span>, k <span class="op">=</span> <span class="fl">5</span><span class="op">)</span>,</span>
+<span>    theta.formula <span class="op">=</span> <span class="op">~</span> <span class="va">time_scaled</span> <span class="op">+</span> <span class="fu">s</span><span class="op">(</span><span class="va">age_scaled</span>, bs <span class="op">=</span> <span class="st">"ps"</span>, k <span class="op">=</span> <span class="fl">8</span><span class="op">)</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  trace <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">sensitivity_selection</span>, <span class="fl">15</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">primary_signature</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
+<span>  <span class="va">fit</span><span class="op">$</span><span class="va">margin_dist</span><span class="op">$</span><span class="va">family</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>,</span>
+<span>  <span class="va">fit</span><span class="op">$</span><span class="va">copula_dist</span>,</span>
+<span>  sep <span class="op">=</span> <span class="st">"+"</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">primary_signature</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
+<span>  <span class="va">sensitivity_selection</span><span class="op">$</span><span class="va">margin_family</span>,</span>
+<span>  <span class="va">sensitivity_selection</span><span class="op">$</span><span class="va">copula_family</span>,</span>
+<span>  sep <span class="op">=</span> <span class="st">"+"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</details><p>Because this is a simulation, we can now compare the data-first
+screens with the known generating choices. In real data these truth
+columns would not exist, so this check belongs after the ordinary
+modelling workflow rather than before the initial fit.</p>
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">truth_margin_rank</span> <span class="op">&lt;-</span> <span class="va">margin_selection</span><span class="op">[</span></span>
+<span>  <span class="va">margin_selection</span><span class="op">$</span><span class="va">family</span> <span class="op">==</span> <span class="st">"GG"</span>,</span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"family"</span>, <span class="st">"rank"</span>, <span class="st">"AIC"</span>, <span class="st">"delta_AIC"</span><span class="op">)</span>,</span>
+<span>  drop <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">]</span></span>
+<span></span>
+<span><span class="va">truth_copula_screen</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/select_copula.html">select_copula</a></span><span class="op">(</span></span>
+<span>  data <span class="op">=</span> <span class="va">dat</span>,</span>
+<span>  u_var <span class="op">=</span> <span class="st">"u"</span>,</span>
+<span>  subject_var <span class="op">=</span> <span class="st">"subject"</span>,</span>
+<span>  time_var <span class="op">=</span> <span class="st">"time"</span>,</span>
+<span>  families <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"N"</span>, <span class="st">"C"</span>, <span class="st">"F"</span>, <span class="st">"G"</span>, <span class="st">"J"</span>, <span class="st">"t"</span><span class="op">)</span>,</span>
+<span>  t_df_grid <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3</span>, <span class="fl">4</span>, <span class="fl">6</span>, <span class="fl">10</span>, <span class="fl">20</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">truth_margin_rank</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Marginal Distribution Screen</span></span>
+<span><span class="co">#&gt; ----------------------------</span></span>
+<span><span class="co">#&gt; Selected: </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;  family rank     AIC delta_AIC</span></span>
+<span><span class="co">#&gt;      GG    8 2790.71  70.30097</span></span>
+<span><span class="va">truth_copula_screen</span></span>
+<span><span class="co">#&gt;   family       par par2       tau    logLik        AIC        BIC n_pairs</span></span>
+<span><span class="co">#&gt; 1      C 1.4258882    0 0.4162098 115.98636 -229.97272 -225.79893     480</span></span>
+<span><span class="co">#&gt; 2      t 0.6045906    6 0.4133265  96.53614 -189.07228 -180.72471     480</span></span>
+<span><span class="co">#&gt; 3      N 0.6015846    0 0.4109274  92.42706 -182.85413 -178.68034     480</span></span>
+<span><span class="co">#&gt; 4      F 4.2950071    0 0.4096134  89.96176 -177.92353 -173.74974     480</span></span>
+<span><span class="co">#&gt; 5      G 1.5530932    0 0.3561236  69.90015 -137.80029 -133.62650     480</span></span>
+<span><span class="co">#&gt; 6      J 1.5950600    0 0.2496792  41.83593  -81.67186  -77.49807     480</span></span></code></pre></div>
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_copula_fit.html">plot_copula_fit</a></span><span class="op">(</span></span>
+<span>  data <span class="op">=</span> <span class="va">dat</span>,</span>
+<span>  copula_dist <span class="op">=</span> <span class="va">truth_copula_screen</span>,</span>
+<span>  u_var <span class="op">=</span> <span class="st">"u"</span>,</span>
+<span>  subject_var <span class="op">=</span> <span class="st">"subject"</span>,</span>
+<span>  time_var <span class="op">=</span> <span class="st">"time"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><img src="native-simulation-workflow_files/figure-html/copula-screen-overlay-1.png" alt="Binned adjacent truth uniforms with fitted copula contour overlay." width="88%" style="display: block; margin: auto;"></p>
+</div>
+<div class="section level2">
+<h2 id="standard-review-checklist">Standard Review Checklist<a class="anchor" aria-label="anchor" href="#standard-review-checklist"></a>
+</h2>
+<p>For a real longitudinal regression analysis, the model review should
+also include a few checks that are easy to overlook:</p>
+<ul>
+<li>confirm the intended estimand, response scale, link functions,
+factor reference levels, and time ordering before interpreting
+coefficients;</li>
+<li>review missing visits, dropout, and structurally impossible
+subject-time rows separately from ordinary missing responses;</li>
+<li>inspect convergence, parameter boundaries, smoothing degrees of
+freedom, and whether uncertainty estimates are stable enough for the
+planned inference;</li>
+<li>check calibration and residual patterns overall and by key groups
+such as time, treatment, age bands, and high-leverage subjects;</li>
+<li>check whether missingness is absent, plausibly MCAR, or associated
+with observed features that should be included in the analysis or
+sensitivity plan;</li>
+<li>repeat the primary conclusions under plausible marginal
+distributions, copula families, and simpler/richer formulas;</li>
+<li>compare against a familiar mean model when the scientific question
+is mostly about the mean, and against predictive or simulation checks
+when the question depends on tails, intervals, or trajectories;</li>
+<li>perform posterior- or fitted-simulation style checks against
+quantities that matter scientifically, such as trajectory ranges, event
+probabilities, or high quantiles;</li>
+<li>inspect influential subjects or time periods by refitting or
+summarising diagnostics after excluding obvious leverage points;</li>
+<li>document which warnings were resolved, which remain, and why the
+remaining limitations do not overturn the primary conclusion.</li>
+</ul>
+<p>This checklist is adapted from standard regression modelling and
+validation guidance, longitudinal-data texts, missing-data workflows,
+GAMLSS/GAM diagnostics, and copula modelling references. In particular,
+Harrell (2015) motivates pre-specified modelling strategy, validation,
+calibration, and bootstrap-based uncertainty checks; Fitzmaurice, Laird,
+and Ware (2011) and Diggle et al. (2002) cover repeated-measure
+structure, time ordering, within-subject association, and missing
+longitudinal responses; van Buuren (2018) covers practical missing-data
+review; Rigby and Stasinopoulos (2005) and Wood (2017) motivate
+distributional and smooth-term diagnostics; and Nelsen (2006) and Joe
+(2014) cover dependence, tail dependence, and copula model
+assessment.</p>
 <p>The standard model diagnostic dashboard combines PIT, QQ, worm,
 rootogram, and forecast-style checks.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, data <span class="op">=</span> <span class="va">dat</span><span class="op">)</span></span></code></pre></div>
-<p><img src="native-simulation-workflow_files/figure-html/model-diagnostics-1.png" width="768"></p>
+<p><img src="native-simulation-workflow_files/figure-html/model-diagnostics-1.png" alt="Dashboard of marginal model diagnostics including PIT, QQ, worm, rootogram, and forecast checks." width="92%" style="display: block; margin: auto;"></p>
 </div>
 <div class="section level2">
 <h2 id="term-diagnostics">Term Diagnostics<a class="anchor" aria-label="anchor" href="#term-diagnostics"></a>
@@ -533,14 +1007,17 @@ rootogram, and forecast-style checks.</p>
 <p>Because this is simulated, we first plot the true term contributions
 used to generate the data. The fitted term dashboard is shown
 immediately afterwards.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<details><summary>
+True-term plotting code
+</summary><div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">term_theme</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">p</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">p</span> <span class="op">+</span></span>
-<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span>base_size <span class="op">=</span> <span class="fl">8.5</span><span class="op">)</span> <span class="op">+</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span></span>
-<span>      plot.title <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>size <span class="op">=</span> <span class="fl">11</span><span class="op">)</span>,</span>
-<span>      axis.title <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>size <span class="op">=</span> <span class="fl">9</span><span class="op">)</span>,</span>
-<span>      plot.caption <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>size <span class="op">=</span> <span class="fl">8</span><span class="op">)</span></span>
+<span>      plot.title <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>size <span class="op">=</span> <span class="fl">9</span><span class="op">)</span>,</span>
+<span>      axis.title <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>size <span class="op">=</span> <span class="fl">8</span><span class="op">)</span>,</span>
+<span>      axis.text <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>size <span class="op">=</span> <span class="fl">7</span><span class="op">)</span>,</span>
+<span>      plot.caption <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>size <span class="op">=</span> <span class="fl">7</span><span class="op">)</span></span>
 <span>    <span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
@@ -548,7 +1025,7 @@ immediately afterwards.</p>
 <span>  <span class="va">plot_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">x</span>, contribution <span class="op">=</span> <span class="va">contribution</span><span class="op">)</span></span>
 <span>  <span class="fu">term_theme</span><span class="op">(</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">plot_df</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">x</span>, y <span class="op">=</span> <span class="va">contribution</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>      <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_path.html" class="external-link">geom_line</a></span><span class="op">(</span>color <span class="op">=</span> <span class="st">"black"</span>, linewidth <span class="op">=</span> <span class="fl">1.2</span><span class="op">)</span> <span class="op">+</span></span>
+<span>      <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_path.html" class="external-link">geom_line</a></span><span class="op">(</span>color <span class="op">=</span> <span class="st">"black"</span>, linewidth <span class="op">=</span> <span class="fl">0.8</span><span class="op">)</span> <span class="op">+</span></span>
 <span>      <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="va">title</span>, x <span class="op">=</span> <span class="va">xlab</span>, y <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"smooth("</span>, <span class="va">xlab</span>, <span class="st">")"</span><span class="op">)</span>, caption <span class="op">=</span> <span class="st">"truth"</span><span class="op">)</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">}</span></span>
@@ -557,7 +1034,7 @@ immediately afterwards.</p>
 <span>  <span class="va">plot_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">x</span>, contribution <span class="op">=</span> <span class="va">contribution</span><span class="op">)</span></span>
 <span>  <span class="fu">term_theme</span><span class="op">(</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">plot_df</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">x</span>, y <span class="op">=</span> <span class="va">contribution</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>      <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_path.html" class="external-link">geom_line</a></span><span class="op">(</span>color <span class="op">=</span> <span class="st">"black"</span>, linewidth <span class="op">=</span> <span class="fl">1.2</span><span class="op">)</span> <span class="op">+</span></span>
+<span>      <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_path.html" class="external-link">geom_line</a></span><span class="op">(</span>color <span class="op">=</span> <span class="st">"black"</span>, linewidth <span class="op">=</span> <span class="fl">0.8</span><span class="op">)</span> <span class="op">+</span></span>
 <span>      <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="va">title</span>, x <span class="op">=</span> <span class="va">xlab</span>, y <span class="op">=</span> <span class="va">ylab</span>, caption <span class="op">=</span> <span class="st">"truth"</span><span class="op">)</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">}</span></span>
@@ -571,8 +1048,8 @@ immediately afterwards.</p>
 <span>  <span class="fu">term_theme</span><span class="op">(</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">plot_df</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">x</span>, y <span class="op">=</span> <span class="va">contribution</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>      <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_abline.html" class="external-link">geom_hline</a></span><span class="op">(</span>yintercept <span class="op">=</span> <span class="fl">0</span>, color <span class="op">=</span> <span class="st">"grey70"</span>, linetype <span class="op">=</span> <span class="fl">3</span><span class="op">)</span> <span class="op">+</span></span>
-<span>      <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span>color <span class="op">=</span> <span class="st">"black"</span>, size <span class="op">=</span> <span class="fl">1.2</span><span class="op">)</span> <span class="op">+</span></span>
-<span>      <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_linerange.html" class="external-link">geom_errorbar</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>ymin <span class="op">=</span> <span class="va">contribution</span>, ymax <span class="op">=</span> <span class="va">contribution</span><span class="op">)</span>, color <span class="op">=</span> <span class="st">"red"</span>, width <span class="op">=</span> <span class="fl">0.15</span><span class="op">)</span> <span class="op">+</span></span>
+<span>      <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span>color <span class="op">=</span> <span class="st">"black"</span>, size <span class="op">=</span> <span class="fl">1</span><span class="op">)</span> <span class="op">+</span></span>
+<span>      <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_linerange.html" class="external-link">geom_errorbar</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>ymin <span class="op">=</span> <span class="va">contribution</span>, ymax <span class="op">=</span> <span class="va">contribution</span><span class="op">)</span>, color <span class="op">=</span> <span class="st">"red"</span>, width <span class="op">=</span> <span class="fl">0.12</span><span class="op">)</span> <span class="op">+</span></span>
 <span>      <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_continuous.html" class="external-link">scale_x_continuous</a></span><span class="op">(</span>breaks <span class="op">=</span> <span class="va">plot_df</span><span class="op">$</span><span class="va">x</span>, labels <span class="op">=</span> <span class="va">plot_df</span><span class="op">$</span><span class="va">level</span><span class="op">)</span> <span class="op">+</span></span>
 <span>      <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="va">title</span>, x <span class="op">=</span> <span class="va">xlab</span>, y <span class="op">=</span> <span class="va">ylab</span>, caption <span class="op">=</span> <span class="st">"truth"</span><span class="op">)</span></span>
 <span>  <span class="op">)</span></span>
@@ -599,22 +1076,24 @@ immediately afterwards.</p>
 <span><span class="va">truth_term_plots</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  <span class="fu">truth_smooth_plot</span><span class="op">(</span><span class="va">age_grid</span>, <span class="fu">truth_mu_age_smooth</span><span class="op">(</span><span class="va">age_grid</span><span class="op">)</span>, <span class="st">'mu: s(age_scaled, bs = "ps", k = 8)'</span>, <span class="st">"age_scaled"</span><span class="op">)</span>,</span>
 <span>  <span class="fu">truth_smooth_plot</span><span class="op">(</span><span class="va">age_grid</span>, <span class="fu">truth_sigma_age_smooth</span><span class="op">(</span><span class="va">age_grid</span><span class="op">)</span>, <span class="st">'sigma: s(age_scaled, bs = "ps", k = 5)'</span>, <span class="st">"age_scaled"</span><span class="op">)</span>,</span>
+<span>  <span class="fu">truth_smooth_plot</span><span class="op">(</span><span class="va">age_grid</span>, <span class="fu">truth_nu_age_smooth</span><span class="op">(</span><span class="va">age_grid</span><span class="op">)</span>, <span class="st">'nu: s(age_scaled, bs = "ps", k = 5)'</span>, <span class="st">"age_scaled"</span><span class="op">)</span>,</span>
 <span>  <span class="fu">truth_smooth_plot</span><span class="op">(</span><span class="va">age_grid</span>, <span class="fu">truth_theta_age_smooth</span><span class="op">(</span><span class="va">age_grid</span><span class="op">)</span>, <span class="st">'theta: s(age_scaled, bs = "ps", k = 8)'</span>, <span class="st">"age_scaled"</span><span class="op">)</span>,</span>
 <span>  <span class="fu">truth_factor_plot</span><span class="op">(</span><span class="va">treatment_effect</span>, <span class="st">"mu: treatment"</span>, <span class="st">"treatment"</span>, <span class="st">"fixed contribution: mu.treatment"</span><span class="op">)</span>,</span>
-<span>  <span class="fu">truth_continuous_plot</span><span class="op">(</span><span class="va">time_grid</span>, <span class="fl">0.20</span> <span class="op">*</span> <span class="va">time_grid</span>, <span class="st">"mu: time_scaled"</span>, <span class="st">"time_scaled"</span>, <span class="st">"fixed contribution: mu.time_scaled"</span><span class="op">)</span>,</span>
-<span>  <span class="fu">truth_factor_plot</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>control <span class="op">=</span> <span class="fl">0</span>, low <span class="op">=</span> <span class="fl">0.12</span>, high <span class="op">=</span> <span class="fl">0.12</span><span class="op">)</span>, <span class="st">"sigma: treatment"</span>, <span class="st">"treatment"</span>, <span class="st">"fixed contribution: sigma.treatment"</span><span class="op">)</span>,</span>
-<span>  <span class="fu">truth_continuous_plot</span><span class="op">(</span><span class="va">time_grid</span>, <span class="fl">0.10</span> <span class="op">*</span> <span class="va">time_grid</span>, <span class="st">"sigma: time_scaled"</span>, <span class="st">"time_scaled"</span>, <span class="st">"fixed contribution: sigma.time_scaled"</span><span class="op">)</span>,</span>
-<span>  <span class="fu">truth_continuous_plot</span><span class="op">(</span><span class="va">time_grid</span>, <span class="fl">0.20</span> <span class="op">*</span> <span class="va">time_grid</span>, <span class="st">"theta: time_scaled"</span>, <span class="st">"time_scaled"</span>, <span class="st">"fixed contribution: theta.time_scaled"</span><span class="op">)</span></span>
+<span>  <span class="fu">truth_continuous_plot</span><span class="op">(</span><span class="va">time_grid</span>, <span class="fl">0.35</span> <span class="op">*</span> <span class="va">time_grid</span>, <span class="st">"mu: time_scaled"</span>, <span class="st">"time_scaled"</span>, <span class="st">"fixed contribution: mu.time_scaled"</span><span class="op">)</span>,</span>
+<span>  <span class="fu">truth_factor_plot</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>control <span class="op">=</span> <span class="fl">0</span>, low <span class="op">=</span> <span class="fl">0.25</span>, high <span class="op">=</span> <span class="fl">0.25</span><span class="op">)</span>, <span class="st">"sigma: treatment"</span>, <span class="st">"treatment"</span>, <span class="st">"fixed contribution: sigma.treatment"</span><span class="op">)</span>,</span>
+<span>  <span class="fu">truth_continuous_plot</span><span class="op">(</span><span class="va">time_grid</span>, <span class="fl">1.25</span> <span class="op">*</span> <span class="va">time_grid</span>, <span class="st">"sigma: time_scaled"</span>, <span class="st">"time_scaled"</span>, <span class="st">"fixed contribution: sigma.time_scaled"</span><span class="op">)</span>,</span>
+<span>  <span class="fu">truth_continuous_plot</span><span class="op">(</span><span class="va">time_grid</span>, <span class="fl">0.55</span> <span class="op">*</span> <span class="va">time_grid</span>, <span class="st">"nu: time_scaled"</span>, <span class="st">"time_scaled"</span>, <span class="st">"fixed contribution: nu.time_scaled"</span><span class="op">)</span>,</span>
+<span>  <span class="fu">truth_continuous_plot</span><span class="op">(</span><span class="va">time_grid</span>, <span class="fl">1.80</span> <span class="op">*</span> <span class="va">time_grid</span>, <span class="st">"theta: time_scaled"</span>, <span class="st">"time_scaled"</span>, <span class="st">"fixed contribution: theta.time_scaled"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">print_term_dashboard</span><span class="op">(</span><span class="va">truth_term_plots</span>, ncol <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span></code></pre></div>
-<p><img src="native-simulation-workflow_files/figure-html/true-terms-1.png" width="768"></p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<p><img src="native-simulation-workflow_files/figure-html/true-terms-1.png" alt="Dashboard of true simulated smooth and fixed term contributions." width="92%" style="display: block; margin: auto;"></p>
+</details><div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_terms.html">plot_terms</a></span><span class="op">(</span><span class="va">fit</span>, data <span class="op">=</span> <span class="va">dat</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; === Plotting term effects for gamlss.longitudinal object ===</span></span>
-<span><span class="co">#&gt; Found 3 smooth terms and 7 fixed terms (total: 10 plots).</span></span></code></pre></div>
-<p><img src="native-simulation-workflow_files/figure-html/fitted-terms-1.png" width="768"></p>
+<span><span class="co">#&gt; Found 4 smooth terms and 8 fixed terms (total: 12 plots).</span></span></code></pre></div>
+<p><img src="native-simulation-workflow_files/figure-html/fitted-terms-1.png" alt="Dashboard of fitted model term effects for marginal and dependence parameters." width="92%" style="display: block; margin: auto;"></p>
 </div>
 <div class="section level2">
 <h2 id="copula-diagnostics">Copula Diagnostics<a class="anchor" aria-label="anchor" href="#copula-diagnostics"></a>
@@ -622,18 +1101,280 @@ immediately afterwards.</p>
 <p>Finally, inspect the fitted copula directly. The default dashboard
 includes normal-scale pair diagnostics, fitted copula overlays, tail
 summaries, and lagged residual checks.</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_copula_diagnostics.html">plot_copula_diagnostics</a></span><span class="op">(</span><span class="va">fit</span>, data <span class="op">=</span> <span class="va">dat</span><span class="op">)</span></span></code></pre></div>
-<p><img src="native-simulation-workflow_files/figure-html/copula-diagnostics-1.png" width="768"></p>
+<p><img src="native-simulation-workflow_files/figure-html/copula-diagnostics-1.png" alt="Copula diagnostic dashboard with residual, tail, and lag dependence checks." width="96%" style="display: block; margin: auto;"></p>
+</div>
+<div class="section level2">
+<h2 id="applied-outputs">Applied Outputs<a class="anchor" aria-label="anchor" href="#applied-outputs"></a>
+</h2>
+<p>Prediction, marginal effects, and simulation answer related but
+different questions. <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> returns marginal summaries
+for each requested row: dependence has influenced the fitted
+coefficients, but prediction does not condition one row on the subject’s
+other observed responses. <code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate()</a></code> draws full fitted-data
+trajectories and preserves the fitted copula dependence.
+<code><a href="../reference/marginal_effects.html">marginal_effects()</a></code> constructs counterfactual summaries by
+changing a covariate and averaging the fitted distributional parameter
+over the supplied data.</p>
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span></span>
+<span>  <span class="va">fit</span>,</span>
+<span>  newdata <span class="op">=</span> <span class="va">dat</span>,</span>
+<span>  type <span class="op">=</span> <span class="st">"response"</span>,</span>
+<span>  se.fit <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  interval <span class="op">=</span> <span class="st">"confidence"</span></span>
+<span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   subject time   response       fit       se.fit  conf.low conf.high</span></span>
+<span><span class="co">#&gt; 1       1 0.00 10.5193913 0.7240843 0.000000e+00 0.7240843 0.7240843</span></span>
+<span><span class="co">#&gt; 2       1 0.25  9.9952850 0.6961275 0.000000e+00 0.6961275 0.6961275</span></span>
+<span><span class="co">#&gt; 3       1 0.50  4.3193839 0.6692502 0.000000e+00 0.6692502 0.6692502</span></span>
+<span><span class="co">#&gt; 4       1 0.75         NA 0.6434105 0.000000e+00 0.6434105 0.6434105</span></span>
+<span><span class="co">#&gt; 5       1 1.00  0.1297988 0.6185686 0.000000e+00 0.6185686 0.6185686</span></span>
+<span><span class="co">#&gt; 6       2 0.00         NA 0.6020659 9.628477e-06 0.6020470 0.6020847</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span></span>
+<span>  <span class="va">fit</span>,</span>
+<span>  newdata <span class="op">=</span> <span class="va">dat</span>,</span>
+<span>  type <span class="op">=</span> <span class="st">"parameters"</span></span>
+<span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   subject time   response        mu        sigma        nu       tau</span></span>
+<span><span class="co">#&gt; 1       1 0.00 10.5193913 0.7240843 288336254274 6.9744583 0.0474218</span></span>
+<span><span class="co">#&gt; 2       1 0.25  9.9952850 0.6961275  29481495486 5.4075020 0.0474218</span></span>
+<span><span class="co">#&gt; 3       1 0.50  4.3193839 0.6692502   3014392270 3.8405456 0.0474218</span></span>
+<span><span class="co">#&gt; 4       1 0.75         NA 0.6434105    308212342 2.2735893 0.0474218</span></span>
+<span><span class="co">#&gt; 5       1 1.00  0.1297988 0.6185686     31513764 0.7066329 0.0474218</span></span>
+<span><span class="co">#&gt; 6       2 0.00         NA 0.6020659 131162660756 6.9719495 0.0474218</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span></span>
+<span>  <span class="va">fit</span>,</span>
+<span>  newdata <span class="op">=</span> <span class="va">dat</span>,</span>
+<span>  type <span class="op">=</span> <span class="st">"quantile"</span>,</span>
+<span>  probs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.1</span>, <span class="fl">0.5</span>, <span class="fl">0.9</span><span class="op">)</span></span>
+<span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   subject time   response       q01      q05          q09</span></span>
+<span><span class="co">#&gt; 1       1 0.00 10.5193913 2.3918136 5.869125    13.227837</span></span>
+<span><span class="co">#&gt; 2       1 0.25  9.9952850 1.9728769 6.431769    18.416868</span></span>
+<span><span class="co">#&gt; 3       1 0.50  4.3193839 1.2798814 7.508268    33.618886</span></span>
+<span><span class="co">#&gt; 4       1 0.75         NA 0.6533985 9.608999   132.036929</span></span>
+<span><span class="co">#&gt; 5       1 1.00  0.1297988 0.5370709 8.766221 78158.101812</span></span>
+<span><span class="co">#&gt; 6       2 0.00         NA 1.7688691 4.357429     9.829429</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span></span>
+<span>  <span class="va">fit</span>,</span>
+<span>  newdata <span class="op">=</span> <span class="va">dat</span>,</span>
+<span>  type <span class="op">=</span> <span class="st">"cdf"</span>,</span>
+<span>  q <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/median.html" class="external-link">median</a></span><span class="op">(</span><span class="va">dat</span><span class="op">$</span><span class="va">response</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   subject time   response        q       cdf</span></span>
+<span><span class="co">#&gt; 1       1 0.00 10.5193913 3.986979 0.2846141</span></span>
+<span><span class="co">#&gt; 2       1 0.25  9.9952850 3.986979 0.2942589</span></span>
+<span><span class="co">#&gt; 3       1 0.50  4.3193839 3.986979 0.3106061</span></span>
+<span><span class="co">#&gt; 4       1 0.75         NA 3.986979 0.3525143</span></span>
+<span><span class="co">#&gt; 5       1 1.00  0.1297988 3.986979 0.4564306</span></span>
+<span><span class="co">#&gt; 6       2 0.00         NA 3.986979 0.4471738</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span></span>
+<span>  <span class="va">fit</span>,</span>
+<span>  newdata <span class="op">=</span> <span class="va">dat</span>,</span>
+<span>  type <span class="op">=</span> <span class="st">"density"</span>,</span>
+<span>  y <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/median.html" class="external-link">median</a></span><span class="op">(</span><span class="va">dat</span><span class="op">$</span><span class="va">response</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   subject time   response        y    density</span></span>
+<span><span class="co">#&gt; 1       1 0.00 10.5193913 3.986979 0.12246299</span></span>
+<span><span class="co">#&gt; 2       1 0.25  9.9952850 3.986979 0.09530952</span></span>
+<span><span class="co">#&gt; 3       1 0.50  4.3193839 3.986979 0.06677110</span></span>
+<span><span class="co">#&gt; 4       1 0.75         NA 3.986979 0.03840510</span></span>
+<span><span class="co">#&gt; 5       1 1.00  0.1297988 3.986979 0.01449166</span></span>
+<span><span class="co">#&gt; 6       2 0.00         NA 3.986979 0.14748263</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span></span>
+<span>  <span class="va">fit</span>,</span>
+<span>  newdata <span class="op">=</span> <span class="va">dat</span>,</span>
+<span>  type <span class="op">=</span> <span class="st">"probability"</span>,</span>
+<span>  q <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">dat</span><span class="op">$</span><span class="va">response</span>, <span class="fl">0.9</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
+<span>  direction <span class="op">=</span> <span class="st">"above"</span></span>
+<span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   subject time   response        q direction probability</span></span>
+<span><span class="co">#&gt; 1       1 0.00 10.5193913 10.30404     above   0.1908256</span></span>
+<span><span class="co">#&gt; 2       1 0.25  9.9952850 10.30404     above   0.2881913</span></span>
+<span><span class="co">#&gt; 3       1 0.50  4.3193839 10.30404     above   0.3980449</span></span>
+<span><span class="co">#&gt; 4       1 0.75         NA 10.30404     above   0.4874920</span></span>
+<span><span class="co">#&gt; 5       1 1.00  0.1297988 10.30404     above   0.4913873</span></span>
+<span><span class="co">#&gt; 6       2 0.00         NA 10.30404     above   0.0869789</span></span></code></pre></div>
+<p>For regression interpretation, marginal effects are often easier to
+communicate than raw coefficients, especially when smooths, nonlinear
+links, or scale parameters are involved. They should still be tied back
+to the estimand: this summary averages over the empirical covariate
+distribution in <code>dat</code>.</p>
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/marginal_effects.html">marginal_effects</a></span><span class="op">(</span></span>
+<span>  <span class="va">fit</span>,</span>
+<span>  newdata <span class="op">=</span> <span class="va">dat</span>,</span>
+<span>  variable <span class="op">=</span> <span class="st">"treatment"</span>,</span>
+<span>  values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/levels.html" class="external-link">levels</a></span><span class="op">(</span><span class="va">dat</span><span class="op">$</span><span class="va">treatment</span><span class="op">)</span>,</span>
+<span>  parameter <span class="op">=</span> <span class="st">"mu"</span>,</span>
+<span>  se.fit <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt;    variable   value parameter  estimate    std_error reference    contrast</span></span>
+<span><span class="co">#&gt; 1 treatment control        mu 0.5621193 3.121915e-07   control  0.00000000</span></span>
+<span><span class="co">#&gt; 2 treatment     low        mu 0.5435433 3.840015e-07   control -0.01857601</span></span>
+<span><span class="co">#&gt; 3 treatment    high        mu 0.6587000 0.000000e+00   control  0.09658070</span></span>
+<span><span class="co">#&gt;    conf.low conf.high</span></span>
+<span><span class="co">#&gt; 1 0.5621187 0.5621199</span></span>
+<span><span class="co">#&gt; 2 0.5435426 0.5435441</span></span>
+<span><span class="co">#&gt; 3 0.6587000 0.6587000</span></span></code></pre></div>
+<p>Fitted-model simulation is useful for predictive checks, planning,
+and uncertainty communication because it simulates both the marginal
+distribution and the within-subject copula dependence.</p>
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">sim_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate</a></span><span class="op">(</span><span class="va">fit</span>, nsim <span class="op">=</span> <span class="fl">3</span>, seed <span class="op">=</span> <span class="fl">20260521</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">sim_model</span><span class="op">)</span></span>
+<span><span class="co">#&gt;       sim_1     sim_2      sim_3</span></span>
+<span><span class="co">#&gt; 1 4.3318045 1.8215370  12.197546</span></span>
+<span><span class="co">#&gt; 2 1.4088980 9.1347371   5.410777</span></span>
+<span><span class="co">#&gt; 3 0.8002469 4.0099218   9.894856</span></span>
+<span><span class="co">#&gt; 4        NA        NA         NA</span></span>
+<span><span class="co">#&gt; 5 0.3066946 0.8895113 399.046645</span></span>
+<span><span class="co">#&gt; 6        NA        NA         NA</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">sim_model</span><span class="op">)</span></span>
+<span><span class="co">#&gt;      sim_1              sim_2             sim_3         </span></span>
+<span><span class="co">#&gt;  Min.   :       0   Min.   :      0   Min.   :       0  </span></span>
+<span><span class="co">#&gt;  1st Qu.:       2   1st Qu.:      2   1st Qu.:       2  </span></span>
+<span><span class="co">#&gt;  Median :       6   Median :      4   Median :       5  </span></span>
+<span><span class="co">#&gt;  Mean   :   23512   Mean   :  23783   Mean   :  128658  </span></span>
+<span><span class="co">#&gt;  3rd Qu.:      13   3rd Qu.:     10   3rd Qu.:      12  </span></span>
+<span><span class="co">#&gt;  Max.   :10290950   Max.   :6291260   Max.   :50316501  </span></span>
+<span><span class="co">#&gt;  NA's   :60         NA's   :60        NA's   :60</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="benchmark-against-familiar-models">Benchmark Against Familiar Models<a class="anchor" aria-label="anchor" href="#benchmark-against-familiar-models"></a>
+</h2>
+<p>Benchmarking helps clarify whether a longitudinal GAMLSS-copula model
+is adding value for the question at hand. If the estimand is only the
+mean and the response is close to a standard distribution, simpler mean
+models may be adequate. The distributional model is most useful when the
+scientific question depends on tails, quantiles, heterogeneity,
+uncertainty, or within-subject dependence.</p>
+<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">bench</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/benchmark_standard_models.html">benchmark_standard_models</a></span><span class="op">(</span></span>
+<span>  data <span class="op">=</span> <span class="va">dat</span>,</span>
+<span>  formula <span class="op">=</span> <span class="va">response</span> <span class="op">~</span> <span class="va">treatment</span> <span class="op">+</span> <span class="va">time_scaled</span> <span class="op">+</span> <span class="fu">s</span><span class="op">(</span><span class="va">age_scaled</span>, bs <span class="op">=</span> <span class="st">"ps"</span><span class="op">)</span>,</span>
+<span>  subject_var <span class="op">=</span> <span class="st">"subject"</span>,</span>
+<span>  family <span class="op">=</span> <span class="st">"gamma"</span>,</span>
+<span>  comparators <span class="op">=</span> <span class="st">"gam"</span>,</span>
+<span>  fit <span class="op">=</span> <span class="va">fit</span>,</span>
+<span>  fit_name <span class="op">=</span> <span class="st">"gamlss_longitudinal"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">bench</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Standard Longitudinal Comparator Benchmark</span></span>
+<span><span class="co">#&gt; -----------------------------------------</span></span>
+<span><span class="co">#&gt; Formula: response ~ treatment + time_scaled + s(age_scaled, bs = "ps") </span></span>
+<span><span class="co">#&gt; Subject: subject </span></span>
+<span><span class="co">#&gt; Family: Gamma </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Model Status</span></span>
+<span><span class="co">#&gt; ------------</span></span>
+<span><span class="co">#&gt;               method    comparator_class</span></span>
+<span><span class="co">#&gt;  gamlss_longitudinal gamlss_longitudinal</span></span>
+<span><span class="co">#&gt;                  gam                 gam</span></span>
+<span><span class="co">#&gt;                                 estimator             package available success</span></span>
+<span><span class="co">#&gt;  gamlss.longitudinal::gamlss_longitudinal gamlss.longitudinal      TRUE    TRUE</span></span>
+<span><span class="co">#&gt;                                 mgcv::gam                mgcv      TRUE    TRUE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Benchmark Metrics</span></span>
+<span><span class="co">#&gt; -----------------</span></span>
+<span><span class="co">#&gt;                          metric gamlss_longitudinal        gam</span></span>
+<span><span class="co">#&gt;                     elapsed_sec                  NA  6.441e-02</span></span>
+<span><span class="co">#&gt;                            nobs           6.000e+02  6.000e+02</span></span>
+<span><span class="co">#&gt;                          logLik          -1.326e+03 -1.383e+03</span></span>
+<span><span class="co">#&gt;                             AIC           2.707e+03  2.783e+03</span></span>
+<span><span class="co">#&gt;                             mae           4.524e+00  3.148e+00</span></span>
+<span><span class="co">#&gt;                            rmse           6.780e+00  4.924e+00</span></span>
+<span><span class="co">#&gt;             benchmark_mean_rmse           6.064e+00  1.770e+00</span></span>
+<span><span class="co">#&gt;              benchmark_mean_mae           5.694e+00  1.394e+00</span></span>
+<span><span class="co">#&gt;             benchmark_mean_bias          -5.694e+00 -1.231e+00</span></span>
+<span><span class="co">#&gt;                  benchmark_rmse           6.780e+00  4.924e+00</span></span>
+<span><span class="co">#&gt;                   benchmark_mae           4.524e+00  3.148e+00</span></span>
+<span><span class="co">#&gt;               benchmark_q90_mae                  NA  4.544e+00</span></span>
+<span><span class="co">#&gt;   benchmark_upper_tail_error_90                  NA  1.506e-04</span></span>
+<span><span class="co">#&gt;  benchmark_interval_coverage_95           9.130e-01  9.074e-01</span></span>
+<span><span class="co">#&gt;    benchmark_pit_mean_abs_error           7.625e-02  1.534e-02</span></span>
+<span><span class="co">#&gt;        benchmark_pit_ks_p_value           2.492e-17  1.730e-03</span></span>
+<span><span class="co">#&gt;   benchmark_tail_error_lower_05           4.259e-02  2.778e-02</span></span>
+<span><span class="co">#&gt;   benchmark_tail_error_upper_05          -5.000e-02 -1.296e-02</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Benchmark Interpretation</span></span>
+<span><span class="co">#&gt; ------------------------</span></span>
+<span><span class="co">#&gt; Primary method: gamlss_longitudinal </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;            area                         metric  primary standard</span></span>
+<span><span class="co">#&gt;  distributional benchmark_interval_coverage_95 lead/tie        -</span></span>
+<span><span class="co">#&gt;  distributional       benchmark_pit_ks_p_value lead/tie lead/tie</span></span>
+<span><span class="co">#&gt;  distributional   benchmark_pit_mean_abs_error        - lead/tie</span></span>
+<span><span class="co">#&gt;  distributional              benchmark_q90_mae        - lead/tie</span></span>
+<span><span class="co">#&gt;  distributional  benchmark_tail_error_lower_05        - lead/tie</span></span>
+<span><span class="co">#&gt;  distributional  benchmark_tail_error_upper_05        - lead/tie</span></span>
+<span><span class="co">#&gt;  distributional  benchmark_upper_tail_error_90        - lead/tie</span></span>
+<span><span class="co">#&gt;        mean fit                  benchmark_mae        - lead/tie</span></span>
+<span><span class="co">#&gt;        mean fit            benchmark_mean_bias        - lead/tie</span></span>
+<span><span class="co">#&gt;        mean fit             benchmark_mean_mae        - lead/tie</span></span>
+<span><span class="co">#&gt;        mean fit            benchmark_mean_rmse        - lead/tie</span></span>
+<span><span class="co">#&gt;        mean fit                 benchmark_rmse        - lead/tie</span></span>
+<span><span class="co">#&gt;         runtime                    elapsed_sec        - lead/tie</span></span>
+<span><span class="co">#&gt;                   leaders</span></span>
+<span><span class="co">#&gt;       gamlss_longitudinal</span></span>
+<span><span class="co">#&gt;  gamlss_longitudinal, gam</span></span>
+<span><span class="co">#&gt;                       gam</span></span>
+<span><span class="co">#&gt;                       gam</span></span>
+<span><span class="co">#&gt;                       gam</span></span>
+<span><span class="co">#&gt;                       gam</span></span>
+<span><span class="co">#&gt;                       gam</span></span>
+<span><span class="co">#&gt;                       gam</span></span>
+<span><span class="co">#&gt;                       gam</span></span>
+<span><span class="co">#&gt;                       gam</span></span>
+<span><span class="co">#&gt;                       gam</span></span>
+<span><span class="co">#&gt;                       gam</span></span>
+<span><span class="co">#&gt;                       gam</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
+</h2>
+<p>Diggle, P. J., Heagerty, P., Liang, K.-Y., and Zeger, S. L. (2002).
+<em>Analysis of Longitudinal Data</em>. 2nd ed. Oxford University Press.
+<a href="https://academic.oup.com/book/54026" class="external-link uri">https://academic.oup.com/book/54026</a>.</p>
+<p>Fitzmaurice, G. M., Laird, N. M., and Ware, J. H. (2011). <em>Applied
+Longitudinal Analysis</em>. 2nd ed. John Wiley &amp; Sons. <a href="https://www.wiley-vch.de/en/areas-interest/mathematics-statistics/applied-longitudinal-analysis-978-0-470-38027-7" class="external-link uri">https://www.wiley-vch.de/en/areas-interest/mathematics-statistics/applied-longitudinal-analysis-978-0-470-38027-7</a>.</p>
+<p>Harrell, F. E. Jr. (2015). <em>Regression Modeling Strategies: With
+Applications to Linear Models, Logistic and Ordinal Regression, and
+Survival Analysis</em>. 2nd ed. Springer. <a href="https://doi.org/10.1007/978-3-319-19425-7" class="external-link uri">https://doi.org/10.1007/978-3-319-19425-7</a>.</p>
+<p>Joe, H. (2014). <em>Dependence Modeling with Copulas</em>. Chapman
+&amp; Hall/CRC. <a href="https://copula.stat.ubc.ca/" class="external-link uri">https://copula.stat.ubc.ca/</a>.</p>
+<p>Nelsen, R. B. (2006). <em>An Introduction to Copulas</em>. 2nd
+ed. Springer. <a href="https://doi.org/10.1007/0-387-28678-0" class="external-link uri">https://doi.org/10.1007/0-387-28678-0</a>.</p>
+<p>Rigby, R. A. and Stasinopoulos, D. M. (2005). Generalized additive
+models for location, scale and shape. <em>Journal of the Royal
+Statistical Society: Series C (Applied Statistics)</em>, 54(3), 507-554.
+<a href="https://doi.org/10.1111/j.1467-9876.2005.00510.x" class="external-link uri">https://doi.org/10.1111/j.1467-9876.2005.00510.x</a>.</p>
+<p>van Buuren, S. (2018). <em>Flexible Imputation of Missing Data</em>.
+2nd ed. Chapman &amp; Hall/CRC. <a href="https://stefvanbuuren.name/fimd/" class="external-link uri">https://stefvanbuuren.name/fimd/</a>.</p>
+<p>Wood, S. N. (2017). <em>Generalized Additive Models: An Introduction
+with R</em>. 2nd ed. Chapman &amp; Hall/CRC. <a href="https://www.routledge.com/Generalized-Additive-Models-An-Introduction-with-R-Second-Edition/Wood/p/book/9781498728331" class="external-link uri">https://www.routledge.com/Generalized-Additive-Models-An-Introduction-with-R-Second-Edition/Wood/p/book/9781498728331</a>.</p>
 </div>
 <div class="section level2">
 <h2 id="next-steps">Next Steps<a class="anchor" aria-label="anchor" href="#next-steps"></a>
 </h2>
-<p>In a real analysis, the same workflow can be repeated with
-alternative marginal formulas, different copula families, and more
-targeted diagnostics. For simulation studies, the stored
-<code>true_*</code> columns make it straightforward to compare fitted
-effects against the data-generating truth.</p>
+<p>In a real analysis, the same workflow should be repeated as
+sensitivity checks when conclusions depend on modelling choices: revisit
+the top marginal families, plausible copula families, simpler versus
+richer formulas, and benchmark models. For simulation studies, the
+stored <code>true_*</code> columns make it straightforward to compare
+fitted effects against the data-generating truth. For applied studies,
+report the model only after the diagnostic warnings are either resolved
+or clearly described as limitations.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

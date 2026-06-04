@@ -2,7 +2,7 @@
 title: "Standard workflow: screening, fit, inference, diagnostics, and simulation"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Standard Workflow API, Inference, and Diagnostics}
+  %\VignetteIndexEntry{Standard workflow: screening, fit, inference, diagnostics, and simulation}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -19,7 +19,7 @@ This vignette gives the minimal standard workflow for applied longitudinal analy
 
 We include a suggested set of steps and functions including short descriptions of each, while excluding outputs inline to minimise the complexity of reviewing the file. The idea is to allow the user to quickly pickup the relevant code and apply to either their own dataset or the included simulated dataset.
 
-For a worked through example with more detailed review of outputs and diagnostics, including their interpretation, please review the detailed worked example: [Detailed worked example](native-simulation-workflow.html).
+For a worked through example with more detailed review of data, outputs and diagnostics, including their interpretation, please review the detailed worked example: [Detailed worked example](native-simulation-workflow.html).
 
 The key parts are:
 
@@ -29,7 +29,7 @@ The key parts are:
 4. (Optional) Predict and simulate
 5. (Optional) Compare to common models: gee, glmm, gam
 
-1-3 are the core model building workflow, while 4-5 provide additional tools for analaysis depening on user needs.
+1-3 are the core model building workflow, while 4-5 provide additional tools for analysis depending on user needs.
 
 ## Installation
 
@@ -81,15 +81,26 @@ table(dat$subject)
 table(dat$time)
 ```
 
-Missing responses are allowed but not directly accounted for as part of model fit so the missingness mechanism
-still needs to be reviewed as part of model assessment ideally. Missingness at random is generally well managed by the model, but if there is missingness not at random this may affect results. See
-`vignette("missing-visits", package = "gamlss.longitudinal")` for that case.
+Missing responses are allowed but the missingness mechanism still needs to be
+reviewed as part of model assessment. Missingness at random is generally well
+managed by the model when the relevant observed predictors are included, but
+missingness not at random may affect results. Use `check_missingness()` as a
+first screen for observed-feature associations with response missingness.
+
+```{r missingness-check, eval = FALSE}
+check_missingness(
+  dat,
+  response_var = "response",
+  time_var = "time",
+  subject_var = "subject"
+)
+```
 
 ## Step 1: Select margin distribution and copula function
 
 First, we review the shape of the response distribution (margin) and choose the best fitting distribution. **gamlss_longitudinal** supports all non-mixed response types from the **gamlss.dist** library of distributions.
 
-For simplicty, we provide the function `select_margin()` which fits the available gamlss distributions and provides a sorted list of fits by AIC, and confirms if they are supported by gamlss_longitudinal. This can be limited to certain fits such as specific distributions, e.g. `families = c("PO", "GA")` or response types, e.g. `type=realplus`.
+For simplicity, we provide the function `select_margin()` which fits the available gamlss distributions and provides a sorted list of fits by AIC, and confirms if they are supported by gamlss_longitudinal. This can be limited to certain fits such as specific distributions, e.g. `families = c("PO", "GA")` or response types, e.g. `type=realplus`.
 
 In general, we would suggest using the top fitting distributions as a shortlist that can later be revisited once covariates are incorporated into the fit.
 
@@ -189,11 +200,11 @@ the decision language around marginal, tail, dependence, and inference warnings.
 
 ## Step 3: Diagnostics
 
-We provide a built-in check_model() function which highlights any warnings and recommendations in plain language from the fit diagnostics incuding convergence errors or unusual looking fit statistics.
+We provide a built-in check_model() function which highlights any warnings and recommendations in plain language from the fit diagnostics including convergence errors or unusual looking fit statistics.
 
 ```{r check}
 # Model checks
-check <- check_model(fit, include_vcov = TRUE)
+check <- check_model(fit, include_vcov = TRUE, dependence_cor_cutoff = 0.25)
 check
 check$warnings
 check$recommendation
@@ -206,7 +217,7 @@ To visually review the fits for both margin and the dependence copula we provide
 - Worm plot, and
 - Rootogram.
 
-For the copula we include empirical copula v fitted density and correlation by quantile, Rosenblatt residuals and lag plot, ordered fitted versus observed density, tail co-occurrence and exceedence, and residual dependence by lag.
+For the copula we include empirical copula v fitted density and correlation by quantile, Rosenblatt residuals and lag plot, ordered fitted versus observed density, tail co-occurrence and exceedance, and residual dependence by lag.
 
 ```{r plot chekc}
 # View margin diagnostics
@@ -219,11 +230,10 @@ plot_copula_diagnostics(fit)
 ```
 
 Treat the output as a decision aid:
-- convergence warnings mean either not enough iterations have been allowed, or model is misspecified
-- marginal warnings mean the response family or parameter formulas may need adjustment;
-- tail warnings mean quantile or probability claims are not yet trustworthy;
-- residual-dependence warnings mean the copula family or `theta.formula` / `zeta.formula` may be misspecified;
-- inference warnings mean intervals should be reported as approximate or the model should be simplified.
+- if the model is not converging, for a highly complex model more iterations may be needed which can be specified by `max_outer_iter=N`. Usually, however, iteration warnings are either due to a model which is not ideally specified (e.g. incorrect copula or margin shape) or covariates which are adding complexity to the model without adding fit resulting in optimizer issues
+- lack of fit in the marginal diagnostics, `plot(fit)` or marginal warnings, generally indicate a poor selection of marginal distribution or marginal covariates
+- lack of fit in the copula diagnostics, `plot_copula_diagnostics(fit)` or residual dependence warnings, could either be choice of copula or copula covariates, or marginal distributions which are not fully accounting for pre-correlation margin effects resulting in a misshapen copula. The residual-dependence warning uses a practical correlation cutoff, not a formal test, so small remaining correlations should be reviewed visually
+- tail fit warnings mean quantile or probability claims may not be reliable
 
 Ideally all warnings should be rectified and diagnostics accepted as satisfactory prior to moving to reporting.
 
@@ -326,10 +336,10 @@ print(bench_smooth)
 
 ```
 
-In general, note that the purpose of the gamlss.longitudinal model is to accurately capture the full joint distribution shape. If the item of interest is just the mean, then gamlss.longitudinal is unlikely to provide large gains except for where distributions are clearly non-standard. By modelling the whole joint outcome distribution we can more accurately answer quesitons such as whether quantiles, tail risks, or uncertainty (SEs, confidence intervals, prediction intervals) change in a meaningful way. In addition, note that the consumption of degrees of freedom for calculation of accurate conditional AICs for random effect models can be substantial compared to the small number of parameters needed to fit a copula-based dependence structure.
+In general, note that the purpose of the gamlss.longitudinal model is to accurately capture the full joint distribution shape. If the item of interest is just the mean, then gamlss.longitudinal is unlikely to provide large gains except for where distributions are clearly non-standard. By modelling the whole joint outcome distribution we can more accurately answer questions such as whether quantiles, tail risks, or uncertainty (SEs, confidence intervals, prediction intervals) change in a meaningful way. In addition, note that the consumption of degrees of freedom for calculation of accurate conditional AICs for random effect models can be substantial compared to the small number of parameters needed to fit a copula-based dependence structure.
 
 We provide additional information on comparisons in other vignettes: `vignette("benchmarking-adoption", package = "gamlss.longitudinal")` for scenario-level benchmark reporting.
 
 ##
 
-For a more detailed workthrough example, including interpretation of model fit and diagnostics, please review the [Detailed worked example](native-simulation-workflow.html).
+For a more detailed walk-through example, including interpretation of model fit and diagnostics, please review the [Detailed worked example](native-simulation-workflow.html).
