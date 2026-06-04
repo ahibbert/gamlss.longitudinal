@@ -1,0 +1,217 @@
+---
+title: "Simulator usage"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Simulator usage}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+This vignette shows how to generate longitudinal datasets with GAMLSS margins,
+first-order copula dependence, covariates, stored truth columns, and optional
+missing responses. The simulator is intended for examples, method checks,
+benchmark scenarios, and teaching datasets where the data-generating mechanism
+should be explicit.
+
+```{r packages}
+library(gamlss.longitudinal)
+library(gamlss.dist)
+```
+
+## Minimal Data
+
+`simulate_longitudinal_dataset()` returns one row per subject-time observation.
+The marginal distribution is supplied as a `gamlss.dist` family object, and the
+copula is supplied by family code:
+
+- `"N"` Gaussian
+- `"C"` Clayton
+- `"F"` Frank
+- `"G"` Gumbel
+- `"J"` Joe
+- `"t"` Student t
+
+```{r minimal-data}
+dat <- simulate_longitudinal_dataset(
+  n = 100,
+  times = 0:4,
+  margin_dist = NO(),
+  margin_params = list(mu = 0, sigma = 1),
+  copula_dist = "N",
+  copula_params = list(theta = 0.35),
+  seed = 1
+)
+
+head(dat)
+table(dat$time)
+```
+
+By default the output includes `u`, the simulated marginal uniforms, plus
+`true_*` columns for every marginal and copula parameter. The first time point
+has no incoming adjacent-time copula edge, so `true_theta` is `NA` there.
+
+## Time-Varying Parameters
+
+Parameter specifications can be constants, vectors indexed by time, matrices
+indexed by subject and time, or functions of the generated long-format design.
+Vectors for marginal parameters should have one value per time point. Vectors
+for copula parameters should have one value per adjacent time edge.
+
+```{r time-varying-parameters}
+dat <- simulate_longitudinal_dataset(
+  n = 80,
+  times = 1:4,
+  margin_dist = GA(mu.link = "log", sigma.link = "log"),
+  margin_params = list(
+    mu = function(d) exp(1 + 0.15 * d$.sim_time_index),
+    sigma = c(0.35, 0.45, 0.55, 0.65)
+  ),
+  copula_dist = "C",
+  copula_params = list(tau = c(0.15, 0.25, 0.35)),
+  seed = 2
+)
+
+head(dat)
+aggregate(true_sigma ~ time, dat, unique)
+aggregate(true_theta ~ time, dat, unique, na.rm = TRUE)
+```
+
+The copula parameter can be supplied as `theta`/`par`, or as Kendall's `tau`.
+Using `tau` is often easier when the goal is to describe dependence strength on
+a common scale across copula families.
+
+## Covariates
+
+Use `simulate_longitudinal_covariates()` inside the `covariates` callback when
+you want a clear split between subject-level variables and observation-level
+variables. Subject-level variables are generated once per subject and repeated
+across time. Observation-level variables are generated once per row.
+
+```{r covariates}
+treatment_effect <- c(control = 0, active = 0.4)
+
+dat <- simulate_longitudinal_dataset(
+  n = 120,
+  times = seq(0, 1, length.out = 5),
+  margin_dist = GA(mu.link = "log", sigma.link = "log"),
+  covariates = function(base) {
+    simulate_longitudinal_covariates(
+      base,
+      subject = list(
+        treatment = function(s) {
+          factor(
+            sample(c("control", "active"), nrow(s), replace = TRUE),
+            levels = c("control", "active")
+          )
+        },
+        age = function(s) rnorm(nrow(s), mean = 55, sd = 10)
+      ),
+      observation = list(
+        time_scaled = function(d) sim_rescale01(d$time)
+      )
+    )
+  },
+  margin_params = list(
+    mu = function(d) {
+      age_scaled <- sim_rescale01(d$age)
+      eta <- 1.2 +
+        sim_factor_effect(d$treatment, treatment_effect) +
+        0.35 * d$time_scaled +
+        sim_smooth_bump(age_scaled, amplitude = 0.25)
+      exp(eta)
+    },
+    sigma = function(d) {
+      exp(-0.8 + 0.25 * d$time_scaled)
+    }
+  ),
+  copula_dist = "N",
+  copula_params = list(
+    theta = function(e) {
+      0.2 + 0.25 * sim_rescale01(e$time_left)
+    }
+  ),
+  seed = 3
+)
+
+head(dat)
+```
+
+Inside marginal parameter functions, `d` is the long-format subject-time data.
+Inside copula parameter functions, `e` is the adjacent-pair edge data. Edge data
+contains the covariates from the left and right rows where needed, including
+time variables such as `time_left` and `time_right`.
+
+The helper functions `sim_rescale01()`, `sim_factor_effect()`, and the
+`sim_smooth_*()` shapes are small building blocks for readable truth
+specifications. They are optional; ordinary R code works as well.
+
+## Missing Responses
+
+The simulator creates complete balanced panels. Missing responses can be added
+after simulation by setting the response column to `NA`. This keeps the
+missingness mechanism visible in the vignette or benchmark code.
+
+```{r missing-responses}
+set.seed(4)
+
+missing_probability <- plogis(
+  -1.5 +
+    0.8 * dat$time_scaled +
+    0.4 * (dat$treatment == "active")
+)
+
+missing_rows <- rbinom(nrow(dat), size = 1, prob = missing_probability) == 1
+dat$response[missing_rows] <- NA_real_
+dat$response_missing <- is.na(dat$response)
+
+mean(dat$response_missing)
+
+check_missingness(
+  dat,
+  response_var = "response",
+  time_var = "time",
+  subject_var = "subject",
+  predictors = c("time_scaled", "treatment", "age")
+)
+```
+
+Missing responses are allowed by `gamlss_longitudinal()`, but predictor values
+in submitted rows must be observed. Structural missing visits are handled by
+the fitter through its subject-time grid expansion; for simulation studies it
+is usually clearer to record whether a scenario uses response missingness,
+dropped visits, or both.
+
+## Fitting The Simulated Data
+
+Because the simulator can store the true parameter values, it is useful for
+checking whether a model recovers the main data-generating features.
+
+```{r fit-simulated-data}
+fit <- gamlss_longitudinal(
+  dataset = dat,
+  margin_dist = GA(mu.link = "log", sigma.link = "log"),
+  copula_dist = "N",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment + time_scaled + s(age, bs = "ps"),
+  sigma.formula = ~ time_scaled,
+  theta.formula = ~ time_scaled
+)
+
+summary(fit)
+check_model(fit)
+plot(fit)
+plot_copula_diagnostics(fit, data = dat)
+```
+
+For an end-to-end worked example with diagnostics, interpretation, prediction,
+and benchmark comparisons, see
+`vignette("native-simulation-workflow", package = "gamlss.longitudinal")`.

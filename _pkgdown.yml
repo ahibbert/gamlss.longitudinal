@@ -18,10 +18,10 @@ articles:
     contents:
       - standard-workflow
       - native-simulation-workflow
+      - simulator-usage
   - title: Adoption Guides
     navbar: Adoption Guides
     contents:
-      - adoption-decision-guide
       - inference-uncertainty
       - diagnostics-decisions
       - benchmarking-adoption

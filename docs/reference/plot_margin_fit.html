@@ -33,9 +33,9 @@ the average row-specific fitted marginal density."></head><body>
     <li><h6 class="dropdown-header" data-toc-skip>Worked Examples</h6></li>
     <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard workflow: screening, fit, inference, diagnostics, and simulation</a></li>
     <li><a class="dropdown-item" href="../articles/native-simulation-workflow.html">Detailed worked example for a longitudinal gamlss model fit</a></li>
+    <li><a class="dropdown-item" href="../articles/simulator-usage.html">Simulator usage</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Adoption Guides</h6></li>
-    <li><a class="dropdown-item" href="../articles/adoption-decision-guide.html">Adoption Decision Guide</a></li>
     <li><a class="dropdown-item" href="../articles/inference-uncertainty.html">Inference and Uncertainty</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics-decisions.html">Diagnostics As Decisions</a></li>
     <li><a class="dropdown-item" href="../articles/benchmarking-adoption.html">Benchmarking Adoption Claims</a></li>
@@ -72,6 +72,7 @@ the average row-specific fitted marginal density.</p>
 <span>  response_var <span class="op">=</span> <span class="st">"response"</span>,</span>
 <span>  bins <span class="op">=</span> <span class="fl">30</span>,</span>
 <span>  grid_n <span class="op">=</span> <span class="fl">200</span>,</span>
+<span>  response_scale <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"response"</span>, <span class="st">"log"</span><span class="op">)</span>,</span>
 <span>  by_time <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  time_var <span class="op">=</span> <span class="st">"time"</span>,</span>
 <span>  plot <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -113,6 +114,11 @@ row-specific fitted parameters.</p></dd>
 
 <dt id="arg-grid-n">grid_n<a class="anchor" aria-label="anchor" href="#arg-grid-n"></a></dt>
 <dd><p>Number of grid points used for the fitted density.</p></dd>
+
+
+<dt id="arg-response-scale">response_scale<a class="anchor" aria-label="anchor" href="#arg-response-scale"></a></dt>
+<dd><p>Plot the density on the original response scale or,
+for positive responses, on the log-response scale.</p></dd>
 
 
 <dt id="arg-by-time">by_time<a class="anchor" aria-label="anchor" href="#arg-by-time"></a></dt>
