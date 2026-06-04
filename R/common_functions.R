@@ -6065,12 +6065,22 @@ plot_smooth_terms = function(
         agg_df = agg_df[order(agg_df$x), , drop = FALSE]
         n_grid_use = max(20, as.integer(grid_n))
         x_grid = seq(min(agg_df$x), max(agg_df$x), length.out = n_grid_use)
+        safe_approx = function(y) {
+          ok = is.finite(agg_df$x) & is.finite(y)
+          if(sum(ok) >= 2 && length(unique(agg_df$x[ok])) >= 2) {
+            stats::approx(agg_df$x[ok], y[ok], xout = x_grid, method = "linear", rule = 2)$y
+          } else if(sum(ok) == 1) {
+            rep(y[ok][1], length(x_grid))
+          } else {
+            rep(NA_real_, length(x_grid))
+          }
+        }
 
         plot_df = data.frame(
           x = x_grid,
-          fitted = stats::approx(agg_df$x, agg_df$fitted, xout = x_grid, method = "linear", rule = 2)$y,
-          ci_lower = stats::approx(agg_df$x, agg_df$ci_lower, xout = x_grid, method = "linear", rule = 2)$y,
-          ci_upper = stats::approx(agg_df$x, agg_df$ci_upper, xout = x_grid, method = "linear", rule = 2)$y
+          fitted = safe_approx(agg_df$fitted),
+          ci_lower = safe_approx(agg_df$ci_lower),
+          ci_upper = safe_approx(agg_df$ci_upper)
         )
       } else {
         ord = if(sort_x) order(x) else seq_along(x)

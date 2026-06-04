@@ -134,6 +134,29 @@ test_that("T156 transformed smooth covariates keep their x-axis scale", {
   expect_s3_class(smooth_entry$plot, "ggplot")
 })
 
+test_that("T156b smooth plotting tolerates unavailable interval values", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 16L)
+  fit <- fit_fixture_model(
+    dat,
+    include_dlcopdpar = TRUE,
+    mu_formula = "y ~ time_raw * gender + s(log(age), bs = 'ps')"
+  )
+
+  smooth_terms <- suppressWarnings(plot_smooth_terms(
+    fit,
+    vcov_obj = list(vcov = list(smooth_vcov = NULL, smooth_se = NULL)),
+    data = dat,
+    setup_mfrow = FALSE,
+    show_legend = FALSE,
+    grid_n = 20
+  ))
+
+  smooth_entry <- smooth_terms$mu[[1]]
+  expect_s3_class(smooth_entry$plot, "ggplot")
+  expect_true(all(is.na(smooth_entry$ci_lower)))
+  expect_true(all(is.na(smooth_entry$ci_upper)))
+})
+
 test_that("T157 copula plot wrappers remain available after install", {
   dat <- make_fixture_factor_time_interaction(n_subject = 16L)
   fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
