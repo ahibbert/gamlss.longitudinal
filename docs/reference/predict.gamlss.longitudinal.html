@@ -20,22 +20,16 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
-    <li><a class="dropdown-item" href="../articles/site-guide.html">Guide To The Articles</a></li>
+    <li><a class="dropdown-item" href="../articles/site-guide.html">Overview of Support Articles</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Worked Examples</h6></li>
-    <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard Workflow API, Inference, and Diagnostics</a></li>
-    <li><a class="dropdown-item" href="../articles/native-simulation-workflow.html">Native Simulation, Copula Screening, and GAMLSS Longitudinal Fitting</a></li>
+    <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard workflow: screening, fit, inference, diagnostics, and simulation</a></li>
+    <li><a class="dropdown-item" href="../articles/native-simulation-workflow.html">Detailed worked example for a longitudinal gamlss model fit</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Adoption Guides</h6></li>
-    <li><a class="dropdown-item" href="../articles/replace-gee-glmm.html">Replacing GEE and GLMM Workflows</a></li>
     <li><a class="dropdown-item" href="../articles/adoption-decision-guide.html">Adoption Decision Guide</a></li>
     <li><a class="dropdown-item" href="../articles/inference-uncertainty.html">Inference and Uncertainty</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics-decisions.html">Diagnostics As Decisions</a></li>
-    <li><a class="dropdown-item" href="../articles/replace-a-gee.html">Replace a GEE</a></li>
-    <li><a class="dropdown-item" href="../articles/replace-a-random-intercept-glmm.html">Replace a Random-Intercept GLMM</a></li>
-    <li><a class="dropdown-item" href="../articles/non-gaussian-longitudinal-outcomes.html">Non-Gaussian Longitudinal Outcomes</a></li>
-    <li><a class="dropdown-item" href="../articles/missing-visits.html">Missing Visits</a></li>
-    <li><a class="dropdown-item" href="../articles/time-varying-dependence.html">Time-Varying Dependence</a></li>
     <li><a class="dropdown-item" href="../articles/benchmarking-adoption.html">Benchmarking Adoption Claims</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><a class="external-link nav-link" href="https://github.com/ahibbert/gamlss.longitudinal/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -80,7 +74,7 @@
 
 
 <dl><dt id="arg-object">object<a class="anchor" aria-label="anchor" href="#arg-object"></a></dt>
-<dd><p>A fitted `gamlss.longitudinal` object.</p></dd>
+<dd><p>A fitted <code>gamlss.longitudinal</code> object.</p></dd>
 
 
 <dt id="arg-newdata">newdata<a class="anchor" aria-label="anchor" href="#arg-newdata"></a></dt>
@@ -88,47 +82,47 @@
 
 
 <dt id="arg-type">type<a class="anchor" aria-label="anchor" href="#arg-type"></a></dt>
-<dd><p>Prediction type: `"response"` returns the fitted `mu` parameter,
-`"parameters"` returns all fitted marginal distribution parameters,
-`"quantile"` returns fitted marginal quantiles, `"cdf"`/`"density"`
-evaluate the fitted marginal CDF or density, and `"probability"` returns
+<dd><p>Prediction type: <code>"response"</code> returns the fitted <code>mu</code> parameter,
+<code>"parameters"</code> returns all fitted marginal distribution parameters,
+<code>"quantile"</code> returns fitted marginal quantiles, <code>"cdf"</code>/<code>"density"</code>
+evaluate the fitted marginal CDF or density, and <code>"probability"</code> returns
 probabilities below or above a threshold.</p></dd>
 
 
 <dt id="arg-probs">probs<a class="anchor" aria-label="anchor" href="#arg-probs"></a></dt>
-<dd><p>Quantile probabilities when `type = "quantile"`.</p></dd>
+<dd><p>Quantile probabilities when <code>type = "quantile"</code>.</p></dd>
 
 
 <dt id="arg-q">q<a class="anchor" aria-label="anchor" href="#arg-q"></a></dt>
-<dd><p>Threshold value for `type = "cdf"` or `type = "probability"`.
-Defaults to observed responses for `type = "cdf"` when available.</p></dd>
+<dd><p>Threshold value for <code>type = "cdf"</code> or <code>type = "probability"</code>.
+Defaults to observed responses for <code>type = "cdf"</code> when available.</p></dd>
 
 
 <dt id="arg-y">y<a class="anchor" aria-label="anchor" href="#arg-y"></a></dt>
-<dd><p>Evaluation value for `type = "density"`. Defaults to observed
+<dd><p>Evaluation value for <code>type = "density"</code>. Defaults to observed
 responses when available.</p></dd>
 
 
 <dt id="arg-direction">direction<a class="anchor" aria-label="anchor" href="#arg-direction"></a></dt>
-<dd><p>Probability direction for `type = "probability"`.</p></dd>
+<dd><p>Probability direction for <code>type = "probability"</code>.</p></dd>
 
 
 <dt id="arg-se-fit">se.fit<a class="anchor" aria-label="anchor" href="#arg-se-fit"></a></dt>
-<dd><p>Logical; for `type = "response"`, return approximate
+<dd><p>Logical; for <code>type = "response"</code>, return approximate
 delta-method standard errors for the fitted response mean.</p></dd>
 
 
 <dt id="arg-interval">interval<a class="anchor" aria-label="anchor" href="#arg-interval"></a></dt>
-<dd><p>Interval type. `"confidence"` adds response-scale confidence
-limits when `type = "response"`.</p></dd>
+<dd><p>Interval type. <code>"confidence"</code> adds response-scale confidence
+limits when <code>type = "response"</code>.</p></dd>
 
 
 <dt id="arg-level">level<a class="anchor" aria-label="anchor" href="#arg-level"></a></dt>
-<dd><p>Confidence level for `interval = "confidence"`.</p></dd>
+<dd><p>Confidence level for <code>interval = "confidence"</code>.</p></dd>
 
 
 <dt id="arg-vcov-method">vcov_method<a class="anchor" aria-label="anchor" href="#arg-vcov-method"></a></dt>
-<dd><p>Variance-covariance method passed to [vcov.gamlss.longitudinal()].</p></dd>
+<dd><p>Variance-covariance method passed to <code><a href="vcov.gamlss.longitudinal.html">vcov.gamlss.longitudinal()</a></code>.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -137,8 +131,21 @@ limits when `type = "response"`.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A numeric vector for `type = "response"` unless standard errors or
-  intervals are requested; a data frame otherwise.</p>
+    <p>A numeric vector for <code>type = "response"</code> unless standard errors or
+intervals are requested; a data frame otherwise.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p><code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> returns marginal summaries from the fitted distribution at each
+requested row. The fitted copula/dependence structure is not used to condition a
+row's prediction on that subject's other observed responses. Instead,
+dependence affects prediction indirectly through the coefficients estimated by
+the joint copula likelihood, and through <code>se.fit</code>/confidence intervals when
+the covariance matrix is computed from the joint model. Use
+<code><a href="simulate.gamlss.longitudinal.html">simulate.gamlss.longitudinal()</a></code> for
+fitted-data trajectory simulation that preserves the fitted copula dependence
+structure. Copula-preserving simulation for <code>newdata</code> is not currently
+implemented.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

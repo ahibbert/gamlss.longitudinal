@@ -20,22 +20,16 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
-    <li><a class="dropdown-item" href="../articles/site-guide.html">Guide To The Articles</a></li>
+    <li><a class="dropdown-item" href="../articles/site-guide.html">Overview of Support Articles</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Worked Examples</h6></li>
-    <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard Workflow API, Inference, and Diagnostics</a></li>
-    <li><a class="dropdown-item" href="../articles/native-simulation-workflow.html">Native Simulation, Copula Screening, and GAMLSS Longitudinal Fitting</a></li>
+    <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard workflow: screening, fit, inference, diagnostics, and simulation</a></li>
+    <li><a class="dropdown-item" href="../articles/native-simulation-workflow.html">Detailed worked example for a longitudinal gamlss model fit</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Adoption Guides</h6></li>
-    <li><a class="dropdown-item" href="../articles/replace-gee-glmm.html">Replacing GEE and GLMM Workflows</a></li>
     <li><a class="dropdown-item" href="../articles/adoption-decision-guide.html">Adoption Decision Guide</a></li>
     <li><a class="dropdown-item" href="../articles/inference-uncertainty.html">Inference and Uncertainty</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics-decisions.html">Diagnostics As Decisions</a></li>
-    <li><a class="dropdown-item" href="../articles/replace-a-gee.html">Replace a GEE</a></li>
-    <li><a class="dropdown-item" href="../articles/replace-a-random-intercept-glmm.html">Replace a Random-Intercept GLMM</a></li>
-    <li><a class="dropdown-item" href="../articles/non-gaussian-longitudinal-outcomes.html">Non-Gaussian Longitudinal Outcomes</a></li>
-    <li><a class="dropdown-item" href="../articles/missing-visits.html">Missing Visits</a></li>
-    <li><a class="dropdown-item" href="../articles/time-varying-dependence.html">Time-Varying Dependence</a></li>
     <li><a class="dropdown-item" href="../articles/benchmarking-adoption.html">Benchmarking Adoption Claims</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><a class="external-link nav-link" href="https://github.com/ahibbert/gamlss.longitudinal/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -66,6 +60,10 @@
 <span>  include_mixed <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  output_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="st">"results"</span>, <span class="st">"coverage_simulations"</span><span class="op">)</span>,</span>
 <span>  write_results <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  write_summary <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  compile_summary_pdf <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  smooth_results_file <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  report_title <span class="op">=</span> <span class="st">"Coverage Simulation Summary"</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -76,7 +74,7 @@
 
 <dl><dt id="arg-families">families<a class="anchor" aria-label="anchor" href="#arg-families"></a></dt>
 <dd><p>Optional family names. Defaults to all supported non-mixed
-`gamlss.dist` families with `q`, `p`, and `d` functions.</p></dd>
+<code>gamlss.dist</code> families with <code>q</code>, <code>p</code>, and <code>d</code> functions.</p></dd>
 
 
 <dt id="arg-copulas">copulas<a class="anchor" aria-label="anchor" href="#arg-copulas"></a></dt>
@@ -84,20 +82,20 @@
 
 
 <dt id="arg-methods">methods<a class="anchor" aria-label="anchor" href="#arg-methods"></a></dt>
-<dd><p>Fit methods. Defaults to `"gamlss"`, `"rs_separate"`,
-`"rs_joint"`, and `"cg"`. Method `"gamlss2"` is also supported when the
+<dd><p>Fit methods. Defaults to <code>"gamlss"</code>, <code>"rs_separate"</code>,
+<code>"rs_joint"</code>, and <code>"cg"</code>. Method <code>"gamlss2"</code> is also supported when the
 optional non-CRAN package is installed and explicitly requested. Standard
-comparator methods `"gee"`, `"glmm"`, `"gam"`, and `"glmmTMB"` are
+comparator methods <code>"gee"</code>, <code>"glmm"</code>, <code>"gam"</code>, and <code>"glmmTMB"</code> are
 available for families that map to common mean-model families.</p></dd>
 
 
 <dt id="arg-designs">designs<a class="anchor" aria-label="anchor" href="#arg-designs"></a></dt>
-<dd><p>Simulation designs: `"intercept"`, `"covariate"`,
-`"scale"`, `"time_dependence"`, or `"smooth"`.</p></dd>
+<dd><p>Simulation designs: <code>"intercept"</code>, <code>"covariate"</code>,
+<code>"scale"</code>, <code>"time_dependence"</code>, or <code>"smooth"</code>.</p></dd>
 
 
 <dt id="arg-include-mixed">include_mixed<a class="anchor" aria-label="anchor" href="#arg-include-mixed"></a></dt>
-<dd><p>Logical; include mixed-support `gamlss.dist` families in
+<dd><p>Logical; include mixed-support <code>gamlss.dist</code> families in
 the candidate family grid.</p></dd>
 
 
@@ -106,18 +104,37 @@ the candidate family grid.</p></dd>
 
 
 <dt id="arg-write-results">write_results<a class="anchor" aria-label="anchor" href="#arg-write-results"></a></dt>
-<dd><p>Write result files when `TRUE`.</p></dd>
+<dd><p>Write result files when <code>TRUE</code>.</p></dd>
+
+
+<dt id="arg-write-summary">write_summary<a class="anchor" aria-label="anchor" href="#arg-write-summary"></a></dt>
+<dd><p>Write a LaTeX summary report when <code>TRUE</code> and
+<code>write_results</code> is also <code>TRUE</code>.</p></dd>
+
+
+<dt id="arg-compile-summary-pdf">compile_summary_pdf<a class="anchor" aria-label="anchor" href="#arg-compile-summary-pdf"></a></dt>
+<dd><p>Compile the LaTeX summary to PDF when <code>TRUE</code> and
+a LaTeX installation is available.</p></dd>
+
+
+<dt id="arg-smooth-results-file">smooth_results_file<a class="anchor" aria-label="anchor" href="#arg-smooth-results-file"></a></dt>
+<dd><p>Optional smooth smoke-test CSV to include in the
+generated summary report.</p></dd>
+
+
+<dt id="arg-report-title">report_title<a class="anchor" aria-label="anchor" href="#arg-report-title"></a></dt>
+<dd><p>Title for the generated summary report.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>Passed to the grid runner, e.g. `n`, `times`, `max_outer_iter`,
-`dependence`, `missingness`, and `start_mode`.</p></dd>
+<dd><p>Passed to the grid runner, e.g. <code>n</code>, <code>times</code>, <code>max_outer_iter</code>,
+<code>dependence</code>, <code>missingness</code>, and <code>start_mode</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A data frame of per-fit results. The return value also carries
-  `"parameter_results"` and `"runtime_summary"` attributes.</p>
+<code>"parameter_results"</code> and <code>"runtime_summary"</code> attributes.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
