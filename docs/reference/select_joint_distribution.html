@@ -79,6 +79,7 @@ sets.</p>
 <span>  min_pairs <span class="op">=</span> <span class="fl">10</span>,</span>
 <span>  try.gamlss <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  trace <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  progress <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  fit_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  keep_fits <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -131,6 +132,11 @@ before fitting candidates.</p></dd>
 <dt id="arg-trace">trace<a class="anchor" aria-label="anchor" href="#arg-trace"></a></dt>
 <dd><p>Logical; passed to <code><a href="select_margin.html">select_margin()</a></code> and used to decide whether
 candidate <code><a href="gamlss_longitudinal.html">gamlss_longitudinal()</a></code> fit output is shown.</p></dd>
+
+
+<dt id="arg-progress">progress<a class="anchor" aria-label="anchor" href="#arg-progress"></a></dt>
+<dd><p>Logical; if <code>TRUE</code>, print candidate-level progress messages
+with elapsed time and an estimated remaining runtime.</p></dd>
 
 
 <dt id="arg-fit-args">fit_args<a class="anchor" aria-label="anchor" href="#arg-fit-args"></a></dt>
