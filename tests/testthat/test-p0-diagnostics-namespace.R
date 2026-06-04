@@ -1,11 +1,7 @@
 test_that("diagnostic distribution lookup uses gamlss.dist namespace", {
   skip_if_not_installed("gamlss.dist")
 
-  if ("package:gamlss.dist" %in% search()) {
-    detach("package:gamlss.dist", unload = FALSE, character.only = TRUE)
-  }
-
-  expect_false("package:gamlss.dist" %in% search())
+  pLOGNO2 <- function(...) NA_real_
   p <- gamlss.longitudinal:::.gl_call_family_fun(
     "p",
     "LOGNO2",
