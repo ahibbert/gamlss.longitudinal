@@ -247,9 +247,7 @@ regression models with gamlss margins and copulas for dependence.</p>
 provide a basic workflow (which you can apply directly to your own
 dataset) and a more detailed worked example which uses a simulated
 dataset using the built in simulation features. The following sections
-provide more detail for each of the components of the workflow, and
-worked examples for migrating from a GEE or GLMM structure to a
-longitudinal gamlss-based analysis</p>
+provide more detail for each of the components of the workflow.</p>
 <p>Please report any bugs or issues on our github at <a href="https://github.com/ahibbert/gamlss.longitudinal/issues" class="uri">https://github.com/ahibbert/gamlss.longitudinal/issues</a>
 or feel free to reach out to the maintainer at <a href="mailto:a.d.hibbert@gmail.com" class="email">a.d.hibbert@gmail.com</a> for any clarifications.</p>
 <p>This work is largely based on published research by Aydin
@@ -335,86 +333,6 @@ Guide</a></td>
 <td><code>vignette(&quot;adoption-decision-guide&quot;, package = &quot;gamlss.longitudinal&quot;)</code></td>
 <td>Deciding whether the model should be primary, sensitivity-only, or
 not used.</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div id="migration-from-familiar-models" class="section level2">
-<h2>Migration From Familiar Models</h2>
-<p>Use these when starting from an existing GEE or GLMM habit.</p>
-<table>
-<colgroup>
-<col width="33%" />
-<col width="33%" />
-<col width="33%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>Article title</th>
-<th>R code</th>
-<th>Use it for</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><a href="replace-gee-glmm.html">Replacing GEE and GLMM
-Workflows</a></td>
-<td><code>vignette(&quot;replace-gee-glmm&quot;, package = &quot;gamlss.longitudinal&quot;)</code></td>
-<td>A high-level translation from GEE/GLMM concepts to GAMLSS-copula
-concepts.</td>
-</tr>
-<tr class="even">
-<td><a href="replace-a-gee.html">Replace a GEE</a></td>
-<td><code>vignette(&quot;replace-a-gee&quot;, package = &quot;gamlss.longitudinal&quot;)</code></td>
-<td>Replacing a marginal mean GEE when distributional or dependence
-features matter.</td>
-</tr>
-<tr class="odd">
-<td><a href="replace-a-random-intercept-glmm.html">Replace a
-Random-Intercept GLMM</a></td>
-<td><code>vignette(&quot;replace-a-random-intercept-glmm&quot;, package = &quot;gamlss.longitudinal&quot;)</code></td>
-<td>Replacing a random-intercept GLMM when the random effect is mainly a
-dependence device.</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div id="problem-specific-guides" class="section level2">
-<h2>Problem-Specific Guides</h2>
-<p>Use these for common applied wrinkles.</p>
-<table>
-<colgroup>
-<col width="33%" />
-<col width="33%" />
-<col width="33%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>Article title</th>
-<th>R code</th>
-<th>Use it for</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><a href="non-gaussian-longitudinal-outcomes.html">Non-Gaussian
-Longitudinal Outcomes</a></td>
-<td><code>vignette(&quot;non-gaussian-longitudinal-outcomes&quot;, package = &quot;gamlss.longitudinal&quot;)</code></td>
-<td>Positive, skewed, count, tail-sensitive, or otherwise non-Gaussian
-responses.</td>
-</tr>
-<tr class="even">
-<td><a href="missing-visits.html">Missing Visits</a></td>
-<td><code>vignette(&quot;missing-visits&quot;, package = &quot;gamlss.longitudinal&quot;)</code></td>
-<td>Unbalanced panels, absent visits, and missingness-sensitive
-reporting.</td>
-</tr>
-<tr class="odd">
-<td><a href="time-varying-dependence.html">Time-Varying
-Dependence</a></td>
-<td><code>vignette(&quot;time-varying-dependence&quot;, package = &quot;gamlss.longitudinal&quot;)</code></td>
-<td>Modelling changing longitudinal association with
-<code>theta.formula</code>.</td>
 </tr>
 </tbody>
 </table>

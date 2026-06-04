@@ -19,7 +19,7 @@ Welcome to the support page for **gamlss_longitudinal** !
 
 This package provides a easy to use for fitting longitudinal regression models with gamlss margins and copulas for dependence.
 
-This page is organised around your use case. In 'Start Here' we provide a basic workflow (which you can apply directly to your own dataset) and a more detailed worked example which uses a simulated dataset using the built in simulation features. The following sections provide more detail for each of the components of the workflow, and worked examples for migrating from a GEE or GLMM structure to a longitudinal gamlss-based analysis
+This page is organised around your use case. In 'Start Here' we provide a basic workflow (which you can apply directly to your own dataset) and a more detailed worked example which uses a simulated dataset using the built in simulation features. The following sections provide more detail for each of the components of the workflow.
 
 Please report any bugs or issues on our github at https://github.com/ahibbert/gamlss.longitudinal/issues or feel free to reach out to the maintainer at a.d.hibbert@gmail.com for any clarifications.
 
@@ -52,26 +52,6 @@ Use these when reviewing one part of an analysis.
 | [Diagnostics As Decisions](diagnostics-decisions.html) | `vignette("diagnostics-decisions", package = "gamlss.longitudinal")` | `check_model()`, warnings, model-role recommendations, tail checks, and dependence diagnostics. |
 | [Benchmarking Adoption Claims](benchmarking-adoption.html) | `vignette("benchmarking-adoption", package = "gamlss.longitudinal")` | Scenario-level benchmark evidence against GEE, GLMM, and GAM baselines. |
 | [Adoption Decision Guide](adoption-decision-guide.html) | `vignette("adoption-decision-guide", package = "gamlss.longitudinal")` | Deciding whether the model should be primary, sensitivity-only, or not used. |
-
-## Migration From Familiar Models
-
-Use these when starting from an existing GEE or GLMM habit.
-
-| Article title | R code | Use it for |
-|---|---|---|
-| [Replacing GEE and GLMM Workflows](replace-gee-glmm.html) | `vignette("replace-gee-glmm", package = "gamlss.longitudinal")` | A high-level translation from GEE/GLMM concepts to GAMLSS-copula concepts. |
-| [Replace a GEE](replace-a-gee.html) | `vignette("replace-a-gee", package = "gamlss.longitudinal")` | Replacing a marginal mean GEE when distributional or dependence features matter. |
-| [Replace a Random-Intercept GLMM](replace-a-random-intercept-glmm.html) | `vignette("replace-a-random-intercept-glmm", package = "gamlss.longitudinal")` | Replacing a random-intercept GLMM when the random effect is mainly a dependence device. |
-
-## Problem-Specific Guides
-
-Use these for common applied wrinkles.
-
-| Article title | R code | Use it for |
-|---|---|---|
-| [Non-Gaussian Longitudinal Outcomes](non-gaussian-longitudinal-outcomes.html) | `vignette("non-gaussian-longitudinal-outcomes", package = "gamlss.longitudinal")` | Positive, skewed, count, tail-sensitive, or otherwise non-Gaussian responses. |
-| [Missing Visits](missing-visits.html) | `vignette("missing-visits", package = "gamlss.longitudinal")` | Unbalanced panels, absent visits, and missingness-sensitive reporting. |
-| [Time-Varying Dependence](time-varying-dependence.html) | `vignette("time-varying-dependence", package = "gamlss.longitudinal")` | Modelling changing longitudinal association with `theta.formula`. |
 
 ## Reference Pages
 
