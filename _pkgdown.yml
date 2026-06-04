@@ -81,10 +81,7 @@ reference:
       - format_benchmark_report
       - write_benchmark_report
       - write_coverage_summary_report
-  - title: Link Helpers
-    desc: Link functions and simulation shape helpers used in examples and extensions.
+  - title: Simulation Helper Functions
+    desc: Small helper functions used in simulation examples.
     contents:
-      - ends_with("_linkfun")
-      - ends_with("_linkinv")
-      - ends_with("_inv")
       - starts_with("sim_")
