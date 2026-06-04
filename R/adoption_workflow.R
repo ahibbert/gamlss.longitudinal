@@ -1141,7 +1141,7 @@ simulate.gamlss.longitudinal <- function(
   out
 }
 
-.gl_check_table <- function(summary_obj, scores, pit_stats, tail_stats, lag1_cor) {
+.gl_check_table <- function(summary_obj, scores, pit_stats, tail_stats, lag1_cor, dependence_cor_cutoff = 0.25) {
   checks <- list()
   if (!isTRUE(summary_obj$convergence$converged)) {
     checks[[length(checks) + 1L]] <- data.frame(
@@ -1170,12 +1170,16 @@ simulate.gamlss.longitudinal <- function(
       stringsAsFactors = FALSE
     )
   }
-  if (is.finite(lag1_cor) && abs(lag1_cor) > 0.15) {
+  if (is.finite(lag1_cor) && abs(lag1_cor) > dependence_cor_cutoff) {
     checks[[length(checks) + 1L]] <- data.frame(
       area = "dependence",
       severity = "concern",
-      message = "Dependence remains after the copula in normal-score residuals.",
-      action = "Consider a different copula family, time-varying dependence, or richer serial structure.",
+      message = paste0(
+        "Dependence remains after the copula in normal-score residuals (|lag-1 cor| > ",
+        dependence_cor_cutoff,
+        ")."
+      ),
+      action = "Consider a different copula family, time-varying dependence, richer serial structure, or a sensitivity refit before treating this as a failure.",
       stringsAsFactors = FALSE
     )
   }
@@ -1243,6 +1247,9 @@ simulate.gamlss.longitudinal <- function(
 #' @param include_plots Logical; include standard diagnostic plot objects in
 #'   `check$plots`. Visual review should usually use `plot(object)` or the
 #'   explicit diagnostic helpers instead.
+#' @param dependence_cor_cutoff Absolute lag-1 normal-score residual
+#'   correlation above which the dependence check is flagged. The default is a
+#'   review threshold rather than a formal hypothesis test.
 #' @param ... Passed to [summary.gamlss.longitudinal()] when `include_vcov` is
 #'   `TRUE`.
 #'
@@ -1251,9 +1258,20 @@ simulate.gamlss.longitudinal <- function(
 #'   reviewed or reported, and a compact `recommendation` row for model role
 #'   decisions.
 #' @export
-check_model <- function(object, include_vcov = FALSE, include_plots = FALSE, ...) {
+check_model <- function(
+  object,
+  include_vcov = FALSE,
+  include_plots = FALSE,
+  dependence_cor_cutoff = 0.25,
+  ...
+) {
   if (!inherits(object, "gamlss.longitudinal")) {
     stop("'object' must be a fitted 'gamlss.longitudinal' object.", call. = FALSE)
+  }
+  dependence_cor_cutoff <- as.numeric(dependence_cor_cutoff)
+  if (length(dependence_cor_cutoff) != 1L || !is.finite(dependence_cor_cutoff) ||
+      dependence_cor_cutoff <= 0 || dependence_cor_cutoff >= 1) {
+    stop("'dependence_cor_cutoff' must be a single number between 0 and 1.", call. = FALSE)
   }
 
   s <- summary(object, include_vcov = include_vcov, ...)
@@ -1282,7 +1300,8 @@ check_model <- function(object, include_vcov = FALSE, include_plots = FALSE, ...
     scores = scores,
     pit_stats = pit_stats,
     tail_stats = tail_stats,
-    lag1_cor = lag1_cor
+    lag1_cor = lag1_cor,
+    dependence_cor_cutoff = dependence_cor_cutoff
   )
   warnings <- checks[checks$severity %in% c("concern", "review", "note"), , drop = FALSE]
 
@@ -1293,7 +1312,11 @@ check_model <- function(object, include_vcov = FALSE, include_plots = FALSE, ...
     scores = scores,
     pit = pit_stats,
     tail = tail_summary,
-    residual_dependence = data.frame(lag = 1L, normal_score_cor = lag1_cor),
+    residual_dependence = data.frame(
+      lag = 1L,
+      normal_score_cor = lag1_cor,
+      cutoff = dependence_cor_cutoff
+    ),
     copula = copula_summary,
     checks = checks,
     warnings = warnings,
