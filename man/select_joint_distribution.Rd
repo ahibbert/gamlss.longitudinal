@@ -16,6 +16,7 @@ select_joint_distribution(
   min_pairs = 10,
   try.gamlss = FALSE,
   trace = FALSE,
+  progress = TRUE,
   fit_args = list(),
   keep_fits = FALSE
 )
@@ -45,6 +46,9 @@ before fitting candidates.}
 
 \item{trace}{Logical; passed to \code{\link[=select_margin]{select_margin()}} and used to decide whether
 candidate \code{\link[=gamlss_longitudinal]{gamlss_longitudinal()}} fit output is shown.}
+
+\item{progress}{Logical; if \code{TRUE}, print candidate-level progress messages
+with elapsed time and an estimated remaining runtime.}
 
 \item{fit_args}{Optional named list of arguments overriding the default
 \code{\link[=gamlss_longitudinal]{gamlss_longitudinal()}} screening fit settings.}
