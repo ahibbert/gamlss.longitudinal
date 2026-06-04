@@ -67,7 +67,7 @@ test_that("T203 check_model returns decision-oriented diagnostic object", {
   dat <- make_fixture_factor_time_interaction(n_subject = 14L)
   fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
 
-  chk <- check_model(fit, include_plots = FALSE)
+  chk <- check_model(fit, include_plots = FALSE, dependence_cor_cutoff = 0.3)
 
   expect_s3_class(chk, "gamlss_longitudinal_check")
   expect_true(all(c("model", "fit", "convergence", "scores", "pit", "tail", "checks", "warnings", "recommendation", "decisions") %in% names(chk)))
@@ -79,6 +79,35 @@ test_that("T203 check_model returns decision-oriented diagnostic object", {
   expect_true(all(chk$warnings$severity %in% c("concern", "review", "note")))
   expect_true(is.character(chk$decisions))
   expect_true(length(chk$decisions) >= 1L)
+  expect_equal(chk$residual_dependence$cutoff, 0.3)
+})
+
+test_that("T203b check_missingness screens response missingness against observed predictors", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 40L)
+  set.seed(203)
+  miss_prob <- stats::plogis(
+    -1.4 +
+      0.025 * (dat$age - mean(dat$age)) +
+      0.35 * (dat$time_raw == levels(dat$time_raw)[3])
+  )
+  dat$y[stats::runif(nrow(dat)) < miss_prob] <- NA_real_
+
+  chk <- check_missingness(
+    dat,
+    response_var = "y",
+    time_var = "time_raw",
+    subject_var = "id",
+    predictors = c("time_raw", "gender", "age")
+  )
+
+  expect_s3_class(chk, "gamlss_longitudinal_missingness_check")
+  expect_equal(chk$response$n_missing, sum(is.na(dat$y)))
+  expect_true(chk$assessment %in% c("covariate_related_missingness", "no_detected_covariate_association"))
+  expect_true(all(c("term", "p_value") %in% names(chk$terms)))
+  expect_output(print(chk), "Response Missingness Check")
+
+  no_missing <- check_missingness(dat[!is.na(dat$y), ], response_var = "y")
+  expect_equal(no_missing$assessment, "no_missing_responses")
 })
 
 test_that("T204 marginal_effects summarizes counterfactual parameter contrasts", {

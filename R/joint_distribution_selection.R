@@ -55,7 +55,8 @@ select_joint_distribution <- function(
   .joint_selection_check_column(data, response_var, "response_var")
   .joint_selection_check_column(data, time_var, "time_var")
   .joint_selection_check_column(data, subject_var, "subject_var")
-  if (!is.list(fit_args) || is.null(names(fit_args)) || any(!nzchar(names(fit_args)))) {
+  if (!is.list(fit_args) ||
+      (length(fit_args) > 0L && (is.null(names(fit_args)) || any(!nzchar(names(fit_args)))))) {
     stop("'fit_args' must be a named list.", call. = FALSE)
   }
   min_pairs <- as.integer(min_pairs)
