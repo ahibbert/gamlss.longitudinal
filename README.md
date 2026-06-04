@@ -26,7 +26,7 @@ Support articles:
 
 - [Inference and uncertainty](https://ahibbert.github.io/gamlss.longitudinal/articles/inference-uncertainty.html)
 - [Diagnostics as decisions](https://ahibbert.github.io/gamlss.longitudinal/articles/diagnostics-decisions.html)
-- [Adoption decision guide](https://ahibbert.github.io/gamlss.longitudinal/articles/adoption-decision-guide.html)
+- [Simulator usage](https://ahibbert.github.io/gamlss.longitudinal/articles/simulator-usage.html)
 - [Benchmarking adoption claims](https://ahibbert.github.io/gamlss.longitudinal/articles/benchmarking-adoption.html)
 
 ## Workflow Map

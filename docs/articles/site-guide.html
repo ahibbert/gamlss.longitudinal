@@ -40,9 +40,9 @@
     <li><h6 class="dropdown-header" data-toc-skip>Worked Examples</h6></li>
     <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard workflow: screening, fit, inference, diagnostics, and simulation</a></li>
     <li><a class="dropdown-item" href="../articles/native-simulation-workflow.html">Detailed worked example for a longitudinal gamlss model fit</a></li>
+    <li><a class="dropdown-item" href="../articles/simulator-usage.html">Simulator usage</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Adoption Guides</h6></li>
-    <li><a class="dropdown-item" href="../articles/adoption-decision-guide.html">Adoption Decision Guide</a></li>
     <li><a class="dropdown-item" href="../articles/inference-uncertainty.html">Inference and Uncertainty</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics-decisions.html">Diagnostics As Decisions</a></li>
     <li><a class="dropdown-item" href="../articles/benchmarking-adoption.html">Benchmarking Adoption Claims</a></li>
@@ -73,27 +73,28 @@
 
     
     
-<p>Welcome to the support page for <strong>gamlss_longitudinal</strong>
-!</p>
-<p>This package provides a easy to use for fitting longitudinal
-regression models with gamlss margins and copulas for dependence.</p>
-<p>This page is organised around your use case. In ‘Start Here’ we
-provide a basic workflow (which you can apply directly to your own
-dataset) and a more detailed worked example which uses a simulated
-dataset using the built in simulation features. The following sections
-provide more detail for each of the components of the workflow.</p>
-<p>Please report any bugs or issues on our github at <a href="https://github.com/ahibbert/gamlss.longitudinal/issues" class="external-link uri">https://github.com/ahibbert/gamlss.longitudinal/issues</a>
-or feel free to reach out to the maintainer at <a href="mailto:a.d.hibbert@gmail.com" class="email">a.d.hibbert@gmail.com</a> for any clarifications.</p>
-<p>This work is largely based on published research by Aydin
-Sareff-Hibbert and Gillian Heller: <a href="https://arxiv.org/abs/2410.11892" class="external-link uri">https://arxiv.org/abs/2410.11892</a> <a href="https://arxiv.org/abs/2410.11892" class="external-link uri">https://arxiv.org/abs/2410.11892</a> (update to
-gamlss_longitudinal paper)</p>
+<p>Welcome to the support page for
+<strong>gamlss_longitudinal</strong>.</p>
+<p>This package fits longitudinal regression models with GAMLSS marginal
+distributions and copulas for within-subject dependence.</p>
+<p>Use this page as the landing point for the main workflows and support
+articles.</p>
+<p>Please report bugs or issues at <a href="https://github.com/ahibbert/gamlss.longitudinal/issues" class="external-link uri">https://github.com/ahibbert/gamlss.longitudinal/issues</a>.</p>
+<p>For details on the mathematical framework, optimiser, or model
+performance, see:</p>
+<ul>
+<li><a href="https://arxiv.org/abs/2410.11892" class="external-link uri">https://arxiv.org/abs/2410.11892</a></li>
+<li>
+<a href="https://arxiv.org/abs/2410.11892" class="external-link uri">https://arxiv.org/abs/2410.11892</a> (updated
+gamlss_longitudinal paper once available)</li>
+</ul>
 <div class="section level2">
 <h2 id="start-here">Start Here<a class="anchor" aria-label="anchor" href="#start-here"></a>
 </h2>
 <p>Installation:</p>
 <pre><code><span><span class="fu">remotes</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"ahibbert/gamlss.longitudinal"</span><span class="op">)</span></span></code></pre>
-<p>Read these first if you want the shortest path from data to an
-interpretable longitudinal model.</p>
+<p>Read these first for the shortest path from data to an interpretable
+longitudinal model:</p>
 <table class="table">
 <colgroup>
 <col width="33%">
@@ -123,9 +124,10 @@ fitting, and diagnostics.</td>
 </table>
 </div>
 <div class="section level2">
-<h2 id="core-workflow-components-come-back-to-update-this-section">Core Workflow Components (COME BACK TO UPDATE THIS SECTION)<a class="anchor" aria-label="anchor" href="#core-workflow-components-come-back-to-update-this-section"></a>
+<h2 id="support-articles">Support Articles<a class="anchor" aria-label="anchor" href="#support-articles"></a>
 </h2>
-<p>Use these when reviewing one part of an analysis.</p>
+<p>Use these articles when you want more detail on a specific part of
+the workflow:</p>
 <table class="table">
 <colgroup>
 <col width="33%">
@@ -134,38 +136,34 @@ fitting, and diagnostics.</td>
 </colgroup>
 <thead><tr class="header">
 <th>Article title</th>
-<th>R code</th>
-<th>Use it for</th>
+<th>Access from R</th>
+<th>Purpose</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td><a href="inference-uncertainty.html">Inference and
-Uncertainty</a></td>
+<td><a href="inference-uncertainty.html">Inference</a></td>
 <td><code><a href="../articles/inference-uncertainty.html">vignette("inference-uncertainty", package = "gamlss.longitudinal")</a></code></td>
 <td>Confidence intervals, Wald tests, likelihood comparisons, bootstrap
 inference, and uncertainty language.</td>
 </tr>
 <tr class="even">
-<td><a href="diagnostics-decisions.html">Diagnostics As
-Decisions</a></td>
+<td><a href="diagnostics-decisions.html">Diagnostics</a></td>
 <td><code><a href="../articles/diagnostics-decisions.html">vignette("diagnostics-decisions", package = "gamlss.longitudinal")</a></code></td>
 <td>
 <code><a href="../reference/check_model.html">check_model()</a></code>, warnings, model-role recommendations,
 tail checks, and dependence diagnostics.</td>
 </tr>
 <tr class="odd">
-<td><a href="benchmarking-adoption.html">Benchmarking Adoption
-Claims</a></td>
+<td><a href="simulator-usage.html">Simulator usage</a></td>
+<td><code><a href="../articles/simulator-usage.html">vignette("simulator-usage", package = "gamlss.longitudinal")</a></code></td>
+<td>How to generate longitudinal datasets with GAMLSS margins, copula
+dependence, covariates, known truth, and missing responses.</td>
+</tr>
+<tr class="even">
+<td><a href="benchmarking-adoption.html">Benchmarking</a></td>
 <td><code><a href="../articles/benchmarking-adoption.html">vignette("benchmarking-adoption", package = "gamlss.longitudinal")</a></code></td>
 <td>Scenario-level benchmark evidence against GEE, GLMM, and GAM
 baselines.</td>
-</tr>
-<tr class="even">
-<td><a href="adoption-decision-guide.html">Adoption Decision
-Guide</a></td>
-<td><code><a href="../articles/adoption-decision-guide.html">vignette("adoption-decision-guide", package = "gamlss.longitudinal")</a></code></td>
-<td>Deciding whether the model should be primary, sensitivity-only, or
-not used.</td>
 </tr>
 </tbody>
 </table>
@@ -173,10 +171,8 @@ not used.</td>
 <div class="section level2">
 <h2 id="reference-pages">Reference Pages<a class="anchor" aria-label="anchor" href="#reference-pages"></a>
 </h2>
-<p>After reading an article, use the reference index for function-level
-details. The reference pages are grouped into standard workflow,
-inference and interpretation, diagnostics, simulation and benchmarks,
-and link helpers.</p>
+<p>Use the reference index for function-level details, including
+simulation helper functions.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
