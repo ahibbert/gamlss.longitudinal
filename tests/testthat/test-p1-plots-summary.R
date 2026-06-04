@@ -202,6 +202,33 @@ test_that("T159 standard fit inspection plotting helpers are available", {
   expect_s3_class(copula_plot$plot, "ggplot")
   expect_true(all(c("plot", "pair_data", "density") %in% names(copula_plot)))
 
+  clayton_dat <- simulate_longitudinal_dataset(
+    n = 120,
+    times = 1:4,
+    margin_dist = gamlss.dist::NO(),
+    margin_params = list(mu = 0, sigma = 1),
+    copula_dist = "C",
+    copula_params = list(theta = 3),
+    seed = 159
+  )
+  clayton_plot <- suppressWarnings(plot_copula_fit(
+    data = clayton_dat,
+    copula_dist = "C",
+    u_var = "u",
+    plot = FALSE
+  ))
+  best_plot <- suppressWarnings(plot_copula_fit(
+    data = clayton_dat,
+    copula_dist = "best",
+    u_var = "u",
+    plot = FALSE
+  ))
+  expect_equal(clayton_plot$copula$family, "C")
+  expect_gt(clayton_plot$copula$par, 0.5)
+  expect_s3_class(clayton_plot$selection, "copula_selection")
+  expect_equal(best_plot$copula$family, best_fit_family(best_plot$selection))
+  expect_gt(abs(best_plot$copula$tau), 0.1)
+
   grid_plot <- suppressWarnings(plot_dist(
     dat,
     margin_dist = gamlss.dist::NO(),
