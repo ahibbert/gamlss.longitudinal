@@ -8,7 +8,7 @@ scale, skewness, tails, quantiles, probabilities, or within-subject dependence.
 ## Install
 
 ```r
-devtools::install_github("ahibbert/gamlss.longitudinal")
+remotes::install_github("ahibbert/gamlss.longitudinal")
 ```
 
 Optional comparator and benchmark workflows use additional packages such as
