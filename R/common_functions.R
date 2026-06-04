@@ -8406,6 +8406,7 @@ plot.copula <- function(x, lags = 1, grid_n = 35, max_pairs_overlay = 300, trans
       ggplot2::geom_hline(yintercept = 0, color = "#666666", linetype = "dashed") +
       ggplot2::geom_col(fill = "#4d4d4d", alpha = 0.8) +
       ggplot2::geom_text(ggplot2::aes(label = paste0("n=", n_pairs)), vjust = -0.35, size = 3) +
+      ggplot2::coord_cartesian(ylim = c(-1, 1)) +
       ggplot2::labs(
         title = "Residual Dependence by Lag",
         subtitle = "Correlations should be close to zero after the Rosenblatt transform",
