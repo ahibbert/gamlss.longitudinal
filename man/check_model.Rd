@@ -4,7 +4,13 @@
 \alias{check_model}
 \title{Check a fitted longitudinal GAMLSS-copula model}
 \usage{
-check_model(object, include_vcov = FALSE, include_plots = FALSE, ...)
+check_model(
+  object,
+  include_vcov = FALSE,
+  include_plots = FALSE,
+  dependence_cor_cutoff = 0.25,
+  ...
+)
 }
 \arguments{
 \item{object}{A fitted \code{gamlss.longitudinal} object.}
@@ -15,6 +21,10 @@ via \code{\link[=summary.gamlss.longitudinal]{summary.gamlss.longitudinal()}}.}
 \item{include_plots}{Logical; include standard diagnostic plot objects in
 \code{check$plots}. Visual review should usually use \code{plot(object)} or the
 explicit diagnostic helpers instead.}
+
+\item{dependence_cor_cutoff}{Absolute lag-1 normal-score residual
+correlation above which the dependence check is flagged. The default is a
+review threshold rather than a formal hypothesis test.}
 
 \item{...}{Passed to \code{\link[=summary.gamlss.longitudinal]{summary.gamlss.longitudinal()}} when \code{include_vcov} is
 \code{TRUE}.}
