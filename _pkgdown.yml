@@ -21,15 +21,9 @@ articles:
   - title: Adoption Guides
     navbar: Adoption Guides
     contents:
-      - replace-gee-glmm
       - adoption-decision-guide
       - inference-uncertainty
       - diagnostics-decisions
-      - replace-a-gee
-      - replace-a-random-intercept-glmm
-      - non-gaussian-longitudinal-outcomes
-      - missing-visits
-      - time-varying-dependence
       - benchmarking-adoption
 
 reference:
@@ -39,11 +33,13 @@ reference:
       - select_margin
       - best_fit
       - select_copula
+      - select_joint_distribution
       - gamlss_longitudinal
       - summary.gamlss.longitudinal
       - coef.gamlss.longitudinal
       - vcov.gamlss.longitudinal
       - logLik.gamlss.longitudinal
+      - gamlss_longitudinal_accessors
   - title: Inference And Interpretation
     desc: Reportable intervals, hypothesis tests, likelihood comparisons, and effects.
     contents:
@@ -53,12 +49,12 @@ reference:
       - bootstrap_inference
       - predict.gamlss.longitudinal
       - marginal_effects
-      - effects.gamlss.longitudinal
       - simulate.gamlss.longitudinal
   - title: Diagnostics
     desc: Decision-oriented checks and visual diagnostics for fitted models.
     contents:
       - check_model
+      - check_missingness
       - copula_time_summary
       - topmodels_diagnostics
       - plot_dist
@@ -84,6 +80,7 @@ reference:
       - summarise_benchmark_results
       - format_benchmark_report
       - write_benchmark_report
+      - write_coverage_summary_report
   - title: Link Helpers
     desc: Link functions and simulation shape helpers used in examples and extensions.
     contents:
