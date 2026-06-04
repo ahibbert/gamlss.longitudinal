@@ -2,14 +2,14 @@ pandoc: 3.8.3
 pkgdown: 2.1.1
 pkgdown_sha: ~
 articles:
-  adoption-decision-guide: adoption-decision-guide.html
   benchmarking-adoption: benchmarking-adoption.html
   diagnostics-decisions: diagnostics-decisions.html
   inference-uncertainty: inference-uncertainty.html
   native-simulation-workflow: native-simulation-workflow.html
+  simulator-usage: simulator-usage.html
   site-guide: site-guide.html
   standard-workflow: standard-workflow.html
-last_built: 2026-06-04T02:16Z
+last_built: 2026-06-04T03:53Z
 urls:
   reference: https://ahibbert.github.io/gamlss.longitudinal/reference
   article: https://ahibbert.github.io/gamlss.longitudinal/articles

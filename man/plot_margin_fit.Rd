@@ -12,6 +12,7 @@ plot_margin_fit(
   response_var = "response",
   bins = 30,
   grid_n = 200,
+  response_scale = c("response", "log"),
   by_time = FALSE,
   time_var = "time",
   plot = TRUE,
@@ -36,6 +37,9 @@ row-specific fitted parameters.}
 \item{bins}{Number of histogram bins.}
 
 \item{grid_n}{Number of grid points used for the fitted density.}
+
+\item{response_scale}{Plot the density on the original response scale or,
+for positive responses, on the log-response scale.}
 
 \item{by_time}{Logical; facet the plot by time. For fitted longitudinal
 models, fitted densities are averaged within each time point.}

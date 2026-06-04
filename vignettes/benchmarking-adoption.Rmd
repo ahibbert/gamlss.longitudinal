@@ -21,8 +21,9 @@ produce one universal leaderboard. Each benchmark scenario names the applied
 claim, the data-generating setting, the comparator methods, and the metrics
 that decide whether the claim is supported.
 
-For the decision rubric that separates primary-model use from sensitivity-model
-use, see `vignette("adoption-decision-guide", package = "gamlss.longitudinal")`.
+For reporting language around model checks and uncertainty, see
+`vignette("diagnostics-decisions", package = "gamlss.longitudinal")` and
+`vignette("inference-uncertainty", package = "gamlss.longitudinal")`.
 
 ## Scenario Plan
 

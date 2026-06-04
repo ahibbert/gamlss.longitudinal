@@ -40,9 +40,9 @@
     <li><h6 class="dropdown-header" data-toc-skip>Worked Examples</h6></li>
     <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard workflow: screening, fit, inference, diagnostics, and simulation</a></li>
     <li><a class="dropdown-item" href="../articles/native-simulation-workflow.html">Detailed worked example for a longitudinal gamlss model fit</a></li>
+    <li><a class="dropdown-item" href="../articles/simulator-usage.html">Simulator usage</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Adoption Guides</h6></li>
-    <li><a class="dropdown-item" href="../articles/adoption-decision-guide.html">Adoption Decision Guide</a></li>
     <li><a class="dropdown-item" href="../articles/inference-uncertainty.html">Inference and Uncertainty</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics-decisions.html">Diagnostics As Decisions</a></li>
     <li><a class="dropdown-item" href="../articles/benchmarking-adoption.html">Benchmarking Adoption Claims</a></li>
@@ -368,13 +368,22 @@ dependence.</p>
 <p>For positive continuous responses, <code><a href="../reference/select_margin.html">select_margin()</a></code> gives
 a ranked marginal screen using <code><a href="https://rdrr.io/pkg/gamlss/man/fitDist.html" class="external-link">gamlss::fitDist()</a></code> and marks
 whether each family is supported by <code><a href="../reference/gamlss_longitudinal.html">gamlss_longitudinal()</a></code>.
-This screen does not account for longitudinal dependence or covariates,
-so it is a shortlist rather than the final model.</p>
+The screen uses a focused set of ten positive, right-skewed continuous
+families so the first shortlist is interpretable rather than dominated
+by very flexible Box-Cox-style families. This screen does not account
+for longitudinal dependence or covariates, so it is a shortlist rather
+than the final model.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">margin_selection</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/select_margin.html">select_margin</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">margin_candidate_families</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>  <span class="st">"GG"</span>, <span class="st">"GA"</span>, <span class="st">"GIG"</span>, <span class="st">"WEI"</span>, <span class="st">"WEI2"</span>,</span>
+<span>  <span class="st">"WEI3"</span>, <span class="st">"EXP"</span>, <span class="st">"PARETO2"</span>, <span class="st">"GP"</span>, <span class="st">"LOGNO"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">margin_selection</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/select_margin.html">select_margin</a></span><span class="op">(</span></span>
 <span>  <span class="va">dat</span>,</span>
 <span>  response_var <span class="op">=</span> <span class="st">"response"</span>,</span>
 <span>  type <span class="op">=</span> <span class="st">"realplus"</span>,</span>
+<span>  families <span class="op">=</span> <span class="va">margin_candidate_families</span>,</span>
 <span>  try.gamlss <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  trace <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
@@ -384,30 +393,30 @@ so it is a shortlist rather than the final model.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Marginal Distribution Screen</span></span>
 <span><span class="co">#&gt; ----------------------------</span></span>
-<span><span class="co">#&gt; Selected: BCPEo </span></span>
+<span><span class="co">#&gt; Selected: GG </span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  family      AIC     type rank    delta_AIC supported_by_longitudinal</span></span>
-<span><span class="co">#&gt;   BCPEo 2720.409 realplus    1 0.000000e+00                      TRUE</span></span>
-<span><span class="co">#&gt;    BCPE 2720.409 realplus    2 4.547474e-12                      TRUE</span></span>
-<span><span class="co">#&gt;    BCTo 2723.818 realplus    3 3.409273e+00                      TRUE</span></span>
-<span><span class="co">#&gt;     BCT 2723.818 realplus    4 3.409273e+00                      TRUE</span></span>
-<span><span class="co">#&gt;    BCCG 2738.099 realplus    5 1.768978e+01                      TRUE</span></span>
-<span><span class="co">#&gt;   BCCGo 2738.099 realplus    6 1.768978e+01                      TRUE</span></span>
-<span><span class="co">#&gt;     GB2 2748.624 realplus    7 2.821493e+01                      TRUE</span></span>
-<span><span class="co">#&gt;      GG 2790.710 realplus    8 7.030097e+01                      TRUE</span></span>
-<span><span class="co">#&gt;      GA 2807.901 realplus    9 8.749231e+01                      TRUE</span></span>
-<span><span class="co">#&gt;     GIG 2809.901 realplus   10 8.949231e+01                      TRUE</span></span>
+<span><span class="co">#&gt;   family      AIC     type rank delta_AIC supported_by_longitudinal</span></span>
+<span><span class="co">#&gt;       GG 2790.710 realplus    1   0.00000                      TRUE</span></span>
+<span><span class="co">#&gt;       GA 2807.901 realplus    2  17.19133                      TRUE</span></span>
+<span><span class="co">#&gt;      GIG 2809.901 realplus    3  19.19134                      TRUE</span></span>
+<span><span class="co">#&gt;      WEI 2821.609 realplus    4  30.89932                      TRUE</span></span>
+<span><span class="co">#&gt;     WEI2 2821.609 realplus    5  30.89932                      TRUE</span></span>
+<span><span class="co">#&gt;     WEI3 2821.609 realplus    6  30.89932                      TRUE</span></span>
+<span><span class="co">#&gt;      EXP 2827.273 realplus    7  36.56275                      TRUE</span></span>
+<span><span class="co">#&gt;       GP 2829.143 realplus    8  38.43287                      TRUE</span></span>
+<span><span class="co">#&gt;  PARETO2 2829.143 realplus    9  38.43287                      TRUE</span></span>
+<span><span class="co">#&gt;    LOGNO 3259.033 realplus   10 468.32336                      TRUE</span></span>
 <span></span>
 <span><span class="va">margin_choice</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/best_fit.html">best_fit</a></span><span class="op">(</span><span class="va">margin_selection</span><span class="op">)</span></span>
 <span><span class="va">margin_choice</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"family_name"</span>, <span class="st">"rank"</span>, <span class="st">"AIC"</span>, <span class="st">"delta_AIC"</span>, <span class="st">"supported_by_longitudinal"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt; $family_name</span></span>
-<span><span class="co">#&gt; [1] "BCPEo"</span></span>
+<span><span class="co">#&gt; [1] "GG"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $rank</span></span>
 <span><span class="co">#&gt; [1] 1</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $AIC</span></span>
-<span><span class="co">#&gt; [1] 2720.409</span></span>
+<span><span class="co">#&gt; [1] 2790.71</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $delta_AIC</span></span>
 <span><span class="co">#&gt; [1] 0</span></span>
@@ -425,13 +434,17 @@ so it is a shortlist rather than the final model.</p>
 <p>The detailed model fit starts from the screened marginal family
 rather than the known simulation truth. The explicit <code><a href="https://rdrr.io/pkg/gamlss.dist/man/GG.html" class="external-link">GG()</a></code>
 branch only fixes interpretable link functions when the selected family
-is generalized gamma.</p>
+is generalized gamma. The overlay below is an intercept-only exploratory
+marginal fit; it is useful for checking the first shortlist, while the
+fitted model overlay after the full model uses row-specific
+covariate-adjusted parameters.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_margin_fit.html">plot_margin_fit</a></span><span class="op">(</span></span>
 <span>  <span class="va">dat</span>,</span>
 <span>  margin_dist <span class="op">=</span> <span class="va">margin_dist</span>,</span>
 <span>  response_var <span class="op">=</span> <span class="st">"response"</span>,</span>
-<span>  bins <span class="op">=</span> <span class="fl">30</span></span>
+<span>  bins <span class="op">=</span> <span class="fl">30</span>,</span>
+<span>  response_scale <span class="op">=</span> <span class="st">"log"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><img src="native-simulation-workflow_files/figure-html/marginal-fit-overlay-1.png" alt="Histogram of observed responses with fitted generalized gamma marginal distribution overlay." width="85%" style="display: block; margin: auto;"></p>
 </div>
@@ -455,30 +468,30 @@ marginal distribution.</p>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">copula_selection</span></span>
-<span><span class="co">#&gt;   family        par par2       tau   logLik        AIC        BIC n_pairs</span></span>
-<span><span class="co">#&gt; 1      t  0.7506443    6 0.5405135 690.4608 -1376.9216 -1368.9689     394</span></span>
-<span><span class="co">#&gt; 2      G  3.2219568    0 0.6896296 677.6086 -1353.2172 -1349.2408     394</span></span>
-<span><span class="co">#&gt; 3      N  0.7572337    0 0.5468993 671.2170 -1340.4341 -1336.4577     394</span></span>
-<span><span class="co">#&gt; 4      C  0.8604447    0 0.3008080 669.8804 -1337.7609 -1333.7845     394</span></span>
-<span><span class="co">#&gt; 5      F 10.7450201    0 0.6847151 492.2707  -982.5414  -978.5650     394</span></span>
-<span><span class="co">#&gt; 6      J  7.7111267    0 0.7761975 439.3928  -876.7857  -872.8093     394</span></span>
+<span><span class="co">#&gt;   family       par par2       tau    logLik        AIC        BIC n_pairs</span></span>
+<span><span class="co">#&gt; 1      F 5.8527208    0 0.5063406 100.64466 -199.28932 -195.31297     394</span></span>
+<span><span class="co">#&gt; 2      N 0.6354938    0 0.4384069  95.71206 -189.42412 -185.44777     394</span></span>
+<span><span class="co">#&gt; 3      t 0.6423379   20 0.4440708  96.55031 -189.10062 -181.14792     394</span></span>
+<span><span class="co">#&gt; 4      G 1.7047750    0 0.4134123  76.23822 -150.47645 -146.50009     394</span></span>
+<span><span class="co">#&gt; 5      C 0.7196895    0 0.2646219  63.64762 -125.29524 -121.31889     394</span></span>
+<span><span class="co">#&gt; 6      J 1.7204565    0 0.2860853  38.01710  -74.03421  -70.05786     394</span></span>
 <span></span>
 <span><span class="va">copula_choice</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/best_fit.html">best_fit</a></span><span class="op">(</span><span class="va">copula_selection</span><span class="op">)</span></span>
 <span><span class="va">copula_choice</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"family"</span>, <span class="st">"rank"</span>, <span class="st">"AIC"</span>, <span class="st">"delta_AIC"</span>, <span class="st">"tau"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt; $family</span></span>
-<span><span class="co">#&gt; [1] "t"</span></span>
+<span><span class="co">#&gt; [1] "F"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $&lt;NA&gt;</span></span>
 <span><span class="co">#&gt; NULL</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $AIC</span></span>
-<span><span class="co">#&gt; [1] -1376.922</span></span>
+<span><span class="co">#&gt; [1] -199.2893</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $&lt;NA&gt;</span></span>
 <span><span class="co">#&gt; NULL</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $tau</span></span>
-<span><span class="co">#&gt; [1] 0.5405135</span></span>
+<span><span class="co">#&gt; [1] 0.5063406</span></span>
 <span></span>
 <span><span class="va">screened_copula_dist</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/best_fit.html">best_fit_family</a></span><span class="op">(</span><span class="va">copula_selection</span><span class="op">)</span></span>
 <span><span class="va">copula_dist</span> <span class="op">&lt;-</span> <span class="va">screened_copula_dist</span></span></code></pre></div>
@@ -516,37 +529,37 @@ direction.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Joint Distribution Screen</span></span>
 <span><span class="co">#&gt; -------------------------</span></span>
-<span><span class="co">#&gt; Selected: BCPEo+J </span></span>
+<span><span class="co">#&gt; Selected: GG+F </span></span>
 <span><span class="co">#&gt; Criterion: AIC </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  rank margin_family copula_family    logLik      AIC      BIC EDF converged</span></span>
-<span><span class="co">#&gt;     1         BCPEo             J -1867.601 3745.202 3767.186   5     FALSE</span></span>
-<span><span class="co">#&gt;     2         BCPEo             G -1885.866 3781.733 3803.717   5     FALSE</span></span>
-<span><span class="co">#&gt;     3         BCPEo             F -1925.329 3860.658 3882.642   5     FALSE</span></span>
-<span><span class="co">#&gt;     4         BCPEo             N -1942.966 3895.933 3917.917   5     FALSE</span></span>
-<span><span class="co">#&gt;     5         BCPEo             t -1943.557 3899.115 3925.497   6     FALSE</span></span>
-<span><span class="co">#&gt;     6         BCPEo             C -2125.422 4260.844 4282.829   5     FALSE</span></span>
+<span><span class="co">#&gt;     1            GG             F -1294.784 2597.568 2615.156   4     FALSE</span></span>
+<span><span class="co">#&gt;     2            GG             N -1295.397 2598.795 2616.382   4     FALSE</span></span>
+<span><span class="co">#&gt;     3            GG             G -1312.751 2633.502 2651.090   4     FALSE</span></span>
+<span><span class="co">#&gt;     4            GG             t -1331.328 2672.656 2694.640   5     FALSE</span></span>
+<span><span class="co">#&gt;     5            GG             C -1349.025 2706.050 2723.638   4     FALSE</span></span>
+<span><span class="co">#&gt;     6            GG             J -1361.384 2730.768 2748.356   4     FALSE</span></span>
 <span><span class="co">#&gt;  elapsed_sec error</span></span>
-<span><span class="co">#&gt;     1.149612  &lt;NA&gt;</span></span>
-<span><span class="co">#&gt;     1.053563  &lt;NA&gt;</span></span>
-<span><span class="co">#&gt;     1.421244  &lt;NA&gt;</span></span>
-<span><span class="co">#&gt;     1.071386  &lt;NA&gt;</span></span>
-<span><span class="co">#&gt;     1.550268  &lt;NA&gt;</span></span>
-<span><span class="co">#&gt;     1.103009  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    0.2287228  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    0.5626850  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    0.2268760  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    0.4332120  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    0.2492099  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    0.2481790  &lt;NA&gt;</span></span>
 <span></span>
 <span><span class="va">joint_choice</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/best_fit.html">best_fit</a></span><span class="op">(</span><span class="va">joint_selection</span><span class="op">)</span></span>
 <span><span class="va">joint_choice</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"margin_family_name"</span>, <span class="st">"copula_family"</span>, <span class="st">"rank"</span>, <span class="st">"AIC"</span>, <span class="st">"delta_AIC"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt; $margin_family_name</span></span>
-<span><span class="co">#&gt; [1] "BCPEo"</span></span>
+<span><span class="co">#&gt; [1] "GG"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $copula_family</span></span>
-<span><span class="co">#&gt; [1] "J"</span></span>
+<span><span class="co">#&gt; [1] "F"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $rank</span></span>
 <span><span class="co">#&gt; [1] 1</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $AIC</span></span>
-<span><span class="co">#&gt; [1] 3745.202</span></span>
+<span><span class="co">#&gt; [1] 2597.568</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $delta_AIC</span></span>
 <span><span class="co">#&gt; [1] 0</span></span>
@@ -557,8 +570,8 @@ direction.</p>
 <span>  copula <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">copula_dist</span>, <span class="va">joint_choice</span><span class="op">$</span><span class="va">copula_family</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;     screen margin copula</span></span>
-<span><span class="co">#&gt; 1 separate  BCPEo      t</span></span>
-<span><span class="co">#&gt; 2    joint  BCPEo      J</span></span></code></pre></div>
+<span><span class="co">#&gt; 1 separate     GG      F</span></span>
+<span><span class="co">#&gt; 2    joint     GG      F</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="fit-the-longitudinal-model">Fit The Longitudinal Model<a class="anchor" aria-label="anchor" href="#fit-the-longitudinal-model"></a>
@@ -601,44 +614,36 @@ that the scale and dependence submodels become hard to interpret.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; GAMLSS Longitudinal Model Summary</span></span>
 <span><span class="co">#&gt; --------------------------------</span></span>
-<span><span class="co">#&gt; Margin distribution: BCPEo </span></span>
-<span><span class="co">#&gt; Copula distribution: t </span></span>
+<span><span class="co">#&gt; Margin distribution: GG </span></span>
+<span><span class="co">#&gt; Copula distribution: F </span></span>
 <span><span class="co">#&gt; Observations: 600  | Subjects: 120  | Time points: 5 </span></span>
-<span><span class="co">#&gt; Fixed coefficients: 14  | Smooth terms: 4  | Smooth EDF: 13.8177 </span></span>
+<span><span class="co">#&gt; Fixed coefficients: 12  | Smooth terms: 4  | Smooth EDF: 9.5037 </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Fixed coefficients:</span></span>
 <span><span class="co">#&gt; --------------------</span></span>
 <span><span class="co">#&gt;   [mu]</span></span>
 <span><span class="co">#&gt;     term                 estimate  std_error   p_value  signif</span></span>
-<span><span class="co">#&gt;     mu.intercept          -0.5046     0.0000   0.00000  ***   </span></span>
-<span><span class="co">#&gt;     mu.treatmentlow       -0.0336     0.0000   0.00000  ***   </span></span>
-<span><span class="co">#&gt;     mu.treatmenthigh       0.1586     0.0004   0.00000  ***   </span></span>
-<span><span class="co">#&gt;     mu.time_scaled        -0.1575     0.0000   0.00000  ***   </span></span>
+<span><span class="co">#&gt;     mu.intercept           1.3431     0.0516  &lt;0.00001  ***   </span></span>
+<span><span class="co">#&gt;     mu.treatmentlow        0.1972     0.0815   0.01560  *     </span></span>
+<span><span class="co">#&gt;     mu.treatmenthigh       0.5862     0.0686  &lt;0.00001  ***   </span></span>
+<span><span class="co">#&gt;     mu.time_scaled        -0.1813     0.1609   0.25986        </span></span>
 <span><span class="co">#&gt;   --------------------</span></span>
 <span><span class="co">#&gt;   [sigma]</span></span>
 <span><span class="co">#&gt;     term                 estimate  std_error   p_value  signif</span></span>
-<span><span class="co">#&gt;     sigma.intercept       24.3130     0.2318   0.00000  ***   </span></span>
-<span><span class="co">#&gt;     sigma.treatmentlow     0.9654     0.3761   0.01025  *     </span></span>
-<span><span class="co">#&gt;     sigma.treatmenthigh    2.4771     0.4200  &lt;0.00001  ***   </span></span>
-<span><span class="co">#&gt;     sigma.time_scaled     -9.1215     0.2517  &lt;0.00001  ***   </span></span>
+<span><span class="co">#&gt;     sigma.intercept       -1.2525     0.0814  &lt;0.00001  ***   </span></span>
+<span><span class="co">#&gt;     sigma.treatmentlow     0.4254     0.0788  &lt;0.00001  ***   </span></span>
+<span><span class="co">#&gt;     sigma.treatmenthigh    0.2585     0.0773   0.00083  ***   </span></span>
+<span><span class="co">#&gt;     sigma.time_scaled      1.5535     0.1126  &lt;0.00001  ***   </span></span>
 <span><span class="co">#&gt;   --------------------</span></span>
 <span><span class="co">#&gt;   [nu]</span></span>
 <span><span class="co">#&gt;     term                 estimate  std_error   p_value  signif</span></span>
-<span><span class="co">#&gt;     nu.intercept           6.9952     0.0049   0.00000  ***   </span></span>
-<span><span class="co">#&gt;     nu.time_scaled        -6.2678     0.0045   0.00000  ***   </span></span>
-<span><span class="co">#&gt;   --------------------</span></span>
-<span><span class="co">#&gt;   [tau]</span></span>
-<span><span class="co">#&gt;     term                 estimate  std_error   p_value  signif</span></span>
-<span><span class="co">#&gt;     tau.intercept         -3.0487     0.0127   0.00000  ***   </span></span>
+<span><span class="co">#&gt;     nu.intercept           1.0065     0.3592   0.00508  **    </span></span>
+<span><span class="co">#&gt;     nu.time_scaled         0.0629     0.3823   0.86922        </span></span>
 <span><span class="co">#&gt;   --------------------</span></span>
 <span><span class="co">#&gt;   [theta]</span></span>
 <span><span class="co">#&gt;     term                 estimate  std_error   p_value  signif</span></span>
-<span><span class="co">#&gt;     theta.intercept        0.6184     0.1178  &lt;0.00001  ***   </span></span>
-<span><span class="co">#&gt;     theta.time_scaled      0.0700     0.2405   0.77114        </span></span>
-<span><span class="co">#&gt;   --------------------</span></span>
-<span><span class="co">#&gt;   [zeta]</span></span>
-<span><span class="co">#&gt;     term                 estimate  std_error   p_value  signif</span></span>
-<span><span class="co">#&gt;     zeta.intercept        -2.3364     0.6656   0.00045  ***   </span></span>
+<span><span class="co">#&gt;     theta.intercept        1.5198     0.0789  &lt;0.00001  ***   </span></span>
+<span><span class="co">#&gt;     theta.time_scaled      6.2821     0.1185   0.00000  ***   </span></span>
 <span><span class="co">#&gt;   Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Smooth terms:</span></span>
@@ -653,10 +658,10 @@ that the scale and dependence submodels become hard to interpret.</p>
 <span><span class="co">#&gt; Model Selection Criteria:</span></span>
 <span><span class="co">#&gt; --------------------</span></span>
 <span><span class="co">#&gt;          marginal    copula      joint</span></span>
-<span><span class="co">#&gt; LogLik -1448.4821  122.7265 -1325.7556</span></span>
-<span><span class="co">#&gt; AIC     2940.6959 -233.5493  2707.1466</span></span>
-<span><span class="co">#&gt; BIC     3036.8382 -207.3792  2829.4589</span></span>
-<span><span class="co">#&gt; EDF       21.8658    5.9519    27.8177</span></span>
+<span><span class="co">#&gt; LogLik -1185.4488   78.8743 -1106.5745</span></span>
+<span><span class="co">#&gt; AIC     2405.3380 -149.1816  2256.1564</span></span>
+<span><span class="co">#&gt; BIC     2481.0541 -130.3475  2350.7066</span></span>
+<span><span class="co">#&gt; EDF       17.2202    4.2835    21.5037</span></span>
 <span><span class="co">#&gt; --------------------------------</span></span></code></pre></div>
 <p>The summary gives coefficient estimates, uncertainty, and model fit
 statistics. The marginal mean (<code>mu</code>), marginal scale
@@ -667,22 +672,34 @@ effects describe the response location, scale effects describe
 heterogeneity or dispersion, shape effects describe remaining
 distributional asymmetry, and dependence effects describe within-subject
 association after the marginal model has been accounted for.</p>
+<p>The fitted marginal overlay now uses the row-specific distributional
+parameters from the longitudinal model, so it is a better check than the
+intercept-only screening plot for whether the fitted marginal
+distribution tracks the observed response scale and spread.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_margin_fit.html">plot_margin_fit</a></span><span class="op">(</span></span>
+<span>  fit <span class="op">=</span> <span class="va">fit</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">dat</span>,</span>
+<span>  bins <span class="op">=</span> <span class="fl">30</span>,</span>
+<span>  response_scale <span class="op">=</span> <span class="st">"log"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><img src="native-simulation-workflow_files/figure-html/fitted-margin-overlay-1.png" alt="Histogram of observed responses with fitted longitudinal generalized gamma marginal density overlay." width="85%" style="display: block; margin: auto;"></p>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">coef_names</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">inference_terms</span> <span class="op">&lt;-</span> <span class="va">coef_names</span><span class="op">[</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grepl</a></span><span class="op">(</span><span class="st">"^mu\\.treatment|^mu\\.time_scaled|^sigma\\.treatment|^sigma\\.time_scaled|^nu\\.time_scaled|^theta\\.time_scaled"</span>, <span class="va">coef_names</span><span class="op">)</span></span>
 <span><span class="op">]</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint</a></span><span class="op">(</span><span class="va">fit</span>, parm <span class="op">=</span> <span class="va">inference_terms</span><span class="op">)</span></span>
-<span><span class="co">#&gt;                           2.5 %      97.5 %</span></span>
-<span><span class="co">#&gt; theta.time_scaled   -0.40144019  0.54136155</span></span>
-<span><span class="co">#&gt; nu.time_scaled      -6.27667715 -6.25897361</span></span>
-<span><span class="co">#&gt; sigma.treatmentlow   0.22838524  1.70248160</span></span>
-<span><span class="co">#&gt; sigma.treatmenthigh  1.65395494  3.30019131</span></span>
-<span><span class="co">#&gt; sigma.time_scaled   -9.61484196 -8.62807447</span></span>
-<span><span class="co">#&gt; mu.treatmentlow     -0.03362805 -0.03358144</span></span>
-<span><span class="co">#&gt; mu.treatmenthigh     0.15783215  0.15927602</span></span>
-<span><span class="co">#&gt; mu.time_scaled      -0.15752965 -0.15746989</span></span>
+<span><span class="co">#&gt;                           2.5 %    97.5 %</span></span>
+<span><span class="co">#&gt; theta.time_scaled    6.04980443 6.5143862</span></span>
+<span><span class="co">#&gt; nu.time_scaled      -0.68636971 0.8122673</span></span>
+<span><span class="co">#&gt; sigma.treatmentlow   0.27098969 0.5798054</span></span>
+<span><span class="co">#&gt; sigma.treatmenthigh  0.10699039 0.4099978</span></span>
+<span><span class="co">#&gt; sigma.time_scaled    1.33279513 1.7741076</span></span>
+<span><span class="co">#&gt; mu.treatmentlow      0.03735824 0.3569961</span></span>
+<span><span class="co">#&gt; mu.treatmenthigh     0.45168808 0.7207520</span></span>
+<span><span class="co">#&gt; mu.time_scaled      -0.49666466 0.1340729</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/wald_test.html">wald_test</a></span><span class="op">(</span><span class="va">fit</span>, terms <span class="op">=</span> <span class="st">"mu.treatment"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -691,9 +708,9 @@ association after the marginal model has been accounted for.</p>
 <span><span class="co">#&gt; Test type: individual </span></span>
 <span><span class="co">#&gt; VCOV method: analytical </span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;              term estimate rhs std_error statistic p_value     method</span></span>
-<span><span class="co">#&gt;   mu.treatmentlow  -0.0336   0 1.189e-05     -2827       0 analytical</span></span>
-<span><span class="co">#&gt;  mu.treatmenthigh   0.1586   0 0.000e+00       Inf       0 analytical</span></span>
+<span><span class="co">#&gt;              term estimate rhs std_error statistic   p_value     method</span></span>
+<span><span class="co">#&gt;   mu.treatmentlow   0.1972   0   0.08154     2.418 1.560e-02 analytical</span></span>
+<span><span class="co">#&gt;  mu.treatmenthigh   0.5862   0   0.06864     8.541 1.336e-17 analytical</span></span>
 <span><span class="fu"><a href="../reference/wald_test.html">wald_test</a></span><span class="op">(</span><span class="va">fit</span>, terms <span class="op">=</span> <span class="st">"theta.time_scaled"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Wald Test for gamlss.longitudinal</span></span>
@@ -702,12 +719,12 @@ association after the marginal model has been accounted for.</p>
 <span><span class="co">#&gt; VCOV method: analytical </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;               term estimate rhs std_error statistic p_value     method</span></span>
-<span><span class="co">#&gt;  theta.time_scaled  0.06996   0    0.2405    0.2909  0.7711 analytical</span></span></code></pre></div>
+<span><span class="co">#&gt;  theta.time_scaled    6.282   0    0.1185     53.01       0 analytical</span></span></code></pre></div>
 <p>Likelihood comparisons are useful for planned sensitivity checks when
 models are nested or approximately nested and fitted to the same
 observed rows. Here we compare the main model to a simpler model with
 linear age effects and a simpler dependence formula.</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_reduced</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gamlss_longitudinal.html">gamlss_longitudinal</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">dat</span>,</span>
 <span>  margin_dist <span class="op">=</span> <span class="va">margin_dist</span>,</span>
@@ -724,21 +741,21 @@ linear age effects and a simpler dependence formula.</p>
 <span>  inner_stop_crit <span class="op">=</span> <span class="fl">1e-3</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="fl">0</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/likelihood_compare.html">likelihood_compare</a></span><span class="op">(</span>reduced <span class="op">=</span> <span class="va">fit_reduced</span>, main <span class="op">=</span> <span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Likelihood Comparison for gamlss.longitudinal</span></span>
 <span><span class="co">#&gt; --------------------------------------------</span></span>
 <span><span class="co">#&gt; Sequential LR rows compare each model with the previous row.</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;    model n_obs    df logLik  AIC  BIC delta_df LR_statistic   p_value</span></span>
-<span><span class="co">#&gt;  reduced   600 16.00  -1342 2717 2787       NA           NA        NA</span></span>
-<span><span class="co">#&gt;     main   600 27.82  -1326 2707 2829    11.82        33.02 0.0008616</span></span></code></pre></div>
+<span><span class="co">#&gt;    model n_obs   df logLik  AIC  BIC delta_df LR_statistic   p_value</span></span>
+<span><span class="co">#&gt;  reduced   600 14.0  -1120 2267 2329       NA           NA        NA</span></span>
+<span><span class="co">#&gt;     main   600 21.5  -1107 2256 2351    7.504        26.31 0.0006492</span></span></code></pre></div>
 <p>For final reporting, bootstrap inference can be used as a robustness
 check on selected terms. This refits the model for each simulated
 dataset, so the small <code>R</code> below is only to show the workflow;
 applied analyses need many more replicates.</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">boot</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bootstrap_inference.html">bootstrap_inference</a></span><span class="op">(</span></span>
 <span>  <span class="va">fit</span>,</span>
 <span>  R <span class="op">=</span> <span class="fl">1</span>,</span>
@@ -752,7 +769,7 @@ applied analyses need many more replicates.</p>
 <span>    use_backtracking <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">boot</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Parametric Bootstrap for gamlss.longitudinal</span></span>
@@ -762,9 +779,9 @@ applied analyses need many more replicates.</p>
 <span><span class="co">#&gt; Failed refits: 0 </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;               term estimate bootstrap_mean bootstrap_se conf.low conf.high</span></span>
-<span><span class="co">#&gt;    mu.treatmentlow -0.03360       -0.05743           NA -0.05743  -0.05743</span></span>
-<span><span class="co">#&gt;   mu.treatmenthigh  0.15855        0.15317           NA  0.15317   0.15317</span></span>
-<span><span class="co">#&gt;  theta.time_scaled  0.06996        0.20795           NA  0.20795   0.20795</span></span>
+<span><span class="co">#&gt;    mu.treatmentlow   0.1972         0.2281           NA   0.2281    0.2281</span></span>
+<span><span class="co">#&gt;   mu.treatmenthigh   0.5862         0.5554           NA   0.5554    0.5554</span></span>
+<span><span class="co">#&gt;  theta.time_scaled   6.2821         6.3759           NA   6.3759    6.3759</span></span>
 <span><span class="co">#&gt;  successful_replicates</span></span>
 <span><span class="co">#&gt;                      1</span></span>
 <span><span class="co">#&gt;                      1</span></span>
@@ -780,61 +797,55 @@ residual dependence, and inference quality. The residual-dependence flag
 uses a practical correlation cutoff, not a formal test; here we use
 <code>0.25</code> so very small remaining correlations are reviewed
 visually rather than treated as automatic failures.</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">check</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/check_model.html">check_model</a></span><span class="op">(</span><span class="va">fit</span>, include_vcov <span class="op">=</span> <span class="cn">TRUE</span>, dependence_cor_cutoff <span class="op">=</span> <span class="fl">0.25</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">check</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; GAMLSS Longitudinal Model Check</span></span>
 <span><span class="co">#&gt; ------------------------------</span></span>
-<span><span class="co">#&gt; Margin distribution: BCPEo </span></span>
-<span><span class="co">#&gt; Copula distribution: t </span></span>
+<span><span class="co">#&gt; Margin distribution: GG </span></span>
+<span><span class="co">#&gt; Copula distribution: F </span></span>
 <span><span class="co">#&gt; Converged: no </span></span>
-<span><span class="co">#&gt; Joint logLik: -1326 </span></span>
+<span><span class="co">#&gt; Joint logLik: -1107 </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Scoring summary:</span></span>
 <span><span class="co">#&gt;   logs   mae   mse   dss</span></span>
-<span><span class="co">#&gt;  2.682 4.524 45.97 42.33</span></span>
+<span><span class="co">#&gt;  2.195 3.145 24.38 25.49</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; PIT summary:</span></span>
 <span><span class="co">#&gt;    n   mean     sd expected_sd ks_p_value</span></span>
-<span><span class="co">#&gt;  540 0.4238 0.2392      0.2887  2.492e-17</span></span>
+<span><span class="co">#&gt;  540 0.5172 0.2941      0.2887      0.149</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Tail calibration:</span></span>
-<span><span class="co">#&gt;  threshold   lower   upper expected lower_ratio upper_ratio</span></span>
-<span><span class="co">#&gt;       0.05 0.09259 0.00000     0.05       1.852      0.0000</span></span>
-<span><span class="co">#&gt;       0.10 0.12407 0.01111     0.10       1.241      0.1111</span></span>
+<span><span class="co">#&gt;  threshold  lower   upper expected lower_ratio upper_ratio</span></span>
+<span><span class="co">#&gt;       0.05 0.0463 0.05556     0.05      0.9259       1.111</span></span>
+<span><span class="co">#&gt;       0.10 0.1074 0.11667     0.10      1.0741       1.167</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Residual dependence:</span></span>
 <span><span class="co">#&gt;  lag normal_score_cor cutoff</span></span>
-<span><span class="co">#&gt;    1           0.6956   0.25</span></span>
+<span><span class="co">#&gt;    1           0.5241   0.25</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Diagnostic checks:</span></span>
-<span><span class="co">#&gt;                  area severity</span></span>
-<span><span class="co">#&gt;           convergence  concern</span></span>
-<span><span class="co">#&gt;  marginal_calibration  concern</span></span>
-<span><span class="co">#&gt;            dependence  concern</span></span>
+<span><span class="co">#&gt;         area severity</span></span>
+<span><span class="co">#&gt;  convergence  concern</span></span>
+<span><span class="co">#&gt;   dependence  concern</span></span>
 <span><span class="co">#&gt;                                                                              message</span></span>
 <span><span class="co">#&gt;                                                       Convergence was not confirmed.</span></span>
-<span><span class="co">#&gt;                       The marginal distribution is off by the PIT uniformity screen.</span></span>
 <span><span class="co">#&gt;  Dependence remains after the copula in normal-score residuals (|lag-1 cor| &gt; 0.25).</span></span>
 <span><span class="co">#&gt;                                                                                                                                           action</span></span>
 <span><span class="co">#&gt;                                                                        Refit with more iterations, different starts, or a simpler specification.</span></span>
-<span><span class="co">#&gt;                                                Inspect PIT, QQ, worm, and rootogram diagnostics; try a richer margin or covariate specification.</span></span>
 <span><span class="co">#&gt;  Consider a different copula family, time-varying dependence, richer serial structure, or a sensitivity refit before treating this as a failure.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Warnings to report:</span></span>
-<span><span class="co">#&gt;                  area severity</span></span>
-<span><span class="co">#&gt;           convergence  concern</span></span>
-<span><span class="co">#&gt;  marginal_calibration  concern</span></span>
-<span><span class="co">#&gt;            dependence  concern</span></span>
+<span><span class="co">#&gt;         area severity</span></span>
+<span><span class="co">#&gt;  convergence  concern</span></span>
+<span><span class="co">#&gt;   dependence  concern</span></span>
 <span><span class="co">#&gt;                                                                              message</span></span>
 <span><span class="co">#&gt;                                                       Convergence was not confirmed.</span></span>
-<span><span class="co">#&gt;                       The marginal distribution is off by the PIT uniformity screen.</span></span>
 <span><span class="co">#&gt;  Dependence remains after the copula in normal-score residuals (|lag-1 cor| &gt; 0.25).</span></span>
 <span><span class="co">#&gt;                                                                                                                                           action</span></span>
 <span><span class="co">#&gt;                                                                        Refit with more iterations, different starts, or a simpler specification.</span></span>
-<span><span class="co">#&gt;                                                Inspect PIT, QQ, worm, and rootogram diagnostics; try a richer margin or covariate specification.</span></span>
 <span><span class="co">#&gt;  Consider a different copula family, time-varying dependence, richer serial structure, or a sensitivity refit before treating this as a failure.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Recommendation:</span></span>
@@ -845,21 +856,17 @@ visually rather than treated as automatic failures.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Decisions:</span></span>
 <span><span class="co">#&gt; * Convergence was not confirmed. Refit with more iterations, different starts, or a simpler specification.</span></span>
-<span><span class="co">#&gt; * The marginal distribution is off by the PIT uniformity screen. Inspect PIT, QQ, worm, and rootogram diagnostics; try a richer margin or covariate specification.</span></span>
 <span><span class="co">#&gt; * Dependence remains after the copula in normal-score residuals (|lag-1 cor| &gt; 0.25). Consider a different copula family, time-varying dependence, richer serial structure, or a sensitivity refit before treating this as a failure.</span></span>
 <span><span class="va">check</span><span class="op">$</span><span class="va">warnings</span></span>
-<span><span class="co">#&gt;                   area severity</span></span>
-<span><span class="co">#&gt; 1          convergence  concern</span></span>
-<span><span class="co">#&gt; 2 marginal_calibration  concern</span></span>
-<span><span class="co">#&gt; 3           dependence  concern</span></span>
+<span><span class="co">#&gt;          area severity</span></span>
+<span><span class="co">#&gt; 1 convergence  concern</span></span>
+<span><span class="co">#&gt; 2  dependence  concern</span></span>
 <span><span class="co">#&gt;                                                                               message</span></span>
 <span><span class="co">#&gt; 1                                                      Convergence was not confirmed.</span></span>
-<span><span class="co">#&gt; 2                      The marginal distribution is off by the PIT uniformity screen.</span></span>
-<span><span class="co">#&gt; 3 Dependence remains after the copula in normal-score residuals (|lag-1 cor| &gt; 0.25).</span></span>
+<span><span class="co">#&gt; 2 Dependence remains after the copula in normal-score residuals (|lag-1 cor| &gt; 0.25).</span></span>
 <span><span class="co">#&gt;                                                                                                                                            action</span></span>
 <span><span class="co">#&gt; 1                                                                       Refit with more iterations, different starts, or a simpler specification.</span></span>
-<span><span class="co">#&gt; 2                                               Inspect PIT, QQ, worm, and rootogram diagnostics; try a richer margin or covariate specification.</span></span>
-<span><span class="co">#&gt; 3 Consider a different copula family, time-varying dependence, richer serial structure, or a sensitivity refit before treating this as a failure.</span></span>
+<span><span class="co">#&gt; 2 Consider a different copula family, time-varying dependence, richer serial structure, or a sensitivity refit before treating this as a failure.</span></span>
 <span><span class="va">check</span><span class="op">$</span><span class="va">recommendation</span></span>
 <span><span class="co">#&gt;                    role</span></span>
 <span><span class="co">#&gt; 1 revise_before_primary</span></span>
@@ -876,7 +883,7 @@ native copula families. It is intentionally collapsed in the rendered
 workflow because it is a fit-intensive sensitivity review.</p>
 <details><summary>
 Margin-copula sensitivity code
-</summary><div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+</summary><div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sensitivity_selection</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/select_joint_distribution.html">select_joint_distribution</a></span><span class="op">(</span></span>
 <span>  data <span class="op">=</span> <span class="va">dat</span>,</span>
 <span>  response_var <span class="op">=</span> <span class="st">"response"</span>,</span>
@@ -909,7 +916,7 @@ Margin-copula sensitivity code
 screens with the known generating choices. In real data these truth
 columns would not exist, so this check belongs after the ordinary
 modelling workflow rather than before the initial fit.</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">truth_margin_rank</span> <span class="op">&lt;-</span> <span class="va">margin_selection</span><span class="op">[</span></span>
 <span>  <span class="va">margin_selection</span><span class="op">$</span><span class="va">family</span> <span class="op">==</span> <span class="st">"GG"</span>,</span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"family"</span>, <span class="st">"rank"</span>, <span class="st">"AIC"</span>, <span class="st">"delta_AIC"</span><span class="op">)</span>,</span>
@@ -932,7 +939,7 @@ modelling workflow rather than before the initial fit.</p>
 <span><span class="co">#&gt; Selected: </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  family rank     AIC delta_AIC</span></span>
-<span><span class="co">#&gt;      GG    8 2790.71  70.30097</span></span>
+<span><span class="co">#&gt;      GG    1 2790.71         0</span></span>
 <span><span class="va">truth_copula_screen</span></span>
 <span><span class="co">#&gt;   family       par par2       tau    logLik        AIC        BIC n_pairs</span></span>
 <span><span class="co">#&gt; 1      C 1.4258882    0 0.4162098 115.98636 -229.97272 -225.79893     480</span></span>
@@ -941,7 +948,7 @@ modelling workflow rather than before the initial fit.</p>
 <span><span class="co">#&gt; 4      F 4.2950071    0 0.4096134  89.96176 -177.92353 -173.74974     480</span></span>
 <span><span class="co">#&gt; 5      G 1.5530932    0 0.3561236  69.90015 -137.80029 -133.62650     480</span></span>
 <span><span class="co">#&gt; 6      J 1.5950600    0 0.2496792  41.83593  -81.67186  -77.49807     480</span></span></code></pre></div>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_copula_fit.html">plot_copula_fit</a></span><span class="op">(</span></span>
 <span>  data <span class="op">=</span> <span class="va">dat</span>,</span>
 <span>  copula_dist <span class="op">=</span> <span class="va">truth_copula_screen</span>,</span>
@@ -997,7 +1004,7 @@ distributional and smooth-term diagnostics; and Nelsen (2006) and Joe
 assessment.</p>
 <p>The standard model diagnostic dashboard combines PIT, QQ, worm,
 rootogram, and forecast-style checks.</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, data <span class="op">=</span> <span class="va">dat</span><span class="op">)</span></span></code></pre></div>
 <p><img src="native-simulation-workflow_files/figure-html/model-diagnostics-1.png" alt="Dashboard of marginal model diagnostics including PIT, QQ, worm, rootogram, and forecast checks." width="92%" style="display: block; margin: auto;"></p>
 </div>
@@ -1009,7 +1016,7 @@ used to generate the data. The fitted term dashboard is shown
 immediately afterwards.</p>
 <details><summary>
 True-term plotting code
-</summary><div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+</summary><div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">term_theme</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">p</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">p</span> <span class="op">+</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span>base_size <span class="op">=</span> <span class="fl">8.5</span><span class="op">)</span> <span class="op">+</span></span>
@@ -1080,7 +1087,7 @@ True-term plotting code
 <span>  <span class="fu">truth_smooth_plot</span><span class="op">(</span><span class="va">age_grid</span>, <span class="fu">truth_theta_age_smooth</span><span class="op">(</span><span class="va">age_grid</span><span class="op">)</span>, <span class="st">'theta: s(age_scaled, bs = "ps", k = 8)'</span>, <span class="st">"age_scaled"</span><span class="op">)</span>,</span>
 <span>  <span class="fu">truth_factor_plot</span><span class="op">(</span><span class="va">treatment_effect</span>, <span class="st">"mu: treatment"</span>, <span class="st">"treatment"</span>, <span class="st">"fixed contribution: mu.treatment"</span><span class="op">)</span>,</span>
 <span>  <span class="fu">truth_continuous_plot</span><span class="op">(</span><span class="va">time_grid</span>, <span class="fl">0.35</span> <span class="op">*</span> <span class="va">time_grid</span>, <span class="st">"mu: time_scaled"</span>, <span class="st">"time_scaled"</span>, <span class="st">"fixed contribution: mu.time_scaled"</span><span class="op">)</span>,</span>
-<span>  <span class="fu">truth_factor_plot</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>control <span class="op">=</span> <span class="fl">0</span>, low <span class="op">=</span> <span class="fl">0.25</span>, high <span class="op">=</span> <span class="fl">0.25</span><span class="op">)</span>, <span class="st">"sigma: treatment"</span>, <span class="st">"treatment"</span>, <span class="st">"fixed contribution: sigma.treatment"</span><span class="op">)</span>,</span>
+<span>  <span class="fu">truth_factor_plot</span><span class="op">(</span><span class="fl">0.25</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>control <span class="op">=</span> <span class="fl">0</span>, low <span class="op">=</span> <span class="fl">1</span>, high <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>, <span class="st">"sigma: treatment"</span>, <span class="st">"treatment"</span>, <span class="st">"fixed contribution: sigma.treatment"</span><span class="op">)</span>,</span>
 <span>  <span class="fu">truth_continuous_plot</span><span class="op">(</span><span class="va">time_grid</span>, <span class="fl">1.25</span> <span class="op">*</span> <span class="va">time_grid</span>, <span class="st">"sigma: time_scaled"</span>, <span class="st">"time_scaled"</span>, <span class="st">"fixed contribution: sigma.time_scaled"</span><span class="op">)</span>,</span>
 <span>  <span class="fu">truth_continuous_plot</span><span class="op">(</span><span class="va">time_grid</span>, <span class="fl">0.55</span> <span class="op">*</span> <span class="va">time_grid</span>, <span class="st">"nu: time_scaled"</span>, <span class="st">"time_scaled"</span>, <span class="st">"fixed contribution: nu.time_scaled"</span><span class="op">)</span>,</span>
 <span>  <span class="fu">truth_continuous_plot</span><span class="op">(</span><span class="va">time_grid</span>, <span class="fl">1.80</span> <span class="op">*</span> <span class="va">time_grid</span>, <span class="st">"theta: time_scaled"</span>, <span class="st">"time_scaled"</span>, <span class="st">"fixed contribution: theta.time_scaled"</span><span class="op">)</span></span>
@@ -1088,7 +1095,7 @@ True-term plotting code
 <span></span>
 <span><span class="fu">print_term_dashboard</span><span class="op">(</span><span class="va">truth_term_plots</span>, ncol <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span></code></pre></div>
 <p><img src="native-simulation-workflow_files/figure-html/true-terms-1.png" alt="Dashboard of true simulated smooth and fixed term contributions." width="92%" style="display: block; margin: auto;"></p>
-</details><div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+</details><div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_terms.html">plot_terms</a></span><span class="op">(</span><span class="va">fit</span>, data <span class="op">=</span> <span class="va">dat</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; === Plotting term effects for gamlss.longitudinal object ===</span></span>
@@ -1101,7 +1108,7 @@ True-term plotting code
 <p>Finally, inspect the fitted copula directly. The default dashboard
 includes normal-scale pair diagnostics, fitted copula overlays, tail
 summaries, and lagged residual checks.</p>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_copula_diagnostics.html">plot_copula_diagnostics</a></span><span class="op">(</span><span class="va">fit</span>, data <span class="op">=</span> <span class="va">dat</span><span class="op">)</span></span></code></pre></div>
 <p><img src="native-simulation-workflow_files/figure-html/copula-diagnostics-1.png" alt="Copula diagnostic dashboard with residual, tail, and lag dependence checks." width="96%" style="display: block; margin: auto;"></p>
 </div>
@@ -1117,7 +1124,7 @@ trajectories and preserves the fitted copula dependence.
 <code><a href="../reference/marginal_effects.html">marginal_effects()</a></code> constructs counterfactual summaries by
 changing a covariate and averaging the fitted distributional parameter
 over the supplied data.</p>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span></span>
 <span>  <span class="va">fit</span>,</span>
 <span>  newdata <span class="op">=</span> <span class="va">dat</span>,</span>
@@ -1125,26 +1132,26 @@ over the supplied data.</p>
 <span>  se.fit <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  interval <span class="op">=</span> <span class="st">"confidence"</span></span>
 <span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   subject time   response       fit       se.fit  conf.low conf.high</span></span>
-<span><span class="co">#&gt; 1       1 0.00 10.5193913 0.7240843 0.000000e+00 0.7240843 0.7240843</span></span>
-<span><span class="co">#&gt; 2       1 0.25  9.9952850 0.6961275 0.000000e+00 0.6961275 0.6961275</span></span>
-<span><span class="co">#&gt; 3       1 0.50  4.3193839 0.6692502 0.000000e+00 0.6692502 0.6692502</span></span>
-<span><span class="co">#&gt; 4       1 0.75         NA 0.6434105 0.000000e+00 0.6434105 0.6434105</span></span>
-<span><span class="co">#&gt; 5       1 1.00  0.1297988 0.6185686 0.000000e+00 0.6185686 0.6185686</span></span>
-<span><span class="co">#&gt; 6       2 0.00         NA 0.6020659 9.628477e-06 0.6020470 0.6020847</span></span>
+<span><span class="co">#&gt;   subject time   response      fit    se.fit conf.low conf.high</span></span>
+<span><span class="co">#&gt; 1       1 0.00 10.5193913 6.570164 0.3686398 5.847643  7.292685</span></span>
+<span><span class="co">#&gt; 2       1 0.25  9.9952850 6.279026 0.4236166 5.448752  7.109299</span></span>
+<span><span class="co">#&gt; 3       1 0.50  4.3193839 6.000788 0.5753044 4.873212  7.128364</span></span>
+<span><span class="co">#&gt; 4       1 0.75         NA 5.734880 0.7492182 4.266440  7.203321</span></span>
+<span><span class="co">#&gt; 5       1 1.00  0.1297988 5.480755 0.9200460 3.677498  7.284012</span></span>
+<span><span class="co">#&gt; 6       2 0.00         NA 5.501891 0.4043322 4.709415  6.294367</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span></span>
 <span>  <span class="va">fit</span>,</span>
 <span>  newdata <span class="op">=</span> <span class="va">dat</span>,</span>
 <span>  type <span class="op">=</span> <span class="st">"parameters"</span></span>
 <span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   subject time   response        mu        sigma        nu       tau</span></span>
-<span><span class="co">#&gt; 1       1 0.00 10.5193913 0.7240843 288336254274 6.9744583 0.0474218</span></span>
-<span><span class="co">#&gt; 2       1 0.25  9.9952850 0.6961275  29481495486 5.4075020 0.0474218</span></span>
-<span><span class="co">#&gt; 3       1 0.50  4.3193839 0.6692502   3014392270 3.8405456 0.0474218</span></span>
-<span><span class="co">#&gt; 4       1 0.75         NA 0.6434105    308212342 2.2735893 0.0474218</span></span>
-<span><span class="co">#&gt; 5       1 1.00  0.1297988 0.6185686     31513764 0.7066329 0.0474218</span></span>
-<span><span class="co">#&gt; 6       2 0.00         NA 0.6020659 131162660756 6.9719495 0.0474218</span></span>
+<span><span class="co">#&gt;   subject time   response       mu     sigma        nu</span></span>
+<span><span class="co">#&gt; 1       1 0.00 10.5193913 6.570164 0.3712443 0.9011681</span></span>
+<span><span class="co">#&gt; 2       1 0.25  9.9952850 6.279026 0.5474237 0.9169053</span></span>
+<span><span class="co">#&gt; 3       1 0.50  4.3193839 6.000788 0.8072116 0.9326425</span></span>
+<span><span class="co">#&gt; 4       1 0.75         NA 5.734880 1.1902858 0.9483797</span></span>
+<span><span class="co">#&gt; 5       1 1.00  0.1297988 5.480755 1.7551535 0.9641169</span></span>
+<span><span class="co">#&gt; 6       2 0.00         NA 5.501891 0.4308176 1.0883240</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span></span>
 <span>  <span class="va">fit</span>,</span>
@@ -1152,13 +1159,13 @@ over the supplied data.</p>
 <span>  type <span class="op">=</span> <span class="st">"quantile"</span>,</span>
 <span>  probs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.1</span>, <span class="fl">0.5</span>, <span class="fl">0.9</span><span class="op">)</span></span>
 <span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   subject time   response       q01      q05          q09</span></span>
-<span><span class="co">#&gt; 1       1 0.00 10.5193913 2.3918136 5.869125    13.227837</span></span>
-<span><span class="co">#&gt; 2       1 0.25  9.9952850 1.9728769 6.431769    18.416868</span></span>
-<span><span class="co">#&gt; 3       1 0.50  4.3193839 1.2798814 7.508268    33.618886</span></span>
-<span><span class="co">#&gt; 4       1 0.75         NA 0.6533985 9.608999   132.036929</span></span>
-<span><span class="co">#&gt; 5       1 1.00  0.1297988 0.5370709 8.766221 78158.101812</span></span>
-<span><span class="co">#&gt; 6       2 0.00         NA 1.7688691 4.357429     9.829429</span></span>
+<span><span class="co">#&gt;   subject time   response        q01      q05       q09</span></span>
+<span><span class="co">#&gt; 1       1 0.00 10.5193913 3.74314912 6.300590  9.888925</span></span>
+<span><span class="co">#&gt; 2       1 0.25  9.9952850 2.52908220 5.715484 11.004965</span></span>
+<span><span class="co">#&gt; 3       1 0.50  4.3193839 1.26749257 4.842558 12.642009</span></span>
+<span><span class="co">#&gt; 4       1 0.75         NA 0.31231228 3.467114 14.707445</span></span>
+<span><span class="co">#&gt; 5       1 1.00  0.1297988 0.01243108 1.603996 16.469700</span></span>
+<span><span class="co">#&gt; 6       2 0.00         NA 2.72539046 5.135554  8.610129</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span></span>
 <span>  <span class="va">fit</span>,</span>
@@ -1167,12 +1174,12 @@ over the supplied data.</p>
 <span>  q <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/median.html" class="external-link">median</a></span><span class="op">(</span><span class="va">dat</span><span class="op">$</span><span class="va">response</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   subject time   response        q       cdf</span></span>
-<span><span class="co">#&gt; 1       1 0.00 10.5193913 3.986979 0.2846141</span></span>
-<span><span class="co">#&gt; 2       1 0.25  9.9952850 3.986979 0.2942589</span></span>
-<span><span class="co">#&gt; 3       1 0.50  4.3193839 3.986979 0.3106061</span></span>
-<span><span class="co">#&gt; 4       1 0.75         NA 3.986979 0.3525143</span></span>
-<span><span class="co">#&gt; 5       1 1.00  0.1297988 3.986979 0.4564306</span></span>
-<span><span class="co">#&gt; 6       2 0.00         NA 3.986979 0.4471738</span></span>
+<span><span class="co">#&gt; 1       1 0.00 10.5193913 3.986979 0.1279536</span></span>
+<span><span class="co">#&gt; 2       1 0.25  9.9952850 3.986979 0.2734146</span></span>
+<span><span class="co">#&gt; 3       1 0.50  4.3193839 3.986979 0.4144509</span></span>
+<span><span class="co">#&gt; 4       1 0.75         NA 3.986979 0.5398919</span></span>
+<span><span class="co">#&gt; 5       1 1.00  0.1297988 3.986979 0.6549029</span></span>
+<span><span class="co">#&gt; 6       2 0.00         NA 3.986979 0.2928217</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span></span>
 <span>  <span class="va">fit</span>,</span>
@@ -1181,12 +1188,12 @@ over the supplied data.</p>
 <span>  y <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/median.html" class="external-link">median</a></span><span class="op">(</span><span class="va">dat</span><span class="op">$</span><span class="va">response</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   subject time   response        y    density</span></span>
-<span><span class="co">#&gt; 1       1 0.00 10.5193913 3.986979 0.12246299</span></span>
-<span><span class="co">#&gt; 2       1 0.25  9.9952850 3.986979 0.09530952</span></span>
-<span><span class="co">#&gt; 3       1 0.50  4.3193839 3.986979 0.06677110</span></span>
-<span><span class="co">#&gt; 4       1 0.75         NA 3.986979 0.03840510</span></span>
-<span><span class="co">#&gt; 5       1 1.00  0.1297988 3.986979 0.01449166</span></span>
-<span><span class="co">#&gt; 6       2 0.00         NA 3.986979 0.14748263</span></span>
+<span><span class="co">#&gt; 1       1 0.00 10.5193913 3.986979 0.12199706</span></span>
+<span><span class="co">#&gt; 2       1 0.25  9.9952850 3.986979 0.13247278</span></span>
+<span><span class="co">#&gt; 3       1 0.50  4.3193839 3.986979 0.10561248</span></span>
+<span><span class="co">#&gt; 4       1 0.75         NA 3.986979 0.07282068</span></span>
+<span><span class="co">#&gt; 5       1 1.00  0.1297988 3.986979 0.04559514</span></span>
+<span><span class="co">#&gt; 6       2 0.00         NA 3.986979 0.17770429</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span></span>
 <span>  <span class="va">fit</span>,</span>
@@ -1196,18 +1203,18 @@ over the supplied data.</p>
 <span>  direction <span class="op">=</span> <span class="st">"above"</span></span>
 <span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   subject time   response        q direction probability</span></span>
-<span><span class="co">#&gt; 1       1 0.00 10.5193913 10.30404     above   0.1908256</span></span>
-<span><span class="co">#&gt; 2       1 0.25  9.9952850 10.30404     above   0.2881913</span></span>
-<span><span class="co">#&gt; 3       1 0.50  4.3193839 10.30404     above   0.3980449</span></span>
-<span><span class="co">#&gt; 4       1 0.75         NA 10.30404     above   0.4874920</span></span>
-<span><span class="co">#&gt; 5       1 1.00  0.1297988 10.30404     above   0.4913873</span></span>
-<span><span class="co">#&gt; 6       2 0.00         NA 10.30404     above   0.0869789</span></span></code></pre></div>
+<span><span class="co">#&gt; 1       1 0.00 10.5193913 10.30404     above  0.07961019</span></span>
+<span><span class="co">#&gt; 2       1 0.25  9.9952850 10.30404     above  0.12707478</span></span>
+<span><span class="co">#&gt; 3       1 0.50  4.3193839 10.30404     above  0.16510459</span></span>
+<span><span class="co">#&gt; 4       1 0.75         NA 10.30404     above  0.18218014</span></span>
+<span><span class="co">#&gt; 5       1 1.00  0.1297988 10.30404     above  0.17307736</span></span>
+<span><span class="co">#&gt; 6       2 0.00         NA 10.30404     above  0.03672127</span></span></code></pre></div>
 <p>For regression interpretation, marginal effects are often easier to
 communicate than raw coefficients, especially when smooths, nonlinear
 links, or scale parameters are involved. They should still be tied back
 to the estimand: this summary averages over the empirical covariate
 distribution in <code>dat</code>.</p>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/marginal_effects.html">marginal_effects</a></span><span class="op">(</span></span>
 <span>  <span class="va">fit</span>,</span>
 <span>  newdata <span class="op">=</span> <span class="va">dat</span>,</span>
@@ -1216,37 +1223,37 @@ distribution in <code>dat</code>.</p>
 <span>  parameter <span class="op">=</span> <span class="st">"mu"</span>,</span>
 <span>  se.fit <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span>
-<span><span class="co">#&gt;    variable   value parameter  estimate    std_error reference    contrast</span></span>
-<span><span class="co">#&gt; 1 treatment control        mu 0.5621193 3.121915e-07   control  0.00000000</span></span>
-<span><span class="co">#&gt; 2 treatment     low        mu 0.5435433 3.840015e-07   control -0.01857601</span></span>
-<span><span class="co">#&gt; 3 treatment    high        mu 0.6587000 0.000000e+00   control  0.09658070</span></span>
-<span><span class="co">#&gt;    conf.low conf.high</span></span>
-<span><span class="co">#&gt; 1 0.5621187 0.5621199</span></span>
-<span><span class="co">#&gt; 2 0.5435426 0.5435441</span></span>
-<span><span class="co">#&gt; 3 0.6587000 0.6587000</span></span></code></pre></div>
+<span><span class="co">#&gt;    variable   value parameter estimate  std_error reference  contrast conf.low</span></span>
+<span><span class="co">#&gt; 1 treatment control        mu 3.549669 0.01415689   control 0.0000000 3.521922</span></span>
+<span><span class="co">#&gt; 2 treatment     low        mu 4.323355 0.02155741   control 0.7736853 4.281103</span></span>
+<span><span class="co">#&gt; 3 treatment    high        mu 6.379403 0.02808050   control 2.8297334 6.324366</span></span>
+<span><span class="co">#&gt;   conf.high</span></span>
+<span><span class="co">#&gt; 1  3.577416</span></span>
+<span><span class="co">#&gt; 2  4.365606</span></span>
+<span><span class="co">#&gt; 3  6.434439</span></span></code></pre></div>
 <p>Fitted-model simulation is useful for predictive checks, planning,
 and uncertainty communication because it simulates both the marginal
 distribution and the within-subject copula dependence.</p>
-<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sim_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate</a></span><span class="op">(</span><span class="va">fit</span>, nsim <span class="op">=</span> <span class="fl">3</span>, seed <span class="op">=</span> <span class="fl">20260521</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">sim_model</span><span class="op">)</span></span>
-<span><span class="co">#&gt;       sim_1     sim_2      sim_3</span></span>
-<span><span class="co">#&gt; 1 4.3318045 1.8215370  12.197546</span></span>
-<span><span class="co">#&gt; 2 1.4088980 9.1347371   5.410777</span></span>
-<span><span class="co">#&gt; 3 0.8002469 4.0099218   9.894856</span></span>
-<span><span class="co">#&gt; 4        NA        NA         NA</span></span>
-<span><span class="co">#&gt; 5 0.3066946 0.8895113 399.046645</span></span>
-<span><span class="co">#&gt; 6        NA        NA         NA</span></span>
+<span><span class="co">#&gt;         sim_1     sim_2    sim_3</span></span>
+<span><span class="co">#&gt; 1 5.295494310 3.1881830 9.462776</span></span>
+<span><span class="co">#&gt; 2 1.332438624 8.2685122 4.099114</span></span>
+<span><span class="co">#&gt; 3 1.146417954 3.2212337 5.141926</span></span>
+<span><span class="co">#&gt; 4          NA        NA       NA</span></span>
+<span><span class="co">#&gt; 5 0.003262534 0.3932077 4.600991</span></span>
+<span><span class="co">#&gt; 6          NA        NA       NA</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">sim_model</span><span class="op">)</span></span>
-<span><span class="co">#&gt;      sim_1              sim_2             sim_3         </span></span>
-<span><span class="co">#&gt;  Min.   :       0   Min.   :      0   Min.   :       0  </span></span>
-<span><span class="co">#&gt;  1st Qu.:       2   1st Qu.:      2   1st Qu.:       2  </span></span>
-<span><span class="co">#&gt;  Median :       6   Median :      4   Median :       5  </span></span>
-<span><span class="co">#&gt;  Mean   :   23512   Mean   :  23783   Mean   :  128658  </span></span>
-<span><span class="co">#&gt;  3rd Qu.:      13   3rd Qu.:     10   3rd Qu.:      12  </span></span>
-<span><span class="co">#&gt;  Max.   :10290950   Max.   :6291260   Max.   :50316501  </span></span>
-<span><span class="co">#&gt;  NA's   :60         NA's   :60        NA's   :60</span></span></code></pre></div>
+<span><span class="co">#&gt;      sim_1            sim_2            sim_3       </span></span>
+<span><span class="co">#&gt;  Min.   : 0.000   Min.   : 0.000   Min.   : 0.000  </span></span>
+<span><span class="co">#&gt;  1st Qu.: 1.551   1st Qu.: 1.314   1st Qu.: 1.681  </span></span>
+<span><span class="co">#&gt;  Median : 3.869   Median : 3.330   Median : 3.646  </span></span>
+<span><span class="co">#&gt;  Mean   : 4.947   Mean   : 4.225   Mean   : 4.751  </span></span>
+<span><span class="co">#&gt;  3rd Qu.: 6.679   3rd Qu.: 6.038   3rd Qu.: 6.290  </span></span>
+<span><span class="co">#&gt;  Max.   :50.355   Max.   :43.060   Max.   :50.709  </span></span>
+<span><span class="co">#&gt;  NA's   :60       NA's   :60       NA's   :60</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="benchmark-against-familiar-models">Benchmark Against Familiar Models<a class="anchor" aria-label="anchor" href="#benchmark-against-familiar-models"></a>
@@ -1257,7 +1264,7 @@ mean and the response is close to a standard distribution, simpler mean
 models may be adequate. The distributional model is most useful when the
 scientific question depends on tails, quantiles, heterogeneity,
 uncertainty, or within-subject dependence.</p>
-<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">bench</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/benchmark_standard_models.html">benchmark_standard_models</a></span><span class="op">(</span></span>
 <span>  data <span class="op">=</span> <span class="va">dat</span>,</span>
 <span>  formula <span class="op">=</span> <span class="va">response</span> <span class="op">~</span> <span class="va">treatment</span> <span class="op">+</span> <span class="va">time_scaled</span> <span class="op">+</span> <span class="fu">s</span><span class="op">(</span><span class="va">age_scaled</span>, bs <span class="op">=</span> <span class="st">"ps"</span><span class="op">)</span>,</span>
@@ -1288,24 +1295,24 @@ uncertainty, or within-subject dependence.</p>
 <span><span class="co">#&gt; Benchmark Metrics</span></span>
 <span><span class="co">#&gt; -----------------</span></span>
 <span><span class="co">#&gt;                          metric gamlss_longitudinal        gam</span></span>
-<span><span class="co">#&gt;                     elapsed_sec                  NA  6.441e-02</span></span>
+<span><span class="co">#&gt;                     elapsed_sec                  NA  1.224e-01</span></span>
 <span><span class="co">#&gt;                            nobs           6.000e+02  6.000e+02</span></span>
-<span><span class="co">#&gt;                          logLik          -1.326e+03 -1.383e+03</span></span>
-<span><span class="co">#&gt;                             AIC           2.707e+03  2.783e+03</span></span>
-<span><span class="co">#&gt;                             mae           4.524e+00  3.148e+00</span></span>
-<span><span class="co">#&gt;                            rmse           6.780e+00  4.924e+00</span></span>
-<span><span class="co">#&gt;             benchmark_mean_rmse           6.064e+00  1.770e+00</span></span>
-<span><span class="co">#&gt;              benchmark_mean_mae           5.694e+00  1.394e+00</span></span>
-<span><span class="co">#&gt;             benchmark_mean_bias          -5.694e+00 -1.231e+00</span></span>
-<span><span class="co">#&gt;                  benchmark_rmse           6.780e+00  4.924e+00</span></span>
-<span><span class="co">#&gt;                   benchmark_mae           4.524e+00  3.148e+00</span></span>
-<span><span class="co">#&gt;               benchmark_q90_mae                  NA  4.544e+00</span></span>
-<span><span class="co">#&gt;   benchmark_upper_tail_error_90                  NA  1.506e-04</span></span>
-<span><span class="co">#&gt;  benchmark_interval_coverage_95           9.130e-01  9.074e-01</span></span>
-<span><span class="co">#&gt;    benchmark_pit_mean_abs_error           7.625e-02  1.534e-02</span></span>
-<span><span class="co">#&gt;        benchmark_pit_ks_p_value           2.492e-17  1.730e-03</span></span>
-<span><span class="co">#&gt;   benchmark_tail_error_lower_05           4.259e-02  2.778e-02</span></span>
-<span><span class="co">#&gt;   benchmark_tail_error_upper_05          -5.000e-02 -1.296e-02</span></span>
+<span><span class="co">#&gt;                          logLik          -1.107e+03 -1.383e+03</span></span>
+<span><span class="co">#&gt;                             AIC           2.256e+03  2.783e+03</span></span>
+<span><span class="co">#&gt;                             mae           3.145e+00  3.148e+00</span></span>
+<span><span class="co">#&gt;                            rmse           4.938e+00  4.924e+00</span></span>
+<span><span class="co">#&gt;             benchmark_mean_rmse           1.839e+00  1.770e+00</span></span>
+<span><span class="co">#&gt;              benchmark_mean_mae           1.422e+00  1.394e+00</span></span>
+<span><span class="co">#&gt;             benchmark_mean_bias          -1.320e+00 -1.231e+00</span></span>
+<span><span class="co">#&gt;                  benchmark_rmse           4.938e+00  4.924e+00</span></span>
+<span><span class="co">#&gt;                   benchmark_mae           3.145e+00  3.148e+00</span></span>
+<span><span class="co">#&gt;               benchmark_q90_mae           1.224e+00  4.544e+00</span></span>
+<span><span class="co">#&gt;   benchmark_upper_tail_error_90          -1.832e-02  1.506e-04</span></span>
+<span><span class="co">#&gt;  benchmark_interval_coverage_95           9.556e-01  9.074e-01</span></span>
+<span><span class="co">#&gt;    benchmark_pit_mean_abs_error           1.723e-02  1.534e-02</span></span>
+<span><span class="co">#&gt;        benchmark_pit_ks_p_value           1.490e-01  1.730e-03</span></span>
+<span><span class="co">#&gt;   benchmark_tail_error_lower_05          -3.704e-03  2.778e-02</span></span>
+<span><span class="co">#&gt;   benchmark_tail_error_upper_05           5.556e-03 -1.296e-02</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Benchmark Interpretation</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
@@ -1313,31 +1320,31 @@ uncertainty, or within-subject dependence.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;            area                         metric  primary standard</span></span>
 <span><span class="co">#&gt;  distributional benchmark_interval_coverage_95 lead/tie        -</span></span>
-<span><span class="co">#&gt;  distributional       benchmark_pit_ks_p_value lead/tie lead/tie</span></span>
+<span><span class="co">#&gt;  distributional       benchmark_pit_ks_p_value lead/tie        -</span></span>
 <span><span class="co">#&gt;  distributional   benchmark_pit_mean_abs_error        - lead/tie</span></span>
-<span><span class="co">#&gt;  distributional              benchmark_q90_mae        - lead/tie</span></span>
-<span><span class="co">#&gt;  distributional  benchmark_tail_error_lower_05        - lead/tie</span></span>
-<span><span class="co">#&gt;  distributional  benchmark_tail_error_upper_05        - lead/tie</span></span>
+<span><span class="co">#&gt;  distributional              benchmark_q90_mae lead/tie        -</span></span>
+<span><span class="co">#&gt;  distributional  benchmark_tail_error_lower_05 lead/tie        -</span></span>
+<span><span class="co">#&gt;  distributional  benchmark_tail_error_upper_05 lead/tie        -</span></span>
 <span><span class="co">#&gt;  distributional  benchmark_upper_tail_error_90        - lead/tie</span></span>
-<span><span class="co">#&gt;        mean fit                  benchmark_mae        - lead/tie</span></span>
+<span><span class="co">#&gt;        mean fit                  benchmark_mae lead/tie lead/tie</span></span>
 <span><span class="co">#&gt;        mean fit            benchmark_mean_bias        - lead/tie</span></span>
-<span><span class="co">#&gt;        mean fit             benchmark_mean_mae        - lead/tie</span></span>
-<span><span class="co">#&gt;        mean fit            benchmark_mean_rmse        - lead/tie</span></span>
-<span><span class="co">#&gt;        mean fit                 benchmark_rmse        - lead/tie</span></span>
+<span><span class="co">#&gt;        mean fit             benchmark_mean_mae lead/tie lead/tie</span></span>
+<span><span class="co">#&gt;        mean fit            benchmark_mean_rmse lead/tie lead/tie</span></span>
+<span><span class="co">#&gt;        mean fit                 benchmark_rmse lead/tie lead/tie</span></span>
 <span><span class="co">#&gt;         runtime                    elapsed_sec        - lead/tie</span></span>
 <span><span class="co">#&gt;                   leaders</span></span>
 <span><span class="co">#&gt;       gamlss_longitudinal</span></span>
+<span><span class="co">#&gt;       gamlss_longitudinal</span></span>
+<span><span class="co">#&gt;                       gam</span></span>
+<span><span class="co">#&gt;       gamlss_longitudinal</span></span>
+<span><span class="co">#&gt;       gamlss_longitudinal</span></span>
+<span><span class="co">#&gt;       gamlss_longitudinal</span></span>
+<span><span class="co">#&gt;                       gam</span></span>
 <span><span class="co">#&gt;  gamlss_longitudinal, gam</span></span>
 <span><span class="co">#&gt;                       gam</span></span>
-<span><span class="co">#&gt;                       gam</span></span>
-<span><span class="co">#&gt;                       gam</span></span>
-<span><span class="co">#&gt;                       gam</span></span>
-<span><span class="co">#&gt;                       gam</span></span>
-<span><span class="co">#&gt;                       gam</span></span>
-<span><span class="co">#&gt;                       gam</span></span>
-<span><span class="co">#&gt;                       gam</span></span>
-<span><span class="co">#&gt;                       gam</span></span>
-<span><span class="co">#&gt;                       gam</span></span>
+<span><span class="co">#&gt;  gamlss_longitudinal, gam</span></span>
+<span><span class="co">#&gt;  gamlss_longitudinal, gam</span></span>
+<span><span class="co">#&gt;  gamlss_longitudinal, gam</span></span>
 <span><span class="co">#&gt;                       gam</span></span></code></pre></div>
 </div>
 <div class="section level2">
