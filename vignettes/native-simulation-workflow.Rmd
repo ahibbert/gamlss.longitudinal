@@ -252,14 +252,23 @@ plot_dist(
 
 For positive continuous responses, `select_margin()` gives a ranked marginal
 screen using `gamlss::fitDist()` and marks whether each family is supported by
-`gamlss_longitudinal()`. This screen does not account for longitudinal
-dependence or covariates, so it is a shortlist rather than the final model.
+`gamlss_longitudinal()`. The screen uses a focused set of ten positive,
+right-skewed continuous families so the first shortlist is interpretable rather
+than dominated by very flexible Box-Cox-style families. This screen does not
+account for longitudinal dependence or covariates, so it is a shortlist rather
+than the final model.
 
 ```{r marginal-screen}
+margin_candidate_families <- c(
+  "GG", "GA", "GIG", "WEI", "WEI2",
+  "WEI3", "EXP", "PARETO2", "GP", "LOGNO"
+)
+
 margin_selection <- select_margin(
   dat,
   response_var = "response",
   type = "realplus",
+  families = margin_candidate_families,
   try.gamlss = FALSE,
   trace = FALSE
 )
@@ -276,19 +285,60 @@ margin_dist <- if (identical(screened_margin_family, "GG")) {
 } else {
   screened_margin_dist
 }
+
+gamma_margin_dist <- GA(mu.link = "log", sigma.link = "log")
+gamma_margin_comparison <- margin_selection[
+  margin_selection$family %in% c("GG", "GA"),
+  c("family", "rank", "AIC", "delta_AIC"),
+  drop = FALSE
+]
+gamma_margin_comparison
 ```
 
 The detailed model fit starts from the screened marginal family rather than the
 known simulation truth. The explicit `GG()` branch only fixes interpretable link
-functions when the selected family is generalized gamma.
+functions when the selected family is generalized gamma. The table above
+compares generalized gamma with a plain Gamma fit in the same quick marginal
+screen. The overlays below show both candidate fits on the response scale and
+on the log-response scale. The response-scale view preserves the original units
+and right tail; the log-response view is usually more readable for this
+positive skewed example.
 
-```{r marginal-fit-overlay, fig.width = 7.5, fig.height = 4.5, out.width = "85%", fig.alt = "Histogram of observed responses with fitted generalized gamma marginal distribution overlay."}
-plot_margin_fit(
-  dat,
-  margin_dist = margin_dist,
-  response_var = "response",
-  bins = 30
+```{r marginal-fit-overlay, fig.width = 9.5, fig.height = 7.5, out.width = "95%", fig.alt = "Histograms of observed responses comparing generalized gamma and gamma marginal fits on response and log-response scales."}
+margin_overlay_plots <- list(
+  plot_margin_fit(
+    dat,
+    margin_dist = margin_dist,
+    response_var = "response",
+    bins = 30,
+    plot = FALSE
+  )$plot,
+  plot_margin_fit(
+    dat,
+    margin_dist = gamma_margin_dist,
+    response_var = "response",
+    bins = 30,
+    plot = FALSE
+  )$plot,
+  plot_margin_fit(
+    dat,
+    margin_dist = margin_dist,
+    response_var = "response",
+    bins = 30,
+    response_scale = "log",
+    plot = FALSE
+  )$plot,
+  plot_margin_fit(
+    dat,
+    margin_dist = gamma_margin_dist,
+    response_var = "response",
+    bins = 30,
+    response_scale = "log",
+    plot = FALSE
+  )$plot
 )
+
+ggpubr::ggarrange(plotlist = margin_overlay_plots, ncol = 2, nrow = 2)
 ```
 
 ## Choose A Copula Family
@@ -328,7 +378,7 @@ top_margin_families <- head(
   margin_selection$family[margin_selection$supported_by_longitudinal],
   10
 )
-joint_screen_margins <- screened_margin_family
+joint_screen_margins <- unique(c(screened_margin_family, "GA"))
 
 joint_selection <- select_joint_distribution(
   data = dat,
@@ -351,6 +401,15 @@ joint_selection
 
 joint_choice <- best_fit(joint_selection)
 joint_choice[c("margin_family_name", "copula_family", "rank", "AIC", "delta_AIC")]
+
+joint_gamma_comparison <- aggregate(
+  AIC ~ margin_family,
+  data = as.data.frame(joint_selection),
+  FUN = min
+)
+joint_gamma_comparison$delta_AIC <- joint_gamma_comparison$AIC -
+  min(joint_gamma_comparison$AIC, na.rm = TRUE)
+joint_gamma_comparison[order(joint_gamma_comparison$AIC), ]
 
 data.frame(
   screen = c("separate", "joint"),
@@ -408,6 +467,32 @@ describe the response location, scale effects describe heterogeneity or
 dispersion, shape effects describe remaining distributional asymmetry, and
 dependence effects describe within-subject association after the marginal model
 has been accounted for.
+
+The fitted marginal overlay now uses the row-specific distributional parameters
+from the longitudinal model, so it is a better check than the intercept-only
+screening plot for whether the fitted marginal distribution tracks the observed
+response scale and spread. We show the fitted overlay on both response and
+log-response scales.
+
+```{r fitted-margin-overlay, fig.width = 9.5, fig.height = 4.75, out.width = "95%", fig.alt = "Histograms of observed responses with fitted longitudinal generalized gamma marginal density overlays on response and log-response scales."}
+fitted_margin_overlay_plots <- list(
+  plot_margin_fit(
+    fit = fit,
+    data = dat,
+    bins = 30,
+    plot = FALSE
+  )$plot,
+  plot_margin_fit(
+    fit = fit,
+    data = dat,
+    bins = 30,
+    response_scale = "log",
+    plot = FALSE
+  )$plot
+)
+
+ggpubr::ggarrange(plotlist = fitted_margin_overlay_plots, ncol = 2, nrow = 1)
+```
 
 ```{r inference}
 coef_names <- names(coef(fit))
@@ -697,7 +782,7 @@ truth_term_plots <- list(
   truth_smooth_plot(age_grid, truth_theta_age_smooth(age_grid), 'theta: s(age_scaled, bs = "ps", k = 8)', "age_scaled"),
   truth_factor_plot(treatment_effect, "mu: treatment", "treatment", "fixed contribution: mu.treatment"),
   truth_continuous_plot(time_grid, 0.35 * time_grid, "mu: time_scaled", "time_scaled", "fixed contribution: mu.time_scaled"),
-  truth_factor_plot(c(control = 0, low = 0.25, high = 0.25), "sigma: treatment", "treatment", "fixed contribution: sigma.treatment"),
+  truth_factor_plot(0.25 * c(control = 0, low = 1, high = 1), "sigma: treatment", "treatment", "fixed contribution: sigma.treatment"),
   truth_continuous_plot(time_grid, 1.25 * time_grid, "sigma: time_scaled", "time_scaled", "fixed contribution: sigma.time_scaled"),
   truth_continuous_plot(time_grid, 0.55 * time_grid, "nu: time_scaled", "time_scaled", "fixed contribution: nu.time_scaled"),
   truth_continuous_plot(time_grid, 1.80 * time_grid, "theta: time_scaled", "time_scaled", "fixed contribution: theta.time_scaled")
