@@ -35,22 +35,16 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
-    <li><a class="dropdown-item" href="../articles/site-guide.html">Guide To The Articles</a></li>
+    <li><a class="dropdown-item" href="../articles/site-guide.html">Overview of Support Articles</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Worked Examples</h6></li>
-    <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard Workflow API, Inference, and Diagnostics</a></li>
-    <li><a class="dropdown-item" href="../articles/native-simulation-workflow.html">Native Simulation, Copula Screening, and GAMLSS Longitudinal Fitting</a></li>
+    <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard workflow: screening, fit, inference, diagnostics, and simulation</a></li>
+    <li><a class="dropdown-item" href="../articles/native-simulation-workflow.html">Detailed worked example for a longitudinal gamlss model fit</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Adoption Guides</h6></li>
-    <li><a class="dropdown-item" href="../articles/replace-gee-glmm.html">Replacing GEE and GLMM Workflows</a></li>
     <li><a class="dropdown-item" href="../articles/adoption-decision-guide.html">Adoption Decision Guide</a></li>
     <li><a class="dropdown-item" href="../articles/inference-uncertainty.html">Inference and Uncertainty</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics-decisions.html">Diagnostics As Decisions</a></li>
-    <li><a class="dropdown-item" href="../articles/replace-a-gee.html">Replace a GEE</a></li>
-    <li><a class="dropdown-item" href="../articles/replace-a-random-intercept-glmm.html">Replace a Random-Intercept GLMM</a></li>
-    <li><a class="dropdown-item" href="../articles/non-gaussian-longitudinal-outcomes.html">Non-Gaussian Longitudinal Outcomes</a></li>
-    <li><a class="dropdown-item" href="../articles/missing-visits.html">Missing Visits</a></li>
-    <li><a class="dropdown-item" href="../articles/time-varying-dependence.html">Time-Varying Dependence</a></li>
     <li><a class="dropdown-item" href="../articles/benchmarking-adoption.html">Benchmarking Adoption Claims</a></li>
   </ul>
 </li>
@@ -113,7 +107,7 @@ optional because large longitudinal likelihoods can make Hessian work
 expensive. For final reporting, either compute it at fit time or request
 it when summarising.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_longitudinal.html">fit_longitudinal</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gamlss_longitudinal.html">gamlss_longitudinal</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">dat</span>,</span>
 <span>  margin_dist <span class="op">=</span> <span class="fu">gamlss.dist</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/gamlss.dist/man/GA.html" class="external-link">GA</a></span><span class="op">(</span>mu.link <span class="op">=</span> <span class="st">"log"</span>, sigma.link <span class="op">=</span> <span class="st">"log"</span><span class="op">)</span>,</span>
 <span>  copula_dist <span class="op">=</span> <span class="st">"C"</span>,</span>
@@ -334,9 +328,7 @@ reviewed.</p>
 </h2>
 <p>Use <code><a href="../reference/marginal_effects.html">marginal_effects()</a></code> for counterfactual contrasts that
 are easier to explain than coefficient changes, especially with
-nonlinear links, non-Gaussian margins, or distributional parameters. The
-familiar <code><a href="https://rdrr.io/r/stats/effects.html" class="external-link">effects()</a></code> generic is also available as an
-alias.</p>
+nonlinear links, non-Gaussian margins, or distributional parameters.</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">eff</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/marginal_effects.html">marginal_effects</a></span><span class="op">(</span></span>
 <span>  <span class="va">fit</span>,</span>
@@ -345,15 +337,7 @@ alias.</p>
 <span>  parameter <span class="op">=</span> <span class="st">"mu"</span>,</span>
 <span>  se.fit <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span>
-<span><span class="va">eff</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/stats/effects.html" class="external-link">effects</a></span><span class="op">(</span></span>
-<span>  <span class="va">fit</span>,</span>
-<span>  newdata <span class="op">=</span> <span class="va">dat</span>,</span>
-<span>  variable <span class="op">=</span> <span class="st">"treatment"</span>,</span>
-<span>  parameter <span class="op">=</span> <span class="st">"mu"</span>,</span>
-<span>  se.fit <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">eff</span></span></code></pre></div>
 <p>The uncertainty is variance-covariance based and inherits the same
 Hessian or fallback caveats as <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>,
 <code><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov()</a></code>, and <code><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint()</a></code>.</p>
