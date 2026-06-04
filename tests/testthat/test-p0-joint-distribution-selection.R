@@ -19,6 +19,7 @@ test_that("select_joint_distribution ranks joint fits and exposes best-fit helpe
     type = "realAll",
     margin_families = "NO",
     copula_families = c("N", "C"),
+    progress = FALSE,
     fit_args = list(
       max_outer_iter = 3,
       max_inner_iter = 3,
@@ -59,17 +60,26 @@ test_that("select_joint_distribution retains failures and includes t candidates"
     seed = 1004
   )
 
-  selected <- select_joint_distribution(
-    data = dat,
-    response_var = "response",
-    time_var = "time",
-    subject_var = "subject",
-    type = "realAll",
-    margin_families = "NO",
-    copula_families = c("N", "t"),
-    fit_args = list(max_elapsed_sec = 1e-9)
+  messages <- character(0)
+  selected <- withCallingHandlers(
+    select_joint_distribution(
+      data = dat,
+      response_var = "response",
+      time_var = "time",
+      subject_var = "subject",
+      type = "realAll",
+      margin_families = "NO",
+      copula_families = c("N", "t"),
+      progress = TRUE,
+      fit_args = list(max_elapsed_sec = 1e-9)
+    ),
+    message = function(m) {
+      messages <<- c(messages, conditionMessage(m))
+      invokeRestart("muffleMessage")
+    }
   )
 
+  expect_true(any(grepl("Joint distribution screen", messages, fixed = TRUE)))
   expect_s3_class(selected, "joint_distribution_selection")
   expect_equal(sort(unique(selected$copula_family)), c("N", "t"))
   expect_true(all(!is.na(selected$error)))

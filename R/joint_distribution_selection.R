@@ -22,6 +22,8 @@
 #' @param try.gamlss Passed to [select_margin()].
 #' @param trace Logical; passed to [select_margin()] and used to decide whether
 #'   candidate [gamlss_longitudinal()] fit output is shown.
+#' @param progress Logical; if `TRUE`, print candidate-level progress messages
+#'   with elapsed time and an estimated remaining runtime.
 #' @param fit_args Optional named list of arguments overriding the default
 #'   [gamlss_longitudinal()] screening fit settings.
 #' @param keep_fits Logical; if `TRUE`, attach successful fitted models in the
@@ -43,6 +45,7 @@ select_joint_distribution <- function(
   min_pairs = 10,
   try.gamlss = FALSE,
   trace = FALSE,
+  progress = TRUE,
   fit_args = list(),
   keep_fits = FALSE
 ) {
@@ -58,6 +61,9 @@ select_joint_distribution <- function(
   if (!is.list(fit_args) ||
       (length(fit_args) > 0L && (is.null(names(fit_args)) || any(!nzchar(names(fit_args)))))) {
     stop("'fit_args' must be a named list.", call. = FALSE)
+  }
+  if (!is.logical(progress) || length(progress) != 1L || is.na(progress)) {
+    stop("'progress' must be TRUE or FALSE.", call. = FALSE)
   }
   min_pairs <- as.integer(min_pairs)
   if (length(min_pairs) != 1L || !is.finite(min_pairs) || min_pairs < 1L) {
@@ -110,9 +116,26 @@ select_joint_distribution <- function(
 
   fit_store <- vector("list", nrow(combinations))
   rows <- vector("list", nrow(combinations))
+  screen_start <- Sys.time()
+  n_combinations <- nrow(combinations)
+  if (isTRUE(progress)) {
+    message(
+      "Joint distribution screen: fitting ",
+      n_combinations,
+      " model(s) across ",
+      nrow(margin_candidates),
+      " margin candidate(s) and ",
+      length(copula_families),
+      " copula candidate(s)."
+    )
+  }
   for (ii in seq_len(nrow(combinations))) {
     margin_family <- combinations$margin_family[[ii]]
     copula_family <- combinations$copula_family[[ii]]
+    candidate_label <- paste(margin_family, copula_family, sep = "+")
+    if (isTRUE(progress)) {
+      message("[", ii, "/", n_combinations, "] Fitting ", candidate_label, "...")
+    }
     margin_dist <- .margin_family_object(margin_family)
     fit_one <- .joint_selection_fit_one(
       data = data,
@@ -128,6 +151,31 @@ select_joint_distribution <- function(
     rows[[ii]] <- fit_one$row
     if (isTRUE(keep_fits)) {
       fit_store[[ii]] <- fit_one$fit
+    }
+    if (isTRUE(progress)) {
+      elapsed_total <- as.numeric(difftime(Sys.time(), screen_start, units = "secs"))
+      elapsed_fit <- as.numeric(fit_one$row$elapsed_sec[[1L]])
+      remaining <- if (ii < n_combinations && elapsed_total > 0) {
+        elapsed_total / ii * (n_combinations - ii)
+      } else {
+        0
+      }
+      status <- if (!is.na(fit_one$row$error[[1L]])) {
+        paste0("failed: ", fit_one$row$error[[1L]])
+      } else if (isTRUE(fit_one$row$converged[[1L]])) {
+        "completed"
+      } else {
+        "completed without confirmed convergence"
+      }
+      message(
+        "[", ii, "/", n_combinations, "] ",
+        candidate_label,
+        " ", status,
+        " in ", .joint_selection_format_seconds(elapsed_fit),
+        ". Elapsed ", .joint_selection_format_seconds(elapsed_total),
+        "; ETA ", .joint_selection_format_seconds(remaining),
+        "."
+      )
     }
   }
 
@@ -159,6 +207,24 @@ select_joint_distribution <- function(
   }
   class(out) <- c("joint_distribution_selection", "data.frame")
   out
+}
+
+.joint_selection_format_seconds <- function(seconds) {
+  seconds <- as.numeric(seconds)[1L]
+  if (!is.finite(seconds) || seconds < 0) {
+    return("unknown")
+  }
+  if (seconds < 60) {
+    return(sprintf("%.1fs", seconds))
+  }
+  minutes <- floor(seconds / 60)
+  remaining <- seconds - minutes * 60
+  if (minutes < 60) {
+    return(sprintf("%dm %.0fs", minutes, remaining))
+  }
+  hours <- floor(minutes / 60)
+  minutes <- minutes - hours * 60
+  sprintf("%dh %dm", hours, minutes)
 }
 
 .joint_selection_margin_candidates <- function(
