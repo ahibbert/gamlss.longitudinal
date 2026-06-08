@@ -93,6 +93,12 @@ best_fit_family.margin_screen <- best_fit_family.margin_selection
 #'   uses `"counts"` for non-negative integer responses, `"realplus"` for
 #'   positive continuous responses, and `"realAll"` otherwise.
 #' @param families Optional character vector used to filter the returned table.
+#' @param time_intercepts Logical; if `TRUE`, rank retained families by a
+#'   GAMLSS fit with factor time intercepts for each distribution parameter.
+#'   This is useful for longitudinal screening where the final model is allowed
+#'   to vary marginal location, scale, or shape over time.
+#' @param time_var Optional time column name in `data`, required when
+#'   `time_intercepts = TRUE`.
 #' @param try.gamlss,trace,... Passed to [gamlss::fitDist()].
 #'
 #' @return A data frame ordered by AIC and class `margin_selection`. The
@@ -106,6 +112,8 @@ select_margin <- function(
   response_var = NULL,
   type = NULL,
   families = NULL,
+  time_intercepts = FALSE,
+  time_var = NULL,
   try.gamlss = FALSE,
   trace = FALSE,
   ...
@@ -129,8 +137,19 @@ select_margin <- function(
   if (is.null(response)) {
     stop("Supply either 'response' or both 'data' and 'response_var'.", call. = FALSE)
   }
-  response <- as.numeric(response)
-  response <- response[is.finite(response)]
+  response_all <- as.numeric(response)
+  if (isTRUE(time_intercepts)) {
+    if (is.null(data)) {
+      stop("'time_intercepts = TRUE' requires 'data' and 'time_var'.", call. = FALSE)
+    }
+    if (is.null(time_var) || !is.character(time_var) || length(time_var) != 1L) {
+      stop("'time_var' must be a single column name when 'time_intercepts = TRUE'.", call. = FALSE)
+    }
+    if (!time_var %in% names(data)) {
+      stop("time_var='", time_var, "' not found in 'data'.", call. = FALSE)
+    }
+  }
+  response <- response_all[is.finite(response_all)]
   if (length(response) < 3L) {
     stop("Need at least three finite response values to screen margins.", call. = FALSE)
   }
@@ -169,6 +188,22 @@ select_margin <- function(
   if (!is.null(families)) {
     out <- out[out$family %in% families, , drop = FALSE]
   }
+
+  out$screen_model <- "pooled_intercept"
+
+  if (isTRUE(time_intercepts) && nrow(out) > 0L) {
+    time_aic <- .select_margin_time_intercept_aic(
+      response = response_all,
+      time = data[[time_var]],
+      families = out$family,
+      trace = trace
+    )
+    out$pooled_AIC <- out$AIC
+    out$AIC <- time_aic[out$family]
+    out$screen_model <- "time_intercepts"
+    out <- out[is.finite(out$AIC), , drop = FALSE]
+  }
+
   out <- out[order(out$AIC), , drop = FALSE]
   rownames(out) <- NULL
   out$rank <- seq_len(nrow(out))
@@ -185,7 +220,74 @@ select_margin <- function(
 
   attr(out, "selected") <- if (nrow(out) > 0L) out$family[[1L]] else NA_character_
   attr(out, "response_type") <- type
+  attr(out, "time_intercepts") <- isTRUE(time_intercepts)
+  attr(out, "time_var") <- if (isTRUE(time_intercepts)) time_var else NULL
   class(out) <- c("margin_selection", "margin_screen", class(out))
+  out
+}
+
+.select_margin_time_intercept_aic <- function(response, time, families, trace = FALSE) {
+  response <- as.numeric(response)
+  time <- as.character(time)
+  keep <- is.finite(response) & !is.na(time)
+  if (sum(keep) < 3L) {
+    stop("Need at least three finite response values with non-missing time values to screen time-intercept margins.", call. = FALSE)
+  }
+
+  fit_data <- data.frame(
+    response = response[keep],
+    time_intercept = factor(time[keep], levels = unique(time[keep])),
+    stringsAsFactors = FALSE
+  )
+  has_time_contrast <- length(unique(fit_data$time_intercept)) > 1L
+  mu_formula <- if (has_time_contrast) {
+    stats::as.formula("response ~ time_intercept")
+  } else {
+    stats::as.formula("response ~ 1")
+  }
+  par_formula <- if (has_time_contrast) {
+    stats::as.formula("~ time_intercept")
+  } else {
+    stats::as.formula("~ 1")
+  }
+
+  out <- vapply(families, function(family_name) {
+    family <- .margin_family_object(family_name)
+    if (is.null(family) || is.null(family$parameters)) {
+      return(NA_real_)
+    }
+
+    fit_args <- list(
+      formula = mu_formula,
+      family = family,
+      data = fit_data,
+      trace = trace
+    )
+    for (par_name in setdiff(names(family$parameters), "mu")) {
+      fit_args[[paste0(par_name, ".formula")]] <- par_formula
+    }
+
+    fit <- tryCatch(
+      {
+        if (isTRUE(trace)) {
+          do.call(gamlss::gamlss, fit_args)
+        } else {
+          fit <- NULL
+          invisible(utils::capture.output({
+            fit <- suppressWarnings(suppressMessages(do.call(gamlss::gamlss, fit_args)))
+          }))
+          fit
+        }
+      },
+      error = function(e) NULL
+    )
+    if (is.null(fit)) {
+      return(NA_real_)
+    }
+    aic <- tryCatch(stats::AIC(fit), error = function(e) NA_real_)
+    as.numeric(aic)[1L]
+  }, numeric(1), USE.NAMES = TRUE)
+
   out
 }
 
