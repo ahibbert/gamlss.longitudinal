@@ -11,6 +11,8 @@ select_margin(
   response_var = NULL,
   type = NULL,
   families = NULL,
+  time_intercepts = FALSE,
+  time_var = NULL,
   try.gamlss = FALSE,
   trace = FALSE,
   ...
@@ -32,6 +34,14 @@ uses \code{"counts"} for non-negative integer responses, \code{"realplus"} for
 positive continuous responses, and \code{"realAll"} otherwise.}
 
 \item{families}{Optional character vector used to filter the returned table.}
+
+\item{time_intercepts}{Logical; if \code{TRUE}, rank retained families by a
+GAMLSS fit with factor time intercepts for each distribution parameter.
+This is useful for longitudinal screening where the final model is allowed
+to vary marginal location, scale, or shape over time.}
+
+\item{time_var}{Optional time column name in \code{data}, required when
+\code{time_intercepts = TRUE}.}
 
 \item{try.gamlss, trace, ...}{Passed to \code{\link[gamlss:fitDist]{gamlss::fitDist()}}.}
 }
