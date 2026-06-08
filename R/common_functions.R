@@ -9152,6 +9152,85 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
 
 #' @keywords internal
 #' @noRd
+.plot_margin_time_intercept_params <- function(y, time, family) {
+  y <- as.numeric(y)
+  time <- as.character(time)
+  keep <- is.finite(y) & !is.na(time)
+  if (sum(keep) < 3L) {
+    stop("Need at least three finite response values with non-missing time values to fit a time-intercept marginal overlay.", call. = FALSE)
+  }
+
+  fit_data <- data.frame(
+    y = y[keep],
+    time_intercept = factor(time[keep], levels = unique(time[keep])),
+    stringsAsFactors = FALSE
+  )
+  formula_time <- stats::as.formula("y ~ time_intercept")
+  fit_args <- list(formula = formula_time, family = family, data = fit_data, trace = FALSE)
+  for (par_name in setdiff(names(family$parameters), "mu")) {
+    fit_args[[paste0(par_name, ".formula")]] <- stats::as.formula("~ time_intercept")
+  }
+  fit <- do.call(gamlss::gamlss, fit_args)
+
+  params <- lapply(names(family$parameters), function(par_name) {
+    out <- rep(NA_real_, length(y))
+    out[keep] <- as.numeric(stats::fitted(fit, what = par_name))
+    out
+  })
+  names(params) <- names(family$parameters)
+  params
+}
+
+#' @keywords internal
+#' @noRd
+.plot_margin_support_bounds <- function(family, params = NULL) {
+  family_name <- .plot_margin_family_name(family)
+  qfun <- tryCatch(
+    get(paste0("q", family_name), envir = asNamespace("gamlss.dist"), inherits = FALSE),
+    error = function(e) NULL
+  )
+  if (!is.function(qfun)) {
+    return(c(lower = -Inf, upper = Inf))
+  }
+
+  q_args <- list()
+  for (par_name in names(family$parameters)) {
+    par_value <- NULL
+    if (!is.null(params) && par_name %in% names(params)) {
+      par_vec <- as.numeric(params[[par_name]])
+      par_vec <- par_vec[is.finite(par_vec)]
+      if (length(par_vec) > 0L) {
+        par_value <- stats::median(par_vec)
+      }
+    }
+    if (is.null(par_value)) {
+      par_value <- tryCatch(
+        eval(formals(qfun)[[par_name]], envir = baseenv()),
+        error = function(e) NA_real_
+      )
+      par_value <- as.numeric(par_value)[1L]
+    }
+    if (is.finite(par_value)) {
+      q_args[[par_name]] <- par_value
+    }
+  }
+
+  bounds <- tryCatch(
+    do.call(qfun, c(list(p = c(0, 1)), q_args)),
+    error = function(e) c(-Inf, Inf)
+  )
+  bounds <- as.numeric(bounds)
+  if (length(bounds) < 2L) {
+    return(c(lower = -Inf, upper = Inf))
+  }
+  c(
+    lower = if (is.finite(bounds[1L])) bounds[1L] else -Inf,
+    upper = if (is.finite(bounds[2L])) bounds[2L] else Inf
+  )
+}
+
+#' @keywords internal
+#' @noRd
 .plot_margin_density_grid <- function(y, family, params, grid_n = 200, group = NULL) {
   y <- as.numeric(y)
   keep <- is.finite(y)
@@ -9173,6 +9252,7 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
   }
 
   family_name <- .plot_margin_family_name(family)
+  support_bounds <- .plot_margin_support_bounds(family, params)
   response_range <- range(y, na.rm = TRUE)
   pad <- diff(response_range) * 0.04
   if (!is.finite(pad) || pad <= 0) {
@@ -9181,11 +9261,37 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
 
   build_one <- function(idx, group_name = "All") {
     yy <- y[idx]
-    x_grid <- seq(min(yy, na.rm = TRUE) - pad, max(yy, na.rm = TRUE) + pad, length.out = grid_n)
+    x_min <- min(yy, na.rm = TRUE) - pad
+    x_max <- max(yy, na.rm = TRUE) + pad
+    if (is.finite(support_bounds["lower"])) {
+      x_min <- max(x_min, support_bounds["lower"])
+      if (x_min <= support_bounds["lower"]) {
+        yy_inside <- yy[is.finite(yy) & yy > support_bounds["lower"]]
+        if (length(yy_inside) > 0L) {
+          range_floor <- support_bounds["lower"] + (x_max - support_bounds["lower"]) * 0.02
+          x_min <- max(
+            as.numeric(stats::quantile(yy_inside, probs = 0.05, type = 8, names = FALSE)),
+            range_floor,
+            support_bounds["lower"] + max(diff(range(yy_inside, na.rm = TRUE)), abs(support_bounds["lower"]), 1) * 1e-6
+          )
+        }
+      }
+    }
+    if (is.finite(support_bounds["upper"])) {
+      x_max <- min(x_max, support_bounds["upper"])
+    }
+    if (!is.finite(x_min) || !is.finite(x_max) || x_max <= x_min) {
+      x_min <- min(yy, na.rm = TRUE)
+      x_max <- max(yy, na.rm = TRUE)
+    }
+    x_grid <- seq(x_min, x_max, length.out = grid_n)
     density <- vapply(x_grid, function(x_value) {
       par_i <- lapply(params, function(p) p[idx])
-      mean(.gl_call_family_fun("d", family_name, rep(x_value, length(idx)), par_i), na.rm = TRUE)
+      d_value <- .gl_call_family_fun("d", family_name, rep(x_value, length(idx)), par_i)
+      d_value[!is.finite(d_value)] <- NA_real_
+      mean(d_value, na.rm = TRUE)
     }, numeric(1), USE.NAMES = FALSE)
+    density[!is.finite(density)] <- NA_real_
     data.frame(
       response = x_grid,
       density = density,
@@ -9222,9 +9328,14 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
 #' @param response_var Response column name when `x` or `data` is a data frame.
 #' @param bins Number of histogram bins.
 #' @param grid_n Number of grid points used for the fitted density.
+#' @param response_scale Plot the density on the original response scale or,
+#'   for positive responses, on the log-response scale.
+#' @param time_intercepts Logical; for raw data, fit time-specific intercepts
+#'   for each marginal distribution parameter before drawing the overlay.
 #' @param by_time Logical; facet the plot by time. For fitted longitudinal
 #'   models, fitted densities are averaged within each time point.
-#' @param time_var Time column name used when `by_time = TRUE` for raw data.
+#' @param time_var Time column name used when `time_intercepts = TRUE` or
+#'   `by_time = TRUE` for raw data.
 #' @param plot Logical; if TRUE, print the plot.
 #' @param ... Additional arguments reserved for future methods.
 #'
@@ -9239,6 +9350,8 @@ plot_margin_fit <- function(
   response_var = "response",
   bins = 30,
   grid_n = 200,
+  response_scale = c("response", "log"),
+  time_intercepts = FALSE,
   by_time = FALSE,
   time_var = "time",
   plot = TRUE,
@@ -9246,10 +9359,32 @@ plot_margin_fit <- function(
 ) {
   .plot_reject_old_call_args(sys.call(), old_args = c("family"))
   .plot_reject_old_args(list(...), old_args = c("family"))
+  response_scale <- match.arg(response_scale)
 
   if (inherits(x, "gamlss.longitudinal") && is.null(fit)) {
     fit <- x
     x <- NULL
+  }
+
+  transform_margin_obs <- function(plot_data) {
+    if (response_scale == "response") {
+      return(plot_data)
+    }
+    if (any(plot_data$response <= 0, na.rm = TRUE)) {
+      stop("'response_scale = \"log\"' requires positive responses.", call. = FALSE)
+    }
+    plot_data$response <- log(plot_data$response)
+    plot_data
+  }
+
+  transform_margin_density <- function(plot_data) {
+    if (response_scale == "response") {
+      return(plot_data)
+    }
+    plot_data <- plot_data[is.finite(plot_data$response) & plot_data$response > 0, , drop = FALSE]
+    plot_data <- transform_margin_obs(plot_data)
+    plot_data$density <- plot_data$density * exp(plot_data$response)
+    plot_data
   }
 
   if (!is.null(fit)) {
@@ -9277,28 +9412,53 @@ plot_margin_fit <- function(
       grid_n = grid_n,
       group = if (isTRUE(by_time)) diag_data$time else NULL
     )
+    obs <- transform_margin_obs(obs)
+    density_grid <- transform_margin_density(density_grid)
   } else {
     margin_dist <- .plot_margin_resolve_family(margin_dist)
     y <- .plot_margin_response(x = x, data = data, response_var = response_var)
     raw_data <- if (!is.null(data)) as.data.frame(data, stringsAsFactors = FALSE) else if (is.data.frame(x)) as.data.frame(x, stringsAsFactors = FALSE) else NULL
-
-    if (isTRUE(by_time)) {
+    raw_time <- NULL
+    if (isTRUE(time_intercepts) || isTRUE(by_time)) {
       if (is.null(raw_data) || !time_var %in% names(raw_data)) {
-        stop("Raw-data time faceting requires 'data' or data-frame 'x' containing 'time_var'.", call. = FALSE)
+        stop("Raw-data time overlays require 'data' or data-frame 'x' containing 'time_var'.", call. = FALSE)
       }
-      obs <- data.frame(response = y, split_group = as.character(raw_data[[time_var]]), stringsAsFactors = FALSE)
-      density_grid <- do.call(rbind, lapply(names(split(obs, obs$split_group)), function(group_name) {
-        df <- split(obs, obs$split_group)[[group_name]]
-        params <- .plot_margin_constant_params(df$response, margin_dist)
-        grid <- .plot_margin_density_grid(df$response, margin_dist, params, grid_n = grid_n)
-        grid$split_group <- group_name
-        grid
-      }))
-    } else {
-      obs <- data.frame(response = y, split_group = "All", stringsAsFactors = FALSE)
-      params <- .plot_margin_constant_params(y, margin_dist)
-      density_grid <- .plot_margin_density_grid(y, margin_dist, params, grid_n = grid_n)
+      raw_time <- raw_data[[time_var]]
     }
+
+    if (isTRUE(time_intercepts)) {
+      obs <- data.frame(
+        response = y,
+        split_group = if (isTRUE(by_time)) as.character(raw_time) else "All",
+        stringsAsFactors = FALSE
+      )
+      params <- .plot_margin_time_intercept_params(y, raw_time, margin_dist)
+      density_grid <- .plot_margin_density_grid(
+        y,
+        margin_dist,
+        params,
+        grid_n = grid_n,
+        group = if (isTRUE(by_time)) raw_time else NULL
+      )
+    } else {
+      if (isTRUE(by_time)) {
+        obs <- data.frame(response = y, split_group = as.character(raw_time), stringsAsFactors = FALSE)
+        density_grid <- do.call(rbind, lapply(names(split(obs, obs$split_group)), function(group_name) {
+          df <- split(obs, obs$split_group)[[group_name]]
+          params <- .plot_margin_constant_params(df$response, margin_dist)
+          grid <- .plot_margin_density_grid(df$response, margin_dist, params, grid_n = grid_n)
+          grid$split_group <- group_name
+          grid
+        }))
+      } else {
+        obs <- data.frame(response = y, split_group = "All", stringsAsFactors = FALSE)
+        params <- .plot_margin_constant_params(y, margin_dist)
+        density_grid <- .plot_margin_density_grid(y, margin_dist, params, grid_n = grid_n)
+      }
+    }
+
+    obs <- transform_margin_obs(obs)
+    density_grid <- transform_margin_density(density_grid)
   }
 
   family_name <- .plot_margin_family_name(margin_dist)
