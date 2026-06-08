@@ -202,6 +202,7 @@ patterns. Continuous variables used in smooths or interactions are often easier
 to interpret and fit when centered or scaled before modelling.
 
 ```{r data-shape}
+# Check data columns / subject/time counts
 str(dat)
 table(dat$treatment)
 table(dat$time)
@@ -251,22 +252,25 @@ plot_dist(
 ## Choose A Marginal Distribution
 
 For positive continuous responses, `select_margin()` gives a ranked marginal
-screen using `gamlss::fitDist()` and marks whether each family is supported by
-`gamlss_longitudinal()`. The screen uses a focused set of ten positive,
-right-skewed continuous families so the first shortlist is interpretable rather
-than dominated by very flexible Box-Cox-style families. This screen does not
-account for longitudinal dependence or covariates, so it is a shortlist rather
-than the final model.
+screen and marks whether each family is supported by
+`gamlss_longitudinal()`. Because this simulated longitudinal dataset has strong
+time-varying scale and shape, we score the retained families with
+time-specific intercepts for each distribution parameter. This better matches
+the final model structure than a single intercept-only fit to the pooled
+response distribution. The screen still does not account for longitudinal
+dependence or non-time covariates, so it is a shortlist rather than the final
+model.
 
 ```{r marginal-screen}
 margin_candidate_families <- c(
-  "GG", "GA", "GIG", "WEI", "WEI2",
-  "WEI3", "EXP", "PARETO2", "GP", "LOGNO"
+  "GG", "GA", "GIG", "WEI", "EXP"
 )
 
 margin_selection <- select_margin(
   dat,
   response_var = "response",
+  time_var = "time",
+  time_intercepts = TRUE,
   type = "realplus",
   families = margin_candidate_families,
   try.gamlss = FALSE,
@@ -278,39 +282,26 @@ margin_selection
 margin_choice <- best_fit(margin_selection)
 margin_choice[c("family_name", "rank", "AIC", "delta_AIC", "supported_by_longitudinal")]
 
-screened_margin_dist <- best_fit_family(margin_selection)
 screened_margin_family <- margin_choice$family_name
+screened_margin_dist <- best_fit_family(margin_selection)
 margin_dist <- if (identical(screened_margin_family, "GG")) {
   GG(mu.link = "log", sigma.link = "log", nu.link = "identity")
 } else {
   screened_margin_dist
 }
-
 gamma_margin_dist <- GA(mu.link = "log", sigma.link = "log")
-gamma_margin_comparison <- margin_selection[
-  margin_selection$family %in% c("GG", "GA"),
-  c("family", "rank", "AIC", "delta_AIC"),
-  drop = FALSE
-]
-gamma_margin_comparison
 ```
 
-The detailed model fit starts from the screened marginal family rather than the
-known simulation truth. The explicit `GG()` branch only fixes interpretable link
-functions when the selected family is generalized gamma. The table above
-compares generalized gamma with a plain Gamma fit in the same quick marginal
-screen. The overlays below show both candidate fits on the response scale and
-on the log-response scale. The response-scale view preserves the original units
-and right tail; the log-response view is usually more readable for this
-positive skewed example.
 
-```{r marginal-fit-overlay, fig.width = 9.5, fig.height = 7.5, out.width = "95%", fig.alt = "Histograms of observed responses comparing generalized gamma and gamma marginal fits on response and log-response scales."}
+```{r marginal-fit-overlay, fig.width = 9.5, fig.height = 7.5, out.width = "95%", fig.alt = "Histograms of observed responses comparing generalized gamma and gamma marginal fits with time-intercept overlays."}
 margin_overlay_plots <- list(
   plot_margin_fit(
     dat,
     margin_dist = margin_dist,
     response_var = "response",
     bins = 30,
+    time_intercepts = TRUE,
+    time_var = "time",
     plot = FALSE
   )$plot,
   plot_margin_fit(
@@ -318,27 +309,29 @@ margin_overlay_plots <- list(
     margin_dist = gamma_margin_dist,
     response_var = "response",
     bins = 30,
-    plot = FALSE
-  )$plot,
-  plot_margin_fit(
-    dat,
-    margin_dist = margin_dist,
-    response_var = "response",
-    bins = 30,
-    response_scale = "log",
-    plot = FALSE
-  )$plot,
-  plot_margin_fit(
-    dat,
-    margin_dist = gamma_margin_dist,
-    response_var = "response",
-    bins = 30,
-    response_scale = "log",
+    time_intercepts = TRUE,
+    time_var = "time",
     plot = FALSE
   )$plot
 )
 
-ggpubr::ggarrange(plotlist = margin_overlay_plots, ncol = 2, nrow = 2)
+ggpubr::ggarrange(plotlist = margin_overlay_plots, ncol = 2, nrow = 1)
+```
+
+The pooled overlays above are now mixtures across the fitted time-specific
+margins. The faceted view below uses the same time-intercept marginal fit, but
+shows each time point separately so changes in scale and shape are easier to
+inspect.
+
+```{r marginal-fit-overlay_long, fig.width = 9.5, fig.height = 7.5, out.width = "95%", fig.alt = "Histograms of fitted GG with time-varying intercepts for each parameter."}
+plot_margin_fit(
+  dat, 
+  margin_dist = margin_dist, 
+  time_intercepts = TRUE, 
+  by_time=TRUE, 
+  time_var="time", 
+  response_var="response"
+)
 ```
 
 ## Choose A Copula Family
