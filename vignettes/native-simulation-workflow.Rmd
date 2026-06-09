@@ -636,14 +636,14 @@ plot_terms(fit)
 
 Key visual diagnostics are available using `plot()` for marginal diagnostics and `plot_copula_diagnostics()` for dependence diagnostics. 
 
-```{r fit-diagnostics-margin}
+```{r fit-diagnostics-margin, fig.width = 6, fig.height = 9, out.width = "95%"}
 plot(fit)
 ```
 
 Marginal diagnostics for PIT and rootogram look reasonable. Work plot and QQ plot indicate some deviation from the fitted distribution in the lower tail that could be investigated further.
 
 ```{r fit-diagnostics-dependence}
-plot_copula_diagnostics(fit)
+plot_copula_diagnostics(fit, fig.width = 9, fig.height = 9, out.width = "95%")
 ```
 
 All trends for fitted versus observed dependence appear close. There is s ome small deviation between the fit and the data in the lower tail that can be seen in the Rosenblatt normal QQ plot and the tail co-occurrence / exceedence plots for the lower plot where we are slightly underfitting it appears.
@@ -670,5 +670,5 @@ boot <- bootstrap_inference(
 print(boot)
 ```
 
-## Prediction, marginal effets, simulation, benchmarks
+## Prediction, marginal effects, simulation, benchmarks
 
