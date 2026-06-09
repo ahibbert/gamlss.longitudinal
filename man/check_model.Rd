@@ -22,7 +22,7 @@ via \code{\link[=summary.gamlss.longitudinal]{summary.gamlss.longitudinal()}}.}
 \code{check$plots}. Visual review should usually use \code{plot(object)} or the
 explicit diagnostic helpers instead.}
 
-\item{dependence_cor_cutoff}{Absolute lag-1 normal-score residual
+\item{dependence_cor_cutoff}{Absolute lag-1 Rosenblatt normal-score residual
 correlation above which the dependence check is flagged. The default is a
 review threshold rather than a formal hypothesis test.}
 

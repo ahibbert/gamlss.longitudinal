@@ -80,6 +80,15 @@ test_that("T203 check_model returns decision-oriented diagnostic object", {
   expect_true(is.character(chk$decisions))
   expect_true(length(chk$decisions) >= 1L)
   expect_equal(chk$residual_dependence$cutoff, 0.3)
+  expect_true("n_pairs" %in% names(chk$residual_dependence))
+
+  copula_diag <- suppressWarnings(plot_copula_diagnostics(fit, plot = FALSE, residual_lags = 1))
+  expect_equal(
+    chk$residual_dependence$normal_score_cor,
+    copula_diag$residual_lag_summary$cor_z,
+    tolerance = 1e-12
+  )
+  expect_equal(chk$residual_dependence$n_pairs, copula_diag$residual_lag_summary$n_pairs)
 })
 
 test_that("T203b check_missingness screens response missingness against observed predictors", {

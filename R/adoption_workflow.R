@@ -1194,25 +1194,32 @@ simulate.gamlss.longitudinal <- function(
   out
 }
 
-.gl_lag1_residual_cor <- function(object) {
-  pit_out <- .gl_pit(object, randomize = FALSE)
-  z <- stats::qnorm(pmin(pmax(pit_out$pit, .Machine$double.eps), 1 - .Machine$double.eps))
-  dat <- data.frame(
-    subject = pit_out$diag$subject,
-    time = pit_out$diag$time,
-    z = z,
+.gl_residual_dependence_summary <- function(object, residual_lags = 1L) {
+  out <- data.frame(lag = as.integer(residual_lags), normal_score_cor = NA_real_, n_pairs = 0L)
+  if (length(residual_lags) == 0L) {
+    return(data.frame(lag = integer(0), normal_score_cor = numeric(0), n_pairs = integer(0)))
+  }
+
+  copula_spec <- get_copula_dist(object$copula_dist)
+  family_name <- .copula_family_code(copula_spec$copula_dist)
+  family_num <- tryCatch(.copula_family_code(family_name), error = function(e) NA_character_)
+
+  lag_summary <- tryCatch({
+    fit_data <- .copula_v2_fit_data(object)
+    rosenblatt_df <- .copula_v2_rosenblatt_series(fit_data, family_num)
+    .copula_v2_rosenblatt_lag_summary(rosenblatt_df, lag_values = residual_lags)
+  }, error = function(e) data.frame())
+
+  if (nrow(lag_summary) == 0L) {
+    return(out)
+  }
+
+  data.frame(
+    lag = as.integer(lag_summary$lag),
+    normal_score_cor = as.numeric(lag_summary$cor_z),
+    n_pairs = as.integer(lag_summary$n_pairs),
     stringsAsFactors = FALSE
   )
-  dat <- dat[order(dat$subject, dat$time), , drop = FALSE]
-  pairs <- lapply(split(dat, dat$subject), function(x) {
-    if (nrow(x) < 2L) return(NULL)
-    data.frame(z_prev = x$z[-nrow(x)], z_curr = x$z[-1L])
-  })
-  pairs <- do.call(rbind, pairs[!vapply(pairs, is.null, logical(1))])
-  if (is.null(pairs) || nrow(pairs) < 3L) {
-    return(NA_real_)
-  }
-  stats::cor(pairs$z_prev, pairs$z_curr, use = "complete.obs")
 }
 
 .gl_pit_tail_summary <- function(pit, thresholds = c(0.05, 0.10)) {
@@ -1277,7 +1284,7 @@ simulate.gamlss.longitudinal <- function(
       area = "dependence",
       severity = "concern",
       message = paste0(
-        "Dependence remains after the copula in normal-score residuals (|lag-1 cor| > ",
+        "Dependence remains after the copula in Rosenblatt normal-score residuals (|lag-1 cor| > ",
         dependence_cor_cutoff,
         ")."
       ),
@@ -1349,7 +1356,7 @@ simulate.gamlss.longitudinal <- function(
 #' @param include_plots Logical; include standard diagnostic plot objects in
 #'   `check$plots`. Visual review should usually use `plot(object)` or the
 #'   explicit diagnostic helpers instead.
-#' @param dependence_cor_cutoff Absolute lag-1 normal-score residual
+#' @param dependence_cor_cutoff Absolute lag-1 Rosenblatt normal-score residual
 #'   correlation above which the dependence check is flagged. The default is a
 #'   review threshold rather than a formal hypothesis test.
 #' @param ... Passed to [summary.gamlss.longitudinal()] when `include_vcov` is
@@ -1395,7 +1402,9 @@ check_model <- function(
   )
 
   scores <- as.data.frame(as.list(proscore(object, type = c("logs", "mae", "mse", "dss"))), stringsAsFactors = FALSE)
-  lag1_cor <- .gl_lag1_residual_cor(object)
+  residual_dependence <- .gl_residual_dependence_summary(object, residual_lags = 1L)
+  lag1_cor <- residual_dependence$normal_score_cor[match(1L, residual_dependence$lag)]
+  if (length(lag1_cor) == 0L) lag1_cor <- NA_real_
   copula_summary <- tryCatch(copula_time_summary(object), error = function(e) NULL)
   checks <- .gl_check_table(
     summary_obj = list(fit = s$fit, convergence = object$convergence),
@@ -1414,11 +1423,7 @@ check_model <- function(
     scores = scores,
     pit = pit_stats,
     tail = tail_summary,
-    residual_dependence = data.frame(
-      lag = 1L,
-      normal_score_cor = lag1_cor,
-      cutoff = dependence_cor_cutoff
-    ),
+    residual_dependence = transform(residual_dependence, cutoff = dependence_cor_cutoff),
     copula = copula_summary,
     checks = checks,
     warnings = warnings,
