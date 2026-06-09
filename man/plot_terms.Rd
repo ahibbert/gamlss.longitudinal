@@ -28,7 +28,8 @@ plot_terms(
 \item{y}{Unused; included for compatibility with older calls.}
 
 \item{data}{Optional data frame used to recover factor levels, transformed
-covariate scales, and interaction plotting metadata.}
+covariate scales, and interaction plotting metadata. Factor fixed terms
+are grouped into one point-and-interval plot per model term and parameter.}
 
 \item{ci_level}{Confidence level for pointwise intervals.}
 
