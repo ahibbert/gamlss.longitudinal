@@ -165,6 +165,33 @@ test_that("T205 select_margin and screen_margin return ordered candidate tables 
   expect_s3_class(from_data, "margin_screen")
   expect_equal(attr(from_data, "selected"), from_data$family[[1L]])
   expect_equal(best_fit_family(from_data)$family[1], from_data$family[[1L]])
+
+  dat_time <- data.frame(
+    response = y + rep(c(-0.4, 0.2, 0.7), length.out = length(y)),
+    time = rep(1:3, length.out = length(y))
+  )
+  time_screen <- suppressWarnings(suppressMessages(select_margin(
+    dat_time,
+    response_var = "response",
+    time_var = "time",
+    time_intercepts = TRUE,
+    type = "realAll",
+    families = c("NO", "TF"),
+    try.gamlss = FALSE,
+    trace = FALSE
+  )))
+  expect_s3_class(time_screen, "margin_selection")
+  expect_true(isTRUE(attr(time_screen, "time_intercepts")))
+  expect_equal(attr(time_screen, "time_var"), "time")
+  expect_true(all(time_screen$screen_model == "time_intercepts"))
+  expect_true(all(c("AIC", "pooled_AIC") %in% names(time_screen)))
+  expect_true(all(is.finite(time_screen$AIC)))
+  expect_equal(attr(time_screen, "selected"), time_screen$family[[1L]])
+
+  expect_error(
+    select_margin(dat_time, response_var = "response", time_intercepts = TRUE, type = "realAll"),
+    "time_var"
+  )
 })
 
 test_that("T206 gamlss_longitudinal is the single public fitter", {
