@@ -23,6 +23,27 @@ test_that("T151b summary print shows tiny p-values as less than threshold", {
   expect_true(any(grepl("<0.00001", txt, fixed = TRUE)))
 })
 
+test_that("T151c summary includes EDF for smooth terms", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 16L)
+  fit <- fit_fixture_model(
+    dat,
+    include_dlcopdpar = TRUE,
+    mu_formula = "y ~ time_raw * gender + s(log(age), bs = 'ps')"
+  )
+
+  s <- summary(fit, include_vcov = FALSE)
+
+  expect_true(all(c("parameter", "smooth_term", "edf") %in% names(s$smooth_terms)))
+  expect_equal(nrow(s$smooth_terms), 1L)
+  expect_equal(s$smooth_terms$parameter, "mu")
+  expect_equal(s$smooth_terms$smooth_term, "s(log(age), bs = \"ps\")")
+  expect_true(is.finite(s$smooth_terms$edf))
+
+  txt <- capture.output(print(s))
+  expect_true(any(grepl("\\bedf\\b", txt)))
+  expect_true(any(grepl("s\\(log\\(age\\), bs = \"ps\"\\)", txt)))
+})
+
 test_that("T152 plot_terms interaction rendering metadata includes factor levels", {
   dat <- make_fixture_factor_time_interaction(n_subject = 16L)
   dat$time_raw <- factor(as.character(dat$time_raw), levels = levels(dat$time_raw), ordered = FALSE)

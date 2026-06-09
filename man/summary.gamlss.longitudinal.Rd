@@ -24,6 +24,7 @@ An object of class \code{summary.gamlss.longitudinal} containing:
 \item model dimensions and parameter counts,
 \item likelihood and information criteria,
 \item fixed-effect coefficient table,
+\item smooth-term table with effective degrees of freedom,
 \item optional \code{vcov} output.
 }
 }
