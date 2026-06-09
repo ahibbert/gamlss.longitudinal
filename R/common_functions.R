@@ -6187,7 +6187,8 @@ plot_smooth_terms = function(
 #' @param setup_mfrow Logical; if TRUE (default), configure par(mfrow) inside
 #' this function. Set FALSE when caller configures layout.
 #' @param data Optional data frame used to detect factor columns and show
-#' factor levels on x-axis for categorical fixed terms.
+#' factor levels on x-axis for categorical fixed terms. Factor terms are grouped
+#' into one point-and-interval plot per model term and parameter.
 #' @param factor_pch Point symbol for factor-level estimates.
 #' @param factor_cex Point size for factor-level estimates.
 #' @param show_legend Logical; if TRUE, draw a small legend in each panel.
@@ -6235,13 +6236,104 @@ plot_fixed_terms = function(
   gg_add = function(plot, object, object_name = "") {
     ggplot2::ggplot_add(object, plot, object_name)
   }
+  data_for_terms = data
+  if((is.null(data_for_terms) || !is.data.frame(data_for_terms)) && !is.null(object$dataset)) {
+    data_for_terms = object$dataset
+  }
 
   build_factor_groups = function(X, data) {
     groups = list()
-    if(is.null(data) || !is.data.frame(data) || is.null(X) || ncol(X) == 0) return(groups)
+    if(is.null(X) || ncol(X) == 0) return(groups)
 
     x_cols = colnames(X)
+    assign = attr(X, "assign")
+    term_labels = attr(X, "term.labels")
+
+    clean_expr_name = function(x) {
+      x = trimws(x)
+      x = gsub("`", "", x, fixed = TRUE)
+      factor_match = regexec("^(?:as\\.)?factor\\(([^)]+)\\)$", x)
+      matched = regmatches(x, factor_match)[[1]]
+      if(length(matched) >= 2) {
+        x = trimws(matched[2])
+      }
+      x
+    }
+
+    make_factor_group_from_cols = function(term_name, term_cols, levs) {
+      if(length(levs) < 2 || length(term_cols) == 0) return(NULL)
+      level_col_map = list()
+      matched_cols = character(0)
+
+      for(lev in levs[-1]) {
+        lev_plain = as.character(lev)
+        lev_mn = make.names(lev_plain)
+        hits = term_cols[
+          endsWith(term_cols, lev_plain) |
+            endsWith(term_cols, lev_mn) |
+            grepl(paste0("(^|[^[:alnum:]_.])", gsub("([][{}()+*^$|\\\\?.])", "\\\\\\1", lev_plain), "$"), term_cols)
+        ]
+        if(length(hits) == 0 && length(term_cols) == length(levs) - 1L) {
+          hits = term_cols[seq_along(levs[-1]) == which(levs[-1] == lev)]
+        }
+        if(length(hits) > 0) {
+          level_col_map[[lev]] = hits[1]
+          matched_cols = c(matched_cols, hits[1])
+        }
+      }
+
+      if(length(level_col_map) == 0) return(NULL)
+      list(
+        var_name = term_name,
+        levels = levs,
+        ref_level = levs[1],
+        level_col_map = level_col_map,
+        matched_cols = unique(matched_cols)
+      )
+    }
+
+    if(!is.null(assign) && !is.null(term_labels) && length(assign) == length(x_cols)) {
+      for(term_idx in seq_along(term_labels)) {
+        term_name = term_labels[term_idx]
+        if(grepl(":", term_name, fixed = TRUE)) next
+        term_cols = x_cols[assign == term_idx]
+        if(length(term_cols) == 0) next
+
+        term_var = clean_expr_name(term_name)
+        levs = NULL
+        if(!is.null(data) && is.data.frame(data)) {
+          data_candidates = unique(c(
+            term_var,
+            make.names(term_var),
+            if(identical(term_var, "time_covariate")) names(data)[grepl("time", names(data), ignore.case = TRUE)] else character(0)
+          ))
+          for(candidate in data_candidates) {
+            if(candidate %in% names(data) && is.factor(data[[candidate]])) {
+              levs = levels(data[[candidate]])
+              break
+            } else if(candidate %in% names(data) && grepl("^(?:as\\.)?factor\\(", term_name)) {
+              levs = levels(as.factor(data[[candidate]]))
+              break
+            }
+          }
+        }
+        if(is.null(levs) && grepl("^(?:as\\.)?factor\\(", term_name)) {
+          levs = sub(paste0("^", gsub("([][{}()+*^$|\\\\?.])", "\\\\\\1", term_name)), "", term_cols)
+          levs = c(sub("\\).*", ")", term_name), levs)
+        }
+        if(is.null(levs) || length(levs) < 2) next
+
+        fg = make_factor_group_from_cols(term_name, term_cols, levs)
+        if(!is.null(fg)) {
+          groups[[term_name]] = fg
+        }
+      }
+    }
+
+    if(is.null(data) || !is.data.frame(data)) return(groups)
+
     for(var_name in names(data)) {
+      if(var_name %in% names(groups)) next
       v = data[[var_name]]
       if(!is.factor(v)) next
       levs = levels(v)
@@ -6285,7 +6377,7 @@ plot_fixed_terms = function(
         matched_cols = var_name
       }
 
-      if(length(level_col_map) > 0) {
+      if(length(level_col_map) > 0 && !any(matched_cols %in% unlist(lapply(groups, function(g) g$matched_cols), use.names = FALSE))) {
         groups[[var_name]] = list(
           var_name = var_name,
           levels = levs,
@@ -6372,7 +6464,7 @@ plot_fixed_terms = function(
     X = object$model_matrix$x[[par_name]]
     if(is.null(X) || ncol(X) == 0) next
 
-    factor_groups = build_factor_groups(X, data)
+    factor_groups = build_factor_groups(X, data_for_terms)
     interaction_groups = if(plot_interactions) build_factor_interaction_groups(X, factor_groups) else list()
     grouped_cols = unique(unlist(lapply(factor_groups, function(g) g$matched_cols), use.names = FALSE))
     if(length(grouped_cols) == 0) grouped_cols = character(0)
@@ -6800,7 +6892,8 @@ plot_fixed_terms = function(
 #' @param x A fitted `gamlss.longitudinal` object.
 #' @param y Unused; included for compatibility with older calls.
 #' @param data Optional data frame used to recover factor levels, transformed
-#'   covariate scales, and interaction plotting metadata.
+#'   covariate scales, and interaction plotting metadata. Factor fixed terms
+#'   are grouped into one point-and-interval plot per model term and parameter.
 #' @param ci_level Confidence level for pointwise intervals.
 #' @param ncol Number of columns in the combined dashboard.
 #' @param include_intercept Logical; include intercept terms in fixed-effect
@@ -6883,6 +6976,35 @@ plot.terms <- function(x, ...) {
   count_plot_terms = function(obj) {
     n_smooth = 0
     n_fixed = 0
+    data_for_terms = data
+    if((is.null(data_for_terms) || !is.data.frame(data_for_terms)) && !is.null(obj$dataset)) {
+      data_for_terms = obj$dataset
+    }
+
+    clean_expr_name = function(x) {
+      x = trimws(x)
+      x = gsub("`", "", x, fixed = TRUE)
+      factor_match = regexec("^(?:as\\.)?factor\\(([^)]+)\\)$", x)
+      matched = regmatches(x, factor_match)[[1]]
+      if(length(matched) >= 2) {
+        x = trimws(matched[2])
+      }
+      x
+    }
+
+    is_factor_term = function(term_name) {
+      term_var = clean_expr_name(term_name)
+      if(grepl("^(?:as\\.)?factor\\(", term_name)) return(TRUE)
+      if(is.null(data_for_terms) || !is.data.frame(data_for_terms)) return(FALSE)
+      candidates = unique(c(
+        term_var,
+        make.names(term_var),
+        if(identical(term_var, "time_covariate")) names(data_for_terms)[grepl("time", names(data_for_terms), ignore.case = TRUE)] else character(0)
+      ))
+      any(candidates %in% names(data_for_terms) & vapply(candidates, function(candidate) {
+        candidate %in% names(data_for_terms) && is.factor(data_for_terms[[candidate]])
+      }, logical(1)))
+    }
 
     for(par_name in names(obj$par_s)) {
       if(length(obj$par_s[[par_name]]) > 0) {
@@ -6893,8 +7015,27 @@ plot.terms <- function(x, ...) {
     for(par_name in names(obj$model_matrix$x)) {
       X = obj$model_matrix$x[[par_name]]
       if(!is.null(X) && ncol(X) > 0) {
-        coef_names = paste(par_name, colnames(X), sep = ".")
-        coef_names = coef_names[!(colnames(X) == "intercept" & !include_intercept)]
+        x_cols = colnames(X)
+        assign = attr(X, "assign")
+        term_labels = attr(X, "term.labels")
+        grouped_cols = character(0)
+        if(!is.null(assign) && !is.null(term_labels) && length(assign) == length(x_cols)) {
+          for(term_idx in seq_along(term_labels)) {
+            term_name = term_labels[term_idx]
+            if(grepl(":", term_name, fixed = TRUE)) next
+            term_cols = x_cols[assign == term_idx]
+            if(length(term_cols) == 0 || !is_factor_term(term_name)) next
+            coef_names = paste(par_name, term_cols, sep = ".")
+            if(any(coef_names %in% names(obj$par))) {
+              n_fixed = n_fixed + 1
+              grouped_cols = c(grouped_cols, term_cols)
+            }
+          }
+        }
+
+        keep_cols = !(x_cols == "intercept" & !include_intercept)
+        keep_cols = keep_cols & !(x_cols %in% grouped_cols)
+        coef_names = paste(par_name, x_cols[keep_cols], sep = ".")
         if(!plot_interactions) {
           coef_names = coef_names[!grepl(":", coef_names, fixed = TRUE)]
         }
