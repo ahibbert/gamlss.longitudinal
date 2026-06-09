@@ -157,6 +157,42 @@ test_that("select_copula reuses time-intercept margin selections", {
   expect_true(all(is.finite(selected$AIC)))
 })
 
+test_that("select_copula can screen copulas with factor time-pair intercepts", {
+  dat <- simulate_longitudinal_dataset(
+    n = 60,
+    times = 1:4,
+    margin_dist = gamlss.dist::NO(),
+    margin_params = list(mu = 0, sigma = 1),
+    copula_dist = "N",
+    copula_params = list(theta = 0.4),
+    seed = 791
+  )
+
+  selected <- select_copula(
+    data = dat,
+    u_var = "u",
+    families = "N",
+    copula_time_intercepts = TRUE,
+    min_pairs = 10
+  )
+
+  expect_s3_class(selected, "copula_selection")
+  expect_true(isTRUE(attr(selected, "copula_time_intercepts")))
+  expect_equal(attr(selected, "copula_time_levels"), c("1->2", "2->3", "3->4"))
+  expect_equal(selected$n_copula_time_levels, 3)
+  expect_true(is.finite(selected$AIC))
+
+  expect_error(
+    select_copula(
+      u1 = dat$u[seq_len(20)],
+      u2 = dat$u[seq_len(20) + 1L],
+      families = "N",
+      copula_time_intercepts = TRUE
+    ),
+    "time information"
+  )
+})
+
 test_that("select_copula accepts fitted longitudinal objects", {
   dat <- make_fixture_factor_time_interaction(n_subject = 10L)
   fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
