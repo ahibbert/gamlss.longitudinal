@@ -23,7 +23,8 @@ select_copula(
   lags = 1,
   criterion = c("AIC", "BIC", "logLik"),
   t_df_grid = c(3, 4, 6, 8, 12, 20, 30),
-  min_pairs = 10
+  min_pairs = 10,
+  time_intercepts = FALSE
 )
 }
 \arguments{
@@ -41,14 +42,16 @@ select_copula(
 pseudo-observations automatically when \code{u1}/\code{u2}, \code{u}, \code{u_var}, and
 \code{object} are not supplied.}
 
-\item{margin_dist}{Optional \code{gamlss.dist} family object used to fit the
-temporary marginal model for automatic pseudo-observations. If omitted,
-\code{\link[=select_margin]{select_margin()}} is called and a warning is issued.}
+\item{margin_dist}{Optional \code{gamlss.dist} family object, or a
+\code{\link[=select_margin]{select_margin()}} result, used to fit the temporary marginal model for
+automatic pseudo-observations. If omitted, \code{\link[=select_margin]{select_margin()}} is called and
+a warning is issued.}
 
 \item{mu.formula, sigma.formula, nu.formula, tau.formula}{Optional temporary
 marginal model formulas used when \code{select_copula()} creates
 pseudo-observations from \code{response_var}. If omitted, intercept-only
-formulas are used.}
+formulas are used unless \code{time_intercepts = TRUE} or \code{margin_dist} is a
+time-intercept \code{\link[=select_margin]{select_margin()}} result.}
 
 \item{subject_var, time_var}{Subject and time column names used when building
 adjacent-time pairs from \code{data}.}
@@ -63,6 +66,11 @@ adjacent-time pairs from \code{data}.}
 \item{t_df_grid}{Degrees-of-freedom grid used for the t-copula screen.}
 
 \item{min_pairs}{Minimum number of complete pairs required.}
+
+\item{time_intercepts}{Logical; when \code{select_copula()} creates
+pseudo-observations from \code{response_var}, use time-specific intercepts in
+the temporary marginal model and pass this setting through to
+\code{\link[=select_margin]{select_margin()}} if the marginal family is auto-selected.}
 }
 \value{
 A data frame with one row per family and class
