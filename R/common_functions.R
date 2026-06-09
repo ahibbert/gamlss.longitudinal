@@ -5502,6 +5502,7 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
 #' - model dimensions and parameter counts,
 #' - likelihood and information criteria,
 #' - fixed-effect coefficient table,
+#' - smooth-term table with effective degrees of freedom,
 #' - optional `vcov` output.
 #' @export
 summary.gamlss.longitudinal = function(
@@ -5667,16 +5668,21 @@ summary.gamlss.longitudinal = function(
         for(par_name in names(object$par_s)) {
           if(length(object$par_s[[par_name]]) == 0) next
           for(s_name in names(object$par_s[[par_name]])) {
+            smooth_edf = NA_real_
+            if(!is.null(object$df_s) && !is.null(object$df_s[[par_name]]) && s_name %in% names(object$df_s[[par_name]])) {
+              smooth_edf = suppressWarnings(as.numeric(object$df_s[[par_name]][[s_name]])[1])
+            }
             st[[length(st) + 1]] = data.frame(
               parameter = par_name,
               smooth_term = s_name,
+              edf = smooth_edf,
               stringsAsFactors = FALSE
             )
           }
         }
       }
       if(length(st) == 0) {
-        data.frame(parameter = character(0), smooth_term = character(0), stringsAsFactors = FALSE)
+        data.frame(parameter = character(0), smooth_term = character(0), edf = numeric(0), stringsAsFactors = FALSE)
       } else {
         do.call(rbind, st)
       }
@@ -5825,7 +5831,11 @@ print.summary.gamlss.longitudinal = function(x, digits = max(3, getOption("digit
   cat("\nSmooth terms:\n")
   cat("--------------------\n")
   if(!is.null(x$smooth_terms) && nrow(x$smooth_terms) > 0) {
-    print(x$smooth_terms, row.names = FALSE)
+    smooth_disp = x$smooth_terms
+    if("edf" %in% names(smooth_disp)) {
+      smooth_disp$edf = round(smooth_disp$edf, digits)
+    }
+    print(smooth_disp, row.names = FALSE)
     cat("Use plot(object) to visualize smooth and fixed terms with confidence bands.\n")
   } else {
     cat("None\n")
