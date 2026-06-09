@@ -204,6 +204,40 @@ test_that("T159 standard fit inspection plotting helpers are available", {
   expect_s3_class(margin_plot$plot, "ggplot")
   expect_true(all(c("plot", "data", "density") %in% names(margin_plot)))
 
+  positive_response <- gamlss.dist::rGG(
+    80,
+    mu = 3,
+    sigma = 0.7,
+    nu = 1.2
+  )
+  positive_margin_plot <- suppressWarnings(plot_margin_fit(
+    positive_response,
+    margin_dist = gamlss.dist::GG(mu.link = "log", sigma.link = "log", nu.link = "identity"),
+    plot = FALSE
+  ))
+  expect_gt(min(positive_margin_plot$density$response, na.rm = TRUE), 0)
+  expect_true(any(is.finite(positive_margin_plot$density$density)))
+
+  time_intercept_margin_plot <- suppressWarnings(plot_margin_fit(
+    dat,
+    margin_dist = gamlss.dist::NO(),
+    response_var = "response",
+    time_intercepts = TRUE,
+    plot = FALSE
+  ))
+  time_intercept_facet_plot <- suppressWarnings(plot_margin_fit(
+    dat,
+    margin_dist = gamlss.dist::NO(),
+    response_var = "response",
+    time_intercepts = TRUE,
+    by_time = TRUE,
+    plot = FALSE
+  ))
+  expect_s3_class(time_intercept_margin_plot$plot, "ggplot")
+  expect_equal(unique(time_intercept_margin_plot$density$split_group), "All")
+  expect_setequal(unique(time_intercept_facet_plot$density$split_group), as.character(unique(dat$time)))
+  expect_true(any(is.finite(time_intercept_facet_plot$density$density)))
+
   copula_screen <- select_copula(
     data = dat,
     response_var = "response",

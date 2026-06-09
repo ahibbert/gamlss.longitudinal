@@ -117,6 +117,46 @@ test_that("select_copula can auto-select the temporary margin with a warning", {
   expect_s3_class(attr(selected, "margin_selection"), "margin_selection")
 })
 
+test_that("select_copula reuses time-intercept margin selections", {
+  skip_if_not_installed("gamlss")
+
+  dat <- simulate_longitudinal_dataset(
+    n = 35,
+    times = 1:4,
+    margin_dist = gamlss.dist::NO(),
+    margin_params = list(mu = 0, sigma = 1),
+    copula_dist = "N",
+    copula_params = list(theta = 0.35),
+    seed = 790
+  )
+  dat$response <- dat$response + rep(c(-0.8, -0.2, 0.4, 1.0), times = length(unique(dat$subject)))
+
+  margin_selection <- suppressWarnings(suppressMessages(select_margin(
+    dat,
+    response_var = "response",
+    time_var = "time",
+    time_intercepts = TRUE,
+    type = "realAll",
+    families = "NO",
+    trace = FALSE
+  )))
+
+  selected <- select_copula(
+    data = dat,
+    response_var = "response",
+    margin_dist = margin_selection,
+    families = "N",
+    min_pairs = 10
+  )
+
+  expect_s3_class(selected, "copula_selection")
+  expect_equal(best_fit_family(selected), "N")
+  expect_equal(attr(selected, "pseudo_observation_source"), "select_margin")
+  expect_s3_class(attr(selected, "margin_selection"), "margin_selection")
+  expect_true(isTRUE(attr(attr(selected, "margin_selection"), "time_intercepts")))
+  expect_true(all(is.finite(selected$AIC)))
+})
+
 test_that("select_copula accepts fitted longitudinal objects", {
   dat <- make_fixture_factor_time_interaction(n_subject = 10L)
   fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)

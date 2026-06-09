@@ -19,13 +19,15 @@
 #' @param response_var Optional response column name in `data`. Used to create
 #'   pseudo-observations automatically when `u1`/`u2`, `u`, `u_var`, and
 #'   `object` are not supplied.
-#' @param margin_dist Optional `gamlss.dist` family object used to fit the
-#'   temporary marginal model for automatic pseudo-observations. If omitted,
-#'   [select_margin()] is called and a warning is issued.
+#' @param margin_dist Optional `gamlss.dist` family object, or a
+#'   [select_margin()] result, used to fit the temporary marginal model for
+#'   automatic pseudo-observations. If omitted, [select_margin()] is called and
+#'   a warning is issued.
 #' @param mu.formula,sigma.formula,nu.formula,tau.formula Optional temporary
 #'   marginal model formulas used when `select_copula()` creates
 #'   pseudo-observations from `response_var`. If omitted, intercept-only
-#'   formulas are used.
+#'   formulas are used unless `time_intercepts = TRUE` or `margin_dist` is a
+#'   time-intercept [select_margin()] result.
 #' @param subject_var,time_var Subject and time column names used when building
 #'   adjacent-time pairs from `data`.
 #' @param families Candidate copula family codes. Supported values are `"N"`,
@@ -34,6 +36,10 @@
 #' @param criterion Ranking criterion, one of `"AIC"`, `"BIC"`, or `"logLik"`.
 #' @param t_df_grid Degrees-of-freedom grid used for the t-copula screen.
 #' @param min_pairs Minimum number of complete pairs required.
+#' @param time_intercepts Logical; when `select_copula()` creates
+#'   pseudo-observations from `response_var`, use time-specific intercepts in
+#'   the temporary marginal model and pass this setting through to
+#'   [select_margin()] if the marginal family is auto-selected.
 #'
 #' @return A data frame with one row per family and class
 #'   `copula_selection`. The selected family is stored in the `selected`
@@ -58,7 +64,8 @@ select_copula <- function(
   lags = 1,
   criterion = c("AIC", "BIC", "logLik"),
   t_df_grid = c(3, 4, 6, 8, 12, 20, 30),
-  min_pairs = 10
+  min_pairs = 10,
+  time_intercepts = FALSE
 ) {
   criterion <- match.arg(criterion)
   families <- vapply(families, .copula_family_code, character(1), USE.NAMES = FALSE)
@@ -82,7 +89,8 @@ select_copula <- function(
     tau.formula = tau.formula,
     subject_var = subject_var,
     time_var = time_var,
-    lags = lags
+    lags = lags,
+    time_intercepts = time_intercepts
   )
   keep <- is.finite(pairs$u1) & is.finite(pairs$u2)
   pairs <- pairs[keep, , drop = FALSE]
@@ -151,7 +159,8 @@ best_fit_family.copula_selection <- function(x, ...) {
   tau.formula,
   subject_var,
   time_var,
-  lags
+  lags,
+  time_intercepts = FALSE
 ) {
   if (!is.null(u1) || !is.null(u2)) {
     if (is.null(u1) || is.null(u2)) {
@@ -179,6 +188,10 @@ best_fit_family.copula_selection <- function(x, ...) {
       stop("Provide either object, u1/u2, or data with u/u_var.", call. = FALSE)
     }
     data <- as.data.frame(data)
+    margin_selection_time_var <- .select_copula_margin_selection_time_var(margin_dist)
+    if (!is.null(margin_selection_time_var) && !time_var %in% names(data) && margin_selection_time_var %in% names(data)) {
+      time_var <- margin_selection_time_var
+    }
     if (!is.null(u)) {
       if (length(u) != nrow(data)) {
         stop("u must have one value per row of data.", call. = FALSE)
@@ -194,7 +207,9 @@ best_fit_family.copula_selection <- function(x, ...) {
         mu.formula = mu.formula,
         sigma.formula = sigma.formula,
         nu.formula = nu.formula,
-        tau.formula = tau.formula
+        tau.formula = tau.formula,
+        time_var = time_var,
+        time_intercepts = time_intercepts
       )
       data <- auto$data
       u_var <- auto$u_var
@@ -225,7 +240,9 @@ best_fit_family.copula_selection <- function(x, ...) {
   mu.formula,
   sigma.formula,
   nu.formula,
-  tau.formula
+  tau.formula,
+  time_var,
+  time_intercepts
 ) {
   if (is.null(response_var) || !is.character(response_var) || length(response_var) != 1L) {
     stop(
@@ -238,18 +255,50 @@ best_fit_family.copula_selection <- function(x, ...) {
   }
 
   margin_selection <- NULL
-  if (is.null(margin_dist)) {
+  if (inherits(margin_dist, "margin_selection")) {
+    margin_selection <- margin_dist
+    if (isTRUE(attr(margin_selection, "time_intercepts"))) {
+      time_intercepts <- TRUE
+      selected_time_var <- attr(margin_selection, "time_var")
+      if (!is.null(selected_time_var)) {
+        time_var <- selected_time_var
+      }
+    }
+    margin_dist <- best_fit_family(margin_selection)
+    if (is.null(margin_dist)) {
+      stop("The supplied select_margin() result did not contain a usable marginal family.", call. = FALSE)
+    }
+  } else if (is.null(margin_dist)) {
     warning(
       "'margin_dist' was not supplied; select_copula() is selecting a temporary marginal distribution with select_margin().",
       call. = FALSE
     )
     margin_selection <- suppressWarnings(suppressMessages(
-      select_margin(data, response_var = response_var, trace = FALSE)
+      select_margin(
+        data,
+        response_var = response_var,
+        time_var = if (isTRUE(time_intercepts)) time_var else NULL,
+        time_intercepts = time_intercepts,
+        trace = FALSE
+      )
     ))
     margin_dist <- best_fit_family(margin_selection)
     if (is.null(margin_dist)) {
       stop("select_margin() did not return a usable marginal family.", call. = FALSE)
     }
+  }
+
+  if (isTRUE(time_intercepts)) {
+    if (is.null(time_var) || !is.character(time_var) || length(time_var) != 1L) {
+      stop("'time_var' must be a single column name when 'time_intercepts = TRUE'.", call. = FALSE)
+    }
+    if (!time_var %in% names(data)) {
+      stop("time_var='", time_var, "' not found in 'data'.", call. = FALSE)
+    }
+    mu.formula <- .select_copula_time_response_formula(mu.formula, response_var, time_var)
+    sigma.formula <- .select_copula_time_rhs_formula(sigma.formula, time_var)
+    nu.formula <- .select_copula_time_rhs_formula(nu.formula, time_var)
+    tau.formula <- .select_copula_time_rhs_formula(tau.formula, time_var)
   }
 
   pfun <- tryCatch(
@@ -330,6 +379,38 @@ best_fit_family.copula_selection <- function(x, ...) {
     margin_selection = margin_selection,
     source = if (is.null(margin_selection)) "margin_dist" else "select_margin"
   )
+}
+
+.select_copula_margin_selection_time_var <- function(margin_dist) {
+  if (!inherits(margin_dist, "margin_selection") || !isTRUE(attr(margin_dist, "time_intercepts"))) {
+    return(NULL)
+  }
+  time_var <- attr(margin_dist, "time_var")
+  if (is.null(time_var) || !is.character(time_var) || length(time_var) != 1L || !nzchar(time_var)) {
+    return(NULL)
+  }
+  time_var
+}
+
+.select_copula_time_response_formula <- function(formula, response_var, time_var) {
+  if (!is.null(formula)) {
+    return(formula)
+  }
+  stats::as.formula(paste(.select_copula_formula_name(response_var), "~ factor(", .select_copula_formula_name(time_var), ")"))
+}
+
+.select_copula_time_rhs_formula <- function(formula, time_var) {
+  if (!is.null(formula)) {
+    return(formula)
+  }
+  stats::as.formula(paste("~ factor(", .select_copula_formula_name(time_var), ")"))
+}
+
+.select_copula_formula_name <- function(name) {
+  if (make.names(name) == name) {
+    return(name)
+  }
+  paste0("`", gsub("`", "\\\\`", name), "`")
 }
 
 .select_copula_response_formula <- function(formula, response_var) {
