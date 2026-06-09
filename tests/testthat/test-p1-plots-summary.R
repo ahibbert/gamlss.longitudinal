@@ -259,6 +259,21 @@ test_that("T159 standard fit inspection plotting helpers are available", {
   expect_s3_class(copula_plot$plot, "ggplot")
   expect_true(all(c("plot", "pair_data", "density") %in% names(copula_plot)))
 
+  copula_time_plot <- suppressWarnings(plot_copula_fit(
+    data = dat,
+    copula_dist = copula_screen,
+    response_var = "response",
+    margin_dist = gamlss.dist::NO(),
+    subject_var = "subject",
+    time_var = "time",
+    by_time = TRUE,
+    plot = FALSE
+  ))
+  expect_s3_class(copula_time_plot$plot, "ggplot")
+  expect_true("split_group" %in% names(copula_time_plot$pair_data))
+  expect_true("split_group" %in% names(copula_time_plot$density))
+  expect_gt(length(unique(copula_time_plot$pair_data$split_group)), 1L)
+
   clayton_dat <- simulate_longitudinal_dataset(
     n = 120,
     times = 1:4,
