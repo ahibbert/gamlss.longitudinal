@@ -128,6 +128,36 @@ test_that("select_joint_distribution can screen with factor copula time intercep
   expect_equal(selected$copula_family, "N")
 })
 
+test_that("select_joint_distribution rejects zero likelihood resets after nonzero history", {
+  fit <- list(
+    log_lik_history = cbind(
+      marginal = c(-20, -18, 0),
+      copula = c(3, 4, 0),
+      joint = c(-17, -14, 0)
+    )
+  )
+  fit_metrics <- list(
+    logLik = 0,
+    AIC = 10,
+    BIC = 20,
+    model_selection = rbind(
+      LogLik = c(marginal = 0, copula = 0, joint = 0),
+      AIC = c(marginal = 4, copula = 6, joint = 10),
+      BIC = c(marginal = 8, copula = 12, joint = 20),
+      EDF = c(marginal = 2, copula = 3, joint = 5)
+    )
+  )
+
+  expect_match(
+    gamlss.longitudinal:::.joint_selection_invalid_fit_reason(fit, fit_metrics),
+    "zero final likelihood"
+  )
+
+  fit_metrics$model_selection["LogLik", ] <- c(marginal = -20, copula = 3, joint = -17)
+  fit_metrics$logLik <- -17
+  expect_null(gamlss.longitudinal:::.joint_selection_invalid_fit_reason(fit, fit_metrics))
+})
+
 test_that("select_joint_distribution retains failures and includes t candidates", {
   skip_if_not_installed("gamlss")
 
