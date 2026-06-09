@@ -19,6 +19,12 @@
 #' @param criterion Ranking criterion, one of `"AIC"`, `"BIC"`, or `"logLik"`.
 #' @param min_pairs Minimum number of complete adjacent response pairs required
 #'   before fitting candidates.
+#' @param time_intercepts Logical; if `TRUE`, pass through to
+#'   [select_margin()] and use time-specific intercepts for each marginal
+#'   distribution parameter in the joint screening fits.
+#' @param copula_time_intercepts Logical; if `TRUE`, use time-specific
+#'   intercepts for the copula dependence parameter in the joint screening fits.
+#'   Time is treated as a factor, not as a linear trend.
 #' @param try.gamlss Passed to [select_margin()].
 #' @param trace Logical; passed to [select_margin()] and used to decide whether
 #'   candidate [gamlss_longitudinal()] fit output is shown.
@@ -43,6 +49,8 @@ select_joint_distribution <- function(
   copula_families = c("N", "C", "F", "G", "J", "t"),
   criterion = c("AIC", "BIC", "logLik"),
   min_pairs = 10,
+  time_intercepts = FALSE,
+  copula_time_intercepts = FALSE,
   try.gamlss = FALSE,
   trace = FALSE,
   progress = TRUE,
@@ -92,8 +100,10 @@ select_joint_distribution <- function(
   margin_selection <- .joint_selection_margin_candidates(
     data = data,
     response_var = response_var,
+    time_var = time_var,
     type = type,
     margin_families = margin_families,
+    time_intercepts = time_intercepts,
     try.gamlss = try.gamlss,
     trace = trace
   )
@@ -146,6 +156,8 @@ select_joint_distribution <- function(
       margin_dist = margin_dist,
       copula_family = copula_family,
       fit_args = fit_args,
+      time_intercepts = time_intercepts,
+      copula_time_intercepts = copula_time_intercepts,
       trace = trace
     )
     rows[[ii]] <- fit_one$row
@@ -201,6 +213,10 @@ select_joint_distribution <- function(
   attr(out, "criterion") <- criterion
   attr(out, "margin_selection") <- margin_selection
   attr(out, "response_type") <- attr(margin_selection, "response_type")
+  attr(out, "time_intercepts") <- isTRUE(time_intercepts)
+  attr(out, "time_var") <- if (isTRUE(time_intercepts)) time_var else NULL
+  attr(out, "copula_time_intercepts") <- isTRUE(copula_time_intercepts)
+  attr(out, "copula_time_var") <- if (isTRUE(copula_time_intercepts)) time_var else NULL
   if (isTRUE(keep_fits)) {
     fit_store <- fit_store[c(success_idx, failed_idx)]
     attr(out, "fits") <- fit_store
@@ -230,8 +246,10 @@ select_joint_distribution <- function(
 .joint_selection_margin_candidates <- function(
   data,
   response_var,
+  time_var,
   type,
   margin_families,
+  time_intercepts,
   try.gamlss,
   trace
 ) {
@@ -263,6 +281,8 @@ select_joint_distribution <- function(
     out$delta_AIC <- NA_real_
     attr(out, "selected") <- if (nrow(out) > 0L) out$family[[1L]] else NA_character_
     attr(out, "response_type") <- type
+    attr(out, "time_intercepts") <- isTRUE(time_intercepts)
+    attr(out, "time_var") <- if (isTRUE(time_intercepts)) time_var else NULL
     class(out) <- c("margin_selection", "margin_screen", "data.frame")
     return(out)
   }
@@ -270,8 +290,10 @@ select_joint_distribution <- function(
   margin_call <- quote(select_margin(
     data = data,
     response_var = response_var,
+    time_var = if (isTRUE(time_intercepts)) time_var else NULL,
     type = type,
     families = NULL,
+    time_intercepts = time_intercepts,
     try.gamlss = try.gamlss,
     trace = trace
   ))
@@ -337,6 +359,8 @@ select_joint_distribution <- function(
   margin_dist,
   copula_family,
   fit_args,
+  time_intercepts,
+  copula_time_intercepts,
   trace
 ) {
   start_time <- Sys.time()
@@ -347,17 +371,32 @@ select_joint_distribution <- function(
   if (is.null(margin_dist)) {
     error <- paste0("Could not construct gamlss.dist family object for '", margin_family, "'.")
   } else {
+    mu_formula <- if (isTRUE(time_intercepts)) {
+      stats::as.formula(paste(.select_copula_formula_name(response_var), "~ factor(", .select_copula_formula_name(time_var), ")"))
+    } else {
+      stats::reformulate("1", response = response_var)
+    }
+    par_formula <- if (isTRUE(time_intercepts)) {
+      stats::as.formula(paste("~ factor(", .select_copula_formula_name(time_var), ")"))
+    } else {
+      ~1
+    }
+    theta_formula <- if (isTRUE(copula_time_intercepts)) {
+      stats::as.formula(paste("~ factor(", .select_copula_formula_name(time_var), ")"))
+    } else {
+      ~1
+    }
     default_args <- list(
       dataset = data,
       margin_dist = margin_dist,
       copula_dist = copula_family,
       time_var = time_var,
       subject_var = subject_var,
-      mu.formula = stats::reformulate("1", response = response_var),
-      sigma.formula = ~1,
-      nu.formula = ~1,
-      tau.formula = ~1,
-      theta.formula = ~1,
+      mu.formula = mu_formula,
+      sigma.formula = par_formula,
+      nu.formula = par_formula,
+      tau.formula = par_formula,
+      theta.formula = theta_formula,
       zeta.formula = ~1,
       include_dlcopdpar = TRUE,
       compute_vcov = FALSE,

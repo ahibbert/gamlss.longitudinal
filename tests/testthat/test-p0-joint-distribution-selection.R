@@ -47,6 +47,87 @@ test_that("select_joint_distribution ranks joint fits and exposes best-fit helpe
   expect_equal(selected$best_fit$copula_family, best$copula_family)
 })
 
+test_that("select_joint_distribution can screen with time-intercept margins", {
+  skip_if_not_installed("gamlss")
+
+  dat <- simulate_longitudinal_dataset(
+    n = 10,
+    times = 1:3,
+    margin_dist = gamlss.dist::NO(),
+    margin_params = list(mu = 0, sigma = 1),
+    copula_dist = "N",
+    copula_params = list(theta = 0.25),
+    seed = 1002
+  )
+  dat$response <- dat$response + rep(c(-0.4, 0.1, 0.5), times = length(unique(dat$subject)))
+
+  selected <- select_joint_distribution(
+    data = dat,
+    response_var = "response",
+    time_var = "time",
+    subject_var = "subject",
+    type = "realAll",
+    margin_families = "NO",
+    copula_families = "N",
+    time_intercepts = TRUE,
+    progress = FALSE,
+    fit_args = list(
+      max_outer_iter = 2,
+      max_inner_iter = 2,
+      outer_stop_crit = 1,
+      inner_stop_crit = 1,
+      backtracking_max_halves = 0
+    )
+  )
+
+  expect_s3_class(selected, "joint_distribution_selection")
+  expect_true(isTRUE(attr(selected, "time_intercepts")))
+  expect_equal(attr(selected, "time_var"), "time")
+  expect_true(isTRUE(attr(attr(selected, "margin_selection"), "time_intercepts")))
+  expect_equal(attr(attr(selected, "margin_selection"), "time_var"), "time")
+  expect_equal(selected$margin_family, "NO")
+  expect_equal(selected$copula_family, "N")
+})
+
+test_that("select_joint_distribution can screen with factor copula time intercepts", {
+  skip_if_not_installed("gamlss")
+
+  dat <- simulate_longitudinal_dataset(
+    n = 10,
+    times = 1:3,
+    margin_dist = gamlss.dist::NO(),
+    margin_params = list(mu = 0, sigma = 1),
+    copula_dist = "N",
+    copula_params = list(theta = 0.25),
+    seed = 1003
+  )
+
+  selected <- select_joint_distribution(
+    data = dat,
+    response_var = "response",
+    time_var = "time",
+    subject_var = "subject",
+    type = "realAll",
+    margin_families = "NO",
+    copula_families = "N",
+    copula_time_intercepts = TRUE,
+    progress = FALSE,
+    fit_args = list(
+      max_outer_iter = 2,
+      max_inner_iter = 2,
+      outer_stop_crit = 1,
+      inner_stop_crit = 1,
+      backtracking_max_halves = 0
+    )
+  )
+
+  expect_s3_class(selected, "joint_distribution_selection")
+  expect_true(isTRUE(attr(selected, "copula_time_intercepts")))
+  expect_equal(attr(selected, "copula_time_var"), "time")
+  expect_equal(selected$margin_family, "NO")
+  expect_equal(selected$copula_family, "N")
+})
+
 test_that("select_joint_distribution retains failures and includes t candidates", {
   skip_if_not_installed("gamlss")
 
