@@ -54,7 +54,8 @@ computed internally with the analytical vcov path.}
 this function. Set FALSE when caller configures layout.}
 
 \item{data}{Optional data frame used to detect factor columns and show
-factor levels on x-axis for categorical fixed terms.}
+factor levels on x-axis for categorical fixed terms. Factor terms are grouped
+into one point-and-interval plot per model term and parameter.}
 
 \item{factor_pch}{Point symbol for factor-level estimates.}
 
