@@ -157,6 +157,41 @@ test_that("T156b smooth plotting tolerates unavailable interval values", {
   expect_true(all(is.na(smooth_entry$ci_upper)))
 })
 
+test_that("T156c transformed factor time is grouped into point interval plots", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 16L)
+  dat$time_raw <- factor(as.character(dat$time_raw), levels = levels(dat$time_raw), ordered = FALSE)
+  fit <- fit_fixture_model(
+    dat,
+    include_dlcopdpar = TRUE,
+    mu_formula = "y ~ as.factor(time_raw) + gender + age",
+    sigma_formula = "~ as.factor(time_raw) + gender",
+    theta_formula = "~ as.factor(time_raw)"
+  )
+
+  pt <- suppressWarnings(plot_terms(fit, data = dat))
+
+  for (par_name in c("mu", "sigma", "theta")) {
+    entries <- pt$fixed_terms[[par_name]]
+    factor_entries <- names(entries)[grepl("as.factor\\(time_covariate\\)|as.factor\\(time_raw\\)", names(entries))]
+
+    expect_equal(length(factor_entries), 1L)
+    factor_entry <- entries[[factor_entries[1]]]
+    expect_setequal(factor_entry$levels, levels(dat$time_raw))
+    expect_equal(factor_entry$fitted[1], 0)
+    expect_equal(factor_entry$se[1], 0)
+
+    layer_classes <- vapply(
+      factor_entry$plot$layers,
+      function(layer) class(layer$geom)[1],
+      character(1)
+    )
+    expect_true("GeomPoint" %in% layer_classes)
+    expect_true("GeomErrorbar" %in% layer_classes)
+    expect_false("GeomLine" %in% layer_classes)
+    expect_false("GeomRibbon" %in% layer_classes)
+  }
+})
+
 test_that("T157 copula plot wrappers remain available after install", {
   dat <- make_fixture_factor_time_interaction(n_subject = 16L)
   fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
