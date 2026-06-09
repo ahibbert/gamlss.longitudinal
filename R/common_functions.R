@@ -9593,6 +9593,8 @@ plot_margin_fit <- function(
 #'   pseudo-observations from `response_var`.
 #' @param subject_var,time_var Subject and time column names.
 #' @param lags Positive integer lag(s) used when forming pairs.
+#' @param by_time Logical; if `TRUE`, facet the copula overlay by adjacent
+#'   time pair.
 #' @param transform Character; either `"normal"` or `"uniform"`.
 #' @param grid_n Grid size for fitted density contours.
 #' @param bins Number of empirical two-dimensional bins.
@@ -9619,6 +9621,7 @@ plot_copula_fit <- function(
   subject_var = "subject",
   time_var = "time",
   lags = 1,
+  by_time = FALSE,
   transform = c("normal", "uniform"),
   grid_n = 80,
   bins = 28,
@@ -9630,6 +9633,9 @@ plot_copula_fit <- function(
   .plot_reject_old_call_args(sys.call(), old_args = c("copula", "selected_fit"))
   .plot_reject_old_args(list(...), old_args = c("copula", "selected_fit"))
   transform <- match.arg(transform)
+  if (!is.logical(by_time) || length(by_time) != 1L || is.na(by_time)) {
+    stop("'by_time' must be TRUE or FALSE.", call. = FALSE)
+  }
   if (inherits(data, "gamlss.longitudinal") && is.null(fit) && is.null(object)) {
     fit <- data
     data <- NULL
@@ -9687,7 +9693,29 @@ plot_copula_fit <- function(
     pair_data$zeta_pair <- rep(spec$par2, nrow(pair_data))
   }
 
-  density_grid <- .plot_copula_density_for_spec(pair_data, spec, grid_n = grid_n, max_pairs_overlay = max_pairs_overlay)
+  if (isTRUE(by_time)) {
+    pair_data$split_group <- .plot_copula_pair_time_group(pair_data)
+  }
+
+  density_grid <- if (isTRUE(by_time)) {
+    do.call(rbind, lapply(split(pair_data, pair_data$split_group), function(group_data) {
+      if (is.null(fit)) {
+        group_fit <- .select_copula_fit_family(
+          u1 = group_data$u1,
+          u2 = group_data$u2,
+          family = spec$family,
+          t_df_grid = c(3, 4, 6, 8, 12, 20, 30)
+        )
+        group_data$theta_pair <- rep(group_fit$par[[1L]], nrow(group_data))
+        group_data$zeta_pair <- rep(group_fit$par2[[1L]], nrow(group_data))
+      }
+      grid <- .plot_copula_density_for_spec(group_data, spec, grid_n = grid_n, max_pairs_overlay = max_pairs_overlay)
+      grid$split_group <- as.character(group_data$split_group[[1L]])
+      grid
+    }))
+  } else {
+    .plot_copula_density_for_spec(pair_data, spec, grid_n = grid_n, max_pairs_overlay = max_pairs_overlay)
+  }
   density_grid <- .plot_copula_transform_grid(density_grid, transform)
   pair_plot <- .copula_v2_transform_data(pair_data, transform = transform)
 
@@ -9712,6 +9740,10 @@ plot_copula_fit <- function(
     ) +
     ggplot2::theme_minimal()
 
+  if (isTRUE(by_time)) {
+    p <- p + ggplot2::facet_wrap(~split_group)
+  }
+
   if (isTRUE(plot)) {
     print(p)
   }
@@ -9723,6 +9755,16 @@ plot_copula_fit <- function(
     copula = spec,
     selection = selection
   ))
+}
+
+.plot_copula_pair_time_group <- function(pair_data) {
+  if ("time_pair" %in% names(pair_data)) {
+    return(factor(pair_data$time_pair, levels = unique(pair_data$time_pair)))
+  }
+  if ("copula_time" %in% names(pair_data)) {
+    return(factor(pair_data$copula_time, levels = unique(pair_data$copula_time)))
+  }
+  stop("'by_time = TRUE' requires pair data with adjacent time-pair labels.", call. = FALSE)
 }
 
 #' @rdname plot_copula_fit
@@ -9741,6 +9783,7 @@ plot_copula_overlay <- function(
   subject_var = "subject",
   time_var = "time",
   lags = 1,
+  by_time = FALSE,
   transform = c("normal", "uniform"),
   grid_n = 80,
   bins = 28,
@@ -9764,6 +9807,7 @@ plot_copula_overlay <- function(
     subject_var = subject_var,
     time_var = time_var,
     lags = lags,
+    by_time = by_time,
     transform = transform,
     grid_n = grid_n,
     bins = bins,
