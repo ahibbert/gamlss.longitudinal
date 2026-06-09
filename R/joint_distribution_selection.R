@@ -430,37 +430,80 @@ select_joint_distribution <- function(
   if (inherits(fit, "gamlss.longitudinal")) {
     summary_fit <- summary(fit, include_vcov = FALSE)
     fit_metrics <- summary_fit$fit
-    row <- data.frame(
-      margin_family = margin_family,
-      copula_family = copula_family,
-      logLik = as.numeric(fit_metrics$logLik),
-      AIC = as.numeric(fit_metrics$AIC),
-      BIC = as.numeric(fit_metrics$BIC),
-      EDF = as.numeric(fit_metrics$model_selection["EDF", "joint"]),
-      converged = isTRUE(fit$convergence$converged),
-      hit_outer_limit = isTRUE(fit$convergence$hit_outer_limit),
-      elapsed_sec = elapsed,
-      warnings = paste(unique(warnings), collapse = "\n"),
-      error = NA_character_,
-      stringsAsFactors = FALSE
-    )
+    invalid_reason <- .joint_selection_invalid_fit_reason(fit, fit_metrics)
+    if (is.null(invalid_reason)) {
+      row <- data.frame(
+        margin_family = margin_family,
+        copula_family = copula_family,
+        logLik = as.numeric(fit_metrics$logLik),
+        AIC = as.numeric(fit_metrics$AIC),
+        BIC = as.numeric(fit_metrics$BIC),
+        EDF = as.numeric(fit_metrics$model_selection["EDF", "joint"]),
+        converged = isTRUE(fit$convergence$converged),
+        hit_outer_limit = isTRUE(fit$convergence$hit_outer_limit),
+        elapsed_sec = elapsed,
+        warnings = paste(unique(warnings), collapse = "\n"),
+        error = NA_character_,
+        stringsAsFactors = FALSE
+      )
+    } else {
+      row <- .joint_selection_failed_row(
+        margin_family = margin_family,
+        copula_family = copula_family,
+        elapsed = elapsed,
+        warnings = warnings,
+        error = invalid_reason
+      )
+    }
   } else {
-    row <- data.frame(
+    row <- .joint_selection_failed_row(
       margin_family = margin_family,
       copula_family = copula_family,
-      logLik = NA_real_,
-      AIC = NA_real_,
-      BIC = NA_real_,
-      EDF = NA_real_,
-      converged = FALSE,
-      hit_outer_limit = NA,
-      elapsed_sec = elapsed,
-      warnings = paste(unique(warnings), collapse = "\n"),
-      error = error,
-      stringsAsFactors = FALSE
+      elapsed = elapsed,
+      warnings = warnings,
+      error = error
     )
   }
   list(row = row, fit = fit)
+}
+
+.joint_selection_failed_row <- function(margin_family, copula_family, elapsed, warnings, error) {
+  data.frame(
+    margin_family = margin_family,
+    copula_family = copula_family,
+    logLik = NA_real_,
+    AIC = NA_real_,
+    BIC = NA_real_,
+    EDF = NA_real_,
+    converged = FALSE,
+    hit_outer_limit = NA,
+    elapsed_sec = elapsed,
+    warnings = paste(unique(warnings), collapse = "\n"),
+    error = error,
+    stringsAsFactors = FALSE
+  )
+}
+
+.joint_selection_invalid_fit_reason <- function(fit, fit_metrics) {
+  metric_values <- as.numeric(fit_metrics[c("logLik", "AIC", "BIC")])
+  if (length(metric_values) != 3L || any(!is.finite(metric_values))) {
+    return("Candidate fit did not provide finite likelihood criteria.")
+  }
+
+  model_selection <- fit_metrics$model_selection
+  if (!is.null(model_selection) && all(c("marginal", "copula", "joint") %in% colnames(model_selection))) {
+    final_loglik <- as.numeric(model_selection["LogLik", c("marginal", "copula", "joint")])
+    history <- fit$log_lik_history
+    if (length(final_loglik) == 3L &&
+        all(is.finite(final_loglik)) &&
+        all(abs(final_loglik) < .Machine$double.eps^0.5) &&
+        !is.null(history) &&
+        any(is.finite(history) & abs(history) > .Machine$double.eps^0.5)) {
+      return("Candidate fit returned a zero final likelihood after non-zero likelihood history; treating fit as invalid.")
+    }
+  }
+
+  NULL
 }
 
 #' @export
