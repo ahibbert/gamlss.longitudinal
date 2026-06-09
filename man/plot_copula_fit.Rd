@@ -19,6 +19,7 @@ plot_copula_fit(
   subject_var = "subject",
   time_var = "time",
   lags = 1,
+  by_time = FALSE,
   transform = c("normal", "uniform"),
   grid_n = 80,
   bins = 28,
@@ -42,6 +43,7 @@ plot_copula_overlay(
   subject_var = "subject",
   time_var = "time",
   lags = 1,
+  by_time = FALSE,
   transform = c("normal", "uniform"),
   grid_n = 80,
   bins = 28,
@@ -79,6 +81,9 @@ pseudo-observations from \code{response_var}.}
 \item{subject_var, time_var}{Subject and time column names.}
 
 \item{lags}{Positive integer lag(s) used when forming pairs.}
+
+\item{by_time}{Logical; if \code{TRUE}, facet the copula overlay by adjacent
+time pair.}
 
 \item{transform}{Character; either \code{"normal"} or \code{"uniform"}.}
 
