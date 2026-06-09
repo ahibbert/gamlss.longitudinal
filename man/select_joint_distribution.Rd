@@ -14,6 +14,8 @@ select_joint_distribution(
   copula_families = c("N", "C", "F", "G", "J", "t"),
   criterion = c("AIC", "BIC", "logLik"),
   min_pairs = 10,
+  time_intercepts = FALSE,
+  copula_time_intercepts = FALSE,
   try.gamlss = FALSE,
   trace = FALSE,
   progress = TRUE,
@@ -41,6 +43,14 @@ from \code{\link[=select_margin]{select_margin()}}.}
 
 \item{min_pairs}{Minimum number of complete adjacent response pairs required
 before fitting candidates.}
+
+\item{time_intercepts}{Logical; if \code{TRUE}, pass through to
+\code{\link[=select_margin]{select_margin()}} and use time-specific intercepts for each marginal
+distribution parameter in the joint screening fits.}
+
+\item{copula_time_intercepts}{Logical; if \code{TRUE}, use time-specific
+intercepts for the copula dependence parameter in the joint screening fits.
+Time is treated as a factor, not as a linear trend.}
 
 \item{try.gamlss}{Passed to \code{\link[=select_margin]{select_margin()}}.}
 
