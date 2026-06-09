@@ -24,7 +24,8 @@ select_copula(
   criterion = c("AIC", "BIC", "logLik"),
   t_df_grid = c(3, 4, 6, 8, 12, 20, 30),
   min_pairs = 10,
-  time_intercepts = FALSE
+  time_intercepts = FALSE,
+  copula_time_intercepts = FALSE
 )
 }
 \arguments{
@@ -71,6 +72,10 @@ adjacent-time pairs from \code{data}.}
 pseudo-observations from \code{response_var}, use time-specific intercepts in
 the temporary marginal model and pass this setting through to
 \code{\link[=select_margin]{select_margin()}} if the marginal family is auto-selected.}
+
+\item{copula_time_intercepts}{Logical; if \code{TRUE}, screen each copula family
+with separate dependence parameters for each adjacent time-pair factor level.
+This does not impose a linear time trend.}
 }
 \value{
 A data frame with one row per family and class
@@ -85,8 +90,10 @@ vector or column in \code{data}, or computed from a fitted
 \code{gamlss.longitudinal} object.
 }
 \details{
-This helper is intended as a lightweight family-screening step. It estimates
-a constant dependence parameter for each candidate family; richer covariate
-or smooth dependence structures should be fitted afterwards with
-\code{\link[=gamlss_longitudinal]{gamlss_longitudinal()}}.
+This helper is intended as a lightweight family-screening step. By default
+it estimates a constant dependence parameter for each candidate family. With
+\code{copula_time_intercepts = TRUE}, it estimates separate dependence parameters
+for each observed adjacent time pair, treating time as a factor rather than
+a linear trend. Richer covariate or smooth dependence structures should be
+fitted afterwards with \code{\link[=gamlss_longitudinal]{gamlss_longitudinal()}}.
 }

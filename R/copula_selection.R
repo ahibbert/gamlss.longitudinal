@@ -6,10 +6,12 @@
 #' vector or column in `data`, or computed from a fitted
 #' `gamlss.longitudinal` object.
 #'
-#' This helper is intended as a lightweight family-screening step. It estimates
-#' a constant dependence parameter for each candidate family; richer covariate
-#' or smooth dependence structures should be fitted afterwards with
-#' [gamlss_longitudinal()].
+#' This helper is intended as a lightweight family-screening step. By default
+#' it estimates a constant dependence parameter for each candidate family. With
+#' `copula_time_intercepts = TRUE`, it estimates separate dependence parameters
+#' for each observed adjacent time pair, treating time as a factor rather than
+#' a linear trend. Richer covariate or smooth dependence structures should be
+#' fitted afterwards with [gamlss_longitudinal()].
 #'
 #' @param data Optional long-format data frame.
 #' @param object Optional fitted `gamlss.longitudinal` object.
@@ -40,6 +42,9 @@
 #'   pseudo-observations from `response_var`, use time-specific intercepts in
 #'   the temporary marginal model and pass this setting through to
 #'   [select_margin()] if the marginal family is auto-selected.
+#' @param copula_time_intercepts Logical; if `TRUE`, screen each copula family
+#'   with separate dependence parameters for each adjacent time-pair factor
+#'   level. This does not impose a linear time trend.
 #'
 #' @return A data frame with one row per family and class
 #'   `copula_selection`. The selected family is stored in the `selected`
@@ -65,7 +70,8 @@ select_copula <- function(
   criterion = c("AIC", "BIC", "logLik"),
   t_df_grid = c(3, 4, 6, 8, 12, 20, 30),
   min_pairs = 10,
-  time_intercepts = FALSE
+  time_intercepts = FALSE,
+  copula_time_intercepts = FALSE
 ) {
   criterion <- match.arg(criterion)
   families <- vapply(families, .copula_family_code, character(1), USE.NAMES = FALSE)
@@ -97,13 +103,20 @@ select_copula <- function(
   if (nrow(pairs) < min_pairs) {
     stop("At least ", min_pairs, " complete pseudo-observation pairs are required.", call. = FALSE)
   }
+  if (isTRUE(copula_time_intercepts) && !"copula_time" %in% names(pairs)) {
+    stop(
+      "'copula_time_intercepts = TRUE' requires data, u/u_var, response_var, or object input with time information.",
+      call. = FALSE
+    )
+  }
 
   fits <- lapply(families, function(family) {
     .select_copula_fit_family(
       u1 = pairs$u1,
       u2 = pairs$u2,
       family = family,
-      t_df_grid = t_df_grid
+      t_df_grid = t_df_grid,
+      copula_time = if (isTRUE(copula_time_intercepts)) pairs$copula_time else NULL
     )
   })
   out <- do.call(rbind, fits)
@@ -114,6 +127,8 @@ select_copula <- function(
   attr(out, "criterion") <- criterion
   attr(out, "margin_selection") <- attr(pairs, "margin_selection")
   attr(out, "pseudo_observation_source") <- attr(pairs, "pseudo_observation_source")
+  attr(out, "copula_time_intercepts") <- isTRUE(copula_time_intercepts)
+  attr(out, "copula_time_levels") <- if (isTRUE(copula_time_intercepts)) unique(pairs$copula_time) else NULL
   class(out) <- c("copula_selection", "data.frame")
   out
 }
@@ -471,7 +486,8 @@ best_fit_family.copula_selection <- function(x, ...) {
       k <- k + 1L
       out[[k]] <- data.frame(
         u1 = .copula_clamp01(subject_data[[u_var]][left]),
-        u2 = .copula_clamp01(subject_data[[u_var]][right])
+        u2 = .copula_clamp01(subject_data[[u_var]][right]),
+        copula_time = paste(subject_data[[time_var]][left], subject_data[[time_var]][right], sep = "->")
       )
     }
   }
@@ -482,7 +498,10 @@ best_fit_family.copula_selection <- function(x, ...) {
   do.call(rbind, out[seq_len(k)])
 }
 
-.select_copula_fit_family <- function(u1, u2, family, t_df_grid) {
+.select_copula_fit_family <- function(u1, u2, family, t_df_grid, copula_time = NULL) {
+  if (!is.null(copula_time)) {
+    return(.select_copula_fit_family_by_time(u1, u2, family, t_df_grid, copula_time))
+  }
   tau_start <- suppressWarnings(stats::cor(u1, u2, method = "kendall", use = "complete.obs"))
   if (!is.finite(tau_start)) tau_start <- 0
 
@@ -506,6 +525,33 @@ best_fit_family.copula_selection <- function(x, ...) {
     logLik = fit$logLik,
     AIC = -2 * fit$logLik + 2 * k,
     BIC = -2 * fit$logLik + log(length(u1)) * k,
+    stringsAsFactors = FALSE
+  )
+}
+
+.select_copula_fit_family_by_time <- function(u1, u2, family, t_df_grid, copula_time) {
+  copula_time <- factor(copula_time, levels = unique(copula_time))
+  if (length(copula_time) != length(u1)) {
+    stop("'copula_time' must have one value per pseudo-observation pair.", call. = FALSE)
+  }
+  levels_time <- levels(copula_time)
+  fits <- lapply(levels_time, function(level) {
+    idx <- copula_time == level
+    .select_copula_fit_family(u1[idx], u2[idx], family = family, t_df_grid = t_df_grid)
+  })
+  log_lik <- sum(vapply(fits, function(fit) fit$logLik[[1L]], numeric(1)))
+  k_per_level <- if (identical(family, "t")) 2 else 1
+  k_total <- length(levels_time) * k_per_level
+  tau <- vapply(fits, function(fit) fit$tau[[1L]], numeric(1))
+  data.frame(
+    family = family,
+    par = NA_real_,
+    par2 = if (identical(family, "t")) NA_real_ else 0,
+    tau = stats::weighted.mean(tau, w = as.numeric(table(copula_time)), na.rm = TRUE),
+    logLik = log_lik,
+    AIC = -2 * log_lik + 2 * k_total,
+    BIC = -2 * log_lik + log(length(u1)) * k_total,
+    n_copula_time_levels = length(levels_time),
     stringsAsFactors = FALSE
   )
 }
