@@ -100,12 +100,8 @@ truth_sigma_age_smooth <- function(x) {
   sim_smooth_u(x, amplitude = 0.45)
 }
 
-truth_nu_age_smooth <- function(x) {
-  sim_smooth_sigmoid(x, amplitude = 0.35, location = 0.45, steepness = 9)
-}
-
 truth_theta_age_smooth <- function(x) {
-  sim_smooth_bump(x, amplitude = 0.25, location = 0.45, width = 0.22)
+  sim_smooth_bump(x, amplitude = 1, location = 0.45, width = 0.22)
 }
 
 dat <- simulate_longitudinal_dataset(
@@ -135,7 +131,7 @@ dat <- simulate_longitudinal_dataset(
       age_scaled <- sim_rescale01(d$age)
       eta_mu <- 1.00 +
         sim_factor_effect(d$treatment, treatment_effect) +
-        0.35 * d$time_scaled +
+        0.35 +
         truth_mu_age_smooth(age_scaled)
       exp(eta_mu)
     },
@@ -148,8 +144,8 @@ dat <- simulate_longitudinal_dataset(
       exp(eta_sigma)
     },
     nu = function(d) {
-      age_scaled <- sim_rescale01(d$age)
-      1.15 + 0.55 * d$time_scaled + truth_nu_age_smooth(age_scaled)
+      age_scaled <- 
+      1.15 + 0.55
     }
   ),
   copula_params = list(
@@ -219,7 +215,6 @@ print(missingness_check)
 As these are longitudinal data, time is often a factor which may influence the shape of the joint distribution over time. We first briefly review the moments of the observed marginal distribution and the correlation structure against time to inform model selection. In this case, there is not a strong effect of time on the mean on initial inspection but there is clearly a trend in variance, skewness and kurtosis over time. Reviewing the pairwise correlation over time (the first off-diagonal), it appears there may also be a trend in increasing correlation for adjacent observations over time. 
 
 ```{r review-time-effect}
-
 aggregate(response ~ time, dataset, \(x) {
   x <- x[!is.na(x)]
   c(mean = mean(x),
@@ -257,7 +252,6 @@ plot_dist(
 The response here is continuous and positive. For any distribution we can use the function `select_margin()` to fit an intercept-only model to the response distribution and provide a ranked list of fits by likelihood criteria (default is AIC).
 
 ```{r marginal-screen}
-
 margin_selection <- select_margin(
   dataset,
   response_var = "response",
@@ -271,7 +265,6 @@ print(margin_selection)
 Interestingly, note that the selected distribution is `BCPEo` here as it is highly flexible and is able the capture the varied shape of the shared distribution which is changing over time. However, given we know that **time is a strong component of the moments** here, the best model is likely to be using a marginal distribution which provides the best fit where the margins can depend on time. Select the option `time_intercepts=TRUE` in `select_margin` and this allows each moment of the distribution to vary with time. This method then selects `GG()` and `GA()` as the suggested models (which we happen to know matches the simulation setup for this case). We will take these two distributions forwards as our two potential distributions for the final model, depending on whether the additional parameter for the `GG()` over the `GA()` adds sufficent fit to accout for the additional degrees of freedom consumed. 
 
 ```{r marginal-screen-long}
-
 margin_selection <- select_margin(
   dataset,
   response_var = "response",
@@ -285,7 +278,7 @@ margin_selection
 
 We can review the fitted margin over the overall distribution using `plot_margin_fit()`. As we are considering the model with time-fitted parameters we use `time_intercepts=TRUE`. Both seem to provide a reasonable fit the the overall distribution. 
 
-```{r marginal-fit-overlay, fig.width = 9.5, fig.height = 7.5, out.width = "95%", fig.alt = "Histograms of observed responses comparing generalized gamma and gamma marginal fits with time-intercept overlays."}
+```{r marginal-fit-overlay, fig.alt = "Histograms of observed responses comparing generalized gamma and gamma marginal fits with time-intercept overlays."}
 margin_overlay_plots <- list(
   plot_margin_fit(
     dataset,
@@ -312,7 +305,7 @@ ggpubr::ggarrange(plotlist = margin_overlay_plots, ncol = 2, nrow = 1)
 
 We can also select to view the fits over time, by selecting `by_time=TRUE`. While it's not a strong effect, it appears the `GG()` captures the extreme distributions at first and last timepoints slightly more accurately than the base `GA()` model, but both capture the changing shape of the distribution reasonably.
 
-```{r marginal-fit-overlay-long-GA, fig.width = 9.5, fig.height = 7.5, out.width = "95%", fig.alt = "Histograms of fitted GA with time-varying intercepts for each parameter."}
+```{r marginal-fit-overlay-long-GA, fig.alt = "Histograms of fitted GA with time-varying intercepts for each parameter."}
 plot_margin_fit(
   dataset, 
   margin_dist = GA(), 
@@ -323,7 +316,7 @@ plot_margin_fit(
 )
 ```
 
-```{r marginal-fit-overlay-long-GG, fig.width = 9.5, fig.height = 7.5, out.width = "95%", fig.alt = "Histograms of fitted GG with time-varying intercepts for each parameter."}
+```{r marginal-fit-overlay-long-GG, fig.alt = "Histograms of fitted GG with time-varying intercepts for each parameter."}
 plot_margin_fit(
   dataset, 
   margin_dist = GG(),
@@ -434,4 +427,248 @@ plot_copula_fit(
   by_time = TRUE
 )
 ```
+
+## Fit The Longitudinal Model
+
+Model fitting for `gamlss.longitudinal` should always follow the parameter heirarchy for the margin, `mu -> sigma -> nu -> tau`, and for the copula `theta -> zeta`. There is not a strict heirarchy between marginal versus copula paramters as copula parameters can affect the standard errors for the margin, resulting in different parameters being significant in the margin, and marginal parameters can affect the copula fit so the process is necessarily iterative. However, in general it is reasonable to get a good fit for the margin with the most significant factors before iterating on covariate fits for the copula parameter. Following a strict margin before copula process will generally yield similar results, though may result in removing some previously significant factors (or adding previously insiginficant factors) from the margin depending on the copula fit.
+
+We will use the `GG()` fit to start for the additional flexibility for the additional parameter, and if it is not significant with an intercept or covariates then we can reduce the model the `GA()`. The selected copula was `C` under all margin settings so we will use this.
+
+Let's begin by inspecting a fully specified model with factor terms for `time` and `treatment`, and a smooth term for `age` on every covariate.
+
+```{r fit-model-factortime, results='hide'}
+fit_fullyspecified <- gamlss_longitudinal(
+  dataset = dat,
+  margin_dist = GG(),
+  copula_dist = "C",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment + as.factor(time) + s(age),
+  sigma.formula = ~ treatment + as.factor(time) + s(age),
+  nu.formula = ~ treatment + as.factor(time) + s(age),
+  theta.formula = ~ treatment + as.factor(time) + s(age)
+)
+```
+
+```{r fit-model-factortime-summary}
+summary(fit_fullyspecified)
+```
+
+Overall we see time is a significant factor for `sigma` and `theta` but in this form does not appear to be significant for `mu` or `nu`. No covariates for `nu` appear to be significant at `p=0.01` including the intercept. Degrees of freedom for age smooths for `nu` and `theta` are small which may indicate they are not material to the fit so we will review these. Treatment effect appears to be significant initially for `mu` and `sigma` but not for `nu` or `theta`.
+
+We start with `mu` and note the significant treatment effect but minimal effect due to time so we can test alternative forms or remove. 
+
+<details>
+```{r fit-models-all, results='hide'}
+fit_mulineartime <- gamlss_longitudinal(
+  dataset = dataset,
+  margin_dist = GG(),
+  copula_dist = "C",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment + (time) + s(age),
+  sigma.formula = ~ treatment + as.factor(time) + s(age),
+  nu.formula = ~ treatment + as.factor(time) + s(age),
+  theta.formula = ~ treatment + as.factor(time) + s(age)
+)
+fit_munotime <- gamlss_longitudinal(
+  dataset = dataset,
+  margin_dist = GG(),
+  copula_dist = "C",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment + s(age),
+  sigma.formula = ~ treatment + as.factor(time) + s(age),
+  nu.formula = ~ treatment + as.factor(time) + s(age),
+  theta.formula = ~ treatment + as.factor(time) + s(age)
+)
+fit_sigmalineartime <- gamlss_longitudinal(
+  dataset = dataset,
+  margin_dist = GG(),
+  copula_dist = "C",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment + s(age),
+  sigma.formula = ~ treatment + (time) + s(age),
+  nu.formula = ~ treatment + as.factor(time) + s(age),
+  theta.formula = ~ treatment + as.factor(time) + s(age)
+)
+fit_nutimeonly <- gamlss_longitudinal(
+  dataset = dataset,
+  margin_dist = GG(),
+  copula_dist = "C",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment + s(age),
+  sigma.formula = ~ treatment + (time) + s(age),
+  nu.formula = ~ as.factor(time),
+  theta.formula = ~ treatment + as.factor(time) + s(age)
+)
+fit_nutrtonly <- gamlss_longitudinal(
+  dataset = dataset,
+  margin_dist = GG(),
+  copula_dist = "C",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment + s(age),
+  sigma.formula = ~ treatment + (time) + s(age),
+  nu.formula = ~ treatment,
+  theta.formula = ~ treatment + as.factor(time) + s(age)
+)
+fit_nuageonly <- gamlss_longitudinal(
+  dataset = dataset,
+  margin_dist = GG(),
+  copula_dist = "C",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment + s(age),
+  sigma.formula = ~ treatment + (time) + s(age),
+  nu.formula = ~ s(age),
+  theta.formula = ~ treatment + as.factor(time) + s(age)
+)
+fit_nuinterceptonly <- gamlss_longitudinal(
+  dataset = dataset,
+  margin_dist = GG(),
+  copula_dist = "C",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment + s(age),
+  sigma.formula = ~ treatment + (time) + s(age),
+  nu.formula = ~ 1,
+  theta.formula = ~ treatment + as.factor(time) + s(age)
+)
+fit_thetalineartime <- gamlss_longitudinal(
+  dataset = dataset,
+  margin_dist = GG(),
+  copula_dist = "C",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment + s(age),
+  sigma.formula = ~ treatment + (time) + s(age),
+  nu.formula = ~ 1,
+  theta.formula = ~ treatment + (time) + s(age)
+)
+fit_thetalineartime_notrt <- gamlss_longitudinal(
+  dataset = dataset,
+  margin_dist = GG(),
+  copula_dist = "C",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment + s(age),
+  sigma.formula = ~ treatment + (time) + s(age),
+  nu.formula = ~ 1,
+  theta.formula = ~ (time) + s(age)
+)
+fit_thetalineartime_notrt_noage <- gamlss_longitudinal(
+  dataset = dataset,
+  margin_dist = GG(),
+  copula_dist = "C",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment + s(age),
+  sigma.formula = ~ treatment + (time) + s(age),
+  nu.formula = ~ 1,
+  theta.formula = ~ (time)
+)
+```
+</details>
+
+```{r fit-mu-compare} 
+likelihood_compare(fit_fullyspecified, fit_mulineartime, fit_munotime)
+```
+
+Fits for `mu` with linear and non-linear time both return non-significant effects at `p=0.05`. `mu` with linear or no time are comparable on likelihood so we select the model without time for simplicity and by AIC/BIC, with the option to recheck in final steps.
+
+Now let's compare models for `sigma`. Treatment effect is strongly significant so we will just test a linear instead of factor time effect for `sigma`. 
+
+```{r fit-sigma-compare}
+likelihood_compare(fit_munotime, fit_sigmalineartime)
+```
+
+Linear time for `sigma` removes three degrees of freedom and provides the same AIC and better BIC so we select it as the improved model. The covariate is highly significant.
+
+Now for `nu`. The time covariate and treatment effect for `nu` are non-significant still after fitting `sigma`, and we should review if the smooth is providing sufficient information as the degrees of freedom are very low. We fit models for `nu` with each of the factors individually and compare against an intercept-only model. 
+
+```{r fit-nucompare}
+likelihood_compare(fit_sigmalineartime, fit_nutimeonly, fit_nutrtonly, fit_nuageonly, fit_nuinterceptonly)
+```
+
+There's not much difference between the models on likelihood, with the covariate fits providing minimal extra information and the best model by AIC being the intercept-only model for `nu`, so we select intercept-only.
+
+We now review `theta`, and test removing treatment effect and collapse the time factor to linear as well. We should also test the removal of the age smooth to check if it's needed.
+
+```{r fit-thetacompare}
+likelihood_compare(fit_nuinterceptonly, fit_thetalineartime, fit_thetalineartime_notrt, fit_thetalineartime_notrt_noage)
+```
+
+The best model by AIC and BIC selects a linear time effect for `theta`, and strongly prefers keeping the age smooth term so we retain it.
+
+So the final selected model has smooth effects for age for `mu`, `sigma` and `theta`, a linear time effect for `sigma` and `theta`, and an intercept for `nu`.
+
+## Review the fit
+
+We provide a brief automated model assessment using `check_model()` and return either a concern or a clear check. Check model is readonably minimal and should be used alongside other diagnostics, the checks that flag are:
+
+ | Area | Quantity checked | Threshold / condition | Default | Severity | Recommendation |
+|---|---:|---:|---:|---|---|
+| Convergence | `object$convergence$converged` | Not `TRUE` | n/a | `concern` | `revise_before_primary` |
+| Marginal calibration | PIT Kolmogorov-Smirnov p-value vs Uniform(0, 1) | `ks_p_value < 0.05` | `0.05` | `concern` | `revise_before_primary` |
+| Tail calibration | Maximum of lower/upper PIT tail ratios across thresholds `0.05` and `0.10` | `max(lower_ratio, upper_ratio) > 2` | `2` | `review` | `primary_candidate_with_caveats` unless a `concern` also exists |
+| Residual dependence | Absolute lag-1 Rosenblatt normal-score residual correlation after fitted copula | `abs(lag1_cor) > dependence_cor_cutoff` | `0.25` | `concern` | `revise_before_primary` |
+| Inference | Variance-covariance method from summary | `vcov_method == "numderiv"` | n/a | `note` | `primary_candidate_with_caveats` unless a `concern` also exists |
+| Overall | No automatic checks triggered | No `concern`, `review`, or `note` rows | n/a | `ok` | `primary_candidate` |
+
+```{r fit-review-check}
+fit <- fit_thetalineartime_notrt
+check = check_model(fit)
+print(check)
+```
+
+The final model can be inspected with `summary()` for a numerical summary and `plot_terms()` for a visual review of covariate fits. In this case all terms are significant and shapes and confidence intervals for smooth terms appear reasonable. 
+
+```{r fit-review-summary}
+summary(fit)
+```
+
+```{r fit-review-termplot}
+plot_terms(fit)
+```
+
+Key visual diagnostics are available using `plot()` for marginal diagnostics and `plot_copula_diagnostics()` for dependence diagnostics. 
+
+```{r fit-diagnostics-margin}
+plot(fit)
+```
+
+Marginal diagnostics for PIT and rootogram look reasonable. Work plot and QQ plot indicate some deviation from the fitted distribution in the lower tail that could be investigated further.
+
+```{r fit-diagnostics-dependence}
+plot_copula_diagnostics(fit)
+```
+
+All trends for fitted versus observed dependence appear close. There is s ome small deviation between the fit and the data in the lower tail that can be seen in the Rosenblatt normal QQ plot and the tail co-occurrence / exceedence plots for the lower plot where we are slightly underfitting it appears.
+
+We can also plot the final fitted distributions against the original data using `plot_margin_fit(fit, by_time=TRUE)` and `plot_copula_fit(fit, by_time=TRUE)` if desired.
+
+It's straightforward to generate standard outputs for regression models such as confidence intervals and wald test
+
+```{r inference}
+confint(fit)
+wald_test(fit)
+```
+It's also possible to produce bootstrap confidence intervals from the fitted model though it is computationally quite intensive.
+
+```{r bootstrap-run, results='hide', eval=TRUE}
+boot <- bootstrap_inference(
+  fit,
+  R = 5,
+  seed = 20260521
+)
+```
+
+```{r bootstrap-output}
+print(boot)
+```
+
+## Prediction, marginal effets, simulation, benchmarks
 
