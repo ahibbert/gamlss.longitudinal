@@ -17,7 +17,7 @@ knitr::opts_chunk$set(
 
 Diagnostics should decide what happens next. In `gamlss.longitudinal`, the
 first diagnostic pass is `check_model()`: it combines numerical summaries,
-plain-language checks, and reportable warnings. Use `plot(fit)` and the
+plain-language basic checks, and failed-check warnings. Use `plot(fit)` and the
 explicit diagnostic helpers for visual review.
 
 The goal is not to create a longer residual-plot ritual. The goal is to answer:
@@ -26,7 +26,7 @@ The goal is not to create a longer residual-plot ritual. The goal is to answer:
 - are tails and quantiles calibrated well enough to report?
 - does dependence remain after the copula?
 - is inference stable enough to cite?
-- should the model be primary, sensitivity-only, or revised?
+- did the basic automated checks pass, or do any areas need review?
 
 ## Run The Diagnostic Check
 
@@ -37,20 +37,22 @@ check <- check_model(
 )
 
 check
+check$basic_checks
+check$basic_checks_result
 check$warnings
-check$recommendation
 plot(fit)
 ```
 
-`check$checks` contains the full table, including rows where no major automatic
-warning was triggered. `check$warnings` is the report-facing subset containing
-`concern`, `review`, and `note` rows.
+`check$basic_checks` contains the compact five-row status table printed at the
+top of the output. `check$checks` contains the detailed backing table, including
+rows where no automatic check was triggered. `check$warnings` contains failed
+checks only; review rows remain visible in the check tables but do not emit an R
+warning.
 
 ```{r check-tables}
+check$basic_checks
 check$checks
 check$warnings
-check$recommendation
-check$decisions
 ```
 
 ## Marginal Calibration
@@ -161,21 +163,21 @@ Decision language:
 For detailed reporting language, use
 `vignette("inference-uncertainty", package = "gamlss.longitudinal")`.
 
-## Primary Or Sensitivity?
+## Basic Check Result
 
-Use the diagnostic result to decide the model's role.
+Use the diagnostic result as a first-pass screen, not as a replacement for
+visual and subject-matter diagnostics.
 
-`check$recommendation` gives a compact first pass:
+`check$basic_checks_result` gives a compact first pass:
 
-- `primary_candidate` means no major automatic warnings were triggered;
-- `primary_candidate_with_caveats` means notes or review-level diagnostics
-  should be reported;
-- `revise_before_primary` means at least one concern should be addressed before
-  using the model as the primary analysis.
+- `passed` means all five basic automated checks returned `PASS`;
+- `review` means no check failed, but at least one check returned `REVIEW`;
+- `failed` means at least one check returned `FAIL` and `check_model()` emitted
+  an R warning.
 
 | Diagnostic state | Suggested role |
 |---|---|
-| No major warnings; estimand needs distribution/tails/dependence | Primary model candidate |
+| Basic checks passed; estimand needs distribution/tails/dependence | Primary model candidate |
 | Mean is stable but tails or dependence remain unresolved | Sensitivity model |
 | Marginal calibration is poor | Revise before interpreting |
 | Dependence remains after the copula | Revise copula or `theta.formula` |

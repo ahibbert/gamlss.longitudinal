@@ -358,7 +358,7 @@ For final applied reports, include:
 4. the variance-covariance method used for coefficient or mean intervals;
 5. whether intervals are likelihood/Hessian, numerical-Hessian, delta-method, or
    simulation summaries;
-6. the main `check_model()` decisions;
+6. the main `check_model()` basic check result;
 7. any GEE, GLMM, or GAM sensitivity result used as a benchmark.
 
 A compact report sentence might be:
