@@ -683,15 +683,19 @@ consumed.</p>
 <span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a><span class="co">#&gt; ----------------------------</span></span>
 <span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a><span class="co">#&gt; Selected: GA </span></span>
 <span id="cb8-14"><a href="#cb8-14" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb8-15"><a href="#cb8-15" tabindex="-1"></a><span class="co">#&gt;  family       AIC     type    screen_model pooled_AIC rank   delta_AIC</span></span>
-<span id="cb8-16"><a href="#cb8-16" tabindex="-1"></a><span class="co">#&gt;      GA  2687.496 realplus time_intercepts   2954.450    1     0.00000</span></span>
-<span id="cb8-17"><a href="#cb8-17" tabindex="-1"></a><span class="co">#&gt;     WEI  2711.468 realplus time_intercepts   2970.726    2    23.97272</span></span>
-<span id="cb8-18"><a href="#cb8-18" tabindex="-1"></a><span class="co">#&gt;    WEI3  2711.468 realplus time_intercepts   2970.726    3    23.97273</span></span>
-<span id="cb8-19"><a href="#cb8-19" tabindex="-1"></a><span class="co">#&gt;  LOGNO2  2803.629 realplus time_intercepts   3364.255    4   116.13326</span></span>
-<span id="cb8-20"><a href="#cb8-20" tabindex="-1"></a><span class="co">#&gt;   LOGNO  2803.629 realplus time_intercepts   3364.255    5   116.13326</span></span>
-<span id="cb8-21"><a href="#cb8-21" tabindex="-1"></a><span class="co">#&gt;     EXP  2969.486 realplus time_intercepts   2978.295    6   281.99039</span></span>
-<span id="cb8-22"><a href="#cb8-22" tabindex="-1"></a><span class="co">#&gt;  IGAMMA  3272.090 realplus time_intercepts   4828.621    7   584.59408</span></span>
-<span id="cb8-23"><a href="#cb8-23" tabindex="-1"></a><span class="co">#&gt;   BCCGo 27658.413 realplus time_intercepts   2892.121    8 24970.91699</span></span></code></pre></div>
+<span id="cb8-15"><a href="#cb8-15" tabindex="-1"></a><span class="co">#&gt;  family      AIC     type    screen_model pooled_AIC converged rank  delta_AIC</span></span>
+<span id="cb8-16"><a href="#cb8-16" tabindex="-1"></a><span class="co">#&gt;      GA 2687.496 realplus time_intercepts   2954.450      TRUE    1   0.000000</span></span>
+<span id="cb8-17"><a href="#cb8-17" tabindex="-1"></a><span class="co">#&gt;      GG 2694.061 realplus time_intercepts   2929.585      TRUE    2   6.565322</span></span>
+<span id="cb8-18"><a href="#cb8-18" tabindex="-1"></a><span class="co">#&gt;     GB2 2706.209 realplus time_intercepts   2902.372     FALSE    3  18.713260</span></span>
+<span id="cb8-19"><a href="#cb8-19" tabindex="-1"></a><span class="co">#&gt;    BCTo 2706.904 realplus time_intercepts   2888.053      TRUE    4  19.408152</span></span>
+<span id="cb8-20"><a href="#cb8-20" tabindex="-1"></a><span class="co">#&gt;     BCT 2706.904 realplus time_intercepts   2888.053      TRUE    5  19.408163</span></span>
+<span id="cb8-21"><a href="#cb8-21" tabindex="-1"></a><span class="co">#&gt;     WEI 2711.468 realplus time_intercepts   2970.726      TRUE    6  23.972717</span></span>
+<span id="cb8-22"><a href="#cb8-22" tabindex="-1"></a><span class="co">#&gt;    WEI3 2711.468 realplus time_intercepts   2970.726      TRUE    7  23.972726</span></span>
+<span id="cb8-23"><a href="#cb8-23" tabindex="-1"></a><span class="co">#&gt;    WEI2 2711.474 realplus time_intercepts   2970.726      TRUE    8  23.977945</span></span>
+<span id="cb8-24"><a href="#cb8-24" tabindex="-1"></a><span class="co">#&gt;  LOGNO2 2803.629 realplus time_intercepts   3364.255      TRUE    9 116.133256</span></span>
+<span id="cb8-25"><a href="#cb8-25" tabindex="-1"></a><span class="co">#&gt;   LOGNO 2803.629 realplus time_intercepts   3364.255      TRUE   10 116.133256</span></span>
+<span id="cb8-26"><a href="#cb8-26" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-27"><a href="#cb8-27" tabindex="-1"></a><span class="co">#&gt; Warning: one or more printed time-intercept marginal fits did not report convergence.</span></span></code></pre></div>
 <p>We can review the fitted margin over the overall distribution using
 <code>plot_margin_fit()</code>.</p>
 <p>For illustration we’ll compare the fit without time-varying
@@ -838,13 +842,13 @@ select the Clayton copula so we move forward with this.</p>
 <span id="cb12-47"><a href="#cb12-47" tabindex="-1"></a>  <span class="at">time_var =</span> <span class="st">&quot;time&quot;</span></span>
 <span id="cb12-48"><a href="#cb12-48" tabindex="-1"></a>)</span>
 <span id="cb12-49"><a href="#cb12-49" tabindex="-1"></a><span class="fu">print</span>(copula_selection)</span>
-<span id="cb12-50"><a href="#cb12-50" tabindex="-1"></a><span class="co">#&gt;   family       par par2       tau    logLik       AIC       BIC n_pairs</span></span>
-<span id="cb12-51"><a href="#cb12-51" tabindex="-1"></a><span class="co">#&gt; 1      t 0.6908232    4 0.4855034 137.00957 -270.0191 -262.0664     394</span></span>
-<span id="cb12-52"><a href="#cb12-52" tabindex="-1"></a><span class="co">#&gt; 2      C 1.5312389    0 0.4336265 132.68039 -263.3608 -259.3844     394</span></span>
-<span id="cb12-53"><a href="#cb12-53" tabindex="-1"></a><span class="co">#&gt; 3      N 0.6929207    0 0.4873528 129.97072 -257.9414 -253.9651     394</span></span>
-<span id="cb12-54"><a href="#cb12-54" tabindex="-1"></a><span class="co">#&gt; 4      F 5.7633755    0 0.5014871 122.24379 -242.4876 -238.5112     394</span></span>
-<span id="cb12-55"><a href="#cb12-55" tabindex="-1"></a><span class="co">#&gt; 5      G 1.8390615    0 0.4562444 111.92707 -221.8541 -217.8778     394</span></span>
-<span id="cb12-56"><a href="#cb12-56" tabindex="-1"></a><span class="co">#&gt; 6      J 1.9602188    0 0.3461270  73.09446 -144.1889 -140.2126     394</span></span>
+<span id="cb12-50"><a href="#cb12-50" tabindex="-1"></a><span class="co">#&gt;   family       par par2       tau   logLik       AIC       BIC n_pairs</span></span>
+<span id="cb12-51"><a href="#cb12-51" tabindex="-1"></a><span class="co">#&gt; 1      t 0.6908198    4 0.4855004 137.0033 -270.0067 -262.0540     394</span></span>
+<span id="cb12-52"><a href="#cb12-52" tabindex="-1"></a><span class="co">#&gt; 2      C 1.5312958    0 0.4336357 132.6829 -263.3657 -259.3894     394</span></span>
+<span id="cb12-53"><a href="#cb12-53" tabindex="-1"></a><span class="co">#&gt; 3      N 0.6929039    0 0.4873380 129.9614 -257.9229 -253.9465     394</span></span>
+<span id="cb12-54"><a href="#cb12-54" tabindex="-1"></a><span class="co">#&gt; 4      F 5.7633204    0 0.5014841 122.2383 -242.4766 -238.5003     394</span></span>
+<span id="cb12-55"><a href="#cb12-55" tabindex="-1"></a><span class="co">#&gt; 5      G 1.8389989    0 0.4562259 111.9140 -221.8281 -217.8517     394</span></span>
+<span id="cb12-56"><a href="#cb12-56" tabindex="-1"></a><span class="co">#&gt; 6      J 1.9600796    0 0.3460953  73.0801 -144.1602 -140.1839     394</span></span>
 <span id="cb12-57"><a href="#cb12-57" tabindex="-1"></a></span>
 <span id="cb12-58"><a href="#cb12-58" tabindex="-1"></a>copula_selection <span class="ot">&lt;-</span> <span class="fu">select_copula</span>(</span>
 <span id="cb12-59"><a href="#cb12-59" tabindex="-1"></a>  <span class="at">data =</span> dataset,</span>
@@ -857,12 +861,12 @@ select the Clayton copula so we move forward with this.</p>
 <span id="cb12-66"><a href="#cb12-66" tabindex="-1"></a>)</span>
 <span id="cb12-67"><a href="#cb12-67" tabindex="-1"></a><span class="fu">print</span>(copula_selection)</span>
 <span id="cb12-68"><a href="#cb12-68" tabindex="-1"></a><span class="co">#&gt;   family par par2       tau    logLik       AIC       BIC n_copula_time_levels</span></span>
-<span id="cb12-69"><a href="#cb12-69" tabindex="-1"></a><span class="co">#&gt; 1      C  NA    0 0.4451361 152.93354 -297.8671 -281.9617                    4</span></span>
-<span id="cb12-70"><a href="#cb12-70" tabindex="-1"></a><span class="co">#&gt; 2      t  NA   NA 0.5024974 152.81867 -289.6373 -257.8265                    4</span></span>
-<span id="cb12-71"><a href="#cb12-71" tabindex="-1"></a><span class="co">#&gt; 3      N  NA    0 0.4950709 144.74358 -281.4872 -265.5817                    4</span></span>
-<span id="cb12-72"><a href="#cb12-72" tabindex="-1"></a><span class="co">#&gt; 4      F  NA    0 0.5015051 136.23153 -264.4631 -248.5577                    4</span></span>
-<span id="cb12-73"><a href="#cb12-73" tabindex="-1"></a><span class="co">#&gt; 5      G  NA    0 0.4578343 121.56574 -235.1315 -219.2261                    4</span></span>
-<span id="cb12-74"><a href="#cb12-74" tabindex="-1"></a><span class="co">#&gt; 6      J  NA    0 0.3508067  79.22439 -150.4488 -134.5434                    4</span></span>
+<span id="cb12-69"><a href="#cb12-69" tabindex="-1"></a><span class="co">#&gt; 1      C  NA    0 0.4451424 152.93507 -297.8701 -281.9647                    4</span></span>
+<span id="cb12-70"><a href="#cb12-70" tabindex="-1"></a><span class="co">#&gt; 2      t  NA   NA 0.5024956 152.81188 -289.6238 -257.8130                    4</span></span>
+<span id="cb12-71"><a href="#cb12-71" tabindex="-1"></a><span class="co">#&gt; 3      N  NA    0 0.4950534 144.72822 -281.4564 -265.5510                    4</span></span>
+<span id="cb12-72"><a href="#cb12-72" tabindex="-1"></a><span class="co">#&gt; 4      F  NA    0 0.5015021 136.22741 -264.4548 -248.5494                    4</span></span>
+<span id="cb12-73"><a href="#cb12-73" tabindex="-1"></a><span class="co">#&gt; 5      G  NA    0 0.4578189 121.54984 -235.0997 -219.1943                    4</span></span>
+<span id="cb12-74"><a href="#cb12-74" tabindex="-1"></a><span class="co">#&gt; 6      J  NA    0 0.3507796  79.20618 -150.4124 -134.5070                    4</span></span>
 <span id="cb12-75"><a href="#cb12-75" tabindex="-1"></a><span class="co">#&gt;   n_pairs</span></span>
 <span id="cb12-76"><a href="#cb12-76" tabindex="-1"></a><span class="co">#&gt; 1     394</span></span>
 <span id="cb12-77"><a href="#cb12-77" tabindex="-1"></a><span class="co">#&gt; 2     394</span></span>
@@ -882,12 +886,12 @@ select the Clayton copula so we move forward with this.</p>
 <span id="cb13-9"><a href="#cb13-9" tabindex="-1"></a>)</span>
 <span id="cb13-10"><a href="#cb13-10" tabindex="-1"></a><span class="fu">print</span>(copula_selection)</span>
 <span id="cb13-11"><a href="#cb13-11" tabindex="-1"></a><span class="co">#&gt;   family par par2       tau    logLik       AIC       BIC n_copula_time_levels</span></span>
-<span id="cb13-12"><a href="#cb13-12" tabindex="-1"></a><span class="co">#&gt; 1      C  NA    0 0.4451361 152.93354 -297.8671 -281.9617                    4</span></span>
-<span id="cb13-13"><a href="#cb13-13" tabindex="-1"></a><span class="co">#&gt; 2      t  NA   NA 0.5024974 152.81867 -289.6373 -257.8265                    4</span></span>
-<span id="cb13-14"><a href="#cb13-14" tabindex="-1"></a><span class="co">#&gt; 3      N  NA    0 0.4950709 144.74358 -281.4872 -265.5817                    4</span></span>
-<span id="cb13-15"><a href="#cb13-15" tabindex="-1"></a><span class="co">#&gt; 4      F  NA    0 0.5015051 136.23153 -264.4631 -248.5577                    4</span></span>
-<span id="cb13-16"><a href="#cb13-16" tabindex="-1"></a><span class="co">#&gt; 5      G  NA    0 0.4578343 121.56574 -235.1315 -219.2261                    4</span></span>
-<span id="cb13-17"><a href="#cb13-17" tabindex="-1"></a><span class="co">#&gt; 6      J  NA    0 0.3508067  79.22439 -150.4488 -134.5434                    4</span></span>
+<span id="cb13-12"><a href="#cb13-12" tabindex="-1"></a><span class="co">#&gt; 1      C  NA    0 0.4451424 152.93507 -297.8701 -281.9647                    4</span></span>
+<span id="cb13-13"><a href="#cb13-13" tabindex="-1"></a><span class="co">#&gt; 2      t  NA   NA 0.5024956 152.81188 -289.6238 -257.8130                    4</span></span>
+<span id="cb13-14"><a href="#cb13-14" tabindex="-1"></a><span class="co">#&gt; 3      N  NA    0 0.4950534 144.72822 -281.4564 -265.5510                    4</span></span>
+<span id="cb13-15"><a href="#cb13-15" tabindex="-1"></a><span class="co">#&gt; 4      F  NA    0 0.5015021 136.22741 -264.4548 -248.5494                    4</span></span>
+<span id="cb13-16"><a href="#cb13-16" tabindex="-1"></a><span class="co">#&gt; 5      G  NA    0 0.4578189 121.54984 -235.0997 -219.1943                    4</span></span>
+<span id="cb13-17"><a href="#cb13-17" tabindex="-1"></a><span class="co">#&gt; 6      J  NA    0 0.3507796  79.20618 -150.4124 -134.5070                    4</span></span>
 <span id="cb13-18"><a href="#cb13-18" tabindex="-1"></a><span class="co">#&gt;   n_pairs</span></span>
 <span id="cb13-19"><a href="#cb13-19" tabindex="-1"></a><span class="co">#&gt; 1     394</span></span>
 <span id="cb13-20"><a href="#cb13-20" tabindex="-1"></a><span class="co">#&gt; 2     394</span></span>
@@ -930,12 +934,14 @@ log likelihood which agrees with the previous process.</p>
 <span id="cb14-24"><a href="#cb14-24" tabindex="-1"></a><span class="co">#&gt;     5            NO             C -1455.730 2939.460 3001.017  14      TRUE</span></span>
 <span id="cb14-25"><a href="#cb14-25" tabindex="-1"></a><span class="co">#&gt;     6            NO             N -1566.724 3161.448 3223.005  14      TRUE</span></span>
 <span id="cb14-26"><a href="#cb14-26" tabindex="-1"></a><span class="co">#&gt;  elapsed_sec error</span></span>
-<span id="cb14-27"><a href="#cb14-27" tabindex="-1"></a><span class="co">#&gt;     9.504577  &lt;NA&gt;</span></span>
-<span id="cb14-28"><a href="#cb14-28" tabindex="-1"></a><span class="co">#&gt;    26.522002  &lt;NA&gt;</span></span>
-<span id="cb14-29"><a href="#cb14-29" tabindex="-1"></a><span class="co">#&gt;    19.114464  &lt;NA&gt;</span></span>
-<span id="cb14-30"><a href="#cb14-30" tabindex="-1"></a><span class="co">#&gt;     4.298610  &lt;NA&gt;</span></span>
-<span id="cb14-31"><a href="#cb14-31" tabindex="-1"></a><span class="co">#&gt;    11.787543  &lt;NA&gt;</span></span>
-<span id="cb14-32"><a href="#cb14-32" tabindex="-1"></a><span class="co">#&gt;     6.015983  &lt;NA&gt;</span></span></code></pre></div>
+<span id="cb14-27"><a href="#cb14-27" tabindex="-1"></a><span class="co">#&gt;     6.059039  &lt;NA&gt;</span></span>
+<span id="cb14-28"><a href="#cb14-28" tabindex="-1"></a><span class="co">#&gt;    17.669765  &lt;NA&gt;</span></span>
+<span id="cb14-29"><a href="#cb14-29" tabindex="-1"></a><span class="co">#&gt;    11.893320  &lt;NA&gt;</span></span>
+<span id="cb14-30"><a href="#cb14-30" tabindex="-1"></a><span class="co">#&gt;     2.496090  &lt;NA&gt;</span></span>
+<span id="cb14-31"><a href="#cb14-31" tabindex="-1"></a><span class="co">#&gt;     8.431836  &lt;NA&gt;</span></span>
+<span id="cb14-32"><a href="#cb14-32" tabindex="-1"></a><span class="co">#&gt;     4.029668  &lt;NA&gt;</span></span>
+<span id="cb14-33"><a href="#cb14-33" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb14-34"><a href="#cb14-34" tabindex="-1"></a><span class="co">#&gt; Warning: one or more printed joint candidate fits did not report convergence.</span></span></code></pre></div>
 <p>We can now review the copula fit visually using
 <code>plot_copula_fit</code>. The updated fit appears to accurately
 capture the low-dependence shape of the data as well as the increasing
@@ -1584,356 +1590,546 @@ the benchmark comparison models should be (ideally) carefully selected
 within their own modelling framework rather than relying on the choices
 made for margin covariates made through the gamlss.longitudinal
 workflow.</p>
-<div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" tabindex="-1"></a>bench <span class="ot">&lt;-</span> <span class="fu">benchmark_standard_models</span>(</span>
-<span id="cb31-2"><a href="#cb31-2" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
-<span id="cb31-3"><a href="#cb31-3" tabindex="-1"></a>  <span class="at">formula =</span> response <span class="sc">~</span> treatment <span class="sc">+</span> time <span class="sc">+</span> <span class="fu">s</span>(age),</span>
-<span id="cb31-4"><a href="#cb31-4" tabindex="-1"></a>  <span class="at">subject_var =</span> <span class="st">&quot;subject&quot;</span>,</span>
-<span id="cb31-5"><a href="#cb31-5" tabindex="-1"></a>  <span class="at">family =</span> <span class="st">&quot;gamma&quot;</span>,</span>
-<span id="cb31-6"><a href="#cb31-6" tabindex="-1"></a>  <span class="at">fit =</span> fit,</span>
-<span id="cb31-7"><a href="#cb31-7" tabindex="-1"></a>  <span class="at">fit_name =</span> <span class="st">&quot;gamlss_longitudinal&quot;</span></span>
-<span id="cb31-8"><a href="#cb31-8" tabindex="-1"></a>)</span>
-<span id="cb31-9"><a href="#cb31-9" tabindex="-1"></a><span class="fu">print</span>(bench)</span>
-<span id="cb31-10"><a href="#cb31-10" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb31-11"><a href="#cb31-11" tabindex="-1"></a><span class="co">#&gt; Standard Longitudinal Comparator Benchmark</span></span>
-<span id="cb31-12"><a href="#cb31-12" tabindex="-1"></a><span class="co">#&gt; -----------------------------------------</span></span>
-<span id="cb31-13"><a href="#cb31-13" tabindex="-1"></a><span class="co">#&gt; Formula: response ~ treatment + time + s(age) </span></span>
-<span id="cb31-14"><a href="#cb31-14" tabindex="-1"></a><span class="co">#&gt; Subject: subject </span></span>
-<span id="cb31-15"><a href="#cb31-15" tabindex="-1"></a><span class="co">#&gt; Family: Gamma </span></span>
-<span id="cb31-16"><a href="#cb31-16" tabindex="-1"></a><span class="co">#&gt; Methods included: gamlss.longitudinal, gam, gamm </span></span>
-<span id="cb31-17"><a href="#cb31-17" tabindex="-1"></a><span class="co">#&gt; Estimand note: mean-fit metrics compare response-mean predictions; distributional metrics use fitted quantiles, densities, PIT values, intervals, and tail probabilities where available.</span></span>
-<span id="cb31-18"><a href="#cb31-18" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb31-19"><a href="#cb31-19" tabindex="-1"></a><span class="co">#&gt; Benchmark Summary</span></span>
-<span id="cb31-20"><a href="#cb31-20" tabindex="-1"></a><span class="co">#&gt; -----------------</span></span>
-<span id="cb31-21"><a href="#cb31-21" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb31-22"><a href="#cb31-22" tabindex="-1"></a><span class="co">#&gt; Distributional</span></span>
-<span id="cb31-23"><a href="#cb31-23" tabindex="-1"></a><span class="co">#&gt; --------------</span></span>
-<span id="cb31-24"><a href="#cb31-24" tabindex="-1"></a><span class="co">#&gt;                            Metric                Best model</span></span>
-<span id="cb31-25"><a href="#cb31-25" tabindex="-1"></a><span class="co">#&gt;             95% interval coverage       gamlss.longitudinal</span></span>
-<span id="cb31-26"><a href="#cb31-26" tabindex="-1"></a><span class="co">#&gt;                95% interval width                      gamm</span></span>
-<span id="cb31-27"><a href="#cb31-27" tabindex="-1"></a><span class="co">#&gt;                Negative log score       gamlss.longitudinal</span></span>
-<span id="cb31-28"><a href="#cb31-28" tabindex="-1"></a><span class="co">#&gt;                    PIT KS p-value gamlss.longitudinal, gamm</span></span>
-<span id="cb31-29"><a href="#cb31-29" tabindex="-1"></a><span class="co">#&gt;           PIT mean absolute error                      gamm</span></span>
-<span id="cb31-30"><a href="#cb31-30" tabindex="-1"></a><span class="co">#&gt;               90th percentile MAE       gamlss.longitudinal</span></span>
-<span id="cb31-31"><a href="#cb31-31" tabindex="-1"></a><span class="co">#&gt;               Lower 5% tail error       gamlss.longitudinal</span></span>
-<span id="cb31-32"><a href="#cb31-32" tabindex="-1"></a><span class="co">#&gt;               Upper 5% tail error       gamlss.longitudinal</span></span>
-<span id="cb31-33"><a href="#cb31-33" tabindex="-1"></a><span class="co">#&gt;  90th percentile upper-tail error                       gam</span></span>
-<span id="cb31-34"><a href="#cb31-34" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb31-35"><a href="#cb31-35" tabindex="-1"></a><span class="co">#&gt; Mean fit</span></span>
-<span id="cb31-36"><a href="#cb31-36" tabindex="-1"></a><span class="co">#&gt; --------</span></span>
-<span id="cb31-37"><a href="#cb31-37" tabindex="-1"></a><span class="co">#&gt;                  Metric          Best model</span></span>
-<span id="cb31-38"><a href="#cb31-38" tabindex="-1"></a><span class="co">#&gt;   Observed response MAE                gamm</span></span>
-<span id="cb31-39"><a href="#cb31-39" tabindex="-1"></a><span class="co">#&gt;               Mean bias gamlss.longitudinal</span></span>
-<span id="cb31-40"><a href="#cb31-40" tabindex="-1"></a><span class="co">#&gt;                Mean MAE gamlss.longitudinal</span></span>
-<span id="cb31-41"><a href="#cb31-41" tabindex="-1"></a><span class="co">#&gt;               Mean RMSE gamlss.longitudinal</span></span>
-<span id="cb31-42"><a href="#cb31-42" tabindex="-1"></a><span class="co">#&gt;  Observed response RMSE                gamm</span></span>
-<span id="cb31-43"><a href="#cb31-43" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb31-44"><a href="#cb31-44" tabindex="-1"></a><span class="co">#&gt; Runtime</span></span>
-<span id="cb31-45"><a href="#cb31-45" tabindex="-1"></a><span class="co">#&gt; -------</span></span>
-<span id="cb31-46"><a href="#cb31-46" tabindex="-1"></a><span class="co">#&gt;              Metric Best model</span></span>
-<span id="cb31-47"><a href="#cb31-47" tabindex="-1"></a><span class="co">#&gt;  Elapsed time (sec)        gam</span></span>
-<span id="cb31-48"><a href="#cb31-48" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb31-49"><a href="#cb31-49" tabindex="-1"></a><span class="co">#&gt; Benchmark Details</span></span>
-<span id="cb31-50"><a href="#cb31-50" tabindex="-1"></a><span class="co">#&gt; -----------------</span></span>
-<span id="cb31-51"><a href="#cb31-51" tabindex="-1"></a><span class="co">#&gt; Benchmark Metrics</span></span>
-<span id="cb31-52"><a href="#cb31-52" tabindex="-1"></a><span class="co">#&gt; -----------------</span></span>
-<span id="cb31-53"><a href="#cb31-53" tabindex="-1"></a><span class="co">#&gt;                            Metric gamlss.longitudinal        gam       gamm</span></span>
-<span id="cb31-54"><a href="#cb31-54" tabindex="-1"></a><span class="co">#&gt;                Elapsed time (sec)                  NA  7.872e-02  1.827e+00</span></span>
-<span id="cb31-55"><a href="#cb31-55" tabindex="-1"></a><span class="co">#&gt;            Number of observations           6.000e+02  6.000e+02  6.000e+02</span></span>
-<span id="cb31-56"><a href="#cb31-56" tabindex="-1"></a><span class="co">#&gt;                    Log likelihood          -1.109e+03 -1.449e+03 -1.345e+03</span></span>
-<span id="cb31-57"><a href="#cb31-57" tabindex="-1"></a><span class="co">#&gt;                               AIC           2.256e+03  2.914e+03  2.853e+03</span></span>
-<span id="cb31-58"><a href="#cb31-58" tabindex="-1"></a><span class="co">#&gt;                               MAE           3.685e+00  3.476e+00  2.737e+00</span></span>
-<span id="cb31-59"><a href="#cb31-59" tabindex="-1"></a><span class="co">#&gt;                              RMSE           5.343e+00  5.286e+00  4.548e+00</span></span>
-<span id="cb31-60"><a href="#cb31-60" tabindex="-1"></a><span class="co">#&gt;                         Mean RMSE           1.436e+00  2.188e+00  4.057e+00</span></span>
-<span id="cb31-61"><a href="#cb31-61" tabindex="-1"></a><span class="co">#&gt;                          Mean MAE           1.117e+00  1.838e+00  3.341e+00</span></span>
-<span id="cb31-62"><a href="#cb31-62" tabindex="-1"></a><span class="co">#&gt;                         Mean bias          -1.067e+00 -1.631e+00 -1.929e+00</span></span>
-<span id="cb31-63"><a href="#cb31-63" tabindex="-1"></a><span class="co">#&gt;            Observed response RMSE           5.343e+00  5.286e+00  4.548e+00</span></span>
-<span id="cb31-64"><a href="#cb31-64" tabindex="-1"></a><span class="co">#&gt;             Observed response MAE           3.685e+00  3.476e+00  2.737e+00</span></span>
-<span id="cb31-65"><a href="#cb31-65" tabindex="-1"></a><span class="co">#&gt;               90th percentile MAE           7.316e-01  5.338e+00  8.590e+00</span></span>
-<span id="cb31-66"><a href="#cb31-66" tabindex="-1"></a><span class="co">#&gt;                Negative log score           2.350e+00  2.691e+00  2.574e+00</span></span>
-<span id="cb31-67"><a href="#cb31-67" tabindex="-1"></a><span class="co">#&gt;  90th percentile upper-tail error           5.416e-03 -4.946e-03 -1.073e-02</span></span>
-<span id="cb31-68"><a href="#cb31-68" tabindex="-1"></a><span class="co">#&gt;             95% interval coverage           9.574e-01  9.185e-01  9.037e-01</span></span>
-<span id="cb31-69"><a href="#cb31-69" tabindex="-1"></a><span class="co">#&gt;                95% interval width           1.865e+01  2.138e+01  1.499e+01</span></span>
-<span id="cb31-70"><a href="#cb31-70" tabindex="-1"></a><span class="co">#&gt;           PIT mean absolute error           2.319e-02  1.863e-02  7.903e-03</span></span>
-<span id="cb31-71"><a href="#cb31-71" tabindex="-1"></a><span class="co">#&gt;                    PIT KS p-value           1.083e-01  6.045e-04  7.440e-02</span></span>
-<span id="cb31-72"><a href="#cb31-72" tabindex="-1"></a><span class="co">#&gt;               Lower 5% tail error           1.852e-03  2.778e-02  3.519e-02</span></span>
-<span id="cb31-73"><a href="#cb31-73" tabindex="-1"></a><span class="co">#&gt;               Upper 5% tail error          -3.704e-03 -9.259e-03 -9.259e-03</span></span>
-<span id="cb31-74"><a href="#cb31-74" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb31-75"><a href="#cb31-75" tabindex="-1"></a><span class="co">#&gt; Mu Coefficients</span></span>
-<span id="cb31-76"><a href="#cb31-76" tabindex="-1"></a><span class="co">#&gt; ---------------</span></span>
-<span id="cb31-77"><a href="#cb31-77" tabindex="-1"></a><span class="co">#&gt; Coefficient Estimates</span></span>
-<span id="cb31-78"><a href="#cb31-78" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb31-79"><a href="#cb31-79" tabindex="-1"></a><span class="co">#&gt;           term gamlss.longitudinal      gam    gamm</span></span>
-<span id="cb31-80"><a href="#cb31-80" tabindex="-1"></a><span class="co">#&gt;      intercept              1.6375  1.81337  1.9578</span></span>
-<span id="cb31-81"><a href="#cb31-81" tabindex="-1"></a><span class="co">#&gt;   treatmentlow              0.2270 -0.08208 -0.2331</span></span>
-<span id="cb31-82"><a href="#cb31-82" tabindex="-1"></a><span class="co">#&gt;  treatmenthigh              0.6017  0.37371  0.2817</span></span>
-<span id="cb31-83"><a href="#cb31-83" tabindex="-1"></a><span class="co">#&gt;           time                  NA -0.47957 -0.9781</span></span>
-<span id="cb31-84"><a href="#cb31-84" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb31-85"><a href="#cb31-85" tabindex="-1"></a><span class="co">#&gt; Standard Errors</span></span>
-<span id="cb31-86"><a href="#cb31-86" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb31-87"><a href="#cb31-87" tabindex="-1"></a><span class="co">#&gt;           term gamlss.longitudinal    gam    gamm</span></span>
-<span id="cb31-88"><a href="#cb31-88" tabindex="-1"></a><span class="co">#&gt;      intercept             0.04628 0.1079 0.12041</span></span>
-<span id="cb31-89"><a href="#cb31-89" tabindex="-1"></a><span class="co">#&gt;   treatmentlow             0.07174 0.1157 0.14434</span></span>
-<span id="cb31-90"><a href="#cb31-90" tabindex="-1"></a><span class="co">#&gt;  treatmenthigh             0.06785 0.1143 0.14160</span></span>
-<span id="cb31-91"><a href="#cb31-91" tabindex="-1"></a><span class="co">#&gt;           time                  NA 0.1248 0.09839</span></span>
-<span id="cb31-92"><a href="#cb31-92" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb31-93"><a href="#cb31-93" tabindex="-1"></a><span class="co">#&gt; 95% Lower Estimates</span></span>
-<span id="cb31-94"><a href="#cb31-94" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb31-95"><a href="#cb31-95" tabindex="-1"></a><span class="co">#&gt;           term gamlss.longitudinal     gam      gamm</span></span>
-<span id="cb31-96"><a href="#cb31-96" tabindex="-1"></a><span class="co">#&gt;      intercept             1.54676  1.6019  1.721810</span></span>
-<span id="cb31-97"><a href="#cb31-97" tabindex="-1"></a><span class="co">#&gt;   treatmentlow             0.08639 -0.3088 -0.515955</span></span>
-<span id="cb31-98"><a href="#cb31-98" tabindex="-1"></a><span class="co">#&gt;  treatmenthigh             0.46872  0.1496  0.004122</span></span>
-<span id="cb31-99"><a href="#cb31-99" tabindex="-1"></a><span class="co">#&gt;           time                  NA -0.7241 -1.170952</span></span>
-<span id="cb31-100"><a href="#cb31-100" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb31-101"><a href="#cb31-101" tabindex="-1"></a><span class="co">#&gt; 95% Upper Estimates</span></span>
-<span id="cb31-102"><a href="#cb31-102" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb31-103"><a href="#cb31-103" tabindex="-1"></a><span class="co">#&gt;           term gamlss.longitudinal     gam     gamm</span></span>
-<span id="cb31-104"><a href="#cb31-104" tabindex="-1"></a><span class="co">#&gt;      intercept              1.7282  2.0248  2.19382</span></span>
-<span id="cb31-105"><a href="#cb31-105" tabindex="-1"></a><span class="co">#&gt;   treatmentlow              0.3676  0.1447  0.04984</span></span>
-<span id="cb31-106"><a href="#cb31-106" tabindex="-1"></a><span class="co">#&gt;  treatmenthigh              0.7347  0.5978  0.55918</span></span>
-<span id="cb31-107"><a href="#cb31-107" tabindex="-1"></a><span class="co">#&gt;           time                  NA -0.2350 -0.78528</span></span></code></pre></div>
+<p>The selected final model does not include <code>time</code> on
+<code>mu</code>, while the benchmark mean model below does include a
+linear <code>time</code> term. To keep the selected final model
+unchanged while making the benchmark comparison like-for-like on the
+mean formula, we fit an additional comparison-only GAMLSS longitudinal
+model that adds <code>time</code> to <code>mu</code> and leaves the
+other final-model components unchanged.</p>
+<details>
+<div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" tabindex="-1"></a>fit_benchmark_mu_time <span class="ot">&lt;-</span> <span class="fu">gamlss_longitudinal</span>(</span>
+<span id="cb31-2"><a href="#cb31-2" tabindex="-1"></a>  <span class="at">dataset =</span> dataset,</span>
+<span id="cb31-3"><a href="#cb31-3" tabindex="-1"></a>  <span class="at">margin_dist =</span> <span class="fu">GG</span>(),</span>
+<span id="cb31-4"><a href="#cb31-4" tabindex="-1"></a>  <span class="at">copula_dist =</span> <span class="st">&quot;C&quot;</span>,</span>
+<span id="cb31-5"><a href="#cb31-5" tabindex="-1"></a>  <span class="at">time_var =</span> <span class="st">&quot;time&quot;</span>,</span>
+<span id="cb31-6"><a href="#cb31-6" tabindex="-1"></a>  <span class="at">subject_var =</span> <span class="st">&quot;subject&quot;</span>,</span>
+<span id="cb31-7"><a href="#cb31-7" tabindex="-1"></a>  <span class="at">mu.formula =</span> response <span class="sc">~</span> treatment <span class="sc">+</span> time <span class="sc">+</span> <span class="fu">s</span>(age),</span>
+<span id="cb31-8"><a href="#cb31-8" tabindex="-1"></a>  <span class="at">sigma.formula =</span> <span class="sc">~</span> treatment <span class="sc">+</span> time <span class="sc">+</span> <span class="fu">s</span>(age),</span>
+<span id="cb31-9"><a href="#cb31-9" tabindex="-1"></a>  <span class="at">nu.formula =</span> <span class="sc">~</span> <span class="dv">1</span>,</span>
+<span id="cb31-10"><a href="#cb31-10" tabindex="-1"></a>  <span class="at">theta.formula =</span> <span class="sc">~</span> time <span class="sc">+</span> <span class="fu">s</span>(age)</span>
+<span id="cb31-11"><a href="#cb31-11" tabindex="-1"></a>)</span></code></pre></div>
+</details>
+<div class="sourceCode" id="cb32"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" tabindex="-1"></a>bench <span class="ot">&lt;-</span> <span class="fu">benchmark_standard_models</span>(</span>
+<span id="cb32-2"><a href="#cb32-2" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
+<span id="cb32-3"><a href="#cb32-3" tabindex="-1"></a>  <span class="at">formula =</span> response <span class="sc">~</span> treatment <span class="sc">+</span> time <span class="sc">+</span> <span class="fu">s</span>(age),</span>
+<span id="cb32-4"><a href="#cb32-4" tabindex="-1"></a>  <span class="at">subject_var =</span> <span class="st">&quot;subject&quot;</span>,</span>
+<span id="cb32-5"><a href="#cb32-5" tabindex="-1"></a>  <span class="at">family =</span> <span class="st">&quot;gamma&quot;</span>,</span>
+<span id="cb32-6"><a href="#cb32-6" tabindex="-1"></a>  <span class="at">fit =</span> fit_benchmark_mu_time,</span>
+<span id="cb32-7"><a href="#cb32-7" tabindex="-1"></a>  <span class="at">fit_name =</span> <span class="st">&quot;gamlss_longitudinal_mu_time&quot;</span></span>
+<span id="cb32-8"><a href="#cb32-8" tabindex="-1"></a>)</span>
+<span id="cb32-9"><a href="#cb32-9" tabindex="-1"></a><span class="fu">print</span>(bench)</span>
+<span id="cb32-10"><a href="#cb32-10" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-11"><a href="#cb32-11" tabindex="-1"></a><span class="co">#&gt; Standard Longitudinal Comparator Benchmark</span></span>
+<span id="cb32-12"><a href="#cb32-12" tabindex="-1"></a><span class="co">#&gt; -----------------------------------------</span></span>
+<span id="cb32-13"><a href="#cb32-13" tabindex="-1"></a><span class="co">#&gt; Formula: response ~ treatment + time + s(age) </span></span>
+<span id="cb32-14"><a href="#cb32-14" tabindex="-1"></a><span class="co">#&gt; Subject: subject </span></span>
+<span id="cb32-15"><a href="#cb32-15" tabindex="-1"></a><span class="co">#&gt; Family: Gamma </span></span>
+<span id="cb32-16"><a href="#cb32-16" tabindex="-1"></a><span class="co">#&gt; Methods included: gamlss_longitudinal_mu_time, gam, gamm </span></span>
+<span id="cb32-17"><a href="#cb32-17" tabindex="-1"></a><span class="co">#&gt; Estimand note: mean-fit metrics compare response-mean predictions; distributional metrics use fitted quantiles, densities, PIT values, intervals, and tail probabilities where available.</span></span>
+<span id="cb32-18"><a href="#cb32-18" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-19"><a href="#cb32-19" tabindex="-1"></a><span class="co">#&gt; Benchmark Summary</span></span>
+<span id="cb32-20"><a href="#cb32-20" tabindex="-1"></a><span class="co">#&gt; -----------------</span></span>
+<span id="cb32-21"><a href="#cb32-21" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-22"><a href="#cb32-22" tabindex="-1"></a><span class="co">#&gt; Distributional</span></span>
+<span id="cb32-23"><a href="#cb32-23" tabindex="-1"></a><span class="co">#&gt; --------------</span></span>
+<span id="cb32-24"><a href="#cb32-24" tabindex="-1"></a><span class="co">#&gt;                            Metric                  Best model</span></span>
+<span id="cb32-25"><a href="#cb32-25" tabindex="-1"></a><span class="co">#&gt;             95% interval coverage gamlss_longitudinal_mu_time</span></span>
+<span id="cb32-26"><a href="#cb32-26" tabindex="-1"></a><span class="co">#&gt;                95% interval width                        gamm</span></span>
+<span id="cb32-27"><a href="#cb32-27" tabindex="-1"></a><span class="co">#&gt;                Negative log score gamlss_longitudinal_mu_time</span></span>
+<span id="cb32-28"><a href="#cb32-28" tabindex="-1"></a><span class="co">#&gt;                    PIT KS p-value gamlss_longitudinal_mu_time</span></span>
+<span id="cb32-29"><a href="#cb32-29" tabindex="-1"></a><span class="co">#&gt;           PIT mean absolute error                        gamm</span></span>
+<span id="cb32-30"><a href="#cb32-30" tabindex="-1"></a><span class="co">#&gt;               90th percentile MAE gamlss_longitudinal_mu_time</span></span>
+<span id="cb32-31"><a href="#cb32-31" tabindex="-1"></a><span class="co">#&gt;               Lower 5% tail error gamlss_longitudinal_mu_time</span></span>
+<span id="cb32-32"><a href="#cb32-32" tabindex="-1"></a><span class="co">#&gt;               Upper 5% tail error gamlss_longitudinal_mu_time</span></span>
+<span id="cb32-33"><a href="#cb32-33" tabindex="-1"></a><span class="co">#&gt;  90th percentile upper-tail error                         gam</span></span>
+<span id="cb32-34"><a href="#cb32-34" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-35"><a href="#cb32-35" tabindex="-1"></a><span class="co">#&gt; Mean fit</span></span>
+<span id="cb32-36"><a href="#cb32-36" tabindex="-1"></a><span class="co">#&gt; --------</span></span>
+<span id="cb32-37"><a href="#cb32-37" tabindex="-1"></a><span class="co">#&gt;                  Metric                  Best model</span></span>
+<span id="cb32-38"><a href="#cb32-38" tabindex="-1"></a><span class="co">#&gt;   Observed response MAE                        gamm</span></span>
+<span id="cb32-39"><a href="#cb32-39" tabindex="-1"></a><span class="co">#&gt;               Mean bias gamlss_longitudinal_mu_time</span></span>
+<span id="cb32-40"><a href="#cb32-40" tabindex="-1"></a><span class="co">#&gt;                Mean MAE gamlss_longitudinal_mu_time</span></span>
+<span id="cb32-41"><a href="#cb32-41" tabindex="-1"></a><span class="co">#&gt;               Mean RMSE gamlss_longitudinal_mu_time</span></span>
+<span id="cb32-42"><a href="#cb32-42" tabindex="-1"></a><span class="co">#&gt;  Observed response RMSE                        gamm</span></span>
+<span id="cb32-43"><a href="#cb32-43" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-44"><a href="#cb32-44" tabindex="-1"></a><span class="co">#&gt; Runtime</span></span>
+<span id="cb32-45"><a href="#cb32-45" tabindex="-1"></a><span class="co">#&gt; -------</span></span>
+<span id="cb32-46"><a href="#cb32-46" tabindex="-1"></a><span class="co">#&gt;              Metric Best model</span></span>
+<span id="cb32-47"><a href="#cb32-47" tabindex="-1"></a><span class="co">#&gt;  Elapsed time (sec)        gam</span></span>
+<span id="cb32-48"><a href="#cb32-48" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-49"><a href="#cb32-49" tabindex="-1"></a><span class="co">#&gt; Benchmark Details</span></span>
+<span id="cb32-50"><a href="#cb32-50" tabindex="-1"></a><span class="co">#&gt; -----------------</span></span>
+<span id="cb32-51"><a href="#cb32-51" tabindex="-1"></a><span class="co">#&gt; Benchmark Metrics</span></span>
+<span id="cb32-52"><a href="#cb32-52" tabindex="-1"></a><span class="co">#&gt; -----------------</span></span>
+<span id="cb32-53"><a href="#cb32-53" tabindex="-1"></a><span class="co">#&gt;                            Metric gamlss_longitudinal_mu_time        gam</span></span>
+<span id="cb32-54"><a href="#cb32-54" tabindex="-1"></a><span class="co">#&gt;                Elapsed time (sec)                          NA  5.040e-02</span></span>
+<span id="cb32-55"><a href="#cb32-55" tabindex="-1"></a><span class="co">#&gt;            Number of observations                   6.000e+02  6.000e+02</span></span>
+<span id="cb32-56"><a href="#cb32-56" tabindex="-1"></a><span class="co">#&gt;                    Log likelihood                  -1.107e+03 -1.449e+03</span></span>
+<span id="cb32-57"><a href="#cb32-57" tabindex="-1"></a><span class="co">#&gt;                               AIC                   2.253e+03  2.914e+03</span></span>
+<span id="cb32-58"><a href="#cb32-58" tabindex="-1"></a><span class="co">#&gt;                               MAE                   3.571e+00  3.476e+00</span></span>
+<span id="cb32-59"><a href="#cb32-59" tabindex="-1"></a><span class="co">#&gt;                              RMSE                   5.306e+00  5.286e+00</span></span>
+<span id="cb32-60"><a href="#cb32-60" tabindex="-1"></a><span class="co">#&gt;                         Mean RMSE                   1.833e+00  2.188e+00</span></span>
+<span id="cb32-61"><a href="#cb32-61" tabindex="-1"></a><span class="co">#&gt;                          Mean MAE                   1.430e+00  1.838e+00</span></span>
+<span id="cb32-62"><a href="#cb32-62" tabindex="-1"></a><span class="co">#&gt;                         Mean bias                  -1.346e+00 -1.631e+00</span></span>
+<span id="cb32-63"><a href="#cb32-63" tabindex="-1"></a><span class="co">#&gt;            Observed response RMSE                   5.306e+00  5.286e+00</span></span>
+<span id="cb32-64"><a href="#cb32-64" tabindex="-1"></a><span class="co">#&gt;             Observed response MAE                   3.571e+00  3.476e+00</span></span>
+<span id="cb32-65"><a href="#cb32-65" tabindex="-1"></a><span class="co">#&gt;               90th percentile MAE                   7.176e-01  5.338e+00</span></span>
+<span id="cb32-66"><a href="#cb32-66" tabindex="-1"></a><span class="co">#&gt;                Negative log score                   2.346e+00  2.691e+00</span></span>
+<span id="cb32-67"><a href="#cb32-67" tabindex="-1"></a><span class="co">#&gt;  90th percentile upper-tail error                  -5.229e-03 -4.946e-03</span></span>
+<span id="cb32-68"><a href="#cb32-68" tabindex="-1"></a><span class="co">#&gt;             95% interval coverage                   9.556e-01  9.185e-01</span></span>
+<span id="cb32-69"><a href="#cb32-69" tabindex="-1"></a><span class="co">#&gt;                95% interval width                   1.742e+01  2.138e+01</span></span>
+<span id="cb32-70"><a href="#cb32-70" tabindex="-1"></a><span class="co">#&gt;           PIT mean absolute error                   1.729e-02  1.863e-02</span></span>
+<span id="cb32-71"><a href="#cb32-71" tabindex="-1"></a><span class="co">#&gt;                    PIT KS p-value                   2.553e-01  6.045e-04</span></span>
+<span id="cb32-72"><a href="#cb32-72" tabindex="-1"></a><span class="co">#&gt;               Lower 5% tail error                   7.407e-03  2.778e-02</span></span>
+<span id="cb32-73"><a href="#cb32-73" tabindex="-1"></a><span class="co">#&gt;               Upper 5% tail error                  -3.704e-03 -9.259e-03</span></span>
+<span id="cb32-74"><a href="#cb32-74" tabindex="-1"></a><span class="co">#&gt;        gamm</span></span>
+<span id="cb32-75"><a href="#cb32-75" tabindex="-1"></a><span class="co">#&gt;   1.536e+00</span></span>
+<span id="cb32-76"><a href="#cb32-76" tabindex="-1"></a><span class="co">#&gt;   6.000e+02</span></span>
+<span id="cb32-77"><a href="#cb32-77" tabindex="-1"></a><span class="co">#&gt;  -1.345e+03</span></span>
+<span id="cb32-78"><a href="#cb32-78" tabindex="-1"></a><span class="co">#&gt;   2.853e+03</span></span>
+<span id="cb32-79"><a href="#cb32-79" tabindex="-1"></a><span class="co">#&gt;   2.737e+00</span></span>
+<span id="cb32-80"><a href="#cb32-80" tabindex="-1"></a><span class="co">#&gt;   4.548e+00</span></span>
+<span id="cb32-81"><a href="#cb32-81" tabindex="-1"></a><span class="co">#&gt;   4.057e+00</span></span>
+<span id="cb32-82"><a href="#cb32-82" tabindex="-1"></a><span class="co">#&gt;   3.341e+00</span></span>
+<span id="cb32-83"><a href="#cb32-83" tabindex="-1"></a><span class="co">#&gt;  -1.929e+00</span></span>
+<span id="cb32-84"><a href="#cb32-84" tabindex="-1"></a><span class="co">#&gt;   4.548e+00</span></span>
+<span id="cb32-85"><a href="#cb32-85" tabindex="-1"></a><span class="co">#&gt;   2.737e+00</span></span>
+<span id="cb32-86"><a href="#cb32-86" tabindex="-1"></a><span class="co">#&gt;   8.590e+00</span></span>
+<span id="cb32-87"><a href="#cb32-87" tabindex="-1"></a><span class="co">#&gt;   2.574e+00</span></span>
+<span id="cb32-88"><a href="#cb32-88" tabindex="-1"></a><span class="co">#&gt;  -1.073e-02</span></span>
+<span id="cb32-89"><a href="#cb32-89" tabindex="-1"></a><span class="co">#&gt;   9.037e-01</span></span>
+<span id="cb32-90"><a href="#cb32-90" tabindex="-1"></a><span class="co">#&gt;   1.499e+01</span></span>
+<span id="cb32-91"><a href="#cb32-91" tabindex="-1"></a><span class="co">#&gt;   7.903e-03</span></span>
+<span id="cb32-92"><a href="#cb32-92" tabindex="-1"></a><span class="co">#&gt;   7.440e-02</span></span>
+<span id="cb32-93"><a href="#cb32-93" tabindex="-1"></a><span class="co">#&gt;   3.519e-02</span></span>
+<span id="cb32-94"><a href="#cb32-94" tabindex="-1"></a><span class="co">#&gt;  -9.259e-03</span></span>
+<span id="cb32-95"><a href="#cb32-95" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-96"><a href="#cb32-96" tabindex="-1"></a><span class="co">#&gt; Mu Coefficients</span></span>
+<span id="cb32-97"><a href="#cb32-97" tabindex="-1"></a><span class="co">#&gt; ---------------</span></span>
+<span id="cb32-98"><a href="#cb32-98" tabindex="-1"></a><span class="co">#&gt; Coefficient Estimates</span></span>
+<span id="cb32-99"><a href="#cb32-99" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-100"><a href="#cb32-100" tabindex="-1"></a><span class="co">#&gt;            term gamlss_longitudinal_mu_time      gam    gamm</span></span>
+<span id="cb32-101"><a href="#cb32-101" tabindex="-1"></a><span class="co">#&gt;       intercept                      1.6761  1.81337  1.9578</span></span>
+<span id="cb32-102"><a href="#cb32-102" tabindex="-1"></a><span class="co">#&gt;    treatmentlow                      0.2117 -0.08208 -0.2331</span></span>
+<span id="cb32-103"><a href="#cb32-103" tabindex="-1"></a><span class="co">#&gt;   treatmenthigh                      0.5875  0.37371  0.2817</span></span>
+<span id="cb32-104"><a href="#cb32-104" tabindex="-1"></a><span class="co">#&gt;  time_covariate                     -0.2119       NA      NA</span></span>
+<span id="cb32-105"><a href="#cb32-105" tabindex="-1"></a><span class="co">#&gt;            time                          NA -0.47957 -0.9781</span></span>
+<span id="cb32-106"><a href="#cb32-106" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-107"><a href="#cb32-107" tabindex="-1"></a><span class="co">#&gt; Standard Errors</span></span>
+<span id="cb32-108"><a href="#cb32-108" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-109"><a href="#cb32-109" tabindex="-1"></a><span class="co">#&gt;            term gamlss_longitudinal_mu_time    gam    gamm</span></span>
+<span id="cb32-110"><a href="#cb32-110" tabindex="-1"></a><span class="co">#&gt;       intercept                     0.04821 0.1079 0.12041</span></span>
+<span id="cb32-111"><a href="#cb32-111" tabindex="-1"></a><span class="co">#&gt;    treatmentlow                     0.07366 0.1157 0.14434</span></span>
+<span id="cb32-112"><a href="#cb32-112" tabindex="-1"></a><span class="co">#&gt;   treatmenthigh                     0.06837 0.1143 0.14160</span></span>
+<span id="cb32-113"><a href="#cb32-113" tabindex="-1"></a><span class="co">#&gt;  time_covariate                     0.12924     NA      NA</span></span>
+<span id="cb32-114"><a href="#cb32-114" tabindex="-1"></a><span class="co">#&gt;            time                          NA 0.1248 0.09839</span></span>
+<span id="cb32-115"><a href="#cb32-115" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-116"><a href="#cb32-116" tabindex="-1"></a><span class="co">#&gt; 95% Lower Estimates</span></span>
+<span id="cb32-117"><a href="#cb32-117" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-118"><a href="#cb32-118" tabindex="-1"></a><span class="co">#&gt;            term gamlss_longitudinal_mu_time     gam      gamm</span></span>
+<span id="cb32-119"><a href="#cb32-119" tabindex="-1"></a><span class="co">#&gt;       intercept                     1.58156  1.6019  1.721810</span></span>
+<span id="cb32-120"><a href="#cb32-120" tabindex="-1"></a><span class="co">#&gt;    treatmentlow                     0.06729 -0.3088 -0.515955</span></span>
+<span id="cb32-121"><a href="#cb32-121" tabindex="-1"></a><span class="co">#&gt;   treatmenthigh                     0.45349  0.1496  0.004122</span></span>
+<span id="cb32-122"><a href="#cb32-122" tabindex="-1"></a><span class="co">#&gt;  time_covariate                    -0.46516      NA        NA</span></span>
+<span id="cb32-123"><a href="#cb32-123" tabindex="-1"></a><span class="co">#&gt;            time                          NA -0.7241 -1.170952</span></span>
+<span id="cb32-124"><a href="#cb32-124" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-125"><a href="#cb32-125" tabindex="-1"></a><span class="co">#&gt; 95% Upper Estimates</span></span>
+<span id="cb32-126"><a href="#cb32-126" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-127"><a href="#cb32-127" tabindex="-1"></a><span class="co">#&gt;            term gamlss_longitudinal_mu_time     gam     gamm</span></span>
+<span id="cb32-128"><a href="#cb32-128" tabindex="-1"></a><span class="co">#&gt;       intercept                     1.77055  2.0248  2.19382</span></span>
+<span id="cb32-129"><a href="#cb32-129" tabindex="-1"></a><span class="co">#&gt;    treatmentlow                     0.35603  0.1447  0.04984</span></span>
+<span id="cb32-130"><a href="#cb32-130" tabindex="-1"></a><span class="co">#&gt;   treatmenthigh                     0.72151  0.5978  0.55918</span></span>
+<span id="cb32-131"><a href="#cb32-131" tabindex="-1"></a><span class="co">#&gt;  time_covariate                     0.04143      NA       NA</span></span>
+<span id="cb32-132"><a href="#cb32-132" tabindex="-1"></a><span class="co">#&gt;            time                          NA -0.2350 -0.78528</span></span></code></pre></div>
 <p>Then we can compare a reduced model without age to be able to compare
 all models. This is just illustrative so we remove the variable for
 simplicity, but you could alternatively group age or similar to be able
 to also compare this effect as well.</p>
 <details>
-<div class="sourceCode" id="cb32"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" tabindex="-1"></a>fit_reduced <span class="ot">&lt;-</span> <span class="fu">gamlss_longitudinal</span>(</span>
-<span id="cb32-2"><a href="#cb32-2" tabindex="-1"></a>  <span class="at">dataset =</span> dataset,</span>
-<span id="cb32-3"><a href="#cb32-3" tabindex="-1"></a>  <span class="at">margin_dist =</span> <span class="fu">GG</span>(),</span>
-<span id="cb32-4"><a href="#cb32-4" tabindex="-1"></a>  <span class="at">copula_dist =</span> <span class="st">&quot;C&quot;</span>,</span>
-<span id="cb32-5"><a href="#cb32-5" tabindex="-1"></a>  <span class="at">time_var =</span> <span class="st">&quot;time&quot;</span>,</span>
-<span id="cb32-6"><a href="#cb32-6" tabindex="-1"></a>  <span class="at">subject_var =</span> <span class="st">&quot;subject&quot;</span>,</span>
-<span id="cb32-7"><a href="#cb32-7" tabindex="-1"></a>  <span class="at">mu.formula =</span> response <span class="sc">~</span> treatment,</span>
-<span id="cb32-8"><a href="#cb32-8" tabindex="-1"></a>  <span class="at">sigma.formula =</span> <span class="sc">~</span> treatment <span class="sc">+</span> (time),</span>
-<span id="cb32-9"><a href="#cb32-9" tabindex="-1"></a>  <span class="at">nu.formula =</span> <span class="sc">~</span> <span class="dv">1</span>,</span>
-<span id="cb32-10"><a href="#cb32-10" tabindex="-1"></a>  <span class="at">theta.formula =</span> <span class="sc">~</span> (time)</span>
-<span id="cb32-11"><a href="#cb32-11" tabindex="-1"></a>)</span>
-<span id="cb32-12"><a href="#cb32-12" tabindex="-1"></a><span class="co">#&gt; Missingness Summary (by time):</span></span>
-<span id="cb32-13"><a href="#cb32-13" tabindex="-1"></a><span class="co">#&gt;   time n_total n_na_response n_observed_response</span></span>
-<span id="cb32-14"><a href="#cb32-14" tabindex="-1"></a><span class="co">#&gt; 1 0.00     120             9                 111</span></span>
-<span id="cb32-15"><a href="#cb32-15" tabindex="-1"></a><span class="co">#&gt; 2 0.25     120             8                 112</span></span>
-<span id="cb32-16"><a href="#cb32-16" tabindex="-1"></a><span class="co">#&gt; 3 0.50     120            13                 107</span></span>
-<span id="cb32-17"><a href="#cb32-17" tabindex="-1"></a><span class="co">#&gt; 4 0.75     120            10                 110</span></span>
-<span id="cb32-18"><a href="#cb32-18" tabindex="-1"></a><span class="co">#&gt; 5 1.00     120            20                 100</span></span>
-<span id="cb32-19"><a href="#cb32-19" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-20"><a href="#cb32-20" tabindex="-1"></a><span class="co">#&gt; Consecutive Pair Completeness:</span></span>
-<span id="cb32-21"><a href="#cb32-21" tabindex="-1"></a><span class="co">#&gt;   time1 time2 complete_pairs total_pairs total_observations</span></span>
-<span id="cb32-22"><a href="#cb32-22" tabindex="-1"></a><span class="co">#&gt; 1  0.00  0.25            103         120                600</span></span>
-<span id="cb32-23"><a href="#cb32-23" tabindex="-1"></a><span class="co">#&gt; 2  0.25  0.50            100         120                600</span></span>
-<span id="cb32-24"><a href="#cb32-24" tabindex="-1"></a><span class="co">#&gt; 3  0.50  0.75             98         120                600</span></span>
-<span id="cb32-25"><a href="#cb32-25" tabindex="-1"></a><span class="co">#&gt; 4  0.75  1.00             93         120                600</span></span>
-<span id="cb32-26"><a href="#cb32-26" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-27"><a href="#cb32-27" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-28"><a href="#cb32-28" tabindex="-1"></a><span class="co">#&gt; Running separate RS warm-start phase for 5 outer iteration(s) before joint RS fit...</span></span>
-<span id="cb32-29"><a href="#cb32-29" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-30"><a href="#cb32-30" tabindex="-1"></a><span class="co">#&gt; Using automatic step_adjustment=1 for joint RS.</span></span>
-<span id="cb32-31"><a href="#cb32-31" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-32"><a href="#cb32-32" tabindex="-1"></a><span class="co">#&gt; Using stop criteria: inner_stop_crit= 0.000229653 | outer_stop_crit= 0.00114827 </span></span>
-<span id="cb32-33"><a href="#cb32-33" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-34"><a href="#cb32-34" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 1</span></span>
-<span id="cb32-35"><a href="#cb32-35" tabindex="-1"></a><span class="co">#&gt; Start LogLik   End LogLik       Change </span></span>
-<span id="cb32-36"><a href="#cb32-36" tabindex="-1"></a><span class="co">#&gt; -1148.266279 -1145.301181     2.965098 </span></span>
-<span id="cb32-37"><a href="#cb32-37" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-38"><a href="#cb32-38" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 2</span></span>
-<span id="cb32-39"><a href="#cb32-39" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
-<span id="cb32-40"><a href="#cb32-40" tabindex="-1"></a><span class="co">#&gt; -1.145301e+03 -1.145202e+03  9.891077e-02 </span></span>
-<span id="cb32-41"><a href="#cb32-41" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-42"><a href="#cb32-42" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 3</span></span>
-<span id="cb32-43"><a href="#cb32-43" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
-<span id="cb32-44"><a href="#cb32-44" tabindex="-1"></a><span class="co">#&gt; -1.145202e+03 -1.145166e+03  3.637873e-02 </span></span>
-<span id="cb32-45"><a href="#cb32-45" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-46"><a href="#cb32-46" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 4</span></span>
-<span id="cb32-47"><a href="#cb32-47" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
-<span id="cb32-48"><a href="#cb32-48" tabindex="-1"></a><span class="co">#&gt; -1.145166e+03 -1.145141e+03  2.446458e-02 </span></span>
-<span id="cb32-49"><a href="#cb32-49" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-50"><a href="#cb32-50" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 5</span></span>
-<span id="cb32-51"><a href="#cb32-51" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
-<span id="cb32-52"><a href="#cb32-52" tabindex="-1"></a><span class="co">#&gt; -1.145141e+03 -1.145125e+03  1.641073e-02 </span></span>
-<span id="cb32-53"><a href="#cb32-53" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-54"><a href="#cb32-54" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 6</span></span>
-<span id="cb32-55"><a href="#cb32-55" tabindex="-1"></a><span class="co">#&gt; Start LogLik   End LogLik       Change </span></span>
-<span id="cb32-56"><a href="#cb32-56" tabindex="-1"></a><span class="co">#&gt; -1145.125016 -1145.114965     0.010051 </span></span>
-<span id="cb32-57"><a href="#cb32-57" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-58"><a href="#cb32-58" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 7</span></span>
-<span id="cb32-59"><a href="#cb32-59" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
-<span id="cb32-60"><a href="#cb32-60" tabindex="-1"></a><span class="co">#&gt; -1.145115e+03 -1.145108e+03  7.205572e-03 </span></span>
-<span id="cb32-61"><a href="#cb32-61" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-62"><a href="#cb32-62" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 8</span></span>
-<span id="cb32-63"><a href="#cb32-63" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
-<span id="cb32-64"><a href="#cb32-64" tabindex="-1"></a><span class="co">#&gt; -1.145108e+03 -1.145103e+03  4.528090e-03 </span></span>
-<span id="cb32-65"><a href="#cb32-65" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-66"><a href="#cb32-66" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 9</span></span>
-<span id="cb32-67"><a href="#cb32-67" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
-<span id="cb32-68"><a href="#cb32-68" tabindex="-1"></a><span class="co">#&gt; -1.145103e+03 -1.145100e+03  3.393647e-03 </span></span>
-<span id="cb32-69"><a href="#cb32-69" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-70"><a href="#cb32-70" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 10</span></span>
-<span id="cb32-71"><a href="#cb32-71" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
-<span id="cb32-72"><a href="#cb32-72" tabindex="-1"></a><span class="co">#&gt; -1.145100e+03 -1.145098e+03  2.302145e-03 </span></span>
-<span id="cb32-73"><a href="#cb32-73" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-74"><a href="#cb32-74" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 11</span></span>
-<span id="cb32-75"><a href="#cb32-75" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
-<span id="cb32-76"><a href="#cb32-76" tabindex="-1"></a><span class="co">#&gt; -1.145098e+03 -1.145096e+03  1.660554e-03 </span></span>
-<span id="cb32-77"><a href="#cb32-77" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-78"><a href="#cb32-78" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 12</span></span>
-<span id="cb32-79"><a href="#cb32-79" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
-<span id="cb32-80"><a href="#cb32-80" tabindex="-1"></a><span class="co">#&gt; -1.145096e+03 -1.145095e+03  1.110994e-03 </span></span>
-<span id="cb32-81"><a href="#cb32-81" tabindex="-1"></a><span class="co">#&gt;       joint </span></span>
-<span id="cb32-82"><a href="#cb32-82" tabindex="-1"></a><span class="co">#&gt; 0.001110994 </span></span>
-<span id="cb32-83"><a href="#cb32-83" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-84"><a href="#cb32-84" tabindex="-1"></a><span class="co">#&gt; OUTER CONVERGED</span></span>
-<span id="cb32-85"><a href="#cb32-85" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-86"><a href="#cb32-86" tabindex="-1"></a><span class="co">#&gt; ############ MODEL FIT ############</span></span>
-<span id="cb32-87"><a href="#cb32-87" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-88"><a href="#cb32-88" tabindex="-1"></a><span class="co">#&gt; Margin distribution: generalised Gamma Lopatatsidis-Green</span></span>
-<span id="cb32-89"><a href="#cb32-89" tabindex="-1"></a><span class="co">#&gt; Copula distribution: C</span></span>
-<span id="cb32-90"><a href="#cb32-90" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-91"><a href="#cb32-91" tabindex="-1"></a><span class="co">#&gt; Parameter count: 10</span></span>
-<span id="cb32-92"><a href="#cb32-92" tabindex="-1"></a><span class="co">#&gt; Observations: 600</span></span>
-<span id="cb32-93"><a href="#cb32-93" tabindex="-1"></a><span class="co">#&gt; Margins: 5</span></span>
-<span id="cb32-94"><a href="#cb32-94" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-95"><a href="#cb32-95" tabindex="-1"></a><span class="co">#&gt; Total time (seconds): 9.76</span></span>
-<span id="cb32-96"><a href="#cb32-96" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-97"><a href="#cb32-97" tabindex="-1"></a><span class="co">#&gt;                        estimate</span></span>
-<span id="cb32-98"><a href="#cb32-98" tabindex="-1"></a><span class="co">#&gt; theta.intercept      -0.3161307</span></span>
-<span id="cb32-99"><a href="#cb32-99" tabindex="-1"></a><span class="co">#&gt; theta.time_covariate  1.9411706</span></span>
-<span id="cb32-100"><a href="#cb32-100" tabindex="-1"></a><span class="co">#&gt; nu.intercept          1.5839249</span></span>
-<span id="cb32-101"><a href="#cb32-101" tabindex="-1"></a><span class="co">#&gt; sigma.intercept      -1.1064279</span></span>
-<span id="cb32-102"><a href="#cb32-102" tabindex="-1"></a><span class="co">#&gt; sigma.treatmentlow    0.3213018</span></span>
-<span id="cb32-103"><a href="#cb32-103" tabindex="-1"></a><span class="co">#&gt; sigma.treatmenthigh   0.2293979</span></span>
-<span id="cb32-104"><a href="#cb32-104" tabindex="-1"></a><span class="co">#&gt; sigma.time_covariate  1.2219567</span></span>
-<span id="cb32-105"><a href="#cb32-105" tabindex="-1"></a><span class="co">#&gt; mu.intercept          1.6035303</span></span>
-<span id="cb32-106"><a href="#cb32-106" tabindex="-1"></a><span class="co">#&gt; mu.treatmentlow       0.3507522</span></span>
-<span id="cb32-107"><a href="#cb32-107" tabindex="-1"></a><span class="co">#&gt; mu.treatmenthigh      0.6852418</span></span>
-<span id="cb32-108"><a href="#cb32-108" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-109"><a href="#cb32-109" tabindex="-1"></a><span class="co">#&gt; Model Selection Criteria:</span></span>
-<span id="cb32-110"><a href="#cb32-110" tabindex="-1"></a><span class="co">#&gt;         marginal    copula     joint</span></span>
-<span id="cb32-111"><a href="#cb32-111" tabindex="-1"></a><span class="co">#&gt; LogLik -1295.626  150.5314 -1145.095</span></span>
-<span id="cb32-112"><a href="#cb32-112" tabindex="-1"></a><span class="co">#&gt; AIC     2607.252 -297.0628  2310.190</span></span>
-<span id="cb32-113"><a href="#cb32-113" tabindex="-1"></a><span class="co">#&gt; BIC     2642.428 -288.2690  2354.159</span></span>
-<span id="cb32-114"><a href="#cb32-114" tabindex="-1"></a><span class="co">#&gt; EDF        8.000    2.0000    10.000</span></span>
-<span id="cb32-115"><a href="#cb32-115" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb32-116"><a href="#cb32-116" tabindex="-1"></a><span class="co">#&gt; ####################################</span></span>
-<span id="cb32-117"><a href="#cb32-117" tabindex="-1"></a><span class="co">#&gt; Calculating variance-covariance matrix at fit completion...</span></span>
-<span id="cb32-118"><a href="#cb32-118" tabindex="-1"></a><span class="co">#&gt; Analytical Hessian: computing eta and likelihood components...</span></span>
-<span id="cb32-119"><a href="#cb32-119" tabindex="-1"></a><span class="co">#&gt; Analytical Hessian: computing CDF derivatives...</span></span>
-<span id="cb32-120"><a href="#cb32-120" tabindex="-1"></a><span class="co">#&gt; Analytical Hessian: assembling copula Hessian contributions...</span></span>
-<span id="cb32-121"><a href="#cb32-121" tabindex="-1"></a><span class="co">#&gt; Analytical Hessian: extracting margin second derivatives...</span></span>
-<span id="cb32-122"><a href="#cb32-122" tabindex="-1"></a><span class="co">#&gt; Analytical Hessian: assembling covariate Hessian matrix...</span></span>
-<span id="cb32-123"><a href="#cb32-123" tabindex="-1"></a><span class="co">#&gt; Analytical Hessian: done.</span></span></code></pre></div>
-</details>
-<div class="sourceCode" id="cb33"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" tabindex="-1"></a></span>
-<span id="cb33-2"><a href="#cb33-2" tabindex="-1"></a>bench <span class="ot">&lt;-</span> <span class="fu">benchmark_standard_models</span>(</span>
-<span id="cb33-3"><a href="#cb33-3" tabindex="-1"></a>  <span class="at">data =</span> dataset,</span>
-<span id="cb33-4"><a href="#cb33-4" tabindex="-1"></a>  <span class="at">formula =</span> response <span class="sc">~</span> treatment <span class="sc">+</span> time,</span>
-<span id="cb33-5"><a href="#cb33-5" tabindex="-1"></a>  <span class="at">subject_var =</span> <span class="st">&quot;subject&quot;</span>,</span>
-<span id="cb33-6"><a href="#cb33-6" tabindex="-1"></a>  <span class="at">family =</span> <span class="st">&quot;gamma&quot;</span>,</span>
-<span id="cb33-7"><a href="#cb33-7" tabindex="-1"></a>  <span class="at">fit =</span> fit_reduced,</span>
-<span id="cb33-8"><a href="#cb33-8" tabindex="-1"></a>  <span class="at">fit_name =</span> <span class="st">&quot;gamlss_longitudinal&quot;</span></span>
-<span id="cb33-9"><a href="#cb33-9" tabindex="-1"></a>)</span>
-<span id="cb33-10"><a href="#cb33-10" tabindex="-1"></a><span class="fu">print</span>(bench)</span>
-<span id="cb33-11"><a href="#cb33-11" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb33-12"><a href="#cb33-12" tabindex="-1"></a><span class="co">#&gt; Standard Longitudinal Comparator Benchmark</span></span>
-<span id="cb33-13"><a href="#cb33-13" tabindex="-1"></a><span class="co">#&gt; -----------------------------------------</span></span>
-<span id="cb33-14"><a href="#cb33-14" tabindex="-1"></a><span class="co">#&gt; Formula: response ~ treatment + time </span></span>
-<span id="cb33-15"><a href="#cb33-15" tabindex="-1"></a><span class="co">#&gt; Subject: subject </span></span>
-<span id="cb33-16"><a href="#cb33-16" tabindex="-1"></a><span class="co">#&gt; Family: Gamma </span></span>
-<span id="cb33-17"><a href="#cb33-17" tabindex="-1"></a><span class="co">#&gt; Methods included: gamlss.longitudinal, glm, geeglm, glmer, gam, gamm </span></span>
-<span id="cb33-18"><a href="#cb33-18" tabindex="-1"></a><span class="co">#&gt; Estimand note: mean-fit metrics compare response-mean predictions; distributional metrics use fitted quantiles, densities, PIT values, intervals, and tail probabilities where available.</span></span>
+<div class="sourceCode" id="cb33"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" tabindex="-1"></a>fit_reduced <span class="ot">&lt;-</span> <span class="fu">gamlss_longitudinal</span>(</span>
+<span id="cb33-2"><a href="#cb33-2" tabindex="-1"></a>  <span class="at">dataset =</span> dataset,</span>
+<span id="cb33-3"><a href="#cb33-3" tabindex="-1"></a>  <span class="at">margin_dist =</span> <span class="fu">GG</span>(),</span>
+<span id="cb33-4"><a href="#cb33-4" tabindex="-1"></a>  <span class="at">copula_dist =</span> <span class="st">&quot;C&quot;</span>,</span>
+<span id="cb33-5"><a href="#cb33-5" tabindex="-1"></a>  <span class="at">time_var =</span> <span class="st">&quot;time&quot;</span>,</span>
+<span id="cb33-6"><a href="#cb33-6" tabindex="-1"></a>  <span class="at">subject_var =</span> <span class="st">&quot;subject&quot;</span>,</span>
+<span id="cb33-7"><a href="#cb33-7" tabindex="-1"></a>  <span class="at">mu.formula =</span> response <span class="sc">~</span> treatment,</span>
+<span id="cb33-8"><a href="#cb33-8" tabindex="-1"></a>  <span class="at">sigma.formula =</span> <span class="sc">~</span> treatment <span class="sc">+</span> (time),</span>
+<span id="cb33-9"><a href="#cb33-9" tabindex="-1"></a>  <span class="at">nu.formula =</span> <span class="sc">~</span> <span class="dv">1</span>,</span>
+<span id="cb33-10"><a href="#cb33-10" tabindex="-1"></a>  <span class="at">theta.formula =</span> <span class="sc">~</span> (time)</span>
+<span id="cb33-11"><a href="#cb33-11" tabindex="-1"></a>)</span>
+<span id="cb33-12"><a href="#cb33-12" tabindex="-1"></a><span class="co">#&gt; Missingness Summary (by time):</span></span>
+<span id="cb33-13"><a href="#cb33-13" tabindex="-1"></a><span class="co">#&gt;   time n_total n_na_response n_observed_response</span></span>
+<span id="cb33-14"><a href="#cb33-14" tabindex="-1"></a><span class="co">#&gt; 1 0.00     120             9                 111</span></span>
+<span id="cb33-15"><a href="#cb33-15" tabindex="-1"></a><span class="co">#&gt; 2 0.25     120             8                 112</span></span>
+<span id="cb33-16"><a href="#cb33-16" tabindex="-1"></a><span class="co">#&gt; 3 0.50     120            13                 107</span></span>
+<span id="cb33-17"><a href="#cb33-17" tabindex="-1"></a><span class="co">#&gt; 4 0.75     120            10                 110</span></span>
+<span id="cb33-18"><a href="#cb33-18" tabindex="-1"></a><span class="co">#&gt; 5 1.00     120            20                 100</span></span>
 <span id="cb33-19"><a href="#cb33-19" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb33-20"><a href="#cb33-20" tabindex="-1"></a><span class="co">#&gt; Benchmark Summary</span></span>
-<span id="cb33-21"><a href="#cb33-21" tabindex="-1"></a><span class="co">#&gt; -----------------</span></span>
-<span id="cb33-22"><a href="#cb33-22" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb33-23"><a href="#cb33-23" tabindex="-1"></a><span class="co">#&gt; Distributional</span></span>
-<span id="cb33-24"><a href="#cb33-24" tabindex="-1"></a><span class="co">#&gt; --------------</span></span>
-<span id="cb33-25"><a href="#cb33-25" tabindex="-1"></a><span class="co">#&gt;                   Metric          Best model</span></span>
-<span id="cb33-26"><a href="#cb33-26" tabindex="-1"></a><span class="co">#&gt;    95% interval coverage gamlss.longitudinal</span></span>
-<span id="cb33-27"><a href="#cb33-27" tabindex="-1"></a><span class="co">#&gt;       95% interval width         glmer, gamm</span></span>
-<span id="cb33-28"><a href="#cb33-28" tabindex="-1"></a><span class="co">#&gt;       Negative log score gamlss.longitudinal</span></span>
-<span id="cb33-29"><a href="#cb33-29" tabindex="-1"></a><span class="co">#&gt;           PIT KS p-value         glmer, gamm</span></span>
-<span id="cb33-30"><a href="#cb33-30" tabindex="-1"></a><span class="co">#&gt;  PIT mean absolute error        geeglm, gamm</span></span>
-<span id="cb33-31"><a href="#cb33-31" tabindex="-1"></a><span class="co">#&gt;      Lower 5% tail error gamlss.longitudinal</span></span>
-<span id="cb33-32"><a href="#cb33-32" tabindex="-1"></a><span class="co">#&gt;      Upper 5% tail error               glmer</span></span>
+<span id="cb33-20"><a href="#cb33-20" tabindex="-1"></a><span class="co">#&gt; Consecutive Pair Completeness:</span></span>
+<span id="cb33-21"><a href="#cb33-21" tabindex="-1"></a><span class="co">#&gt;   time1 time2 complete_pairs total_pairs total_observations</span></span>
+<span id="cb33-22"><a href="#cb33-22" tabindex="-1"></a><span class="co">#&gt; 1  0.00  0.25            103         120                600</span></span>
+<span id="cb33-23"><a href="#cb33-23" tabindex="-1"></a><span class="co">#&gt; 2  0.25  0.50            100         120                600</span></span>
+<span id="cb33-24"><a href="#cb33-24" tabindex="-1"></a><span class="co">#&gt; 3  0.50  0.75             98         120                600</span></span>
+<span id="cb33-25"><a href="#cb33-25" tabindex="-1"></a><span class="co">#&gt; 4  0.75  1.00             93         120                600</span></span>
+<span id="cb33-26"><a href="#cb33-26" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-27"><a href="#cb33-27" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-28"><a href="#cb33-28" tabindex="-1"></a><span class="co">#&gt; Running separate RS warm-start phase for 5 outer iteration(s) before joint RS fit...</span></span>
+<span id="cb33-29"><a href="#cb33-29" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-30"><a href="#cb33-30" tabindex="-1"></a><span class="co">#&gt; Using automatic step_adjustment=1 for joint RS.</span></span>
+<span id="cb33-31"><a href="#cb33-31" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-32"><a href="#cb33-32" tabindex="-1"></a><span class="co">#&gt; Using stop criteria: inner_stop_crit= 0.000229653 | outer_stop_crit= 0.00114827 </span></span>
 <span id="cb33-33"><a href="#cb33-33" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb33-34"><a href="#cb33-34" tabindex="-1"></a><span class="co">#&gt; Mean fit</span></span>
-<span id="cb33-35"><a href="#cb33-35" tabindex="-1"></a><span class="co">#&gt; --------</span></span>
-<span id="cb33-36"><a href="#cb33-36" tabindex="-1"></a><span class="co">#&gt;                  Metric  Best model</span></span>
-<span id="cb33-37"><a href="#cb33-37" tabindex="-1"></a><span class="co">#&gt;   Observed response MAE glmer, gamm</span></span>
-<span id="cb33-38"><a href="#cb33-38" tabindex="-1"></a><span class="co">#&gt;  Observed response RMSE glmer, gamm</span></span>
-<span id="cb33-39"><a href="#cb33-39" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb33-40"><a href="#cb33-40" tabindex="-1"></a><span class="co">#&gt; Runtime</span></span>
-<span id="cb33-41"><a href="#cb33-41" tabindex="-1"></a><span class="co">#&gt; -------</span></span>
-<span id="cb33-42"><a href="#cb33-42" tabindex="-1"></a><span class="co">#&gt;              Metric Best model</span></span>
-<span id="cb33-43"><a href="#cb33-43" tabindex="-1"></a><span class="co">#&gt;  Elapsed time (sec)        glm</span></span>
-<span id="cb33-44"><a href="#cb33-44" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb33-45"><a href="#cb33-45" tabindex="-1"></a><span class="co">#&gt; Benchmark Details</span></span>
-<span id="cb33-46"><a href="#cb33-46" tabindex="-1"></a><span class="co">#&gt; -----------------</span></span>
-<span id="cb33-47"><a href="#cb33-47" tabindex="-1"></a><span class="co">#&gt; Benchmark Metrics</span></span>
-<span id="cb33-48"><a href="#cb33-48" tabindex="-1"></a><span class="co">#&gt; -----------------</span></span>
-<span id="cb33-49"><a href="#cb33-49" tabindex="-1"></a><span class="co">#&gt;                   Metric gamlss.longitudinal        glm     geeglm      glmer</span></span>
-<span id="cb33-50"><a href="#cb33-50" tabindex="-1"></a><span class="co">#&gt;       Elapsed time (sec)                  NA  6.075e-03   0.022177  5.752e-01</span></span>
-<span id="cb33-51"><a href="#cb33-51" tabindex="-1"></a><span class="co">#&gt;   Number of observations           6.000e+02  6.000e+02 600.000000  6.000e+02</span></span>
-<span id="cb33-52"><a href="#cb33-52" tabindex="-1"></a><span class="co">#&gt;           Log likelihood          -1.145e+03 -1.465e+03         NA -1.441e+03</span></span>
-<span id="cb33-53"><a href="#cb33-53" tabindex="-1"></a><span class="co">#&gt;                      AIC           2.310e+03  2.940e+03         NA  2.895e+03</span></span>
-<span id="cb33-54"><a href="#cb33-54" tabindex="-1"></a><span class="co">#&gt;                      MAE           3.848e+00  3.618e+00   3.647169  2.820e+00</span></span>
-<span id="cb33-55"><a href="#cb33-55" tabindex="-1"></a><span class="co">#&gt;                     RMSE           5.500e+00  5.428e+00   5.431785  4.696e+00</span></span>
-<span id="cb33-56"><a href="#cb33-56" tabindex="-1"></a><span class="co">#&gt;   Observed response RMSE           5.500e+00  5.428e+00   5.431785  4.696e+00</span></span>
-<span id="cb33-57"><a href="#cb33-57" tabindex="-1"></a><span class="co">#&gt;    Observed response MAE           3.848e+00  3.618e+00   3.647169  2.820e+00</span></span>
-<span id="cb33-58"><a href="#cb33-58" tabindex="-1"></a><span class="co">#&gt;       Negative log score           2.399e+00  2.716e+00   2.718878  2.557e+00</span></span>
-<span id="cb33-59"><a href="#cb33-59" tabindex="-1"></a><span class="co">#&gt;    95% interval coverage           9.519e-01  9.130e-01   0.914815  9.074e-01</span></span>
-<span id="cb33-60"><a href="#cb33-60" tabindex="-1"></a><span class="co">#&gt;       95% interval width           1.909e+01  2.149e+01  21.782363  1.499e+01</span></span>
-<span id="cb33-61"><a href="#cb33-61" tabindex="-1"></a><span class="co">#&gt;  PIT mean absolute error           3.026e-02  1.381e-02   0.007131  7.363e-03</span></span>
-<span id="cb33-62"><a href="#cb33-62" tabindex="-1"></a><span class="co">#&gt;           PIT KS p-value           6.104e-02  3.935e-03   0.018412  1.108e-01</span></span>
-<span id="cb33-63"><a href="#cb33-63" tabindex="-1"></a><span class="co">#&gt;      Lower 5% tail error           5.556e-03  2.593e-02   0.029630  3.704e-02</span></span>
-<span id="cb33-64"><a href="#cb33-64" tabindex="-1"></a><span class="co">#&gt;      Upper 5% tail error          -1.111e-02 -9.259e-03  -0.009259 -5.556e-03</span></span>
-<span id="cb33-65"><a href="#cb33-65" tabindex="-1"></a><span class="co">#&gt;         gam       gamm</span></span>
-<span id="cb33-66"><a href="#cb33-66" tabindex="-1"></a><span class="co">#&gt;   4.251e-02  1.583e+00</span></span>
-<span id="cb33-67"><a href="#cb33-67" tabindex="-1"></a><span class="co">#&gt;   6.000e+02  6.000e+02</span></span>
-<span id="cb33-68"><a href="#cb33-68" tabindex="-1"></a><span class="co">#&gt;  -1.460e+03 -1.343e+03</span></span>
-<span id="cb33-69"><a href="#cb33-69" tabindex="-1"></a><span class="co">#&gt;   2.930e+03  2.851e+03</span></span>
-<span id="cb33-70"><a href="#cb33-70" tabindex="-1"></a><span class="co">#&gt;   3.618e+00  2.775e+00</span></span>
-<span id="cb33-71"><a href="#cb33-71" tabindex="-1"></a><span class="co">#&gt;   5.428e+00  4.599e+00</span></span>
-<span id="cb33-72"><a href="#cb33-72" tabindex="-1"></a><span class="co">#&gt;   5.428e+00  4.599e+00</span></span>
-<span id="cb33-73"><a href="#cb33-73" tabindex="-1"></a><span class="co">#&gt;   3.618e+00  2.775e+00</span></span>
-<span id="cb33-74"><a href="#cb33-74" tabindex="-1"></a><span class="co">#&gt;   2.716e+00  2.576e+00</span></span>
-<span id="cb33-75"><a href="#cb33-75" tabindex="-1"></a><span class="co">#&gt;   9.130e-01  9.019e-01</span></span>
-<span id="cb33-76"><a href="#cb33-76" tabindex="-1"></a><span class="co">#&gt;   2.149e+01  1.481e+01</span></span>
-<span id="cb33-77"><a href="#cb33-77" tabindex="-1"></a><span class="co">#&gt;   1.381e-02  7.001e-03</span></span>
-<span id="cb33-78"><a href="#cb33-78" tabindex="-1"></a><span class="co">#&gt;   3.935e-03  8.771e-02</span></span>
-<span id="cb33-79"><a href="#cb33-79" tabindex="-1"></a><span class="co">#&gt;   2.593e-02  3.889e-02</span></span>
-<span id="cb33-80"><a href="#cb33-80" tabindex="-1"></a><span class="co">#&gt;  -9.259e-03 -9.259e-03</span></span>
-<span id="cb33-81"><a href="#cb33-81" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb33-82"><a href="#cb33-82" tabindex="-1"></a><span class="co">#&gt; Mu Coefficients</span></span>
-<span id="cb33-83"><a href="#cb33-83" tabindex="-1"></a><span class="co">#&gt; ---------------</span></span>
-<span id="cb33-84"><a href="#cb33-84" tabindex="-1"></a><span class="co">#&gt; Coefficient Estimates</span></span>
+<span id="cb33-34"><a href="#cb33-34" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 1</span></span>
+<span id="cb33-35"><a href="#cb33-35" tabindex="-1"></a><span class="co">#&gt; Start LogLik   End LogLik       Change </span></span>
+<span id="cb33-36"><a href="#cb33-36" tabindex="-1"></a><span class="co">#&gt; -1148.266279 -1145.301181     2.965098 </span></span>
+<span id="cb33-37"><a href="#cb33-37" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-38"><a href="#cb33-38" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 2</span></span>
+<span id="cb33-39"><a href="#cb33-39" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span id="cb33-40"><a href="#cb33-40" tabindex="-1"></a><span class="co">#&gt; -1.145301e+03 -1.145202e+03  9.891077e-02 </span></span>
+<span id="cb33-41"><a href="#cb33-41" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-42"><a href="#cb33-42" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 3</span></span>
+<span id="cb33-43"><a href="#cb33-43" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span id="cb33-44"><a href="#cb33-44" tabindex="-1"></a><span class="co">#&gt; -1.145202e+03 -1.145166e+03  3.637873e-02 </span></span>
+<span id="cb33-45"><a href="#cb33-45" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-46"><a href="#cb33-46" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 4</span></span>
+<span id="cb33-47"><a href="#cb33-47" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span id="cb33-48"><a href="#cb33-48" tabindex="-1"></a><span class="co">#&gt; -1.145166e+03 -1.145141e+03  2.446458e-02 </span></span>
+<span id="cb33-49"><a href="#cb33-49" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-50"><a href="#cb33-50" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 5</span></span>
+<span id="cb33-51"><a href="#cb33-51" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span id="cb33-52"><a href="#cb33-52" tabindex="-1"></a><span class="co">#&gt; -1.145141e+03 -1.145125e+03  1.641073e-02 </span></span>
+<span id="cb33-53"><a href="#cb33-53" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-54"><a href="#cb33-54" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 6</span></span>
+<span id="cb33-55"><a href="#cb33-55" tabindex="-1"></a><span class="co">#&gt; Start LogLik   End LogLik       Change </span></span>
+<span id="cb33-56"><a href="#cb33-56" tabindex="-1"></a><span class="co">#&gt; -1145.125016 -1145.114965     0.010051 </span></span>
+<span id="cb33-57"><a href="#cb33-57" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-58"><a href="#cb33-58" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 7</span></span>
+<span id="cb33-59"><a href="#cb33-59" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span id="cb33-60"><a href="#cb33-60" tabindex="-1"></a><span class="co">#&gt; -1.145115e+03 -1.145108e+03  7.205572e-03 </span></span>
+<span id="cb33-61"><a href="#cb33-61" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-62"><a href="#cb33-62" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 8</span></span>
+<span id="cb33-63"><a href="#cb33-63" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span id="cb33-64"><a href="#cb33-64" tabindex="-1"></a><span class="co">#&gt; -1.145108e+03 -1.145103e+03  4.528090e-03 </span></span>
+<span id="cb33-65"><a href="#cb33-65" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-66"><a href="#cb33-66" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 9</span></span>
+<span id="cb33-67"><a href="#cb33-67" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span id="cb33-68"><a href="#cb33-68" tabindex="-1"></a><span class="co">#&gt; -1.145103e+03 -1.145100e+03  3.393647e-03 </span></span>
+<span id="cb33-69"><a href="#cb33-69" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-70"><a href="#cb33-70" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 10</span></span>
+<span id="cb33-71"><a href="#cb33-71" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span id="cb33-72"><a href="#cb33-72" tabindex="-1"></a><span class="co">#&gt; -1.145100e+03 -1.145098e+03  2.302145e-03 </span></span>
+<span id="cb33-73"><a href="#cb33-73" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-74"><a href="#cb33-74" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 11</span></span>
+<span id="cb33-75"><a href="#cb33-75" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span id="cb33-76"><a href="#cb33-76" tabindex="-1"></a><span class="co">#&gt; -1.145098e+03 -1.145096e+03  1.660554e-03 </span></span>
+<span id="cb33-77"><a href="#cb33-77" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-78"><a href="#cb33-78" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 12</span></span>
+<span id="cb33-79"><a href="#cb33-79" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span id="cb33-80"><a href="#cb33-80" tabindex="-1"></a><span class="co">#&gt; -1.145096e+03 -1.145095e+03  1.110994e-03 </span></span>
+<span id="cb33-81"><a href="#cb33-81" tabindex="-1"></a><span class="co">#&gt;       joint </span></span>
+<span id="cb33-82"><a href="#cb33-82" tabindex="-1"></a><span class="co">#&gt; 0.001110994 </span></span>
+<span id="cb33-83"><a href="#cb33-83" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-84"><a href="#cb33-84" tabindex="-1"></a><span class="co">#&gt; OUTER CONVERGED</span></span>
 <span id="cb33-85"><a href="#cb33-85" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb33-86"><a href="#cb33-86" tabindex="-1"></a><span class="co">#&gt;           term gamlss.longitudinal     glm   geeglm   glmer     gam    gamm</span></span>
-<span id="cb33-87"><a href="#cb33-87" tabindex="-1"></a><span class="co">#&gt;      intercept              1.6035  1.7755  1.79602  1.9681  1.7755  1.9315</span></span>
-<span id="cb33-88"><a href="#cb33-88" tabindex="-1"></a><span class="co">#&gt;   treatmentlow              0.3508  0.0156  0.01326 -0.1938  0.0156 -0.1739</span></span>
-<span id="cb33-89"><a href="#cb33-89" tabindex="-1"></a><span class="co">#&gt;  treatmenthigh              0.6852  0.4311  0.46396  0.3199  0.4311  0.3290</span></span>
-<span id="cb33-90"><a href="#cb33-90" tabindex="-1"></a><span class="co">#&gt;           time                  NA -0.4678 -0.50017 -1.0985 -0.4678 -1.0090</span></span>
-<span id="cb33-91"><a href="#cb33-91" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb33-92"><a href="#cb33-92" tabindex="-1"></a><span class="co">#&gt; Standard Errors</span></span>
-<span id="cb33-93"><a href="#cb33-93" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb33-94"><a href="#cb33-94" tabindex="-1"></a><span class="co">#&gt;           term gamlss.longitudinal    glm  geeglm  glmer    gam    gamm</span></span>
-<span id="cb33-95"><a href="#cb33-95" tabindex="-1"></a><span class="co">#&gt;      intercept             0.05329 0.1070 0.09509 0.1669 0.1070 0.12261</span></span>
-<span id="cb33-96"><a href="#cb33-96" tabindex="-1"></a><span class="co">#&gt;   treatmentlow             0.07968 0.1142 0.15061 0.1970 0.1142 0.14757</span></span>
-<span id="cb33-97"><a href="#cb33-97" tabindex="-1"></a><span class="co">#&gt;  treatmenthigh             0.07596 0.1128 0.14070 0.1921 0.1128 0.14458</span></span>
-<span id="cb33-98"><a href="#cb33-98" tabindex="-1"></a><span class="co">#&gt;           time                  NA 0.1248 0.12906 0.1391 0.1248 0.09742</span></span>
-<span id="cb33-99"><a href="#cb33-99" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb33-100"><a href="#cb33-100" tabindex="-1"></a><span class="co">#&gt; 95% Lower Estimates</span></span>
-<span id="cb33-101"><a href="#cb33-101" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb33-102"><a href="#cb33-102" tabindex="-1"></a><span class="co">#&gt;           term gamlss.longitudinal     glm  geeglm    glmer     gam     gamm</span></span>
-<span id="cb33-103"><a href="#cb33-103" tabindex="-1"></a><span class="co">#&gt;      intercept              1.4991  1.5658  1.6096  1.64104  1.5658  1.69115</span></span>
-<span id="cb33-104"><a href="#cb33-104" tabindex="-1"></a><span class="co">#&gt;   treatmentlow              0.1946 -0.2083 -0.2819 -0.57992 -0.2083 -0.46309</span></span>
-<span id="cb33-105"><a href="#cb33-105" tabindex="-1"></a><span class="co">#&gt;  treatmenthigh              0.5364  0.2101  0.1882 -0.05655  0.2101  0.04561</span></span>
-<span id="cb33-106"><a href="#cb33-106" tabindex="-1"></a><span class="co">#&gt;           time                  NA -0.7123 -0.7531 -1.37111 -0.7124 -1.19998</span></span>
-<span id="cb33-107"><a href="#cb33-107" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb33-108"><a href="#cb33-108" tabindex="-1"></a><span class="co">#&gt; 95% Upper Estimates</span></span>
-<span id="cb33-109"><a href="#cb33-109" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb33-110"><a href="#cb33-110" tabindex="-1"></a><span class="co">#&gt;           term gamlss.longitudinal     glm  geeglm   glmer     gam    gamm</span></span>
-<span id="cb33-111"><a href="#cb33-111" tabindex="-1"></a><span class="co">#&gt;      intercept              1.7080  1.9851  1.9824  2.2952  1.9852  2.1718</span></span>
-<span id="cb33-112"><a href="#cb33-112" tabindex="-1"></a><span class="co">#&gt;   treatmentlow              0.5069  0.2395  0.3085  0.1923  0.2395  0.1154</span></span>
-<span id="cb33-113"><a href="#cb33-113" tabindex="-1"></a><span class="co">#&gt;  treatmenthigh              0.8341  0.6521  0.7397  0.6964  0.6521  0.6124</span></span>
-<span id="cb33-114"><a href="#cb33-114" tabindex="-1"></a><span class="co">#&gt;           time                  NA -0.2233 -0.2472 -0.8258 -0.2233 -0.8181</span></span></code></pre></div>
+<span id="cb33-86"><a href="#cb33-86" tabindex="-1"></a><span class="co">#&gt; ############ MODEL FIT ############</span></span>
+<span id="cb33-87"><a href="#cb33-87" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-88"><a href="#cb33-88" tabindex="-1"></a><span class="co">#&gt; Margin distribution: generalised Gamma Lopatatsidis-Green</span></span>
+<span id="cb33-89"><a href="#cb33-89" tabindex="-1"></a><span class="co">#&gt; Copula distribution: C</span></span>
+<span id="cb33-90"><a href="#cb33-90" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-91"><a href="#cb33-91" tabindex="-1"></a><span class="co">#&gt; Parameter count: 10</span></span>
+<span id="cb33-92"><a href="#cb33-92" tabindex="-1"></a><span class="co">#&gt; Observations: 600</span></span>
+<span id="cb33-93"><a href="#cb33-93" tabindex="-1"></a><span class="co">#&gt; Margins: 5</span></span>
+<span id="cb33-94"><a href="#cb33-94" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-95"><a href="#cb33-95" tabindex="-1"></a><span class="co">#&gt; Total time (seconds): 7.14</span></span>
+<span id="cb33-96"><a href="#cb33-96" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-97"><a href="#cb33-97" tabindex="-1"></a><span class="co">#&gt;                        estimate</span></span>
+<span id="cb33-98"><a href="#cb33-98" tabindex="-1"></a><span class="co">#&gt; theta.intercept      -0.3161307</span></span>
+<span id="cb33-99"><a href="#cb33-99" tabindex="-1"></a><span class="co">#&gt; theta.time_covariate  1.9411706</span></span>
+<span id="cb33-100"><a href="#cb33-100" tabindex="-1"></a><span class="co">#&gt; nu.intercept          1.5839249</span></span>
+<span id="cb33-101"><a href="#cb33-101" tabindex="-1"></a><span class="co">#&gt; sigma.intercept      -1.1064279</span></span>
+<span id="cb33-102"><a href="#cb33-102" tabindex="-1"></a><span class="co">#&gt; sigma.treatmentlow    0.3213018</span></span>
+<span id="cb33-103"><a href="#cb33-103" tabindex="-1"></a><span class="co">#&gt; sigma.treatmenthigh   0.2293979</span></span>
+<span id="cb33-104"><a href="#cb33-104" tabindex="-1"></a><span class="co">#&gt; sigma.time_covariate  1.2219567</span></span>
+<span id="cb33-105"><a href="#cb33-105" tabindex="-1"></a><span class="co">#&gt; mu.intercept          1.6035303</span></span>
+<span id="cb33-106"><a href="#cb33-106" tabindex="-1"></a><span class="co">#&gt; mu.treatmentlow       0.3507522</span></span>
+<span id="cb33-107"><a href="#cb33-107" tabindex="-1"></a><span class="co">#&gt; mu.treatmenthigh      0.6852418</span></span>
+<span id="cb33-108"><a href="#cb33-108" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-109"><a href="#cb33-109" tabindex="-1"></a><span class="co">#&gt; Model Selection Criteria:</span></span>
+<span id="cb33-110"><a href="#cb33-110" tabindex="-1"></a><span class="co">#&gt;         marginal    copula     joint</span></span>
+<span id="cb33-111"><a href="#cb33-111" tabindex="-1"></a><span class="co">#&gt; LogLik -1295.626  150.5314 -1145.095</span></span>
+<span id="cb33-112"><a href="#cb33-112" tabindex="-1"></a><span class="co">#&gt; AIC     2607.252 -297.0628  2310.190</span></span>
+<span id="cb33-113"><a href="#cb33-113" tabindex="-1"></a><span class="co">#&gt; BIC     2642.428 -288.2690  2354.159</span></span>
+<span id="cb33-114"><a href="#cb33-114" tabindex="-1"></a><span class="co">#&gt; EDF        8.000    2.0000    10.000</span></span>
+<span id="cb33-115"><a href="#cb33-115" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-116"><a href="#cb33-116" tabindex="-1"></a><span class="co">#&gt; ####################################</span></span>
+<span id="cb33-117"><a href="#cb33-117" tabindex="-1"></a><span class="co">#&gt; Calculating variance-covariance matrix at fit completion...</span></span>
+<span id="cb33-118"><a href="#cb33-118" tabindex="-1"></a><span class="co">#&gt; Analytical Hessian: computing eta and likelihood components...</span></span>
+<span id="cb33-119"><a href="#cb33-119" tabindex="-1"></a><span class="co">#&gt; Analytical Hessian: computing CDF derivatives...</span></span>
+<span id="cb33-120"><a href="#cb33-120" tabindex="-1"></a><span class="co">#&gt; Analytical Hessian: assembling copula Hessian contributions...</span></span>
+<span id="cb33-121"><a href="#cb33-121" tabindex="-1"></a><span class="co">#&gt; Analytical Hessian: extracting margin second derivatives...</span></span>
+<span id="cb33-122"><a href="#cb33-122" tabindex="-1"></a><span class="co">#&gt; Analytical Hessian: assembling covariate Hessian matrix...</span></span>
+<span id="cb33-123"><a href="#cb33-123" tabindex="-1"></a><span class="co">#&gt; Analytical Hessian: done.</span></span>
+<span id="cb33-124"><a href="#cb33-124" tabindex="-1"></a></span>
+<span id="cb33-125"><a href="#cb33-125" tabindex="-1"></a>fit_reduced_mu_time <span class="ot">&lt;-</span> <span class="fu">gamlss_longitudinal</span>(</span>
+<span id="cb33-126"><a href="#cb33-126" tabindex="-1"></a>  <span class="at">dataset =</span> dataset,</span>
+<span id="cb33-127"><a href="#cb33-127" tabindex="-1"></a>  <span class="at">margin_dist =</span> <span class="fu">GG</span>(),</span>
+<span id="cb33-128"><a href="#cb33-128" tabindex="-1"></a>  <span class="at">copula_dist =</span> <span class="st">&quot;C&quot;</span>,</span>
+<span id="cb33-129"><a href="#cb33-129" tabindex="-1"></a>  <span class="at">time_var =</span> <span class="st">&quot;time&quot;</span>,</span>
+<span id="cb33-130"><a href="#cb33-130" tabindex="-1"></a>  <span class="at">subject_var =</span> <span class="st">&quot;subject&quot;</span>,</span>
+<span id="cb33-131"><a href="#cb33-131" tabindex="-1"></a>  <span class="at">mu.formula =</span> response <span class="sc">~</span> treatment <span class="sc">+</span> time,</span>
+<span id="cb33-132"><a href="#cb33-132" tabindex="-1"></a>  <span class="at">sigma.formula =</span> <span class="sc">~</span> treatment <span class="sc">+</span> (time),</span>
+<span id="cb33-133"><a href="#cb33-133" tabindex="-1"></a>  <span class="at">nu.formula =</span> <span class="sc">~</span> <span class="dv">1</span>,</span>
+<span id="cb33-134"><a href="#cb33-134" tabindex="-1"></a>  <span class="at">theta.formula =</span> <span class="sc">~</span> (time)</span>
+<span id="cb33-135"><a href="#cb33-135" tabindex="-1"></a>)</span>
+<span id="cb33-136"><a href="#cb33-136" tabindex="-1"></a><span class="co">#&gt; Missingness Summary (by time):</span></span>
+<span id="cb33-137"><a href="#cb33-137" tabindex="-1"></a><span class="co">#&gt;   time n_total n_na_response n_observed_response</span></span>
+<span id="cb33-138"><a href="#cb33-138" tabindex="-1"></a><span class="co">#&gt; 1 0.00     120             9                 111</span></span>
+<span id="cb33-139"><a href="#cb33-139" tabindex="-1"></a><span class="co">#&gt; 2 0.25     120             8                 112</span></span>
+<span id="cb33-140"><a href="#cb33-140" tabindex="-1"></a><span class="co">#&gt; 3 0.50     120            13                 107</span></span>
+<span id="cb33-141"><a href="#cb33-141" tabindex="-1"></a><span class="co">#&gt; 4 0.75     120            10                 110</span></span>
+<span id="cb33-142"><a href="#cb33-142" tabindex="-1"></a><span class="co">#&gt; 5 1.00     120            20                 100</span></span>
+<span id="cb33-143"><a href="#cb33-143" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-144"><a href="#cb33-144" tabindex="-1"></a><span class="co">#&gt; Consecutive Pair Completeness:</span></span>
+<span id="cb33-145"><a href="#cb33-145" tabindex="-1"></a><span class="co">#&gt;   time1 time2 complete_pairs total_pairs total_observations</span></span>
+<span id="cb33-146"><a href="#cb33-146" tabindex="-1"></a><span class="co">#&gt; 1  0.00  0.25            103         120                600</span></span>
+<span id="cb33-147"><a href="#cb33-147" tabindex="-1"></a><span class="co">#&gt; 2  0.25  0.50            100         120                600</span></span>
+<span id="cb33-148"><a href="#cb33-148" tabindex="-1"></a><span class="co">#&gt; 3  0.50  0.75             98         120                600</span></span>
+<span id="cb33-149"><a href="#cb33-149" tabindex="-1"></a><span class="co">#&gt; 4  0.75  1.00             93         120                600</span></span>
+<span id="cb33-150"><a href="#cb33-150" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-151"><a href="#cb33-151" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-152"><a href="#cb33-152" tabindex="-1"></a><span class="co">#&gt; Running separate RS warm-start phase for 5 outer iteration(s) before joint RS fit...</span></span>
+<span id="cb33-153"><a href="#cb33-153" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-154"><a href="#cb33-154" tabindex="-1"></a><span class="co">#&gt; Using automatic step_adjustment=1 for joint RS.</span></span>
+<span id="cb33-155"><a href="#cb33-155" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-156"><a href="#cb33-156" tabindex="-1"></a><span class="co">#&gt; Using stop criteria: inner_stop_crit= 0.000229218 | outer_stop_crit= 0.00114609 </span></span>
+<span id="cb33-157"><a href="#cb33-157" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-158"><a href="#cb33-158" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 1</span></span>
+<span id="cb33-159"><a href="#cb33-159" tabindex="-1"></a><span class="co">#&gt; Start LogLik   End LogLik       Change </span></span>
+<span id="cb33-160"><a href="#cb33-160" tabindex="-1"></a><span class="co">#&gt;  -1146.08790  -1144.16129      1.92661 </span></span>
+<span id="cb33-161"><a href="#cb33-161" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-162"><a href="#cb33-162" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 2</span></span>
+<span id="cb33-163"><a href="#cb33-163" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span id="cb33-164"><a href="#cb33-164" tabindex="-1"></a><span class="co">#&gt; -1.144161e+03 -1.144134e+03  2.722155e-02 </span></span>
+<span id="cb33-165"><a href="#cb33-165" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-166"><a href="#cb33-166" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 3</span></span>
+<span id="cb33-167"><a href="#cb33-167" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span id="cb33-168"><a href="#cb33-168" tabindex="-1"></a><span class="co">#&gt; -1.144134e+03 -1.144129e+03  5.556540e-03 </span></span>
+<span id="cb33-169"><a href="#cb33-169" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-170"><a href="#cb33-170" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 4</span></span>
+<span id="cb33-171"><a href="#cb33-171" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span id="cb33-172"><a href="#cb33-172" tabindex="-1"></a><span class="co">#&gt; -1.144129e+03 -1.144125e+03  3.790863e-03 </span></span>
+<span id="cb33-173"><a href="#cb33-173" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-174"><a href="#cb33-174" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 5</span></span>
+<span id="cb33-175"><a href="#cb33-175" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span id="cb33-176"><a href="#cb33-176" tabindex="-1"></a><span class="co">#&gt; -1.144125e+03 -1.144122e+03  2.886765e-03 </span></span>
+<span id="cb33-177"><a href="#cb33-177" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-178"><a href="#cb33-178" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 6</span></span>
+<span id="cb33-179"><a href="#cb33-179" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span id="cb33-180"><a href="#cb33-180" tabindex="-1"></a><span class="co">#&gt; -1.144122e+03 -1.144119e+03  2.450680e-03 </span></span>
+<span id="cb33-181"><a href="#cb33-181" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-182"><a href="#cb33-182" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 7</span></span>
+<span id="cb33-183"><a href="#cb33-183" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span id="cb33-184"><a href="#cb33-184" tabindex="-1"></a><span class="co">#&gt; -1.144119e+03 -1.144117e+03  2.026319e-03 </span></span>
+<span id="cb33-185"><a href="#cb33-185" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-186"><a href="#cb33-186" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 8</span></span>
+<span id="cb33-187"><a href="#cb33-187" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span id="cb33-188"><a href="#cb33-188" tabindex="-1"></a><span class="co">#&gt; -1.144117e+03 -1.144116e+03  1.484072e-03 </span></span>
+<span id="cb33-189"><a href="#cb33-189" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-190"><a href="#cb33-190" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 9</span></span>
+<span id="cb33-191"><a href="#cb33-191" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span id="cb33-192"><a href="#cb33-192" tabindex="-1"></a><span class="co">#&gt; -1.144116e+03 -1.144114e+03  1.417483e-03 </span></span>
+<span id="cb33-193"><a href="#cb33-193" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-194"><a href="#cb33-194" tabindex="-1"></a><span class="co">#&gt; OUTER ITERATION: 10</span></span>
+<span id="cb33-195"><a href="#cb33-195" tabindex="-1"></a><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span id="cb33-196"><a href="#cb33-196" tabindex="-1"></a><span class="co">#&gt; -1.144114e+03 -1.144114e+03  9.281266e-04 </span></span>
+<span id="cb33-197"><a href="#cb33-197" tabindex="-1"></a><span class="co">#&gt;        joint </span></span>
+<span id="cb33-198"><a href="#cb33-198" tabindex="-1"></a><span class="co">#&gt; 0.0009281266 </span></span>
+<span id="cb33-199"><a href="#cb33-199" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-200"><a href="#cb33-200" tabindex="-1"></a><span class="co">#&gt; OUTER CONVERGED</span></span>
+<span id="cb33-201"><a href="#cb33-201" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-202"><a href="#cb33-202" tabindex="-1"></a><span class="co">#&gt; ############ MODEL FIT ############</span></span>
+<span id="cb33-203"><a href="#cb33-203" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-204"><a href="#cb33-204" tabindex="-1"></a><span class="co">#&gt; Margin distribution: generalised Gamma Lopatatsidis-Green</span></span>
+<span id="cb33-205"><a href="#cb33-205" tabindex="-1"></a><span class="co">#&gt; Copula distribution: C</span></span>
+<span id="cb33-206"><a href="#cb33-206" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-207"><a href="#cb33-207" tabindex="-1"></a><span class="co">#&gt; Parameter count: 11</span></span>
+<span id="cb33-208"><a href="#cb33-208" tabindex="-1"></a><span class="co">#&gt; Observations: 600</span></span>
+<span id="cb33-209"><a href="#cb33-209" tabindex="-1"></a><span class="co">#&gt; Margins: 5</span></span>
+<span id="cb33-210"><a href="#cb33-210" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-211"><a href="#cb33-211" tabindex="-1"></a><span class="co">#&gt; Total time (seconds): 4.23</span></span>
+<span id="cb33-212"><a href="#cb33-212" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-213"><a href="#cb33-213" tabindex="-1"></a><span class="co">#&gt;                        estimate</span></span>
+<span id="cb33-214"><a href="#cb33-214" tabindex="-1"></a><span class="co">#&gt; theta.intercept      -0.3378273</span></span>
+<span id="cb33-215"><a href="#cb33-215" tabindex="-1"></a><span class="co">#&gt; theta.time_covariate  1.9489442</span></span>
+<span id="cb33-216"><a href="#cb33-216" tabindex="-1"></a><span class="co">#&gt; nu.intercept          1.4675518</span></span>
+<span id="cb33-217"><a href="#cb33-217" tabindex="-1"></a><span class="co">#&gt; sigma.intercept      -1.1062871</span></span>
+<span id="cb33-218"><a href="#cb33-218" tabindex="-1"></a><span class="co">#&gt; sigma.treatmentlow    0.3276979</span></span>
+<span id="cb33-219"><a href="#cb33-219" tabindex="-1"></a><span class="co">#&gt; sigma.treatmenthigh   0.2342655</span></span>
+<span id="cb33-220"><a href="#cb33-220" tabindex="-1"></a><span class="co">#&gt; sigma.time_covariate  1.2465622</span></span>
+<span id="cb33-221"><a href="#cb33-221" tabindex="-1"></a><span class="co">#&gt; mu.intercept          1.6287336</span></span>
+<span id="cb33-222"><a href="#cb33-222" tabindex="-1"></a><span class="co">#&gt; mu.treatmentlow       0.3315160</span></span>
+<span id="cb33-223"><a href="#cb33-223" tabindex="-1"></a><span class="co">#&gt; mu.treatmenthigh      0.6705071</span></span>
+<span id="cb33-224"><a href="#cb33-224" tabindex="-1"></a><span class="co">#&gt; mu.time_covariate    -0.1640275</span></span>
+<span id="cb33-225"><a href="#cb33-225" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-226"><a href="#cb33-226" tabindex="-1"></a><span class="co">#&gt; Model Selection Criteria:</span></span>
+<span id="cb33-227"><a href="#cb33-227" tabindex="-1"></a><span class="co">#&gt;         marginal    copula     joint</span></span>
+<span id="cb33-228"><a href="#cb33-228" tabindex="-1"></a><span class="co">#&gt; LogLik -1293.535  149.4216 -1144.114</span></span>
+<span id="cb33-229"><a href="#cb33-229" tabindex="-1"></a><span class="co">#&gt; AIC     2605.070 -294.8431  2310.227</span></span>
+<span id="cb33-230"><a href="#cb33-230" tabindex="-1"></a><span class="co">#&gt; BIC     2644.643 -286.0493  2358.593</span></span>
+<span id="cb33-231"><a href="#cb33-231" tabindex="-1"></a><span class="co">#&gt; EDF        9.000    2.0000    11.000</span></span>
+<span id="cb33-232"><a href="#cb33-232" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-233"><a href="#cb33-233" tabindex="-1"></a><span class="co">#&gt; ####################################</span></span>
+<span id="cb33-234"><a href="#cb33-234" tabindex="-1"></a><span class="co">#&gt; Calculating variance-covariance matrix at fit completion...</span></span>
+<span id="cb33-235"><a href="#cb33-235" tabindex="-1"></a><span class="co">#&gt; Analytical Hessian: computing eta and likelihood components...</span></span>
+<span id="cb33-236"><a href="#cb33-236" tabindex="-1"></a><span class="co">#&gt; Analytical Hessian: computing CDF derivatives...</span></span>
+<span id="cb33-237"><a href="#cb33-237" tabindex="-1"></a><span class="co">#&gt; Analytical Hessian: assembling copula Hessian contributions...</span></span>
+<span id="cb33-238"><a href="#cb33-238" tabindex="-1"></a><span class="co">#&gt; Analytical Hessian: extracting margin second derivatives...</span></span>
+<span id="cb33-239"><a href="#cb33-239" tabindex="-1"></a><span class="co">#&gt; Analytical Hessian: assembling covariate Hessian matrix...</span></span>
+<span id="cb33-240"><a href="#cb33-240" tabindex="-1"></a><span class="co">#&gt; Analytical Hessian: done.</span></span></code></pre></div>
+</details>
+<div class="sourceCode" id="cb34"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" tabindex="-1"></a></span>
+<span id="cb34-2"><a href="#cb34-2" tabindex="-1"></a>bench <span class="ot">&lt;-</span> <span class="fu">benchmark_standard_models</span>(</span>
+<span id="cb34-3"><a href="#cb34-3" tabindex="-1"></a>  <span class="at">data =</span> dataset,</span>
+<span id="cb34-4"><a href="#cb34-4" tabindex="-1"></a>  <span class="at">formula =</span> response <span class="sc">~</span> treatment <span class="sc">+</span> time,</span>
+<span id="cb34-5"><a href="#cb34-5" tabindex="-1"></a>  <span class="at">subject_var =</span> <span class="st">&quot;subject&quot;</span>,</span>
+<span id="cb34-6"><a href="#cb34-6" tabindex="-1"></a>  <span class="at">family =</span> <span class="st">&quot;gamma&quot;</span>,</span>
+<span id="cb34-7"><a href="#cb34-7" tabindex="-1"></a>  <span class="at">fit =</span> fit_reduced_mu_time,</span>
+<span id="cb34-8"><a href="#cb34-8" tabindex="-1"></a>  <span class="at">fit_name =</span> <span class="st">&quot;gamlss_longitudinal_mu_time&quot;</span></span>
+<span id="cb34-9"><a href="#cb34-9" tabindex="-1"></a>)</span>
+<span id="cb34-10"><a href="#cb34-10" tabindex="-1"></a><span class="fu">print</span>(bench)</span>
+<span id="cb34-11"><a href="#cb34-11" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb34-12"><a href="#cb34-12" tabindex="-1"></a><span class="co">#&gt; Standard Longitudinal Comparator Benchmark</span></span>
+<span id="cb34-13"><a href="#cb34-13" tabindex="-1"></a><span class="co">#&gt; -----------------------------------------</span></span>
+<span id="cb34-14"><a href="#cb34-14" tabindex="-1"></a><span class="co">#&gt; Formula: response ~ treatment + time </span></span>
+<span id="cb34-15"><a href="#cb34-15" tabindex="-1"></a><span class="co">#&gt; Subject: subject </span></span>
+<span id="cb34-16"><a href="#cb34-16" tabindex="-1"></a><span class="co">#&gt; Family: Gamma </span></span>
+<span id="cb34-17"><a href="#cb34-17" tabindex="-1"></a><span class="co">#&gt; Methods included: gamlss_longitudinal_mu_time, glm, geeglm, glmer, gam, gamm </span></span>
+<span id="cb34-18"><a href="#cb34-18" tabindex="-1"></a><span class="co">#&gt; Estimand note: mean-fit metrics compare response-mean predictions; distributional metrics use fitted quantiles, densities, PIT values, intervals, and tail probabilities where available.</span></span>
+<span id="cb34-19"><a href="#cb34-19" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb34-20"><a href="#cb34-20" tabindex="-1"></a><span class="co">#&gt; Benchmark Summary</span></span>
+<span id="cb34-21"><a href="#cb34-21" tabindex="-1"></a><span class="co">#&gt; -----------------</span></span>
+<span id="cb34-22"><a href="#cb34-22" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb34-23"><a href="#cb34-23" tabindex="-1"></a><span class="co">#&gt; Distributional</span></span>
+<span id="cb34-24"><a href="#cb34-24" tabindex="-1"></a><span class="co">#&gt; --------------</span></span>
+<span id="cb34-25"><a href="#cb34-25" tabindex="-1"></a><span class="co">#&gt;                   Metric                  Best model</span></span>
+<span id="cb34-26"><a href="#cb34-26" tabindex="-1"></a><span class="co">#&gt;    95% interval coverage gamlss_longitudinal_mu_time</span></span>
+<span id="cb34-27"><a href="#cb34-27" tabindex="-1"></a><span class="co">#&gt;       95% interval width                 glmer, gamm</span></span>
+<span id="cb34-28"><a href="#cb34-28" tabindex="-1"></a><span class="co">#&gt;       Negative log score gamlss_longitudinal_mu_time</span></span>
+<span id="cb34-29"><a href="#cb34-29" tabindex="-1"></a><span class="co">#&gt;           PIT KS p-value gamlss_longitudinal_mu_time</span></span>
+<span id="cb34-30"><a href="#cb34-30" tabindex="-1"></a><span class="co">#&gt;  PIT mean absolute error                geeglm, gamm</span></span>
+<span id="cb34-31"><a href="#cb34-31" tabindex="-1"></a><span class="co">#&gt;      Lower 5% tail error gamlss_longitudinal_mu_time</span></span>
+<span id="cb34-32"><a href="#cb34-32" tabindex="-1"></a><span class="co">#&gt;      Upper 5% tail error gamlss_longitudinal_mu_time</span></span>
+<span id="cb34-33"><a href="#cb34-33" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb34-34"><a href="#cb34-34" tabindex="-1"></a><span class="co">#&gt; Mean fit</span></span>
+<span id="cb34-35"><a href="#cb34-35" tabindex="-1"></a><span class="co">#&gt; --------</span></span>
+<span id="cb34-36"><a href="#cb34-36" tabindex="-1"></a><span class="co">#&gt;                  Metric  Best model</span></span>
+<span id="cb34-37"><a href="#cb34-37" tabindex="-1"></a><span class="co">#&gt;   Observed response MAE glmer, gamm</span></span>
+<span id="cb34-38"><a href="#cb34-38" tabindex="-1"></a><span class="co">#&gt;  Observed response RMSE glmer, gamm</span></span>
+<span id="cb34-39"><a href="#cb34-39" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb34-40"><a href="#cb34-40" tabindex="-1"></a><span class="co">#&gt; Runtime</span></span>
+<span id="cb34-41"><a href="#cb34-41" tabindex="-1"></a><span class="co">#&gt; -------</span></span>
+<span id="cb34-42"><a href="#cb34-42" tabindex="-1"></a><span class="co">#&gt;              Metric Best model</span></span>
+<span id="cb34-43"><a href="#cb34-43" tabindex="-1"></a><span class="co">#&gt;  Elapsed time (sec)        glm</span></span>
+<span id="cb34-44"><a href="#cb34-44" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb34-45"><a href="#cb34-45" tabindex="-1"></a><span class="co">#&gt; Benchmark Details</span></span>
+<span id="cb34-46"><a href="#cb34-46" tabindex="-1"></a><span class="co">#&gt; -----------------</span></span>
+<span id="cb34-47"><a href="#cb34-47" tabindex="-1"></a><span class="co">#&gt; Benchmark Metrics</span></span>
+<span id="cb34-48"><a href="#cb34-48" tabindex="-1"></a><span class="co">#&gt; -----------------</span></span>
+<span id="cb34-49"><a href="#cb34-49" tabindex="-1"></a><span class="co">#&gt;                   Metric gamlss_longitudinal_mu_time        glm     geeglm</span></span>
+<span id="cb34-50"><a href="#cb34-50" tabindex="-1"></a><span class="co">#&gt;       Elapsed time (sec)                          NA  5.786e-03   0.018611</span></span>
+<span id="cb34-51"><a href="#cb34-51" tabindex="-1"></a><span class="co">#&gt;   Number of observations                   6.000e+02  6.000e+02 600.000000</span></span>
+<span id="cb34-52"><a href="#cb34-52" tabindex="-1"></a><span class="co">#&gt;           Log likelihood                  -1.144e+03 -1.465e+03         NA</span></span>
+<span id="cb34-53"><a href="#cb34-53" tabindex="-1"></a><span class="co">#&gt;                      AIC                   2.310e+03  2.940e+03         NA</span></span>
+<span id="cb34-54"><a href="#cb34-54" tabindex="-1"></a><span class="co">#&gt;                      MAE                   3.753e+00  3.618e+00   3.647169</span></span>
+<span id="cb34-55"><a href="#cb34-55" tabindex="-1"></a><span class="co">#&gt;                     RMSE                   5.464e+00  5.428e+00   5.431785</span></span>
+<span id="cb34-56"><a href="#cb34-56" tabindex="-1"></a><span class="co">#&gt;   Observed response RMSE                   5.464e+00  5.428e+00   5.431785</span></span>
+<span id="cb34-57"><a href="#cb34-57" tabindex="-1"></a><span class="co">#&gt;    Observed response MAE                   3.753e+00  3.618e+00   3.647169</span></span>
+<span id="cb34-58"><a href="#cb34-58" tabindex="-1"></a><span class="co">#&gt;       Negative log score                   2.395e+00  2.716e+00   2.718878</span></span>
+<span id="cb34-59"><a href="#cb34-59" tabindex="-1"></a><span class="co">#&gt;    95% interval coverage                   9.481e-01  9.130e-01   0.914815</span></span>
+<span id="cb34-60"><a href="#cb34-60" tabindex="-1"></a><span class="co">#&gt;       95% interval width                   1.835e+01  2.149e+01  21.782363</span></span>
+<span id="cb34-61"><a href="#cb34-61" tabindex="-1"></a><span class="co">#&gt;  PIT mean absolute error                   2.394e-02  1.381e-02   0.007131</span></span>
+<span id="cb34-62"><a href="#cb34-62" tabindex="-1"></a><span class="co">#&gt;           PIT KS p-value                   1.743e-01  3.935e-03   0.018412</span></span>
+<span id="cb34-63"><a href="#cb34-63" tabindex="-1"></a><span class="co">#&gt;      Lower 5% tail error                   5.556e-03  2.593e-02   0.029630</span></span>
+<span id="cb34-64"><a href="#cb34-64" tabindex="-1"></a><span class="co">#&gt;      Upper 5% tail error                  -3.704e-03 -9.259e-03  -0.009259</span></span>
+<span id="cb34-65"><a href="#cb34-65" tabindex="-1"></a><span class="co">#&gt;       glmer        gam       gamm</span></span>
+<span id="cb34-66"><a href="#cb34-66" tabindex="-1"></a><span class="co">#&gt;   4.386e-01  2.770e-02  1.349e+00</span></span>
+<span id="cb34-67"><a href="#cb34-67" tabindex="-1"></a><span class="co">#&gt;   6.000e+02  6.000e+02  6.000e+02</span></span>
+<span id="cb34-68"><a href="#cb34-68" tabindex="-1"></a><span class="co">#&gt;  -1.441e+03 -1.460e+03 -1.343e+03</span></span>
+<span id="cb34-69"><a href="#cb34-69" tabindex="-1"></a><span class="co">#&gt;   2.895e+03  2.930e+03  2.851e+03</span></span>
+<span id="cb34-70"><a href="#cb34-70" tabindex="-1"></a><span class="co">#&gt;   2.820e+00  3.618e+00  2.775e+00</span></span>
+<span id="cb34-71"><a href="#cb34-71" tabindex="-1"></a><span class="co">#&gt;   4.696e+00  5.428e+00  4.599e+00</span></span>
+<span id="cb34-72"><a href="#cb34-72" tabindex="-1"></a><span class="co">#&gt;   4.696e+00  5.428e+00  4.599e+00</span></span>
+<span id="cb34-73"><a href="#cb34-73" tabindex="-1"></a><span class="co">#&gt;   2.820e+00  3.618e+00  2.775e+00</span></span>
+<span id="cb34-74"><a href="#cb34-74" tabindex="-1"></a><span class="co">#&gt;   2.557e+00  2.716e+00  2.576e+00</span></span>
+<span id="cb34-75"><a href="#cb34-75" tabindex="-1"></a><span class="co">#&gt;   9.074e-01  9.130e-01  9.019e-01</span></span>
+<span id="cb34-76"><a href="#cb34-76" tabindex="-1"></a><span class="co">#&gt;   1.499e+01  2.149e+01  1.481e+01</span></span>
+<span id="cb34-77"><a href="#cb34-77" tabindex="-1"></a><span class="co">#&gt;   7.363e-03  1.381e-02  7.001e-03</span></span>
+<span id="cb34-78"><a href="#cb34-78" tabindex="-1"></a><span class="co">#&gt;   1.108e-01  3.935e-03  8.771e-02</span></span>
+<span id="cb34-79"><a href="#cb34-79" tabindex="-1"></a><span class="co">#&gt;   3.704e-02  2.593e-02  3.889e-02</span></span>
+<span id="cb34-80"><a href="#cb34-80" tabindex="-1"></a><span class="co">#&gt;  -5.556e-03 -9.259e-03 -9.259e-03</span></span>
+<span id="cb34-81"><a href="#cb34-81" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb34-82"><a href="#cb34-82" tabindex="-1"></a><span class="co">#&gt; Mu Coefficients</span></span>
+<span id="cb34-83"><a href="#cb34-83" tabindex="-1"></a><span class="co">#&gt; ---------------</span></span>
+<span id="cb34-84"><a href="#cb34-84" tabindex="-1"></a><span class="co">#&gt; Coefficient Estimates</span></span>
+<span id="cb34-85"><a href="#cb34-85" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb34-86"><a href="#cb34-86" tabindex="-1"></a><span class="co">#&gt;            term gamlss_longitudinal_mu_time     glm   geeglm   glmer     gam</span></span>
+<span id="cb34-87"><a href="#cb34-87" tabindex="-1"></a><span class="co">#&gt;       intercept                      1.6287  1.7755  1.79602  1.9681  1.7755</span></span>
+<span id="cb34-88"><a href="#cb34-88" tabindex="-1"></a><span class="co">#&gt;    treatmentlow                      0.3315  0.0156  0.01326 -0.1938  0.0156</span></span>
+<span id="cb34-89"><a href="#cb34-89" tabindex="-1"></a><span class="co">#&gt;   treatmenthigh                      0.6705  0.4311  0.46396  0.3199  0.4311</span></span>
+<span id="cb34-90"><a href="#cb34-90" tabindex="-1"></a><span class="co">#&gt;  time_covariate                     -0.1640      NA       NA      NA      NA</span></span>
+<span id="cb34-91"><a href="#cb34-91" tabindex="-1"></a><span class="co">#&gt;            time                          NA -0.4678 -0.50017 -1.0985 -0.4678</span></span>
+<span id="cb34-92"><a href="#cb34-92" tabindex="-1"></a><span class="co">#&gt;     gamm</span></span>
+<span id="cb34-93"><a href="#cb34-93" tabindex="-1"></a><span class="co">#&gt;   1.9315</span></span>
+<span id="cb34-94"><a href="#cb34-94" tabindex="-1"></a><span class="co">#&gt;  -0.1739</span></span>
+<span id="cb34-95"><a href="#cb34-95" tabindex="-1"></a><span class="co">#&gt;   0.3290</span></span>
+<span id="cb34-96"><a href="#cb34-96" tabindex="-1"></a><span class="co">#&gt;       NA</span></span>
+<span id="cb34-97"><a href="#cb34-97" tabindex="-1"></a><span class="co">#&gt;  -1.0090</span></span>
+<span id="cb34-98"><a href="#cb34-98" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb34-99"><a href="#cb34-99" tabindex="-1"></a><span class="co">#&gt; Standard Errors</span></span>
+<span id="cb34-100"><a href="#cb34-100" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb34-101"><a href="#cb34-101" tabindex="-1"></a><span class="co">#&gt;            term gamlss_longitudinal_mu_time    glm  geeglm  glmer    gam</span></span>
+<span id="cb34-102"><a href="#cb34-102" tabindex="-1"></a><span class="co">#&gt;       intercept                     0.05569 0.1070 0.09509 0.1669 0.1070</span></span>
+<span id="cb34-103"><a href="#cb34-103" tabindex="-1"></a><span class="co">#&gt;    treatmentlow                     0.08319 0.1142 0.15061 0.1970 0.1142</span></span>
+<span id="cb34-104"><a href="#cb34-104" tabindex="-1"></a><span class="co">#&gt;   treatmenthigh                     0.07740 0.1128 0.14070 0.1921 0.1128</span></span>
+<span id="cb34-105"><a href="#cb34-105" tabindex="-1"></a><span class="co">#&gt;  time_covariate                     0.14090     NA      NA     NA     NA</span></span>
+<span id="cb34-106"><a href="#cb34-106" tabindex="-1"></a><span class="co">#&gt;            time                          NA 0.1248 0.12906 0.1391 0.1248</span></span>
+<span id="cb34-107"><a href="#cb34-107" tabindex="-1"></a><span class="co">#&gt;     gamm</span></span>
+<span id="cb34-108"><a href="#cb34-108" tabindex="-1"></a><span class="co">#&gt;  0.12261</span></span>
+<span id="cb34-109"><a href="#cb34-109" tabindex="-1"></a><span class="co">#&gt;  0.14757</span></span>
+<span id="cb34-110"><a href="#cb34-110" tabindex="-1"></a><span class="co">#&gt;  0.14458</span></span>
+<span id="cb34-111"><a href="#cb34-111" tabindex="-1"></a><span class="co">#&gt;       NA</span></span>
+<span id="cb34-112"><a href="#cb34-112" tabindex="-1"></a><span class="co">#&gt;  0.09742</span></span>
+<span id="cb34-113"><a href="#cb34-113" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb34-114"><a href="#cb34-114" tabindex="-1"></a><span class="co">#&gt; 95% Lower Estimates</span></span>
+<span id="cb34-115"><a href="#cb34-115" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb34-116"><a href="#cb34-116" tabindex="-1"></a><span class="co">#&gt;            term gamlss_longitudinal_mu_time     glm  geeglm    glmer     gam</span></span>
+<span id="cb34-117"><a href="#cb34-117" tabindex="-1"></a><span class="co">#&gt;       intercept                      1.5196  1.5658  1.6096  1.64104  1.5658</span></span>
+<span id="cb34-118"><a href="#cb34-118" tabindex="-1"></a><span class="co">#&gt;    treatmentlow                      0.1685 -0.2083 -0.2819 -0.57992 -0.2083</span></span>
+<span id="cb34-119"><a href="#cb34-119" tabindex="-1"></a><span class="co">#&gt;   treatmenthigh                      0.5188  0.2101  0.1882 -0.05655  0.2101</span></span>
+<span id="cb34-120"><a href="#cb34-120" tabindex="-1"></a><span class="co">#&gt;  time_covariate                     -0.4402      NA      NA       NA      NA</span></span>
+<span id="cb34-121"><a href="#cb34-121" tabindex="-1"></a><span class="co">#&gt;            time                          NA -0.7123 -0.7531 -1.37111 -0.7124</span></span>
+<span id="cb34-122"><a href="#cb34-122" tabindex="-1"></a><span class="co">#&gt;      gamm</span></span>
+<span id="cb34-123"><a href="#cb34-123" tabindex="-1"></a><span class="co">#&gt;   1.69115</span></span>
+<span id="cb34-124"><a href="#cb34-124" tabindex="-1"></a><span class="co">#&gt;  -0.46309</span></span>
+<span id="cb34-125"><a href="#cb34-125" tabindex="-1"></a><span class="co">#&gt;   0.04561</span></span>
+<span id="cb34-126"><a href="#cb34-126" tabindex="-1"></a><span class="co">#&gt;        NA</span></span>
+<span id="cb34-127"><a href="#cb34-127" tabindex="-1"></a><span class="co">#&gt;  -1.19998</span></span>
+<span id="cb34-128"><a href="#cb34-128" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb34-129"><a href="#cb34-129" tabindex="-1"></a><span class="co">#&gt; 95% Upper Estimates</span></span>
+<span id="cb34-130"><a href="#cb34-130" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb34-131"><a href="#cb34-131" tabindex="-1"></a><span class="co">#&gt;            term gamlss_longitudinal_mu_time     glm  geeglm   glmer     gam</span></span>
+<span id="cb34-132"><a href="#cb34-132" tabindex="-1"></a><span class="co">#&gt;       intercept                      1.7379  1.9851  1.9824  2.2952  1.9852</span></span>
+<span id="cb34-133"><a href="#cb34-133" tabindex="-1"></a><span class="co">#&gt;    treatmentlow                      0.4946  0.2395  0.3085  0.1923  0.2395</span></span>
+<span id="cb34-134"><a href="#cb34-134" tabindex="-1"></a><span class="co">#&gt;   treatmenthigh                      0.8222  0.6521  0.7397  0.6964  0.6521</span></span>
+<span id="cb34-135"><a href="#cb34-135" tabindex="-1"></a><span class="co">#&gt;  time_covariate                      0.1121      NA      NA      NA      NA</span></span>
+<span id="cb34-136"><a href="#cb34-136" tabindex="-1"></a><span class="co">#&gt;            time                          NA -0.2233 -0.2472 -0.8258 -0.2233</span></span>
+<span id="cb34-137"><a href="#cb34-137" tabindex="-1"></a><span class="co">#&gt;     gamm</span></span>
+<span id="cb34-138"><a href="#cb34-138" tabindex="-1"></a><span class="co">#&gt;   2.1718</span></span>
+<span id="cb34-139"><a href="#cb34-139" tabindex="-1"></a><span class="co">#&gt;   0.1154</span></span>
+<span id="cb34-140"><a href="#cb34-140" tabindex="-1"></a><span class="co">#&gt;   0.6124</span></span>
+<span id="cb34-141"><a href="#cb34-141" tabindex="-1"></a><span class="co">#&gt;       NA</span></span>
+<span id="cb34-142"><a href="#cb34-142" tabindex="-1"></a><span class="co">#&gt;  -0.8181</span></span></code></pre></div>
 </div>
 <div id="prediction-and-simulation" class="section level3">
 <h3>Prediction and simulation</h3>
@@ -1943,52 +2139,52 @@ objects, see <code>help(&quot;predict.gamlss.longitudinal&quot;)</code> for all
 options. We also provide a standard method to replicate the known method
 often used for mixed models <code>margins_effects</code> so that average
 predictions across a variable can be provided.</p>
-<div class="sourceCode" id="cb34"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" tabindex="-1"></a><span class="co"># Predict the response on response scale with confidence interval</span></span>
-<span id="cb34-2"><a href="#cb34-2" tabindex="-1"></a>pred<span class="ot">=</span><span class="fu">predict</span>(</span>
-<span id="cb34-3"><a href="#cb34-3" tabindex="-1"></a>  fit,</span>
-<span id="cb34-4"><a href="#cb34-4" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
-<span id="cb34-5"><a href="#cb34-5" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;response&quot;</span>,</span>
-<span id="cb34-6"><a href="#cb34-6" tabindex="-1"></a>  <span class="at">se.fit =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb34-7"><a href="#cb34-7" tabindex="-1"></a>  <span class="at">interval =</span> <span class="st">&quot;confidence&quot;</span></span>
-<span id="cb34-8"><a href="#cb34-8" tabindex="-1"></a>)</span>
-<span id="cb34-9"><a href="#cb34-9" tabindex="-1"></a><span class="fu">head</span>(pred)</span>
-<span id="cb34-10"><a href="#cb34-10" tabindex="-1"></a><span class="co">#&gt;   subject time   response      fit    se.fit conf.low conf.high</span></span>
-<span id="cb34-11"><a href="#cb34-11" tabindex="-1"></a><span class="co">#&gt; 1       1 0.00 14.0634049 8.957160 0.4841117 8.008319  9.906002</span></span>
-<span id="cb34-12"><a href="#cb34-12" tabindex="-1"></a><span class="co">#&gt; 2       1 0.25 12.7321135 8.957160 0.4841117 8.008319  9.906002</span></span>
-<span id="cb34-13"><a href="#cb34-13" tabindex="-1"></a><span class="co">#&gt; 3       1 0.50  5.3841679 8.957160 0.4841117 8.008319  9.906002</span></span>
-<span id="cb34-14"><a href="#cb34-14" tabindex="-1"></a><span class="co">#&gt; 4       1 0.75         NA 8.957160 0.4841117 8.008319  9.906002</span></span>
-<span id="cb34-15"><a href="#cb34-15" tabindex="-1"></a><span class="co">#&gt; 5       1 1.00  0.2474735 8.957160 0.4841117 8.008319  9.906002</span></span>
-<span id="cb34-16"><a href="#cb34-16" tabindex="-1"></a><span class="co">#&gt; 6       2 0.00         NA 7.501498 0.4495594 6.620378  8.382618</span></span>
-<span id="cb34-17"><a href="#cb34-17" tabindex="-1"></a></span>
-<span id="cb34-18"><a href="#cb34-18" tabindex="-1"></a><span class="co"># Calculate average response across a covariate for the margin</span></span>
-<span id="cb34-19"><a href="#cb34-19" tabindex="-1"></a>meff<span class="ot">=</span><span class="fu">marginal_effects</span>(</span>
-<span id="cb34-20"><a href="#cb34-20" tabindex="-1"></a>  fit,</span>
-<span id="cb34-21"><a href="#cb34-21" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
-<span id="cb34-22"><a href="#cb34-22" tabindex="-1"></a>  <span class="at">variable =</span> <span class="st">&quot;treatment&quot;</span>,</span>
-<span id="cb34-23"><a href="#cb34-23" tabindex="-1"></a>  <span class="at">parameter =</span> <span class="st">&quot;mu&quot;</span>,</span>
-<span id="cb34-24"><a href="#cb34-24" tabindex="-1"></a>  <span class="at">se.fit =</span> <span class="cn">TRUE</span></span>
-<span id="cb34-25"><a href="#cb34-25" tabindex="-1"></a>)</span>
-<span id="cb34-26"><a href="#cb34-26" tabindex="-1"></a><span class="fu">head</span>(meff)</span>
-<span id="cb34-27"><a href="#cb34-27" tabindex="-1"></a><span class="co">#&gt;    variable   value parameter estimate   std_error reference contrast conf.low</span></span>
-<span id="cb34-28"><a href="#cb34-28" tabindex="-1"></a><span class="co">#&gt; 1 treatment control        mu 5.208493 0.009957978   control 0.000000 5.188976</span></span>
-<span id="cb34-29"><a href="#cb34-29" tabindex="-1"></a><span class="co">#&gt; 2 treatment     low        mu 6.535838 0.016181980   control 1.327345 6.504121</span></span>
-<span id="cb34-30"><a href="#cb34-30" tabindex="-1"></a><span class="co">#&gt; 3 treatment    high        mu 9.506673 0.021227317   control 4.298180 9.465068</span></span>
-<span id="cb34-31"><a href="#cb34-31" tabindex="-1"></a><span class="co">#&gt;   conf.high</span></span>
-<span id="cb34-32"><a href="#cb34-32" tabindex="-1"></a><span class="co">#&gt; 1  5.228010</span></span>
-<span id="cb34-33"><a href="#cb34-33" tabindex="-1"></a><span class="co">#&gt; 2  6.567554</span></span>
-<span id="cb34-34"><a href="#cb34-34" tabindex="-1"></a><span class="co">#&gt; 3  9.548277</span></span></code></pre></div>
+<div class="sourceCode" id="cb35"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" tabindex="-1"></a><span class="co"># Predict the fitted response mean with confidence interval</span></span>
+<span id="cb35-2"><a href="#cb35-2" tabindex="-1"></a>pred<span class="ot">=</span><span class="fu">predict</span>(</span>
+<span id="cb35-3"><a href="#cb35-3" tabindex="-1"></a>  fit,</span>
+<span id="cb35-4"><a href="#cb35-4" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
+<span id="cb35-5"><a href="#cb35-5" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;mean&quot;</span>,</span>
+<span id="cb35-6"><a href="#cb35-6" tabindex="-1"></a>  <span class="at">se.fit =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb35-7"><a href="#cb35-7" tabindex="-1"></a>  <span class="at">interval =</span> <span class="st">&quot;confidence&quot;</span></span>
+<span id="cb35-8"><a href="#cb35-8" tabindex="-1"></a>)</span>
+<span id="cb35-9"><a href="#cb35-9" tabindex="-1"></a><span class="fu">head</span>(pred)</span>
+<span id="cb35-10"><a href="#cb35-10" tabindex="-1"></a><span class="co">#&gt;   subject time   response      fit    se.fit conf.low conf.high</span></span>
+<span id="cb35-11"><a href="#cb35-11" tabindex="-1"></a><span class="co">#&gt; 1       1 0.00 14.0634049 8.600757 0.4841117 7.651915  9.549598</span></span>
+<span id="cb35-12"><a href="#cb35-12" tabindex="-1"></a><span class="co">#&gt; 2       1 0.25 12.7321135 8.300118 0.4841117 7.351277  9.248960</span></span>
+<span id="cb35-13"><a href="#cb35-13" tabindex="-1"></a><span class="co">#&gt; 3       1 0.50  5.3841679 7.803959 0.4841117 6.855117  8.752800</span></span>
+<span id="cb35-14"><a href="#cb35-14" tabindex="-1"></a><span class="co">#&gt; 4       1 0.75         NA 7.087139 0.4841117 6.138297  8.035980</span></span>
+<span id="cb35-15"><a href="#cb35-15" tabindex="-1"></a><span class="co">#&gt; 5       1 1.00  0.2474735 6.209750 0.4841117 5.260908  7.158591</span></span>
+<span id="cb35-16"><a href="#cb35-16" tabindex="-1"></a><span class="co">#&gt; 6       2 0.00         NA 7.189700 0.4495594 6.308580  8.070820</span></span>
+<span id="cb35-17"><a href="#cb35-17" tabindex="-1"></a></span>
+<span id="cb35-18"><a href="#cb35-18" tabindex="-1"></a><span class="co"># Calculate average response across a covariate for the margin</span></span>
+<span id="cb35-19"><a href="#cb35-19" tabindex="-1"></a>meff<span class="ot">=</span><span class="fu">marginal_effects</span>(</span>
+<span id="cb35-20"><a href="#cb35-20" tabindex="-1"></a>  fit,</span>
+<span id="cb35-21"><a href="#cb35-21" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
+<span id="cb35-22"><a href="#cb35-22" tabindex="-1"></a>  <span class="at">variable =</span> <span class="st">&quot;treatment&quot;</span>,</span>
+<span id="cb35-23"><a href="#cb35-23" tabindex="-1"></a>  <span class="at">parameter =</span> <span class="st">&quot;mu&quot;</span>,</span>
+<span id="cb35-24"><a href="#cb35-24" tabindex="-1"></a>  <span class="at">se.fit =</span> <span class="cn">TRUE</span></span>
+<span id="cb35-25"><a href="#cb35-25" tabindex="-1"></a>)</span>
+<span id="cb35-26"><a href="#cb35-26" tabindex="-1"></a><span class="fu">head</span>(meff)</span>
+<span id="cb35-27"><a href="#cb35-27" tabindex="-1"></a><span class="co">#&gt;    variable   value parameter estimate   std_error reference contrast conf.low</span></span>
+<span id="cb35-28"><a href="#cb35-28" tabindex="-1"></a><span class="co">#&gt; 1 treatment control        mu 5.208493 0.009957978   control 0.000000 5.188976</span></span>
+<span id="cb35-29"><a href="#cb35-29" tabindex="-1"></a><span class="co">#&gt; 2 treatment     low        mu 6.535838 0.016181980   control 1.327345 6.504121</span></span>
+<span id="cb35-30"><a href="#cb35-30" tabindex="-1"></a><span class="co">#&gt; 3 treatment    high        mu 9.506673 0.021227317   control 4.298180 9.465068</span></span>
+<span id="cb35-31"><a href="#cb35-31" tabindex="-1"></a><span class="co">#&gt;   conf.high</span></span>
+<span id="cb35-32"><a href="#cb35-32" tabindex="-1"></a><span class="co">#&gt; 1  5.228010</span></span>
+<span id="cb35-33"><a href="#cb35-33" tabindex="-1"></a><span class="co">#&gt; 2  6.567554</span></span>
+<span id="cb35-34"><a href="#cb35-34" tabindex="-1"></a><span class="co">#&gt; 3  9.548277</span></span></code></pre></div>
 <p>We also provide standard functionality for simulating from the fitted
 model which uses the copula structure to create margins which are
 correlated as would be expected based on the fitted copula.</p>
-<div class="sourceCode" id="cb35"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" tabindex="-1"></a>sim_model <span class="ot">&lt;-</span> <span class="fu">simulate</span>(fit, <span class="at">nsim =</span> <span class="dv">5</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span>
-<span id="cb35-2"><a href="#cb35-2" tabindex="-1"></a><span class="fu">head</span>(sim_model)</span>
-<span id="cb35-3"><a href="#cb35-3" tabindex="-1"></a><span class="co">#&gt;       sim_1     sim_2      sim_3      sim_4     sim_5</span></span>
-<span id="cb35-4"><a href="#cb35-4" tabindex="-1"></a><span class="co">#&gt; 1  6.143973  7.315272 6.79356584  9.5036535 11.162103</span></span>
-<span id="cb35-5"><a href="#cb35-5" tabindex="-1"></a><span class="co">#&gt; 2  5.334784 17.290397 5.75289201  9.2514849 19.314057</span></span>
-<span id="cb35-6"><a href="#cb35-6" tabindex="-1"></a><span class="co">#&gt; 3  5.749883 13.085836 7.15542178 13.0997139  9.700214</span></span>
-<span id="cb35-7"><a href="#cb35-7" tabindex="-1"></a><span class="co">#&gt; 4        NA        NA         NA         NA        NA</span></span>
-<span id="cb35-8"><a href="#cb35-8" tabindex="-1"></a><span class="co">#&gt; 5 15.164997  4.061742 0.06544622  0.8631231  2.049472</span></span>
-<span id="cb35-9"><a href="#cb35-9" tabindex="-1"></a><span class="co">#&gt; 6        NA        NA         NA         NA        NA</span></span></code></pre></div>
+<div class="sourceCode" id="cb36"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" tabindex="-1"></a>sim_model <span class="ot">&lt;-</span> <span class="fu">simulate</span>(fit, <span class="at">nsim =</span> <span class="dv">5</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span>
+<span id="cb36-2"><a href="#cb36-2" tabindex="-1"></a><span class="fu">head</span>(sim_model)</span>
+<span id="cb36-3"><a href="#cb36-3" tabindex="-1"></a><span class="co">#&gt;       sim_1     sim_2      sim_3      sim_4     sim_5</span></span>
+<span id="cb36-4"><a href="#cb36-4" tabindex="-1"></a><span class="co">#&gt; 1  6.143973  7.315272 6.79356584  9.5036535 11.162103</span></span>
+<span id="cb36-5"><a href="#cb36-5" tabindex="-1"></a><span class="co">#&gt; 2  5.334784 17.290397 5.75289201  9.2514849 19.314057</span></span>
+<span id="cb36-6"><a href="#cb36-6" tabindex="-1"></a><span class="co">#&gt; 3  5.749883 13.085836 7.15542178 13.0997139  9.700214</span></span>
+<span id="cb36-7"><a href="#cb36-7" tabindex="-1"></a><span class="co">#&gt; 4        NA        NA         NA         NA        NA</span></span>
+<span id="cb36-8"><a href="#cb36-8" tabindex="-1"></a><span class="co">#&gt; 5 15.164997  4.061742 0.06544622  0.8631231  2.049472</span></span>
+<span id="cb36-9"><a href="#cb36-9" tabindex="-1"></a><span class="co">#&gt; 6        NA        NA         NA         NA        NA</span></span></code></pre></div>
 </div>
 </div>
 <div id="final-remarks" class="section level2">

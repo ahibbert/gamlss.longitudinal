@@ -38,7 +38,9 @@ positive continuous responses, and \code{"realAll"} otherwise.}
 \item{time_intercepts}{Logical; if \code{TRUE}, rank retained families by a
 GAMLSS fit with factor time intercepts for each distribution parameter.
 This is useful for longitudinal screening where the final model is allowed
-to vary marginal location, scale, or shape over time.}
+to vary marginal location, scale, or shape over time. Finite-AIC fits are
+retained even if the temporary GAMLSS fit did not report convergence; check
+the returned \code{converged} column before selecting a final marginal family.}
 
 \item{time_var}{Optional time column name in \code{data}, required when
 \code{time_intercepts = TRUE}.}
@@ -46,10 +48,12 @@ to vary marginal location, scale, or shape over time.}
 \item{try.gamlss, trace, ...}{Passed to \code{\link[gamlss:fitDist]{gamlss::fitDist()}}.}
 }
 \value{
-A data frame ordered by AIC and class \code{margin_selection}. The
-selected family is also stored in the \code{"selected"} attribute for backward
-compatibility. Use \code{\link[=best_fit]{best_fit()}} or \code{\link[=best_fit_family]{best_fit_family()}} to extract the
-selected family in a fitting-friendly form.
+A data frame ordered by AIC and class \code{margin_selection}. With
+\code{time_intercepts = TRUE}, the table includes a \code{converged} column for the
+temporary time-intercept marginal fit. The selected family is also stored in
+the \code{"selected"} attribute for backward compatibility. Use \code{\link[=best_fit]{best_fit()}} or
+\code{\link[=best_fit_family]{best_fit_family()}} to extract the selected family in a fitting-friendly
+form.
 }
 \description{
 \code{select_margin()} is a lightweight wrapper around \code{\link[gamlss:fitDist]{gamlss::fitDist()}} for

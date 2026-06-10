@@ -96,15 +96,19 @@ best_fit_family.margin_screen <- best_fit_family.margin_selection
 #' @param time_intercepts Logical; if `TRUE`, rank retained families by a
 #'   GAMLSS fit with factor time intercepts for each distribution parameter.
 #'   This is useful for longitudinal screening where the final model is allowed
-#'   to vary marginal location, scale, or shape over time.
+#'   to vary marginal location, scale, or shape over time. Finite-AIC fits are
+#'   retained even if the temporary GAMLSS fit did not report convergence; check
+#'   the returned `converged` column before selecting a final marginal family.
 #' @param time_var Optional time column name in `data`, required when
 #'   `time_intercepts = TRUE`.
 #' @param try.gamlss,trace,... Passed to [gamlss::fitDist()].
 #'
-#' @return A data frame ordered by AIC and class `margin_selection`. The
-#'   selected family is also stored in the `"selected"` attribute for backward
-#'   compatibility. Use [best_fit()] or [best_fit_family()] to extract the
-#'   selected family in a fitting-friendly form.
+#' @return A data frame ordered by AIC and class `margin_selection`. With
+#'   `time_intercepts = TRUE`, the table includes a `converged` column for the
+#'   temporary time-intercept marginal fit. The selected family is also stored in
+#'   the `"selected"` attribute for backward compatibility. Use [best_fit()] or
+#'   [best_fit_family()] to extract the selected family in a fitting-friendly
+#'   form.
 #' @export
 select_margin <- function(
   response = NULL,
@@ -205,16 +209,33 @@ select_margin <- function(
   out$screen_model <- "pooled_intercept"
 
   if (isTRUE(time_intercepts) && nrow(out) > 0L) {
-    time_aic <- .select_margin_time_intercept_aic(
+    time_fits <- .select_margin_time_intercept_fits(
       response = response_all,
       time = data[[time_var]],
       families = out$family,
       trace = trace
     )
     out$pooled_AIC <- out$AIC
-    out$AIC <- time_aic[out$family]
+    out <- merge(
+      out,
+      time_fits,
+      by = "family",
+      all.x = TRUE,
+      sort = FALSE
+    )
+    out$AIC <- out$time_intercept_AIC
+    out$time_intercept_AIC <- NULL
     out$screen_model <- "time_intercepts"
     out <- out[is.finite(out$AIC), , drop = FALSE]
+    if (nrow(out) > 0L && any(!out$converged, na.rm = TRUE)) {
+      not_converged <- out$family[!out$converged]
+      warning(
+        "Time-intercept marginal screen retained finite-AIC fit(s) without confirmed convergence: ",
+        paste(not_converged, collapse = ", "),
+        ". Review the 'converged' column before selecting a final marginal family.",
+        call. = FALSE
+      )
+    }
   }
 
   out <- out[order(out$AIC), , drop = FALSE]
@@ -239,7 +260,7 @@ select_margin <- function(
   out
 }
 
-.select_margin_time_intercept_aic <- function(response, time, families, trace = FALSE) {
+.select_margin_time_intercept_fits <- function(response, time, families, trace = FALSE) {
   response <- as.numeric(response)
   time <- as.character(time)
   keep <- is.finite(response) & !is.na(time)
@@ -264,17 +285,23 @@ select_margin <- function(
     stats::as.formula("~ 1")
   }
 
-  out <- vapply(families, function(family_name) {
+  rows <- lapply(families, function(family_name) {
     family <- .margin_family_object(family_name)
     if (is.null(family) || is.null(family$parameters)) {
-      return(NA_real_)
+      return(data.frame(
+        family = family_name,
+        time_intercept_AIC = NA_real_,
+        converged = FALSE,
+        stringsAsFactors = FALSE
+      ))
     }
 
     fit_args <- list(
       formula = mu_formula,
       family = family,
       data = fit_data,
-      trace = trace
+      trace = trace,
+      control = gamlss::gamlss.control(n.cyc = 100, trace = trace)
     )
     for (par_name in setdiff(names(family$parameters), "mu")) {
       fit_args[[paste0(par_name, ".formula")]] <- par_formula
@@ -295,16 +322,23 @@ select_margin <- function(
       error = function(e) NULL
     )
     if (is.null(fit)) {
-      return(NA_real_)
-    }
-    if (identical(fit$converged, FALSE)) {
-      return(NA_real_)
+      return(data.frame(
+        family = family_name,
+        time_intercept_AIC = NA_real_,
+        converged = FALSE,
+        stringsAsFactors = FALSE
+      ))
     }
     aic <- tryCatch(stats::AIC(fit), error = function(e) NA_real_)
-    as.numeric(aic)[1L]
-  }, numeric(1), USE.NAMES = TRUE)
+    data.frame(
+      family = family_name,
+      time_intercept_AIC = as.numeric(aic)[1L],
+      converged = !identical(fit$converged, FALSE),
+      stringsAsFactors = FALSE
+    )
+  })
 
-  out
+  do.call(rbind, rows)
 }
 
 #' @rdname select_margin
@@ -327,6 +361,9 @@ print.margin_screen <- function(x, ..., n = 10L) {
     any(!display$supported_by_longitudinal, na.rm = TRUE)
   display$supported_by_longitudinal <- NULL
   print(display, row.names = FALSE)
+  if ("converged" %in% names(display) && any(!display$converged, na.rm = TRUE)) {
+    cat("\nWarning: one or more printed time-intercept marginal fits did not report convergence.\n")
+  }
   if (isTRUE(unsupported)) {
     cat("\nNote: one or more printed families are not currently supported by gamlss_longitudinal().\n")
   }
