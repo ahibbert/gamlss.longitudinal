@@ -595,63 +595,70 @@ satisfactory prior to moving to reporting.</p>
 <p>Multiple options are provided for prediction including on response
 and parameter scale, by quantiles, cdf, density or probability, and
 reporting by marginal effect.</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="co"># Predict the response on response scale with confidence interval</span></span>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="co"># Predict the fitted response mean with confidence interval</span></span>
 <span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a><span class="fu">predict</span>(</span>
 <span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a>  fit,</span>
 <span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
-<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;response&quot;</span>,</span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;mean&quot;</span>,</span>
 <span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a>  <span class="at">se.fit =</span> <span class="cn">TRUE</span>,</span>
 <span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a>  <span class="at">interval =</span> <span class="st">&quot;confidence&quot;</span></span>
 <span id="cb12-8"><a href="#cb12-8" tabindex="-1"></a>)</span>
 <span id="cb12-9"><a href="#cb12-9" tabindex="-1"></a></span>
-<span id="cb12-10"><a href="#cb12-10" tabindex="-1"></a><span class="co"># Predict the estimated parameter values for mu, sigma etc.</span></span>
+<span id="cb12-10"><a href="#cb12-10" tabindex="-1"></a><span class="co"># Predict the estimated GAMLSS parameter values for mu, sigma etc.</span></span>
 <span id="cb12-11"><a href="#cb12-11" tabindex="-1"></a><span class="fu">predict</span>(</span>
 <span id="cb12-12"><a href="#cb12-12" tabindex="-1"></a>  fit,</span>
 <span id="cb12-13"><a href="#cb12-13" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
 <span id="cb12-14"><a href="#cb12-14" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;parameters&quot;</span></span>
 <span id="cb12-15"><a href="#cb12-15" tabindex="-1"></a>)</span>
 <span id="cb12-16"><a href="#cb12-16" tabindex="-1"></a></span>
-<span id="cb12-17"><a href="#cb12-17" tabindex="-1"></a><span class="co"># Predict specified quantiles</span></span>
+<span id="cb12-17"><a href="#cb12-17" tabindex="-1"></a><span class="co"># Predict the fitted GAMLSS mu parameter explicitly</span></span>
 <span id="cb12-18"><a href="#cb12-18" tabindex="-1"></a><span class="fu">predict</span>(</span>
 <span id="cb12-19"><a href="#cb12-19" tabindex="-1"></a>  fit,</span>
 <span id="cb12-20"><a href="#cb12-20" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
-<span id="cb12-21"><a href="#cb12-21" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;quantile&quot;</span>,</span>
-<span id="cb12-22"><a href="#cb12-22" tabindex="-1"></a>  <span class="at">probs =</span> <span class="fu">c</span>(<span class="fl">0.1</span>, <span class="fl">0.5</span>, <span class="fl">0.9</span>)</span>
-<span id="cb12-23"><a href="#cb12-23" tabindex="-1"></a>)</span>
-<span id="cb12-24"><a href="#cb12-24" tabindex="-1"></a></span>
-<span id="cb12-25"><a href="#cb12-25" tabindex="-1"></a><span class="co"># Predict cdf</span></span>
-<span id="cb12-26"><a href="#cb12-26" tabindex="-1"></a><span class="fu">predict</span>(</span>
-<span id="cb12-27"><a href="#cb12-27" tabindex="-1"></a>  fit,</span>
-<span id="cb12-28"><a href="#cb12-28" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
-<span id="cb12-29"><a href="#cb12-29" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;cdf&quot;</span>,</span>
-<span id="cb12-30"><a href="#cb12-30" tabindex="-1"></a>  <span class="at">q =</span> <span class="dv">10</span></span>
-<span id="cb12-31"><a href="#cb12-31" tabindex="-1"></a>)</span>
-<span id="cb12-32"><a href="#cb12-32" tabindex="-1"></a></span>
-<span id="cb12-33"><a href="#cb12-33" tabindex="-1"></a><span class="co"># Predict probability density</span></span>
-<span id="cb12-34"><a href="#cb12-34" tabindex="-1"></a><span class="fu">predict</span>(</span>
-<span id="cb12-35"><a href="#cb12-35" tabindex="-1"></a>  fit,</span>
-<span id="cb12-36"><a href="#cb12-36" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
-<span id="cb12-37"><a href="#cb12-37" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;density&quot;</span>,</span>
-<span id="cb12-38"><a href="#cb12-38" tabindex="-1"></a>  <span class="at">y =</span> <span class="dv">10</span></span>
-<span id="cb12-39"><a href="#cb12-39" tabindex="-1"></a>)</span>
-<span id="cb12-40"><a href="#cb12-40" tabindex="-1"></a></span>
-<span id="cb12-41"><a href="#cb12-41" tabindex="-1"></a><span class="co"># Predict observation probability (either above or below response value)</span></span>
-<span id="cb12-42"><a href="#cb12-42" tabindex="-1"></a><span class="fu">predict</span>(</span>
-<span id="cb12-43"><a href="#cb12-43" tabindex="-1"></a>  fit,</span>
-<span id="cb12-44"><a href="#cb12-44" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
-<span id="cb12-45"><a href="#cb12-45" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;probability&quot;</span>,</span>
-<span id="cb12-46"><a href="#cb12-46" tabindex="-1"></a>  <span class="at">q =</span> <span class="dv">10</span>,</span>
-<span id="cb12-47"><a href="#cb12-47" tabindex="-1"></a>  <span class="at">direction =</span> <span class="st">&quot;above&quot;</span></span>
-<span id="cb12-48"><a href="#cb12-48" tabindex="-1"></a>)</span>
-<span id="cb12-49"><a href="#cb12-49" tabindex="-1"></a></span>
-<span id="cb12-50"><a href="#cb12-50" tabindex="-1"></a><span class="co"># Calculate average response across a covariate for the margin</span></span>
-<span id="cb12-51"><a href="#cb12-51" tabindex="-1"></a><span class="fu">marginal_effects</span>(</span>
-<span id="cb12-52"><a href="#cb12-52" tabindex="-1"></a>  fit,</span>
-<span id="cb12-53"><a href="#cb12-53" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
-<span id="cb12-54"><a href="#cb12-54" tabindex="-1"></a>  <span class="at">variable =</span> <span class="st">&quot;treatment&quot;</span>,</span>
-<span id="cb12-55"><a href="#cb12-55" tabindex="-1"></a>  <span class="at">parameter =</span> <span class="st">&quot;mu&quot;</span>,</span>
-<span id="cb12-56"><a href="#cb12-56" tabindex="-1"></a>  <span class="at">se.fit =</span> <span class="cn">TRUE</span></span>
-<span id="cb12-57"><a href="#cb12-57" tabindex="-1"></a>)</span></code></pre></div>
+<span id="cb12-21"><a href="#cb12-21" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;mu&quot;</span></span>
+<span id="cb12-22"><a href="#cb12-22" tabindex="-1"></a>)</span>
+<span id="cb12-23"><a href="#cb12-23" tabindex="-1"></a></span>
+<span id="cb12-24"><a href="#cb12-24" tabindex="-1"></a><span class="co"># Predict specified quantiles</span></span>
+<span id="cb12-25"><a href="#cb12-25" tabindex="-1"></a><span class="fu">predict</span>(</span>
+<span id="cb12-26"><a href="#cb12-26" tabindex="-1"></a>  fit,</span>
+<span id="cb12-27"><a href="#cb12-27" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
+<span id="cb12-28"><a href="#cb12-28" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;quantile&quot;</span>,</span>
+<span id="cb12-29"><a href="#cb12-29" tabindex="-1"></a>  <span class="at">probs =</span> <span class="fu">c</span>(<span class="fl">0.1</span>, <span class="fl">0.5</span>, <span class="fl">0.9</span>)</span>
+<span id="cb12-30"><a href="#cb12-30" tabindex="-1"></a>)</span>
+<span id="cb12-31"><a href="#cb12-31" tabindex="-1"></a></span>
+<span id="cb12-32"><a href="#cb12-32" tabindex="-1"></a><span class="co"># Predict cdf</span></span>
+<span id="cb12-33"><a href="#cb12-33" tabindex="-1"></a><span class="fu">predict</span>(</span>
+<span id="cb12-34"><a href="#cb12-34" tabindex="-1"></a>  fit,</span>
+<span id="cb12-35"><a href="#cb12-35" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
+<span id="cb12-36"><a href="#cb12-36" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;cdf&quot;</span>,</span>
+<span id="cb12-37"><a href="#cb12-37" tabindex="-1"></a>  <span class="at">q =</span> <span class="dv">10</span></span>
+<span id="cb12-38"><a href="#cb12-38" tabindex="-1"></a>)</span>
+<span id="cb12-39"><a href="#cb12-39" tabindex="-1"></a></span>
+<span id="cb12-40"><a href="#cb12-40" tabindex="-1"></a><span class="co"># Predict probability density</span></span>
+<span id="cb12-41"><a href="#cb12-41" tabindex="-1"></a><span class="fu">predict</span>(</span>
+<span id="cb12-42"><a href="#cb12-42" tabindex="-1"></a>  fit,</span>
+<span id="cb12-43"><a href="#cb12-43" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
+<span id="cb12-44"><a href="#cb12-44" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;density&quot;</span>,</span>
+<span id="cb12-45"><a href="#cb12-45" tabindex="-1"></a>  <span class="at">y =</span> <span class="dv">10</span></span>
+<span id="cb12-46"><a href="#cb12-46" tabindex="-1"></a>)</span>
+<span id="cb12-47"><a href="#cb12-47" tabindex="-1"></a></span>
+<span id="cb12-48"><a href="#cb12-48" tabindex="-1"></a><span class="co"># Predict observation probability (either above or below response value)</span></span>
+<span id="cb12-49"><a href="#cb12-49" tabindex="-1"></a><span class="fu">predict</span>(</span>
+<span id="cb12-50"><a href="#cb12-50" tabindex="-1"></a>  fit,</span>
+<span id="cb12-51"><a href="#cb12-51" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
+<span id="cb12-52"><a href="#cb12-52" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;probability&quot;</span>,</span>
+<span id="cb12-53"><a href="#cb12-53" tabindex="-1"></a>  <span class="at">q =</span> <span class="dv">10</span>,</span>
+<span id="cb12-54"><a href="#cb12-54" tabindex="-1"></a>  <span class="at">direction =</span> <span class="st">&quot;above&quot;</span></span>
+<span id="cb12-55"><a href="#cb12-55" tabindex="-1"></a>)</span>
+<span id="cb12-56"><a href="#cb12-56" tabindex="-1"></a></span>
+<span id="cb12-57"><a href="#cb12-57" tabindex="-1"></a><span class="co"># Calculate average response across a covariate for the margin</span></span>
+<span id="cb12-58"><a href="#cb12-58" tabindex="-1"></a><span class="fu">marginal_effects</span>(</span>
+<span id="cb12-59"><a href="#cb12-59" tabindex="-1"></a>  fit,</span>
+<span id="cb12-60"><a href="#cb12-60" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
+<span id="cb12-61"><a href="#cb12-61" tabindex="-1"></a>  <span class="at">variable =</span> <span class="st">&quot;treatment&quot;</span>,</span>
+<span id="cb12-62"><a href="#cb12-62" tabindex="-1"></a>  <span class="at">parameter =</span> <span class="st">&quot;mu&quot;</span>,</span>
+<span id="cb12-63"><a href="#cb12-63" tabindex="-1"></a>  <span class="at">se.fit =</span> <span class="cn">TRUE</span></span>
+<span id="cb12-64"><a href="#cb12-64" tabindex="-1"></a>)</span></code></pre></div>
 <p>Simulate from the fitted model as desired, for a total of
 <code>nsim</code> replications. Note that simulation uses both copula
 and margin structure so dependence is maintained in simulations.</p>
