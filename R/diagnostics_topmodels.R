@@ -299,14 +299,18 @@ procast <- function(object, ...) {
   y <- diag_data$response
   params <- diag_data$params
 
-  pit <- .gl_call_family_fun("p", diag_data$family, y, params)
+  pit_upper <- .gl_call_family_fun("p", diag_data$family, y, params)
+  pit <- pit_upper
 
-  if (randomize && exists(paste0("d", diag_data$family), mode = "function")) {
-    dens <- .gl_call_family_fun("d", diag_data$family, y, params)
-    pit <- pmin(pmax(pit, 0), 1)
-    pit <- ifelse(is.finite(dens) & dens > 0, pit, pit)
+  if (randomize && .is_discrete_margin(object$margin_dist)) {
+    pit_lower <- .gl_call_family_fun("p", diag_data$family, y - 1, params)
+    pit_lower <- pmin(pmax(as.numeric(pit_lower), 0), 1)
+    pit_upper <- pmin(pmax(as.numeric(pit_upper), 0), 1)
+    interval_width <- pmax(pit_upper - pit_lower, 0)
+    pit <- pit_lower + stats::runif(length(pit_upper)) * interval_width
   }
 
+  pit <- pmin(pmax(as.numeric(pit), 0), 1)
   list(diag = diag_data, pit = pit)
 }
 
@@ -315,17 +319,19 @@ pithist.gamlss.longitudinal <- function(object, bins = 20, randomize = FALSE, pl
   pit_out <- .gl_pit(object, randomize = randomize)
   pit <- pit_out$pit
   pit_df <- data.frame(pit = pit, time = as.factor(pit_out$diag$time))
+  pit_df <- pit_df[is.finite(pit_df$pit), , drop = FALSE]
 
   if (!plot) {
     return(pit_df)
   }
 
   if (!by_time) {
-    expected <- length(pit) / bins
+    expected <- nrow(pit_df) / bins
     return(
       ggplot2::ggplot(pit_df, ggplot2::aes(x = pit)) +
-        ggplot2::geom_histogram(bins = bins, boundary = 0, closed = "left", fill = "#2c7fb8", color = "white") +
+        ggplot2::geom_histogram(breaks = seq(0, 1, length.out = bins + 1L), closed = "right", fill = "#2c7fb8", color = "white") +
         ggplot2::geom_hline(yintercept = expected, linetype = "dashed", linewidth = 0.4, color = "#444444") +
+        ggplot2::scale_x_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.25), expand = c(0, 0)) +
         ggplot2::labs(x = "PIT", y = "Count", title = "PIT Histogram") +
         ggplot2::theme_minimal()
     )
@@ -335,9 +341,10 @@ pithist.gamlss.longitudinal <- function(object, bins = 20, randomize = FALSE, pl
   names(expected_df)[2] <- "expected"
 
   ggplot2::ggplot(pit_df, ggplot2::aes(x = pit)) +
-    ggplot2::geom_histogram(bins = bins, boundary = 0, closed = "left", fill = "#2c7fb8", color = "white") +
+    ggplot2::geom_histogram(breaks = seq(0, 1, length.out = bins + 1L), closed = "right", fill = "#2c7fb8", color = "white") +
     ggplot2::geom_hline(data = expected_df, ggplot2::aes(yintercept = expected), linetype = "dashed", linewidth = 0.4, color = "#444444") +
     ggplot2::facet_wrap(~time, scales = "free_y") +
+    ggplot2::scale_x_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.25), expand = c(0, 0)) +
     ggplot2::labs(x = "PIT", y = "Count", title = "PIT Histogram by Time") +
     ggplot2::theme_minimal()
 }

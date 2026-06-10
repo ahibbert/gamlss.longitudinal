@@ -78,6 +78,33 @@ test_that("T153 plot methods smoke test return dashboard structures", {
   pdiag <- suppressWarnings(plot(fit, data = dat))
   expect_true(is.list(pdiag))
   expect_true(all(c("diagnostics", "forecasts", "dashboard") %in% names(pdiag)))
+  expect_null(pdiag$forecasts$fitted_quantiles)
+  expect_null(pdiag$forecasts$newdata_quantiles)
+  expect_null(pdiag$fitted_data)
+  expect_null(pdiag$newdata_data)
+
+  pdiag_forecasts <- suppressWarnings(plot(
+    fit,
+    data = dat,
+    include_fitted_quantiles = TRUE,
+    include_newdata_quantiles = TRUE
+  ))
+  expect_s3_class(pdiag_forecasts$forecasts$fitted_quantiles, "ggplot")
+  expect_s3_class(pdiag_forecasts$forecasts$newdata_quantiles, "ggplot")
+  expect_true(is.data.frame(pdiag_forecasts$fitted_data))
+  expect_true(is.data.frame(pdiag_forecasts$newdata_data))
+})
+
+test_that("T153b PIT histogram bins stay inside unit interval", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 14L)
+  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+
+  pit_plot <- suppressWarnings(pithist(fit, bins = 20, plot = TRUE))
+  hist_layer <- ggplot2::ggplot_build(pit_plot)$data[[1]]
+
+  expect_true(all(hist_layer$xmin >= 0))
+  expect_true(all(hist_layer$xmax <= 1))
+  expect_equal(pit_plot$layers[[1]]$stat_params$breaks, seq(0, 1, length.out = 21L))
 })
 
 test_that("T154 plot_terms handles no-data fixed-term plots with many time levels", {
@@ -273,6 +300,65 @@ test_that("T159 standard fit inspection plotting helpers are available", {
   ))
   expect_gt(min(positive_margin_plot$density$response, na.rm = TRUE), 0)
   expect_true(any(is.finite(positive_margin_plot$density$density)))
+
+  set.seed(159)
+  gamma_low_end_response <- c(
+    0.02,
+    gamlss.dist::rGA(79, mu = 4, sigma = 0.35)
+  )
+  gamma_low_end_plot <- suppressWarnings(plot_margin_fit(
+    gamma_low_end_response,
+    margin_dist = gamlss.dist::GA(mu.link = "log", sigma.link = "log"),
+    plot = FALSE
+  ))
+  gamma_density <- gamma_low_end_plot$density
+  finite_density <- gamma_density[is.finite(gamma_density$density), ]
+  gamma_response <- gamma_low_end_plot$data$response
+  gamma_response <- gamma_response[is.finite(gamma_response) & gamma_response > 0]
+  old_lower_start <- max(
+    as.numeric(stats::quantile(gamma_response, probs = 0.05, type = 8, names = FALSE)),
+    max(gamma_response) * 0.02
+  )
+  expect_lt(min(finite_density$response), old_lower_start)
+  expect_gt(min(finite_density$response), 0)
+
+  set.seed(159)
+  unstable_bcpe_response <- gamlss.dist::rGG(
+    540,
+    mu = 7.2,
+    sigma = 0.96,
+    nu = 1.63
+  )
+  unstable_bcpe_plot <- NULL
+  expect_warning(
+    unstable_bcpe_plot <- plot_margin_fit(
+      unstable_bcpe_response,
+      margin_dist = gamlss.dist::BCPE(),
+      plot = FALSE
+    ),
+    "BCPE marginal overlay fit did not converge"
+  )
+  expect_s3_class(unstable_bcpe_plot$plot, "ggplot")
+  expect_equal(nrow(unstable_bcpe_plot$density), 0L)
+
+  unstable_bcpe_time_data <- data.frame(
+    response = unstable_bcpe_response,
+    time = rep(seq_len(3), length.out = length(unstable_bcpe_response))
+  )
+  unstable_bcpe_time_plot <- NULL
+  expect_warning(
+    unstable_bcpe_time_plot <- plot_margin_fit(
+      unstable_bcpe_time_data,
+      margin_dist = gamlss.dist::BCPE(),
+      response_var = "response",
+      time_var = "time",
+      by_time = TRUE,
+      plot = FALSE
+    ),
+    "BCPE marginal overlay fit did not converge"
+  )
+  expect_s3_class(unstable_bcpe_time_plot$plot, "ggplot")
+  expect_equal(nrow(unstable_bcpe_time_plot$density), 0L)
 
   time_intercept_margin_plot <- suppressWarnings(plot_margin_fit(
     dat,

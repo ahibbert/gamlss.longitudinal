@@ -7156,13 +7156,14 @@ plot.terms <- function(x, ...) {
 
 #' Plot diagnostics dashboard for fitted `gamlss.longitudinal` objects
 #'
-#' Displays six ggplot-based panels by default:
+#' Displays four ggplot-based diagnostic panels by default:
 #' 1) PIT histogram
 #' 2) QQ residual plot
 #' 3) Worm plot
 #' 4) Rootogram
-#' 5) Fitted-data quantile forecast plot
-#' 6) Newdata quantile forecast plot (if `newdata` or `data` supplied)
+#'
+#' Fitted-data and newdata quantile forecast panels can be requested
+#' explicitly with `include_fitted_quantiles` and `include_newdata_quantiles`.
 #'
 #' @param x A fitted `gamlss.longitudinal` object.
 #' @param y Unused; included for S3 generic compatibility.
@@ -7170,6 +7171,11 @@ plot.terms <- function(x, ...) {
 #' @param newdata Optional data frame for the newdata forecast panel.
 #' @param newdata_n Number of rows to use from `data` when `newdata` is NULL.
 #' @param quantiles Quantiles for forecast panels.
+#' @param include_fitted_quantiles Logical; if TRUE, include fitted-data
+#'   forecast quantiles in the dashboard.
+#' @param include_newdata_quantiles Logical; if TRUE, include newdata forecast
+#'   quantiles in the dashboard. Uses `newdata`, or the first `newdata_n` rows
+#'   of `data` if `newdata` is NULL.
 #' @param randomize Logical; randomized PIT/residual diagnostics.
 #' @param time_stratified Logical; if TRUE, show time-stratified PIT and worm plots.
 #' @param ... Additional arguments (currently unused).
@@ -7183,6 +7189,8 @@ plot.gamlss.longitudinal = function(
   newdata = NULL,
   newdata_n = 8,
   quantiles = c(0.1, 0.5, 0.9),
+  include_fitted_quantiles = FALSE,
+  include_newdata_quantiles = FALSE,
   randomize = TRUE,
   time_stratified = FALSE,
   ...
@@ -7210,36 +7218,48 @@ plot.gamlss.longitudinal = function(
   p_diag3 = wormplot(x, randomize = randomize, plot = TRUE, by_time = time_stratified)
   p_diag4 = rootogram(x, bins = 20, plot = TRUE)
 
-  # 5: Fitted-data forecast quantiles
-  fc_fit_q = procast(x, type = "quantile", at = quantiles)
-  fc_fit_q$idx = seq_len(nrow(fc_fit_q))
+  include_any_quantiles = isTRUE(include_fitted_quantiles) || isTRUE(include_newdata_quantiles)
+  if(include_any_quantiles && length(quantiles) == 0L) {
+    stop("'quantiles' must contain at least one probability when forecast quantile panels are requested.")
+  }
+  if(include_any_quantiles) {
+    q_low = q_col_name(min(quantiles))
+    q_high = q_col_name(max(quantiles))
+    q_mid = q_col_name(if(0.5 %in% quantiles) 0.5 else quantiles[ceiling(length(quantiles) / 2)])
+  }
 
-  q_low = q_col_name(min(quantiles))
-  q_high = q_col_name(max(quantiles))
-  q_mid = q_col_name(if(0.5 %in% quantiles) 0.5 else quantiles[ceiling(length(quantiles) / 2)])
+  p_fit_quant = NULL
+  fc_fit_q = NULL
+  if(isTRUE(include_fitted_quantiles)) {
+    fc_fit_q = procast(x, type = "quantile", at = quantiles)
+    fc_fit_q$idx = seq_len(nrow(fc_fit_q))
 
-  p_fit_quant = ggplot2::ggplot(fc_fit_q, ggplot2::aes(x = idx)) +
-    ggplot2::geom_ribbon(ggplot2::aes_string(ymin = q_low, ymax = q_high), fill = "#4e79a7", alpha = 0.25) +
-    ggplot2::geom_line(ggplot2::aes_string(y = q_mid), color = "#1f4e79", linewidth = 0.8) +
-    ggplot2::geom_point(ggplot2::aes(y = response), color = "black", alpha = 0.35, size = 0.9) +
-    ggplot2::labs(
-      title = "Fitted Forecast Quantiles",
-      x = "Observation Index",
-      y = "Response"
-    ) +
-    ggplot2::theme_minimal()
+    p_fit_quant = ggplot2::ggplot(fc_fit_q, ggplot2::aes(x = idx)) +
+      ggplot2::geom_ribbon(ggplot2::aes_string(ymin = q_low, ymax = q_high), fill = "#4e79a7", alpha = 0.25) +
+      ggplot2::geom_line(ggplot2::aes_string(y = q_mid), color = "#1f4e79", linewidth = 0.8) +
+      ggplot2::geom_point(ggplot2::aes(y = response), color = "black", alpha = 0.35, size = 0.9) +
+      ggplot2::labs(
+        title = "Fitted Forecast Quantiles",
+        x = "Observation Index",
+        y = "Response"
+      ) +
+      ggplot2::theme_minimal()
+  }
 
-  # 6: Newdata forecast quantiles
-  nd_use = newdata
-  if(is.null(nd_use) && !is.null(data) && is.data.frame(data)) {
-    nd_use = utils::head(data, newdata_n)
-    # ensure quantile-only mode (response optional)
-    if(is.null(x$var_map) || !"response" %in% x$var_map) {
-      nd_use$response = NA_real_
-    } else {
-      response_orig = names(x$var_map)[x$var_map == "response"][1]
-      if(!is.na(response_orig) && !response_orig %in% names(nd_use) && !"response" %in% names(nd_use)) {
-        nd_use[[response_orig]] = NA_real_
+  # Optional newdata forecast quantiles
+  nd_use = NULL
+  if(isTRUE(include_newdata_quantiles)) {
+    nd_use = newdata
+    if(is.null(nd_use) && !is.null(data) && is.data.frame(data)) {
+      nd_use = utils::head(data, newdata_n)
+      # ensure quantile-only mode (response optional)
+      if(is.null(x$var_map) || !"response" %in% x$var_map) {
+        nd_use$response = NA_real_
+      } else {
+        response_orig = names(x$var_map)[x$var_map == "response"][1]
+        if(!is.na(response_orig) && !response_orig %in% names(nd_use) && !"response" %in% names(nd_use)) {
+          nd_use[[response_orig]] = NA_real_
+        }
       }
     }
   }
@@ -7282,14 +7302,22 @@ plot.gamlss.longitudinal = function(
     }
   }
 
-  if(is.null(p_new_quant)) {
+  if(isTRUE(include_newdata_quantiles) && is.null(p_new_quant)) {
     p_new_quant = make_empty_plot("Newdata Forecast Quantiles", "Provide 'newdata' or 'data' for this panel")
   }
 
+  dashboard_plots = list(p_diag1, p_diag2, p_diag3, p_diag4)
+  if(!is.null(p_fit_quant)) {
+    dashboard_plots = c(dashboard_plots, list(p_fit_quant))
+  }
+  if(!is.null(p_new_quant)) {
+    dashboard_plots = c(dashboard_plots, list(p_new_quant))
+  }
+
   dashboard = ggpubr::ggarrange(
-    p_diag1, p_diag2, p_diag3, p_diag4, p_fit_quant, p_new_quant,
+    plotlist = dashboard_plots,
     ncol = 2,
-    nrow = 3
+    nrow = ceiling(length(dashboard_plots) / 2)
   )
   print(dashboard)
 
@@ -9286,14 +9314,17 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
 
 #' @keywords internal
 #' @noRd
-.plot_margin_constant_params <- function(y, family) {
+.plot_margin_constant_params <- function(y, family, warn = TRUE) {
   y <- as.numeric(y)
   y <- y[is.finite(y)]
   if (length(y) < 3L) {
     stop("Need at least three finite response values to fit a marginal overlay.", call. = FALSE)
   }
 
-  fit <- gamlss::gamlss(y ~ 1, family = family, trace = FALSE)
+  fit <- suppressWarnings(gamlss::gamlss(y ~ 1, family = family, trace = FALSE))
+  if (!.plot_margin_check_fit(fit, family, warn = warn)) {
+    return(NULL)
+  }
   params <- lapply(names(family$parameters), function(par_name) {
     as.numeric(stats::fitted(fit, what = par_name))
   })
@@ -9303,7 +9334,7 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
 
 #' @keywords internal
 #' @noRd
-.plot_margin_time_intercept_params <- function(y, time, family) {
+.plot_margin_time_intercept_params <- function(y, time, family, warn = TRUE) {
   y <- as.numeric(y)
   time <- as.character(time)
   keep <- is.finite(y) & !is.na(time)
@@ -9321,7 +9352,10 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
   for (par_name in setdiff(names(family$parameters), "mu")) {
     fit_args[[paste0(par_name, ".formula")]] <- stats::as.formula("~ time_intercept")
   }
-  fit <- do.call(gamlss::gamlss, fit_args)
+  fit <- suppressWarnings(do.call(gamlss::gamlss, fit_args))
+  if (!.plot_margin_check_fit(fit, family, warn = warn)) {
+    return(NULL)
+  }
 
   params <- lapply(names(family$parameters), function(par_name) {
     out <- rep(NA_real_, length(y))
@@ -9330,6 +9364,36 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
   })
   names(params) <- names(family$parameters)
   params
+}
+
+#' @keywords internal
+#' @noRd
+.plot_margin_check_fit <- function(fit, family, warn = TRUE) {
+  if (is.null(fit)) {
+    stop("The marginal overlay fit failed.", call. = FALSE)
+  }
+  if (identical(fit$converged, FALSE)) {
+    if (isTRUE(warn)) {
+      family_name <- .plot_margin_family_name(family)
+      warning(
+        "The ", family_name, " marginal overlay fit did not converge; no fitted density was drawn.",
+        call. = FALSE
+      )
+    }
+    return(FALSE)
+  }
+  TRUE
+}
+
+#' @keywords internal
+#' @noRd
+.plot_margin_empty_density <- function(group = "All") {
+  data.frame(
+    response = numeric(),
+    density = numeric(),
+    split_group = as.character(group)[0L],
+    stringsAsFactors = FALSE
+  )
 }
 
 #' @keywords internal
@@ -9419,9 +9483,9 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
       if (x_min <= support_bounds["lower"]) {
         yy_inside <- yy[is.finite(yy) & yy > support_bounds["lower"]]
         if (length(yy_inside) > 0L) {
-          range_floor <- support_bounds["lower"] + (x_max - support_bounds["lower"]) * 0.02
+          range_floor <- support_bounds["lower"] + (x_max - support_bounds["lower"]) * 0.01
           x_min <- max(
-            as.numeric(stats::quantile(yy_inside, probs = 0.05, type = 8, names = FALSE)),
+            as.numeric(stats::quantile(yy_inside, probs = 0.025, type = 8, names = FALSE)),
             range_floor,
             support_bounds["lower"] + max(diff(range(yy_inside, na.rm = TRUE)), abs(support_bounds["lower"]), 1) * 1e-6
           )
@@ -9584,27 +9648,49 @@ plot_margin_fit <- function(
         stringsAsFactors = FALSE
       )
       params <- .plot_margin_time_intercept_params(y, raw_time, margin_dist)
-      density_grid <- .plot_margin_density_grid(
-        y,
-        margin_dist,
-        params,
-        grid_n = grid_n,
-        group = if (isTRUE(by_time)) raw_time else NULL
-      )
+      density_grid <- if (is.null(params)) {
+        .plot_margin_empty_density()
+      } else {
+        .plot_margin_density_grid(
+          y,
+          margin_dist,
+          params,
+          grid_n = grid_n,
+          group = if (isTRUE(by_time)) raw_time else NULL
+        )
+      }
     } else {
       if (isTRUE(by_time)) {
         obs <- data.frame(response = y, split_group = as.character(raw_time), stringsAsFactors = FALSE)
+        overlay_failed <- FALSE
         density_grid <- do.call(rbind, lapply(names(split(obs, obs$split_group)), function(group_name) {
           df <- split(obs, obs$split_group)[[group_name]]
-          params <- .plot_margin_constant_params(df$response, margin_dist)
-          grid <- .plot_margin_density_grid(df$response, margin_dist, params, grid_n = grid_n)
-          grid$split_group <- group_name
+          params <- .plot_margin_constant_params(df$response, margin_dist, warn = FALSE)
+          grid <- if (is.null(params)) {
+            overlay_failed <<- TRUE
+            .plot_margin_empty_density(group_name)
+          } else {
+            .plot_margin_density_grid(df$response, margin_dist, params, grid_n = grid_n)
+          }
+          if (nrow(grid) > 0L) {
+            grid$split_group <- group_name
+          }
           grid
         }))
+        if (isTRUE(overlay_failed)) {
+          warning(
+            "The ", .plot_margin_family_name(margin_dist), " marginal overlay fit did not converge for at least one time group; no fitted density was drawn for failed group(s).",
+            call. = FALSE
+          )
+        }
       } else {
         obs <- data.frame(response = y, split_group = "All", stringsAsFactors = FALSE)
         params <- .plot_margin_constant_params(y, margin_dist)
-        density_grid <- .plot_margin_density_grid(y, margin_dist, params, grid_n = grid_n)
+        density_grid <- if (is.null(params)) {
+          .plot_margin_empty_density()
+        } else {
+          .plot_margin_density_grid(y, margin_dist, params, grid_n = grid_n)
+        }
       }
     }
 
