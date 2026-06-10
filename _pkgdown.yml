@@ -13,6 +13,7 @@ articles:
     navbar: Start Here
     contents:
       - site-guide
+      - five-minute-smoke-test
   - title: Worked Examples
     navbar: Worked Examples
     contents:
@@ -49,6 +50,8 @@ reference:
       - bootstrap_inference
       - predict.gamlss.longitudinal
       - marginal_effects
+      - reporting_table
+      - model_spec
       - simulate.gamlss.longitudinal
   - title: Diagnostics
     desc: Decision-oriented checks and visual diagnostics for fitted models.
