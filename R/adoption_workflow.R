@@ -284,6 +284,9 @@ select_margin <- function(
     if (is.null(fit)) {
       return(NA_real_)
     }
+    if (identical(fit$converged, FALSE)) {
+      return(NA_real_)
+    }
     aic <- tryCatch(stats::AIC(fit), error = function(e) NA_real_)
     as.numeric(aic)[1L]
   }, numeric(1), USE.NAMES = TRUE)
@@ -306,7 +309,14 @@ print.margin_screen <- function(x, ..., n = 10L) {
     return(invisible(x))
   }
   cat("Selected:", attr(x, "selected"), "\n\n")
-  print(utils::head(as.data.frame(x), n = n), row.names = FALSE)
+  display <- utils::head(as.data.frame(x), n = n)
+  unsupported <- "supported_by_longitudinal" %in% names(display) &
+    any(!display$supported_by_longitudinal, na.rm = TRUE)
+  display$supported_by_longitudinal <- NULL
+  print(display, row.names = FALSE)
+  if (isTRUE(unsupported)) {
+    cat("\nNote: one or more printed families are not currently supported by gamlss_longitudinal().\n")
+  }
   invisible(x)
 }
 
@@ -1045,7 +1055,7 @@ bootstrap_inference <- function(
     bootstrap_se = apply(boot_coef, 2, stats::sd, na.rm = TRUE),
     conf.low = apply(boot_coef, 2, q_na, prob = alpha / 2),
     conf.high = apply(boot_coef, 2, q_na, prob = 1 - alpha / 2),
-    successful_replicates = colSums(is.finite(boot_coef)),
+    reps = colSums(is.finite(boot_coef)),
     stringsAsFactors = FALSE
   )
 
@@ -1250,105 +1260,151 @@ simulate.gamlss.longitudinal <- function(
   out
 }
 
-.gl_check_table <- function(summary_obj, scores, pit_stats, tail_stats, lag1_cor, dependence_cor_cutoff = 0.25) {
-  checks <- list()
-  if (!isTRUE(summary_obj$convergence$converged)) {
-    checks[[length(checks) + 1L]] <- data.frame(
-      area = "convergence",
-      severity = "concern",
-      message = "Convergence was not confirmed.",
-      action = "Refit with more iterations, different starts, or a simpler specification.",
+.gl_check_table <- function(summary_obj, scores, pit_stats, tail_stats, lag1_cor,
+                            dependence_cor_cutoff = 0.25, vcov_method = NA_character_) {
+  row <- function(area, quantity_checked, value, threshold_condition, default,
+                  status, message, action) {
+    severity <- switch(
+      status,
+      FAIL = "concern",
+      REVIEW = "review",
+      PASS = "ok",
+      "ok"
+    )
+    data.frame(
+      area = area,
+      quantity_checked = quantity_checked,
+      value = value,
+      threshold_condition = threshold_condition,
+      default = default,
+      status = status,
+      severity = severity,
+      message = message,
+      action = action,
       stringsAsFactors = FALSE
     )
   }
-  if (is.finite(pit_stats$ks_p_value) && pit_stats$ks_p_value < 0.05) {
-    checks[[length(checks) + 1L]] <- data.frame(
-      area = "marginal_calibration",
-      severity = "concern",
-      message = "The marginal distribution is off by the PIT uniformity screen.",
-      action = "Inspect PIT, QQ, worm, and rootogram diagnostics; try a richer margin or covariate specification.",
-      stringsAsFactors = FALSE
+
+  converged <- isTRUE(summary_obj$convergence$converged)
+  marginal_fail <- is.finite(pit_stats$ks_p_value) && pit_stats$ks_p_value < 0.05
+  tail_fail <- is.finite(tail_stats$tail_ratio_max) && tail_stats$tail_ratio_max > 2
+  copula_fail <- is.finite(lag1_cor) && abs(lag1_cor) > dependence_cor_cutoff
+  variance_review <- identical(vcov_method, "numderiv")
+
+  do.call(rbind, list(
+    row(
+      area = "Convergence",
+      quantity_checked = "object$convergence$converged",
+      value = if (converged) "TRUE" else "not TRUE",
+      threshold_condition = "Not TRUE",
+      default = "n/a",
+      status = if (converged) "PASS" else "FAIL",
+      message = if (converged) "Convergence was confirmed." else "Convergence was not confirmed.",
+      action = if (converged) {
+        "Continue with broader diagnostics."
+      } else {
+        "Refit with more iterations, different starts, or a simpler specification."
+      }
+    ),
+    row(
+      area = "Marginal fit",
+      quantity_checked = "PIT Kolmogorov-Smirnov p-value vs Uniform(0, 1)",
+      value = if (is.finite(pit_stats$ks_p_value)) formatC(pit_stats$ks_p_value, digits = 4, format = "fg") else NA_character_,
+      threshold_condition = "ks_p_value < 0.05",
+      default = "0.05",
+      status = if (marginal_fail) "FAIL" else "PASS",
+      message = if (marginal_fail) {
+        "The marginal distribution is off by the PIT uniformity screen."
+      } else {
+        "The PIT uniformity screen did not flag marginal misfit."
+      },
+      action = if (marginal_fail) {
+        "Inspect PIT, QQ, worm, and rootogram diagnostics; try a richer margin or covariate specification."
+      } else {
+        "Continue with visual marginal diagnostics."
+      }
+    ),
+    row(
+      area = "Tail fit",
+      quantity_checked = "Maximum lower/upper PIT tail ratio over thresholds 0.05 and 0.10",
+      value = if (is.finite(tail_stats$tail_ratio_max)) formatC(tail_stats$tail_ratio_max, digits = 4, format = "fg") else NA_character_,
+      threshold_condition = "max(lower_ratio, upper_ratio) > 2",
+      default = "2",
+      status = if (tail_fail) "FAIL" else "PASS",
+      message = if (tail_fail) {
+        "Tail observations occur more often than the fitted margin expects."
+      } else {
+        "The basic PIT tail-ratio screen did not flag tail misfit."
+      },
+      action = if (tail_fail) {
+        "Inspect lower/upper PIT tails and consider heavier-tailed or asymmetric margins."
+      } else {
+        "Continue with tail-sensitive diagnostics when tails are substantively important."
+      }
+    ),
+    row(
+      area = "Copula fit",
+      quantity_checked = "Absolute lag-1 Rosenblatt normal-score residual correlation after fitted copula",
+      value = if (is.finite(lag1_cor)) formatC(abs(lag1_cor), digits = 4, format = "fg") else NA_character_,
+      threshold_condition = "abs(lag1_cor) > dependence_cor_cutoff",
+      default = formatC(dependence_cor_cutoff, digits = 4, format = "fg"),
+      status = if (copula_fail) "FAIL" else "PASS",
+      message = if (copula_fail) {
+        paste0(
+          "Dependence remains after the copula in Rosenblatt normal-score residuals (|lag-1 cor| > ",
+          dependence_cor_cutoff,
+          ")."
+        )
+      } else {
+        "The lag-1 Rosenblatt residual correlation screen did not flag residual dependence."
+      },
+      action = if (copula_fail) {
+        "Consider a different copula family, time-varying dependence, richer serial structure, or a sensitivity refit before treating this as a failure."
+      } else {
+        "Continue with broader copula diagnostics."
+      }
+    ),
+    row(
+      area = "Variance calculation",
+      quantity_checked = "Variance-covariance method from summary",
+      value = if (is.na(vcov_method) || !nzchar(vcov_method)) NA_character_ else vcov_method,
+      threshold_condition = 'vcov_method == "numderiv"',
+      default = "n/a",
+      status = if (variance_review) "REVIEW" else "PASS",
+      message = if (variance_review) {
+        "Variance-covariance inference used the numerical Hessian path."
+      } else {
+        "The variance-covariance method did not trigger the numerical-Hessian review screen."
+      },
+      action = if (variance_review) {
+        "Cite intervals and tests as approximate numerical-Hessian inference."
+      } else {
+        "Continue with inference checks when reporting intervals or tests."
+      }
     )
-  }
-  if (is.finite(tail_stats$tail_ratio_max) && tail_stats$tail_ratio_max > 2) {
-    checks[[length(checks) + 1L]] <- data.frame(
-      area = "tail_calibration",
-      severity = "review",
-      message = "Tail observations occur more often than the fitted margin expects.",
-      action = "Inspect lower/upper PIT tails and consider heavier-tailed or asymmetric margins.",
-      stringsAsFactors = FALSE
-    )
-  }
-  if (is.finite(lag1_cor) && abs(lag1_cor) > dependence_cor_cutoff) {
-    checks[[length(checks) + 1L]] <- data.frame(
-      area = "dependence",
-      severity = "concern",
-      message = paste0(
-        "Dependence remains after the copula in Rosenblatt normal-score residuals (|lag-1 cor| > ",
-        dependence_cor_cutoff,
-        ")."
-      ),
-      action = "Consider a different copula family, time-varying dependence, richer serial structure, or a sensitivity refit before treating this as a failure.",
-      stringsAsFactors = FALSE
-    )
-  }
-  if (!is.null(summary_obj$fit$vcov_method) && identical(summary_obj$fit$vcov_method, "numderiv")) {
-    checks[[length(checks) + 1L]] <- data.frame(
-      area = "inference",
-      severity = "note",
-      message = "Variance-covariance inference used the numerical Hessian path.",
-      action = "Cite intervals and tests as approximate numerical-Hessian inference.",
-      stringsAsFactors = FALSE
-    )
-  }
-  if (length(checks) == 0L) {
-    checks[[1L]] <- data.frame(
-      area = "overall",
-      severity = "ok",
-      message = "No major automatic diagnostic warnings were triggered.",
-      action = "Continue with visual diagnostics and subject-matter checks.",
-      stringsAsFactors = FALSE
-    )
-  }
-  do.call(rbind, checks)
+  ))
 }
 
-.gl_decision_messages <- function(checks) {
-  flagged <- checks[checks$severity %in% c("concern", "review", "note"), , drop = FALSE]
-  if (nrow(flagged) == 0L) {
-    return("No major automatic diagnostic warnings were triggered.")
-  }
-  paste(flagged$message, flagged$action)
+.gl_basic_checks <- function(checks) {
+  checks[, c("area", "status", "value", "threshold_condition", "message"), drop = FALSE]
 }
 
-.gl_model_recommendation <- function(checks) {
-  if (any(checks$severity == "concern", na.rm = TRUE)) {
-    return(data.frame(
-      role = "revise_before_primary",
-      message = "At least one diagnostic concern should be addressed before using this model as the primary analysis.",
-      stringsAsFactors = FALSE
-    ))
+.gl_basic_checks_result <- function(checks) {
+  if (any(checks$status == "FAIL", na.rm = TRUE)) {
+    return("failed")
   }
-  if (any(checks$severity %in% c("review", "note"), na.rm = TRUE)) {
-    return(data.frame(
-      role = "primary_candidate_with_caveats",
-      message = "No automatic diagnostic concern was triggered, but review or inference notes should be reported.",
-      stringsAsFactors = FALSE
-    ))
+  if (any(checks$status == "REVIEW", na.rm = TRUE)) {
+    return("review")
   }
-  data.frame(
-    role = "primary_candidate",
-    message = "No major automatic diagnostic warnings were triggered; continue with visual and subject-matter checks.",
-    stringsAsFactors = FALSE
-  )
+  "passed"
 }
 
 #' Check a fitted longitudinal GAMLSS-copula model
 #'
-#' `check_model()` turns diagnostics into a compact set of decisions for broad
-#' applied use. It does not replace visual inspection, but it provides a stable
-#' first pass over convergence, marginal calibration, residual dependence, and
-#' scoring summaries.
+#' `check_model()` turns diagnostics into a compact set of basic automated
+#' checks for broad applied use. It does not replace visual inspection, but it
+#' provides a stable first pass over convergence, marginal calibration, residual
+#' dependence, and scoring summaries.
 #'
 #' @param object A fitted `gamlss.longitudinal` object.
 #' @param include_vcov Logical; include variance-covariance inference metadata
@@ -1362,10 +1418,10 @@ simulate.gamlss.longitudinal <- function(
 #' @param ... Passed to [summary.gamlss.longitudinal()] when `include_vcov` is
 #'   `TRUE`.
 #'
-#' @return An object of class `gamlss_longitudinal_check`, including a full
-#'   `checks` table, a filtered `warnings` table for diagnostics that should be
-#'   reviewed or reported, and a compact `recommendation` row for model role
-#'   decisions.
+#' @return An object of class `gamlss_longitudinal_check`, including a compact
+#'   `basic_checks` table, a full `checks` table, a `warnings` table containing
+#'   failed checks, and overall `basic_checks_passed` and `basic_checks_result`
+#'   fields.
 #' @export
 check_model <- function(
   object,
@@ -1406,15 +1462,28 @@ check_model <- function(
   lag1_cor <- residual_dependence$normal_score_cor[match(1L, residual_dependence$lag)]
   if (length(lag1_cor) == 0L) lag1_cor <- NA_real_
   copula_summary <- tryCatch(copula_time_summary(object), error = function(e) NULL)
+  vcov_method <- s$vcov$method %||% s$fit$vcov_method %||% NA_character_
   checks <- .gl_check_table(
     summary_obj = list(fit = s$fit, convergence = object$convergence),
     scores = scores,
     pit_stats = pit_stats,
     tail_stats = tail_stats,
     lag1_cor = lag1_cor,
-    dependence_cor_cutoff = dependence_cor_cutoff
+    dependence_cor_cutoff = dependence_cor_cutoff,
+    vcov_method = vcov_method
   )
-  warnings <- checks[checks$severity %in% c("concern", "review", "note"), , drop = FALSE]
+  warnings <- checks[checks$status == "FAIL", , drop = FALSE]
+  basic_checks_result <- .gl_basic_checks_result(checks)
+  if (nrow(warnings) > 0L) {
+    warning(
+      paste0(
+        "Basic model checks failed: ",
+        paste(warnings$area, collapse = ", "),
+        ". Review check$warnings and broader diagnostics."
+      ),
+      call. = FALSE
+    )
+  }
 
   out <- list(
     model = s$model,
@@ -1425,10 +1494,11 @@ check_model <- function(
     tail = tail_summary,
     residual_dependence = transform(residual_dependence, cutoff = dependence_cor_cutoff),
     copula = copula_summary,
+    basic_checks = .gl_basic_checks(checks),
+    basic_checks_passed = !any(checks$status == "FAIL", na.rm = TRUE),
+    basic_checks_result = basic_checks_result,
     checks = checks,
     warnings = warnings,
-    recommendation = .gl_model_recommendation(checks),
-    decisions = .gl_decision_messages(checks),
     plots = if (isTRUE(include_plots)) {
       list(
         pithist = pithist(object, plot = TRUE),
@@ -1446,40 +1516,45 @@ check_model <- function(
 
 #' @export
 print.gamlss_longitudinal_check <- function(x, digits = max(3, getOption("digits") - 3), ...) {
-  cat("\nGAMLSS Longitudinal Model Check\n")
-  cat("------------------------------\n")
-  cat("Margin distribution:", x$model$margin_dist, "\n")
-  cat("Copula distribution:", x$model$copula_dist, "\n")
-  cat("Converged:", if (isTRUE(x$convergence$converged)) "yes" else "no", "\n")
-  if (!is.null(x$fit$logLik) && is.finite(x$fit$logLik)) {
-    cat("Joint logLik:", formatC(x$fit$logLik, digits = digits, format = "fg"), "\n")
+  fmt_num <- function(value) {
+    if (length(value) == 0L || is.null(value) || !is.finite(value)) {
+      return("n/a")
+    }
+    formatC(value, digits = digits, format = "fg")
   }
-  cat("\nScoring summary:\n")
+  section <- function(title) {
+    cat("\n", title, "\n", paste(rep("-", nchar(title)), collapse = ""), "\n", sep = "")
+  }
+
+  cat("\n")
+  cat("GAMLSS Longitudinal Model Check\n")
+  cat("===============================\n")
+  cat("Margin: ", x$model$margin_dist, "    Copula: ", x$model$copula_dist, "\n", sep = "")
+  cat("LogLik: ", fmt_num(x$fit$logLik), "    Converged: ", if (isTRUE(x$convergence$converged)) "yes" else "no", "\n", sep = "")
+
+  if (!is.null(x$basic_checks)) {
+    section("Basic Checks")
+    basic_display <- x$basic_checks[, c("area", "status"), drop = FALSE]
+    names(basic_display) <- c("Area", "Status")
+    print(basic_display, row.names = FALSE, right = FALSE)
+    cat("\nResult: ", toupper(x$basic_checks_result), "\n", sep = "")
+    cat("Note: these are basic automated checks; broader model diagnostics should also be reviewed.\n")
+  }
+
+  section("Scores")
   print(x$scores, digits = digits, row.names = FALSE)
-  cat("\nPIT summary:\n")
+
+  section("PIT")
   print(x$pit, digits = digits, row.names = FALSE)
+
   if (!is.null(x$tail)) {
-    cat("\nTail calibration:\n")
+    section("Tail Calibration")
     print(x$tail, digits = digits, row.names = FALSE)
   }
-  cat("\nResidual dependence:\n")
+
+  section("Residual Dependence")
   print(x$residual_dependence, digits = digits, row.names = FALSE)
-  if (!is.null(x$checks)) {
-    cat("\nDiagnostic checks:\n")
-    print(x$checks, digits = digits, row.names = FALSE)
-  }
-  if (!is.null(x$warnings) && nrow(x$warnings) > 0L) {
-    cat("\nWarnings to report:\n")
-    print(x$warnings, digits = digits, row.names = FALSE)
-  }
-  if (!is.null(x$recommendation)) {
-    cat("\nRecommendation:\n")
-    print(x$recommendation, digits = digits, row.names = FALSE)
-  }
-  cat("\nDecisions:\n")
-  for (msg in x$decisions) {
-    cat("* ", msg, "\n", sep = "")
-  }
+  cat("\nUse check$checks for thresholds and check$warnings for failed-check details.\n")
   invisible(x)
 }
 
