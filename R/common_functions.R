@@ -1988,7 +1988,7 @@ gamlss_longitudinal=function(dataset,
 
     while(!cg_converged && outer_only_run_counter < max_outer_iter) {
       check_elapsed_budget("CG outer iteration")
-      cat(paste("\nOUTER ITERATION:", outer_only_run_counter))
+      if(verbose > 0) cat(paste("\nOUTER ITERATION:", outer_only_run_counter))
       cg_trust_radius_start <- cg_trust_radius
       eval_start <- cg_eval(beta_all, mm_cg)
       if(is.null(eval_start) || !is.finite(eval_start$loglik)) stop("CG failed: current likelihood is not finite.")
@@ -2162,8 +2162,10 @@ gamlss_longitudinal=function(dataset,
       }
       out_temp <- c(outer_start_log_lik, outer_end_log_lik, outer_log_lik_change)
       names(out_temp) <- c("Start LogLik", "End LogLik", "Change")
-      cat("\n")
-      print(out_temp)
+      if(verbose > 0) {
+        cat("\n")
+        print(out_temp)
+      }
 
       grad_inf <- max(abs(g_pen), na.rm = TRUE)
       step_l2 <- if(is.null(best)) 0 else best$step_l2
@@ -2221,7 +2223,7 @@ gamlss_longitudinal=function(dataset,
           } else {
             "max_stall"
           }
-          if(identical(cg_stop_reason, "tolerance")) cat("\nOUTER CONVERGED")
+          if(identical(cg_stop_reason, "tolerance") && verbose > 0) cat("\nOUTER CONVERGED")
           if(identical(cg_stop_reason, "raw_loglik_deterioration") && verbose > 0) {
             cat(paste0(
               "\nCG stopped after raw log-likelihood dropped ",
@@ -2260,7 +2262,7 @@ gamlss_longitudinal=function(dataset,
   while ((first_outer_run==TRUE | (abs(outer_log_lik_change)>outer_stop_crit)) & outer_only_run_counter < max_outer_iter) {
     check_elapsed_budget("RS outer iteration")
 
-    cat(paste("\nOUTER ITERATION:",outer_only_run_counter))
+    if(verbose > 0) cat(paste("\nOUTER ITERATION:",outer_only_run_counter))
     first_outer_run=TRUE
 
     # RUN INNER ITERATION FOR EACH PARAMETER
@@ -2820,8 +2822,10 @@ gamlss_longitudinal=function(dataset,
 
     out_temp=c(outer_start_log_lik,outer_end_log_lik,outer_log_lik_change)
     names(out_temp) = c("Start LogLik","End LogLik","Change")
-    cat("\n")
-    print(out_temp)
+    if(verbose > 0) {
+      cat("\n")
+      print(out_temp)
+    }
 
     if(is.finite(outer_log_lik_change) && outer_log_lik_change < 0) {
       outer_negative_streak = outer_negative_streak + 1
@@ -2842,8 +2846,10 @@ gamlss_longitudinal=function(dataset,
 
 
     if(abs(outer_log_lik_change)<=outer_stop_crit) {
-      print(c(outer_end_log_lik-outer_start_log_lik))
-      cat("\nOUTER CONVERGED")
+      if(verbose > 0) {
+        print(c(outer_end_log_lik-outer_start_log_lik))
+        cat("\nOUTER CONVERGED")
+      }
     }
 
   }
@@ -2883,23 +2889,7 @@ gamlss_longitudinal=function(dataset,
     )
   }
 
-  cat("\n\n############ MODEL FIT ############\n")
-  cat(paste("\nMargin distribution:",margin_dist$family[2]))
-  cat(paste("\nCopula distribution:",copula_dist))
-  cat("\n")
-  cat(paste("\nParameter count:",length(par_cov)))
-  cat(paste("\nObservations:",nrow(dataset)))
-  cat(paste("\nMargins:",length(unique(dataset$time))))
-  cat("\n")
   total_fit_time <- as.numeric(difftime(Sys.time(), fit_start_time, units = "secs"))
-  cat(paste("\nTotal time (seconds):",round(total_fit_time,2)))
-  cat("\n\n")
-  par_mat_out_temp=t(t((par_cov)))
-  colnames(par_mat_out_temp) = c("estimate")
-  print(par_mat_out_temp)
-  cat("\n")
-  cat("Model Selection Criteria:")
-  cat("\n")
 
   p_cop=par_cov[grepl("theta",names(par_cov))|grepl("zeta",names(par_cov))]
   p_mar=par_cov[!(grepl("theta",names(par_cov))|grepl("zeta",names(par_cov)))]
@@ -2921,9 +2911,26 @@ gamlss_longitudinal=function(dataset,
              )
 
   rownames(aics)=c("LogLik","AIC","BIC","EDF")
-  print(aics)
-
-  cat("\n####################################\n")
+  if(verbose > 0) {
+    cat("\n\n############ MODEL FIT ############\n")
+    cat(paste("\nMargin distribution:",margin_dist$family[2]))
+    cat(paste("\nCopula distribution:",copula_dist))
+    cat("\n")
+    cat(paste("\nParameter count:",length(par_cov)))
+    cat(paste("\nObservations:",nrow(dataset)))
+    cat(paste("\nMargins:",length(unique(dataset$time))))
+    cat("\n")
+    cat(paste("\nTotal time (seconds):",round(total_fit_time,2)))
+    cat("\n\n")
+    par_mat_out_temp=t(t((par_cov)))
+    colnames(par_mat_out_temp) = c("estimate")
+    print(par_mat_out_temp)
+    cat("\n")
+    cat("Model Selection Criteria:")
+    cat("\n")
+    print(aics)
+    cat("\n####################################\n")
+  }
 
   return_list=list(par_cov,log_lik_history,par_history,calc_lik_out_end,mm,margin_dist,copula_dist,include_dlcopdpar,dataset$response,dataset$time,dataset$subject,par_s,lambda_s,df_s,weights_final)
   names(return_list)=c("par","log_lik_history","par_history","calc_lik_out_end","model_matrix","margin_dist","copula_dist","include_dlcopdpar","response","response_margin","response_subject","par_s","lambda_s","df_s","weights")
@@ -4765,7 +4772,7 @@ calc_true_SE_numderiv_only_covariates = function(object, par, mm, margin_dist,re
 
   base_loglik=eval_joint_loglik(input_par)
 
-  cat("Calculating numerical first derivates for Hessian matrix...\n")
+  if(progress) cat("Calculating numerical first derivates for Hessian matrix...\n")
   pb_first <- NULL
   if(progress) {
     pb_first <- utils::txtProgressBar(min=0, max=length(par_names), style=3)
@@ -4797,7 +4804,7 @@ calc_true_SE_numderiv_only_covariates = function(object, par, mm, margin_dist,re
   }
   if(progress) cat("\n")
 
-  cat("Calculating numerical second derivates for Hessian matrix... this may take a while\n")
+  if(progress) cat("Calculating numerical second derivates for Hessian matrix... this may take a while\n")
   p=length(par_names)
   nd_cross=matrix(0,nrow=p,ncol=p)
   colnames(nd_cross)=rownames(nd_cross)=par_names
@@ -5119,7 +5126,16 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
     if(!is.matrix(vc) || any(!is.finite(vc)) || any(!is.finite(se))) {
       stop("Hessian inversion produced non-finite variance-covariance values.", call. = FALSE)
     }
-    list(vcov = vc, se = se)
+    eig <- tryCatch(eigen((H + t(H)) / 2, symmetric = TRUE, only.values = TRUE)$values, error = function(e) NA_real_)
+    list(
+      vcov = vc,
+      se = se,
+      hessian_diagnostics = list(
+        condition_number = tryCatch(kappa(H), error = function(e) NA_real_),
+        min_abs_eigen = if (any(is.finite(eig))) min(abs(eig[is.finite(eig)])) else NA_real_,
+        max_abs_eigen = if (any(is.finite(eig))) max(abs(eig[is.finite(eig)])) else NA_real_
+      )
+    )
   }
 
   if (method == "numderiv") {
@@ -5169,6 +5185,7 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
       hessian_nd <- analytical_hessian
       vcov_final <- analytical_vcov$vcov
       se_final <- analytical_vcov$se
+      hessian_diagnostics <- analytical_vcov$hessian_diagnostics
     }
   } else {
 
@@ -5318,6 +5335,7 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
       vcov_solved <- solve_hessian_vcov(hessian_nd)
       vcov_final <- vcov_solved$vcov
       se_final <- vcov_solved$se
+      hessian_diagnostics <- vcov_solved$hessian_diagnostics
     }
   } else {
     vcov_final = -(solve((d2_mat)))/(length(response))
@@ -5444,7 +5462,8 @@ vcov.gamlss.longitudinal=function(object,par=NA,sep_d2=TRUE,numderiv=FALSE,
     vcov=vcov_final_with_smooth,
     se=se_final_with_smooth,
     method=method_used,
-    method_requested=method_requested
+    method_requested=method_requested,
+    hessian_diagnostics=hessian_diagnostics %||% NULL
   ))
 
 }
@@ -5660,6 +5679,9 @@ summary.gamlss.longitudinal = function(
       ci_level = ci_level,
       vcov_included = isTRUE(include_vcov),
       vcov_numderiv = isTRUE(numderiv),
+      vcov_method = vcov_out$method %||% object$vcov_meta$method_used %||% object$vcov_meta$method %||% NA_character_,
+      vcov_method_requested = vcov_out$method_requested %||% object$vcov_meta$method %||% NA_character_,
+      hessian_diagnostics = vcov_out$hessian_diagnostics %||% NULL,
       model_selection = model_selection
     ),
     smooth_terms = {
@@ -5754,6 +5776,17 @@ print.summary.gamlss.longitudinal = function(x, digits = max(3, getOption("digit
   cat("Fixed coefficients:", x$model$n_fixed,
       " | Smooth terms:", x$model$n_smooth_terms,
       " | Smooth EDF:", format(round(x$model$edf_smooth, digits), nsmall = 2), "\n")
+  if (isTRUE(x$fit$vcov_included)) {
+    cat(
+      "VCOV:", x$fit$vcov_method %||% "unknown",
+      " | Requested:", x$fit$vcov_method_requested %||% "unknown",
+      "\n"
+    )
+    hd <- x$fit$hessian_diagnostics
+    if (!is.null(hd) && is.finite(hd$condition_number %||% NA_real_)) {
+      cat("Hessian condition number:", formatC(hd$condition_number, digits = digits, format = "fg"), "\n")
+    }
+  }
 
   cat("\nFixed coefficients:\n")
   cat("--------------------\n")
