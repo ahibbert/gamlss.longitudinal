@@ -190,7 +190,9 @@ simulate_longitudinal_covariates <- function(data, subject = list(), observation
 #' @param covariates Optional data frame or function returning covariates. A
 #'   data frame may have either `n` rows for subject-level covariates or
 #'   `n * length(times)` rows for long-format covariates. A function is called
-#'   with the base long-format data.
+#'   with the base long-format data. It may return only new covariate columns
+#'   or the input data with new columns added; columns already present in the
+#'   base design are ignored.
 #' @param seed Optional random seed.
 #' @param subject_var,time_var,response_var Column names for the subject, time,
 #'   and response variables.
@@ -357,14 +359,10 @@ simulate_longitudinal_dataset <- function(
     )
   }
   overlap <- intersect(names(long), names(covariates))
-  overlap <- setdiff(overlap, subject_var)
   if (length(overlap) > 0L) {
-    stop(
-      "covariates contains columns already used by the simulated data: ",
-      paste(overlap, collapse = ", "),
-      call. = FALSE
-    )
+    covariates <- covariates[, setdiff(names(covariates), overlap), drop = FALSE]
   }
+  if (ncol(covariates) == 0L) return(long)
   cbind(long, covariates)
 }
 
