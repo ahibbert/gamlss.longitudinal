@@ -97,7 +97,9 @@ Routine tests must remain CRAN- and CI-friendly. Long-running recovery,
 benchmark, and stress tests are opt-in:
 
 ```sh
-GAMLSS_LONGITUDINAL_EXTENDED_TESTS=true Rscript -e "testthat::test_dir('tests/testthat')"
+Rscript -e "source('inst/smoke-tests/new-user-smoke.R')"
+Rscript -e "pkgload::load_all(); testthat::test_file('tests/testthat/test-p0-user-facing-estimands.R')"
+GAMLSS_LONGITUDINAL_EXTENDED_TESTS=true Rscript -e "pkgload::load_all(); testthat::test_dir('tests/testthat')"
 ```
 
 Extended tests may cover multi-seed parameter recovery, larger panels,
