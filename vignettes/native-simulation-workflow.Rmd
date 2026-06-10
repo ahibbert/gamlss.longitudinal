@@ -710,14 +710,32 @@ It will be common for the user to be more familiar with fits from a GEE using, f
 
 These comparison models should be treated as approximate or directional, as for a completely fair comparison the models selected for the benchmark comparison models should be (ideally) carefully selected within their own modelling framework rather than relying on the choices made for margin covariates made through the gamlss.longitudinal workflow. 
 
+The selected final model does not include `time` on `mu`, while the benchmark mean model below does include a linear `time` term. To keep the selected final model unchanged while making the benchmark comparison like-for-like on the mean formula, we fit an additional comparison-only GAMLSS longitudinal model that adds `time` to `mu` and leaves the other final-model components unchanged.
+
+<details>
+```{r fit-benchmark-mu-time, results='hide'}
+fit_benchmark_mu_time <- gamlss_longitudinal(
+  dataset = dataset,
+  margin_dist = GG(),
+  copula_dist = "C",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment + time + s(age),
+  sigma.formula = ~ treatment + time + s(age),
+  nu.formula = ~ 1,
+  theta.formula = ~ time + s(age)
+)
+```
+</details>
+
 ```{r benchmarking-models}
 bench <- benchmark_standard_models(
   data = dat,
   formula = response ~ treatment + time + s(age),
   subject_var = "subject",
   family = "gamma",
-  fit = fit,
-  fit_name = "gamlss_longitudinal"
+  fit = fit_benchmark_mu_time,
+  fit_name = "gamlss_longitudinal_mu_time"
 )
 print(bench)
 ```
@@ -737,6 +755,18 @@ fit_reduced <- gamlss_longitudinal(
   nu.formula = ~ 1,
   theta.formula = ~ (time)
 )
+
+fit_reduced_mu_time <- gamlss_longitudinal(
+  dataset = dataset,
+  margin_dist = GG(),
+  copula_dist = "C",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment + time,
+  sigma.formula = ~ treatment + (time),
+  nu.formula = ~ 1,
+  theta.formula = ~ (time)
+)
 ```
 </details>
 
@@ -748,8 +778,8 @@ bench <- benchmark_standard_models(
   formula = response ~ treatment + time,
   subject_var = "subject",
   family = "gamma",
-  fit = fit_reduced,
-  fit_name = "gamlss_longitudinal"
+  fit = fit_reduced_mu_time,
+  fit_name = "gamlss_longitudinal_mu_time"
 )
 print(bench)
 ```

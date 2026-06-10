@@ -106,7 +106,9 @@ positive continuous responses, and <code>"realAll"</code> otherwise.</p></dd>
 <dd><p>Logical; if <code>TRUE</code>, rank retained families by a
 GAMLSS fit with factor time intercepts for each distribution parameter.
 This is useful for longitudinal screening where the final model is allowed
-to vary marginal location, scale, or shape over time.</p></dd>
+to vary marginal location, scale, or shape over time. Finite-AIC fits are
+retained even if the temporary GAMLSS fit did not report convergence; check
+the returned <code>converged</code> column before selecting a final marginal family.</p></dd>
 
 
 <dt id="arg-time-var">time_var<a class="anchor" aria-label="anchor" href="#arg-time-var"></a></dt>
@@ -120,10 +122,12 @@ to vary marginal location, scale, or shape over time.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A data frame ordered by AIC and class <code>margin_selection</code>. The
-selected family is also stored in the <code>"selected"</code> attribute for backward
-compatibility. Use <code><a href="best_fit.html">best_fit()</a></code> or <code><a href="best_fit.html">best_fit_family()</a></code> to extract the
-selected family in a fitting-friendly form.</p>
+    <p>A data frame ordered by AIC and class <code>margin_selection</code>. With
+<code>time_intercepts = TRUE</code>, the table includes a <code>converged</code> column for the
+temporary time-intercept marginal fit. The selected family is also stored in
+the <code>"selected"</code> attribute for backward compatibility. Use <code><a href="best_fit.html">best_fit()</a></code> or
+<code><a href="best_fit.html">best_fit_family()</a></code> to extract the selected family in a fitting-friendly
+form.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

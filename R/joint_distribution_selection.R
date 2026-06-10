@@ -567,6 +567,10 @@ print.joint_distribution_selection <- function(x, ..., n = 10L) {
     ),
     names(x)
   )
-  print(utils::head(as.data.frame(x)[cols], n = n), row.names = FALSE)
+  display <- utils::head(as.data.frame(x)[cols], n = n)
+  print(display, row.names = FALSE)
+  if ("converged" %in% names(display) && any(!display$converged, na.rm = TRUE)) {
+    cat("\nWarning: one or more printed joint candidate fits did not report convergence.\n")
+  }
   invisible(x)
 }

@@ -329,7 +329,8 @@ best_fit_family.copula_selection <- function(x, ...) {
     formula = mu.formula,
     family = margin_dist,
     data = data,
-    trace = FALSE
+    trace = FALSE,
+    control = gamlss::gamlss.control(n.cyc = 100, trace = FALSE)
   )
   parameter_names <- names(margin_dist$parameters)
   if ("sigma" %in% parameter_names) args$sigma.fo <- .select_copula_rhs_formula(sigma.formula)
@@ -364,6 +365,13 @@ best_fit_family.copula_selection <- function(x, ...) {
       stop("Temporary marginal model for copula selection failed: ", conditionMessage(e), call. = FALSE)
     }
   )
+  if (identical(margin_fit$converged, FALSE)) {
+    warning(
+      "Temporary marginal model for copula selection did not report convergence; ",
+      "pseudo-observations will still be used for screening. Review the selected fit before final modelling.",
+      call. = FALSE
+    )
+  }
 
   cdf_args <- list(q = data_fit[[response_var]], y = data_fit[[response_var]], x = data_fit[[response_var]])
   for (parameter in parameter_names) {

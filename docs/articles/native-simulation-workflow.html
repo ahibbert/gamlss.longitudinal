@@ -427,15 +427,19 @@ consumed.</p>
 <span><span class="co">#&gt; ----------------------------</span></span>
 <span><span class="co">#&gt; Selected: GA </span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  family       AIC     type    screen_model pooled_AIC rank   delta_AIC</span></span>
-<span><span class="co">#&gt;      GA  2687.496 realplus time_intercepts   2954.450    1     0.00000</span></span>
-<span><span class="co">#&gt;     WEI  2711.468 realplus time_intercepts   2970.726    2    23.97272</span></span>
-<span><span class="co">#&gt;    WEI3  2711.468 realplus time_intercepts   2970.726    3    23.97273</span></span>
-<span><span class="co">#&gt;  LOGNO2  2803.629 realplus time_intercepts   3364.255    4   116.13326</span></span>
-<span><span class="co">#&gt;   LOGNO  2803.629 realplus time_intercepts   3364.255    5   116.13326</span></span>
-<span><span class="co">#&gt;     EXP  2969.486 realplus time_intercepts   2978.295    6   281.99039</span></span>
-<span><span class="co">#&gt;  IGAMMA  3272.090 realplus time_intercepts   4828.621    7   584.59408</span></span>
-<span><span class="co">#&gt;   BCCGo 27658.413 realplus time_intercepts   2892.121    8 24970.91699</span></span></code></pre></div>
+<span><span class="co">#&gt;  family      AIC     type    screen_model pooled_AIC converged rank  delta_AIC</span></span>
+<span><span class="co">#&gt;      GA 2687.496 realplus time_intercepts   2954.450      TRUE    1   0.000000</span></span>
+<span><span class="co">#&gt;      GG 2694.061 realplus time_intercepts   2929.585      TRUE    2   6.565322</span></span>
+<span><span class="co">#&gt;     GB2 2706.209 realplus time_intercepts   2902.372     FALSE    3  18.713260</span></span>
+<span><span class="co">#&gt;    BCTo 2706.904 realplus time_intercepts   2888.053      TRUE    4  19.408152</span></span>
+<span><span class="co">#&gt;     BCT 2706.904 realplus time_intercepts   2888.053      TRUE    5  19.408163</span></span>
+<span><span class="co">#&gt;     WEI 2711.468 realplus time_intercepts   2970.726      TRUE    6  23.972717</span></span>
+<span><span class="co">#&gt;    WEI3 2711.468 realplus time_intercepts   2970.726      TRUE    7  23.972726</span></span>
+<span><span class="co">#&gt;    WEI2 2711.474 realplus time_intercepts   2970.726      TRUE    8  23.977945</span></span>
+<span><span class="co">#&gt;  LOGNO2 2803.629 realplus time_intercepts   3364.255      TRUE    9 116.133256</span></span>
+<span><span class="co">#&gt;   LOGNO 2803.629 realplus time_intercepts   3364.255      TRUE   10 116.133256</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Warning: one or more printed time-intercept marginal fits did not report convergence.</span></span></code></pre></div>
 <p>We can review the fitted margin over the overall distribution using
 <code><a href="../reference/plot_margin_fit.html">plot_margin_fit()</a></code>.</p>
 <p>For illustration we’ll compare the fit without time-varying
@@ -586,13 +590,13 @@ select the Clayton copula so we move forward with this.</p>
 <span>  time_var <span class="op">=</span> <span class="st">"time"</span></span>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">copula_selection</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   family       par par2       tau    logLik       AIC       BIC n_pairs</span></span>
-<span><span class="co">#&gt; 1      t 0.6908232    4 0.4855034 137.00957 -270.0191 -262.0664     394</span></span>
-<span><span class="co">#&gt; 2      C 1.5312389    0 0.4336265 132.68039 -263.3608 -259.3844     394</span></span>
-<span><span class="co">#&gt; 3      N 0.6929207    0 0.4873528 129.97072 -257.9414 -253.9651     394</span></span>
-<span><span class="co">#&gt; 4      F 5.7633755    0 0.5014871 122.24379 -242.4876 -238.5112     394</span></span>
-<span><span class="co">#&gt; 5      G 1.8390615    0 0.4562444 111.92707 -221.8541 -217.8778     394</span></span>
-<span><span class="co">#&gt; 6      J 1.9602188    0 0.3461270  73.09446 -144.1889 -140.2126     394</span></span>
+<span><span class="co">#&gt;   family       par par2       tau   logLik       AIC       BIC n_pairs</span></span>
+<span><span class="co">#&gt; 1      t 0.6908198    4 0.4855004 137.0033 -270.0067 -262.0540     394</span></span>
+<span><span class="co">#&gt; 2      C 1.5312958    0 0.4336357 132.6829 -263.3657 -259.3894     394</span></span>
+<span><span class="co">#&gt; 3      N 0.6929039    0 0.4873380 129.9614 -257.9229 -253.9465     394</span></span>
+<span><span class="co">#&gt; 4      F 5.7633204    0 0.5014841 122.2383 -242.4766 -238.5003     394</span></span>
+<span><span class="co">#&gt; 5      G 1.8389989    0 0.4562259 111.9140 -221.8281 -217.8517     394</span></span>
+<span><span class="co">#&gt; 6      J 1.9600796    0 0.3460953  73.0801 -144.1602 -140.1839     394</span></span>
 <span></span>
 <span><span class="va">copula_selection</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/select_copula.html">select_copula</a></span><span class="op">(</span></span>
 <span>  data <span class="op">=</span> <span class="va">dataset</span>,</span>
@@ -605,12 +609,12 @@ select the Clayton copula so we move forward with this.</p>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">copula_selection</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   family par par2       tau    logLik       AIC       BIC n_copula_time_levels</span></span>
-<span><span class="co">#&gt; 1      C  NA    0 0.4451361 152.93354 -297.8671 -281.9617                    4</span></span>
-<span><span class="co">#&gt; 2      t  NA   NA 0.5024974 152.81867 -289.6373 -257.8265                    4</span></span>
-<span><span class="co">#&gt; 3      N  NA    0 0.4950709 144.74358 -281.4872 -265.5817                    4</span></span>
-<span><span class="co">#&gt; 4      F  NA    0 0.5015051 136.23153 -264.4631 -248.5577                    4</span></span>
-<span><span class="co">#&gt; 5      G  NA    0 0.4578343 121.56574 -235.1315 -219.2261                    4</span></span>
-<span><span class="co">#&gt; 6      J  NA    0 0.3508067  79.22439 -150.4488 -134.5434                    4</span></span>
+<span><span class="co">#&gt; 1      C  NA    0 0.4451424 152.93507 -297.8701 -281.9647                    4</span></span>
+<span><span class="co">#&gt; 2      t  NA   NA 0.5024956 152.81188 -289.6238 -257.8130                    4</span></span>
+<span><span class="co">#&gt; 3      N  NA    0 0.4950534 144.72822 -281.4564 -265.5510                    4</span></span>
+<span><span class="co">#&gt; 4      F  NA    0 0.5015021 136.22741 -264.4548 -248.5494                    4</span></span>
+<span><span class="co">#&gt; 5      G  NA    0 0.4578189 121.54984 -235.0997 -219.1943                    4</span></span>
+<span><span class="co">#&gt; 6      J  NA    0 0.3507796  79.20618 -150.4124 -134.5070                    4</span></span>
 <span><span class="co">#&gt;   n_pairs</span></span>
 <span><span class="co">#&gt; 1     394</span></span>
 <span><span class="co">#&gt; 2     394</span></span>
@@ -630,12 +634,12 @@ select the Clayton copula so we move forward with this.</p>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">copula_selection</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   family par par2       tau    logLik       AIC       BIC n_copula_time_levels</span></span>
-<span><span class="co">#&gt; 1      C  NA    0 0.4451361 152.93354 -297.8671 -281.9617                    4</span></span>
-<span><span class="co">#&gt; 2      t  NA   NA 0.5024974 152.81867 -289.6373 -257.8265                    4</span></span>
-<span><span class="co">#&gt; 3      N  NA    0 0.4950709 144.74358 -281.4872 -265.5817                    4</span></span>
-<span><span class="co">#&gt; 4      F  NA    0 0.5015051 136.23153 -264.4631 -248.5577                    4</span></span>
-<span><span class="co">#&gt; 5      G  NA    0 0.4578343 121.56574 -235.1315 -219.2261                    4</span></span>
-<span><span class="co">#&gt; 6      J  NA    0 0.3508067  79.22439 -150.4488 -134.5434                    4</span></span>
+<span><span class="co">#&gt; 1      C  NA    0 0.4451424 152.93507 -297.8701 -281.9647                    4</span></span>
+<span><span class="co">#&gt; 2      t  NA   NA 0.5024956 152.81188 -289.6238 -257.8130                    4</span></span>
+<span><span class="co">#&gt; 3      N  NA    0 0.4950534 144.72822 -281.4564 -265.5510                    4</span></span>
+<span><span class="co">#&gt; 4      F  NA    0 0.5015021 136.22741 -264.4548 -248.5494                    4</span></span>
+<span><span class="co">#&gt; 5      G  NA    0 0.4578189 121.54984 -235.0997 -219.1943                    4</span></span>
+<span><span class="co">#&gt; 6      J  NA    0 0.3507796  79.20618 -150.4124 -134.5070                    4</span></span>
 <span><span class="co">#&gt;   n_pairs</span></span>
 <span><span class="co">#&gt; 1     394</span></span>
 <span><span class="co">#&gt; 2     394</span></span>
@@ -679,12 +683,14 @@ log likelihood which agrees with the previous process.</p>
 <span><span class="co">#&gt;     5            NO             C -1455.730 2939.460 3001.017  14      TRUE</span></span>
 <span><span class="co">#&gt;     6            NO             N -1566.724 3161.448 3223.005  14      TRUE</span></span>
 <span><span class="co">#&gt;  elapsed_sec error</span></span>
-<span><span class="co">#&gt;     8.406435  &lt;NA&gt;</span></span>
-<span><span class="co">#&gt;    27.164598  &lt;NA&gt;</span></span>
-<span><span class="co">#&gt;    15.696759  &lt;NA&gt;</span></span>
-<span><span class="co">#&gt;     2.820039  &lt;NA&gt;</span></span>
-<span><span class="co">#&gt;    14.055142  &lt;NA&gt;</span></span>
-<span><span class="co">#&gt;     6.098346  &lt;NA&gt;</span></span></code></pre></div>
+<span><span class="co">#&gt;     5.836744  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    18.464546  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    10.940828  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;     1.888953  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;     8.843117  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;     4.008943  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Warning: one or more printed joint candidate fits did not report convergence.</span></span></code></pre></div>
 <p>We can now review the copula fit visually using
 <code>plot_copula_fit</code>. The updated fit appears to accurately
 capture the low-dependence shape of the data as well as the increasing
@@ -1353,14 +1359,33 @@ the benchmark comparison models should be (ideally) carefully selected
 within their own modelling framework rather than relying on the choices
 made for margin covariates made through the gamlss.longitudinal
 workflow.</p>
-<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
+<p>The selected final model does not include <code>time</code> on
+<code>mu</code>, while the benchmark mean model below does include a
+linear <code>time</code> term. To keep the selected final model
+unchanged while making the benchmark comparison like-for-like on the
+mean formula, we fit an additional comparison-only GAMLSS longitudinal
+model that adds <code>time</code> to <code>mu</code> and leaves the
+other final-model components unchanged.</p>
+<details><div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit_benchmark_mu_time</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gamlss_longitudinal.html">gamlss_longitudinal</a></span><span class="op">(</span></span>
+<span>  dataset <span class="op">=</span> <span class="va">dataset</span>,</span>
+<span>  margin_dist <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/gamlss.dist/man/GG.html" class="external-link">GG</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  copula_dist <span class="op">=</span> <span class="st">"C"</span>,</span>
+<span>  time_var <span class="op">=</span> <span class="st">"time"</span>,</span>
+<span>  subject_var <span class="op">=</span> <span class="st">"subject"</span>,</span>
+<span>  mu.formula <span class="op">=</span> <span class="va">response</span> <span class="op">~</span> <span class="va">treatment</span> <span class="op">+</span> <span class="va">time</span> <span class="op">+</span> <span class="fu">s</span><span class="op">(</span><span class="va">age</span><span class="op">)</span>,</span>
+<span>  sigma.formula <span class="op">=</span> <span class="op">~</span> <span class="va">treatment</span> <span class="op">+</span> <span class="va">time</span> <span class="op">+</span> <span class="fu">s</span><span class="op">(</span><span class="va">age</span><span class="op">)</span>,</span>
+<span>  nu.formula <span class="op">=</span> <span class="op">~</span> <span class="fl">1</span>,</span>
+<span>  theta.formula <span class="op">=</span> <span class="op">~</span> <span class="va">time</span> <span class="op">+</span> <span class="fu">s</span><span class="op">(</span><span class="va">age</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</details><div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">bench</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/benchmark_standard_models.html">benchmark_standard_models</a></span><span class="op">(</span></span>
 <span>  data <span class="op">=</span> <span class="va">dat</span>,</span>
 <span>  formula <span class="op">=</span> <span class="va">response</span> <span class="op">~</span> <span class="va">treatment</span> <span class="op">+</span> <span class="va">time</span> <span class="op">+</span> <span class="fu">s</span><span class="op">(</span><span class="va">age</span><span class="op">)</span>,</span>
 <span>  subject_var <span class="op">=</span> <span class="st">"subject"</span>,</span>
 <span>  family <span class="op">=</span> <span class="st">"gamma"</span>,</span>
-<span>  fit <span class="op">=</span> <span class="va">fit</span>,</span>
-<span>  fit_name <span class="op">=</span> <span class="st">"gamlss_longitudinal"</span></span>
+<span>  fit <span class="op">=</span> <span class="va">fit_benchmark_mu_time</span>,</span>
+<span>  fit_name <span class="op">=</span> <span class="st">"gamlss_longitudinal_mu_time"</span></span>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">bench</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -1369,7 +1394,7 @@ workflow.</p>
 <span><span class="co">#&gt; Formula: response ~ treatment + time + s(age) </span></span>
 <span><span class="co">#&gt; Subject: subject </span></span>
 <span><span class="co">#&gt; Family: Gamma </span></span>
-<span><span class="co">#&gt; Methods included: gamlss.longitudinal, gam, gamm </span></span>
+<span><span class="co">#&gt; Methods included: gamlss_longitudinal_mu_time, gam, gamm </span></span>
 <span><span class="co">#&gt; Estimand note: mean-fit metrics compare response-mean predictions; distributional metrics use fitted quantiles, densities, PIT values, intervals, and tail probabilities where available.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Benchmark Summary</span></span>
@@ -1377,25 +1402,25 @@ workflow.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Distributional</span></span>
 <span><span class="co">#&gt; --------------</span></span>
-<span><span class="co">#&gt;                            Metric                Best model</span></span>
-<span><span class="co">#&gt;             95% interval coverage       gamlss.longitudinal</span></span>
-<span><span class="co">#&gt;                95% interval width                      gamm</span></span>
-<span><span class="co">#&gt;                Negative log score       gamlss.longitudinal</span></span>
-<span><span class="co">#&gt;                    PIT KS p-value gamlss.longitudinal, gamm</span></span>
-<span><span class="co">#&gt;           PIT mean absolute error                      gamm</span></span>
-<span><span class="co">#&gt;               90th percentile MAE       gamlss.longitudinal</span></span>
-<span><span class="co">#&gt;               Lower 5% tail error       gamlss.longitudinal</span></span>
-<span><span class="co">#&gt;               Upper 5% tail error       gamlss.longitudinal</span></span>
-<span><span class="co">#&gt;  90th percentile upper-tail error                       gam</span></span>
+<span><span class="co">#&gt;                            Metric                  Best model</span></span>
+<span><span class="co">#&gt;             95% interval coverage gamlss_longitudinal_mu_time</span></span>
+<span><span class="co">#&gt;                95% interval width                        gamm</span></span>
+<span><span class="co">#&gt;                Negative log score gamlss_longitudinal_mu_time</span></span>
+<span><span class="co">#&gt;                    PIT KS p-value gamlss_longitudinal_mu_time</span></span>
+<span><span class="co">#&gt;           PIT mean absolute error                        gamm</span></span>
+<span><span class="co">#&gt;               90th percentile MAE gamlss_longitudinal_mu_time</span></span>
+<span><span class="co">#&gt;               Lower 5% tail error gamlss_longitudinal_mu_time</span></span>
+<span><span class="co">#&gt;               Upper 5% tail error gamlss_longitudinal_mu_time</span></span>
+<span><span class="co">#&gt;  90th percentile upper-tail error                         gam</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Mean fit</span></span>
 <span><span class="co">#&gt; --------</span></span>
-<span><span class="co">#&gt;                  Metric          Best model</span></span>
-<span><span class="co">#&gt;   Observed response MAE                gamm</span></span>
-<span><span class="co">#&gt;               Mean bias gamlss.longitudinal</span></span>
-<span><span class="co">#&gt;                Mean MAE gamlss.longitudinal</span></span>
-<span><span class="co">#&gt;               Mean RMSE gamlss.longitudinal</span></span>
-<span><span class="co">#&gt;  Observed response RMSE                gamm</span></span>
+<span><span class="co">#&gt;                  Metric                  Best model</span></span>
+<span><span class="co">#&gt;   Observed response MAE                        gamm</span></span>
+<span><span class="co">#&gt;               Mean bias gamlss_longitudinal_mu_time</span></span>
+<span><span class="co">#&gt;                Mean MAE gamlss_longitudinal_mu_time</span></span>
+<span><span class="co">#&gt;               Mean RMSE gamlss_longitudinal_mu_time</span></span>
+<span><span class="co">#&gt;  Observed response RMSE                        gamm</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Runtime</span></span>
 <span><span class="co">#&gt; -------</span></span>
@@ -1406,66 +1431,91 @@ workflow.</p>
 <span><span class="co">#&gt; -----------------</span></span>
 <span><span class="co">#&gt; Benchmark Metrics</span></span>
 <span><span class="co">#&gt; -----------------</span></span>
-<span><span class="co">#&gt;                            Metric gamlss.longitudinal        gam       gamm</span></span>
-<span><span class="co">#&gt;                Elapsed time (sec)                  NA  8.056e-02  2.223e+00</span></span>
-<span><span class="co">#&gt;            Number of observations           6.000e+02  6.000e+02  6.000e+02</span></span>
-<span><span class="co">#&gt;                    Log likelihood          -1.109e+03 -1.449e+03 -1.345e+03</span></span>
-<span><span class="co">#&gt;                               AIC           2.256e+03  2.914e+03  2.853e+03</span></span>
-<span><span class="co">#&gt;                               MAE           3.685e+00  3.476e+00  2.737e+00</span></span>
-<span><span class="co">#&gt;                              RMSE           5.343e+00  5.286e+00  4.548e+00</span></span>
-<span><span class="co">#&gt;                         Mean RMSE           1.436e+00  2.188e+00  4.057e+00</span></span>
-<span><span class="co">#&gt;                          Mean MAE           1.117e+00  1.838e+00  3.341e+00</span></span>
-<span><span class="co">#&gt;                         Mean bias          -1.067e+00 -1.631e+00 -1.929e+00</span></span>
-<span><span class="co">#&gt;            Observed response RMSE           5.343e+00  5.286e+00  4.548e+00</span></span>
-<span><span class="co">#&gt;             Observed response MAE           3.685e+00  3.476e+00  2.737e+00</span></span>
-<span><span class="co">#&gt;               90th percentile MAE           7.316e-01  5.338e+00  8.590e+00</span></span>
-<span><span class="co">#&gt;                Negative log score           2.350e+00  2.691e+00  2.574e+00</span></span>
-<span><span class="co">#&gt;  90th percentile upper-tail error           5.416e-03 -4.946e-03 -1.073e-02</span></span>
-<span><span class="co">#&gt;             95% interval coverage           9.574e-01  9.185e-01  9.037e-01</span></span>
-<span><span class="co">#&gt;                95% interval width           1.865e+01  2.138e+01  1.499e+01</span></span>
-<span><span class="co">#&gt;           PIT mean absolute error           2.319e-02  1.863e-02  7.903e-03</span></span>
-<span><span class="co">#&gt;                    PIT KS p-value           1.083e-01  6.045e-04  7.440e-02</span></span>
-<span><span class="co">#&gt;               Lower 5% tail error           1.852e-03  2.778e-02  3.519e-02</span></span>
-<span><span class="co">#&gt;               Upper 5% tail error          -3.704e-03 -9.259e-03 -9.259e-03</span></span>
+<span><span class="co">#&gt;                            Metric gamlss_longitudinal_mu_time        gam</span></span>
+<span><span class="co">#&gt;                Elapsed time (sec)                          NA  5.316e-02</span></span>
+<span><span class="co">#&gt;            Number of observations                   6.000e+02  6.000e+02</span></span>
+<span><span class="co">#&gt;                    Log likelihood                  -1.107e+03 -1.449e+03</span></span>
+<span><span class="co">#&gt;                               AIC                   2.253e+03  2.914e+03</span></span>
+<span><span class="co">#&gt;                               MAE                   3.571e+00  3.476e+00</span></span>
+<span><span class="co">#&gt;                              RMSE                   5.306e+00  5.286e+00</span></span>
+<span><span class="co">#&gt;                         Mean RMSE                   1.833e+00  2.188e+00</span></span>
+<span><span class="co">#&gt;                          Mean MAE                   1.430e+00  1.838e+00</span></span>
+<span><span class="co">#&gt;                         Mean bias                  -1.346e+00 -1.631e+00</span></span>
+<span><span class="co">#&gt;            Observed response RMSE                   5.306e+00  5.286e+00</span></span>
+<span><span class="co">#&gt;             Observed response MAE                   3.571e+00  3.476e+00</span></span>
+<span><span class="co">#&gt;               90th percentile MAE                   7.176e-01  5.338e+00</span></span>
+<span><span class="co">#&gt;                Negative log score                   2.346e+00  2.691e+00</span></span>
+<span><span class="co">#&gt;  90th percentile upper-tail error                  -5.229e-03 -4.946e-03</span></span>
+<span><span class="co">#&gt;             95% interval coverage                   9.556e-01  9.185e-01</span></span>
+<span><span class="co">#&gt;                95% interval width                   1.742e+01  2.138e+01</span></span>
+<span><span class="co">#&gt;           PIT mean absolute error                   1.729e-02  1.863e-02</span></span>
+<span><span class="co">#&gt;                    PIT KS p-value                   2.553e-01  6.045e-04</span></span>
+<span><span class="co">#&gt;               Lower 5% tail error                   7.407e-03  2.778e-02</span></span>
+<span><span class="co">#&gt;               Upper 5% tail error                  -3.704e-03 -9.259e-03</span></span>
+<span><span class="co">#&gt;        gamm</span></span>
+<span><span class="co">#&gt;   1.639e+00</span></span>
+<span><span class="co">#&gt;   6.000e+02</span></span>
+<span><span class="co">#&gt;  -1.345e+03</span></span>
+<span><span class="co">#&gt;   2.853e+03</span></span>
+<span><span class="co">#&gt;   2.737e+00</span></span>
+<span><span class="co">#&gt;   4.548e+00</span></span>
+<span><span class="co">#&gt;   4.057e+00</span></span>
+<span><span class="co">#&gt;   3.341e+00</span></span>
+<span><span class="co">#&gt;  -1.929e+00</span></span>
+<span><span class="co">#&gt;   4.548e+00</span></span>
+<span><span class="co">#&gt;   2.737e+00</span></span>
+<span><span class="co">#&gt;   8.590e+00</span></span>
+<span><span class="co">#&gt;   2.574e+00</span></span>
+<span><span class="co">#&gt;  -1.073e-02</span></span>
+<span><span class="co">#&gt;   9.037e-01</span></span>
+<span><span class="co">#&gt;   1.499e+01</span></span>
+<span><span class="co">#&gt;   7.903e-03</span></span>
+<span><span class="co">#&gt;   7.440e-02</span></span>
+<span><span class="co">#&gt;   3.519e-02</span></span>
+<span><span class="co">#&gt;  -9.259e-03</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Mu Coefficients</span></span>
 <span><span class="co">#&gt; ---------------</span></span>
 <span><span class="co">#&gt; Coefficient Estimates</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;           term gamlss.longitudinal      gam    gamm</span></span>
-<span><span class="co">#&gt;      intercept              1.6375  1.81337  1.9578</span></span>
-<span><span class="co">#&gt;   treatmentlow              0.2270 -0.08208 -0.2331</span></span>
-<span><span class="co">#&gt;  treatmenthigh              0.6017  0.37371  0.2817</span></span>
-<span><span class="co">#&gt;           time                  NA -0.47957 -0.9781</span></span>
+<span><span class="co">#&gt;            term gamlss_longitudinal_mu_time      gam    gamm</span></span>
+<span><span class="co">#&gt;       intercept                      1.6761  1.81337  1.9578</span></span>
+<span><span class="co">#&gt;    treatmentlow                      0.2117 -0.08208 -0.2331</span></span>
+<span><span class="co">#&gt;   treatmenthigh                      0.5875  0.37371  0.2817</span></span>
+<span><span class="co">#&gt;  time_covariate                     -0.2119       NA      NA</span></span>
+<span><span class="co">#&gt;            time                          NA -0.47957 -0.9781</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Standard Errors</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;           term gamlss.longitudinal    gam    gamm</span></span>
-<span><span class="co">#&gt;      intercept             0.04628 0.1079 0.12041</span></span>
-<span><span class="co">#&gt;   treatmentlow             0.07174 0.1157 0.14434</span></span>
-<span><span class="co">#&gt;  treatmenthigh             0.06785 0.1143 0.14160</span></span>
-<span><span class="co">#&gt;           time                  NA 0.1248 0.09839</span></span>
+<span><span class="co">#&gt;            term gamlss_longitudinal_mu_time    gam    gamm</span></span>
+<span><span class="co">#&gt;       intercept                     0.04821 0.1079 0.12041</span></span>
+<span><span class="co">#&gt;    treatmentlow                     0.07366 0.1157 0.14434</span></span>
+<span><span class="co">#&gt;   treatmenthigh                     0.06837 0.1143 0.14160</span></span>
+<span><span class="co">#&gt;  time_covariate                     0.12924     NA      NA</span></span>
+<span><span class="co">#&gt;            time                          NA 0.1248 0.09839</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; 95% Lower Estimates</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;           term gamlss.longitudinal     gam      gamm</span></span>
-<span><span class="co">#&gt;      intercept             1.54676  1.6019  1.721810</span></span>
-<span><span class="co">#&gt;   treatmentlow             0.08639 -0.3088 -0.515955</span></span>
-<span><span class="co">#&gt;  treatmenthigh             0.46872  0.1496  0.004122</span></span>
-<span><span class="co">#&gt;           time                  NA -0.7241 -1.170952</span></span>
+<span><span class="co">#&gt;            term gamlss_longitudinal_mu_time     gam      gamm</span></span>
+<span><span class="co">#&gt;       intercept                     1.58156  1.6019  1.721810</span></span>
+<span><span class="co">#&gt;    treatmentlow                     0.06729 -0.3088 -0.515955</span></span>
+<span><span class="co">#&gt;   treatmenthigh                     0.45349  0.1496  0.004122</span></span>
+<span><span class="co">#&gt;  time_covariate                    -0.46516      NA        NA</span></span>
+<span><span class="co">#&gt;            time                          NA -0.7241 -1.170952</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; 95% Upper Estimates</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;           term gamlss.longitudinal     gam     gamm</span></span>
-<span><span class="co">#&gt;      intercept              1.7282  2.0248  2.19382</span></span>
-<span><span class="co">#&gt;   treatmentlow              0.3676  0.1447  0.04984</span></span>
-<span><span class="co">#&gt;  treatmenthigh              0.7347  0.5978  0.55918</span></span>
-<span><span class="co">#&gt;           time                  NA -0.2350 -0.78528</span></span></code></pre></div>
+<span><span class="co">#&gt;            term gamlss_longitudinal_mu_time     gam     gamm</span></span>
+<span><span class="co">#&gt;       intercept                     1.77055  2.0248  2.19382</span></span>
+<span><span class="co">#&gt;    treatmentlow                     0.35603  0.1447  0.04984</span></span>
+<span><span class="co">#&gt;   treatmenthigh                     0.72151  0.5978  0.55918</span></span>
+<span><span class="co">#&gt;  time_covariate                     0.04143      NA       NA</span></span>
+<span><span class="co">#&gt;            time                          NA -0.2350 -0.78528</span></span></code></pre></div>
 <p>Then we can compare a reduced model without age to be able to compare
 all models. This is just illustrative so we remove the variable for
 simplicity, but you could alternatively group age or similar to be able
 to also compare this effect as well.</p>
-<details><div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
+<details><div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_reduced</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gamlss_longitudinal.html">gamlss_longitudinal</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">dataset</span>,</span>
 <span>  margin_dist <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/gamlss.dist/man/GG.html" class="external-link">GG</a></span><span class="op">(</span><span class="op">)</span>,</span>
@@ -1560,7 +1610,7 @@ to also compare this effect as well.</p>
 <span><span class="co">#&gt; Observations: 600</span></span>
 <span><span class="co">#&gt; Margins: 5</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Total time (seconds): 9.92</span></span>
+<span><span class="co">#&gt; Total time (seconds): 7.56</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;                        estimate</span></span>
 <span><span class="co">#&gt; theta.intercept      -0.3161307</span></span>
@@ -1588,16 +1638,133 @@ to also compare this effect as well.</p>
 <span><span class="co">#&gt; Analytical Hessian: assembling copula Hessian contributions...</span></span>
 <span><span class="co">#&gt; Analytical Hessian: extracting margin second derivatives...</span></span>
 <span><span class="co">#&gt; Analytical Hessian: assembling covariate Hessian matrix...</span></span>
+<span><span class="co">#&gt; Analytical Hessian: done.</span></span>
+<span></span>
+<span><span class="va">fit_reduced_mu_time</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gamlss_longitudinal.html">gamlss_longitudinal</a></span><span class="op">(</span></span>
+<span>  dataset <span class="op">=</span> <span class="va">dataset</span>,</span>
+<span>  margin_dist <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/gamlss.dist/man/GG.html" class="external-link">GG</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  copula_dist <span class="op">=</span> <span class="st">"C"</span>,</span>
+<span>  time_var <span class="op">=</span> <span class="st">"time"</span>,</span>
+<span>  subject_var <span class="op">=</span> <span class="st">"subject"</span>,</span>
+<span>  mu.formula <span class="op">=</span> <span class="va">response</span> <span class="op">~</span> <span class="va">treatment</span> <span class="op">+</span> <span class="va">time</span>,</span>
+<span>  sigma.formula <span class="op">=</span> <span class="op">~</span> <span class="va">treatment</span> <span class="op">+</span> <span class="op">(</span><span class="va">time</span><span class="op">)</span>,</span>
+<span>  nu.formula <span class="op">=</span> <span class="op">~</span> <span class="fl">1</span>,</span>
+<span>  theta.formula <span class="op">=</span> <span class="op">~</span> <span class="op">(</span><span class="va">time</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt; Missingness Summary (by time):</span></span>
+<span><span class="co">#&gt;   time n_total n_na_response n_observed_response</span></span>
+<span><span class="co">#&gt; 1 0.00     120             9                 111</span></span>
+<span><span class="co">#&gt; 2 0.25     120             8                 112</span></span>
+<span><span class="co">#&gt; 3 0.50     120            13                 107</span></span>
+<span><span class="co">#&gt; 4 0.75     120            10                 110</span></span>
+<span><span class="co">#&gt; 5 1.00     120            20                 100</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Consecutive Pair Completeness:</span></span>
+<span><span class="co">#&gt;   time1 time2 complete_pairs total_pairs total_observations</span></span>
+<span><span class="co">#&gt; 1  0.00  0.25            103         120                600</span></span>
+<span><span class="co">#&gt; 2  0.25  0.50            100         120                600</span></span>
+<span><span class="co">#&gt; 3  0.50  0.75             98         120                600</span></span>
+<span><span class="co">#&gt; 4  0.75  1.00             93         120                600</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Running separate RS warm-start phase for 5 outer iteration(s) before joint RS fit...</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Using automatic step_adjustment=1 for joint RS.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Using stop criteria: inner_stop_crit= 0.000229218 | outer_stop_crit= 0.00114609 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; OUTER ITERATION: 1</span></span>
+<span><span class="co">#&gt; Start LogLik   End LogLik       Change </span></span>
+<span><span class="co">#&gt;  -1146.08790  -1144.16129      1.92661 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; OUTER ITERATION: 2</span></span>
+<span><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span><span class="co">#&gt; -1.144161e+03 -1.144134e+03  2.722155e-02 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; OUTER ITERATION: 3</span></span>
+<span><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span><span class="co">#&gt; -1.144134e+03 -1.144129e+03  5.556540e-03 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; OUTER ITERATION: 4</span></span>
+<span><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span><span class="co">#&gt; -1.144129e+03 -1.144125e+03  3.790863e-03 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; OUTER ITERATION: 5</span></span>
+<span><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span><span class="co">#&gt; -1.144125e+03 -1.144122e+03  2.886765e-03 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; OUTER ITERATION: 6</span></span>
+<span><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span><span class="co">#&gt; -1.144122e+03 -1.144119e+03  2.450680e-03 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; OUTER ITERATION: 7</span></span>
+<span><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span><span class="co">#&gt; -1.144119e+03 -1.144117e+03  2.026319e-03 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; OUTER ITERATION: 8</span></span>
+<span><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span><span class="co">#&gt; -1.144117e+03 -1.144116e+03  1.484072e-03 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; OUTER ITERATION: 9</span></span>
+<span><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span><span class="co">#&gt; -1.144116e+03 -1.144114e+03  1.417483e-03 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; OUTER ITERATION: 10</span></span>
+<span><span class="co">#&gt;  Start LogLik    End LogLik        Change </span></span>
+<span><span class="co">#&gt; -1.144114e+03 -1.144114e+03  9.281266e-04 </span></span>
+<span><span class="co">#&gt;        joint </span></span>
+<span><span class="co">#&gt; 0.0009281266 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; OUTER CONVERGED</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ############ MODEL FIT ############</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Margin distribution: generalised Gamma Lopatatsidis-Green</span></span>
+<span><span class="co">#&gt; Copula distribution: C</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Parameter count: 11</span></span>
+<span><span class="co">#&gt; Observations: 600</span></span>
+<span><span class="co">#&gt; Margins: 5</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Total time (seconds): 4.4</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;                        estimate</span></span>
+<span><span class="co">#&gt; theta.intercept      -0.3378273</span></span>
+<span><span class="co">#&gt; theta.time_covariate  1.9489442</span></span>
+<span><span class="co">#&gt; nu.intercept          1.4675518</span></span>
+<span><span class="co">#&gt; sigma.intercept      -1.1062871</span></span>
+<span><span class="co">#&gt; sigma.treatmentlow    0.3276979</span></span>
+<span><span class="co">#&gt; sigma.treatmenthigh   0.2342655</span></span>
+<span><span class="co">#&gt; sigma.time_covariate  1.2465622</span></span>
+<span><span class="co">#&gt; mu.intercept          1.6287336</span></span>
+<span><span class="co">#&gt; mu.treatmentlow       0.3315160</span></span>
+<span><span class="co">#&gt; mu.treatmenthigh      0.6705071</span></span>
+<span><span class="co">#&gt; mu.time_covariate    -0.1640275</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Model Selection Criteria:</span></span>
+<span><span class="co">#&gt;         marginal    copula     joint</span></span>
+<span><span class="co">#&gt; LogLik -1293.535  149.4216 -1144.114</span></span>
+<span><span class="co">#&gt; AIC     2605.070 -294.8431  2310.227</span></span>
+<span><span class="co">#&gt; BIC     2644.643 -286.0493  2358.593</span></span>
+<span><span class="co">#&gt; EDF        9.000    2.0000    11.000</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ####################################</span></span>
+<span><span class="co">#&gt; Calculating variance-covariance matrix at fit completion...</span></span>
+<span><span class="co">#&gt; Analytical Hessian: computing eta and likelihood components...</span></span>
+<span><span class="co">#&gt; Analytical Hessian: computing CDF derivatives...</span></span>
+<span><span class="co">#&gt; Analytical Hessian: assembling copula Hessian contributions...</span></span>
+<span><span class="co">#&gt; Analytical Hessian: extracting margin second derivatives...</span></span>
+<span><span class="co">#&gt; Analytical Hessian: assembling covariate Hessian matrix...</span></span>
 <span><span class="co">#&gt; Analytical Hessian: done.</span></span></code></pre></div>
-</details><div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
+</details><div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="va">bench</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/benchmark_standard_models.html">benchmark_standard_models</a></span><span class="op">(</span></span>
 <span>  data <span class="op">=</span> <span class="va">dataset</span>,</span>
 <span>  formula <span class="op">=</span> <span class="va">response</span> <span class="op">~</span> <span class="va">treatment</span> <span class="op">+</span> <span class="va">time</span>,</span>
 <span>  subject_var <span class="op">=</span> <span class="st">"subject"</span>,</span>
 <span>  family <span class="op">=</span> <span class="st">"gamma"</span>,</span>
-<span>  fit <span class="op">=</span> <span class="va">fit_reduced</span>,</span>
-<span>  fit_name <span class="op">=</span> <span class="st">"gamlss_longitudinal"</span></span>
+<span>  fit <span class="op">=</span> <span class="va">fit_reduced_mu_time</span>,</span>
+<span>  fit_name <span class="op">=</span> <span class="st">"gamlss_longitudinal_mu_time"</span></span>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">bench</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -1606,7 +1773,7 @@ to also compare this effect as well.</p>
 <span><span class="co">#&gt; Formula: response ~ treatment + time </span></span>
 <span><span class="co">#&gt; Subject: subject </span></span>
 <span><span class="co">#&gt; Family: Gamma </span></span>
-<span><span class="co">#&gt; Methods included: gamlss.longitudinal, glm, geeglm, glmer, gam, gamm </span></span>
+<span><span class="co">#&gt; Methods included: gamlss_longitudinal_mu_time, glm, geeglm, glmer, gam, gamm </span></span>
 <span><span class="co">#&gt; Estimand note: mean-fit metrics compare response-mean predictions; distributional metrics use fitted quantiles, densities, PIT values, intervals, and tail probabilities where available.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Benchmark Summary</span></span>
@@ -1614,14 +1781,14 @@ to also compare this effect as well.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Distributional</span></span>
 <span><span class="co">#&gt; --------------</span></span>
-<span><span class="co">#&gt;                   Metric          Best model</span></span>
-<span><span class="co">#&gt;    95% interval coverage gamlss.longitudinal</span></span>
-<span><span class="co">#&gt;       95% interval width         glmer, gamm</span></span>
-<span><span class="co">#&gt;       Negative log score gamlss.longitudinal</span></span>
-<span><span class="co">#&gt;           PIT KS p-value         glmer, gamm</span></span>
-<span><span class="co">#&gt;  PIT mean absolute error        geeglm, gamm</span></span>
-<span><span class="co">#&gt;      Lower 5% tail error gamlss.longitudinal</span></span>
-<span><span class="co">#&gt;      Upper 5% tail error               glmer</span></span>
+<span><span class="co">#&gt;                   Metric                  Best model</span></span>
+<span><span class="co">#&gt;    95% interval coverage gamlss_longitudinal_mu_time</span></span>
+<span><span class="co">#&gt;       95% interval width                 glmer, gamm</span></span>
+<span><span class="co">#&gt;       Negative log score gamlss_longitudinal_mu_time</span></span>
+<span><span class="co">#&gt;           PIT KS p-value gamlss_longitudinal_mu_time</span></span>
+<span><span class="co">#&gt;  PIT mean absolute error                geeglm, gamm</span></span>
+<span><span class="co">#&gt;      Lower 5% tail error gamlss_longitudinal_mu_time</span></span>
+<span><span class="co">#&gt;      Upper 5% tail error gamlss_longitudinal_mu_time</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Mean fit</span></span>
 <span><span class="co">#&gt; --------</span></span>
@@ -1638,72 +1805,100 @@ to also compare this effect as well.</p>
 <span><span class="co">#&gt; -----------------</span></span>
 <span><span class="co">#&gt; Benchmark Metrics</span></span>
 <span><span class="co">#&gt; -----------------</span></span>
-<span><span class="co">#&gt;                   Metric gamlss.longitudinal        glm     geeglm      glmer</span></span>
-<span><span class="co">#&gt;       Elapsed time (sec)                  NA  7.030e-03   0.027253  6.379e-01</span></span>
-<span><span class="co">#&gt;   Number of observations           6.000e+02  6.000e+02 600.000000  6.000e+02</span></span>
-<span><span class="co">#&gt;           Log likelihood          -1.145e+03 -1.465e+03         NA -1.441e+03</span></span>
-<span><span class="co">#&gt;                      AIC           2.310e+03  2.940e+03         NA  2.895e+03</span></span>
-<span><span class="co">#&gt;                      MAE           3.848e+00  3.618e+00   3.647169  2.820e+00</span></span>
-<span><span class="co">#&gt;                     RMSE           5.500e+00  5.428e+00   5.431785  4.696e+00</span></span>
-<span><span class="co">#&gt;   Observed response RMSE           5.500e+00  5.428e+00   5.431785  4.696e+00</span></span>
-<span><span class="co">#&gt;    Observed response MAE           3.848e+00  3.618e+00   3.647169  2.820e+00</span></span>
-<span><span class="co">#&gt;       Negative log score           2.399e+00  2.716e+00   2.718878  2.557e+00</span></span>
-<span><span class="co">#&gt;    95% interval coverage           9.519e-01  9.130e-01   0.914815  9.074e-01</span></span>
-<span><span class="co">#&gt;       95% interval width           1.909e+01  2.149e+01  21.782363  1.499e+01</span></span>
-<span><span class="co">#&gt;  PIT mean absolute error           3.026e-02  1.381e-02   0.007131  7.363e-03</span></span>
-<span><span class="co">#&gt;           PIT KS p-value           6.104e-02  3.935e-03   0.018412  1.108e-01</span></span>
-<span><span class="co">#&gt;      Lower 5% tail error           5.556e-03  2.593e-02   0.029630  3.704e-02</span></span>
-<span><span class="co">#&gt;      Upper 5% tail error          -1.111e-02 -9.259e-03  -0.009259 -5.556e-03</span></span>
-<span><span class="co">#&gt;         gam       gamm</span></span>
-<span><span class="co">#&gt;   2.840e-02  1.651e+00</span></span>
-<span><span class="co">#&gt;   6.000e+02  6.000e+02</span></span>
-<span><span class="co">#&gt;  -1.460e+03 -1.343e+03</span></span>
-<span><span class="co">#&gt;   2.930e+03  2.851e+03</span></span>
-<span><span class="co">#&gt;   3.618e+00  2.775e+00</span></span>
-<span><span class="co">#&gt;   5.428e+00  4.599e+00</span></span>
-<span><span class="co">#&gt;   5.428e+00  4.599e+00</span></span>
-<span><span class="co">#&gt;   3.618e+00  2.775e+00</span></span>
-<span><span class="co">#&gt;   2.716e+00  2.576e+00</span></span>
-<span><span class="co">#&gt;   9.130e-01  9.019e-01</span></span>
-<span><span class="co">#&gt;   2.149e+01  1.481e+01</span></span>
-<span><span class="co">#&gt;   1.381e-02  7.001e-03</span></span>
-<span><span class="co">#&gt;   3.935e-03  8.771e-02</span></span>
-<span><span class="co">#&gt;   2.593e-02  3.889e-02</span></span>
-<span><span class="co">#&gt;  -9.259e-03 -9.259e-03</span></span>
+<span><span class="co">#&gt;                   Metric gamlss_longitudinal_mu_time        glm     geeglm</span></span>
+<span><span class="co">#&gt;       Elapsed time (sec)                          NA  4.234e-03   0.018884</span></span>
+<span><span class="co">#&gt;   Number of observations                   6.000e+02  6.000e+02 600.000000</span></span>
+<span><span class="co">#&gt;           Log likelihood                  -1.144e+03 -1.465e+03         NA</span></span>
+<span><span class="co">#&gt;                      AIC                   2.310e+03  2.940e+03         NA</span></span>
+<span><span class="co">#&gt;                      MAE                   3.753e+00  3.618e+00   3.647169</span></span>
+<span><span class="co">#&gt;                     RMSE                   5.464e+00  5.428e+00   5.431785</span></span>
+<span><span class="co">#&gt;   Observed response RMSE                   5.464e+00  5.428e+00   5.431785</span></span>
+<span><span class="co">#&gt;    Observed response MAE                   3.753e+00  3.618e+00   3.647169</span></span>
+<span><span class="co">#&gt;       Negative log score                   2.395e+00  2.716e+00   2.718878</span></span>
+<span><span class="co">#&gt;    95% interval coverage                   9.481e-01  9.130e-01   0.914815</span></span>
+<span><span class="co">#&gt;       95% interval width                   1.835e+01  2.149e+01  21.782363</span></span>
+<span><span class="co">#&gt;  PIT mean absolute error                   2.394e-02  1.381e-02   0.007131</span></span>
+<span><span class="co">#&gt;           PIT KS p-value                   1.743e-01  3.935e-03   0.018412</span></span>
+<span><span class="co">#&gt;      Lower 5% tail error                   5.556e-03  2.593e-02   0.029630</span></span>
+<span><span class="co">#&gt;      Upper 5% tail error                  -3.704e-03 -9.259e-03  -0.009259</span></span>
+<span><span class="co">#&gt;       glmer        gam       gamm</span></span>
+<span><span class="co">#&gt;   4.072e-01  2.148e-02  1.327e+00</span></span>
+<span><span class="co">#&gt;   6.000e+02  6.000e+02  6.000e+02</span></span>
+<span><span class="co">#&gt;  -1.441e+03 -1.460e+03 -1.343e+03</span></span>
+<span><span class="co">#&gt;   2.895e+03  2.930e+03  2.851e+03</span></span>
+<span><span class="co">#&gt;   2.820e+00  3.618e+00  2.775e+00</span></span>
+<span><span class="co">#&gt;   4.696e+00  5.428e+00  4.599e+00</span></span>
+<span><span class="co">#&gt;   4.696e+00  5.428e+00  4.599e+00</span></span>
+<span><span class="co">#&gt;   2.820e+00  3.618e+00  2.775e+00</span></span>
+<span><span class="co">#&gt;   2.557e+00  2.716e+00  2.576e+00</span></span>
+<span><span class="co">#&gt;   9.074e-01  9.130e-01  9.019e-01</span></span>
+<span><span class="co">#&gt;   1.499e+01  2.149e+01  1.481e+01</span></span>
+<span><span class="co">#&gt;   7.363e-03  1.381e-02  7.001e-03</span></span>
+<span><span class="co">#&gt;   1.108e-01  3.935e-03  8.771e-02</span></span>
+<span><span class="co">#&gt;   3.704e-02  2.593e-02  3.889e-02</span></span>
+<span><span class="co">#&gt;  -5.556e-03 -9.259e-03 -9.259e-03</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Mu Coefficients</span></span>
 <span><span class="co">#&gt; ---------------</span></span>
 <span><span class="co">#&gt; Coefficient Estimates</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;           term gamlss.longitudinal     glm   geeglm   glmer     gam    gamm</span></span>
-<span><span class="co">#&gt;      intercept              1.6035  1.7755  1.79602  1.9681  1.7755  1.9315</span></span>
-<span><span class="co">#&gt;   treatmentlow              0.3508  0.0156  0.01326 -0.1938  0.0156 -0.1739</span></span>
-<span><span class="co">#&gt;  treatmenthigh              0.6852  0.4311  0.46396  0.3199  0.4311  0.3290</span></span>
-<span><span class="co">#&gt;           time                  NA -0.4678 -0.50017 -1.0985 -0.4678 -1.0090</span></span>
+<span><span class="co">#&gt;            term gamlss_longitudinal_mu_time     glm   geeglm   glmer     gam</span></span>
+<span><span class="co">#&gt;       intercept                      1.6287  1.7755  1.79602  1.9681  1.7755</span></span>
+<span><span class="co">#&gt;    treatmentlow                      0.3315  0.0156  0.01326 -0.1938  0.0156</span></span>
+<span><span class="co">#&gt;   treatmenthigh                      0.6705  0.4311  0.46396  0.3199  0.4311</span></span>
+<span><span class="co">#&gt;  time_covariate                     -0.1640      NA       NA      NA      NA</span></span>
+<span><span class="co">#&gt;            time                          NA -0.4678 -0.50017 -1.0985 -0.4678</span></span>
+<span><span class="co">#&gt;     gamm</span></span>
+<span><span class="co">#&gt;   1.9315</span></span>
+<span><span class="co">#&gt;  -0.1739</span></span>
+<span><span class="co">#&gt;   0.3290</span></span>
+<span><span class="co">#&gt;       NA</span></span>
+<span><span class="co">#&gt;  -1.0090</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Standard Errors</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;           term gamlss.longitudinal    glm  geeglm  glmer    gam    gamm</span></span>
-<span><span class="co">#&gt;      intercept             0.05329 0.1070 0.09509 0.1669 0.1070 0.12261</span></span>
-<span><span class="co">#&gt;   treatmentlow             0.07968 0.1142 0.15061 0.1970 0.1142 0.14757</span></span>
-<span><span class="co">#&gt;  treatmenthigh             0.07596 0.1128 0.14070 0.1921 0.1128 0.14458</span></span>
-<span><span class="co">#&gt;           time                  NA 0.1248 0.12906 0.1391 0.1248 0.09742</span></span>
+<span><span class="co">#&gt;            term gamlss_longitudinal_mu_time    glm  geeglm  glmer    gam</span></span>
+<span><span class="co">#&gt;       intercept                     0.05569 0.1070 0.09509 0.1669 0.1070</span></span>
+<span><span class="co">#&gt;    treatmentlow                     0.08319 0.1142 0.15061 0.1970 0.1142</span></span>
+<span><span class="co">#&gt;   treatmenthigh                     0.07740 0.1128 0.14070 0.1921 0.1128</span></span>
+<span><span class="co">#&gt;  time_covariate                     0.14090     NA      NA     NA     NA</span></span>
+<span><span class="co">#&gt;            time                          NA 0.1248 0.12906 0.1391 0.1248</span></span>
+<span><span class="co">#&gt;     gamm</span></span>
+<span><span class="co">#&gt;  0.12261</span></span>
+<span><span class="co">#&gt;  0.14757</span></span>
+<span><span class="co">#&gt;  0.14458</span></span>
+<span><span class="co">#&gt;       NA</span></span>
+<span><span class="co">#&gt;  0.09742</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; 95% Lower Estimates</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;           term gamlss.longitudinal     glm  geeglm    glmer     gam     gamm</span></span>
-<span><span class="co">#&gt;      intercept              1.4991  1.5658  1.6096  1.64104  1.5658  1.69115</span></span>
-<span><span class="co">#&gt;   treatmentlow              0.1946 -0.2083 -0.2819 -0.57992 -0.2083 -0.46309</span></span>
-<span><span class="co">#&gt;  treatmenthigh              0.5364  0.2101  0.1882 -0.05655  0.2101  0.04561</span></span>
-<span><span class="co">#&gt;           time                  NA -0.7123 -0.7531 -1.37111 -0.7124 -1.19998</span></span>
+<span><span class="co">#&gt;            term gamlss_longitudinal_mu_time     glm  geeglm    glmer     gam</span></span>
+<span><span class="co">#&gt;       intercept                      1.5196  1.5658  1.6096  1.64104  1.5658</span></span>
+<span><span class="co">#&gt;    treatmentlow                      0.1685 -0.2083 -0.2819 -0.57992 -0.2083</span></span>
+<span><span class="co">#&gt;   treatmenthigh                      0.5188  0.2101  0.1882 -0.05655  0.2101</span></span>
+<span><span class="co">#&gt;  time_covariate                     -0.4402      NA      NA       NA      NA</span></span>
+<span><span class="co">#&gt;            time                          NA -0.7123 -0.7531 -1.37111 -0.7124</span></span>
+<span><span class="co">#&gt;      gamm</span></span>
+<span><span class="co">#&gt;   1.69115</span></span>
+<span><span class="co">#&gt;  -0.46309</span></span>
+<span><span class="co">#&gt;   0.04561</span></span>
+<span><span class="co">#&gt;        NA</span></span>
+<span><span class="co">#&gt;  -1.19998</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; 95% Upper Estimates</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;           term gamlss.longitudinal     glm  geeglm   glmer     gam    gamm</span></span>
-<span><span class="co">#&gt;      intercept              1.7080  1.9851  1.9824  2.2952  1.9852  2.1718</span></span>
-<span><span class="co">#&gt;   treatmentlow              0.5069  0.2395  0.3085  0.1923  0.2395  0.1154</span></span>
-<span><span class="co">#&gt;  treatmenthigh              0.8341  0.6521  0.7397  0.6964  0.6521  0.6124</span></span>
-<span><span class="co">#&gt;           time                  NA -0.2233 -0.2472 -0.8258 -0.2233 -0.8181</span></span></code></pre></div>
+<span><span class="co">#&gt;            term gamlss_longitudinal_mu_time     glm  geeglm   glmer     gam</span></span>
+<span><span class="co">#&gt;       intercept                      1.7379  1.9851  1.9824  2.2952  1.9852</span></span>
+<span><span class="co">#&gt;    treatmentlow                      0.4946  0.2395  0.3085  0.1923  0.2395</span></span>
+<span><span class="co">#&gt;   treatmenthigh                      0.8222  0.6521  0.7397  0.6964  0.6521</span></span>
+<span><span class="co">#&gt;  time_covariate                      0.1121      NA      NA      NA      NA</span></span>
+<span><span class="co">#&gt;            time                          NA -0.2233 -0.2472 -0.8258 -0.2233</span></span>
+<span><span class="co">#&gt;     gamm</span></span>
+<span><span class="co">#&gt;   2.1718</span></span>
+<span><span class="co">#&gt;   0.1154</span></span>
+<span><span class="co">#&gt;   0.6124</span></span>
+<span><span class="co">#&gt;       NA</span></span>
+<span><span class="co">#&gt;  -0.8181</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="prediction-and-simulation">Prediction and simulation<a class="anchor" aria-label="anchor" href="#prediction-and-simulation"></a>
@@ -1714,7 +1909,7 @@ objects, see <code><a href="../reference/predict.gamlss.longitudinal.html">help(
 options. We also provide a standard method to replicate the known method
 often used for mixed models <code>margins_effects</code> so that average
 predictions across a variable can be provided.</p>
-<div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb35"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Predict the fitted response mean with confidence interval</span></span>
 <span><span class="va">pred</span><span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span></span>
 <span>  <span class="va">fit</span>,</span>
@@ -1752,7 +1947,7 @@ predictions across a variable can be provided.</p>
 <p>We also provide standard functionality for simulating from the fitted
 model which uses the copula structure to create margins which are
 correlated as would be expected based on the fitted copula.</p>
-<div class="sourceCode" id="cb35"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb36"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sim_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate</a></span><span class="op">(</span><span class="va">fit</span>, nsim <span class="op">=</span> <span class="fl">5</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">sim_model</span><span class="op">)</span></span>
 <span><span class="co">#&gt;       sim_1     sim_2      sim_3      sim_4     sim_5</span></span>
