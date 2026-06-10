@@ -11,6 +11,8 @@
   newdata = NULL,
   newdata_n = 8,
   quantiles = c(0.1, 0.5, 0.9),
+  include_fitted_quantiles = FALSE,
+  include_newdata_quantiles = FALSE,
   randomize = TRUE,
   time_stratified = FALSE,
   ...
@@ -29,6 +31,13 @@
 
 \item{quantiles}{Quantiles for forecast panels.}
 
+\item{include_fitted_quantiles}{Logical; if TRUE, include fitted-data
+forecast quantiles in the dashboard.}
+
+\item{include_newdata_quantiles}{Logical; if TRUE, include newdata forecast
+quantiles in the dashboard. Uses \code{newdata}, or the first \code{newdata_n} rows
+of \code{data} if \code{newdata} is NULL.}
+
 \item{randomize}{Logical; randomized PIT/residual diagnostics.}
 
 \item{time_stratified}{Logical; if TRUE, show time-stratified PIT and worm plots.}
@@ -39,13 +48,13 @@
 Invisibly returns a list of generated plot/data objects.
 }
 \description{
-Displays six ggplot-based panels by default:
+Displays four ggplot-based diagnostic panels by default:
 \enumerate{
 \item PIT histogram
 \item QQ residual plot
 \item Worm plot
 \item Rootogram
-\item Fitted-data quantile forecast plot
-\item Newdata quantile forecast plot (if \code{newdata} or \code{data} supplied)
 }
+Fitted-data and newdata quantile forecast panels can be requested
+explicitly with \code{include_fitted_quantiles} and \code{include_newdata_quantiles}.
 }
