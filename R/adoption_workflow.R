@@ -165,13 +165,26 @@ select_margin <- function(
     }
   }
 
-  fit <- gamlss::fitDist(
-    response,
-    type = type,
-    try.gamlss = try.gamlss,
-    trace = trace,
-    ...
-  )
+  fit <- NULL
+  if (isTRUE(trace)) {
+    fit <- gamlss::fitDist(
+      response,
+      type = type,
+      try.gamlss = try.gamlss,
+      trace = trace,
+      ...
+    )
+  } else {
+    invisible(utils::capture.output({
+      fit <- suppressWarnings(suppressMessages(gamlss::fitDist(
+        response,
+        type = type,
+        try.gamlss = try.gamlss,
+        trace = trace,
+        ...
+      )))
+    }))
+  }
 
   if (is.null(fit$fits)) {
     stop("gamlss::fitDist() did not return a fits table.", call. = FALSE)
@@ -346,25 +359,71 @@ print.margin_screen <- function(x, ..., n = 10L) {
   as.data.frame(out, stringsAsFactors = FALSE)
 }
 
+.gl_mu_values <- function(params) {
+  if ("mu" %in% names(params)) {
+    return(as.numeric(params$mu))
+  }
+  as.numeric(params[[1L]])
+}
+
+.gl_distribution_mean <- function(params, family, probs = seq(0.001, 0.999, length.out = 199L)) {
+  family <- as.character(family)[1L]
+  if (identical(family, "NO") && "mu" %in% names(params)) {
+    return(as.numeric(params$mu))
+  }
+  if (identical(family, "GA") && "mu" %in% names(params)) {
+    return(as.numeric(params$mu))
+  }
+  if (identical(family, "LOGNO") && all(c("mu", "sigma") %in% names(params))) {
+    return(exp(as.numeric(params$mu) + 0.5 * as.numeric(params$sigma)^2))
+  }
+
+  probs <- as.numeric(probs)
+  probs <- probs[is.finite(probs) & probs > 0 & probs < 1]
+  if (length(probs) < 3L) {
+    stop("'probs' must contain at least three finite probabilities inside (0, 1).", call. = FALSE)
+  }
+
+  q_mat <- vapply(probs, function(prob) {
+    as.numeric(.gl_call_family_fun("q", family, prob, params))
+  }, numeric(length(params[[1L]])))
+  as.numeric(rowMeans(q_mat, na.rm = TRUE))
+}
+
+.gl_prediction_values <- function(type, params, family) {
+  switch(
+    type,
+    response = .gl_mu_values(params),
+    mu = .gl_mu_values(params),
+    mean = .gl_distribution_mean(params, family),
+    median = as.numeric(.gl_call_family_fun("q", family, 0.5, params)),
+    stop("Unsupported prediction value type.", call. = FALSE)
+  )
+}
+
 #' Predict from a longitudinal GAMLSS-copula model
 #'
 #' @param object A fitted `gamlss.longitudinal` object.
 #' @param newdata Optional new data. If omitted, fitted rows are used.
-#' @param type Prediction type: `"response"` returns the fitted `mu` parameter,
-#'   `"parameters"` returns all fitted marginal distribution parameters,
-#'   `"quantile"` returns fitted marginal quantiles, `"cdf"`/`"density"`
-#'   evaluate the fitted marginal CDF or density, and `"probability"` returns
-#'   probabilities below or above a threshold.
+#' @param type Prediction type: `"mean"` returns the fitted marginal response
+#'   mean, `"median"` returns the fitted marginal median, `"mu"` returns the
+#'   fitted GAMLSS `mu` parameter, `"response"` is retained as a compatibility
+#'   alias for `"mu"`, `"parameters"` returns all fitted marginal distribution
+#'   parameters, `"quantile"` returns fitted marginal quantiles,
+#'   `"cdf"`/`"density"` evaluate the fitted marginal CDF or density, and
+#'   `"probability"` returns probabilities below or above a threshold.
 #' @param probs Quantile probabilities when `type = "quantile"`.
 #' @param q Threshold value for `type = "cdf"` or `type = "probability"`.
 #'   Defaults to observed responses for `type = "cdf"` when available.
 #' @param y Evaluation value for `type = "density"`. Defaults to observed
 #'   responses when available.
 #' @param direction Probability direction for `type = "probability"`.
-#' @param se.fit Logical; for `type = "response"`, return approximate
-#'   delta-method standard errors for the fitted response mean.
+#' @param se.fit Logical; for `type = "response"`, `"mu"`, or `"mean"`, return
+#'   approximate delta-method standard errors for the fitted `mu` linear
+#'   predictor contribution. For non-`mu` response means this is a first-order
+#'   approximation and should be treated as exploratory.
 #' @param interval Interval type. `"confidence"` adds response-scale confidence
-#'   limits when `type = "response"`.
+#'   limits when `type = "response"`, `"mu"`, or `"mean"`.
 #' @param level Confidence level for `interval = "confidence"`.
 #' @param vcov_method Variance-covariance method passed to [vcov.gamlss.longitudinal()].
 #' @param ... Additional arguments reserved for future methods.
@@ -380,13 +439,19 @@ print.margin_screen <- function(x, ..., n = 10L) {
 #' preserves the fitted copula dependence structure. Copula-preserving
 #' simulation for `newdata` is not currently implemented.
 #'
-#' @return A numeric vector for `type = "response"` unless standard errors or
-#'   intervals are requested; a data frame otherwise.
+#' `type = "response"` is a soft-deprecated compatibility alias for `type =
+#' "mu"` because GAMLSS `mu` is not the response mean for every family. New code
+#' should use `type = "mean"` for response-mean estimands or `type = "mu"` for
+#' the distribution parameter.
+#'
+#' @return A numeric vector for `type = "response"`, `"mu"`, `"mean"`, or
+#'   `"median"` unless standard errors or intervals are requested; a data frame
+#'   otherwise.
 #' @export
 predict.gamlss.longitudinal <- function(
   object,
   newdata = NULL,
-  type = c("response", "parameters", "quantile", "cdf", "density", "probability"),
+  type = c("response", "mean", "mu", "median", "parameters", "quantile", "cdf", "density", "probability"),
   probs = c(0.025, 0.5, 0.975),
   q = NULL,
   y = NULL,
@@ -408,8 +473,8 @@ predict.gamlss.longitudinal <- function(
   diag_data <- .gl_fitted_distribution(object, newdata = newdata, require_response = require_response)
   params <- diag_data$params
 
-  if (type == "response") {
-    fit_values <- if ("mu" %in% names(params)) as.numeric(params$mu) else as.numeric(params[[1L]])
+  if (type %in% c("response", "mu", "mean", "median")) {
+    fit_values <- .gl_prediction_values(type, params, diag_data$family)
     if (isTRUE(se.fit) || !identical(interval, "none")) {
       pred <- .gl_prediction_frame(object, newdata = newdata, require_response = FALSE)
       pred$fit <- fit_values
@@ -422,10 +487,7 @@ predict.gamlss.longitudinal <- function(
       }
       return(pred[c("subject", "time", "response", "fit", "se.fit", intersect(c("conf.low", "conf.high"), names(pred)))])
     }
-    if ("mu" %in% names(params)) {
-      return(as.numeric(params$mu))
-    }
-    return(as.numeric(params[[1L]]))
+    return(fit_values)
   }
 
   pred <- .gl_prediction_frame(object, newdata = newdata, require_response = require_response)
