@@ -64,7 +64,7 @@ tail metrics.}
 }
 \value{
 An object of class \code{gamlss_longitudinal_benchmark} with \code{results},
-\code{fits}, \code{coefficients}, and \code{interpretation} components. The
+\code{model_status}, \code{fits}, \code{coefficients}, and \code{interpretation} components. The
 \code{coefficients} component contains \code{mu} coefficient estimates and
 uncertainty comparisons for fixed/parametric terms available across the
 fitted models.

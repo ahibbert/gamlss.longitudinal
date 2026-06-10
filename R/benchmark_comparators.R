@@ -621,8 +621,19 @@ print.gamlss_longitudinal_adoption_benchmark <- function(x, digits = max(3, getO
   x <- as.data.frame(x, stringsAsFactors = FALSE)
   if ("metric" %in% names(x)) {
     x$metric <- .benchmark_metric_label(x$metric)
-    names(x)[names(x) == "metric"] <- "metric_name"
+    names(x)[names(x) == "metric"] <- "Metric"
   }
+  if ("best_model" %in% names(x)) {
+    names(x)[names(x) == "best_model"] <- "Best model"
+  }
+  x
+}
+
+.benchmark_print_method_columns <- function(x) {
+  x <- as.data.frame(x, stringsAsFactors = FALSE)
+  protected <- c("Metric", "metric", "metric_name", "term", "area", "Best model", "best_model")
+  method_cols <- setdiff(names(x), protected)
+  names(x)[match(method_cols, names(x))] <- .benchmark_method_display_name(method_cols)
   x
 }
 
@@ -634,24 +645,12 @@ print.gamlss_longitudinal_adoption_benchmark <- function(x, digits = max(3, getO
   if (nrow(leaders) == 0L) {
     return(data.frame())
   }
-  primary_method <- interpretation$primary_method
-  if (length(primary_method) > 0L) {
-    out <- data.frame(
-      area = .benchmark_interpretation_area(leaders$domain),
-      metric = leaders$metric,
-      primary = ifelse(leaders$primary_leads_or_ties, "lead/tie", "-"),
-      standard = ifelse(leaders$standard_leads_or_ties, "lead/tie", "-"),
-      leaders = leaders$leading_methods,
-      stringsAsFactors = FALSE
-    )
-  } else {
-    out <- data.frame(
-      area = .benchmark_interpretation_area(leaders$domain),
-      metric = leaders$metric,
-      leaders = leaders$leading_methods,
-      stringsAsFactors = FALSE
-    )
-  }
+  out <- data.frame(
+    area = .benchmark_interpretation_area(leaders$domain),
+    metric = leaders$metric,
+    best_model = .benchmark_method_display_list(leaders$leading_methods),
+    stringsAsFactors = FALSE
+  )
   rownames(out) <- NULL
   out
 }
@@ -681,36 +680,19 @@ print.gamlss_longitudinal_adoption_benchmark <- function(x, digits = max(3, getO
   }
   cat("\nMu Coefficients\n")
   cat("---------------\n")
-  cat("Coefficient estimates\n\n")
-  print(coefficients$estimates, digits = digits, row.names = FALSE)
+  cat("Coefficient Estimates\n\n")
+  print(.benchmark_print_method_columns(coefficients$estimates), digits = digits, row.names = FALSE)
 
-  uncertainty <- as.data.frame(coefficients$uncertainty, stringsAsFactors = FALSE)
-  if (nrow(uncertainty) > 0L) {
-    interval <- if (all(c("conf.low", "conf.high") %in% names(uncertainty))) {
-      paste0(
-        "[",
-        format(signif(uncertainty$conf.low, digits), trim = TRUE),
-        ", ",
-        format(signif(uncertainty$conf.high, digits), trim = TRUE),
-        "]"
-      )
-    } else {
-      rep(NA_character_, nrow(uncertainty))
-    }
-    display <- data.frame(
-      method = uncertainty$method,
-      term = uncertainty$term,
-      std_error = uncertainty$std_error,
-      interval = interval,
-      estimate_diff = uncertainty$estimate_diff_vs_reference,
-      se_ratio = uncertainty$se_ratio_vs_reference,
-      interval_width_ratio = uncertainty$ci_width_ratio_vs_reference,
-      interval_overlap = uncertainty$ci_overlap_with_reference,
-      stringsAsFactors = FALSE
-    )
-    cat("\nUncertainty vs reference:", coefficients$reference_method, "\n\n")
-    print(display, digits = digits, row.names = FALSE)
-  }
+  long <- as.data.frame(coefficients$long, stringsAsFactors = FALSE)
+  se <- .benchmark_wide_values(long, "std_error")
+  lower <- .benchmark_wide_values(long, "conf.low")
+  upper <- .benchmark_wide_values(long, "conf.high")
+  cat("\nStandard Errors\n\n")
+  print(.benchmark_print_method_columns(se), digits = digits, row.names = FALSE)
+  cat("\n95% Lower Estimates\n\n")
+  print(.benchmark_print_method_columns(lower), digits = digits, row.names = FALSE)
+  cat("\n95% Upper Estimates\n\n")
+  print(.benchmark_print_method_columns(upper), digits = digits, row.names = FALSE)
   invisible(NULL)
 }
 
@@ -731,6 +713,44 @@ print.gamlss_longitudinal_adoption_benchmark <- function(x, digits = max(3, getO
   out <- results[, columns, drop = FALSE]
   rownames(out) <- NULL
   out
+}
+
+.benchmark_method_display_name <- function(method, estimator = NA_character_) {
+  method <- as.character(method)
+  estimator <- as.character(estimator %||% rep(NA_character_, length(method)))
+  out <- method
+  out[method %in% "gamlss.longitudinal"] <- "gamlss.longitudinal"
+  out[method %in% "gamlss_longitudinal"] <- "gamlss.longitudinal"
+  out[method %in% "gee"] <- "geeglm"
+  out[method %in% "glmm"] <- "glmer"
+  out[method %in% "gamm"] <- "gamm"
+  out[method %in% "gam"] <- "gam"
+  out[method %in% "glm"] <- "glm"
+  if (length(estimator) == length(out)) {
+    out[grepl("geeglm", estimator, fixed = TRUE)] <- "geeglm"
+    out[grepl("lmer/glmer", estimator, fixed = TRUE)] <- "glmer"
+  }
+  out
+}
+
+.benchmark_method_display_list <- function(x) {
+  vapply(strsplit(as.character(x), ",\\s*"), function(parts) {
+    paste(.benchmark_method_display_name(parts), collapse = ", ")
+  }, character(1))
+}
+
+.benchmark_included_methods_line <- function(results) {
+  results <- as.data.frame(results, stringsAsFactors = FALSE)
+  if (nrow(results) == 0L || !"method" %in% names(results)) {
+    return("Methods included: none")
+  }
+  success <- if ("success" %in% names(results)) !is.na(results$success) & results$success == TRUE else rep(TRUE, nrow(results))
+  included <- results[success, , drop = FALSE]
+  if (nrow(included) == 0L) {
+    return("Methods included: none")
+  }
+  names <- .benchmark_method_display_name(included$method, included$estimator %||% NA_character_)
+  paste0("Methods included: ", paste(unique(names), collapse = ", "))
 }
 
 .benchmark_metric_matrix <- function(results) {
@@ -1670,6 +1690,14 @@ write_benchmark_report <- function(
   out
 }
 
+.benchmark_normalize_coef_term <- function(term) {
+  term <- as.character(term)
+  term[term %in% c("(Intercept)", "Intercept", "mu.(Intercept)", "mu.Intercept")] <- "intercept"
+  term <- sub("^mu\\.", "", term)
+  term[term %in% c("(Intercept)", "Intercept")] <- "intercept"
+  term
+}
+
 .benchmark_coef_table_one <- function(fit, method, parameter = "mu", level = 0.95) {
   if (is.null(fit)) {
     return(data.frame())
@@ -1706,7 +1734,7 @@ write_benchmark_report <- function(
   if (nrow(out) == 0L) {
     return(out)
   }
-  out$term <- sub(paste0("^", parameter, "\\."), "", out$term)
+  out$term <- .benchmark_normalize_coef_term(out$term)
   out <- out[is.finite(out$estimate), , drop = FALSE]
   rownames(out) <- NULL
   out
@@ -1834,7 +1862,7 @@ write_benchmark_report <- function(
 #' @param ... Additional arguments passed to each comparator fit.
 #'
 #' @return An object of class `gamlss_longitudinal_benchmark` with `results`,
-#'   `fits`, `coefficients`, and `interpretation` components. The
+#'   `model_status`, `fits`, `coefficients`, and `interpretation` components. The
 #'   `coefficients` component contains `mu` coefficient estimates and
 #'   uncertainty comparisons for fixed/parametric terms available across the
 #'   fitted models.
@@ -1933,6 +1961,7 @@ benchmark_standard_models <- function(
   )
   out <- list(
     results = results,
+    model_status = .benchmark_model_status_table(results),
     fits = fits,
     formula = formula,
     subject_var = subject_var,
@@ -1951,15 +1980,13 @@ print.gamlss_longitudinal_benchmark <- function(x, digits = max(3, getOption("di
   cat("-----------------------------------------\n")
   cat("Formula:", deparse(x$formula), "\n")
   cat("Subject:", x$subject_var, "\n")
-  cat("Family:", x$family, "\n\n")
+  cat("Family:", x$family, "\n")
+  cat(.benchmark_included_methods_line(x$results), "\n\n")
 
   interpretation_table <- .benchmark_interpretation_table(x$interpretation)
   if (nrow(interpretation_table) > 0L) {
     cat("Benchmark Summary\n")
     cat("-----------------\n")
-    if (length(x$interpretation$primary_method) > 0L) {
-      cat("Primary method:", x$interpretation$primary_method[[1L]], "\n")
-    }
     .benchmark_print_by_area(interpretation_table, digits = digits)
   } else {
     lines <- .benchmark_interpretation_lines(x$interpretation)
@@ -1970,29 +1997,21 @@ print.gamlss_longitudinal_benchmark <- function(x, digits = max(3, getOption("di
     }
   }
 
-  cat("\nModel Status\n")
-  cat("------------\n")
-  print(.benchmark_model_status_table(x$results), digits = digits, row.names = FALSE)
+  cat("\nBenchmark Details\n")
+  cat("-----------------\n")
+
+  successful_results <- x$results
+  if ("success" %in% names(successful_results)) {
+    successful_results <- successful_results[!is.na(successful_results$success) & successful_results$success == TRUE, , drop = FALSE]
+  }
+  metric_table <- .benchmark_metric_matrix(successful_results)
+  if (nrow(metric_table) > 0L) {
+    cat("Benchmark Metrics\n")
+    cat("-----------------\n")
+    print(.benchmark_print_method_columns(.benchmark_print_metric_labels(metric_table)), digits = digits, row.names = FALSE)
+  }
 
   .benchmark_print_coefficient_comparison(x$coefficients, digits = digits)
-
-  metric_table <- .benchmark_metric_matrix(x$results)
-  if (nrow(metric_table) > 0L) {
-    cat("\nBenchmark Metrics\n")
-    cat("-----------------\n")
-    print(.benchmark_print_metric_labels(metric_table), digits = digits, row.names = FALSE)
-  }
-
-  unsupported <- if (!is.null(x$interpretation)) {
-    as.data.frame(x$interpretation$unsupported, stringsAsFactors = FALSE)
-  } else {
-    data.frame()
-  }
-  if (nrow(unsupported) > 0L) {
-    cat("\nRows Excluded From Interpretation\n")
-    cat("---------------------------------\n")
-    print(unsupported, digits = digits, row.names = FALSE)
-  }
   invisible(x)
 }
 
