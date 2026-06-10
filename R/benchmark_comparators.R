@@ -64,11 +64,11 @@ adoption_benchmark_scenarios <- function(scenarios = NULL) {
       "Tests whether the workflow remains stable when common follow-up visits are absent."
     ),
     primary_metrics = I(list(
-      c("benchmark_mean_rmse", "benchmark_q90_mae", "benchmark_upper_tail_error_90", "benchmark_interval_coverage_95", "elapsed_sec"),
-      c("benchmark_mean_rmse", "benchmark_q90_mae", "benchmark_upper_tail_error_90", "elapsed_sec"),
-      c("benchmark_mean_rmse", "benchmark_q90_mae", "benchmark_upper_tail_error_90", "elapsed_sec"),
+      c("benchmark_mean_rmse", "benchmark_neg_log_score", "benchmark_q90_mae", "benchmark_upper_tail_error_90", "benchmark_interval_coverage_95", "benchmark_interval_width_95", "elapsed_sec"),
+      c("benchmark_mean_rmse", "benchmark_neg_log_score", "benchmark_q90_mae", "benchmark_upper_tail_error_90", "elapsed_sec"),
+      c("benchmark_mean_rmse", "benchmark_neg_log_score", "benchmark_q90_mae", "benchmark_upper_tail_error_90", "elapsed_sec"),
       c("benchmark_theta_time_abs_error", "elapsed_sec"),
-      c("benchmark_mean_rmse", "benchmark_interval_coverage_95", "elapsed_sec")
+      c("benchmark_mean_rmse", "benchmark_neg_log_score", "benchmark_interval_coverage_95", "benchmark_interval_width_95", "elapsed_sec")
     )),
     methods = I(list(
       c("rs_separate", "gee", "glmm", "gam"),
@@ -388,13 +388,15 @@ print.gamlss_longitudinal_adoption_benchmark <- function(x, digits = max(3, getO
   out[grepl("^benchmark_mean_", metric) | metric %in% c("benchmark_rmse", "benchmark_mae")] <- "mean / marginal response fit"
   out[metric %in% c(
     "benchmark_q90_mae",
+    "benchmark_neg_log_score",
     "benchmark_upper_tail_error_90",
     "benchmark_interval_coverage_95",
+    "benchmark_interval_width_95",
     "benchmark_pit_mean_abs_error",
     "benchmark_pit_ks_p_value",
     "benchmark_tail_error_lower_05",
     "benchmark_tail_error_upper_05"
-  ) | estimand %in% c("quantile", "tail", "interval", "calibration")] <- "distributional prediction / shape"
+  ) | estimand %in% c("density", "quantile", "tail", "interval", "calibration")] <- "distributional prediction / shape"
   out[metric %in% "benchmark_theta_time_abs_error" | estimand %in% "dependence"] <- "dependence"
   out[metric %in% "elapsed_sec" | estimand %in% "runtime"] <- "runtime"
   out[grepl("^smooth_", metric) | estimand %in% "smooth"] <- "smooth recovery"
@@ -992,9 +994,11 @@ write_benchmark_report <- function(
     benchmark_mean_mae = NA_real_,
     benchmark_mean_rmse = NA_real_,
     benchmark_q90_mae = NA_real_,
+    benchmark_neg_log_score = NA_real_,
     benchmark_upper_tail_error_90 = NA_real_,
     benchmark_theta_time_abs_error = NA_real_,
     benchmark_interval_coverage_95 = NA_real_,
+    benchmark_interval_width_95 = NA_real_,
     benchmark_pit_ks_p_value = NA_real_,
     benchmark_pit_mean_abs_error = NA_real_,
     benchmark_tail_error_lower_05 = NA_real_,
@@ -1026,7 +1030,8 @@ write_benchmark_report <- function(
     q_p = rep(NA_real_, n),
     lower = rep(NA_real_, n),
     upper = rep(NA_real_, n),
-    pit = rep(NA_real_, n)
+    pit = rep(NA_real_, n),
+    density = rep(NA_real_, n)
   )
   ok <- is.finite(y) & is.finite(fitted)
   if (!any(ok)) {
@@ -1041,18 +1046,21 @@ write_benchmark_report <- function(
     lower <- fitted + stats::qnorm(alpha) * sigma_hat
     upper <- fitted + stats::qnorm(1 - alpha) * sigma_hat
     pit <- stats::pnorm(y, mean = fitted, sd = sigma_hat)
+    density <- stats::dnorm(y, mean = fitted, sd = sigma_hat)
   } else if (identical(family$family, "poisson")) {
     lambda <- pmax(fitted, .Machine$double.eps)
     q_p <- stats::qpois(p, lambda = lambda)
     lower <- stats::qpois(alpha, lambda = lambda)
     upper <- stats::qpois(1 - alpha, lambda = lambda)
     pit <- stats::ppois(y, lambda = lambda)
+    density <- stats::dpois(y, lambda = lambda)
   } else if (identical(family$family, "binomial")) {
     prob <- pmin(pmax(fitted, .Machine$double.eps), 1 - .Machine$double.eps)
     q_p <- stats::qbinom(p, size = 1, prob = prob)
     lower <- stats::qbinom(alpha, size = 1, prob = prob)
     upper <- stats::qbinom(1 - alpha, size = 1, prob = prob)
     pit <- stats::pbinom(y, size = 1, prob = prob)
+    density <- stats::dbinom(y, size = 1, prob = prob)
   } else if (identical(family$family, "Gamma")) {
     dispersion <- .coverage_comparator_dispersion(y, fitted, family)
     if (!is.finite(dispersion) || dispersion <= 0) return(empty)
@@ -1063,6 +1071,7 @@ write_benchmark_report <- function(
     lower <- stats::qgamma(alpha, shape = shape, scale = scale)
     upper <- stats::qgamma(1 - alpha, shape = shape, scale = scale)
     pit <- stats::pgamma(y, shape = shape, scale = scale)
+    density <- stats::dgamma(y, shape = shape, scale = scale)
   } else {
     return(empty)
   }
@@ -1071,7 +1080,8 @@ write_benchmark_report <- function(
     q_p = as.numeric(q_p),
     lower = as.numeric(lower),
     upper = as.numeric(upper),
-    pit = pmin(pmax(as.numeric(pit), 0), 1)
+    pit = pmin(pmax(as.numeric(pit), 0), 1),
+    density = as.numeric(density)
   )
 }
 
@@ -1100,6 +1110,10 @@ write_benchmark_report <- function(
   if (any(ok_q)) {
     out["benchmark_q90_mae"] <- mean(abs(pred_dist$q_p[ok_q] - truth_dist$q[ok_q]), na.rm = TRUE)
   }
+  ok_density <- is.finite(pred_dist$density) & pred_dist$density > 0
+  if (any(ok_density)) {
+    out["benchmark_neg_log_score"] <- mean(-log(pmax(pred_dist$density[ok_density], .Machine$double.xmin)), na.rm = TRUE)
+  }
 
   comparator_at_truth <- .coverage_comparator_distribution(y, fitted, family, truth_dist$q, p = p)
   ok_tail <- is.finite(comparator_at_truth$cdf_at_q) & is.finite(truth_dist$cdf)
@@ -1113,6 +1127,7 @@ write_benchmark_report <- function(
   ok_interval <- is.finite(y) & is.finite(pred_dist$lower) & is.finite(pred_dist$upper)
   if (any(ok_interval)) {
     out["benchmark_interval_coverage_95"] <- mean(y[ok_interval] >= pred_dist$lower[ok_interval] & y[ok_interval] <= pred_dist$upper[ok_interval])
+    out["benchmark_interval_width_95"] <- mean(pred_dist$upper[ok_interval] - pred_dist$lower[ok_interval], na.rm = TRUE)
   }
 
   ok_pit <- is.finite(pred_dist$pit)
@@ -1173,6 +1188,7 @@ write_benchmark_report <- function(
   q_p <- if (!is.null(q_cols)) as.numeric(q_cols[[3L]]) else rep(NA_real_, nrow(data))
 
   pit <- .benchmark_predict_gamlss_vector(fit, data, type = "cdf", value_name = "cdf", q = y)
+  density <- .benchmark_predict_gamlss_vector(fit, data, type = "density", value_name = "density", y = y)
   truth_dist <- .coverage_true_margin_distribution(
     dat,
     family = .benchmark_truth_family(stats::gaussian(), truth_family = truth_family %||% fit$margin_dist$family[1]),
@@ -1184,6 +1200,10 @@ write_benchmark_report <- function(
   if (any(ok_q)) {
     out["benchmark_q90_mae"] <- mean(abs(q_p[ok_q] - truth_dist$q[ok_q]), na.rm = TRUE)
   }
+  ok_density <- is.finite(density) & density > 0
+  if (any(ok_density)) {
+    out["benchmark_neg_log_score"] <- mean(-log(pmax(density[ok_density], .Machine$double.xmin)), na.rm = TRUE)
+  }
 
   ok_tail <- is.finite(cdf_at_truth_q) & is.finite(truth_dist$cdf)
   if (any(ok_tail)) {
@@ -1193,6 +1213,7 @@ write_benchmark_report <- function(
   ok_interval <- is.finite(y) & is.finite(lower) & is.finite(upper)
   if (any(ok_interval)) {
     out["benchmark_interval_coverage_95"] <- mean(y[ok_interval] >= lower[ok_interval] & y[ok_interval] <= upper[ok_interval])
+    out["benchmark_interval_width_95"] <- mean(upper[ok_interval] - lower[ok_interval], na.rm = TRUE)
   }
 
   ok_pit <- is.finite(pit)
@@ -1715,9 +1736,11 @@ print.gamlss_longitudinal_benchmark <- function(x, digits = max(3, getOption("di
       "benchmark_rmse",
       "benchmark_mae",
       "benchmark_q90_mae",
+      "benchmark_neg_log_score",
       "benchmark_upper_tail_error_90",
       "benchmark_theta_time_abs_error",
       "benchmark_interval_coverage_95",
+      "benchmark_interval_width_95",
       "benchmark_pit_mean_abs_error",
       "benchmark_pit_ks_p_value",
       "benchmark_tail_error_lower_05",
@@ -1733,9 +1756,11 @@ print.gamlss_longitudinal_benchmark <- function(x, digits = max(3, getOption("di
       "observed_response",
       "observed_response",
       "quantile",
+      "density",
       "tail",
       "dependence",
       "interval",
+      "interval_width",
       "calibration",
       "calibration",
       "tail",
@@ -1751,9 +1776,11 @@ print.gamlss_longitudinal_benchmark <- function(x, digits = max(3, getOption("di
       "lower",
       "lower",
       "lower",
+      "lower",
       "absolute",
       "lower",
       "target",
+      "lower",
       "lower",
       "higher",
       "absolute",
@@ -1762,7 +1789,7 @@ print.gamlss_longitudinal_benchmark <- function(x, digits = max(3, getOption("di
       "lower",
       "lower"
     ),
-    target = c(NA, NA, 0, NA, NA, NA, 0, NA, 0.95, NA, 1, 0, 0, NA, NA, NA),
+    target = c(NA, NA, 0, NA, NA, NA, NA, 0, NA, 0.95, NA, NA, 1, 0, 0, NA, NA, NA),
     stringsAsFactors = FALSE
   )
 }
