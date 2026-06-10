@@ -37,8 +37,7 @@ Installation:
 remotes::install_github("ahibbert/gamlss.longitudinal")
 ```
 
-Read these first for the shortest path from data to an interpretable
-longitudinal model:
+Worked examples for end-to-end model fits using gamlss.longitudinal.
 
 | Article title | Access from R | Purpose |
 |---|---|---|
@@ -54,8 +53,7 @@ workflow:
 |---|---|---|
 | [Inference](inference-uncertainty.html) | `vignette("inference-uncertainty", package = "gamlss.longitudinal")` | Confidence intervals, Wald tests, likelihood comparisons, bootstrap inference, and uncertainty language. |
 | [Diagnostics](diagnostics-decisions.html) | `vignette("diagnostics-decisions", package = "gamlss.longitudinal")` | `check_model()`, basic check statuses, failed-check warnings, tail checks, and dependence diagnostics. |
-| [Simulator usage](simulator-usage.html) | `vignette("simulator-usage", package = "gamlss.longitudinal")` | How to generate longitudinal datasets with GAMLSS margins, copula dependence, covariates, known truth, and missing responses. |
-| [Benchmarking](benchmarking-adoption.html) | `vignette("benchmarking-adoption", package = "gamlss.longitudinal")` | Scenario-level benchmark evidence against GEE, GLMM, and GAM baselines. |
+| [Simulation](simulator-usage.html) | `vignette("simulator-usage", package = "gamlss.longitudinal")` | How to generate longitudinal datasets with GAMLSS margins, copula dependence, covariates, known truth, and missing responses. 
 
 ## Reference Pages
 

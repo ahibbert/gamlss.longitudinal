@@ -39,6 +39,108 @@ ul.task-list{list-style: none;}
 
 
 
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
 
 
 
@@ -288,6 +390,63 @@ fitting, and diagnostics.</td>
 </tr>
 </tbody>
 </table>
+</div>
+<div id="which-model-should-i-use" class="section level2">
+<h2>Which Model Should I Use?</h2>
+<p>Start with the scientific estimand.</p>
+<table>
+<colgroup>
+<col width="50%" />
+<col width="50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Estimand</th>
+<th>Suggested primary workflow</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Marginal mean only, familiar exponential-family outcome</td>
+<td>Fit GEE/GLM/GLMM as the primary model and use
+<code>benchmark_standard_models()</code> if comparing against
+<code>gamlss.longitudinal</code>.</td>
+</tr>
+<tr class="even">
+<td>Mean plus changing variance, skewness, tails, or non-standard
+outcome shape</td>
+<td>Fit <code>gamlss_longitudinal()</code> and report
+<code>predict(type = &quot;mean&quot;)</code>, <code>marginal_effects()</code>,
+and <code>check_model()</code>.</td>
+</tr>
+<tr class="odd">
+<td>Quantiles or threshold probabilities</td>
+<td>Fit <code>gamlss_longitudinal()</code>, use
+<code>predict(type = &quot;quantile&quot;)</code> or
+<code>predict(type = &quot;probability&quot;)</code>, and require acceptable tail
+diagnostics.</td>
+</tr>
+<tr class="even">
+<td>Subject trajectories or clustered tail events</td>
+<td>Use <code>simulate(fit)</code> after fitting; coefficient intervals
+alone do not describe trajectory uncertainty.</td>
+</tr>
+<tr class="odd">
+<td>Time-varying within-subject dependence</td>
+<td>Include a scientifically motivated <code>theta.formula</code>,
+review <code>copula_time_summary()</code>, and compare copula
+diagnostics.</td>
+</tr>
+</tbody>
+</table>
+<p>Prediction names are estimand-specific. Use
+<code>type = &quot;mean&quot;</code> for the fitted response mean,
+<code>type = &quot;median&quot;</code> for the fitted median, and
+<code>type = &quot;mu&quot;</code> for the GAMLSS <code>mu</code> parameter. The
+old <code>type = &quot;response&quot;</code> spelling is retained as a
+compatibility alias for <code>type = &quot;mu&quot;</code>.</p>
+<p>For a fast local check after installation, run:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">source</span>(<span class="fu">system.file</span>(<span class="st">&quot;smoke-tests&quot;</span>, <span class="st">&quot;new-user-smoke.R&quot;</span>, <span class="at">package =</span> <span class="st">&quot;gamlss.longitudinal&quot;</span>))</span></code></pre></div>
 </div>
 <div id="support-articles" class="section level2">
 <h2>Support Articles</h2>
