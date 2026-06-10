@@ -1,0 +1,77 @@
+---
+title: "Five-minute smoke test"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Five-minute smoke test}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 6,
+  fig.height = 4
+)
+```
+
+This vignette is the quickest runnable check that the main user workflow works:
+simulate data, fit a model, predict clear estimands, check diagnostics, simulate
+from the fit, and compare one familiar baseline.
+
+```{r smoke}
+library(gamlss.longitudinal)
+library(gamlss.dist)
+
+dat <- simulate_longitudinal_dataset(
+  n = 20,
+  times = 0:2,
+  margin_dist = NO(),
+  copula_dist = "N",
+  margin_params = list(mu = function(d) 1 + 0.2 * d$time, sigma = 0.6),
+  copula_params = list(theta = 0.25),
+  seed = 1
+)
+
+fit <- gamlss_longitudinal(
+  dataset = dat,
+  margin_dist = NO(),
+  copula_dist = "N",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ time,
+  sigma.formula = ~ 1,
+  theta.formula = ~ 1,
+  max_outer_iter = 5,
+  max_inner_iter = 5,
+  compute_vcov = FALSE,
+  verbose = 0
+)
+
+head(predict(fit, type = "mean"))
+head(predict(fit, type = "quantile", probs = c(0.1, 0.5, 0.9)))
+head(predict(fit, type = "probability", q = 1, direction = "above"))
+
+check_model(fit, include_vcov = FALSE)
+reporting_table(fit, dat, by = "time", threshold = 1)
+model_spec(fit)
+
+sim <- simulate(fit, nsim = 2, seed = 1)
+head(sim)
+
+benchmark_standard_models(
+  data = dat,
+  formula = response ~ time,
+  subject_var = "subject",
+  family = "gaussian",
+  comparators = "glm",
+  fit = fit
+)
+```
+
+For source-tree testing, the same workflow is available as:
+
+```r
+source("inst/smoke-tests/new-user-smoke.R")
+```
