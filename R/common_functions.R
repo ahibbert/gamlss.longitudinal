@@ -9314,14 +9314,19 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
 
 #' @keywords internal
 #' @noRd
-.plot_margin_constant_params <- function(y, family, warn = TRUE) {
+.plot_margin_constant_params <- function(y, family, warn = TRUE, fit_control = gamlss::gamlss.control(n.cyc = 50)) {
   y <- as.numeric(y)
   y <- y[is.finite(y)]
   if (length(y) < 3L) {
     stop("Need at least three finite response values to fit a marginal overlay.", call. = FALSE)
   }
 
-  fit <- suppressWarnings(gamlss::gamlss(y ~ 1, family = family, trace = FALSE))
+  fit <- NULL
+  invisible(utils::capture.output({
+    fit <- suppressWarnings(suppressMessages(
+      gamlss::gamlss(y ~ 1, family = family, trace = FALSE, control = fit_control)
+    ))
+  }))
   if (!.plot_margin_check_fit(fit, family, warn = warn)) {
     return(NULL)
   }
@@ -9334,7 +9339,7 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
 
 #' @keywords internal
 #' @noRd
-.plot_margin_time_intercept_params <- function(y, time, family, warn = TRUE) {
+.plot_margin_time_intercept_params <- function(y, time, family, warn = TRUE, fit_control = gamlss::gamlss.control(n.cyc = 50)) {
   y <- as.numeric(y)
   time <- as.character(time)
   keep <- is.finite(y) & !is.na(time)
@@ -9348,11 +9353,14 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
     stringsAsFactors = FALSE
   )
   formula_time <- stats::as.formula("y ~ time_intercept")
-  fit_args <- list(formula = formula_time, family = family, data = fit_data, trace = FALSE)
+  fit_args <- list(formula = formula_time, family = family, data = fit_data, trace = FALSE, control = fit_control)
   for (par_name in setdiff(names(family$parameters), "mu")) {
     fit_args[[paste0(par_name, ".formula")]] <- stats::as.formula("~ time_intercept")
   }
-  fit <- suppressWarnings(do.call(gamlss::gamlss, fit_args))
+  fit <- NULL
+  invisible(utils::capture.output({
+    fit <- suppressWarnings(suppressMessages(do.call(gamlss::gamlss, fit_args)))
+  }))
   if (!.plot_margin_check_fit(fit, family, warn = warn)) {
     return(NULL)
   }
@@ -9556,6 +9564,8 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
 #'   models, fitted densities are averaged within each time point.
 #' @param time_var Time column name used when `time_intercepts = TRUE` or
 #'   `by_time = TRUE` for raw data.
+#' @param fit_control Control object passed to the internal `gamlss()` overlay
+#'   fit for raw-data plots. Defaults to `gamlss::gamlss.control(n.cyc = 50)`.
 #' @param plot Logical; if TRUE, print the plot.
 #' @param ... Additional arguments reserved for future methods.
 #'
@@ -9574,6 +9584,7 @@ plot_margin_fit <- function(
   time_intercepts = FALSE,
   by_time = FALSE,
   time_var = "time",
+  fit_control = gamlss::gamlss.control(n.cyc = 50),
   plot = TRUE,
   ...
 ) {
@@ -9652,7 +9663,7 @@ plot_margin_fit <- function(
         split_group = if (isTRUE(by_time)) as.character(raw_time) else "All",
         stringsAsFactors = FALSE
       )
-      params <- .plot_margin_time_intercept_params(y, raw_time, margin_dist)
+      params <- .plot_margin_time_intercept_params(y, raw_time, margin_dist, fit_control = fit_control)
       density_grid <- if (is.null(params)) {
         .plot_margin_empty_density()
       } else {
@@ -9670,7 +9681,7 @@ plot_margin_fit <- function(
         overlay_failed <- FALSE
         density_grid <- do.call(rbind, lapply(names(split(obs, obs$split_group)), function(group_name) {
           df <- split(obs, obs$split_group)[[group_name]]
-          params <- .plot_margin_constant_params(df$response, margin_dist, warn = FALSE)
+          params <- .plot_margin_constant_params(df$response, margin_dist, warn = FALSE, fit_control = fit_control)
           grid <- if (is.null(params)) {
             overlay_failed <<- TRUE
             .plot_margin_empty_density(group_name)
@@ -9690,7 +9701,7 @@ plot_margin_fit <- function(
         }
       } else {
         obs <- data.frame(response = y, split_group = "All", stringsAsFactors = FALSE)
-        params <- .plot_margin_constant_params(y, margin_dist)
+        params <- .plot_margin_constant_params(y, margin_dist, fit_control = fit_control)
         density_grid <- if (is.null(params)) {
           .plot_margin_empty_density()
         } else {
