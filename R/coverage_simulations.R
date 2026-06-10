@@ -1062,8 +1062,10 @@
     benchmark_mean_mae = NA_real_,
     benchmark_mean_rmse = NA_real_,
     benchmark_q90_mae = NA_real_,
+    benchmark_neg_log_score = NA_real_,
     benchmark_upper_tail_error_90 = NA_real_,
     benchmark_interval_coverage_95 = NA_real_,
+    benchmark_interval_width_95 = NA_real_,
     benchmark_pit_ks_p_value = NA_real_,
     benchmark_pit_mean_abs_error = NA_real_,
     benchmark_tail_error_lower_05 = NA_real_,
@@ -1090,6 +1092,11 @@
   if (any(ok_q90)) {
     out["benchmark_q90_mae"] <- mean(abs(comparator_dist$q[ok_q90] - truth_dist$q[ok_q90]), na.rm = TRUE)
   }
+  pred_dist <- .benchmark_predictive_distribution(dat$response, fitted, family, p = 0.9)
+  ok_density <- is.finite(pred_dist$density) & pred_dist$density > 0
+  if (any(ok_density)) {
+    out["benchmark_neg_log_score"] <- mean(-log(pmax(pred_dist$density[ok_density], .Machine$double.xmin)), na.rm = TRUE)
+  }
   ok_tail <- is.finite(truth_dist$cdf) & is.finite(comparator_dist$cdf_at_q)
   if (any(ok_tail)) {
     true_upper_tail <- 1 - truth_dist$cdf[ok_tail]
@@ -1108,6 +1115,7 @@
   lower <- fitted[ok_obs] + stats::qnorm(0.025) * sigma_hat
   upper <- fitted[ok_obs] + stats::qnorm(0.975) * sigma_hat
   out["benchmark_interval_coverage_95"] <- mean(dat$response[ok_obs] >= lower & dat$response[ok_obs] <= upper)
+  out["benchmark_interval_width_95"] <- mean(upper - lower, na.rm = TRUE)
   pit <- stats::pnorm(dat$response[ok_obs], mean = fitted[ok_obs], sd = sigma_hat)
   pit <- pmin(pmax(pit, 0), 1)
   out["benchmark_pit_ks_p_value"] <- tryCatch(
@@ -1131,8 +1139,10 @@
     benchmark_mean_mae = NA_real_,
     benchmark_mean_rmse = NA_real_,
     benchmark_q90_mae = NA_real_,
+    benchmark_neg_log_score = NA_real_,
     benchmark_upper_tail_error_90 = NA_real_,
     benchmark_interval_coverage_95 = NA_real_,
+    benchmark_interval_width_95 = NA_real_,
     benchmark_pit_ks_p_value = NA_real_,
     benchmark_pit_mean_abs_error = NA_real_,
     benchmark_tail_error_lower_05 = NA_real_,
@@ -1181,6 +1191,7 @@
   fitted_q025 <- rep(NA_real_, n)
   fitted_q975 <- rep(NA_real_, n)
   fitted_pit <- rep(NA_real_, n)
+  fitted_density <- rep(NA_real_, n)
 
   fitted_q90[idx] <- tryCatch(
     as.numeric(.gl_call_family_fun("q", diag_data$family, 0.9, params))[seq_along(idx)],
@@ -1202,10 +1213,18 @@
     as.numeric(.gl_call_family_fun("p", diag_data$family, dat$response[idx], params))[seq_along(idx)],
     error = function(e) rep(NA_real_, length(idx))
   )
+  fitted_density[idx] <- tryCatch(
+    as.numeric(.gl_call_family_fun("d", diag_data$family, dat$response[idx], params))[seq_along(idx)],
+    error = function(e) rep(NA_real_, length(idx))
+  )
 
   ok_q90 <- is.finite(truth_dist$q) & is.finite(fitted_q90)
   if (any(ok_q90)) {
     out["benchmark_q90_mae"] <- mean(abs(fitted_q90[ok_q90] - truth_dist$q[ok_q90]), na.rm = TRUE)
+  }
+  ok_density <- is.finite(fitted_density) & fitted_density > 0
+  if (any(ok_density)) {
+    out["benchmark_neg_log_score"] <- mean(-log(pmax(fitted_density[ok_density], .Machine$double.xmin)), na.rm = TRUE)
   }
   ok_tail <- is.finite(truth_dist$cdf) & is.finite(fitted_cdf_at_true_q90)
   if (any(ok_tail)) {
@@ -1219,6 +1238,7 @@
       dat$response[ok_interval] >= fitted_q025[ok_interval] &
         dat$response[ok_interval] <= fitted_q975[ok_interval]
     )
+    out["benchmark_interval_width_95"] <- mean(fitted_q975[ok_interval] - fitted_q025[ok_interval], na.rm = TRUE)
   }
   ok_pit <- is.finite(fitted_pit)
   if (sum(ok_pit) >= 3L) {
@@ -1268,8 +1288,10 @@
       benchmark_mean_mae = NA_real_,
       benchmark_mean_rmse = NA_real_,
       benchmark_q90_mae = NA_real_,
+      benchmark_neg_log_score = NA_real_,
       benchmark_upper_tail_error_90 = NA_real_,
       benchmark_interval_coverage_95 = NA_real_,
+      benchmark_interval_width_95 = NA_real_,
       benchmark_pit_ks_p_value = NA_real_,
       benchmark_pit_mean_abs_error = NA_real_,
       benchmark_tail_error_lower_05 = NA_real_,
@@ -1354,8 +1376,10 @@
     benchmark_mean_mae = unname(truth_metrics[["benchmark_mean_mae"]]),
     benchmark_mean_rmse = unname(truth_metrics[["benchmark_mean_rmse"]]),
     benchmark_q90_mae = unname(truth_metrics[["benchmark_q90_mae"]]),
+    benchmark_neg_log_score = unname(truth_metrics[["benchmark_neg_log_score"]]),
     benchmark_upper_tail_error_90 = unname(truth_metrics[["benchmark_upper_tail_error_90"]]),
     benchmark_interval_coverage_95 = unname(truth_metrics[["benchmark_interval_coverage_95"]]),
+    benchmark_interval_width_95 = unname(truth_metrics[["benchmark_interval_width_95"]]),
     benchmark_pit_ks_p_value = unname(truth_metrics[["benchmark_pit_ks_p_value"]]),
     benchmark_pit_mean_abs_error = unname(truth_metrics[["benchmark_pit_mean_abs_error"]]),
     benchmark_tail_error_lower_05 = unname(truth_metrics[["benchmark_tail_error_lower_05"]]),
@@ -1629,8 +1653,10 @@
     benchmark_mean_mae = unname(truth_metrics[["benchmark_mean_mae"]]),
     benchmark_mean_rmse = unname(truth_metrics[["benchmark_mean_rmse"]]),
     benchmark_q90_mae = unname(truth_metrics[["benchmark_q90_mae"]]),
+    benchmark_neg_log_score = unname(truth_metrics[["benchmark_neg_log_score"]]),
     benchmark_upper_tail_error_90 = unname(truth_metrics[["benchmark_upper_tail_error_90"]]),
     benchmark_interval_coverage_95 = unname(truth_metrics[["benchmark_interval_coverage_95"]]),
+    benchmark_interval_width_95 = unname(truth_metrics[["benchmark_interval_width_95"]]),
     benchmark_pit_ks_p_value = unname(truth_metrics[["benchmark_pit_ks_p_value"]]),
     benchmark_pit_mean_abs_error = unname(truth_metrics[["benchmark_pit_mean_abs_error"]]),
     benchmark_tail_error_lower_05 = unname(truth_metrics[["benchmark_tail_error_lower_05"]]),
