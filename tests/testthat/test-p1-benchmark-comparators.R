@@ -244,6 +244,15 @@ test_that("benchmark_standard_models can score the supplied primary fit", {
   expect_true(any(grepl("Observed response RMSE", printed, fixed = TRUE)))
 })
 
+test_that("benchmark coefficient labels use the original time covariate name", {
+  terms <- .benchmark_normalize_coef_term(
+    c("mu.(Intercept)", "mu.time_covariate", "mu.time_covariate:genderM"),
+    time_var = "time"
+  )
+
+  expect_equal(terms, c("intercept", "time", "time:genderM"))
+})
+
 test_that("benchmark interpretation groups metrics into readable domains", {
   domains <- .benchmark_metric_domain(
     c(
