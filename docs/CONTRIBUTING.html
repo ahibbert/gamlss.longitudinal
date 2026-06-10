@@ -21,6 +21,7 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
     <li><a class="dropdown-item" href="articles/site-guide.html">Overview of Support Articles</a></li>
+    <li><a class="dropdown-item" href="articles/five-minute-smoke-test.html">Five-minute smoke test</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Worked Examples</h6></li>
     <li><a class="dropdown-item" href="articles/standard-workflow.html">Standard workflow: screening, fit, inference, diagnostics, and simulation</a></li>
@@ -30,7 +31,6 @@
     <li><h6 class="dropdown-header" data-toc-skip>Adoption Guides</h6></li>
     <li><a class="dropdown-item" href="articles/inference-uncertainty.html">Inference and Uncertainty</a></li>
     <li><a class="dropdown-item" href="articles/diagnostics-decisions.html">Diagnostics As Decisions</a></li>
-    <li><a class="dropdown-item" href="articles/benchmarking-adoption.html">Benchmarking Adoption Claims</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><a class="external-link nav-link" href="https://github.com/ahibbert/gamlss.longitudinal/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
@@ -85,7 +85,9 @@
 <div class="section level2">
 <h2 id="extended-tests">Extended Tests<a class="anchor" aria-label="anchor" href="#extended-tests"></a></h2>
 <p>Routine tests must remain CRAN- and CI-friendly. Long-running recovery, benchmark, and stress tests are opt-in:</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="va">GAMLSS_LONGITUDINAL_EXTENDED_TESTS</span><span class="op">=</span>true <span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">"testthat::test_dir('tests/testthat')"</span></span></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">"source('inst/smoke-tests/new-user-smoke.R')"</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">"pkgload::load_all(); testthat::test_file('tests/testthat/test-p0-user-facing-estimands.R')"</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="va">GAMLSS_LONGITUDINAL_EXTENDED_TESTS</span><span class="op">=</span>true <span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">"pkgload::load_all(); testthat::test_dir('tests/testthat')"</span></span></code></pre></div>
 <p>Extended tests may cover multi-seed parameter recovery, larger panels, near-independent and strong dependence, missing visits, benchmark comparators, and platform-specific numerical tolerance checks. If an extended test requires optional packages or external artifacts that are unavailable, it should skip with an informative diagnostic rather than fail.</p>
 </div>
 </div>

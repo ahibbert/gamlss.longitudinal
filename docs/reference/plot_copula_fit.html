@@ -29,6 +29,7 @@ averaged over paired observations."></head><body>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
     <li><a class="dropdown-item" href="../articles/site-guide.html">Overview of Support Articles</a></li>
+    <li><a class="dropdown-item" href="../articles/five-minute-smoke-test.html">Five-minute smoke test</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Worked Examples</h6></li>
     <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard workflow: screening, fit, inference, diagnostics, and simulation</a></li>
@@ -38,7 +39,6 @@ averaged over paired observations."></head><body>
     <li><h6 class="dropdown-header" data-toc-skip>Adoption Guides</h6></li>
     <li><a class="dropdown-item" href="../articles/inference-uncertainty.html">Inference and Uncertainty</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics-decisions.html">Diagnostics As Decisions</a></li>
-    <li><a class="dropdown-item" href="../articles/benchmarking-adoption.html">Benchmarking Adoption Claims</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><a class="external-link nav-link" href="https://github.com/ahibbert/gamlss.longitudinal/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
@@ -78,6 +78,7 @@ averaged over paired observations.</p>
 <span>  subject_var <span class="op">=</span> <span class="st">"subject"</span>,</span>
 <span>  time_var <span class="op">=</span> <span class="st">"time"</span>,</span>
 <span>  lags <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  by_time <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  transform <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"normal"</span>, <span class="st">"uniform"</span><span class="op">)</span>,</span>
 <span>  grid_n <span class="op">=</span> <span class="fl">80</span>,</span>
 <span>  bins <span class="op">=</span> <span class="fl">28</span>,</span>
@@ -101,6 +102,7 @@ averaged over paired observations.</p>
 <span>  subject_var <span class="op">=</span> <span class="st">"subject"</span>,</span>
 <span>  time_var <span class="op">=</span> <span class="st">"time"</span>,</span>
 <span>  lags <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  by_time <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  transform <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"normal"</span>, <span class="st">"uniform"</span><span class="op">)</span>,</span>
 <span>  grid_n <span class="op">=</span> <span class="fl">80</span>,</span>
 <span>  bins <span class="op">=</span> <span class="fl">28</span>,</span>
@@ -163,6 +165,11 @@ pseudo-observations from <code>response_var</code>.</p></dd>
 
 <dt id="arg-lags">lags<a class="anchor" aria-label="anchor" href="#arg-lags"></a></dt>
 <dd><p>Positive integer lag(s) used when forming pairs.</p></dd>
+
+
+<dt id="arg-by-time">by_time<a class="anchor" aria-label="anchor" href="#arg-by-time"></a></dt>
+<dd><p>Logical; if <code>TRUE</code>, facet the copula overlay by adjacent
+time pair.</p></dd>
 
 
 <dt id="arg-transform">transform<a class="anchor" aria-label="anchor" href="#arg-transform"></a></dt>
