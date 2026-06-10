@@ -55,12 +55,12 @@ The workflow is:
 0. Simulate a longitudinal dataset using builtin helper `simulate_longitudinal_dataset()`
 1. Inspect the marginal response, covariates, missingness, and pairwise dependence,
 2. Select a marginal distribution and copula family,
-3. Fit the longitudinal model,
-4. Review inference and model diagnostics,
+3. Fit the longitudinal model incuding covariate selection,
+4. Review the final model fit,
 5. Answer applied questions with prediction, marginal effects, simulation, and
    benchmark comparisons.
 
-For simplicity, a number of decisions on covariate structure are made based on the known structure of the underlying data with some illustrative comparisons between alternatives, however in an unknown data context of course a large number of alternative covariate structures may be tested.
+For simplicity, a number of decisions on covariate structure are shortened based on the known structure of the underlying data with some illustrative comparisons between alternatives, however in an unknown data context of course a large number of alternative covariate structures may be tested.
 
 First we load required packages for this vignette:
 ```{r packages}
@@ -198,7 +198,7 @@ table(dataset$treatment)
 table(dataset$time)
 ```
 
-Since missingness and dropout in particular is common in longitudinal datasets, we include an internal helper to summarise overall missingness. `check_missingness()` summarises the missingness in the response overall then builds a simple logisitic regression for the response against included predictors to screen for any strong trends. This can be treated as an indicator of whether missingness at random can be reasonably assumed based on the included features, however it cannot rule out other factors that may be driving missingness. In this case, no factors are found to be significant at `p=0.05` which is the default for warnings.
+Since missingness and dropout in particular is common in longitudinal datasets, we include an internal helper to summarise overall missingness. `check_missingness()` summarises the missingness in the response overall then builds a simple logisitic regression for the response against included predictors to screen for any strong trends. This can be treated as an indicator of whether missingness at random can be reasonably assumed based on the included features, however it cannot rule out other factors that may be driving missingness. In this case, time is considered as related to missingness (i.e. dropout) but no other factors are found to be significant at `p=0.05` which is the default for warnings. 
 
 ```{r missingness-check}
 missingness_check <- check_missingness(
@@ -212,7 +212,7 @@ missingness_check <- check_missingness(
 print(missingness_check)
 ```
 
-As these are longitudinal data, time is often a factor which may influence the shape of the joint distribution over time. We first briefly review the moments of the observed marginal distribution and the correlation structure against time to inform model selection. In this case, there is not a strong effect of time on the mean on initial inspection but there is clearly a trend in variance, skewness and kurtosis over time. Reviewing the pairwise correlation over time (the first off-diagonal), it appears there may also be a trend in increasing correlation for adjacent observations over time. 
+As these are longitudinal data, time is often a factor which may influence the shape of the joint distribution. We first briefly review the moments of the observed marginal distribution and the correlation structure against time to inform model selection. In this case, there is not a strong effect of time on the mean on initial inspection but there is clearly a trend in variance, skewness and kurtosis over time. Reviewing the pairwise correlation over time (the first off-diagonal), it appears there may also be a trend in increasing correlation for adjacent observations over time, with decreasing correlation with time-distance as is often common in longitudinal data. 
 
 ```{r review-time-effect}
 aggregate(response ~ time, dataset, \(x) {
@@ -262,7 +262,9 @@ margin_selection <- select_margin(
 print(margin_selection)
 ```
 
-Interestingly, note that the selected distribution is `BCPEo` here as it is highly flexible and is able the capture the varied shape of the shared distribution which is changing over time. However, given we know that **time is a strong component of the moments** here, the best model is likely to be using a marginal distribution which provides the best fit where the margins can depend on time. Select the option `time_intercepts=TRUE` in `select_margin` and this allows each moment of the distribution to vary with time. This method then selects `GG()` and `GA()` as the suggested models (which we happen to know matches the simulation setup for this case). We will take these two distributions forwards as our two potential distributions for the final model, depending on whether the additional parameter for the `GG()` over the `GA()` adds sufficent fit to accout for the additional degrees of freedom consumed. 
+The `BCPEo` is selected as the best fitting distribution as it is highly flexible and is able the capture the shape of the shared distribution. However, given we know that time is a strong component of the moments, the best model is likely to be using a marginal distribution which can change with time. 
+
+We can set the option `time_intercepts=TRUE` in `select_margin` which allows each parameter of the marginal distribution to vary with time. This method then selects `GG()` and `GA()` as the best models by AIC. We will take these two distributions forwards as our two potential distributions for the final model, depending on whether the additional parameter for the `GG()` over the `GA()` adds sufficent fit to account for the additional degrees of freedom consumed. 
 
 ```{r marginal-screen-long}
 margin_selection <- select_margin(
@@ -276,16 +278,19 @@ margin_selection <- select_margin(
 margin_selection
 ```
 
-We can review the fitted margin over the overall distribution using `plot_margin_fit()`. As we are considering the model with time-fitted parameters we use `time_intercepts=TRUE`. Both seem to provide a reasonable fit the the overall distribution. 
+We can review the fitted margin over the overall distribution using `plot_margin_fit()`. 
 
-```{r marginal-fit-overlay, fig.alt = "Histograms of observed responses comparing generalized gamma and gamma marginal fits with time-intercept overlays."}
+For illustration we'll compare the fit without time-varying intercepts to the fit with time-varying intercepts.
+
+First let's review the fit without time intercepts.
+
+```{r marginal-fit-overlay, fig.alt = "Histograms of observed responses comparing generalized gamma and gamma marginal fits without time-intercepts."}
 margin_overlay_plots <- list(
   plot_margin_fit(
     dataset,
     margin_dist = GA(),
     response_var = "response",
     bins = 30,
-    time_intercepts = TRUE,
     time_var = "time",
     plot = FALSE
   )$plot,
@@ -294,7 +299,6 @@ margin_overlay_plots <- list(
     margin_dist = GG(),
     response_var = "response",
     bins = 30,
-    time_intercepts = TRUE,
     time_var = "time",
     plot = FALSE
   )$plot
@@ -303,7 +307,9 @@ margin_overlay_plots <- list(
 ggpubr::ggarrange(plotlist = margin_overlay_plots, ncol = 2, nrow = 1)
 ```
 
-We can also select to view the fits over time, by selecting `by_time=TRUE`. While it's not a strong effect, it appears the `GG()` captures the extreme distributions at first and last timepoints slightly more accurately than the base `GA()` model, but both capture the changing shape of the distribution reasonably.
+Clearly the `GA()` and `GG()` are not fitting well here, which is why the `BCPE()` was selected as the best non-time-varying model.
+
+We can review the fits over time by selecting `by_time=TRUE` in `plot_margin_fit`. With this faceting, `GA()` and `GG()` closely follow the changing shape of the distribution over time as implied by the likelihood criteria. While it's not a strong effect, it appears the `GG()` captures the extreme distributions at first and last timepoints slightly more accurately than the base `GA()` model, but both capture the changing shape of the distribution reasonably.
 
 ```{r marginal-fit-overlay-long-GA, fig.alt = "Histograms of fitted GA with time-varying intercepts for each parameter."}
 plot_margin_fit(
@@ -331,9 +337,9 @@ plot_margin_fit(
 
 Once we have a starting fit for the margin, we can select a copula distribution. The copula distribution depends on the shape of the margin so the margin must be selected first. We do provide the option for choosing both margin and copula jointly using `select_joint_distribution()` however this is quite a slow fit, and generally does not select differently to the much faster process using `select_margin()` followed by `select_copula()`. Instead we would suggest sensitivity / alternative testing for a final selection of margins or copulas, or for the final fitted model, rather than spending compute time at the early stage before covariates are selected.
 
-`select_copula()` asseses avaiable copula fits by likelihood criteria for the starting marginal model. The copula is fit on pseudo-observations which have been created using the marginal fit. The user can either pass in the best model from `select_margin()` using `margin_dist=margin_selection` or can specify a marginal fit with `margin_dist` and `time_intercepts=TRUE/FALSE`. If the user really wants, they can also fully specify a `gamlss.longitudinal` model with formulas for all the intercepts and select a copula that way, however we would suggest this as a final sensitivity test rather than at this stage since covariates are not yet reviewed.
+`select_copula()` asseses available copula fits by likelihood criteria for the starting marginal model. The copula is fit on pseudo-observations which have been created using the marginal fit. The user can either pass in the best model from `select_margin()` using `margin_dist=margin_selection` or can specify a marginal fit with `margin_dist` and `time_intercepts=TRUE/FALSE`. If the user really wants, they can also fully specify a `gamlss.longitudinal` model with formulas for all the intercepts and select a copula that way, however we would suggest this as a final sensitivity test rather than at this stage since covariates are not yet reviewed.
 
-As dependence structure can also shift with time, we also provide the option to provide time-based intercepts in the `select_copula()` function using `copula_time_intercepts=TRUE` in case the changing shape over time selects a different copula family than a static single parameter.
+As dependence structure can also shift with time, we also provide the option to provide time-based intercepts in the `select_copula()` function using `copula_time_intercepts=TRUE` in case the changing shape over time selects a different copula family than a static single parameter as was the case for marginal parameters.
 
 We provide selection here for `GA()` (using `margin_dist=margin_selection`) and `GG()` (directly specifying `margin_dist` and `time_intercepts`) with both time-varying and non-time-varying copula paramter.
 
@@ -397,7 +403,7 @@ copula_selection <- select_copula(
 print(copula_selection)
 ```
 
-If the user wishes to compare a few combinations of fits for overall joint distribution, this is a reasonable point to confirm using `select_joint_distribution`. For example, let's compare the `GA` and `GG` and a standard normal `NO`, and compare fits for `N` and `C` copulas with time intercepts for both margin and copula fits. This takes about 30 seconds to run for this example. The selected joint fits are `GA+C` and `GG+C` which agrees with the previous process.
+If the user wishes to compare a few combinations of fits for overall joint distribution, this is a reasonable point to confirm using `select_joint_distribution()`. For example, let's compare the `GA`, `GG` and a benchmark standard normal `NO`, and compare fits for `N` and `C` copulas with time intercepts for both margin and copula fits. This takes about 30 seconds to run for this example. The selected joint fits are `GA+C` as the best AIC/BIC and `GG+C` as the best log likelihood which agrees with the previous process.
 
 ```{r joint-screen}
 joint_selection <- select_joint_distribution(
@@ -424,7 +430,8 @@ plot_copula_fit(
   subject_var = "subject",
   time_var = "time",
   response_var = "response",
-  by_time = TRUE
+  by_time = TRUE,
+  bins=14
 )
 ```
 
@@ -585,7 +592,7 @@ Now let's compare models for `sigma`. Treatment effect is strongly significant s
 likelihood_compare(fit_munotime, fit_sigmalineartime)
 ```
 
-Linear time for `sigma` removes three degrees of freedom and provides the same AIC and better BIC so we select it as the improved model. The covariate is highly significant.
+Linear time for `sigma` removes three degrees of freedom and provides better AIC and BIC so we select it as the improved model. The covariate is highly significant.
 
 Now for `nu`. The time covariate and treatment effect for `nu` are non-significant still after fitting `sigma`, and we should review if the smooth is providing sufficient information as the degrees of freedom are very low. We fit models for `nu` with each of the factors individually and compare against an intercept-only model. 
 
@@ -607,16 +614,23 @@ So the final selected model has smooth effects for age for `mu`, `sigma` and `th
 
 ## Review the fit
 
-We provide a brief automated model assessment using `check_model()` and return either a concern or a clear check. Check model is readonably minimal and should be used alongside other diagnostics, the checks that flag are:
+We provide a brief automated model assessment using `check_model()` and return a compact set of basic check statuses. Check model is reasonably minimal and should be used alongside other diagnostics; the checks that flag are:
 
- | Area | Quantity checked | Threshold / condition | Default | Severity | Recommendation |
-|---|---:|---:|---:|---|---|
-| Convergence | `object$convergence$converged` | Not `TRUE` | n/a | `concern` | `revise_before_primary` |
-| Marginal calibration | PIT Kolmogorov-Smirnov p-value vs Uniform(0, 1) | `ks_p_value < 0.05` | `0.05` | `concern` | `revise_before_primary` |
-| Tail calibration | Maximum of lower/upper PIT tail ratios across thresholds `0.05` and `0.10` | `max(lower_ratio, upper_ratio) > 2` | `2` | `review` | `primary_candidate_with_caveats` unless a `concern` also exists |
-| Residual dependence | Absolute lag-1 Rosenblatt normal-score residual correlation after fitted copula | `abs(lag1_cor) > dependence_cor_cutoff` | `0.25` | `concern` | `revise_before_primary` |
-| Inference | Variance-covariance method from summary | `vcov_method == "numderiv"` | n/a | `note` | `primary_candidate_with_caveats` unless a `concern` also exists |
-| Overall | No automatic checks triggered | No `concern`, `review`, or `note` rows | n/a | `ok` | `primary_candidate` |
+| Area | Quantity checked | Threshold / condition | Overall result |
+|---|---|---|---|
+| Convergence | Model convergence based on `fit$convergence$converged` | Not `TRUE`| `basic_checks=FAIL` |
+| Marginal fit | PIT Kolmogorov-Smirnov p-value vs Uniform(0, 1) | `ks_p_value < 0.05` | `basic_checks=FAIL`|
+| Tail fit | Maximum of lower/upper PIT tail ratios across thresholds `0.05` and `0.10` | `max(lower_ratio, upper_ratio) > 2` | `basic_checks=FAIL` |
+| Copula fit | Absolute lag-1 Rosenblatt normal-score residual correlation after fitted copula | `abs(lag1_cor) > 0.25` | `basic_checks=FAIL` |
+| Variance calculation | Variance-covariance method from summary | `vcov_method == "numderiv"` | `basic_checks=REVIEW` |
+
+Check model will return check_model$basic_checks as:
+
+- "failed" if any `FAIL`;
+- "review" if no `FAIL` but at least one `REVIEW`;
+- "passed" if all rows are `PASS`.
+
+Note that a `PASS` result from `check_model` doesn't indicate a good model fit, just that there aren't any major, easy-to-test-numerically issues with the overall shape of the model fit for the margin or the dependence.
 
 ```{r fit-review-check}
 fit <- fit_thetalineartime_notrt
@@ -630,25 +644,43 @@ The final model can be inspected with `summary()` for a numerical summary and `p
 summary(fit)
 ```
 
-```{r fit-review-termplot}
+```{r fit-review-termplot, fig.width = 10, fig.height = 6, out.width = "95%"}
 plot_terms(fit)
 ```
 
 Key visual diagnostics are available using `plot()` for marginal diagnostics and `plot_copula_diagnostics()` for dependence diagnostics. 
 
-```{r fit-diagnostics-margin, fig.width = 6, fig.height = 9, out.width = "95%"}
+```{r fit-diagnostics-margin, fig.width = 10, fig.height = 8, out.width = "95%"}
 plot(fit)
 ```
 
-Marginal diagnostics for PIT and rootogram look reasonable. Work plot and QQ plot indicate some deviation from the fitted distribution in the lower tail that could be investigated further.
 
-```{r fit-diagnostics-dependence}
-plot_copula_diagnostics(fit, fig.width = 9, fig.height = 9, out.width = "95%")
+We will briefly comment on each of the marginal diagnostics and expected shape, though broadly they appear reasonable except some deviation in fit in the lower tail of the distribution.  
+
+Marginal diagnostics:
+
+- PIT appears reonasably close to uniform, with small deviation in the lower tail, PIT KS passes in numerical checks
+- QQ plot is very close to diagonal except in very low tail, though deviation is small
+- Worm plot should be close to centre line without deviation, but we do see some deviation in the lower tail more clearly than we could see in the QQ plot
+- Rootogram seems generally centred around zero with no major trends or deviation spikes
+
+```{r fit-diagnostics-dependence, fig.width = 14, fig.height = 14, out.width = "95%"}
+plot_copula_diagnostics(fit)
 ```
 
-All trends for fitted versus observed dependence appear close. There is s ome small deviation between the fit and the data in the lower tail that can be seen in the Rosenblatt normal QQ plot and the tail co-occurrence / exceedence plots for the lower plot where we are slightly underfitting it appears.
+All trends for fitted versus observed dependence appear close. There is one small deviation between the fit and the data in the lower tail that can be seen in the Rosenblatt normal QQ plot and the tail co-occurrence / exceedence plots for the lower plot where we are slightly underfitting it appears.
 
-We can also plot the final fitted distributions against the original data using `plot_margin_fit(fit, by_time=TRUE)` and `plot_copula_fit(fit, by_time=TRUE)` if desired.
+We will briefly comment on each diagnostic for illustration purposes:
+
+- Empirical copula overlay appears to broadly capture the shape of the 2d histogram, we can also plot the final fitted distributions against the original data using `plot_margin_fit(fit, by_time=TRUE)` and `plot_copula_fit(fit, by_time=TRUE)` if desired which will show the captured changing shape more clearly.
+- Quantiles of fitted versus observed correlation follow the same trend indicating we are capturing the extremes and the centre of the correlation distribution (i.e. we are at least covering the range of correlation correctly)
+- Rosenblatt scores take into account correlation stucture resulting in conditional estimates for margins, meaning they will tell us if the joint distribution (margin or copula) is misspecified. We provide multiple views:
+  - Rosenblatt scores by margin, which should be normally distributed at each time point (and are), a specific time point being non-normal indicates a specific set of copulas before it or the given margin is incorrectly specified
+  - Overall Rosenblatt QQ indicates overall normality or the conditional residuals which look reasonable with small deviation in both tails
+  - Rosenblatt lag plot compared scores at a given time point with the lagged time point, which if correlation is correctly specified then these should be uncorrelated (and the are)
+- Kendall's function dignostic compares fitted copula probabilities across the dataset (sorted) against the empirical sorted copula probabilities and should follow the centre line without systematic deviation. In this case there is a small systematic deviation in the centre which may be worth investigating to improve the fit
+- Tail co-occurrence and exceedence compare empirical versus fitted probabiltiy of observations being in the upper and lower tails of the dependence structure and are broadly in line with some deviation in the lower tail, potentially due to the deviation in fit for the margin in the lower tail. This would indicate incorrectly specified tails either in the margin or the copula.
+- Residaul dependence by lag should be close to zero if the copula is accurately capturing the dependence which it is here
 
 It's straightforward to generate standard outputs for regression models such as confidence intervals and wald test
 
@@ -672,3 +704,91 @@ print(boot)
 
 ## Prediction, marginal effects, simulation, benchmarks
 
+### Benchmarking to standard models; gee, glmm, gam
+
+It will be common for the user to be more familiar with fits from a GEE using, for example, `gee` or `geepack`, or GLMM using `mgcv` or `lme4`. For ease of use, we provide the user a straightforward way to quickly compare a final model `gamlss.longitudinal` fit object to an alternative mean model using these frameworks with the same (or alternative) formula. First we can review a model with smooths which will only compare to `mgcv` which supports smooths.
+
+These comparison models should be treated as approximate or directional, as for a completely fair comparison the models selected for the benchmark comparison models should be (ideally) carefully selected within their own modelling framework rather than relying on the choices made for margin covariates made through the gamlss.longitudinal workflow. 
+
+```{r benchmarking-models}
+bench <- benchmark_standard_models(
+  data = dat,
+  formula = response ~ treatment + time + s(age),
+  subject_var = "subject",
+  family = "gamma",
+  fit = fit,
+  fit_name = "gamlss_longitudinal"
+)
+print(bench)
+```
+
+Then we can compare a reduced model without age to be able to compare all models. This is just illustrative so we remove the variable for simplicity, but you could alternatively group age or similar to be able to also compare this effect as well.
+
+<details>
+```{r fit-reduced-final-model-no-smooth}
+fit_reduced <- gamlss_longitudinal(
+  dataset = dataset,
+  margin_dist = GG(),
+  copula_dist = "C",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = response ~ treatment,
+  sigma.formula = ~ treatment + (time),
+  nu.formula = ~ 1,
+  theta.formula = ~ (time)
+)
+```
+</details>
+
+
+```{r benchmarking-models-centred}
+
+bench <- benchmark_standard_models(
+  data = dataset,
+  formula = response ~ treatment + time,
+  subject_var = "subject",
+  family = "gamma",
+  fit = fit_reduced,
+  fit_name = "gamlss_longitudinal"
+)
+print(bench)
+```
+
+### Prediction and simulation
+
+All standard prediction options are available as part of the `predict()` method for `gamlss.longitudinal` fit objects, see `help("predict.gamlss.longitudinal")` for all options. We also provide a standard method to replicate the known method often used for mixed models `margins_effects` so that average predictions across a variable can be provided.
+
+```{r prediction-example}
+# Predict the response on response scale with confidence interval
+pred=predict(
+  fit,
+  newdata = dat,
+  type = "response",
+  se.fit = TRUE,
+  interval = "confidence"
+)
+head(pred)
+
+# Calculate average response across a covariate for the margin
+meff=marginal_effects(
+  fit,
+  newdata = dat,
+  variable = "treatment",
+  parameter = "mu",
+  se.fit = TRUE
+)
+head(meff)
+```
+
+We also provide standard functionality for simulating from the fitted model which uses the copula structure to create margins which are correlated as would be expected based on the fitted copula.
+
+```{r simulate-example}
+sim_model <- simulate(fit, nsim = 5, seed = 1)
+head(sim)
+```
+
+## Final remarks
+
+Thanks for reviewing our detailed worked example. 
+
+`gamlss.longitudinal` is a work in progress. If you are working with our package and come across any issues, please drop them into our github page https://github.com/ahibbert/gamlss.longitudinal/issues or reach out to the author and we'll get back to you as soon as we can. We appreciate your assistance in helping us improve `gamlss.longitudinal` for everyone!
