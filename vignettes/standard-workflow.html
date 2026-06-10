@@ -541,14 +541,16 @@ inference warnings.</p>
 </div>
 <div id="step-3-diagnostics" class="section level2">
 <h2>Step 3: Diagnostics</h2>
-<p>We provide a built-in check_model() function which highlights any
-warnings and recommendations in plain language from the fit diagnostics
-including convergence errors or unusual looking fit statistics.</p>
+<p>We provide a built-in check_model() function which highlights basic
+automated check statuses and failed-check warnings in plain language
+from the fit diagnostics including convergence errors or unusual looking
+fit statistics.</p>
 <div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># Model checks</span></span>
 <span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>check <span class="ot">&lt;-</span> <span class="fu">check_model</span>(fit, <span class="at">include_vcov =</span> <span class="cn">TRUE</span>, <span class="at">dependence_cor_cutoff =</span> <span class="fl">0.25</span>)</span>
 <span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>check</span>
-<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>check<span class="sc">$</span>warnings</span>
-<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>check<span class="sc">$</span>recommendation</span></code></pre></div>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>check<span class="sc">$</span>basic_checks</span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>check<span class="sc">$</span>basic_checks_result</span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a>check<span class="sc">$</span>warnings</span></code></pre></div>
 <p>To visually review the fits for both margin and the dependence copula
 we provide plotting functions directly on the fit object:
 <code>plot(fit)</code> and <code>plot_copula_diagnostics(fit)</code>.

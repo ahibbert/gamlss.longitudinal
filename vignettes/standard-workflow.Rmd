@@ -200,14 +200,15 @@ the decision language around marginal, tail, dependence, and inference warnings.
 
 ## Step 3: Diagnostics
 
-We provide a built-in check_model() function which highlights any warnings and recommendations in plain language from the fit diagnostics including convergence errors or unusual looking fit statistics.
+We provide a built-in check_model() function which highlights basic automated check statuses and failed-check warnings in plain language from the fit diagnostics including convergence errors or unusual looking fit statistics.
 
 ```{r check}
 # Model checks
 check <- check_model(fit, include_vcov = TRUE, dependence_cor_cutoff = 0.25)
 check
+check$basic_checks
+check$basic_checks_result
 check$warnings
-check$recommendation
 ```
 
 To visually review the fits for both margin and the dependence copula we provide plotting functions directly on the fit object: `plot(fit)` and `plot_copula_diagnostics(fit)`. For the margin plots, we include standard margin diagnostics:
