@@ -63,22 +63,33 @@ test_that("T202 simulate method returns fitted-length simulation columns", {
   )
 })
 
-test_that("T203 check_model returns decision-oriented diagnostic object", {
+test_that("T203 check_model returns basic-check diagnostic object", {
   dat <- make_fixture_factor_time_interaction(n_subject = 14L)
   fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
 
-  chk <- check_model(fit, include_plots = FALSE, dependence_cor_cutoff = 0.3)
+  check_out <- capture_warnings(check_model(fit, include_plots = FALSE, dependence_cor_cutoff = 0.3))
+  chk <- check_out$value
 
   expect_s3_class(chk, "gamlss_longitudinal_check")
-  expect_true(all(c("model", "fit", "convergence", "scores", "pit", "tail", "checks", "warnings", "recommendation", "decisions") %in% names(chk)))
+  expect_true(all(c(
+    "model", "fit", "convergence", "scores", "pit", "tail",
+    "basic_checks", "basic_checks_passed", "basic_checks_result",
+    "checks", "warnings"
+  ) %in% names(chk)))
+  expect_false(any(c("recommendation", "decisions") %in% names(chk)))
   expect_true(is.data.frame(chk$scores))
+  expect_true(is.data.frame(chk$basic_checks))
   expect_true(is.data.frame(chk$checks))
   expect_true(is.data.frame(chk$warnings))
-  expect_true(is.data.frame(chk$recommendation))
-  expect_true(chk$recommendation$role %in% c("primary_candidate", "primary_candidate_with_caveats", "revise_before_primary"))
-  expect_true(all(chk$warnings$severity %in% c("concern", "review", "note")))
-  expect_true(is.character(chk$decisions))
-  expect_true(length(chk$decisions) >= 1L)
+  expect_equal(nrow(chk$basic_checks), 5L)
+  expect_equal(
+    chk$basic_checks$area,
+    c("Convergence", "Marginal fit", "Tail fit", "Copula fit", "Variance calculation")
+  )
+  expect_true(all(chk$basic_checks$status %in% c("PASS", "FAIL", "REVIEW")))
+  expect_true(all(chk$warnings$status == "FAIL"))
+  expect_true(is.logical(chk$basic_checks_passed))
+  expect_true(chk$basic_checks_result %in% c("passed", "review", "failed"))
   expect_equal(chk$residual_dependence$cutoff, 0.3)
   expect_true("n_pairs" %in% names(chk$residual_dependence))
 
@@ -89,6 +100,50 @@ test_that("T203 check_model returns decision-oriented diagnostic object", {
     tolerance = 1e-12
   )
   expect_equal(chk$residual_dependence$n_pairs, copula_diag$residual_lag_summary$n_pairs)
+
+  printed <- capture.output(print(chk))
+  expect_lt(grep("Basic Checks", printed), grep("Scores", printed))
+  expect_true(any(grepl("Result:", printed, fixed = TRUE)))
+  expect_true(any(grepl("broader model diagnostics should also be reviewed", printed, fixed = TRUE)))
+  expect_false(any(grepl("Detailed checks", printed, fixed = TRUE)))
+  expect_false(any(grepl("Failed checks", printed, fixed = TRUE)))
+})
+
+test_that("T203a check_model warns only for failed basic checks", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 10L)
+  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+
+  fit_failed <- fit
+  fit_failed$convergence$converged <- FALSE
+  failed_out <- capture_warnings(check_model(fit_failed, include_plots = FALSE, dependence_cor_cutoff = 0.99))
+  chk_failed <- failed_out$value
+  expect_true(any(grepl("Basic model checks failed", failed_out$warnings, fixed = TRUE)))
+  expect_equal(chk_failed$basic_checks_result, "failed")
+  expect_true(any(chk_failed$warnings$area == "Convergence"))
+
+  fit_review <- fit
+  fit_review$convergence$converged <- TRUE
+  chk_review <- expect_no_warning(
+    check_model(fit_review, include_vcov = TRUE, numderiv = TRUE, include_plots = FALSE, dependence_cor_cutoff = 0.99)
+  )
+  expect_equal(chk_review$basic_checks_result, "review")
+  expect_true(any(chk_review$basic_checks$status == "REVIEW"))
+  expect_equal(nrow(chk_review$warnings), 0L)
+
+  tail_checks <- gamlss.longitudinal:::.gl_check_table(
+    summary_obj = list(
+      fit = list(),
+      convergence = list(converged = TRUE)
+    ),
+    scores = data.frame(),
+    pit_stats = data.frame(ks_p_value = 0.5),
+    tail_stats = data.frame(tail_ratio_max = 2.1),
+    lag1_cor = 0,
+    dependence_cor_cutoff = 0.25,
+    vcov_method = NA_character_
+  )
+  expect_equal(tail_checks$status[tail_checks$area == "Tail fit"], "FAIL")
+  expect_equal(gamlss.longitudinal:::.gl_basic_checks_result(tail_checks), "failed")
 })
 
 test_that("T203b check_missingness screens response missingness against observed predictors", {
@@ -164,6 +219,7 @@ test_that("T205 select_margin and screen_margin return ordered candidate tables 
   expect_true(nrow(screen) >= 1L)
   expect_equal(attr(screen, "selected"), screen$family[[1L]])
   expect_true(all(c("rank", "delta_AIC", "supported_by_longitudinal") %in% names(screen)))
+  expect_false(any(grepl("supported_by_longitudinal", capture.output(print(screen)))))
   expect_equal(screen$best_fit$family_name, screen$family[[1L]])
   expect_equal(best_fit(screen)$family_name, screen$family[[1L]])
   expect_equal(best_fit_family(screen)$family[1], screen$family[[1L]])
@@ -224,7 +280,8 @@ test_that("T206 gamlss_longitudinal is the single public fitter", {
 
   expect_s3_class(fit, "gamlss.longitudinal")
   expect_null(fit$workflow)
-  expect_s3_class(check_model(fit, include_plots = FALSE), "gamlss_longitudinal_check")
+  check_out <- capture_warnings(check_model(fit, include_plots = FALSE))
+  expect_s3_class(check_out$value, "gamlss_longitudinal_check")
 })
 
 test_that("T207 confint returns coefficient intervals users can cite", {
@@ -362,7 +419,7 @@ test_that("T210 bootstrap_inference refits simulated responses", {
   expect_s3_class(boot$summary, "data.frame")
   expect_equal(boot$R, 2L)
   expect_equal(boot$summary$term, terms)
-  expect_true(all(c("estimate", "bootstrap_mean", "bootstrap_se", "conf.low", "conf.high", "successful_replicates") %in% names(boot$summary)))
+  expect_true(all(c("estimate", "bootstrap_mean", "bootstrap_se", "conf.low", "conf.high", "reps") %in% names(boot$summary)))
   expect_equal(nrow(boot$replicates), 2L)
 
   prefix_terms <- names(fit$par)[startsWith(names(fit$par), "mu.gender")]

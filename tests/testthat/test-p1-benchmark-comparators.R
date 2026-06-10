@@ -227,20 +227,24 @@ test_that("benchmark interpretation groups metrics into readable domains", {
     c(
       "benchmark_mean_rmse",
       "benchmark_rmse",
+      "benchmark_neg_log_score",
       "benchmark_q90_mae",
       "benchmark_interval_coverage_95",
+      "benchmark_interval_width_95",
       "benchmark_theta_time_abs_error",
       "elapsed_sec"
     ),
-    c("mean", "observed_response", "quantile", "interval", "dependence", "runtime")
+    c("mean", "observed_response", "density", "quantile", "interval", "interval_width", "dependence", "runtime")
   )
 
   expect_equal(domains[1], "mean / marginal response fit")
   expect_equal(domains[2], "mean / marginal response fit")
   expect_equal(domains[3], "distributional prediction / shape")
   expect_equal(domains[4], "distributional prediction / shape")
-  expect_equal(domains[5], "dependence")
-  expect_equal(domains[6], "runtime")
+  expect_equal(domains[5], "distributional prediction / shape")
+  expect_equal(domains[6], "distributional prediction / shape")
+  expect_equal(domains[7], "dependence")
+  expect_equal(domains[8], "runtime")
 })
 
 test_that("benchmark interpretation excludes failed and unavailable rows from leaders", {
@@ -279,6 +283,7 @@ test_that("benchmark_standard_models reports observed distribution diagnostics",
   metric_cols <- c(
     "benchmark_theta_time_abs_error",
     "benchmark_interval_coverage_95",
+    "benchmark_interval_width_95",
     "benchmark_pit_ks_p_value",
     "benchmark_pit_mean_abs_error",
     "benchmark_tail_error_lower_05",
@@ -290,6 +295,7 @@ test_that("benchmark_standard_models reports observed distribution diagnostics",
   expect_true(all(is.finite(unlist(bench$results[observed_cols]))))
   expect_true(bench$results$benchmark_interval_coverage_95 >= 0)
   expect_true(bench$results$benchmark_interval_coverage_95 <= 1)
+  expect_true(is.finite(bench$results$benchmark_interval_width_95))
 })
 
 test_that("benchmark_standard_models reports truth-aware quantile and tail metrics", {
@@ -311,11 +317,15 @@ test_that("benchmark_standard_models reports truth-aware quantile and tail metri
 
   expect_true(all(c(
     "benchmark_mean_rmse",
+    "benchmark_neg_log_score",
     "benchmark_q90_mae",
+    "benchmark_interval_width_95",
     "benchmark_upper_tail_error_90"
   ) %in% names(bench$results)))
   expect_true(is.finite(bench$results$benchmark_mean_rmse))
+  expect_true(is.finite(bench$results$benchmark_neg_log_score))
   expect_true(is.finite(bench$results$benchmark_q90_mae))
+  expect_true(is.finite(bench$results$benchmark_interval_width_95))
   expect_true(is.finite(bench$results$benchmark_upper_tail_error_90))
 })
 
