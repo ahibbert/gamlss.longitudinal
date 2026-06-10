@@ -1691,10 +1691,16 @@ write_benchmark_report <- function(
   out
 }
 
-.benchmark_normalize_coef_term <- function(term) {
+.benchmark_normalize_coef_term <- function(term, time_var = NULL) {
   term <- as.character(term)
   term[term %in% c("(Intercept)", "Intercept", "mu.(Intercept)", "mu.Intercept")] <- "intercept"
   term <- sub("^mu\\.", "", term)
+  if (!is.null(time_var)) {
+    time_var <- as.character(time_var)[1L]
+    if (!is.na(time_var) && nzchar(time_var)) {
+      term <- gsub("(^|:)time_covariate($|:)", paste0("\\1", time_var, "\\2"), term, perl = TRUE)
+    }
+  }
   term[term %in% c("(Intercept)", "Intercept")] <- "intercept"
   term
 }
@@ -1735,7 +1741,8 @@ write_benchmark_report <- function(
   if (nrow(out) == 0L) {
     return(out)
   }
-  out$term <- .benchmark_normalize_coef_term(out$term)
+  time_var <- if (inherits(fit, "gamlss.longitudinal")) fit$time_var else NULL
+  out$term <- .benchmark_normalize_coef_term(out$term, time_var = time_var)
   out <- out[is.finite(out$estimate), , drop = FALSE]
   rownames(out) <- NULL
   out
