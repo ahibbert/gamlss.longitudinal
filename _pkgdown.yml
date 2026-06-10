@@ -25,7 +25,6 @@ articles:
     contents:
       - inference-uncertainty
       - diagnostics-decisions
-      - benchmarking-adoption
 
 reference:
   - title: Standard Workflow

@@ -36,6 +36,7 @@
 <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
     <li><a class="dropdown-item" href="../articles/site-guide.html">Overview of Support Articles</a></li>
+    <li><a class="dropdown-item" href="../articles/five-minute-smoke-test.html">Five-minute smoke test</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Worked Examples</h6></li>
     <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard workflow: screening, fit, inference, diagnostics, and simulation</a></li>
@@ -45,7 +46,6 @@
     <li><h6 class="dropdown-header" data-toc-skip>Adoption Guides</h6></li>
     <li><a class="dropdown-item" href="../articles/inference-uncertainty.html">Inference and Uncertainty</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics-decisions.html">Diagnostics As Decisions</a></li>
-    <li><a class="dropdown-item" href="../articles/benchmarking-adoption.html">Benchmarking Adoption Claims</a></li>
   </ul>
 </li>
       </ul>
@@ -271,14 +271,15 @@ percentile summaries.</p>
 <h2 id="response-mean-intervals">Response Mean Intervals<a class="anchor" aria-label="anchor" href="#response-mean-intervals"></a>
 </h2>
 <p>For applied interpretation, response-scale estimates are usually
-clearer than raw coefficients. Use
-<code>predict(type = "response")</code> for fitted means and request
-standard errors when the uncertainty should be shown.</p>
+clearer than raw coefficients. Use <code>predict(type = "mean")</code>
+for fitted response means, <code>predict(type = "median")</code> for
+fitted medians, and <code>predict(type = "mu")</code> when you
+specifically want the GAMLSS <code>mu</code> parameter.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">p</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span></span>
 <span>  <span class="va">fit</span>,</span>
 <span>  newdata <span class="op">=</span> <span class="va">dat</span>,</span>
-<span>  type <span class="op">=</span> <span class="st">"response"</span>,</span>
+<span>  type <span class="op">=</span> <span class="st">"mean"</span>,</span>
 <span>  se.fit <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  interval <span class="op">=</span> <span class="st">"confidence"</span>,</span>
 <span>  level <span class="op">=</span> <span class="fl">0.95</span></span>
@@ -414,7 +415,7 @@ dependence;</li>
 intervals;</li>
 <li>whether intervals are likelihood/Hessian, numerical-Hessian,
 delta-method, or simulation summaries;</li>
-<li>the main <code><a href="../reference/check_model.html">check_model()</a></code> decisions;</li>
+<li>the main <code><a href="../reference/check_model.html">check_model()</a></code> basic check result;</li>
 <li>any GEE, GLMM, or GAM sensitivity result used as a benchmark.</li>
 </ol>
 <p>A compact report sentence might be:</p>

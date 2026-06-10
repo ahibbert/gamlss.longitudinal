@@ -1,7 +1,7 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://ahibbert.github.io/gamlss.longitudinal/404.html</loc></url>
-<url><loc>https://ahibbert.github.io/gamlss.longitudinal/articles/benchmarking-adoption.html</loc></url>
 <url><loc>https://ahibbert.github.io/gamlss.longitudinal/articles/diagnostics-decisions.html</loc></url>
+<url><loc>https://ahibbert.github.io/gamlss.longitudinal/articles/five-minute-smoke-test.html</loc></url>
 <url><loc>https://ahibbert.github.io/gamlss.longitudinal/articles/index.html</loc></url>
 <url><loc>https://ahibbert.github.io/gamlss.longitudinal/articles/inference-uncertainty.html</loc></url>
 <url><loc>https://ahibbert.github.io/gamlss.longitudinal/articles/native-simulation-workflow.html</loc></url>
@@ -42,6 +42,7 @@
 <url><loc>https://ahibbert.github.io/gamlss.longitudinal/reference/likelihood_compare.html</loc></url>
 <url><loc>https://ahibbert.github.io/gamlss.longitudinal/reference/logLik.gamlss.longitudinal.html</loc></url>
 <url><loc>https://ahibbert.github.io/gamlss.longitudinal/reference/marginal_effects.html</loc></url>
+<url><loc>https://ahibbert.github.io/gamlss.longitudinal/reference/model_spec.html</loc></url>
 <url><loc>https://ahibbert.github.io/gamlss.longitudinal/reference/plot.copula_contour_compare.html</loc></url>
 <url><loc>https://ahibbert.github.io/gamlss.longitudinal/reference/plot.copula_time_summary.html</loc></url>
 <url><loc>https://ahibbert.github.io/gamlss.longitudinal/reference/plot.gamlss.longitudinal.html</loc></url>
@@ -53,6 +54,7 @@
 <url><loc>https://ahibbert.github.io/gamlss.longitudinal/reference/plot_smooth_terms.html</loc></url>
 <url><loc>https://ahibbert.github.io/gamlss.longitudinal/reference/plot_terms.html</loc></url>
 <url><loc>https://ahibbert.github.io/gamlss.longitudinal/reference/predict.gamlss.longitudinal.html</loc></url>
+<url><loc>https://ahibbert.github.io/gamlss.longitudinal/reference/reporting_table.html</loc></url>
 <url><loc>https://ahibbert.github.io/gamlss.longitudinal/reference/run_adoption_benchmarks.html</loc></url>
 <url><loc>https://ahibbert.github.io/gamlss.longitudinal/reference/run_coverage_simulations.html</loc></url>
 <url><loc>https://ahibbert.github.io/gamlss.longitudinal/reference/select_copula.html</loc></url>
