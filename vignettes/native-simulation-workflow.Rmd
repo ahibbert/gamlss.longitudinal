@@ -735,7 +735,7 @@ bench <- benchmark_standard_models(
   subject_var = "subject",
   family = "gamma",
   fit = fit_benchmark_mu_time,
-  fit_name = "gamlss_longitudinal_mu_time"
+  fit_name = "gamlss_long"
 )
 print(bench)
 ```
@@ -779,7 +779,7 @@ bench <- benchmark_standard_models(
   subject_var = "subject",
   family = "gamma",
   fit = fit_reduced_mu_time,
-  fit_name = "gamlss_longitudinal_mu_time"
+  fit_name = "gamlss_long"
 )
 print(bench)
 ```
