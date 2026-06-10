@@ -759,11 +759,11 @@ print(bench)
 All standard prediction options are available as part of the `predict()` method for `gamlss.longitudinal` fit objects, see `help("predict.gamlss.longitudinal")` for all options. We also provide a standard method to replicate the known method often used for mixed models `margins_effects` so that average predictions across a variable can be provided.
 
 ```{r prediction-example}
-# Predict the response on response scale with confidence interval
+# Predict the fitted response mean with confidence interval
 pred=predict(
   fit,
   newdata = dat,
-  type = "response",
+  type = "mean",
   se.fit = TRUE,
   interval = "confidence"
 )
