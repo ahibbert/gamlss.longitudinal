@@ -13,8 +13,10 @@ plot_margin_fit(
   bins = 30,
   grid_n = 200,
   response_scale = c("response", "log"),
+  time_intercepts = FALSE,
   by_time = FALSE,
   time_var = "time",
+  fit_control = gamlss::gamlss.control(n.cyc = 50),
   plot = TRUE,
   ...
 )
@@ -41,10 +43,17 @@ row-specific fitted parameters.}
 \item{response_scale}{Plot the density on the original response scale or,
 for positive responses, on the log-response scale.}
 
+\item{time_intercepts}{Logical; for raw data, fit time-specific intercepts
+for each marginal distribution parameter before drawing the overlay.}
+
 \item{by_time}{Logical; facet the plot by time. For fitted longitudinal
 models, fitted densities are averaged within each time point.}
 
-\item{time_var}{Time column name used when \code{by_time = TRUE} for raw data.}
+\item{time_var}{Time column name used when \code{time_intercepts = TRUE} or
+\code{by_time = TRUE} for raw data.}
+
+\item{fit_control}{Control object passed to the internal \code{gamlss()} overlay
+fit for raw-data plots. Defaults to \code{gamlss::gamlss.control(n.cyc = 50)}.}
 
 \item{plot}{Logical; if TRUE, print the plot.}
 
