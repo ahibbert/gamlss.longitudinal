@@ -7,7 +7,8 @@
 \method{predict}{gamlss.longitudinal}(
   object,
   newdata = NULL,
-  type = c("response", "parameters", "quantile", "cdf", "density", "probability"),
+  type = c("response", "mean", "mu", "median", "parameters", "quantile", "cdf",
+    "density", "probability"),
   probs = c(0.025, 0.5, 0.975),
   q = NULL,
   y = NULL,
@@ -24,11 +25,13 @@
 
 \item{newdata}{Optional new data. If omitted, fitted rows are used.}
 
-\item{type}{Prediction type: \code{"response"} returns the fitted \code{mu} parameter,
-\code{"parameters"} returns all fitted marginal distribution parameters,
-\code{"quantile"} returns fitted marginal quantiles, \code{"cdf"}/\code{"density"}
-evaluate the fitted marginal CDF or density, and \code{"probability"} returns
-probabilities below or above a threshold.}
+\item{type}{Prediction type: \code{"mean"} returns the fitted marginal response
+mean, \code{"median"} returns the fitted marginal median, \code{"mu"} returns the
+fitted GAMLSS \code{mu} parameter, \code{"response"} is retained as a compatibility
+alias for \code{"mu"}, \code{"parameters"} returns all fitted marginal distribution
+parameters, \code{"quantile"} returns fitted marginal quantiles,
+\code{"cdf"}/\code{"density"} evaluate the fitted marginal CDF or density, and
+\code{"probability"} returns probabilities below or above a threshold.}
 
 \item{probs}{Quantile probabilities when \code{type = "quantile"}.}
 
@@ -40,11 +43,13 @@ responses when available.}
 
 \item{direction}{Probability direction for \code{type = "probability"}.}
 
-\item{se.fit}{Logical; for \code{type = "response"}, return approximate
-delta-method standard errors for the fitted response mean.}
+\item{se.fit}{Logical; for \code{type = "response"}, \code{"mu"}, or \code{"mean"},
+return approximate delta-method standard errors for the fitted \code{mu} linear
+predictor contribution. For non-\code{mu} response means this is a first-order
+approximation and should be treated as exploratory.}
 
 \item{interval}{Interval type. \code{"confidence"} adds response-scale confidence
-limits when \code{type = "response"}.}
+limits when \code{type = "response"}, \code{"mu"}, or \code{"mean"}.}
 
 \item{level}{Confidence level for \code{interval = "confidence"}.}
 
@@ -53,8 +58,9 @@ limits when \code{type = "response"}.}
 \item{...}{Additional arguments reserved for future methods.}
 }
 \value{
-A numeric vector for \code{type = "response"} unless standard errors or
-intervals are requested; a data frame otherwise.
+A numeric vector for \code{type = "response"}, \code{"mu"}, \code{"mean"}, or
+\code{"median"} unless standard errors or intervals are requested; a data frame
+otherwise.
 }
 \description{
 Predict from a longitudinal GAMLSS-copula model
@@ -70,4 +76,9 @@ the covariance matrix is computed from the joint model. Use
 fitted-data trajectory simulation that preserves the fitted copula dependence
 structure. Copula-preserving simulation for \code{newdata} is not currently
 implemented.
+
+\code{type = "response"} is a soft-deprecated compatibility alias for
+\code{type = "mu"} because GAMLSS \code{mu} is not the response mean for every
+family. New code should use \code{type = "mean"} for response-mean estimands or
+\code{type = "mu"} for the distribution parameter.
 }
