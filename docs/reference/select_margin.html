@@ -25,6 +25,7 @@ then fit dependence with gamlss_longitudinal()."></head><body>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
     <li><a class="dropdown-item" href="../articles/site-guide.html">Overview of Support Articles</a></li>
+    <li><a class="dropdown-item" href="../articles/five-minute-smoke-test.html">Five-minute smoke test</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Worked Examples</h6></li>
     <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard workflow: screening, fit, inference, diagnostics, and simulation</a></li>
@@ -34,7 +35,6 @@ then fit dependence with gamlss_longitudinal()."></head><body>
     <li><h6 class="dropdown-header" data-toc-skip>Adoption Guides</h6></li>
     <li><a class="dropdown-item" href="../articles/inference-uncertainty.html">Inference and Uncertainty</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics-decisions.html">Diagnostics As Decisions</a></li>
-    <li><a class="dropdown-item" href="../articles/benchmarking-adoption.html">Benchmarking Adoption Claims</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><a class="external-link nav-link" href="https://github.com/ahibbert/gamlss.longitudinal/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
@@ -64,6 +64,8 @@ then fit dependence with <code><a href="gamlss_longitudinal.html">gamlss_longitu
 <span>  response_var <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  type <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  families <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  time_intercepts <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  time_var <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  try.gamlss <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  trace <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  <span class="va">...</span></span>
@@ -98,6 +100,18 @@ positive continuous responses, and <code>"realAll"</code> otherwise.</p></dd>
 
 <dt id="arg-families">families<a class="anchor" aria-label="anchor" href="#arg-families"></a></dt>
 <dd><p>Optional character vector used to filter the returned table.</p></dd>
+
+
+<dt id="arg-time-intercepts">time_intercepts<a class="anchor" aria-label="anchor" href="#arg-time-intercepts"></a></dt>
+<dd><p>Logical; if <code>TRUE</code>, rank retained families by a
+GAMLSS fit with factor time intercepts for each distribution parameter.
+This is useful for longitudinal screening where the final model is allowed
+to vary marginal location, scale, or shape over time.</p></dd>
+
+
+<dt id="arg-time-var">time_var<a class="anchor" aria-label="anchor" href="#arg-time-var"></a></dt>
+<dd><p>Optional time column name in <code>data</code>, required when
+<code>time_intercepts = TRUE</code>.</p></dd>
 
 
 <dt id="arg-try-gamlss-trace-">try.gamlss, trace, ...<a class="anchor" aria-label="anchor" href="#arg-try-gamlss-trace-"></a></dt>

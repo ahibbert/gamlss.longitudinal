@@ -36,6 +36,7 @@
 <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
     <li><a class="dropdown-item" href="../articles/site-guide.html">Overview of Support Articles</a></li>
+    <li><a class="dropdown-item" href="../articles/five-minute-smoke-test.html">Five-minute smoke test</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Worked Examples</h6></li>
     <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard workflow: screening, fit, inference, diagnostics, and simulation</a></li>
@@ -45,7 +46,6 @@
     <li><h6 class="dropdown-header" data-toc-skip>Adoption Guides</h6></li>
     <li><a class="dropdown-item" href="../articles/inference-uncertainty.html">Inference and Uncertainty</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics-decisions.html">Diagnostics As Decisions</a></li>
-    <li><a class="dropdown-item" href="../articles/benchmarking-adoption.html">Benchmarking Adoption Claims</a></li>
   </ul>
 </li>
       </ul>
@@ -93,8 +93,8 @@ gamlss_longitudinal paper once available)</li>
 </h2>
 <p>Installation:</p>
 <pre><code><span><span class="fu">remotes</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"ahibbert/gamlss.longitudinal"</span><span class="op">)</span></span></code></pre>
-<p>Read these first for the shortest path from data to an interpretable
-longitudinal model:</p>
+<p>Worked examples for end-to-end model fits using
+gamlss.longitudinal.</p>
 <table class="table">
 <colgroup>
 <col width="33%">
@@ -150,20 +150,14 @@ inference, and uncertainty language.</td>
 <td><a href="diagnostics-decisions.html">Diagnostics</a></td>
 <td><code><a href="../articles/diagnostics-decisions.html">vignette("diagnostics-decisions", package = "gamlss.longitudinal")</a></code></td>
 <td>
-<code><a href="../reference/check_model.html">check_model()</a></code>, warnings, model-role recommendations,
-tail checks, and dependence diagnostics.</td>
+<code><a href="../reference/check_model.html">check_model()</a></code>, basic check statuses, failed-check
+warnings, tail checks, and dependence diagnostics.</td>
 </tr>
 <tr class="odd">
-<td><a href="simulator-usage.html">Simulator usage</a></td>
+<td><a href="simulator-usage.html">Simulation</a></td>
 <td><code><a href="../articles/simulator-usage.html">vignette("simulator-usage", package = "gamlss.longitudinal")</a></code></td>
 <td>How to generate longitudinal datasets with GAMLSS margins, copula
 dependence, covariates, known truth, and missing responses.</td>
-</tr>
-<tr class="even">
-<td><a href="benchmarking-adoption.html">Benchmarking</a></td>
-<td><code><a href="../articles/benchmarking-adoption.html">vignette("benchmarking-adoption", package = "gamlss.longitudinal")</a></code></td>
-<td>Scenario-level benchmark evidence against GEE, GLMM, and GAM
-baselines.</td>
 </tr>
 </tbody>
 </table>

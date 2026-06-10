@@ -31,6 +31,7 @@ sets."></head><body>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
     <li><a class="dropdown-item" href="../articles/site-guide.html">Overview of Support Articles</a></li>
+    <li><a class="dropdown-item" href="../articles/five-minute-smoke-test.html">Five-minute smoke test</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Worked Examples</h6></li>
     <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard workflow: screening, fit, inference, diagnostics, and simulation</a></li>
@@ -40,7 +41,6 @@ sets."></head><body>
     <li><h6 class="dropdown-header" data-toc-skip>Adoption Guides</h6></li>
     <li><a class="dropdown-item" href="../articles/inference-uncertainty.html">Inference and Uncertainty</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics-decisions.html">Diagnostics As Decisions</a></li>
-    <li><a class="dropdown-item" href="../articles/benchmarking-adoption.html">Benchmarking Adoption Claims</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><a class="external-link nav-link" href="https://github.com/ahibbert/gamlss.longitudinal/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
@@ -77,6 +77,8 @@ sets.</p>
 <span>  copula_families <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"N"</span>, <span class="st">"C"</span>, <span class="st">"F"</span>, <span class="st">"G"</span>, <span class="st">"J"</span>, <span class="st">"t"</span><span class="op">)</span>,</span>
 <span>  criterion <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"AIC"</span>, <span class="st">"BIC"</span>, <span class="st">"logLik"</span><span class="op">)</span>,</span>
 <span>  min_pairs <span class="op">=</span> <span class="fl">10</span>,</span>
+<span>  time_intercepts <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  copula_time_intercepts <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  try.gamlss <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  trace <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  progress <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -123,6 +125,18 @@ from <code><a href="select_margin.html">select_margin()</a></code>.</p></dd>
 <dt id="arg-min-pairs">min_pairs<a class="anchor" aria-label="anchor" href="#arg-min-pairs"></a></dt>
 <dd><p>Minimum number of complete adjacent response pairs required
 before fitting candidates.</p></dd>
+
+
+<dt id="arg-time-intercepts">time_intercepts<a class="anchor" aria-label="anchor" href="#arg-time-intercepts"></a></dt>
+<dd><p>Logical; if <code>TRUE</code>, pass through to
+<code><a href="select_margin.html">select_margin()</a></code> and use time-specific intercepts for each marginal
+distribution parameter in the joint screening fits.</p></dd>
+
+
+<dt id="arg-copula-time-intercepts">copula_time_intercepts<a class="anchor" aria-label="anchor" href="#arg-copula-time-intercepts"></a></dt>
+<dd><p>Logical; if <code>TRUE</code>, use time-specific
+intercepts for the copula dependence parameter in the joint screening fits.
+Time is treated as a factor, not as a linear trend.</p></dd>
 
 
 <dt id="arg-try-gamlss">try.gamlss<a class="anchor" aria-label="anchor" href="#arg-try-gamlss"></a></dt>
