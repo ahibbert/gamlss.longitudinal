@@ -53,7 +53,7 @@ test_that("run_adoption_benchmarks executes a small opt-in scenario", {
   report <- format_benchmark_report(bench)
   expect_type(report, "character")
   expect_true(any(grepl("Headline Results", report, fixed = TRUE)))
-  expect_true(any(grepl("Benchmark Interpretation", report, fixed = TRUE)))
+  expect_true(any(grepl("Benchmark Summary", report, fixed = TRUE)))
   expect_true(any(grepl("Scenario-Level Headline Results", report, fixed = TRUE)))
   expect_true(any(grepl("Scenario-Level Win/Tie/Loss Summary", report, fixed = TRUE)))
   expect_true(any(grepl("Interpretation Notes", report, fixed = TRUE)))
@@ -205,6 +205,19 @@ test_that("benchmark_standard_models can score the supplied primary fit", {
   expect_s3_class(bench$interpretation$leaders, "data.frame")
   expect_true(any(bench$interpretation$leaders$domain == "mean / marginal response fit"))
   expect_true(any(bench$interpretation$leaders$primary_leads_or_ties))
+  expect_equal(bench$coefficients$parameter, "mu")
+  expect_equal(bench$coefficients$reference_method, "primary")
+  expect_s3_class(bench$coefficients$long, "data.frame")
+  expect_s3_class(bench$coefficients$estimates, "data.frame")
+  expect_s3_class(bench$coefficients$uncertainty, "data.frame")
+  expect_true(all(c("term", "primary", "gam") %in% names(bench$coefficients$estimates)))
+  expect_true(all(c(
+    "estimate_diff_vs_reference",
+    "se_ratio_vs_reference",
+    "ci_width_ratio_vs_reference",
+    "ci_overlap_with_reference"
+  ) %in% names(bench$coefficients$uncertainty)))
+  expect_true(any(bench$coefficients$long$term == "genderM"))
 
   summary <- summarise_benchmark_results(
     bench$results,
@@ -216,10 +229,13 @@ test_that("benchmark_standard_models can score the supplied primary fit", {
 
   printed <- utils::capture.output(print(bench))
   expect_true(any(grepl("Model Status", printed, fixed = TRUE)))
+  expect_true(any(grepl("Mu Coefficients", printed, fixed = TRUE)))
+  expect_true(any(grepl("Coefficient estimates", printed, fixed = TRUE)))
+  expect_true(any(grepl("Uncertainty vs reference", printed, fixed = TRUE)))
   expect_true(any(grepl("Benchmark Metrics", printed, fixed = TRUE)))
-  expect_true(any(grepl("Benchmark Interpretation", printed, fixed = TRUE)))
+  expect_true(any(grepl("Benchmark Summary", printed, fixed = TRUE)))
   expect_true(any(grepl("lead/tie", printed, fixed = TRUE)))
-  expect_true(any(grepl("benchmark_rmse", printed, fixed = TRUE)))
+  expect_true(any(grepl("Observed response RMSE", printed, fixed = TRUE)))
 })
 
 test_that("benchmark interpretation groups metrics into readable domains", {
