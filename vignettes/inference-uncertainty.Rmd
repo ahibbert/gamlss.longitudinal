@@ -221,14 +221,15 @@ Suggested reporting language:
 ## Response Mean Intervals
 
 For applied interpretation, response-scale estimates are usually clearer than
-raw coefficients. Use `predict(type = "response")` for fitted means and request
-standard errors when the uncertainty should be shown.
+raw coefficients. Use `predict(type = "mean")` for fitted response means,
+`predict(type = "median")` for fitted medians, and `predict(type = "mu")` when
+you specifically want the GAMLSS `mu` parameter.
 
 ```{r predict-response}
 p <- predict(
   fit,
   newdata = dat,
-  type = "response",
+  type = "mean",
   se.fit = TRUE,
   interval = "confidence",
   level = 0.95
