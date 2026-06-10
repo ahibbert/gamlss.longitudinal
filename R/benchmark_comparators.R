@@ -1050,10 +1050,11 @@ write_benchmark_report <- function(
 }
 
 .benchmark_predict_response <- function(fit, data) {
+  pred_type <- if (inherits(fit, "gamlss.longitudinal")) "mean" else "response"
   pred <- tryCatch(
-    stats::predict(fit, newdata = data, type = "response", allow.new.levels = TRUE),
+    stats::predict(fit, newdata = data, type = pred_type, allow.new.levels = TRUE),
     error = function(e) {
-      tryCatch(stats::predict(fit, newdata = data, type = "response"), error = function(e2) rep(NA_real_, nrow(data)))
+      tryCatch(stats::predict(fit, newdata = data, type = pred_type), error = function(e2) rep(NA_real_, nrow(data)))
     }
   )
   as.numeric(pred)
@@ -1848,8 +1849,10 @@ write_benchmark_report <- function(
 #'   GAMM comparator.
 #' @param add_subject_re_to_gam Deprecated alias for `add_subject_re_to_gamm`.
 #' @param fit Optional already-fitted primary model to score beside the standard
-#'   comparators. For a `gamlss.longitudinal` fit, response-scale predictions
-#'   are obtained with `predict(fit, newdata = data, type = "response")`.
+#'   comparators. For a `gamlss.longitudinal` fit, response-mean predictions
+#'   are obtained with `predict(fit, newdata = data, type = "mean")`; quantile,
+#'   probability, PIT, density, and interval metrics still use the fitted
+#'   distribution.
 #' @param fit_name Label used for the supplied `fit` row.
 #' @param distributional_metrics Logical; compute interval coverage, PIT
 #'   calibration, tail-frequency diagnostics, and truth-aware quantile/tail
@@ -1981,7 +1984,8 @@ print.gamlss_longitudinal_benchmark <- function(x, digits = max(3, getOption("di
   cat("Formula:", deparse(x$formula), "\n")
   cat("Subject:", x$subject_var, "\n")
   cat("Family:", x$family, "\n")
-  cat(.benchmark_included_methods_line(x$results), "\n\n")
+  cat(.benchmark_included_methods_line(x$results), "\n")
+  cat("Estimand note: mean-fit metrics compare response-mean predictions; distributional metrics use fitted quantiles, densities, PIT values, intervals, and tail probabilities where available.\n\n")
 
   interpretation_table <- .benchmark_interpretation_table(x$interpretation)
   if (nrow(interpretation_table) > 0L) {
