@@ -243,20 +243,27 @@ Ideally all warnings should be rectified and diagnostics accepted as satisfactor
 Multiple options are provided for prediction including on response and parameter scale, by quantiles, cdf, density or probability, and reporting by marginal effect.
 
 ```{r applied-answers}
-# Predict the response on response scale with confidence interval
+# Predict the fitted response mean with confidence interval
 predict(
   fit,
   newdata = dat,
-  type = "response",
+  type = "mean",
   se.fit = TRUE,
   interval = "confidence"
 )
 
-# Predict the estimated parameter values for mu, sigma etc.
+# Predict the estimated GAMLSS parameter values for mu, sigma etc.
 predict(
   fit,
   newdata = dat,
   type = "parameters"
+)
+
+# Predict the fitted GAMLSS mu parameter explicitly
+predict(
+  fit,
+  newdata = dat,
+  type = "mu"
 )
 
 # Predict specified quantiles
