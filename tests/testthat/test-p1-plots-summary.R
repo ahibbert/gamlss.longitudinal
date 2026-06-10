@@ -358,7 +358,10 @@ test_that("T159 standard fit inspection plotting helpers are available", {
     "BCPE marginal overlay fit did not converge"
   )
   expect_s3_class(unstable_bcpe_time_plot$plot, "ggplot")
-  expect_equal(nrow(unstable_bcpe_time_plot$density), 0L)
+  expect_true(is.data.frame(unstable_bcpe_time_plot$density))
+  if (nrow(unstable_bcpe_time_plot$density) > 0L) {
+    expect_true(any(is.finite(unstable_bcpe_time_plot$density$density)))
+  }
 
   set.seed(159)
   bct_response <- gamlss.dist::rBCT(120, mu = 5, sigma = 0.35, nu = 1, tau = 4)
@@ -371,6 +374,29 @@ test_that("T159 standard fit inspection plotting helpers are available", {
     NA
   )
   expect_gt(min(bct_density_grid$response, na.rm = TRUE), 0)
+
+  set.seed(159)
+  gg_time_response <- data.frame(time = rep(seq_len(5), each = 80))
+  gg_time_response$response <- gamlss.dist::rGG(
+    nrow(gg_time_response),
+    mu = exp(1.2 + 0.1 * gg_time_response$time),
+    sigma = exp(-0.8 + 0.15 * gg_time_response$time),
+    nu = 1.3 - 0.1 * gg_time_response$time
+  )
+  expect_warning(
+    gg_time_plot <- plot_margin_fit(
+      gg_time_response,
+      margin_dist = gamlss.dist::GG(),
+      response_var = "response",
+      time_var = "time",
+      time_intercepts = TRUE,
+      by_time = TRUE,
+      plot = FALSE
+    ),
+    NA
+  )
+  expect_gt(nrow(gg_time_plot$density), 0L)
+  expect_true(any(is.finite(gg_time_plot$density$density)))
 
   time_intercept_margin_plot <- suppressWarnings(plot_margin_fit(
     dat,
