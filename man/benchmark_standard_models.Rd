@@ -43,8 +43,10 @@ GAMM comparator.}
 \item{add_subject_re_to_gam}{Deprecated alias for \code{add_subject_re_to_gamm}.}
 
 \item{fit}{Optional already-fitted primary model to score beside the standard
-comparators. For a \code{gamlss.longitudinal} fit, response-scale predictions
-are obtained with \code{predict(fit, newdata = data, type = "response")}.}
+comparators. For a \code{gamlss.longitudinal} fit, response-mean predictions
+are obtained with \code{predict(fit, newdata = data, type = "mean")}; quantile,
+probability, PIT, density, and interval metrics still use the fitted
+distribution.}
 
 \item{fit_name}{Label used for the supplied \code{fit} row.}
 
