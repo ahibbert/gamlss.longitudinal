@@ -360,6 +360,18 @@ test_that("T159 standard fit inspection plotting helpers are available", {
   expect_s3_class(unstable_bcpe_time_plot$plot, "ggplot")
   expect_equal(nrow(unstable_bcpe_time_plot$density), 0L)
 
+  set.seed(159)
+  bct_response <- gamlss.dist::rBCT(120, mu = 5, sigma = 0.35, nu = 1, tau = 4)
+  expect_warning(
+    bct_density_grid <- .plot_margin_density_grid(
+      bct_response,
+      gamlss.dist::BCT(),
+      params = list(mu = 5, sigma = 0.35, nu = 1, tau = 4)
+    ),
+    NA
+  )
+  expect_gt(min(bct_density_grid$response, na.rm = TRUE), 0)
+
   time_intercept_margin_plot <- suppressWarnings(plot_margin_fit(
     dat,
     margin_dist = gamlss.dist::NO(),

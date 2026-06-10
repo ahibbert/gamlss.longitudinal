@@ -9432,7 +9432,12 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
 
   bounds <- tryCatch(
     do.call(qfun, c(list(p = c(0, 1)), q_args)),
-    error = function(e) c(-Inf, Inf)
+    error = function(e) {
+      tryCatch(
+        do.call(qfun, c(list(p = c(.Machine$double.eps, 1 - .Machine$double.eps)), q_args)),
+        error = function(e2) c(-Inf, Inf)
+      )
+    }
   )
   bounds <- as.numeric(bounds)
   if (length(bounds) < 2L) {
@@ -9502,7 +9507,7 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
     x_grid <- seq(x_min, x_max, length.out = grid_n)
     density <- vapply(x_grid, function(x_value) {
       par_i <- lapply(params, function(p) p[idx])
-      d_value <- .gl_call_family_fun("d", family_name, rep(x_value, length(idx)), par_i)
+      d_value <- suppressWarnings(.gl_call_family_fun("d", family_name, rep(x_value, length(idx)), par_i))
       d_value[!is.finite(d_value)] <- NA_real_
       mean(d_value, na.rm = TRUE)
     }, numeric(1), USE.NAMES = FALSE)
