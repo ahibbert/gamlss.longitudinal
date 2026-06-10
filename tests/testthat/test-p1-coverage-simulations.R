@@ -332,7 +332,7 @@ test_that("coverage harness supports scale-varying benchmark designs", {
   )
 
   expect_equal(unique(results$design), "scale")
-  expect_true(all(c("benchmark_interval_coverage_95", "benchmark_tail_error_upper_05") %in% names(results)))
+  expect_true(all(c("benchmark_interval_coverage_95", "benchmark_interval_width_95", "benchmark_tail_error_upper_05") %in% names(results)))
   parameter_results <- attr(results, "parameter_results")
   expect_s3_class(parameter_results, "data.frame")
   scale_truth <- parameter_results[
@@ -566,9 +566,11 @@ test_that("coverage harness can include standard GEE/GLMM/GAM comparator rows", 
   expect_equal(longitudinal_row$benchmark_class, "gamlss_longitudinal")
   expect_true(is.finite(longitudinal_row$benchmark_rmse))
   expect_true(is.finite(longitudinal_row$benchmark_mean_rmse))
+  expect_true(is.finite(longitudinal_row$benchmark_neg_log_score))
   expect_true(is.finite(longitudinal_row$benchmark_q90_mae))
   expect_true(is.finite(longitudinal_row$benchmark_upper_tail_error_90))
   expect_true(is.finite(longitudinal_row$benchmark_interval_coverage_95))
+  expect_true(is.finite(longitudinal_row$benchmark_interval_width_95))
   comparator_rows <- results[results$method %in% c("gee", "glmm", "gam"), , drop = FALSE]
   expect_true(all(comparator_rows$success))
   expect_true(all(is.finite(comparator_rows$benchmark_rmse)))
@@ -580,22 +582,26 @@ test_that("coverage harness can include standard GEE/GLMM/GAM comparator rows", 
     "benchmark_mean_bias",
     "benchmark_mean_mae",
     "benchmark_mean_rmse",
+    "benchmark_neg_log_score",
     "benchmark_q90_mae",
     "benchmark_upper_tail_error_90",
     "benchmark_interval_coverage_95",
+    "benchmark_interval_width_95",
     "benchmark_pit_ks_p_value",
     "benchmark_tail_error_lower_05",
     "benchmark_tail_error_upper_05"
   ) %in% names(results)))
   expect_true(all(is.finite(comparator_rows$benchmark_mean_rmse)))
+  expect_true(all(is.finite(comparator_rows$benchmark_neg_log_score)))
   expect_true(all(is.finite(comparator_rows$benchmark_q90_mae)))
   expect_true(all(is.finite(comparator_rows$benchmark_upper_tail_error_90)))
   expect_true(all(is.finite(comparator_rows$benchmark_interval_coverage_95)))
+  expect_true(all(is.finite(comparator_rows$benchmark_interval_width_95)))
   expect_true(all(comparator_rows$benchmark_interval_coverage_95 >= 0 & comparator_rows$benchmark_interval_coverage_95 <= 1))
 
   summary <- summarise_benchmark_results(
     results,
-    metrics = c("benchmark_mean_rmse", "benchmark_interval_coverage_95", "elapsed_sec")
+    metrics = c("benchmark_mean_rmse", "benchmark_neg_log_score", "benchmark_interval_coverage_95", "benchmark_interval_width_95", "elapsed_sec")
   )
   expect_s3_class(summary, "gamlss_longitudinal_benchmark_summary")
   expect_true(all(c("summary", "case_results", "metric_catalog") %in% names(summary)))
@@ -624,15 +630,16 @@ test_that("coverage benchmark metrics include non-Gaussian q90 and tail checks",
   expect_equal(sort(unique(results$family)), c("GA", "PO"))
   expect_true(all(results$success))
   expect_true(all(is.finite(results$benchmark_mean_rmse)))
+  expect_true(all(is.finite(results$benchmark_neg_log_score)))
   expect_true(all(is.finite(results$benchmark_q90_mae)))
   expect_true(all(is.finite(results$benchmark_upper_tail_error_90)))
   expect_true(all(is.na(results$benchmark_interval_coverage_95)))
 
   summary <- summarise_benchmark_results(
     results,
-    metrics = c("benchmark_q90_mae", "benchmark_upper_tail_error_90")
+    metrics = c("benchmark_neg_log_score", "benchmark_q90_mae", "benchmark_upper_tail_error_90")
   )
-  expect_true(all(c("benchmark_q90_mae", "benchmark_upper_tail_error_90") %in% summary$metric_catalog$metric))
+  expect_true(all(c("benchmark_neg_log_score", "benchmark_q90_mae", "benchmark_upper_tail_error_90") %in% summary$metric_catalog$metric))
 })
 
 test_that("coverage harness records unsupported standard comparator families", {

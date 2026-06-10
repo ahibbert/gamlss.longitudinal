@@ -30,14 +30,14 @@ review threshold rather than a formal hypothesis test.}
 \code{TRUE}.}
 }
 \value{
-An object of class \code{gamlss_longitudinal_check}, including a full
-\code{checks} table, a filtered \code{warnings} table for diagnostics that should be
-reviewed or reported, and a compact \code{recommendation} row for model role
-decisions.
+An object of class \code{gamlss_longitudinal_check}, including a compact
+\code{basic_checks} table, a full \code{checks} table, a filtered \code{warnings}
+table for failed checks, and overall \code{basic_checks_passed} and
+\code{basic_checks_result} fields.
 }
 \description{
-\code{check_model()} turns diagnostics into a compact set of decisions for broad
-applied use. It does not replace visual inspection, but it provides a stable
-first pass over convergence, marginal calibration, residual dependence, and
-scoring summaries.
+\code{check_model()} turns diagnostics into compact basic automated checks for
+broad applied use. It does not replace visual inspection, but it provides a
+stable first pass over convergence, marginal calibration, residual dependence,
+and scoring summaries.
 }
