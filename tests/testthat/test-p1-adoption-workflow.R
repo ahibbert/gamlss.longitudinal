@@ -120,7 +120,86 @@ test_that("T202b simulate newdata supports numeric-time extensions", {
   expect_true(all(is.finite(sim_more$sim_1)))
 })
 
-test_that("T202c simulate newdata breaks dependence across time-grid gaps", {
+test_that("T202c simulate newdata covers linear, factor, and smooth time structures", {
+  make_numeric_panel <- function(dat, ids, times, id_offset = 0L) {
+    subject_data <- dat[!duplicated(dat$id), c("id", "gender", "age"), drop = FALSE]
+    subject_data <- subject_data[subject_data$id %in% ids, , drop = FALSE]
+    panel <- merge(
+      expand.grid(
+        id = ids,
+        time_raw = times,
+        KEEP.OUT.ATTRS = FALSE,
+        stringsAsFactors = FALSE
+      ),
+      subject_data,
+      by = "id",
+      sort = FALSE
+    )
+    panel <- panel[order(panel$id, panel$time_raw), , drop = FALSE]
+    panel$id <- panel$id + id_offset
+    panel$y <- NA_real_
+    rownames(panel) <- NULL
+    panel
+  }
+
+  dat_num <- make_fixture_numeric_time(n_subject = 10L)
+  nd_both <- make_numeric_panel(dat_num, ids = 1:3, times = 1:4, id_offset = 1000L)
+
+  fit_linear <- fit_fixture_model(
+    dat_num,
+    include_dlcopdpar = FALSE,
+    mu_formula = "y ~ time_raw + gender + age",
+    sigma_formula = "~ 1",
+    theta_formula = "~ time_raw",
+    max_outer_iter = 2,
+    max_inner_iter = 2
+  )
+  sim_linear <- simulate(fit_linear, nsim = 2, seed = 701, newdata = nd_both)
+  expect_equal(dim(sim_linear), c(nrow(nd_both), 2L))
+  expect_true(all(is.finite(as.matrix(sim_linear))))
+
+  fit_smooth <- fit_fixture_model(
+    dat_num,
+    include_dlcopdpar = FALSE,
+    mu_formula = "y ~ s(time_raw, bs='ps', k=4) + gender + age",
+    sigma_formula = "~ 1",
+    theta_formula = "~ time_raw",
+    max_outer_iter = 2,
+    max_inner_iter = 2
+  )
+  sim_smooth <- simulate(fit_smooth, nsim = 2, seed = 702, newdata = nd_both)
+  expect_equal(dim(sim_smooth), c(nrow(nd_both), 2L))
+  expect_true(all(is.finite(as.matrix(sim_smooth))))
+
+  dat_factor <- make_fixture_factor_time_interaction(n_subject = 10L)
+  fit_factor <- fit_fixture_model(
+    dat_factor,
+    include_dlcopdpar = FALSE,
+    mu_formula = "y ~ time_raw + gender + age",
+    sigma_formula = "~ 1",
+    theta_formula = "~ time_raw",
+    max_outer_iter = 2,
+    max_inner_iter = 2
+  )
+  nd_factor <- dat_factor[dat_factor$id %in% 1:3, , drop = FALSE]
+  nd_factor$id <- nd_factor$id + 2000L
+  nd_factor$y <- NA_real_
+  nd_factor <- nd_factor[c(3, 1, 7, 2, 5, 9, 4, 6, 8), , drop = FALSE]
+
+  sim_factor <- simulate(fit_factor, nsim = 2, seed = 703, newdata = nd_factor)
+  expect_equal(dim(sim_factor), c(nrow(nd_factor), 2L))
+  expect_true(all(is.finite(as.matrix(sim_factor))))
+
+  nd_factor_bad_time <- nd_factor[1, , drop = FALSE]
+  nd_factor_bad_time$time_raw <- factor("t4", levels = c(levels(dat_factor$time_raw), "t4"), ordered = TRUE)
+  expect_error(
+    simulate(fit_factor, nsim = 1, seed = 704, newdata = nd_factor_bad_time),
+    "contains level(s) not seen during fitting",
+    fixed = TRUE
+  )
+})
+
+test_that("T202d simulate newdata breaks dependence across time-grid gaps", {
   diag_data <- list(
     family = "NO",
     params = list(mu = c(0, 0), sigma = c(1, 1))
