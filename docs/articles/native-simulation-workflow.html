@@ -5,12 +5,12 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Detailed worked example for a longitudinal gamlss model fit • gamlss.longitudinal</title>
+<title>Detailed worked example • gamlss.longitudinal</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.4.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Detailed worked example for a longitudinal gamlss model fit">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Detailed worked example">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -34,18 +34,18 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
-    <li><a class="dropdown-item" href="../articles/site-guide.html">Overview of Support Articles</a></li>
-    <li><a class="dropdown-item" href="../articles/five-minute-smoke-test.html">Five-minute smoke test</a></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Start here</h6></li>
+    <li><a class="dropdown-item" href="../articles/site-guide.html">Overview of support articles</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Worked Examples</h6></li>
-    <li><a class="dropdown-item" href="../articles/standard-workflow.html">Standard workflow: screening, fit, inference, diagnostics, and simulation</a></li>
-    <li><a class="dropdown-item" href="../articles/native-simulation-workflow.html">Detailed worked example for a longitudinal gamlss model fit</a></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Worked examples</h6></li>
+    <li><a class="dropdown-item" href="../articles/standard-workflow.html">Minimal workflow</a></li>
+    <li><a class="dropdown-item" href="../articles/native-simulation-workflow.html">Detailed worked example</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Reference guides</h6></li>
+    <li><a class="dropdown-item" href="../articles/inference-uncertainty.html">Inference</a></li>
+    <li><a class="dropdown-item" href="../articles/diagnostics-decisions.html">Diagnostics</a></li>
     <li><a class="dropdown-item" href="../articles/simulator-usage.html">Simulator usage</a></li>
-    <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Adoption Guides</h6></li>
-    <li><a class="dropdown-item" href="../articles/inference-uncertainty.html">Inference and Uncertainty</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics-decisions.html">Diagnostics As Decisions</a></li>
+    <li><a class="dropdown-item" href="../articles/five-minute-smoke-test.html">Five-minute smoke test</a></li>
   </ul>
 </li>
       </ul>
@@ -64,7 +64,7 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
 
-      <h1>Detailed worked example for a longitudinal gamlss model fit</h1>
+      <h1>Detailed worked example</h1>
             
       
       <small class="dont-index">Source: <a href="https://github.com/ahibbert/gamlss.longitudinal/blob/HEAD/vignettes/native-simulation-workflow.Rmd" class="external-link"><code>vignettes/native-simulation-workflow.Rmd</code></a></small>
@@ -126,7 +126,7 @@ structures may be tested.</p>
 <p>For installation of <code>gamlss.longitudinal</code>, use
 <code>remotes::install_github("ahibbert/gamlss.longitudinal")</code>.</p>
 <div class="section level2">
-<h2 id="simulate-data">Simulate Data<a class="anchor" aria-label="anchor" href="#simulate-data"></a>
+<h2 id="simulate-data">Simulate data<a class="anchor" aria-label="anchor" href="#simulate-data"></a>
 </h2>
 <p>We simulate a longitudinal dataset with 120 subjects with
 observations at 5 time points. The simulated response is generalized
@@ -241,7 +241,7 @@ Simulation code
 </details>
 </div>
 <div class="section level2">
-<h2 id="inspect-the-response">Inspect The Response<a class="anchor" aria-label="anchor" href="#inspect-the-response"></a>
+<h2 id="inspect-the-response">Inspect the response<a class="anchor" aria-label="anchor" href="#inspect-the-response"></a>
 </h2>
 <p>Our first check is to ensure the dataset is in the correct shape to
 ingest in the gamlss_longitudinal fit. The data should include:</p>
@@ -367,7 +367,7 @@ distribution selection (see next section).</p>
 <p><img src="native-simulation-workflow_files/figure-html/plot-dist-1.png" alt="Matrix plot of marginal response distributions and dependence by time." width="88%" style="display: block; margin: auto;"></p>
 </div>
 <div class="section level2">
-<h2 id="choose-a-marginal-distribution">Choose A Marginal Distribution<a class="anchor" aria-label="anchor" href="#choose-a-marginal-distribution"></a>
+<h2 id="choose-a-marginal-distribution">Choose a marginal distribution<a class="anchor" aria-label="anchor" href="#choose-a-marginal-distribution"></a>
 </h2>
 <p>The response here is continuous and positive. For any distribution we
 can use the function <code><a href="../reference/select_margin.html">select_margin()</a></code> to fit an
@@ -404,7 +404,7 @@ distribution. However, given we know that time is a strong component of
 the moments, the best model is likely to be using a marginal
 distribution which can change with time.</p>
 <p>We can set the option <code>time_intercepts=TRUE</code> in
-<code>select_margin</code> which allows each parameter of the marginal
+<code><a href="../reference/select_margin.html">select_margin()</a></code> which allows each parameter of the marginal
 distribution to vary with time. This method then selects
 <code><a href="https://rdrr.io/pkg/gamlss.dist/man/GG.html" class="external-link">GG()</a></code> and <code><a href="https://rdrr.io/pkg/gamlss.dist/man/GA.html" class="external-link">GA()</a></code> as the best models by AIC. We
 will take these two distributions forwards as our two potential
@@ -501,7 +501,7 @@ reasonably.</p>
 <p><img src="native-simulation-workflow_files/figure-html/marginal-fit-overlay-long-GG-1.png" alt="Histograms of fitted GG with time-varying intercepts for each parameter." width="92%" style="display: block; margin: auto;"></p>
 </div>
 <div class="section level2">
-<h2 id="choose-a-copula-family">Choose A Copula Family<a class="anchor" aria-label="anchor" href="#choose-a-copula-family"></a>
+<h2 id="choose-a-copula-family">Choose a copula family<a class="anchor" aria-label="anchor" href="#choose-a-copula-family"></a>
 </h2>
 <p>Once we have a starting fit for the margin, we can select a copula
 distribution. The copula distribution depends on the shape of the margin
@@ -683,12 +683,12 @@ log likelihood which agrees with the previous process.</p>
 <span><span class="co">#&gt;     5            NO             C -1455.730 2939.460 3001.017  14      TRUE</span></span>
 <span><span class="co">#&gt;     6            NO             N -1566.724 3161.448 3223.005  14      TRUE</span></span>
 <span><span class="co">#&gt;  elapsed_sec error</span></span>
-<span><span class="co">#&gt;     5.854428  &lt;NA&gt;</span></span>
-<span><span class="co">#&gt;    18.307270  &lt;NA&gt;</span></span>
-<span><span class="co">#&gt;    10.838582  &lt;NA&gt;</span></span>
-<span><span class="co">#&gt;     1.837912  &lt;NA&gt;</span></span>
-<span><span class="co">#&gt;     8.996845  &lt;NA&gt;</span></span>
-<span><span class="co">#&gt;     4.105405  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;     6.603517  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    18.792695  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    14.321855  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;     2.364999  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;     8.548416  &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;     6.122005  &lt;NA&gt;</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Warning: one or more printed joint candidate fits did not report convergence.</span></span></code></pre></div>
 <p>We can now review the copula fit visually using
@@ -732,7 +732,7 @@ with an intercept or covariates then we can reduce the model the
 margin settings so we will use this.</p>
 <p>Let’s begin by inspecting a fully specified model with factor terms
 for <code>time</code> and <code>treatment</code>, and a smooth term for
-<code>age</code> on every covariate.</p>
+<code>age</code> on every covariate, including the copula parameter.</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_fullyspecified</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gamlss_longitudinal.html">gamlss_longitudinal</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">dat</span>,</span>
@@ -819,7 +819,7 @@ for <code>time</code> and <code>treatment</code>, and a smooth term for
 <p>Overall we see time is a significant factor for <code>sigma</code>
 and <code>theta</code> but in this form does not appear to be
 significant for <code>mu</code> or <code>nu</code>. No covariates for
-<code>nu</code> appear to be significant at <code>p=0.01</code>
+<code>nu</code> appear to be significant at <code>p=0.05</code>,
 including the intercept. Degrees of freedom for age smooths for
 <code>nu</code> and <code>theta</code> are small which may indicate they
 are not material to the fit so we will review these. Treatment effect
@@ -1224,35 +1224,36 @@ is one small deviation between the fit and the data in the lower tail
 that can be seen in the Rosenblatt normal QQ plot and the tail
 co-occurrence / exceedence plots for the lower plot where we are
 slightly underfitting it appears.</p>
-<p>We will briefly comment on each diagnostic for illustration
-purposes:</p>
+<p>We will briefly comment on each diagnostic for illustration purposes
+from left to right, then top to bottom:</p>
 <ul>
 <li>Empirical copula overlay appears to broadly capture the shape of the
 2d histogram, we can also plot the final fitted distributions against
 the original data using <code>plot_margin_fit(fit, by_time=TRUE)</code>
 and <code>plot_copula_fit(fit, by_time=TRUE)</code> if desired which
 will show the captured changing shape more clearly.</li>
-<li>Quantiles of fitted versus observed correlation follow the same
-trend indicating we are capturing the extremes and the centre of the
+<li>Deciles of fitted versus observed correlation follow the same trend
+indicating we are capturing the extremes and the centre of the
 correlation distribution (i.e. we are at least covering the range of
 correlation correctly)</li>
-<li>Rosenblatt scores take into account correlation stucture resulting
-in conditional estimates for margins, meaning they will tell us if the
-joint distribution (margin or copula) is misspecified. We provide
-multiple views:
+<li>Rosenblatt scores take into account correlation stucture in
+estimating residuals resulting in conditional estimates for margins,
+meaning they will tell us if the joint distribution (margin or copula)
+is misspecified. We provide multiple views:
 <ul>
-<li>Rosenblatt scores by margin, which should be normally distributed at
-each time point (and are), a specific time point being non-normal
+<li>Rosenblatt z-scores by margin, which should be normally distributed
+at each time point (and are), a specific time point being non-normal
 indicates a specific set of copulas before it or the given margin is
 incorrectly specified</li>
-<li>Overall Rosenblatt QQ indicates overall normality or the conditional
-residuals which look reasonable with small deviation in both tails</li>
-<li>Rosenblatt lag plot compared scores at a given time point with the
+<li>Overall Rosenblatt Normal QQ plot indicates overall normality of the
+conditional residuals which look reasonable with small deviation in both
+tails</li>
+<li>Rosenblatt lag plot compares scores at a given time point with the
 lagged time point, which if correlation is correctly specified then
 these should be uncorrelated (and the are)</li>
 </ul>
 </li>
-<li>Kendall’s function dignostic compares fitted copula probabilities
+<li>Kendall’s function diagnostic compares fitted copula probabilities
 across the dataset (sorted) against the empirical sorted copula
 probabilities and should follow the centre line without systematic
 deviation. In this case there is a small systematic deviation in the
@@ -1263,11 +1264,24 @@ dependence structure and are broadly in line with some deviation in the
 lower tail, potentially due to the deviation in fit for the margin in
 the lower tail. This would indicate incorrectly specified tails either
 in the margin or the copula.</li>
-<li>Residaul dependence by lag should be close to zero if the copula is
+<li>Residual dependence by lag should be close to zero if the copula is
 accurately capturing the dependence which it is here</li>
 </ul>
+<p>Overall this appears to provide a reasonable fit to the joint
+distribution, with some small deviations in the tails for both the
+copula and margin which may warrant additional investigation.</p>
+</div>
+<div class="section level2">
+<h2 id="additional-tools-for-inference-prediction-marginal-effects-simulation-benchmarks">Additional tools for inference, prediction, marginal effects,
+simulation, benchmarks<a class="anchor" aria-label="anchor" href="#additional-tools-for-inference-prediction-marginal-effects-simulation-benchmarks"></a>
+</h2>
+<div class="section level3">
+<h3 id="standard-functions-for-inference-confidence-itervals-wald-test-bootstrap">Standard functions for inference: confidence itervals, wald test,
+bootstrap<a class="anchor" aria-label="anchor" href="#standard-functions-for-inference-confidence-itervals-wald-test-bootstrap"></a>
+</h3>
 <p>It’s straightforward to generate standard outputs for regression
-models such as confidence intervals and wald test</p>
+models such as confidence intervals and wald tests for coefficients of
+all parameters.</p>
 <div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                            2.5 %      97.5 %</span></span>
@@ -1300,7 +1314,8 @@ models such as confidence intervals and wald test</p>
 <span><span class="co">#&gt;       mu.treatmentlow   0.2270   0   0.07174     3.164  1.555e-03 analytical</span></span>
 <span><span class="co">#&gt;      mu.treatmenthigh   0.6017   0   0.06785     8.868  7.424e-19 analytical</span></span></code></pre></div>
 <p>It’s also possible to produce bootstrap confidence intervals from the
-fitted model though it is computationally quite intensive.</p>
+fitted model though it is computationally quite intensive as it refits
+the longitudinal model for each repetition (<code>R=</code>).</p>
 <div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">boot</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bootstrap_inference.html">bootstrap_inference</a></span><span class="op">(</span></span>
 <span>  <span class="va">fit</span>,</span>
@@ -1339,34 +1354,80 @@ fitted model though it is computationally quite intensive.</p>
 <span><span class="co">#&gt;     5</span></span>
 <span><span class="co">#&gt;     5</span></span></code></pre></div>
 </div>
-<div class="section level2">
-<h2 id="prediction-marginal-effects-simulation-benchmarks">Prediction, marginal effects, simulation, benchmarks<a class="anchor" aria-label="anchor" href="#prediction-marginal-effects-simulation-benchmarks"></a>
-</h2>
 <div class="section level3">
-<h3 id="benchmarking-to-standard-models-gee-glmm-gam">Benchmarking to standard models; gee, glmm, gam<a class="anchor" aria-label="anchor" href="#benchmarking-to-standard-models-gee-glmm-gam"></a>
+<h3 id="benchmarking-against-standard-models-gee-glmm-gam">Benchmarking against standard models; gee, glmm, gam<a class="anchor" aria-label="anchor" href="#benchmarking-against-standard-models-gee-glmm-gam"></a>
 </h3>
-<p>It will be common for the user to be more familiar with fits from a
-GEE using, for example, <code>gee</code> or <code>geepack</code>, or
-GLMM using <code>mgcv</code> or <code>lme4</code>. For ease of use, we
-provide the user a straightforward way to quickly compare a final model
+<p>It will be common for the user to be more familiar with longitudinal
+regression fits from a GEE using, for example, <code>gee</code> or
+<code>geepack</code>, or GLMM using <code>mgcv</code> or
+<code>lme4</code>. For ease of use, we provide the user a
+straightforward way to quickly compare a final model
 <code>gamlss.longitudinal</code> fit object to an alternative mean model
 using these frameworks with the same (or alternative) formula. First we
 can review a model with smooths which will only compare to
-<code>mgcv</code> which supports smooths.</p>
+<code>mgcv</code> based models (<code>gam</code> and <code>gamm</code>)
+which support smooths.</p>
 <p>These comparison models should be treated as approximate or
 directional, as for a completely fair comparison the models selected for
 the benchmark comparison models should be (ideally) carefully selected
 within their own modelling framework rather than relying on the choices
 made for margin covariates made through the gamlss.longitudinal
 workflow.</p>
-<p>The selected final model does not include <code>time</code> on
+<p>The main idea of <code>benchmark_standard_models</code> is to provide
+a sense of the sensitivity of the model insights provided by
+<code>gamlss.longitudinal</code> (e.g. coefficients, confidence
+intervals, overall fit) to choice of model by directly comparing them to
+the alternative models.</p>
+<p>We provide a bunch of metrics so that the user can decide the metrics
+of most importance to them. We initally present just a quick summary of
+the ‘best model’ by each dimension, then provide details of the metric
+values for each model fit as well as a detailed comparison of
+coefficients.</p>
+<p>In general, we would expect that the mean-only models of GEEs and
+GLMMs will perform well when all three of these hold true: the primary
+question of interest is the value of the mean intercept, the marginal
+distribution is supported by the given models (generally exponential
+family), and the correlation structure is reasonably standard and does
+not rely on covariates strongly. If the question of interest relies on
+accurate confidence intervals or quantiles for parameters or
+predictions, and the distribution is non-exponential family, then the
+gamlss.longitudinal model is likely to perform better on metrics
+measuring those dimensions.</p>
+<p>We group the benchmarking results into two groups: ‘Distributional’
+which refers to metrics which measure the shape of the overall
+distribution where <code>gamlss.longitudinal</code> often performs
+better, e.g. log score, interval coverage, tail error / fit, and
+<code>Mean fit</code> which measures mean response, which benchmarked
+standard models are optimised against.</p>
+<p>We see in both benchmark comparisons here that:</p>
+<ul>
+<li>
+<code>gamlss.longitudinal</code> generally appears to provide the
+best fit by distributional fit including interval coverage, tail error
+and log score</li>
+<li>
+<code>glmer</code> and <code>gamm</code> provide the best fits for
+MAE and RMSE against the observed response</li>
+<li>Coefficients are broadly in the same ballpark between models, though
+there are significant differences, and, importantly, note the
+substantial differences in standard erros and therefore upper and lower
+95% confidence intervals for parameters which are much tighter for the
+<code>gamlss.longitudinal</code> model due to the additional modelling
+of coefficients for both variance through <code>sigma</code> and
+<code>nu</code> and correlation through <code>theta</code>. Given
+coverage is more accurate for the <code>gamlss.longitudinal</code> model
+we could consider that these ranges may be more accurate, but much
+broader analysis is needed to confirm this (this work is in
+progress).</li>
+</ul>
+<details><p>The selected final model does not include <code>time</code> on
 <code>mu</code>, while the benchmark mean model below does include a
 linear <code>time</code> term. To keep the selected final model
 unchanged while making the benchmark comparison like-for-like on the
 mean formula, we fit an additional comparison-only GAMLSS longitudinal
 model that adds <code>time</code> to <code>mu</code> and leaves the
 other final-model components unchanged.</p>
-<details><div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_benchmark_mu_time</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gamlss_longitudinal.html">gamlss_longitudinal</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">dataset</span>,</span>
 <span>  margin_dist <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/gamlss.dist/man/GG.html" class="external-link">GG</a></span><span class="op">(</span><span class="op">)</span>,</span>
@@ -1380,7 +1441,7 @@ other final-model components unchanged.</p>
 <span><span class="op">)</span></span></code></pre></div>
 </details><div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">bench</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/benchmark_standard_models.html">benchmark_standard_models</a></span><span class="op">(</span></span>
-<span>  data <span class="op">=</span> <span class="va">dat</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">dataset</span>,</span>
 <span>  formula <span class="op">=</span> <span class="va">response</span> <span class="op">~</span> <span class="va">treatment</span> <span class="op">+</span> <span class="va">time</span> <span class="op">+</span> <span class="fu">s</span><span class="op">(</span><span class="va">age</span><span class="op">)</span>,</span>
 <span>  subject_var <span class="op">=</span> <span class="st">"subject"</span>,</span>
 <span>  family <span class="op">=</span> <span class="st">"gamma"</span>,</span>
@@ -1402,25 +1463,20 @@ other final-model components unchanged.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Distributional</span></span>
 <span><span class="co">#&gt; --------------</span></span>
-<span><span class="co">#&gt;                            Metric  Best model</span></span>
-<span><span class="co">#&gt;             95% interval coverage gamlss_long</span></span>
-<span><span class="co">#&gt;                95% interval width        gamm</span></span>
-<span><span class="co">#&gt;                Negative log score gamlss_long</span></span>
-<span><span class="co">#&gt;                    PIT KS p-value gamlss_long</span></span>
-<span><span class="co">#&gt;           PIT mean absolute error        gamm</span></span>
-<span><span class="co">#&gt;               90th percentile MAE gamlss_long</span></span>
-<span><span class="co">#&gt;               Lower 5% tail error gamlss_long</span></span>
-<span><span class="co">#&gt;               Upper 5% tail error gamlss_long</span></span>
-<span><span class="co">#&gt;  90th percentile upper-tail error         gam</span></span>
+<span><span class="co">#&gt;                   Metric  Best model</span></span>
+<span><span class="co">#&gt;    95% interval coverage gamlss_long</span></span>
+<span><span class="co">#&gt;       95% interval width        gamm</span></span>
+<span><span class="co">#&gt;       Negative log score gamlss_long</span></span>
+<span><span class="co">#&gt;           PIT KS p-value gamlss_long</span></span>
+<span><span class="co">#&gt;  PIT mean absolute error        gamm</span></span>
+<span><span class="co">#&gt;      Lower 5% tail error gamlss_long</span></span>
+<span><span class="co">#&gt;      Upper 5% tail error gamlss_long</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Mean fit</span></span>
 <span><span class="co">#&gt; --------</span></span>
-<span><span class="co">#&gt;                  Metric  Best model</span></span>
-<span><span class="co">#&gt;   Observed response MAE        gamm</span></span>
-<span><span class="co">#&gt;               Mean bias gamlss_long</span></span>
-<span><span class="co">#&gt;                Mean MAE gamlss_long</span></span>
-<span><span class="co">#&gt;               Mean RMSE gamlss_long</span></span>
-<span><span class="co">#&gt;  Observed response RMSE        gamm</span></span>
+<span><span class="co">#&gt;                  Metric Best model</span></span>
+<span><span class="co">#&gt;   Observed response MAE       gamm</span></span>
+<span><span class="co">#&gt;  Observed response RMSE       gamm</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Runtime</span></span>
 <span><span class="co">#&gt; -------</span></span>
@@ -1431,27 +1487,22 @@ other final-model components unchanged.</p>
 <span><span class="co">#&gt; -----------------</span></span>
 <span><span class="co">#&gt; Benchmark Metrics</span></span>
 <span><span class="co">#&gt; -----------------</span></span>
-<span><span class="co">#&gt;                            Metric gamlss_long        gam       gamm</span></span>
-<span><span class="co">#&gt;                Elapsed time (sec)          NA  5.836e-02  1.644e+00</span></span>
-<span><span class="co">#&gt;            Number of observations   6.000e+02  6.000e+02  6.000e+02</span></span>
-<span><span class="co">#&gt;                    Log likelihood  -1.107e+03 -1.449e+03 -1.345e+03</span></span>
-<span><span class="co">#&gt;                               AIC   2.253e+03  2.914e+03  2.853e+03</span></span>
-<span><span class="co">#&gt;                               MAE   3.571e+00  3.476e+00  2.737e+00</span></span>
-<span><span class="co">#&gt;                              RMSE   5.306e+00  5.286e+00  4.548e+00</span></span>
-<span><span class="co">#&gt;                         Mean RMSE   1.833e+00  2.188e+00  4.057e+00</span></span>
-<span><span class="co">#&gt;                          Mean MAE   1.430e+00  1.838e+00  3.341e+00</span></span>
-<span><span class="co">#&gt;                         Mean bias  -1.346e+00 -1.631e+00 -1.929e+00</span></span>
-<span><span class="co">#&gt;            Observed response RMSE   5.306e+00  5.286e+00  4.548e+00</span></span>
-<span><span class="co">#&gt;             Observed response MAE   3.571e+00  3.476e+00  2.737e+00</span></span>
-<span><span class="co">#&gt;               90th percentile MAE   7.176e-01  5.338e+00  8.590e+00</span></span>
-<span><span class="co">#&gt;                Negative log score   2.346e+00  2.691e+00  2.574e+00</span></span>
-<span><span class="co">#&gt;  90th percentile upper-tail error  -5.229e-03 -4.946e-03 -1.073e-02</span></span>
-<span><span class="co">#&gt;             95% interval coverage   9.556e-01  9.185e-01  9.037e-01</span></span>
-<span><span class="co">#&gt;                95% interval width   1.742e+01  2.138e+01  1.499e+01</span></span>
-<span><span class="co">#&gt;           PIT mean absolute error   1.729e-02  1.863e-02  7.903e-03</span></span>
-<span><span class="co">#&gt;                    PIT KS p-value   2.553e-01  6.045e-04  7.440e-02</span></span>
-<span><span class="co">#&gt;               Lower 5% tail error   7.407e-03  2.778e-02  3.519e-02</span></span>
-<span><span class="co">#&gt;               Upper 5% tail error  -3.704e-03 -9.259e-03 -9.259e-03</span></span>
+<span><span class="co">#&gt;                   Metric gamlss_long        gam       gamm</span></span>
+<span><span class="co">#&gt;       Elapsed time (sec)          NA  6.660e-02  1.271e+00</span></span>
+<span><span class="co">#&gt;   Number of observations   6.000e+02  6.000e+02  6.000e+02</span></span>
+<span><span class="co">#&gt;           Log likelihood  -1.107e+03 -1.449e+03 -1.345e+03</span></span>
+<span><span class="co">#&gt;                      AIC   2.253e+03  2.914e+03  2.853e+03</span></span>
+<span><span class="co">#&gt;                      MAE   3.571e+00  3.476e+00  2.737e+00</span></span>
+<span><span class="co">#&gt;                     RMSE   5.306e+00  5.286e+00  4.548e+00</span></span>
+<span><span class="co">#&gt;   Observed response RMSE   5.306e+00  5.286e+00  4.548e+00</span></span>
+<span><span class="co">#&gt;    Observed response MAE   3.571e+00  3.476e+00  2.737e+00</span></span>
+<span><span class="co">#&gt;       Negative log score   2.346e+00  2.691e+00  2.574e+00</span></span>
+<span><span class="co">#&gt;    95% interval coverage   9.556e-01  9.185e-01  9.037e-01</span></span>
+<span><span class="co">#&gt;       95% interval width   1.742e+01  2.138e+01  1.499e+01</span></span>
+<span><span class="co">#&gt;  PIT mean absolute error   1.729e-02  1.863e-02  7.903e-03</span></span>
+<span><span class="co">#&gt;           PIT KS p-value   2.553e-01  6.045e-04  7.440e-02</span></span>
+<span><span class="co">#&gt;      Lower 5% tail error   7.407e-03  2.778e-02  3.519e-02</span></span>
+<span><span class="co">#&gt;      Upper 5% tail error  -3.704e-03 -9.259e-03 -9.259e-03</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Mu Coefficients</span></span>
 <span><span class="co">#&gt; ---------------</span></span>
@@ -1486,10 +1537,10 @@ other final-model components unchanged.</p>
 <span><span class="co">#&gt;   treatmentlow     0.35603  0.1447  0.04984</span></span>
 <span><span class="co">#&gt;  treatmenthigh     0.72151  0.5978  0.55918</span></span>
 <span><span class="co">#&gt;           time     0.04143 -0.2350 -0.78528</span></span></code></pre></div>
-<p>Then we can compare a reduced model without age to be able to compare
-all models. This is just illustrative so we remove the variable for
-simplicity, but you could alternatively group age or similar to be able
-to also compare this effect as well.</p>
+<p>Then we can compare a reduced model without the age smooth to be able
+to compare all models. This is just illustrative so we remove the
+variable for simplicity, but you could alternatively group age or
+similar to be able to also compare this effect as well.</p>
 <details><div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_reduced</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gamlss_longitudinal.html">gamlss_longitudinal</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">dataset</span>,</span>
@@ -1585,7 +1636,7 @@ to also compare this effect as well.</p>
 <span><span class="co">#&gt; Observations: 600</span></span>
 <span><span class="co">#&gt; Margins: 5</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Total time (seconds): 7.46</span></span>
+<span><span class="co">#&gt; Total time (seconds): 6.16</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;                        estimate</span></span>
 <span><span class="co">#&gt; theta.intercept      -0.3161307</span></span>
@@ -1701,7 +1752,7 @@ to also compare this effect as well.</p>
 <span><span class="co">#&gt; Observations: 600</span></span>
 <span><span class="co">#&gt; Margins: 5</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Total time (seconds): 4.33</span></span>
+<span><span class="co">#&gt; Total time (seconds): 4.11</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;                        estimate</span></span>
 <span><span class="co">#&gt; theta.intercept      -0.3378273</span></span>
@@ -1781,7 +1832,7 @@ to also compare this effect as well.</p>
 <span><span class="co">#&gt; Benchmark Metrics</span></span>
 <span><span class="co">#&gt; -----------------</span></span>
 <span><span class="co">#&gt;                   Metric gamlss_long        glm     geeglm      glmer</span></span>
-<span><span class="co">#&gt;       Elapsed time (sec)          NA  4.110e-03   0.018632  4.165e-01</span></span>
+<span><span class="co">#&gt;       Elapsed time (sec)          NA  5.140e-03   0.022191  4.067e-01</span></span>
 <span><span class="co">#&gt;   Number of observations   6.000e+02  6.000e+02 600.000000  6.000e+02</span></span>
 <span><span class="co">#&gt;           Log likelihood  -1.144e+03 -1.465e+03         NA -1.441e+03</span></span>
 <span><span class="co">#&gt;                      AIC   2.310e+03  2.940e+03         NA  2.895e+03</span></span>
@@ -1797,7 +1848,7 @@ to also compare this effect as well.</p>
 <span><span class="co">#&gt;      Lower 5% tail error   5.556e-03  2.593e-02   0.029630  3.704e-02</span></span>
 <span><span class="co">#&gt;      Upper 5% tail error  -3.704e-03 -9.259e-03  -0.009259 -5.556e-03</span></span>
 <span><span class="co">#&gt;         gam       gamm</span></span>
-<span><span class="co">#&gt;   2.331e-02  1.206e+00</span></span>
+<span><span class="co">#&gt;   2.918e-02  1.329e+00</span></span>
 <span><span class="co">#&gt;   6.000e+02  6.000e+02</span></span>
 <span><span class="co">#&gt;  -1.460e+03 -1.343e+03</span></span>
 <span><span class="co">#&gt;   2.930e+03  2.851e+03</span></span>
@@ -1856,6 +1907,8 @@ objects, see <code><a href="../reference/predict.gamlss.longitudinal.html">help(
 options. We also provide a standard method to replicate the known method
 often used for mixed models <code>margins_effects</code> so that average
 predictions across a variable can be provided.</p>
+<p>Note that the <code>NA</code> here for the reponse for row 4 and 6
+are from the original data</p>
 <div class="sourceCode" id="cb35"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Predict the fitted response mean with confidence interval</span></span>
 <span><span class="va">pred</span><span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span></span>

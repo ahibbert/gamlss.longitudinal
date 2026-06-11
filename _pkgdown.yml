@@ -9,25 +9,25 @@ navbar:
     right: [github]
 
 articles:
-  - title: Start Here
-    navbar: Start Here
+  - title: Start here
+    navbar: Start here
     contents:
       - site-guide
-      - five-minute-smoke-test
-  - title: Worked Examples
-    navbar: Worked Examples
+  - title: Worked examples
+    navbar: Worked examples
     contents:
       - standard-workflow
       - native-simulation-workflow
-      - simulator-usage
-  - title: Adoption Guides
-    navbar: Adoption Guides
+  - title: Reference guides
+    navbar: Reference guides
     contents:
       - inference-uncertainty
       - diagnostics-decisions
+      - simulator-usage
+      - five-minute-smoke-test
 
 reference:
-  - title: Standard Workflow
+  - title: Standard workflow
     desc: Adoption-facing helpers for the recommended screen, fit, check, predict workflow.
     contents:
       - select_margin
@@ -40,7 +40,7 @@ reference:
       - vcov.gamlss.longitudinal
       - logLik.gamlss.longitudinal
       - gamlss_longitudinal_accessors
-  - title: Inference And Interpretation
+  - title: Inference and interpretation
     desc: Reportable intervals, hypothesis tests, likelihood comparisons, and effects.
     contents:
       - confint.gamlss.longitudinal
@@ -69,7 +69,7 @@ reference:
       - plot_terms
       - plot_fixed_terms
       - plot_smooth_terms
-  - title: Simulation And Benchmarks
+  - title: Simulation and benchmarks
     desc: Data generators and opt-in comparator benchmarks for adoption evidence.
     contents:
       - simulate_longitudinal_covariates
@@ -83,7 +83,7 @@ reference:
       - format_benchmark_report
       - write_benchmark_report
       - write_coverage_summary_report
-  - title: Simulation Helper Functions
+  - title: Simulation helper functions
     desc: Small helper functions used in simulation examples.
     contents:
       - starts_with("sim_")
