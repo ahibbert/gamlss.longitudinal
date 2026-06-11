@@ -107,6 +107,29 @@ test_that("T153b PIT histogram bins stay inside unit interval", {
   expect_equal(pit_plot$layers[[1]]$stat_params$breaks, seq(0, 1, length.out = 21L))
 })
 
+test_that("T153c topmodel diagnostics support time and data-column splits", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 14L)
+  dat$treatment <- dat$gender
+  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+
+  diagnostic_funs <- list(
+    pithist = pithist,
+    qqrplot = qqrplot,
+    wormplot = wormplot,
+    rootogram = rootogram
+  )
+
+  for (fun in diagnostic_funs) {
+    expect_s3_class(suppressWarnings(fun(fit, plot = TRUE)), "ggplot")
+    expect_s3_class(suppressWarnings(fun(fit, by_time = TRUE, plot = TRUE)), "ggplot")
+    expect_s3_class(suppressWarnings(fun(fit, by = "treatment", data = dat, plot = TRUE)), "ggplot")
+
+    by_df <- suppressWarnings(fun(fit, by = "treatment", data = dat, plot = FALSE))
+    expect_true("split_group" %in% names(by_df))
+    expect_setequal(as.character(unique(by_df$split_group)), as.character(unique(dat$treatment)))
+  }
+})
+
 test_that("T154 plot_terms handles no-data fixed-term plots with many time levels", {
   set.seed(42)
 
