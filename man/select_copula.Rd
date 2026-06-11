@@ -74,8 +74,8 @@ the temporary marginal model and pass this setting through to
 \code{\link[=select_margin]{select_margin()}} if the marginal family is auto-selected.}
 
 \item{copula_time_intercepts}{Logical; if \code{TRUE}, screen each copula family
-with separate dependence parameters for each adjacent time-pair factor level.
-This does not impose a linear time trend.}
+with separate dependence parameters for each adjacent time-pair factor
+level. This does not impose a linear time trend.}
 }
 \value{
 A data frame with one row per family and class

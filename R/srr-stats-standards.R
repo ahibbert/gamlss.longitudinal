@@ -16,7 +16,7 @@
 #' @srrstats {G1.2} Met: README includes a lifecycle statement for current and anticipated package development.
 #' @srrstats {G1.3} Met: CONTRIBUTING defines the main statistical and workflow terms used by the package.
 #' @srrstats {G1.4} Met: exported user-facing functions are documented with roxygen2 and regenerated into Rd files.
-#' @srrstatsTODO {G1.4a} Partial: many internal helpers have roxygen comments, but older dense internals still need full `@noRd` documentation.
+#' @srrstats {G1.4a} Met: dense numerical/backend internals have concise `@noRd` roxygen context.
 #' @srrstats {G1.5} Met: replication and benchmark scaffolds live under `inst/jss-replication` and `inst/benchmarks`.
 #' @srrstats {G1.6} Met: opt-in benchmark helpers compare against GEE, GLMM, GAM, and GAMLSS baselines when optional packages are installed.
 #' @srrstats {G2.0} Met: scalar controls, family names, copula choices, data columns, and formula inputs are asserted before fitting.
@@ -39,7 +39,7 @@
 #' @srrstats {G2.8} Met: early pre-processing normalizes data, time, subject, formulas, and marginal family objects before lower-level routines run.
 #' @srrstats {G2.9} Met: character time conversion and character-predictor treatment warn or are explicitly documented.
 #' @srrstats {G2.10} Met: column extraction uses explicit names and preserves data-frame behavior.
-#' @srrstatsTODO {G2.11} Partial: non-standard column classes such as `units` are not yet explicitly documented or tested.
+#' @srrstats {G2.11} Met: non-standard column classes are documented and custom predictor classes are rejected in input-policy tests.
 #' @srrstats {G2.12} Met: list-columns are explicitly rejected before fitting and covered by input-policy tests.
 #' @srrstats {G2.13} Met: fitting rejects missing required columns and margins/pairs with no observed data.
 #' @srrstats {G2.14} Met: missing-response, structural-missingness, and predictor-missingness policies are documented and tested.
@@ -54,7 +54,7 @@
 #' @srrstatsTODO {G5.0} Partial: known-truth fixture added; broader comparison to canonical external datasets remains useful.
 #' @srrstats {G5.1} Met: testthat tests and CI cover the main workflow, diagnostics, simulation, prediction, and copula parity.
 #' @srrstatsTODO {G5.2} Partial: many error/warning paths are tested, but not every user-reachable stop/warning/message branch.
-#' @srrstatsTODO {G5.2a} Partial: error/warning tests should be mapped systematically to validation branches.
+#' @srrstats {G5.2a} Met: the reviewer crosswalk maps major user-facing errors and warnings to validation tests.
 #' @srrstatsTODO {G5.2b} Partial: message/diagnostic branch coverage needs the same mapping.
 #' @srrstats {G5.3} Met: representative tests compare numerical outputs with known or parity expectations.
 #' @srrstats {G5.4} Met: benchmark and replication directories support performance and publication claims.
@@ -87,8 +87,8 @@
 #' @srrstats {RE1.4} Met: time and subject variables are explicit arguments rather than inferred hidden state.
 #' @srrstats {RE2.0} Met: preprocessing is documented in README and implemented before model construction.
 #' @srrstatsTODO {RE2.1} Partial: missingness handling is documented; user-selectable response/predictor missingness policies are not exposed.
-#' @srrstatsTODO {RE2.2} Partial: non-finite response/predictor behavior needs finer-grained documentation and tests.
-#' @srrstatsTODO {RE2.3} Partial: transformations are user-specified in formulas; default transformation/centering policy should be explicit.
+#' @srrstats {RE2.2} Met: non-finite response/predictor policy is documented and tested.
+#' @srrstats {RE2.3} Met: transformation and centering policy is explicit; transformations are user-specified in formulas.
 #' @srrstats {RE2.4} Met: model-matrix construction and rank checks support standard predictor encoding.
 #' @srrstats {RE2.4a} Met: factor predictors are handled through formula/model-matrix conversion.
 #' @srrstats {RE2.4b} Met: rank-deficient/noiseless predictor cases warn and constant-response starting behavior is tested.
@@ -110,16 +110,16 @@
 #' @srrstats {RE4.11} Met: `nobs()` is implemented.
 #' @srrstats {RE4.12} Met: `fitted()` is implemented.
 #' @srrstats {RE4.13} Met: `residuals()` is implemented.
-#' @srrstatsTODO {RE4.14} Partial: interval predictions exist; forecasting interval behavior needs explicit standards tests.
-#' @srrstatsTODO {RE4.15} Partial: prediction uncertainty is available for supported summaries; horizon and new-panel behavior need clearer docs.
-#' @srrstatsTODO {RE4.16} Partial: newdata handling is implemented; unseen factor levels/groups need explicit validation tests.
+#' @srrstats {RE4.14} Met: standards tests cover confidence intervals for future/new-subject panels.
+#' @srrstats {RE4.15} Met: prediction uncertainty and new-panel behavior are documented and tested.
+#' @srrstats {RE4.16} Met: unseen factor levels in `newdata` are explicitly rejected and tested.
 #' @srrstats {RE4.17} Met: `model.frame()` is implemented for observed and expanded data views.
 #' @srrstats {RE4.18} Met: convergence metadata is accessible from fitted objects.
 #' @srrstats {RE5.0} Met: plotting methods provide diagnostic and fitted-value workflows.
 #' @srrstats {RE6.0} Met: prediction supports supplied new data through model-matrix reconstruction.
 #' @srrstats {RE6.1} Met: prediction tests cover newdata behavior.
 #' @srrstats {RE6.2} Met: simulation helpers support longitudinal panels.
-#' @srrstatsTODO {RE6.3} Partial: forecast-style future panels should be documented separately from ordinary newdata prediction.
+#' @srrstats {RE6.3} Met: future panels are documented as supplied-covariate `newdata` prediction rather than time-series forecasting.
 #' @srrstats {RE7.0} Met: tests cover exact/noiseless predictor relationships.
 #' @srrstats {RE7.0a} Met: rank-deficient exact predictor input is detected with a warning.
 #' @srrstats {RE7.1} Met: tests cover constant-response/noiseless response behavior and accessor contracts.

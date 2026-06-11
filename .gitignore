@@ -13,6 +13,7 @@ vignettes/*_files/
 *.Rcheck/
 *.tar.gz
 _*.log
+auto_open_plots.sh
 _targets/
 R (testing)/
 tests/REGRESSION_TEST_PLAN.md

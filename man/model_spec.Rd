@@ -14,6 +14,6 @@ A list of class \code{gamlss_longitudinal_model_spec}.
 }
 \description{
 \code{model_spec()} returns a compact, printable audit trail for a fitted model:
-formulas, distributions, links, optimisation settings, missing-response counts,
-likelihood components, and variance-covariance metadata.
+formulas, distributions, links, optimisation settings, missing-response
+counts, likelihood components, and variance-covariance metadata.
 }

@@ -15,9 +15,9 @@ knitr::opts_chunk$set(
 )
 ```
 
-We provide a range of diagnostics for assessing the validity of `gamlss.longitudinal` fits, generally grouped by whether they are marginal diagnostics (which are similar to many other marginal modelling package) or diagnostics fod the joint fit which includes dependence.
+We provide a range of diagnostics for assessing the validity of `gamlss.longitudinal` fits, generally grouped by whether they are marginal diagnostics (which are similar to many other marginal modelling package) or diagnostics for the joint fit which includes dependence.
 
-We provide an exmaple review of key diagnostics for an example dataset as a part of the detailed workflow here: [Detailed worked example](native-simulation-workflow.html). The goal of this page is as a reference to outline the available methods and provide brief details on how they operate.
+We provide an example review of key diagnostics for an example dataset as a part of the detailed workflow here: [Detailed worked example](native-simulation-workflow.html). The goal of this page is as a reference to outline the available methods and provide brief details on how they operate.
 
 In general we suggest the following checks for any model:
 
@@ -25,7 +25,7 @@ In general we suggest the following checks for any model:
 - `summary(fit)` naturally is an important starting point for reviewing fit likelihood, coefficients and their significance to them model
 - `plot_terms(fit)` provides a visual assessment of the fitted model coefficients and their confidence intervals
 - `plot(fit)` provides a faceted plot of visual marginal fit diagnostics
-- `plot_copula_diagnostics(fit)` provides a plot of visual joint distriution and dependence fit diagnostics
+- `plot_copula_diagnostics(fit)` provides a plot of visual joint distribution and dependence fit diagnostics
 
 
 ## Basic checks
@@ -98,14 +98,14 @@ In the same way as a margin, we expect the residual trends remaining in our depe
 `plot_copula_diagnostics(fit)` provides a detailed set of diagnostics for the dependence structure, including:
 
 - Fitted copula overlayed on a histogram of the dependence (fitted contours should follow density of the histogram)
-- Quantiles (deciles) of fitted Kendall's tau (correlation) for the fitted versus observed copula (observed and fitted should broudly be in line)
+- Quantiles (deciles) of fitted Kendall's tau (correlation) for the fitted versus observed copula (observed and fitted should broadly be in line)
 - Rosenblatt z-scores by timepoint and overall Rosenblatt normal QQ which should be normally distributed (these take into account the correlation structure for timepoints beyond the first)
 - Rosenblatt lag plot showing Rosenblatt z-scores for each time point against the lagged timepoint which should should zero correlation, as well as residual dependence by lag which should show close to zero residual correlation
 - Sorted empirical versus fitted copula probabilities scatterplot which should closely track the centre line
-- Tail co-occurrence and exceedence, essentially the fitted versus observed probability of observations landing in the upper and lower tails of the dependence structure
+- Tail co-occurrence and exceedance, essentially the fitted versus observed probability of observations landing in the upper and lower tails of the dependence structure
 
 ```{r dependence}
 plot_copula_diagnostics(fit, data = dat)
 ```
 
-Any concerns in these diagnostics indicate lack of fit for the dependence, or potentially, the margin fit affecting the dependence fit. If marginal checks are reasonable, then adjustments to copula should include assessing alternative copula shapes, i.e. `copula_dist`, or adusting parameter covariates for `theta.formula` or `zeta.formula`.
+Any concerns in these diagnostics indicate lack of fit for the dependence, or potentially, the margin fit affecting the dependence fit. If marginal checks are reasonable, then adjustments to copula should include assessing alternative copula shapes, i.e. `copula_dist`, or adjusting parameter covariates for `theta.formula` or `zeta.formula`.
