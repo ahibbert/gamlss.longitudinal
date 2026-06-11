@@ -24,7 +24,7 @@ articles:
       - inference-uncertainty
       - diagnostics-decisions
       - simulator-usage
-      - five-minute-smoke-test
+      - test-working-install
 
 reference:
   - title: Standard workflow
