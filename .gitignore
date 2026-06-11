@@ -3,6 +3,10 @@
 .RData
 .Ruserdata
 Rplots.pdf
+docs/
+vignettes/*.html
+vignettes/*_files/
+.quarto/
 *.Rcheck/
 *.tar.gz
 _*.log
