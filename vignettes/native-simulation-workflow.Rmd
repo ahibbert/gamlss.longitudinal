@@ -70,7 +70,7 @@ library(ggplot2)
 
 For installation of `gamlss.longitudinal`, use `remotes::install_github("ahibbert/gamlss.longitudinal")`.
 
-## Simulate Data
+## Simulate data
 
 We simulate a longitudinal dataset with 120 subjects with observations at 5 time points. The simulated response is generalized gamma (`GG()`) distributed with skewed low-value correlation between time points generated using a Clayton copula. A 10% response missingness is applied at random. 
 
@@ -183,7 +183,7 @@ dataset=dat[,c("subject", "time", "response", "treatment", "age")]
 
 </details>
 
-## Inspect The Response
+## Inspect the response
 
 Our first check is to ensure the dataset is in the correct shape to ingest in the gamlss_longitudinal fit. The data should include:
 
@@ -247,7 +247,7 @@ plot_dist(
 )
 ```
 
-## Choose A Marginal Distribution
+## Choose a marginal distribution
 
 The response here is continuous and positive. For any distribution we can use the function `select_margin()` to fit an intercept-only model to the response distribution and provide a ranked list of fits by likelihood criteria (default is AIC).
 
@@ -264,7 +264,7 @@ print(margin_selection)
 
 The `BCPEo` is selected as the best fitting distribution as it is highly flexible and is able the capture the shape of the shared distribution. However, given we know that time is a strong component of the moments, the best model is likely to be using a marginal distribution which can change with time. 
 
-We can set the option `time_intercepts=TRUE` in `select_margin` which allows each parameter of the marginal distribution to vary with time. This method then selects `GG()` and `GA()` as the best models by AIC. We will take these two distributions forwards as our two potential distributions for the final model, depending on whether the additional parameter for the `GG()` over the `GA()` adds sufficent fit to account for the additional degrees of freedom consumed. 
+We can set the option `time_intercepts=TRUE` in `select_margin()` which allows each parameter of the marginal distribution to vary with time. This method then selects `GG()` and `GA()` as the best models by AIC. We will take these two distributions forwards as our two potential distributions for the final model, depending on whether the additional parameter for the `GG()` over the `GA()` adds sufficent fit to account for the additional degrees of freedom consumed. 
 
 ```{r marginal-screen-long}
 margin_selection <- select_margin(
@@ -333,7 +333,7 @@ plot_margin_fit(
 )
 ```
 
-## Choose A Copula Family
+## Choose a copula family
 
 Once we have a starting fit for the margin, we can select a copula distribution. The copula distribution depends on the shape of the margin so the margin must be selected first. We do provide the option for choosing both margin and copula jointly using `select_joint_distribution()` however this is quite a slow fit, and generally does not select differently to the much faster process using `select_margin()` followed by `select_copula()`. Instead we would suggest sensitivity / alternative testing for a final selection of margins or copulas, or for the final fitted model, rather than spending compute time at the early stage before covariates are selected.
 
@@ -441,7 +441,7 @@ Model fitting for `gamlss.longitudinal` should always follow the parameter heira
 
 We will use the `GG()` fit to start for the additional flexibility for the additional parameter, and if it is not significant with an intercept or covariates then we can reduce the model the `GA()`. The selected copula was `C` under all margin settings so we will use this.
 
-Let's begin by inspecting a fully specified model with factor terms for `time` and `treatment`, and a smooth term for `age` on every covariate.
+Let's begin by inspecting a fully specified model with factor terms for `time` and `treatment`, and a smooth term for `age` on every covariate, including the copula parameter.
 
 ```{r fit-model-factortime, results='hide'}
 fit_fullyspecified <- gamlss_longitudinal(
@@ -461,7 +461,7 @@ fit_fullyspecified <- gamlss_longitudinal(
 summary(fit_fullyspecified)
 ```
 
-Overall we see time is a significant factor for `sigma` and `theta` but in this form does not appear to be significant for `mu` or `nu`. No covariates for `nu` appear to be significant at `p=0.01` including the intercept. Degrees of freedom for age smooths for `nu` and `theta` are small which may indicate they are not material to the fit so we will review these. Treatment effect appears to be significant initially for `mu` and `sigma` but not for `nu` or `theta`.
+Overall we see time is a significant factor for `sigma` and `theta` but in this form does not appear to be significant for `mu` or `nu`. No covariates for `nu` appear to be significant at `p=0.05`, including the intercept. Degrees of freedom for age smooths for `nu` and `theta` are small which may indicate they are not material to the fit so we will review these. Treatment effect appears to be significant initially for `mu` and `sigma` but not for `nu` or `theta`.
 
 We start with `mu` and note the significant treatment effect but minimal effect due to time so we can test alternative forms or remove. 
 
@@ -670,25 +670,31 @@ plot_copula_diagnostics(fit)
 
 All trends for fitted versus observed dependence appear close. There is one small deviation between the fit and the data in the lower tail that can be seen in the Rosenblatt normal QQ plot and the tail co-occurrence / exceedence plots for the lower plot where we are slightly underfitting it appears.
 
-We will briefly comment on each diagnostic for illustration purposes:
+We will briefly comment on each diagnostic for illustration purposes from left to right, then top to bottom:
 
 - Empirical copula overlay appears to broadly capture the shape of the 2d histogram, we can also plot the final fitted distributions against the original data using `plot_margin_fit(fit, by_time=TRUE)` and `plot_copula_fit(fit, by_time=TRUE)` if desired which will show the captured changing shape more clearly.
-- Quantiles of fitted versus observed correlation follow the same trend indicating we are capturing the extremes and the centre of the correlation distribution (i.e. we are at least covering the range of correlation correctly)
-- Rosenblatt scores take into account correlation stucture resulting in conditional estimates for margins, meaning they will tell us if the joint distribution (margin or copula) is misspecified. We provide multiple views:
-  - Rosenblatt scores by margin, which should be normally distributed at each time point (and are), a specific time point being non-normal indicates a specific set of copulas before it or the given margin is incorrectly specified
-  - Overall Rosenblatt QQ indicates overall normality or the conditional residuals which look reasonable with small deviation in both tails
-  - Rosenblatt lag plot compared scores at a given time point with the lagged time point, which if correlation is correctly specified then these should be uncorrelated (and the are)
-- Kendall's function dignostic compares fitted copula probabilities across the dataset (sorted) against the empirical sorted copula probabilities and should follow the centre line without systematic deviation. In this case there is a small systematic deviation in the centre which may be worth investigating to improve the fit
+- Deciles of fitted versus observed correlation follow the same trend indicating we are capturing the extremes and the centre of the correlation distribution (i.e. we are at least covering the range of correlation correctly)
+- Rosenblatt scores take into account correlation stucture in estimating residuals resulting in conditional estimates for margins, meaning they will tell us if the joint distribution (margin or copula) is misspecified. We provide multiple views:
+  - Rosenblatt z-scores by margin, which should be normally distributed at each time point (and are), a specific time point being non-normal indicates a specific set of copulas before it or the given margin is incorrectly specified
+  - Overall Rosenblatt Normal QQ plot indicates overall normality of the conditional residuals which look reasonable with small deviation in both tails
+  - Rosenblatt lag plot compares scores at a given time point with the lagged time point, which if correlation is correctly specified then these should be uncorrelated (and the are)
+- Kendall's function diagnostic compares fitted copula probabilities across the dataset (sorted) against the empirical sorted copula probabilities and should follow the centre line without systematic deviation. In this case there is a small systematic deviation in the centre which may be worth investigating to improve the fit
 - Tail co-occurrence and exceedence compare empirical versus fitted probabiltiy of observations being in the upper and lower tails of the dependence structure and are broadly in line with some deviation in the lower tail, potentially due to the deviation in fit for the margin in the lower tail. This would indicate incorrectly specified tails either in the margin or the copula.
-- Residaul dependence by lag should be close to zero if the copula is accurately capturing the dependence which it is here
+- Residual dependence by lag should be close to zero if the copula is accurately capturing the dependence which it is here
 
-It's straightforward to generate standard outputs for regression models such as confidence intervals and wald test
+Overall this appears to provide a reasonable fit to the joint distribution, with some small deviations in the tails for both the copula and margin which may warrant additional investigation.
+
+## Additional tools for inference, prediction, marginal effects, simulation, benchmarks
+
+### Standard functions for inference: confidence itervals, wald test, bootstrap 
+
+It's straightforward to generate standard outputs for regression models such as confidence intervals and wald tests for coefficients of all parameters.
 
 ```{r inference}
 confint(fit)
 wald_test(fit)
 ```
-It's also possible to produce bootstrap confidence intervals from the fitted model though it is computationally quite intensive.
+It's also possible to produce bootstrap confidence intervals from the fitted model though it is computationally quite intensive as it refits the longitudinal model for each repetition (`R=`).
 
 ```{r bootstrap-run, results='hide', eval=TRUE}
 boot <- bootstrap_inference(
@@ -702,17 +708,29 @@ boot <- bootstrap_inference(
 print(boot)
 ```
 
-## Prediction, marginal effects, simulation, benchmarks
+### Benchmarking against standard models; gee, glmm, gam
 
-### Benchmarking to standard models; gee, glmm, gam
-
-It will be common for the user to be more familiar with fits from a GEE using, for example, `gee` or `geepack`, or GLMM using `mgcv` or `lme4`. For ease of use, we provide the user a straightforward way to quickly compare a final model `gamlss.longitudinal` fit object to an alternative mean model using these frameworks with the same (or alternative) formula. First we can review a model with smooths which will only compare to `mgcv` which supports smooths.
+It will be common for the user to be more familiar with longitudinal regression fits from a GEE using, for example, `gee` or `geepack`, or GLMM using `mgcv` or `lme4`. For ease of use, we provide the user a straightforward way to quickly compare a final model `gamlss.longitudinal` fit object to an alternative mean model using these frameworks with the same (or alternative) formula. First we can review a model with smooths which will only compare to `mgcv` based models (`gam` and `gamm`) which support smooths.
 
 These comparison models should be treated as approximate or directional, as for a completely fair comparison the models selected for the benchmark comparison models should be (ideally) carefully selected within their own modelling framework rather than relying on the choices made for margin covariates made through the gamlss.longitudinal workflow. 
 
-The selected final model does not include `time` on `mu`, while the benchmark mean model below does include a linear `time` term. To keep the selected final model unchanged while making the benchmark comparison like-for-like on the mean formula, we fit an additional comparison-only GAMLSS longitudinal model that adds `time` to `mu` and leaves the other final-model components unchanged.
+The main idea of `benchmark_standard_models` is to provide a sense of the sensitivity of the model insights provided by `gamlss.longitudinal` (e.g. coefficients, confidence intervals, overall fit) to choice of model by directly comparing them to the alternative models. 
+
+We provide a bunch of metrics so that the user can decide the metrics of most importance to them. We initally present just a quick summary of the 'best model' by each dimension, then provide details of the metric values for each model fit as well as a detailed comparison of coefficients.
+
+In general, we would expect that the mean-only models of GEEs and GLMMs will perform well when all three of these hold true: the primary question of interest is the value of the mean intercept, the marginal distribution is supported by the given models (generally exponential family), and the correlation structure is reasonably standard and does not rely on covariates strongly. If the question of interest relies on accurate confidence intervals or quantiles for parameters or predictions, and the distribution is non-exponential family, then the gamlss.longitudinal model is likely to perform better on metrics measuring those dimensions.
+
+We group the benchmarking results into two groups: 'Distributional' which refers to metrics which measure the shape of the overall distribution where `gamlss.longitudinal` often performs better, e.g. log score, interval coverage, tail error / fit, and `Mean fit` which measures mean response, which benchmarked standard models are optimised against.
+
+We see in both benchmark comparisons here that:
+
+- `gamlss.longitudinal` generally appears to provide the best fit by distributional fit including interval coverage, tail error and log score
+- `glmer` and `gamm` provide the best fits for MAE and RMSE against the observed response
+- Coefficients are broadly in the same ballpark between models, though there are significant differences, and, importantly, note the substantial differences in standard erros and therefore upper and lower 95% confidence intervals for parameters which are much tighter for the `gamlss.longitudinal` model due to the additional modelling of coefficients for both variance through `sigma` and `nu` and correlation through `theta`. Given coverage is more accurate for the `gamlss.longitudinal` model we could consider that these ranges may be more accurate, but much broader analysis is needed to confirm this (this work is in progress).
 
 <details>
+The selected final model does not include `time` on `mu`, while the benchmark mean model below does include a linear `time` term. To keep the selected final model unchanged while making the benchmark comparison like-for-like on the mean formula, we fit an additional comparison-only GAMLSS longitudinal model that adds `time` to `mu` and leaves the other final-model components unchanged.
+
 ```{r fit-benchmark-mu-time, results='hide'}
 fit_benchmark_mu_time <- gamlss_longitudinal(
   dataset = dataset,
@@ -730,7 +748,7 @@ fit_benchmark_mu_time <- gamlss_longitudinal(
 
 ```{r benchmarking-models}
 bench <- benchmark_standard_models(
-  data = dat,
+  data = dataset,
   formula = response ~ treatment + time + s(age),
   subject_var = "subject",
   family = "gamma",
@@ -740,7 +758,7 @@ bench <- benchmark_standard_models(
 print(bench)
 ```
 
-Then we can compare a reduced model without age to be able to compare all models. This is just illustrative so we remove the variable for simplicity, but you could alternatively group age or similar to be able to also compare this effect as well.
+Then we can compare a reduced model without the age smooth to be able to compare all models. This is just illustrative so we remove the variable for simplicity, but you could alternatively group age or similar to be able to also compare this effect as well.
 
 <details>
 ```{r fit-reduced-final-model-no-smooth}
@@ -787,6 +805,8 @@ print(bench)
 ### Prediction and simulation
 
 All standard prediction options are available as part of the `predict()` method for `gamlss.longitudinal` fit objects, see `help("predict.gamlss.longitudinal")` for all options. We also provide a standard method to replicate the known method often used for mixed models `margins_effects` so that average predictions across a variable can be provided.
+
+Note that the `NA` here for the reponse for row 4 and 6 are from the original data  
 
 ```{r prediction-example}
 # Predict the fitted response mean with confidence interval
