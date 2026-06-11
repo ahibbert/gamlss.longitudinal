@@ -189,3 +189,5 @@ sim <- simulate(
   seed = 1
 )
 ```
+
+More details on simulation is available in the reference guide for [Simulator usage](simulator-usage.html).
