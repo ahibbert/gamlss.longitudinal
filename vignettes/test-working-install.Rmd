@@ -1,8 +1,8 @@
 ---
-title: "Five-minute smoke test"
+title: "Test working install"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Five-minute smoke test}
+  %\VignetteIndexEntry{Test working install}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -18,7 +18,7 @@ knitr::opts_chunk$set(
 
 This vignette provides a runnable short test for the end-to-end model fit with simulation, fit, prediction/simulation and benchmark to standard models for a normal margin with normal copula over 3 timepoint observations of 20 subjects.
 
-```{r smoke}
+```{r working-install}
 library(gamlss.longitudinal)
 library(gamlss.dist)
 
