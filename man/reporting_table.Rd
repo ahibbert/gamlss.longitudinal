@@ -27,9 +27,9 @@ reporting_table(
 \item{direction}{Probability direction when \code{threshold} is supplied.}
 }
 \value{
-A data frame with grouped fitted means, medians, quantiles, and optional
-threshold probabilities.
+A data frame with grouped fitted means, medians, quantiles, and
+optional threshold probabilities.
 }
 \description{
-Build an applied reporting table from a fitted model.
+Build an applied reporting table from a fitted model
 }

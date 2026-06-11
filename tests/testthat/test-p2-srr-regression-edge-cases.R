@@ -82,4 +82,16 @@ test_that("srr newdata policy rejects unseen factor levels and supports future p
   expect_true(all(c("q01", "q09") %in% names(pred)))
   expect_true(all(is.finite(pred$q01)))
   expect_true(all(is.finite(pred$q09)))
+  expect_true(all(pred$q01 <= pred$q09))
+
+  pred_interval <- stats::predict(
+    fit,
+    newdata = nd_future,
+    type = "mean",
+    se.fit = TRUE,
+    interval = "confidence"
+  )
+  expect_s3_class(pred_interval, "data.frame")
+  expect_equal(nrow(pred_interval), nrow(nd_future))
+  expect_true(all(c("fit", "se.fit", "conf.low", "conf.high") %in% names(pred_interval)))
 })

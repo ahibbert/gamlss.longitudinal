@@ -32,5 +32,8 @@ Generated files are written under `results/jss-replication/<profile>/`:
 - `logs/`: session information, timing, and output hashes.
 - `manifest.csv`: mapping from paper result IDs to generated artifacts.
 
-The source manifest template is `paper/manifest.csv`; the generated manifest is
-validated at the end of the workflow.
+The source manifest template is `paper/manifest.csv`. Treat this file as the
+authoritative map from manuscript result IDs to workflow targets and generated
+artifacts. The generated manifest is validated at the end of the workflow, and
+`logs/output_hashes.csv` records hashes for generated outputs so reviewers can
+confirm that tables and figures were regenerated rather than hand-edited.

@@ -43,9 +43,9 @@ freedom.}
 \item{covariates}{Optional data frame or function returning covariates. A
 data frame may have either \code{n} rows for subject-level covariates or
 \code{n * length(times)} rows for long-format covariates. A function is called
-with the base long-format data. It may return only new covariate columns or the
-input data with new columns added; columns already present in the base design
-are ignored.}
+with the base long-format data. It may return only new covariate columns
+or the input data with new columns added; columns already present in the
+base design are ignored.}
 
 \item{seed}{Optional random seed.}
 

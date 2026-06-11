@@ -1,6 +1,11 @@
 # gamlss.longitudinal: a flexible framework for fitting longitudinal models with gamlss margins and copula dependence
 
-`gamlss.longitudinal` fits longitudinal GAMLSS models with flexible marginal distributions and first-order copula dependence across repeated measurements. Any parameter of the marginal distribution or copula can depend on covariates, so strong time or covariate effects on distributinal shape or correlation can be accurately captured. The model provides a great alternative to standard models such as the GEE when a longitudinal analysis needs more than a marginal mean and exponential family distributions, and more control over the dependene structure: changing scale, skewness, tails, quantiles, probabilities, or within-subject dependence.
+`gamlss.longitudinal` fits longitudinal GAMLSS models with flexible marginal distributions and first-order copula dependence across repeated measurements. Any parameter of the marginal distribution or copula can depend on covariates, so strong time or covariate effects on distributional shape or correlation can be accurately captured. The model provides a great alternative to standard models such as the GEE when a longitudinal analysis needs more than a marginal mean and exponential family distributions, and more control over the dependence structure: changing scale, skewness, tails, quantiles, probabilities, or within-subject dependence.
+
+The package is in an early CRAN/JSS hardening stage. The exported modelling,
+prediction, simulation, diagnostics, and benchmark helper APIs are intended to
+be reviewable, but remaining review TODOs are tracked explicitly in the
+standards crosswalk.
 
 ## Install
 
@@ -30,9 +35,16 @@ Reference guides for specific parts of the workflow:
 - [Diagnostics](https://ahibbert.github.io/gamlss.longitudinal/articles/diagnostics-decisions.html)
 - [Simulator usage](https://ahibbert.github.io/gamlss.longitudinal/articles/simulator-usage.html)
 
+## Review and reproducibility
+
+Reviewer-facing package, statistical-software, and paper-replication guidance is
+collected in [REVIEW.md](REVIEW.md). The rOpenSci statistical standards
+crosswalk is available at `inst/standards/ropensci-srr-compliance.md`, and the
+paper replication entry point is documented in `paper/README.md`.
+
 ## References
 
-The marginal modelling framework follows GAMLSS, Stasinopoulis et al (2024). The dependence layer uses bivariate copulas, following standard copula references, e.g. Nelsen (2006).
+The marginal modelling framework follows GAMLSS, as described by Stasinopoulos and colleagues (2024). The dependence layer uses bivariate copulas, following standard copula references, e.g. Nelsen (2006).
 
 The motivating bivariate-methods comparison is:
 Sareff-Hibbert, A. *A comparison between copula-based, mixed model, and

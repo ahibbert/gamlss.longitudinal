@@ -27,6 +27,20 @@ test_that("srr input policy rejects empty, list, and matrix-like data", {
   )
 })
 
+test_that("srr input policy rejects non-standard predictor classes", {
+  skip_if_not_installed("gamlss")
+  skip_if_not_installed("gamlss.dist")
+
+  dat <- make_fixture_factor_time_interaction(n_subject = 8L)
+  class(dat$age) <- c("review_units", class(dat$age))
+
+  expect_error(
+    fit_fixture_model(dat),
+    "predictor column(s) have unsupported classes: age",
+    fixed = TRUE
+  )
+})
+
 test_that("srr input policy distinguishes response and predictor missingness", {
   skip_if_not_installed("gamlss")
   skip_if_not_installed("gamlss.dist")

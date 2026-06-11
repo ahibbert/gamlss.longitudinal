@@ -22,10 +22,10 @@ The quick reference is:
 - (ideally) use `check_model()` first to make sure there aren't any major errors flagged in the fitted model that may effect inference
 - use `summary()` and `confint()` for coefficient estimates, standard errors and intervals
 - use `wald_test()` for coefficient hypotheses
-- use `likelihood_compare()` for likelihoor ratio comparisons for models (ideally nested)
+- use `likelihood_compare()` for likelihood ratio comparisons for models (ideally nested)
 - use `bootstrap_inference()` for bootstrap standard errors and confidence intervals for coefficients
 - use `predict(..., se.fit = TRUE, interval = "confidence")` for
-  response-mean intervals, and `predict()` more broadly for any row-level outputs like prediction itervals
+  response-mean intervals, and `predict()` more broadly for any row-level outputs like prediction intervals
 - use `marginal_effects(..., se.fit = TRUE)` for averaged response against covariates
 - use `simulate()` for simulating replicates from the fitted model
 
@@ -45,7 +45,7 @@ vc$method
 vc$method_requested
 ```
 
-If the analycal Hessian calculation fails, or the user selects `vcov(fit, method = "numderiv")` or `summary(fit, vcov_method="numderiv")`, the package will use a fully numerically estimated Hessian and records the method used. The `check_model(fit)` function will also provide a warning and flag status of the model as 'review' rather than passed or failed if the Hessian failed to calculate analytically.
+If the analytical Hessian calculation fails, or the user selects `vcov(fit, method = "numderiv")` or `summary(fit, vcov_method="numderiv")`, the package will use a fully numerically estimated Hessian and records the method used. The `check_model(fit)` function will also provide a warning and flag status of the model as 'review' rather than passed or failed if the Hessian failed to calculate analytically.
 
 `vcov(fit, method = "numderiv")` requests numerical-Hessian inference directly if preferred, or of interest to compare to the analytical method. Our standard package tests verify the two methods are within a small tolerance of one another at build time for a selection of fits, so generally the results should closely agree.
 
@@ -54,7 +54,7 @@ vc_num <- vcov(fit, method = "numderiv")
 vc_num$method
 ```
 
-Since we are using the inverted Hessian directly, these intervals are large-sample approximations. A comparison of the intervals to the boostrap intervals should give a good test for the sensitivity of this assumption.
+Since we are using the inverted Hessian directly, these intervals are large-sample approximations. A comparison of the intervals to the bootstrap intervals should give a good test for the sensitivity of this assumption.
 
 ## Confidence intervals for coefficients
 
@@ -91,7 +91,7 @@ wald_test(
 )
 ```
 
-Note that we are assumping asymptotic normality for the estimator of the parameters and their covariance (for multiple parameters) which may not necessarily be true for these joint distributions.
+Note that we are assuming asymptotic normality for the estimator of the parameters and their covariance (for multiple parameters) which may not necessarily be true for these joint distributions.
 
 ## Likelihood comparisons
 
@@ -110,7 +110,7 @@ The comparison reports likelihood and likelihood ratio test results alongside ot
 
 ## Parametric bootstrap
 
-We provide a builtin helper for bootstrap simulations from fitted `gamlss.longitudinal` objects which can give an idea of sensitivity of the Hessian based intervals that are reported by default. The method essentially simulates from the fitted model then refits the same model to the simulated response. Summaries are then provided for the intervals of the fitted coefficients across replications for fixed coeffients.
+We provide a builtin helper for bootstrap simulations from fitted `gamlss.longitudinal` objects which can give an idea of sensitivity of the Hessian based intervals that are reported by default. The method essentially simulates from the fitted model then refits the same model to the simulated response. Summaries are then provided for the intervals of the fitted coefficients across replications for fixed coefficients.
 
 ```{r bootstrap-inference}
 boot <- bootstrap_inference(
@@ -143,7 +143,7 @@ p <- predict(
 head(p)
 ```
 
-Note that by default it is not possible for the prediction, if it's on new datasets, to preserve the structure of the correlation. Essentially `predict()` on a new dataset is providing a marginal fit and should not be relied on for correlation analysis of the predicted object, though the marginal confidence interval predictions will be taking into acccount the impact of the fitted correlation structure on the confidence intervals.
+Note that by default it is not possible for the prediction, if it's on new datasets, to preserve the structure of the correlation. Essentially `predict()` on a new dataset is providing a marginal fit and should not be relied on for correlation analysis of the predicted object, though the marginal confidence interval predictions will be taking into account the impact of the fitted correlation structure on the confidence intervals.
 
 If the quantity of interest is the dependence structure then simulation from the fitted object via `simulate(fit)` may provide the required functionality.
 

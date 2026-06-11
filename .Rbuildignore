@@ -4,6 +4,8 @@
 ^\.Rprofile$
 ^\.Rproj\.user$
 ^_pkgdown\.yml$
+^CONTRIBUTING\.md$
+^REVIEW\.md$
 ^cran-comments\.md$
 ^LICENSE\.md$
 ^THIRD-PARTY-NOTICES\.md$

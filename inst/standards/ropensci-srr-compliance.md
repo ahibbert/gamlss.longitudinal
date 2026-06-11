@@ -28,7 +28,7 @@ Status meanings:
 | G1.2 | Met | README includes a lifecycle statement. |
 | G1.3 | Met | CONTRIBUTING defines the main statistical and workflow terms. |
 | G1.4 | Met | User-facing functions are roxygen2 documented and Rd files are generated. |
-| G1.4a | Partial/TODO | Many internals are documented, but older dense helpers need consistent `@noRd` roxygen blocks. |
+| G1.4a | Met | Dense numerical/backend internals in `R/likelihood.R`, `R/model-fit.R`, `R/model-matrix.R`, `R/model-vcov.R`, `R/hessian-*.R`, and `R/copula-backend-*.R` have concise `@noRd` roxygen context. |
 | G1.5 | Met | Reproduction and benchmark scaffolds are under `inst/jss-replication` and `inst/benchmarks`. |
 | G1.6 | Met | Comparator helpers support GEE, GLMM, GAM, and GAMLSS baselines when optional dependencies are present. |
 | G2.0 | Met | Length/scalar assertions exist for core controls and fitting inputs. |
@@ -51,7 +51,7 @@ Status meanings:
 | G2.8 | Met | Early pre-processing normalizes data, time, subject, formulas, and families. |
 | G2.9 | Met | Character time conversion and character predictor treatment warn or are explicitly documented. |
 | G2.10 | Met | Named column extraction avoids default drop behavior. |
-| G2.11 | Partial/TODO | Non-standard column classes such as `units` are not yet documented or tested. |
+| G2.11 | Met | CONTRIBUTING documents non-standard column-class policy; `test-p2-srr-input-policy.R` checks that custom predictor classes are rejected. |
 | G2.12 | Met | List-columns are explicitly rejected and tested. |
 | G2.13 | Met | Required columns, empty margins, and empty adjacent pairs are rejected. |
 | G2.14 | Met | Missing-response, structural-missingness, and predictor-missingness policies are documented and tested. |
@@ -67,7 +67,7 @@ Status meanings:
 | G5.0 | Partial/TODO | Known-truth fixture exists; add broader canonical/external benchmark datasets if appropriate. |
 | G5.1 | Met | testthat and CI cover main workflow, diagnostics, prediction, simulation, and copula parity. |
 | G5.2 | Partial/TODO | Many validation branches are tested; not every user-reachable stop/warning/message branch is mapped. |
-| G5.2a | Partial/TODO | Error/warning tests should be mapped to validation branches. |
+| G5.2a | Met | The validation coverage map below links major user-facing errors and warnings to reviewer-oriented tests. |
 | G5.2b | Partial/TODO | Message/diagnostic branch coverage should be mapped. |
 | G5.3 | Met | Numerical tests compare against known or parity expectations. |
 | G5.4 | Met | Benchmark and replication directories support performance claims. |
@@ -104,8 +104,8 @@ Status meanings:
 | RE1.4 | Met | Subject and time variables are explicit arguments. |
 | RE2.0 | Met | Pre-processing policy is documented and implemented before model construction. |
 | RE2.1 | Partial/TODO | Missingness handling is documented; response/predictor missingness policy is not user-selectable. |
-| RE2.2 | Partial/TODO | Non-finite response/predictor behavior needs finer-grained docs/tests. |
-| RE2.3 | Partial/TODO | Transformations are user-specified in formulas; default transformation/centering policy should be explicit. |
+| RE2.2 | Met | CONTRIBUTING documents non-finite response/predictor policy; `test-p2-srr-input-policy.R` checks response NaN/Inf and predictor NA/NaN/Inf. |
+| RE2.3 | Met | CONTRIBUTING states that transformations are user-specified through formulas and no automatic centering/scaling is applied. |
 | RE2.4 | Met | Model-matrix construction and rank checks support standard predictor encoding. |
 | RE2.4a | Met | Factor predictors use formula/model-matrix conversion. |
 | RE2.4b | Met | Rank-deficient/noiseless predictor cases warn and constant-response starting behavior is tested. |
@@ -127,16 +127,16 @@ Status meanings:
 | RE4.11 | Met | `nobs()` is implemented. |
 | RE4.12 | Met | `fitted()` is implemented. |
 | RE4.13 | Met | `residuals()` is implemented. |
-| RE4.14 | Partial/TODO | Interval predictions exist; forecast interval behavior needs standards-specific tests. |
-| RE4.15 | Partial/TODO | Prediction uncertainty exists for supported summaries; horizon/new-panel behavior needs clearer docs. |
-| RE4.16 | Partial/TODO | Newdata handling exists; unseen factor levels/groups need explicit validation tests. |
+| RE4.14 | Met | `test-p2-srr-regression-edge-cases.R` checks confidence intervals for future/new-subject panels. |
+| RE4.15 | Met | `predict.gamlss.longitudinal()` documents uncertainty and new-panel behavior; standards tests cover new-panel intervals. |
+| RE4.16 | Met | `test-p2-srr-regression-edge-cases.R` and `test-p2-srr-error-map.R` check unseen factor-level rejection. |
 | RE4.17 | Met | `model.frame()` exposes observed and expanded data views. |
 | RE4.18 | Met | Convergence metadata is accessible from fitted objects. |
 | RE5.0 | Met | Plot methods provide diagnostic and fitted-value workflows. |
 | RE6.0 | Met | Prediction supports supplied new data. |
 | RE6.1 | Met | Tests cover newdata prediction behavior. |
 | RE6.2 | Met | Simulation helpers support longitudinal panels. |
-| RE6.3 | Partial/TODO | Future-panel forecasting should be documented separately from ordinary newdata prediction. |
+| RE6.3 | Met | CONTRIBUTING and `predict.gamlss.longitudinal()` document future panels as supplied-covariate `newdata` prediction, not time-series forecasting. |
 | RE7.0 | Met | Tests cover exact/noiseless predictor relationships. |
 | RE7.0a | Met | Rank-deficient exact predictor input is detected with a warning. |
 | RE7.1 | Met | Tests cover constant-response/noiseless response behavior and accessor contracts. |
@@ -163,3 +163,15 @@ Status meanings:
 | PD4.2 | Met | Distribution and copula parameter conversions are tested. |
 | PD4.3 | Met | Tests compare analytical Gaussian copula derivatives with finite-difference alternatives. |
 | PD4.4 | Met | Stochastic distribution tests use fixed seeds and tolerances. |
+
+## Validation Coverage Map
+
+| Validation branch | Evidence |
+|---|---|
+| Empty datasets and missing required columns | `tests/testthat/test-p2-srr-error-map.R` |
+| Duplicate subject/time rows and impossible missingness patterns | `tests/testthat/test-p2-srr-error-map.R` |
+| List-columns, matrix/data-frame columns, and non-standard predictor classes | `tests/testthat/test-p2-srr-input-policy.R` |
+| Response `NaN`/`Inf` and predictor `NA`/`NaN`/`Inf` | `tests/testthat/test-p2-srr-input-policy.R` |
+| Character time conversion and character predictor warnings | `tests/testthat/test-p2-srr-input-policy.R` and `tests/testthat/test-p2-srr-error-map.R` |
+| Unseen factor levels in `newdata` | `tests/testthat/test-p2-srr-regression-edge-cases.R` and `tests/testthat/test-p2-srr-error-map.R` |
+| Future/new-subject prediction panels and interval outputs | `tests/testthat/test-p2-srr-regression-edge-cases.R` |
