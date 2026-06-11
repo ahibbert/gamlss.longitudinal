@@ -63,6 +63,90 @@ test_that("T202 simulate method returns fitted-length simulation columns", {
   )
 })
 
+test_that("T202a simulate supports newdata panels", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 12L)
+  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+
+  nd_new <- dat[seq_len(6), , drop = FALSE]
+  nd_new$id <- nd_new$id + 1000L
+  nd_new$y <- NA_real_
+  nd_new <- nd_new[c(4, 1, 6, 2, 5, 3), , drop = FALSE]
+
+  sim_new <- simulate(fit, nsim = 2, seed = 321, newdata = nd_new)
+  expect_s3_class(sim_new, "data.frame")
+  expect_equal(dim(sim_new), c(nrow(nd_new), 2L))
+  expect_true(all(is.finite(as.matrix(sim_new))))
+  expect_equal(
+    simulate(fit, nsim = 2, seed = 321, newdata = nd_new),
+    sim_new
+  )
+
+  nd_bad <- nd_new
+  nd_bad$gender <- factor("X", levels = c(levels(dat$gender), "X"))
+  expect_error(
+    simulate(fit, nsim = 1, seed = 321, newdata = nd_bad),
+    "contains level(s) not seen during fitting",
+    fixed = TRUE
+  )
+})
+
+test_that("T202b simulate newdata supports numeric-time extensions", {
+  dat <- make_fixture_numeric_time(n_subject = 10L)
+  fit <- fit_fixture_model(
+    dat,
+    include_dlcopdpar = TRUE,
+    theta_formula = "~ time_raw",
+    max_outer_iter = 2,
+    max_inner_iter = 2
+  )
+
+  subject_data <- dat[!duplicated(dat$id), c("id", "gender", "age"), drop = FALSE]
+  nd_more <- merge(
+    expand.grid(
+      id = subject_data$id[seq_len(3L)],
+      time_raw = 1:4,
+      KEEP.OUT.ATTRS = FALSE,
+      stringsAsFactors = FALSE
+    ),
+    subject_data,
+    by = "id",
+    sort = FALSE
+  )
+  nd_more <- nd_more[order(nd_more$id, nd_more$time_raw), , drop = FALSE]
+  nd_more$y <- NA_real_
+
+  sim_more <- simulate(fit, nsim = 1, seed = 654, newdata = nd_more)
+  expect_equal(dim(sim_more), c(nrow(nd_more), 1L))
+  expect_true(all(is.finite(sim_more$sim_1)))
+})
+
+test_that("T202c simulate newdata breaks dependence across time-grid gaps", {
+  diag_data <- list(
+    family = "NO",
+    params = list(mu = c(0, 0), sigma = c(1, 1))
+  )
+  fit_data <- data.frame(
+    subject = c(1, 1),
+    time = c(1, 3),
+    theta_fit = c(0.95, NA_real_),
+    zeta_fit = c(0, NA_real_)
+  )
+  object <- list(copula_dist = "N")
+
+  set.seed(202)
+  expected <- gamlss.dist::qNO(c(stats::runif(1L), stats::runif(1L)), mu = c(0, 0), sigma = c(1, 1))
+  set.seed(202)
+  actual <- gamlss.longitudinal:::.gl_simulate_copula_matrix(
+    object,
+    diag_data,
+    nsim = 1,
+    fit_data = fit_data,
+    time_levels = 1:3
+  )
+
+  expect_equal(as.numeric(actual[, 1]), expected)
+})
+
 test_that("T203 check_model returns basic-check diagnostic object", {
   dat <- make_fixture_factor_time_interaction(n_subject = 14L)
   fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)

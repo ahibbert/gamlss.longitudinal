@@ -74,8 +74,8 @@ the joint copula likelihood, and through \code{se.fit}/confidence intervals when
 the covariance matrix is computed from the joint model. Use
 \code{\link[=simulate.gamlss.longitudinal]{simulate.gamlss.longitudinal()}} for
 fitted-data trajectory simulation that preserves the fitted copula dependence
-structure. Copula-preserving simulation for \code{newdata} is not currently
-implemented.
+structure. With \code{newdata}, simulation is unconditional and uses the
+model-implied dependence evaluated on the supplied panel.
 
 \code{type = "response"} is a soft-deprecated compatibility alias for
 \code{type = "mu"} because GAMLSS \code{mu} is not the response mean for every
