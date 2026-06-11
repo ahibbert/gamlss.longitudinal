@@ -1,8 +1,8 @@
 ---
-title: "Overview of Support Articles"
+title: "Overview of support articles"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Overview of Support Articles}
+  %\VignetteIndexEntry{Overview of support articles}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -30,7 +30,7 @@ see:
 - https://arxiv.org/abs/2410.11892
 - https://arxiv.org/abs/2410.11892 (updated gamlss_longitudinal paper once available)
 
-## Start Here
+## Start here
 
 Installation:
 ```
@@ -41,10 +41,10 @@ Worked examples for end-to-end model fits using gamlss.longitudinal.
 
 | Article title | Access from R | Purpose |
 |---|---|---|
-| [Simple workflow](standard-workflow.html) | `vignette("standard-workflow", package = "gamlss.longitudinal")` | The recommended screen, fit, check, infer, predict, and simulate workflow. |
+| [Minimal workflow](standard-workflow.html) | `vignette("standard-workflow", package = "gamlss.longitudinal")` | The recommended screen, fit, check, infer, predict, and simulate workflow. |
 | [Detailed worked example](native-simulation-workflow.html) | `vignette("native-simulation-workflow", package = "gamlss.longitudinal")` | A full simulated example with known truth, copula screening, fitting, and diagnostics. |
 
-## Support Articles
+## Reference guides
 
 Use these articles when you want more detail on a specific part of the
 workflow:
@@ -53,9 +53,10 @@ workflow:
 |---|---|---|
 | [Inference](inference-uncertainty.html) | `vignette("inference-uncertainty", package = "gamlss.longitudinal")` | Confidence intervals, Wald tests, likelihood comparisons, bootstrap inference, and uncertainty language. |
 | [Diagnostics](diagnostics-decisions.html) | `vignette("diagnostics-decisions", package = "gamlss.longitudinal")` | `check_model()`, basic check statuses, failed-check warnings, tail checks, and dependence diagnostics. |
-| [Simulation](simulator-usage.html) | `vignette("simulator-usage", package = "gamlss.longitudinal")` | How to generate longitudinal datasets with GAMLSS margins, copula dependence, covariates, known truth, and missing responses. 
+| [Simulator usage](simulator-usage.html) | `vignette("simulator-usage", package = "gamlss.longitudinal")` | How to generate longitudinal datasets with GAMLSS margins, copula dependence, covariates, known truth, and missing responses. |
+| [Five-minute smoke test](five-minute-smoke-test.html) | `vignette("five-minute-smoke-test", package = "gamlss.longitudinal")` | A short runnable check for installation and the end-to-end workflow. |
 
-## Reference Pages
+## Reference pages
 
 Use the reference index for function-level details, including simulation helper
 functions.

@@ -12,7 +12,7 @@
 
 
 
-<title>Inference and Uncertainty</title>
+<title>Inference</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -337,7 +337,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 
-<h1 class="title toc-ignore">Inference and Uncertainty</h1>
+<h1 class="title toc-ignore">Inference</h1>
 
 
 
@@ -521,13 +521,14 @@ percentile summaries.</p>
 <div id="response-mean-intervals" class="section level2">
 <h2>Response Mean Intervals</h2>
 <p>For applied interpretation, response-scale estimates are usually
-clearer than raw coefficients. Use
-<code>predict(type = &quot;response&quot;)</code> for fitted means and request
-standard errors when the uncertainty should be shown.</p>
+clearer than raw coefficients. Use <code>predict(type = &quot;mean&quot;)</code>
+for fitted response means, <code>predict(type = &quot;median&quot;)</code> for
+fitted medians, and <code>predict(type = &quot;mu&quot;)</code> when you
+specifically want the GAMLSS <code>mu</code> parameter.</p>
 <div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">predict</span>(</span>
 <span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>  fit,</span>
 <span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a>  <span class="at">newdata =</span> dat,</span>
-<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;response&quot;</span>,</span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;mean&quot;</span>,</span>
 <span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a>  <span class="at">se.fit =</span> <span class="cn">TRUE</span>,</span>
 <span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a>  <span class="at">interval =</span> <span class="st">&quot;confidence&quot;</span>,</span>
 <span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a>  <span class="at">level =</span> <span class="fl">0.95</span></span>

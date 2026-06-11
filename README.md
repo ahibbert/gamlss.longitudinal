@@ -9,7 +9,7 @@ remotes::install_github("ahibbert/gamlss.longitudinal")
 library(gamlss.longitudinal)
 ```
 
-## Start Here
+## Start here
 
 For a full overview of available support articles / vignettes: [Article guide](https://ahibbert.github.io/gamlss.longitudinal/articles/site-guide.html)
 
@@ -19,15 +19,15 @@ After installation, you can run a fast end-to-end smoke test to ensure key compo
 source(system.file("smoke-tests", "new-user-smoke.R", package = "gamlss.longitudinal"))
 ```
 
-Two standard workflow examples to get started:
+Two workflow examples to get started:
 
-- [Standard workflow](https://ahibbert.github.io/gamlss.longitudinal/articles/standard-workflow.html)
+- [Minimal workflow](https://ahibbert.github.io/gamlss.longitudinal/articles/standard-workflow.html)
 - [Detailed worked example](https://ahibbert.github.io/gamlss.longitudinal/articles/native-simulation-workflow.html)
 
-Additional details on the implemented methods:
+Reference guides for specific parts of the workflow:
 
-- [Inference and uncertainty](https://ahibbert.github.io/gamlss.longitudinal/articles/inference-uncertainty.html)
-- [Diagnostics as decisions](https://ahibbert.github.io/gamlss.longitudinal/articles/diagnostics-decisions.html)
+- [Inference](https://ahibbert.github.io/gamlss.longitudinal/articles/inference-uncertainty.html)
+- [Diagnostics](https://ahibbert.github.io/gamlss.longitudinal/articles/diagnostics-decisions.html)
 - [Simulator usage](https://ahibbert.github.io/gamlss.longitudinal/articles/simulator-usage.html)
 
 ## References
