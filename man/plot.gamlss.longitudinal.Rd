@@ -40,7 +40,7 @@ of \code{data} if \code{newdata} is NULL.}
 
 \item{randomize}{Logical; randomized PIT/residual diagnostics.}
 
-\item{time_stratified}{Logical; if TRUE, show time-stratified PIT and worm plots.}
+\item{time_stratified}{Logical; if TRUE, show time-stratified diagnostic plots.}
 
 \item{...}{Additional arguments (currently unused).}
 }

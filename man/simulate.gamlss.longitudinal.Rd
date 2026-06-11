@@ -13,8 +13,10 @@
 
 \item{seed}{Optional random seed.}
 
-\item{newdata}{Optional new data. Simulation from the fitted copula model is
-currently available for fitted data only.}
+\item{newdata}{Optional new data. When supplied, simulation is unconditional:
+subject identifiers define independent trajectory groups, and the fitted
+marginal and copula formulas are evaluated on the supplied rows. Responses may
+be missing.}
 
 \item{...}{Additional arguments reserved for future methods.}
 }
