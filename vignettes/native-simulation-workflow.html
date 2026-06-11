@@ -12,7 +12,7 @@
 
 
 
-<title>Detailed worked example for a longitudinal gamlss model fit</title>
+<title>Detailed worked example</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -337,8 +337,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 
-<h1 class="title toc-ignore">Detailed worked example for a longitudinal
-gamlss model fit</h1>
+<h1 class="title toc-ignore">Detailed worked example</h1>
 
 
 
@@ -934,12 +933,12 @@ log likelihood which agrees with the previous process.</p>
 <span id="cb14-24"><a href="#cb14-24" tabindex="-1"></a><span class="co">#&gt;     5            NO             C -1455.730 2939.460 3001.017  14      TRUE</span></span>
 <span id="cb14-25"><a href="#cb14-25" tabindex="-1"></a><span class="co">#&gt;     6            NO             N -1566.724 3161.448 3223.005  14      TRUE</span></span>
 <span id="cb14-26"><a href="#cb14-26" tabindex="-1"></a><span class="co">#&gt;  elapsed_sec error</span></span>
-<span id="cb14-27"><a href="#cb14-27" tabindex="-1"></a><span class="co">#&gt;     4.249036  &lt;NA&gt;</span></span>
-<span id="cb14-28"><a href="#cb14-28" tabindex="-1"></a><span class="co">#&gt;    12.457690  &lt;NA&gt;</span></span>
-<span id="cb14-29"><a href="#cb14-29" tabindex="-1"></a><span class="co">#&gt;     8.833970  &lt;NA&gt;</span></span>
-<span id="cb14-30"><a href="#cb14-30" tabindex="-1"></a><span class="co">#&gt;     1.683359  &lt;NA&gt;</span></span>
-<span id="cb14-31"><a href="#cb14-31" tabindex="-1"></a><span class="co">#&gt;     6.324942  &lt;NA&gt;</span></span>
-<span id="cb14-32"><a href="#cb14-32" tabindex="-1"></a><span class="co">#&gt;     2.690377  &lt;NA&gt;</span></span>
+<span id="cb14-27"><a href="#cb14-27" tabindex="-1"></a><span class="co">#&gt;     6.432514  &lt;NA&gt;</span></span>
+<span id="cb14-28"><a href="#cb14-28" tabindex="-1"></a><span class="co">#&gt;    20.796923  &lt;NA&gt;</span></span>
+<span id="cb14-29"><a href="#cb14-29" tabindex="-1"></a><span class="co">#&gt;    14.395456  &lt;NA&gt;</span></span>
+<span id="cb14-30"><a href="#cb14-30" tabindex="-1"></a><span class="co">#&gt;     2.472753  &lt;NA&gt;</span></span>
+<span id="cb14-31"><a href="#cb14-31" tabindex="-1"></a><span class="co">#&gt;    10.432628  &lt;NA&gt;</span></span>
+<span id="cb14-32"><a href="#cb14-32" tabindex="-1"></a><span class="co">#&gt;     5.720264  &lt;NA&gt;</span></span>
 <span id="cb14-33"><a href="#cb14-33" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb14-34"><a href="#cb14-34" tabindex="-1"></a><span class="co">#&gt; Warning: one or more printed joint candidate fits did not report convergence.</span></span></code></pre></div>
 <p>We can now review the copula fit visually using
@@ -1716,7 +1715,7 @@ other final-model components unchanged.</p>
 <span id="cb32-46"><a href="#cb32-46" tabindex="-1"></a><span class="co">#&gt; Benchmark Metrics</span></span>
 <span id="cb32-47"><a href="#cb32-47" tabindex="-1"></a><span class="co">#&gt; -----------------</span></span>
 <span id="cb32-48"><a href="#cb32-48" tabindex="-1"></a><span class="co">#&gt;                   Metric gamlss_long        gam       gamm</span></span>
-<span id="cb32-49"><a href="#cb32-49" tabindex="-1"></a><span class="co">#&gt;       Elapsed time (sec)          NA  3.764e-02  1.332e+00</span></span>
+<span id="cb32-49"><a href="#cb32-49" tabindex="-1"></a><span class="co">#&gt;       Elapsed time (sec)          NA  7.216e-02  1.430e+00</span></span>
 <span id="cb32-50"><a href="#cb32-50" tabindex="-1"></a><span class="co">#&gt;   Number of observations   6.000e+02  6.000e+02  6.000e+02</span></span>
 <span id="cb32-51"><a href="#cb32-51" tabindex="-1"></a><span class="co">#&gt;           Log likelihood  -1.107e+03 -1.449e+03 -1.345e+03</span></span>
 <span id="cb32-52"><a href="#cb32-52" tabindex="-1"></a><span class="co">#&gt;                      AIC   2.253e+03  2.914e+03  2.853e+03</span></span>
@@ -1864,7 +1863,7 @@ similar to be able to also compare this effect as well.</p>
 <span id="cb33-92"><a href="#cb33-92" tabindex="-1"></a><span class="co">#&gt; Observations: 600</span></span>
 <span id="cb33-93"><a href="#cb33-93" tabindex="-1"></a><span class="co">#&gt; Margins: 5</span></span>
 <span id="cb33-94"><a href="#cb33-94" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb33-95"><a href="#cb33-95" tabindex="-1"></a><span class="co">#&gt; Total time (seconds): 5.13</span></span>
+<span id="cb33-95"><a href="#cb33-95" tabindex="-1"></a><span class="co">#&gt; Total time (seconds): 7.86</span></span>
 <span id="cb33-96"><a href="#cb33-96" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb33-97"><a href="#cb33-97" tabindex="-1"></a><span class="co">#&gt;                        estimate</span></span>
 <span id="cb33-98"><a href="#cb33-98" tabindex="-1"></a><span class="co">#&gt; theta.intercept      -0.3161307</span></span>
@@ -1980,7 +1979,7 @@ similar to be able to also compare this effect as well.</p>
 <span id="cb33-208"><a href="#cb33-208" tabindex="-1"></a><span class="co">#&gt; Observations: 600</span></span>
 <span id="cb33-209"><a href="#cb33-209" tabindex="-1"></a><span class="co">#&gt; Margins: 5</span></span>
 <span id="cb33-210"><a href="#cb33-210" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb33-211"><a href="#cb33-211" tabindex="-1"></a><span class="co">#&gt; Total time (seconds): 2.97</span></span>
+<span id="cb33-211"><a href="#cb33-211" tabindex="-1"></a><span class="co">#&gt; Total time (seconds): 4.34</span></span>
 <span id="cb33-212"><a href="#cb33-212" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb33-213"><a href="#cb33-213" tabindex="-1"></a><span class="co">#&gt;                        estimate</span></span>
 <span id="cb33-214"><a href="#cb33-214" tabindex="-1"></a><span class="co">#&gt; theta.intercept      -0.3378273</span></span>
@@ -2060,7 +2059,7 @@ similar to be able to also compare this effect as well.</p>
 <span id="cb34-47"><a href="#cb34-47" tabindex="-1"></a><span class="co">#&gt; Benchmark Metrics</span></span>
 <span id="cb34-48"><a href="#cb34-48" tabindex="-1"></a><span class="co">#&gt; -----------------</span></span>
 <span id="cb34-49"><a href="#cb34-49" tabindex="-1"></a><span class="co">#&gt;                   Metric gamlss_long        glm     geeglm      glmer</span></span>
-<span id="cb34-50"><a href="#cb34-50" tabindex="-1"></a><span class="co">#&gt;       Elapsed time (sec)          NA  2.995e-03   0.019176  2.720e-01</span></span>
+<span id="cb34-50"><a href="#cb34-50" tabindex="-1"></a><span class="co">#&gt;       Elapsed time (sec)          NA  3.997e-03   0.024534  3.909e-01</span></span>
 <span id="cb34-51"><a href="#cb34-51" tabindex="-1"></a><span class="co">#&gt;   Number of observations   6.000e+02  6.000e+02 600.000000  6.000e+02</span></span>
 <span id="cb34-52"><a href="#cb34-52" tabindex="-1"></a><span class="co">#&gt;           Log likelihood  -1.144e+03 -1.465e+03         NA -1.441e+03</span></span>
 <span id="cb34-53"><a href="#cb34-53" tabindex="-1"></a><span class="co">#&gt;                      AIC   2.310e+03  2.940e+03         NA  2.895e+03</span></span>
@@ -2076,7 +2075,7 @@ similar to be able to also compare this effect as well.</p>
 <span id="cb34-63"><a href="#cb34-63" tabindex="-1"></a><span class="co">#&gt;      Lower 5% tail error   5.556e-03  2.593e-02   0.029630  3.704e-02</span></span>
 <span id="cb34-64"><a href="#cb34-64" tabindex="-1"></a><span class="co">#&gt;      Upper 5% tail error  -3.704e-03 -9.259e-03  -0.009259 -5.556e-03</span></span>
 <span id="cb34-65"><a href="#cb34-65" tabindex="-1"></a><span class="co">#&gt;         gam       gamm</span></span>
-<span id="cb34-66"><a href="#cb34-66" tabindex="-1"></a><span class="co">#&gt;   1.518e-02  8.862e-01</span></span>
+<span id="cb34-66"><a href="#cb34-66" tabindex="-1"></a><span class="co">#&gt;   2.256e-02  1.074e+00</span></span>
 <span id="cb34-67"><a href="#cb34-67" tabindex="-1"></a><span class="co">#&gt;   6.000e+02  6.000e+02</span></span>
 <span id="cb34-68"><a href="#cb34-68" tabindex="-1"></a><span class="co">#&gt;  -1.460e+03 -1.343e+03</span></span>
 <span id="cb34-69"><a href="#cb34-69" tabindex="-1"></a><span class="co">#&gt;   2.930e+03  2.851e+03</span></span>
