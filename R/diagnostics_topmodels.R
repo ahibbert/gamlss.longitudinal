@@ -1,5 +1,5 @@
 # Silence NSE checks for ggplot mappings.
-utils::globalVariables(c("theoretical", "observed", "detrended", "midpoint", "root_diff", "band_lower", "band_upper", "time", "split_group"))
+utils::globalVariables(c("theoretical", "observed", "detrended", "midpoint", "root_diff", "band_lower", "band_upper", "time", "split_group", "expected"))
 
 #' Diagnostic generics for fitted longitudinal GAMLSS-copula models
 #'
@@ -314,18 +314,91 @@ procast <- function(object, ...) {
   list(diag = diag_data, pit = pit)
 }
 
+.gl_check_by_time <- function(by_time) {
+  if (!is.logical(by_time) || length(by_time) != 1L || is.na(by_time)) {
+    stop("'by_time' must be TRUE or FALSE.", call. = FALSE)
+  }
+}
+
+.gl_resolve_diag_split <- function(by, diag_data, data = NULL, plot_name = "diagnostic") {
+  if (is.null(by) || (is.character(by) && length(by) == 1L && !nzchar(by))) {
+    return(NULL)
+  }
+  if (!is.character(by) || length(by) != 1L) {
+    stop("'by' must be NULL or a single column name as a character string.", call. = FALSE)
+  }
+
+  if (by %in% c("time", "response_margin")) {
+    return(as.factor(diag_data$time))
+  }
+  if (by %in% c("subject", "response_subject")) {
+    return(as.factor(diag_data$subject))
+  }
+
+  if (is.null(data)) {
+    stop("To split ", plot_name, " by '", by, "', provide data= containing that column.", call. = FALSE)
+  }
+  if (!is.data.frame(data)) {
+    data <- as.data.frame(data, stringsAsFactors = FALSE)
+  }
+  if (!by %in% names(data)) {
+    stop("Column '", by, "' not found in provided data.", call. = FALSE)
+  }
+
+  n_diag <- length(diag_data$response)
+  if (nrow(data) == n_diag) {
+    return(as.factor(data[[by]]))
+  }
+
+  keep_mask <- diag_data$keep_mask
+  if (!is.null(keep_mask) && length(keep_mask) == nrow(data)) {
+    vec <- data[[by]][keep_mask]
+    if (length(vec) == n_diag) {
+      return(as.factor(vec))
+    }
+  }
+
+  keep_index <- diag_data$keep_index
+  if (!is.null(keep_index) && length(keep_index) == n_diag && (n_diag == 0L || max(keep_index, na.rm = TRUE) <= nrow(data))) {
+    return(as.factor(data[[by]][keep_index]))
+  }
+
+  stop(
+    "Could not align data rows with ", plot_name, " rows for by='", by, "'. ",
+    "Provide data with row count equal to either the diagnostic row count (", n_diag, ") or the original fit data rows.",
+    call. = FALSE
+  )
+}
+
+.gl_diag_split_info <- function(by_time, by, diag_data, data = NULL, plot_name = "diagnostic") {
+  .gl_check_by_time(by_time)
+
+  if (isTRUE(by_time) && is.null(by)) {
+    by <- "time"
+  } else if (isTRUE(by_time) && !is.null(by)) {
+    warning("Both by_time and by were provided; using by='", by, "'.", call. = FALSE)
+  }
+
+  split_group <- .gl_resolve_diag_split(by, diag_data, data = data, plot_name = plot_name)
+  list(by = by, group = split_group, split_by = !is.null(split_group))
+}
+
 #' @export
-pithist.gamlss.longitudinal <- function(object, bins = 20, randomize = FALSE, plot = TRUE, by_time = FALSE, ...) {
+pithist.gamlss.longitudinal <- function(object, bins = 20, randomize = FALSE, plot = TRUE, by_time = FALSE, by = NULL, data = NULL, ...) {
   pit_out <- .gl_pit(object, randomize = randomize)
   pit <- pit_out$pit
+  split_info <- .gl_diag_split_info(by_time, by, pit_out$diag, data = data, plot_name = "PIT histogram")
   pit_df <- data.frame(pit = pit, time = as.factor(pit_out$diag$time))
+  if (split_info$split_by) {
+    pit_df$split_group <- split_info$group
+  }
   pit_df <- pit_df[is.finite(pit_df$pit), , drop = FALSE]
 
   if (!plot) {
     return(pit_df)
   }
 
-  if (!by_time) {
+  if (!split_info$split_by) {
     expected <- nrow(pit_df) / bins
     return(
       ggplot2::ggplot(pit_df, ggplot2::aes(x = pit)) +
@@ -337,32 +410,33 @@ pithist.gamlss.longitudinal <- function(object, bins = 20, randomize = FALSE, pl
     )
   }
 
-  expected_df <- aggregate(pit ~ time, data = pit_df, FUN = function(x) length(x) / bins)
+  expected_df <- aggregate(pit ~ split_group, data = pit_df, FUN = function(x) length(x) / bins)
   names(expected_df)[2] <- "expected"
 
   ggplot2::ggplot(pit_df, ggplot2::aes(x = pit)) +
     ggplot2::geom_histogram(breaks = seq(0, 1, length.out = bins + 1L), closed = "right", fill = "#2c7fb8", color = "white") +
     ggplot2::geom_hline(data = expected_df, ggplot2::aes(yintercept = expected), linetype = "dashed", linewidth = 0.4, color = "#444444") +
-    ggplot2::facet_wrap(~time, scales = "free_y") +
+    ggplot2::facet_wrap(~split_group, scales = "free_y") +
     ggplot2::scale_x_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.25), expand = c(0, 0)) +
-    ggplot2::labs(x = "PIT", y = "Count", title = "PIT Histogram by Time") +
+    ggplot2::labs(x = "PIT", y = "Count", title = paste0("PIT Histogram by ", split_info$by)) +
     ggplot2::theme_minimal()
 }
 
 #' @export
-qqrplot.gamlss.longitudinal <- function(object, randomize = FALSE, plot = TRUE, by_time = FALSE, ...) {
+qqrplot.gamlss.longitudinal <- function(object, randomize = FALSE, plot = TRUE, by_time = FALSE, by = NULL, data = NULL, ...) {
   pit_out <- .gl_pit(object, randomize = randomize)
   z <- stats::qnorm(pmin(pmax(pit_out$pit, .Machine$double.eps), 1 - .Machine$double.eps))
+  split_info <- .gl_diag_split_info(by_time, by, pit_out$diag, data = data, plot_name = "QQ plot")
 
-  if (!by_time) {
+  if (!split_info$split_by) {
     theo <- stats::qnorm(stats::ppoints(length(z)))
     qq_df <- data.frame(theoretical = theo, observed = sort(z))
   } else {
-    split_z <- split(z, pit_out$diag$time)
-    qq_list <- lapply(names(split_z), function(ti) {
-      z_t <- split_z[[ti]]
+    split_z <- split(z, split_info$group)
+    qq_list <- lapply(names(split_z), function(grp) {
+      z_t <- split_z[[grp]]
       theo_t <- stats::qnorm(stats::ppoints(length(z_t)))
-      data.frame(theoretical = theo_t, observed = sort(z_t), time = as.factor(ti))
+      data.frame(theoretical = theo_t, observed = sort(z_t), split_group = as.factor(grp))
     })
     qq_df <- do.call(rbind, qq_list)
   }
@@ -378,12 +452,12 @@ qqrplot.gamlss.longitudinal <- function(object, randomize = FALSE, plot = TRUE, 
     ggplot2::labs(
       x = "Theoretical Normal Quantiles",
       y = "Randomized Quantiles",
-      title = if (by_time) "QQ Plot by Time" else "QQ Plot"
+      title = if (split_info$split_by) paste0("QQ Plot by ", split_info$by) else "QQ Plot"
     ) +
     ggplot2::theme_minimal()
 
-  if (by_time) {
-    p <- p + ggplot2::facet_wrap(~time, scales = "free")
+  if (split_info$split_by) {
+    p <- p + ggplot2::facet_wrap(~split_group, scales = "free")
   }
 
   p
@@ -392,55 +466,7 @@ qqrplot.gamlss.longitudinal <- function(object, randomize = FALSE, plot = TRUE, 
 #' @export
 wormplot.gamlss.longitudinal <- function(object, randomize = FALSE, plot = TRUE, smooth = TRUE, by_time = FALSE, by = NULL, data = NULL, ...) {
   pit_out <- .gl_pit(object, randomize = randomize)
-
-  resolve_split <- function(by, pit_out, object, data = NULL) {
-    if (is.null(by) || (is.character(by) && length(by) == 1 && !nzchar(by))) {
-      return(NULL)
-    }
-    if (!is.character(by) || length(by) != 1) {
-      stop("'by' must be NULL or a single column name as a character string.")
-    }
-
-    if (by %in% c("time", "response_margin")) {
-      return(as.factor(pit_out$diag$time))
-    }
-    if (by %in% c("subject", "response_subject")) {
-      return(as.factor(pit_out$diag$subject))
-    }
-
-    if (is.null(data)) {
-      stop("To split wormplot by '", by, "', provide data= containing that column.")
-    }
-    if (!is.data.frame(data)) {
-      data <- as.data.frame(data, stringsAsFactors = FALSE)
-    }
-    if (!by %in% names(data)) {
-      stop("Column '", by, "' not found in provided data.")
-    }
-
-    n_pit <- length(pit_out$pit)
-    if (nrow(data) == n_pit) {
-      return(as.factor(data[[by]]))
-    }
-
-    keep_mask <- pit_out$diag$keep_mask
-    if (!is.null(keep_mask) && length(keep_mask) == nrow(data)) {
-      vec <- data[[by]][keep_mask]
-      if (length(vec) == n_pit) {
-        return(as.factor(vec))
-      }
-    }
-
-    keep_index <- pit_out$diag$keep_index
-    if (!is.null(keep_index) && length(keep_index) == n_pit && max(keep_index) <= nrow(data)) {
-      return(as.factor(data[[by]][keep_index]))
-    }
-
-    stop(
-      "Could not align data rows with wormplot residual rows for by='", by, "'. ",
-      "Provide data with row count equal to either length(pit) (", n_pit, ") or the original fit data rows."
-    )
-  }
+  split_info <- .gl_diag_split_info(by_time, by, pit_out$diag, data = data, plot_name = "wormplot")
 
   worm_band_frame <- function(theoretical, n, band_level = 0.95) {
     p <- stats::pnorm(theoretical)
@@ -453,22 +479,13 @@ wormplot.gamlss.longitudinal <- function(object, randomize = FALSE, plot = TRUE,
     )
   }
 
-  if (isTRUE(by_time) && is.null(by)) {
-    by <- "time"
-  } else if (isTRUE(by_time) && !is.null(by)) {
-    warning("Both by_time and by were provided; using by='", by, "'.", call. = FALSE)
-  }
-
-  split_group <- resolve_split(by, pit_out, object, data)
-  split_by <- !is.null(split_group)
-
-  if (!split_by) {
+  if (!split_info$split_by) {
     z <- stats::qnorm(pmin(pmax(pit_out$pit, .Machine$double.eps), 1 - .Machine$double.eps))
     theo <- stats::qnorm(stats::ppoints(length(z)))
     worm_df <- data.frame(theoretical = theo, detrended = sort(z) - theo)
     worm_band <- worm_band_frame(theo, length(z))
   } else {
-    split_pit <- split(pit_out$pit, split_group)
+    split_pit <- split(pit_out$pit, split_info$group)
     worm_list <- lapply(names(split_pit), function(grp) {
       pit_t <- split_pit[[grp]]
       z_t <- stats::qnorm(pmin(pmax(pit_t, .Machine$double.eps), 1 - .Machine$double.eps))
@@ -492,7 +509,7 @@ wormplot.gamlss.longitudinal <- function(object, randomize = FALSE, plot = TRUE,
   theoretical <- detrended <- band_lower <- band_upper <- NULL
   p <- ggplot2::ggplot(worm_df, ggplot2::aes(x = theoretical, y = detrended)) +
     ggplot2::geom_ribbon(
-      data = if (split_by) worm_df else worm_band,
+      data = if (split_info$split_by) worm_df else worm_band,
       ggplot2::aes(x = theoretical, ymin = band_lower, ymax = band_upper),
       inherit.aes = FALSE,
       fill = "#9ecae1",
@@ -503,11 +520,11 @@ wormplot.gamlss.longitudinal <- function(object, randomize = FALSE, plot = TRUE,
     ggplot2::labs(
       x = "Theoretical Normal Quantiles",
       y = "Detrended Quantiles",
-      title = if (split_by) paste0("Worm Plot by ", by) else "Worm Plot"
+      title = if (split_info$split_by) paste0("Worm Plot by ", split_info$by) else "Worm Plot"
     ) +
     ggplot2::theme_minimal()
 
-  if (split_by) {
+  if (split_info$split_by) {
     p <- p + ggplot2::facet_wrap(~split_group, scales = "free")
   }
 
@@ -519,10 +536,11 @@ wormplot.gamlss.longitudinal <- function(object, randomize = FALSE, plot = TRUE,
 }
 
 #' @export
-rootogram.gamlss.longitudinal <- function(object, bins = 20, plot = TRUE, ...) {
-  diag_data <- .gl_diag_data(object)
+rootogram.gamlss.longitudinal <- function(object, bins = 20, plot = TRUE, by_time = FALSE, by = NULL, data = NULL, ...) {
+  diag_data <- .gl_fitted_distribution(object, newdata = NULL, require_response = TRUE)
   y <- diag_data$response
   params <- diag_data$params
+  split_info <- .gl_diag_split_info(by_time, by, diag_data, data = data, plot_name = "rootogram")
 
   if (length(y) == 0) {
     stop("No finite observations available for the rootogram.")
@@ -533,32 +551,61 @@ rootogram.gamlss.longitudinal <- function(object, bins = 20, plot = TRUE, ...) {
     breaks <- seq(min(y) - 0.5, max(y) + 0.5, length.out = bins + 1)
   }
 
-  obs <- hist(y, breaks = breaks, plot = FALSE, include.lowest = TRUE, right = FALSE)$counts
-  exp <- vapply(seq_len(length(breaks) - 1), function(i) {
-    upper <- .gl_call_family_fun("p", diag_data$family, breaks[i + 1], params)
-    lower <- .gl_call_family_fun("p", diag_data$family, breaks[i], params)
-    sum(pmax(upper - lower, 0), na.rm = TRUE)
-  }, numeric(1))
+  root_frame <- function(y_i, params_i, split_group = NULL) {
+    obs <- hist(y_i, breaks = breaks, plot = FALSE, include.lowest = TRUE, right = FALSE)$counts
+    exp <- vapply(seq_len(length(breaks) - 1L), function(i) {
+      upper <- .gl_call_family_fun("p", diag_data$family, breaks[i + 1L], params_i)
+      lower <- .gl_call_family_fun("p", diag_data$family, breaks[i], params_i)
+      sum(pmax(upper - lower, 0), na.rm = TRUE)
+    }, numeric(1))
 
-  root_df <- data.frame(
-    lower = breaks[-length(breaks)],
-    upper = breaks[-1],
-    midpoint = (breaks[-length(breaks)] + breaks[-1]) / 2,
-    observed = obs,
-    expected = exp,
-    root_diff = sqrt(obs) - sqrt(exp)
-  )
+    out <- data.frame(
+      lower = breaks[-length(breaks)],
+      upper = breaks[-1],
+      midpoint = (breaks[-length(breaks)] + breaks[-1]) / 2,
+      observed = obs,
+      expected = exp,
+      root_diff = sqrt(obs) - sqrt(exp)
+    )
+    if (!is.null(split_group)) {
+      out$split_group <- as.factor(split_group)
+    }
+    out
+  }
+
+  if (!split_info$split_by) {
+    root_df <- root_frame(y, params)
+  } else {
+    group <- split_info$group
+    root_groups <- unique(as.character(group[!is.na(group)]))
+    root_list <- lapply(root_groups, function(grp) {
+      idx <- group == grp
+      params_i <- lapply(params, function(x) x[idx])
+      root_frame(y[idx], params_i, split_group = grp)
+    })
+    root_df <- do.call(rbind, root_list)
+  }
 
   if (!plot) {
     return(root_df)
   }
 
   midpoint <- root_diff <- NULL
-  ggplot2::ggplot(root_df, ggplot2::aes(x = midpoint, y = root_diff)) +
+  p <- ggplot2::ggplot(root_df, ggplot2::aes(x = midpoint, y = root_diff)) +
     ggplot2::geom_hline(yintercept = 0, color = "#666666") +
     ggplot2::geom_col(fill = "#2c7fb8", alpha = 0.8, width = diff(range(root_df$midpoint)) / max(length(root_df$midpoint), 1)) +
-    ggplot2::labs(x = "Response", y = expression(sqrt(O) - sqrt(E)), title = "Rootogram") +
+    ggplot2::labs(
+      x = "Response",
+      y = expression(sqrt(O) - sqrt(E)),
+      title = if (split_info$split_by) paste0("Rootogram by ", split_info$by) else "Rootogram"
+    ) +
     ggplot2::theme_minimal()
+
+  if (split_info$split_by) {
+    p <- p + ggplot2::facet_wrap(~split_group, scales = "free_y")
+  }
+
+  p
 }
 
 .gl_crps_sample <- function(y, draws) {
