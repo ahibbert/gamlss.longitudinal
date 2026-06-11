@@ -104,6 +104,10 @@ sim_factor_effect <- function(x, effects, reference = NULL) {
     stop(
       "Missing factor effect for level(s): ",
       paste(missing_levels, collapse = ", "),
+      ". Available effect names: ",
+      paste(names(effects), collapse = ", "),
+      ". Supply one named effect per observed level, or use reference to set ",
+      "a zero effect for a missing reference level.",
       call. = FALSE
     )
   }
