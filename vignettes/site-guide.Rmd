@@ -54,7 +54,7 @@ workflow:
 | [Inference](inference-uncertainty.html) | `vignette("inference-uncertainty", package = "gamlss.longitudinal")` | Confidence intervals, Wald tests, likelihood comparisons, bootstrap inference, and uncertainty language. |
 | [Diagnostics](diagnostics-decisions.html) | `vignette("diagnostics-decisions", package = "gamlss.longitudinal")` | `check_model()`, basic check statuses, failed-check warnings, tail checks, and dependence diagnostics. |
 | [Simulator usage](simulator-usage.html) | `vignette("simulator-usage", package = "gamlss.longitudinal")` | How to generate longitudinal datasets with GAMLSS margins, copula dependence, covariates, known truth, and missing responses. |
-| [Five-minute smoke test](five-minute-smoke-test.html) | `vignette("five-minute-smoke-test", package = "gamlss.longitudinal")` | A short runnable check for installation and the end-to-end workflow. |
+| [Test working install](test-working-install.html) | `vignette("test-working-install", package = "gamlss.longitudinal")` | A short runnable check for installation and the end-to-end workflow. |
 
 ## Reference pages
 
