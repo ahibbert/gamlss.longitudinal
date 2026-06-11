@@ -1,5 +1,5 @@
 ---
-title: "Quick verification of end-to-end workflow"
+title: "Five-minute smoke test"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Five-minute smoke test}

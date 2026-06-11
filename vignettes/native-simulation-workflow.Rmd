@@ -1,8 +1,8 @@
 ---
-title: "Detailed worked example for a longitudinal gamlss model fit"
+title: "Detailed worked example"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Detailed worked example for a longitudinal gamlss model fit}
+  %\VignetteIndexEntry{Detailed worked example}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

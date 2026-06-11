@@ -1,8 +1,8 @@
 ---
-title: "Standard workflow: screening, fit, inference, diagnostics, and simulation"
+title: "Minimal workflow"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Standard workflow: screening, fit, inference, diagnostics, and simulation}
+  %\VignetteIndexEntry{Minimal workflow}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -15,7 +15,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-This vignette gives the minimal standard workflow for applied longitudinal analyses with `gamlss.longitudinal`.
+This vignette gives the minimal workflow for applied longitudinal analyses with `gamlss.longitudinal`.
 
 We include a suggested set of steps and functions including short descriptions of each, while excluding outputs inline to minimise the complexity of reviewing the file. The idea is to allow the user to quickly pickup the relevant code and apply to either their own dataset or the included simulated dataset.
 

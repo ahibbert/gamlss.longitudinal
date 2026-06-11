@@ -1,8 +1,8 @@
 ---
-title: "Inference and Uncertainty"
+title: "Inference"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Inference and Uncertainty}
+  %\VignetteIndexEntry{Inference}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

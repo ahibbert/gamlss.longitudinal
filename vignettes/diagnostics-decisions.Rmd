@@ -1,8 +1,8 @@
 ---
-title: "Diagnostics As Decisions"
+title: "Diagnostics"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Diagnostics As Decisions}
+  %\VignetteIndexEntry{Diagnostics}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
