@@ -7210,7 +7210,7 @@ plot.terms <- function(x, ...) {
 #'   quantiles in the dashboard. Uses `newdata`, or the first `newdata_n` rows
 #'   of `data` if `newdata` is NULL.
 #' @param randomize Logical; randomized PIT/residual diagnostics.
-#' @param time_stratified Logical; if TRUE, show time-stratified PIT and worm plots.
+#' @param time_stratified Logical; if TRUE, show time-stratified diagnostic plots.
 #' @param ... Additional arguments (currently unused).
 #'
 #' @return Invisibly returns a list of generated plot/data objects.
@@ -7249,7 +7249,7 @@ plot.gamlss.longitudinal = function(
   p_diag1 = pithist(x, bins = 20, randomize = randomize, plot = TRUE, by_time = time_stratified)
   p_diag2 = qqrplot(x, randomize = randomize, plot = TRUE, by_time = time_stratified)
   p_diag3 = wormplot(x, randomize = randomize, plot = TRUE, by_time = time_stratified)
-  p_diag4 = rootogram(x, bins = 20, plot = TRUE)
+  p_diag4 = rootogram(x, bins = 20, plot = TRUE, by_time = time_stratified)
 
   include_any_quantiles = isTRUE(include_fitted_quantiles) || isTRUE(include_newdata_quantiles)
   if(include_any_quantiles && length(quantiles) == 0L) {
