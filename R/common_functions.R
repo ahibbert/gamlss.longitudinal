@@ -7,7 +7,14 @@
 #' @importFrom gamlss.dist NO qZISICHEL
 ###########NEW SIMPLIFIED FUNCTIONS
 
-# Null-coalescing operator (base R does not provide one)
+#' Null-coalescing helper
+#'
+#' Returns the left-hand value unless it is `NULL`, in which case the
+#' right-hand value is used. This keeps optional fitted-object fields and
+#' fallback controls concise without changing falsey values such as `FALSE` or
+#' `0`.
+#'
+#' @noRd
 `%||%` <- function(a, b) if (!is.null(a)) a else b
 
 utils::globalVariables(c(
@@ -20,6 +27,13 @@ utils::globalVariables(c(
   "nd_cross_m", "nd_impact", "rand_mvt", "row_id1"
 ))
 
+#' Solve a linear system with numerical fallbacks
+#'
+#' Attempts Cholesky, ordinary solve, QR solve, and finally a pseudo-inverse.
+#' Used by variance-covariance helpers where nearly singular Hessians should
+#' degrade to a guarded estimate rather than an immediate low-level error.
+#'
+#' @noRd
 .solve_linear_system <- function(A, b = NULL) {
   A <- as.matrix(A)
 
@@ -55,6 +69,12 @@ utils::globalVariables(c(
   MASS::ginv(A) %*% b_mat
 }
 
+#' Detect discrete or count-like GAMLSS margins
+#'
+#' Identifies margins that need rectangle probabilities or count-tail handling
+#' rather than continuous-density approximations.
+#'
+#' @noRd
 .is_discrete_margin <- function(margin_dist) {
   family <- as.character(margin_dist$family[1])
   type <- tolower(paste(as.character(margin_dist$type), collapse = " "))
@@ -62,6 +82,13 @@ utils::globalVariables(c(
     grepl("discrete|count", type)
 }
 
+#' Check whether a GAMLSS margin parameter has complete link metadata
+#'
+#' A parameter is considered fit-ready only when the family object exposes the
+#' link, inverse link, and derivative functions used by model-matrix and
+#' Hessian calculations.
+#'
+#' @noRd
 .margin_parameter_has_link <- function(margin_dist, par_name) {
   all(vapply(
     paste0(par_name, c(".linkfun", ".linkinv", ".dr")),
@@ -70,6 +97,13 @@ utils::globalVariables(c(
   ))
 }
 
+#' Drop unsupported unlinked GAMLSS family parameters
+#'
+#' Some `gamlss.dist` family objects expose parameters without the full link
+#' interface needed for longitudinal fitting. This helper fixes those at their
+#' family defaults and records the fixed values as attributes.
+#'
+#' @noRd
 .normalise_margin_dist_links <- function(margin_dist) {
   parameter_names <- names(margin_dist$parameters)
   if (length(parameter_names) == 0L) {
@@ -99,14 +133,30 @@ utils::globalVariables(c(
   margin_dist
 }
 
+#' First derivative of a copula CDF with respect to the first margin
+#'
+#' Wrapper around the h-function used by likelihood and derivative assembly.
+#'
+#' @noRd
 .copula_cdf_du1 <- function(u1, u2, family, par, par2 = 0) {
   .copula_hfunc1(u1, u2, family = family, par = par, par2 = par2)
 }
 
+#' First derivative of a copula CDF with respect to the second margin
+#'
+#' Uses symmetry of the h-function implementation.
+#'
+#' @noRd
 .copula_cdf_du2 <- function(u1, u2, family, par, par2 = 0) {
   .copula_hfunc1(u2, u1, family = family, par = par, par2 = par2)
 }
 
+#' Cached Gaussian copula CDF
+#'
+#' Evaluates the Gaussian copula CDF with boundary shortcuts and duplicated-row
+#' caching. Uses `mvtnorm` when available, otherwise falls back to `VineCopula`.
+#'
+#' @noRd
 .copula_gaussian_cdf_cached <- function(u1, u2, par) {
   vals <- .copula_recycle(as.numeric(u1), as.numeric(u2), .copula_gaussian_rho(par))
   u1 <- vals[[1]]
@@ -165,6 +215,12 @@ utils::globalVariables(c(
   pmin(pmax(as.numeric(out), 0), 1)
 }
 
+#' Cached Gaussian rectangle probability
+#'
+#' Computes discrete/count likelihood rectangle masses from four cached
+#' Gaussian CDF evaluations.
+#'
+#' @noRd
 .copula_gaussian_rectangle_prob_cached <- function(u1, u2, l1, l2, par) {
   vals <- .copula_recycle(as.numeric(u1), as.numeric(u2), as.numeric(l1), as.numeric(l2), .copula_gaussian_rho(par))
   n <- length(vals[[1]])
@@ -183,6 +239,13 @@ utils::globalVariables(c(
   pmax(as.numeric(rect), 1e-300)
 }
 
+#' Copula rectangle probability
+#'
+#' Returns positive lower-bounded rectangle probabilities for discrete margins,
+#' using the cached Gaussian path where possible and generic inclusion-exclusion
+#' for other copulas.
+#'
+#' @noRd
 .copula_rectangle_prob <- function(u1, u2, l1, l2, family, par, par2 = 0) {
   family <- .copula_family_code(family)
   if (identical(family, "N")) {
@@ -195,6 +258,12 @@ utils::globalVariables(c(
   pmax(as.numeric(rect), 1e-300)
 }
 
+#' Finite-difference derivatives of marginal CDF bounds
+#'
+#' Computes observation-level derivatives of CDF bounds with respect to natural
+#' margin parameters. These feed the discrete rectangle likelihood derivatives.
+#'
+#' @noRd
 .calc_F_bounds_derivatives <- function(eta_inv, mm, margin_dist, response, par_names = NULL, h = 1e-4) {
   if (is.list(mm) && all(c("x", "s") %in% names(mm))) {
     mm <- mm$x
@@ -3074,6 +3143,24 @@ normalize_lag_time <- function(time) {
   unique(unlist(lapply(formulas, function(fml) all.vars(stats::as.formula(fml))), use.names = FALSE))
 }
 
+.gl_has_supported_base_column_class <- function(x) {
+  if (is.factor(x)) {
+    return(TRUE)
+  }
+  type <- typeof(x)
+  if (!type %in% c("double", "integer", "logical", "character")) {
+    return(FALSE)
+  }
+  base_class <- switch(
+    type,
+    double = "numeric",
+    integer = "integer",
+    logical = "logical",
+    character = "character"
+  )
+  identical(class(x), base_class)
+}
+
 .gl_validate_fitting_data_policy <- function(dataset, formulas, response_name = "response") {
   formula_vars <- unique(unlist(lapply(formulas, function(fml) all.vars(stats::as.formula(fml))), use.names = FALSE))
   missing_vars <- setdiff(formula_vars, names(dataset))
@@ -3089,6 +3176,14 @@ normalize_lag_time <- function(time) {
   if (!is.numeric(response) && !is.integer(response)) {
     stop("ERROR: response variable must be numeric for gamlss_longitudinal().", call. = FALSE)
   }
+  if (!.gl_has_supported_base_column_class(response)) {
+    stop(
+      "ERROR: response variable has unsupported class: ",
+      paste(class(response), collapse = "/"),
+      ". Use an ordinary numeric or integer response column.",
+      call. = FALSE
+    )
+  }
   if (any(is.nan(response) | is.infinite(response))) {
     stop("ERROR: response variable contains NaN or Inf values; only finite values or NA are allowed.", call. = FALSE)
   }
@@ -3103,7 +3198,7 @@ normalize_lag_time <- function(time) {
     col <- dataset[[nm]]
     supported <- is.numeric(col) || is.integer(col) || is.logical(col) ||
       is.factor(col) || is.character(col)
-    if (!supported) {
+    if (!supported || !.gl_has_supported_base_column_class(col)) {
       unsupported <- c(unsupported, nm)
       next
     }
