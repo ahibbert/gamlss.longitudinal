@@ -15,65 +15,23 @@ knitr::opts_chunk$set(
 )
 ```
 
-This guide explains what can be reported from a `gamlss.longitudinal` fit and
-how to describe the uncertainty honestly. It is meant to support applied reports
-where users need language as familiar as GEE robust standard errors or GLMM
-Wald intervals, while still being clear about the richer likelihood and
-copula-based model.
+This article gives an overview of the outputs that can be generated from a `gamlss.longitudinal` fit for inference of various types. 
 
-The short version is:
+The quick reference is:
 
-- use `summary()` and `confint()` for coefficient-scale inference;
-- use `wald_test()` for individual or joint coefficient hypotheses;
-- use `likelihood_compare()` for nested likelihood-ratio model comparisons;
-- use `bootstrap_inference()` for opt-in parametric bootstrap coefficient
-  checks;
-- use `predict(..., se.fit = TRUE, interval = "confidence")` for fast
-  response-mean intervals;
-- use `marginal_effects(..., se.fit = TRUE)` for counterfactual contrasts;
-- use `simulate()` for trajectory, tail, and dependence uncertainty checks;
-- use `check_model(..., include_vcov = TRUE)` to make inference warnings visible
-  before reporting results.
+- (ideally) use `check_model()` first to make sure there aren't any major errors flagged in the fitted model that may effect inference
+- use `summary()` and `confint()` for coefficient estimates, standard errors and intervals
+- use `wald_test()` for coefficient hypotheses
+- use `likelihood_compare()` for likelihoor ratio comparisons for models (ideally nested)
+- use `bootstrap_inference()` for bootstrap standard errors and confidence intervals for coefficients
+- use `predict(..., se.fit = TRUE, interval = "confidence")` for
+  response-mean intervals, and `predict()` more broadly for any row-level outputs like prediction itervals
+- use `marginal_effects(..., se.fit = TRUE)` for averaged response against covariates
+- use `simulate()` for simulating replicates from the fitted model
 
-## Fit With Inference In Mind
+## Variance-covariance and standard errors
 
-The high-level workflow keeps variance-covariance computation optional because
-large longitudinal likelihoods can make Hessian work expensive. For final
-reporting, either compute it at fit time or request it when summarising.
-
-```{r fit}
-fit <- gamlss_longitudinal(
-  dataset = dat,
-  margin_dist = gamlss.dist::GA(mu.link = "log", sigma.link = "log"),
-  copula_dist = "C",
-  time_var = "time",
-  subject_var = "subject",
-  mu.formula = response ~ treatment + time + s(age_scaled, bs = "ps"),
-  sigma.formula = ~ treatment + time,
-  theta.formula = ~ time,
-  compute_vcov = TRUE,
-  vcov_method = "analytical"
-)
-```
-
-For exploratory model building, it is reasonable to leave `compute_vcov = FALSE`
-and request inference only for shortlisted models:
-
-```{r late-vcov}
-summary(fit, include_vcov = TRUE)
-vc <- vcov(fit, method = "analytical")
-confint(fit, method = "analytical")
-wald_test(fit, terms = c("mu.treatment", "sigma.treatment"))
-likelihood_compare(fit_reduced, fit)
-bootstrap_inference(fit, R = 200, terms = "mu.treatment")
-```
-
-## What The Methods Mean
-
-`summary(fit, include_vcov = TRUE)` reports coefficient estimates with standard
-errors when a variance-covariance matrix is available. The default route is
-likelihood-based Hessian inference using the analytical Hessian path where
-possible.
+`summary(fit)` reports coefficient estimates with standard errors. The variance covariance can be requested directly using the standard call, `vcov(fit)`. By default these methods use the Hessian of the fitted model, calculated using primarily analytical methods (i.e. second derivatives of the known margin and copula distributions) with small exceptions where analytical methods are not available and numerical methods are required. 
 
 ```{r summary}
 s <- summary(fit, include_vcov = TRUE)
@@ -81,30 +39,24 @@ s$coefficients
 s$fit$vcov_method
 ```
 
-`vcov(fit, method = "analytical")` requests the analytical Hessian path. If that
-path fails and fallback is allowed, the package falls back to the numerical
-Hessian path and records the method used.
-
 ```{r vcov}
 vc <- vcov(fit, method = "analytical")
 vc$method
 vc$method_requested
 ```
 
-`vcov(fit, method = "numderiv")` requests numerical-Hessian inference directly.
-This is useful when the analytical path is not available for the fitted family,
-parameterisation, or local numerical state.
+If the analycal Hessian calculation fails, or the user selects `vcov(fit, method = "numderiv")` or `summary(fit, vcov_method="numderiv")`, the package will use a fully numerically estimated Hessian and records the method used. The `check_model(fit)` function will also provide a warning and flag status of the model as 'review' rather than passed or failed if the Hessian failed to calculate analytically.
+
+`vcov(fit, method = "numderiv")` requests numerical-Hessian inference directly if preferred, or of interest to compare to the analytical method. Our standard package tests verify the two methods are within a small tolerance of one another at build time for a selection of fits, so generally the results should closely agree.
 
 ```{r numderiv}
 vc_num <- vcov(fit, method = "numderiv")
 vc_num$method
 ```
 
-These intervals are large-sample likelihood approximations. They are not GEE
-sandwich standard errors, and they are not subject-level bootstrap intervals
-unless a separate bootstrap or simulation analysis is performed.
+Since we are using the inverted Hessian directly, these intervals are large-sample approximations. A comparison of the intervals to the boostrap intervals should give a good test for the sensitivity of this assumption.
 
-## Coefficient Intervals
+## Confidence intervals for coefficients
 
 Use `confint()` for coefficient-scale intervals.
 
@@ -113,20 +65,12 @@ confint(fit)
 confint(fit, parm = c("mu.treatment", "sigma.treatment"))
 ```
 
-Suggested reporting language:
-
-> Coefficient intervals were computed from the fitted likelihood using the
-> package variance-covariance method reported by `summary()`. Numerical Hessian
-> intervals are treated as approximate.
-
 If the fitted object reports convergence, Hessian, identifiability, or fallback
-warnings, include them in the results section rather than hiding them in a
-supplement.
+warnings, these should ideally be rectified or carefully reported alongside model fit.
 
-## Wald Tests
+## Wald tests
 
-Use `wald_test()` for coefficient-scale hypothesis tests. With `terms`, the
-default is an individual Wald z-test for each selected coefficient.
+The `wald_test()` can be used to test coefficient estimates against an alternative hypothesis, and defaults to an individual z-test for single parameters.
 
 ```{r wald-individual}
 wald_test(
@@ -136,8 +80,7 @@ wald_test(
 )
 ```
 
-Set `joint = TRUE` to test a group of coefficients together with a Wald
-chi-square test.
+We also provide the option to test a group of coefficients together against a null hypothesis using `joint = TRUE` which results in a chi-square test.
 
 ```{r wald-joint}
 wald_test(
@@ -148,25 +91,11 @@ wald_test(
 )
 ```
 
-For custom linear hypotheses, supply a contrast matrix. Columns can be named
-with the relevant coefficient names.
+Note that we are assumping asymptotic normality for the estimator of the parameters and their covariance (for multiple parameters) which may not necessarily be true for these joint distributions.
 
-```{r wald-contrast}
-L <- matrix(c(1, -1), nrow = 1)
-colnames(L) <- c("mu.treatmentB", "mu.treatmentC")
+## Likelihood comparisons
 
-wald_test(fit, L = L, method = "analytical")
-```
-
-Suggested reporting language:
-
-> Wald tests used the fitted model variance-covariance matrix reported by
-> `vcov()`. Tests using the numerical Hessian route were treated as approximate.
-
-## Likelihood Comparisons
-
-Use `likelihood_compare()` for sequential likelihood-ratio summaries across
-nested or approximately nested `gamlss.longitudinal` models.
+Compare alternative `gamlss.longitudinal` fits with `likelihood_compare(fit,fit2,fit3...)`. 
 
 ```{r likelihood-compare}
 likelihood_compare(
@@ -175,24 +104,13 @@ likelihood_compare(
 )
 ```
 
-The helper reports joint log-likelihood, effective degrees of freedom, AIC, BIC,
-the likelihood-ratio increment, and a chi-square reference p-value for each
-comparison against the previous row. It warns when models use different
-observation counts.
+For the likelihood ratio to follow the theoretical Chi-squared distribution, the models should be nested, i.e. the parameters of one model are a subset of the compared model. If the models are not nested the result should be considered as approximate.
 
-Suggested reporting language:
+The comparison reports likelihood and likelihood ratio test results alongside other helpful details such as the change in degrees of freedom and other likelihood criteria that take into account effective degrees of freedom: AIC and BIC.
 
-> Likelihood-ratio comparisons used the fitted joint likelihood and chi-square
-> reference tests for nested model contrasts. We treated comparisons as
-> approximate when models differed in smoothing structure or were not strictly
-> nested.
+## Parametric bootstrap
 
-## Parametric Bootstrap
-
-Use `bootstrap_inference()` when Hessian-based intervals need a model-based
-sensitivity check. The helper simulates responses from the fitted model, refits
-the same model to each simulated response, and summarizes percentile intervals
-for selected fixed coefficients.
+We provide a builtin helper for bootstrap simulations from fitted `gamlss.longitudinal` objects which can give an idea of sensitivity of the Hessian based intervals that are reported by default. The method essentially simulates from the fitted model then refits the same model to the simulated response. Summaries are then provided for the intervals of the fitted coefficients across replications for fixed coeffients.
 
 ```{r bootstrap-inference}
 boot <- bootstrap_inference(
@@ -207,23 +125,11 @@ boot
 boot$summary
 ```
 
-This is intentionally opt-in because refitting longitudinal likelihoods can be
-expensive. Use enough replicates for final reporting, record failed refits, and
-describe the result as a parametric bootstrap under the fitted margin and
-copula model.
+These fits are computationally expensive due to the refitting of the `gamlss.longitudinal` model so use with care.
 
-Suggested reporting language:
+## Prediction of response or coefficients
 
-> Parametric bootstrap intervals were computed by simulating responses from the
-> fitted GAMLSS-copula model and refitting the same model to each simulated
-> dataset. Failed refits were recorded and excluded from percentile summaries.
-
-## Response Mean Intervals
-
-For applied interpretation, response-scale estimates are usually clearer than
-raw coefficients. Use `predict(type = "mean")` for fitted response means,
-`predict(type = "median")` for fitted medians, and `predict(type = "mu")` when
-you specifically want the GAMLSS `mu` parameter.
+The `predict` function provides a large range of functionality for row-level predictions of various quantities from the model. It's possible to provide response scale estimates with `predict(type = "mean")` for fitted response means or `predict(type = "mu")` for the pre-transform coefficient with confidence or prediction intervals. Review the full functionality with `help(predict.gamlss.longitudinal)` in `R`.
 
 ```{r predict-response}
 p <- predict(
@@ -237,21 +143,14 @@ p <- predict(
 head(p)
 ```
 
-These are delta-method confidence intervals for the fitted response mean. They
-are fast and useful for tables, but they should not be described as prediction
-intervals for new longitudinal trajectories.
+Note that by default it is not possible for the prediction, if it's on new datasets, to preserve the structure of the correlation. Essentially `predict()` on a new dataset is providing a marginal fit and should not be relied on for correlation analysis of the predicted object, though the marginal confidence interval predictions will be taking into acccount the impact of the fitted correlation structure on the confidence intervals.
 
-Suggested reporting language:
+If the quantity of interest is the dependence structure then simulation from the fitted object via `simulate(fit)` may provide the required functionality.
 
-> Response-mean confidence intervals were computed on the fitted model scale
-> using the delta method and transformed back to the response scale.
+## Prediction of quantiles or tail probabilities
 
-## Quantiles And Tail Probabilities
-
-Distributional longitudinal models are often used because the answer depends on
-quantiles or probabilities, not just the mean. Use `predict(type = "quantile")`,
-`predict(type = "cdf")`, `predict(type = "density")`, and
-`predict(type = "probability")` to report those estimands directly.
+More flexible distributional models such as gamlss provide the advantage of better overall fit to a marginal distribution, resulting in more accurate quantiles and probabilities beyond just the mean. `predict(type = "quantile")`,
+`predict(type = "cdf")`, `predict(type = "density")`, and `predict(type = "probability")` can give a view of these quantities for analysis and reporting on a row level.
 
 ```{r predict-distribution}
 predict(fit, newdata = dat, type = "quantile", probs = c(0.1, 0.5, 0.9))
@@ -260,25 +159,9 @@ predict(fit, newdata = dat, type = "density", y = 10)
 predict(fit, newdata = dat, type = "probability", q = 10, direction = "above")
 ```
 
-For final tail-sensitive claims, pair these estimates with `check_model()` tail
-diagnostics and, when possible, simulation-based sensitivity checks.
+## Averaged predictions (marginal effects)
 
-```{r check-tail}
-check <- check_model(fit, include_vcov = TRUE)
-check$tail
-check$warnings
-```
-
-Suggested reporting language:
-
-> Upper-tail probabilities were estimated from the fitted GAMLSS margin and
-> interpreted only after PIT and tail calibration diagnostics were reviewed.
-
-## Marginal Effects
-
-Use `marginal_effects()` for counterfactual contrasts that are easier to explain
-than coefficient changes, especially with nonlinear links, non-Gaussian
-margins, or distributional parameters.
+`marginal_effects()` is commonly used for reporting averaged response values for mixed models across covariates since the coefficient estimates are not immediately marginally interpretable from those models. While the `gamlss.longitudinal` model does not suffer from the same drawback, i.e. coefficients are directly interpretable for the margin once the link function is considered, we provide the same functionality as is used for mixed models for `gamlss.longitudinal` with `marginal_effects()`. This allows users to apply the standard analysis used in existing workflows to a `gamlss.longitudinal` model.
 
 ```{r marginal-effects}
 eff <- marginal_effects(
@@ -291,84 +174,18 @@ eff <- marginal_effects(
 eff
 ```
 
-The uncertainty is variance-covariance based and inherits the same Hessian or
-fallback caveats as `summary()`, `vcov()`, and `confint()`.
+## Dependence predictions
 
-## Trajectory And Dependence Uncertainty
+As noted previously, the `predict()` function essentially provides a marginal fit estimate with confidence intervals adjusted to account for the dependence structure, but does not preserve dependence structure for predicted new datasets.
 
-When the scientific target is a subject trajectory, clustered tail behaviour, or
-dependence-sensitive event probability, use simulation from the fitted model.
+If the subject of interest is behaviour of dependence under new datasets or forecast trajectories into later timepoints, then a simulation-based approach may be more appropriate.
+
+We provide tooling to simulate directly from a fitted `gamlss.longitudinal` fit with `simulate(fit)` or `simulate(fit,type="copula")`.
 
 ```{r simulate}
 sim <- simulate(
   fit,
   nsim = 100,
-  seed = 1,
-  type = "copula"
+  seed = 1
 )
 ```
-
-Simulation does not automatically solve parameter uncertainty. It is best
-viewed as fitted-model uncertainty unless paired with a bootstrap or repeated
-refitting workflow. It is still the right first tool for checking whether the
-model can reproduce longitudinal patterns that coefficient intervals cannot
-show.
-
-Suggested reporting language:
-
-> Simulated trajectories were drawn from the fitted margin and copula model to
-> assess dependence and tail behaviour implied by the fitted parameters.
-
-## Diagnostic Gatekeeping
-
-Before treating intervals as reportable, run `check_model()` with inference
-metadata included.
-
-```{r check}
-check <- check_model(fit, include_vcov = TRUE)
-check$checks
-check$warnings
-```
-
-Do not promote a model as the primary analysis if diagnostics still flag
-unresolved marginal misfit, residual dependence, or tail calibration problems.
-In that case, report the model as exploratory or sensitivity analysis, revise
-the margin or copula, or retain the simpler GEE/GLMM as primary.
-
-## Small Samples And Fragile Hessians
-
-Use extra caution when:
-
-- few subjects are available;
-- the time grid is short or highly unbalanced;
-- a shape or tail parameter is weakly identified;
-- the fitted copula dependence is near a boundary;
-- analytical Hessian inference falls back to numerical Hessian inference;
-- `check_model()` reports convergence or scoring concerns.
-
-In these settings, prefer sensitivity analysis, simulation, and transparent
-benchmarking over a single table of Wald-style intervals.
-
-## Reporting Checklist
-
-For final applied reports, include:
-
-1. the estimand: mean, quantile, probability, trajectory, or dependence;
-2. the margin family and copula family;
-3. whether dependence varies through `theta.formula`;
-4. the variance-covariance method used for coefficient or mean intervals;
-5. whether intervals are likelihood/Hessian, numerical-Hessian, delta-method, or
-   simulation summaries;
-6. the main `check_model()` basic check result;
-7. any GEE, GLMM, or GAM sensitivity result used as a benchmark.
-
-A compact report sentence might be:
-
-> We used a Gamma GAMLSS-copula model with time-varying copula dependence because
-> the estimand included upper-tail probabilities. Coefficient intervals used the
-> analytical Hessian variance-covariance path, response-mean intervals used the
-> delta method, and diagnostics did not flag unresolved tail or dependence
-> misfit.
-
-If that sentence cannot be completed honestly, the model is not ready to be the
-primary analysis.
