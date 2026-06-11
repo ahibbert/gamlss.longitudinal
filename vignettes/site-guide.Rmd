@@ -58,5 +58,5 @@ workflow:
 
 ## Reference pages
 
-Use the reference index for function-level details, including simulation helper
-functions.
+Use the [package function index](../reference/index.html) for function-level
+details, including simulation helper functions.
