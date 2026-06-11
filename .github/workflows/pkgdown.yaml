@@ -33,7 +33,7 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          needs: website
+          dependencies: 'c("hard", "Suggests")'
           extra-packages: |
             any::pkgdown
             local::.
