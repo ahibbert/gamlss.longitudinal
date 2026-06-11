@@ -27,6 +27,12 @@
 # Supported copulas: anything supported by .copula_deriv2.
 # Supported margins: any gamlss family that exposes d2ldm2 etc.
 
+#' Finite-difference second derivative of an inverse link
+#'
+#' Used in the chain-rule step of the analytical Hessian assembly when family
+#' objects do not expose closed-form inverse-link curvature.
+#'
+#' @noRd
 .calc_linkinv_second_derivative <- function(eta, linkinv_fun, h = 1e-5) {
   eta <- as.numeric(eta)
   step <- h * pmax(abs(eta), 1)
@@ -38,6 +44,11 @@
   as.numeric(out)
 }
 
+#' Collect inverse-link second derivatives for all fitted parameters
+#'
+#' Returns per-parameter vectors for margin and copula inverse-link curvature.
+#'
+#' @noRd
 .calc_eta_d2_linkinv <- function(eta, margin_dist, copula_link, h = 1e-5) {
   out <- vector("list", length(eta))
   names(out) <- names(eta)
@@ -57,6 +68,12 @@
   out
 }
 
+#' Choose a finite-difference step on the natural parameter scale
+#'
+#' Identity-linked parameters use the base step; other links scale by parameter
+#' magnitude to reduce avoidable cancellation.
+#'
+#' @noRd
 .natural_fd_step <- function(par, par_name, margin_dist, h) {
   link_name <- margin_dist[[paste(par_name, "link", sep = ".")]]
   if (is.character(link_name) && identical(link_name[1], "identity")) {
@@ -65,6 +82,9 @@
   h * pmax(abs(par), 1)
 }
 
+#' Warn when GG Hessian curvature is likely unstable near nu equals zero
+#'
+#' @noRd
 .warn_gg_near_zero_nu <- function(margin_dist, eta_inv, threshold = 0.05) {
   family <- margin_dist$family[1]
   if (!identical(family, "GG") || !("nu" %in% names(eta_inv))) {
@@ -91,6 +111,9 @@
   invisible(TRUE)
 }
 
+#' Warn when zero-heavy discrete margins may produce delicate Hessians
+#'
+#' @noRd
 .warn_zero_heavy_discrete_hessian <- function(margin_dist, response, zero_threshold = 0.35) {
   family <- margin_dist$family[1]
   zero_inflated_families <- c(
@@ -146,7 +169,7 @@
 #' Uses a 2-point central finite difference on the CDF only (O(2 * q) CDF
 #' evaluations, not full-likelihood evaluations).
 #'
-#' @keywords internal
+#' @noRd
 .calc_dFdpar <- function(eta_inv, mm, margin_dist, response, h = 1e-4) {
   margin_pars <- names(eta_inv)[names(eta_inv) %in% c("mu", "sigma", "nu", "tau")]
 
