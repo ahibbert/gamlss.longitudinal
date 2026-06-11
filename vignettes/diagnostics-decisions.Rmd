@@ -15,191 +15,97 @@ knitr::opts_chunk$set(
 )
 ```
 
-Diagnostics should decide what happens next. In `gamlss.longitudinal`, the
-first diagnostic pass is `check_model()`: it combines numerical summaries,
-plain-language basic checks, and failed-check warnings. Use `plot(fit)` and the
-explicit diagnostic helpers for visual review.
+We provide a range of diagnostics for assessing the validity of `gamlss.longitudinal` fits, generally grouped by whether they are marginal diagnostics (which are similar to many other marginal modelling package) or diagnostics fod the joint fit which includes dependence.
 
-The goal is not to create a longer residual-plot ritual. The goal is to answer:
+We provide an exmaple review of key diagnostics for an example dataset as a part of the detailed workflow here: [Detailed worked example](native-simulation-workflow.html). The goal of this page is as a reference to outline the available methods and provide brief details on how they operate.
 
-- is the marginal distribution credible enough for the estimand?
-- are tails and quantiles calibrated well enough to report?
-- does dependence remain after the copula?
-- is inference stable enough to cite?
-- did the basic automated checks pass, or do any areas need review?
+In general we suggest the following checks for any model:
 
-## Run The Diagnostic Check
+- `check_model(fit)` provides a basic set of numerical checks on the marginal and dependence fit with a simple pass/fail output and is a good starting point for review
+- `summary(fit)` naturally is an important starting point for reviewing fit likelihood, coefficients and their significance to them model
+- `plot_terms(fit)` provides a visual assessment of the fitted model coefficients and their confidence intervals
+- `plot(fit)` provides a faceted plot of visual marginal fit diagnostics
+- `plot_copula_diagnostics(fit)` provides a plot of visual joint distriution and dependence fit diagnostics
+
+
+## Basic checks
+
+We provide a brief automated model assessment using `check_model()` and return a compact set of basic check statuses. Check model is reasonably minimal and should be used alongside other diagnostics; the checks that flag are:
+
+| Area | Quantity checked | Threshold / condition | Overall result |
+|---|---|---|---|
+| Convergence | Model convergence based on `fit$convergence$converged` | Not `TRUE`| `basic_checks=FAIL` |
+| Marginal fit | PIT Kolmogorov-Smirnov p-value vs Uniform(0, 1) | `ks_p_value < 0.05` | `basic_checks=FAIL`|
+| Tail fit | Maximum of lower/upper PIT tail ratios across thresholds `0.05` and `0.10` | `max(lower_ratio, upper_ratio) > 2` | `basic_checks=FAIL` |
+| Copula fit | Absolute lag-1 Rosenblatt normal-score residual correlation after fitted copula | `abs(lag1_cor) > 0.25` | `basic_checks=FAIL` |
+| Variance calculation | Variance-covariance method from summary | `vcov_method == "numderiv"` | `basic_checks=REVIEW` |
+
+Check model will return check_model$basic_checks as:
+
+- "failed" if any `FAIL`;
+- "review" if no `FAIL` but at least one `REVIEW`;
+- "passed" if all rows are `PASS`.
+
+Note that a `PASS` result from `check_model` doesn't indicate a good model fit, just that there aren't any major, easy-to-test-numerically issues with the overall shape of the model fit for the margin or the dependence.
 
 ```{r check}
-check <- check_model(
-  fit,
-  include_vcov = TRUE
-)
+check <- check_model(fit)
 
 check
 check$basic_checks
+check$checks
 check$basic_checks_result
 check$warnings
-plot(fit)
 ```
 
-`check$basic_checks` contains the compact five-row status table printed at the
-top of the output. `check$checks` contains the detailed backing table, including
-rows where no automatic check was triggered. `check$warnings` contains failed
-checks only; review rows remain visible in the check tables but do not emit an R
-warning.
+## Marginal distribution checks
 
-```{r check-tables}
-check$basic_checks
-check$checks
-check$warnings
+The marginal fit affects both the margin and the copula, as the copula relies on the results from the margin fit to strip out marginal effects from dependence. The most straightforward way to review marginal fit is with `plot(fit)`.
+
+`plot(fit)` creates diagnostic plots for:
+
+- Probability integral transform (PIT) histogram (checking if the fitted model results in uniform fitted CDF)
+- Quantile-quantile (QQ) plot of the fitted versus empirical distribution (points should follow the diagonal line)
+- Wormplot, which can be viewed as a 'higher resolution' version of a QQ-plot which includes reference ranges and should have points within the reference ranges, ideally without persistent trends away from the centre line 
+- Rootogram, showing the difference in the binned distribution for the observed versus fitted distribution (these should centre on zero without significant trending deviation)
+
+The default `plot()` function plots the diagnostics over the whole distribution, but there is the option to facet the plots by time to assess fit across the longitudinal timepoints to review any issues over repeated observations.
+
+```{r marginal-diagnostics-bytime}
+rootogram(fit, by_time = TRUE)
+pithist(fit, by_time = TRUE)
+qqrplot(fit, by_time = TRUE)
+wormplot(fit, by_time = TRUE)
 ```
 
-## Marginal Calibration
+We also provide the option to facet each of the diagnostics by a covariate using `by="covariate_name"`. Note that when including a variable to facet by, it's required to provide the original dataset as we don't expose all covariates as part of the fitted object.
 
-The marginal distribution is the foundation of a GAMLSS-copula model. If the
-margin is wrong, dependence and tail conclusions can also be wrong.
-
-Use:
-
-```{r marginal-calibration}
-check$pit
-pithist(fit)
-qqrplot(fit)
-wormplot(fit)
+```{r marginal-diagnostics-bycovariate}
+pithist(fit, by="treatment", data=dataset)
+qqrplot(fit, by="treatment", data=dataset)
+wormplot(fit, by="treatment", data=dataset)
+rootogram(fit, by="treatment", data=dataset)
 ```
 
-Decision language:
+If any of the above diagnostics are of concern then marginal fit needs to be adjusted. Review options for `margin_dist` or coefficient fits for available parameters `mu.formula`, `sigma.formula`, `nu.formula` and/or `tau.formula`.
 
-- PIT uniformity concerns mean the chosen family or covariate formulas are not
-  explaining the response distribution well enough.
-- A pattern in the QQ or worm plot points to systematic underfit, not a random
-  nuisance.
-- Revise `margin_dist`, `mu.formula`, `sigma.formula`, or shape-parameter
-  formulas before making distributional claims.
+## Dependence structure diagnostics
 
-Possible next actions:
+The copula structure specified by `copula_dist` should capture the shape of the dependence after the marginal shape is removed, with `theta.formula` and `zeta.formula` allowing the shape to vary with time or other covariates.
 
-- try a skewed, heavy-tailed, zero-inflated, or count-specific family;
-- add known scale drivers to `sigma.formula`;
-- simplify unstable smooths before adding more parameters;
-- keep a GEE or GLMM as primary if the distributional model does not improve
-  the applied answer.
+In the same way as a margin, we expect the residual trends remaining in our dependence structure after imposing our dependence fit to be essentially random,
 
-## Tail Calibration
+`plot_copula_diagnostics(fit)` provides a detailed set of diagnostics for the dependence structure, including:
 
-Tail diagnostics matter when reporting quantiles, threshold probabilities,
-extreme outcomes, or safety events.
-
-```{r tail-calibration}
-check$tail
-rootogram(fit)
-predict(fit, type = "quantile", probs = c(0.05, 0.5, 0.95))
-```
-
-Decision language:
-
-- upper-tail underfit means high outcomes occur more often than the fitted
-  margin expects;
-- lower-tail underfit means low outcomes occur more often than expected;
-- tail warnings should be resolved before using the model as primary for tail
-  probabilities.
-
-Possible next actions:
-
-- use a heavier-tailed or asymmetric family;
-- add distributional covariates to scale or shape parameters;
-- report tail estimates as sensitivity-only if diagnostics remain unresolved.
-
-## Residual Dependence
-
-The copula is meant to absorb longitudinal association left after the margin.
-Residual dependence warnings mean the chosen copula family or `theta.formula`
-may be too simple.
+- Fitted copula overlayed on a histogram of the dependence (fitted contours should follow density of the histogram)
+- Quantiles (deciles) of fitted Kendall's tau (correlation) for the fitted versus observed copula (observed and fitted should broudly be in line)
+- Rosenblatt z-scores by timepoint and overall Rosenblatt normal QQ which should be normally distributed (these take into account the correlation structure for timepoints beyond the first)
+- Rosenblatt lag plot showing Rosenblatt z-scores for each time point against the lagged timepoint which should should zero correlation, as well as residual dependence by lag which should show close to zero residual correlation
+- Sorted empirical versus fitted copula probabilities scatterplot which should closely track the centre line
+- Tail co-occurrence and exceedence, essentially the fitted versus observed probability of observations landing in the upper and lower tails of the dependence structure
 
 ```{r dependence}
-check$residual_dependence
-check$copula
-copula_time_summary(fit)
 plot_copula_diagnostics(fit, data = dat)
 ```
 
-Decision language:
-
-- residual dependence after the copula means subject trajectories are still
-  more associated than the model expects;
-- time-varying association should usually be tested with `theta.formula = ~ time`
-  or another scientifically motivated dependence formula;
-- a random-intercept GLMM or exchangeable GEE may remain a useful sensitivity
-  model, but it does not answer the same dependence question as a time-varying
-  copula.
-
-Possible next actions:
-
-- compare copula families with `select_copula()`;
-- add time or baseline predictors to `theta.formula`;
-- inspect scenario-level benchmarks for `benchmark_theta_time_abs_error` when
-  dependence recovery is the target.
-
-## Inference Warnings
-
-Inference warnings are about whether standard errors, intervals, and tests are
-stable enough to report.
-
-```{r inference}
-summary(fit, include_vcov = TRUE)
-confint(fit)
-check$warnings[check$warnings$area == "inference", ]
-```
-
-Decision language:
-
-- analytical Hessian inference is the preferred fast likelihood-based route
-  when available;
-- numerical Hessian inference should be described as approximate;
-- convergence, identifiability, or boundary concerns should be reported and
-  investigated, not hidden.
-
-For detailed reporting language, use
-`vignette("inference-uncertainty", package = "gamlss.longitudinal")`.
-
-## Basic Check Result
-
-Use the diagnostic result as a first-pass screen, not as a replacement for
-visual and subject-matter diagnostics.
-
-`check$basic_checks_result` gives a compact first pass:
-
-- `passed` means all five basic automated checks returned `PASS`;
-- `review` means no check failed, but at least one check returned `REVIEW`;
-- `failed` means at least one check returned `FAIL` and `check_model()` emitted
-  an R warning.
-
-| Diagnostic state | Suggested role |
-|---|---|
-| Basic checks passed; estimand needs distribution/tails/dependence | Primary model candidate |
-| Mean is stable but tails or dependence remain unresolved | Sensitivity model |
-| Marginal calibration is poor | Revise before interpreting |
-| Dependence remains after the copula | Revise copula or `theta.formula` |
-| Inference is fragile in a small sample | Sensitivity model plus simulation |
-| GEE/GLMM answers the estimand more simply | Keep GEE/GLMM primary |
-
-## Reporting Template
-
-A concise diagnostics paragraph can look like this:
-
-> We reviewed marginal calibration, tail calibration, residual dependence, and
-> inference diagnostics using `check_model()`. The model showed no unresolved
-> marginal or tail warnings, and normal-score residual dependence was small
-> after the fitted copula. Coefficient intervals used the reported
-> variance-covariance route; numerical-Hessian intervals, if used, were treated
-> as approximate.
-
-If diagnostics do flag problems, state them plainly:
-
-> The GAMLSS-copula model was retained as a sensitivity analysis because
-> `check_model()` flagged unresolved upper-tail misfit. The GEE remained the
-> primary analysis for the marginal mean estimand.
-
-This is the trust-building habit: diagnostics should either support the richer
-model or explain why a simpler model remains primary.
+Any concerns in these diagnostics indicate lack of fit for the dependence, or potentially, the margin fit affecting the dependence fit. If marginal checks are reasonable, then adjustments to copula should include assessing alternative copula shapes, i.e. `copula_dist`, or adusting parameter covariates for `theta.formula` or `zeta.formula`.
