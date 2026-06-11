@@ -1,4 +1,7 @@
 ^.*\.Rproj$
+^\.RData$
+^\.Rhistory$
+^\.Rprofile$
 ^\.Rproj\.user$
 ^_pkgdown\.yml$
 ^cran-comments\.md$
@@ -8,6 +11,7 @@
 ^Rplots\.pdf$
 ^auto_open_plots\.sh$
 ^start_httpgd\.R$
+^\.quarto($|/)
 ^\.vscode$
 ^\.github($|/)
 ^docs($|/)
@@ -20,6 +24,9 @@
 ^.*\.Rcheck($|/)
 ^_.*\.log$
 ^.*\.tar\.gz$
+^benchmark_standard_models_metrics\.(pdf|tex)$
+^tests/REGRESSION_TEST_PLAN\.md$
+^tests/testthat/Rplots\.pdf$
 ^make_.*_paper_outputs\.R$
 ^analyze_results\.R$
 ^vignettes/.*\.html$

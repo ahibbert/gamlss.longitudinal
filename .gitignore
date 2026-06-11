@@ -3,6 +3,9 @@
 .RData
 .Ruserdata
 Rplots.pdf
+**/Rplots.pdf
+benchmark_standard_models_metrics.pdf
+benchmark_standard_models_metrics.tex
 docs/
 vignettes/*.html
 vignettes/*_files/
