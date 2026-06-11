@@ -1,19 +1,16 @@
-# Contributing And rOpenSci Standards Notes
+# Contributing And rOpenSci standards notes 
 
-This package is being prepared against the rOpenSci statistical software
-standards for general statistical software, regression and supervised learning,
-and probability distributions. The machine-readable `srr` tags are in
+
+## Package positioning and standards
+
+`gamlss.longitudinal` is an R implementation of a longitudinal distributional regression modelling framework that combines GAMLSS marginal models with adjacent-time copula dependence. The goal is for the package to provide an easy-to-use but flexible tool for users interested in fitting models to longitudinal data and including all tools needed for fitting, diagnostics, inference, simulation and comparison to alternative models.
+
+The package is being prepared with reference to the rOpenSci statistical software standards for 'general statistical software, regression and supervised learning, and probability distributions.' 
+
+The machine-readable `srr` tags are in
 `R/srr-stats-standards.R`; the reviewer crosswalk is in
 `inst/standards/ropensci-srr-compliance.md`.
 
-## Package Positioning
-
-`gamlss.longitudinal` is an R implementation of a longitudinal distributional
-regression workflow that combines GAMLSS marginal models with adjacent-time
-copula dependence. It is not a replacement for `gamlss`, `gamlss2`,
-`VineCopula`, `geepack`, `lme4`, or `mgcv`. It builds on those ideas and, where
-available, those packages, adding a longitudinal first-order copula layer,
-diagnostics, simulation, inference helpers, and opt-in benchmark scaffolds.
 
 ## Glossary
 
@@ -25,18 +22,11 @@ diagnostics, simulation, inference helpers, and opt-in benchmark scaffolds.
   this is the only copula parameter.
 - `zeta`: the second copula parameter, currently used for the t-copula degrees
   of freedom.
-- Structural missingness: a subject-time combination absent from submitted data.
-  The fitter expands these to explicit rows with missing responses.
+
 - Observed data: rows with finite observed responses used in marginal
   diagnostics and regression accessors.
 - Expanded data: the full subject-by-time grid after structural missing rows are
   inserted.
-- `newdata`: a user-supplied prediction panel. It may contain future rows or
-  new subject identifiers, but categorical levels must have appeared in the
-  fitting data.
-- Forecast panel: a `newdata` panel used for extrapolation or future-time
-  prediction. The package treats this as prediction from supplied covariates,
-  not as a separate time-series forecasting model.
 
 ## Input And Missingness Policy
 
@@ -50,7 +40,10 @@ Supported predictor columns are numeric, integer, logical, factor, ordered
 factor, or character. Character predictors are treated as unordered categorical
 variables; convert them to factors before fitting to control level order.
 Ordered factors are encoded with treatment contrasts rather than polynomial
-contrasts. List-columns and matrix/data-frame columns are rejected.
+contrasts. Non-standard column classes such as `Date`, `units`, or custom S3
+classes are not interpreted implicitly; convert them to an ordinary supported
+base type before fitting. List-columns and matrix/data-frame columns are
+rejected.
 
 Time columns may be numeric, integer, numeric-like character, or factor.
 Numeric-like character time is converted to numeric with a warning. Categorical
@@ -65,6 +58,17 @@ predictor proxies for model-matrix construction.
 
 The package does not perform statistical imputation. If imputation is required,
 do it explicitly before fitting and report the imputation model separately.
+
+Formula transformations such as `log(age)` or `poly(time, 2)` are user-specified
+and are evaluated by R's standard formula/model-matrix machinery. The package
+does not apply automatic centering, scaling, transformation, or contrast changes
+apart from the ordered-factor treatment described above.
+
+Prediction with `newdata` is row-wise marginal prediction from supplied
+covariates. Future-time panels and new subject identifiers are allowed when the
+required covariate columns are supplied and categorical levels were observed in
+the fitting data. This is not a separate time-series forecasting model and does
+not condition predictions on other observed responses in the same subject.
 
 ## Numerical And Distribution Methods
 

@@ -29,7 +29,7 @@ library(gamlss.dist)
 
 ## Simulating a new dataset
 
-`simulate_longitudinal_dataset()` is a flexible framework for generating new datasets with gamlss marginal distribution and first-order copula dependence. It includes functionality for reasonasbly simply specifying formulas for every available parameter of the margin and copula, and includes helper functions for simply inserting smooth terms which can be used in testing.
+`simulate_longitudinal_dataset()` is a flexible framework for generating new datasets with gamlss marginal distribution and first-order copula dependence. It includes functionality for reasonably simply specifying formulas for every available parameter of the margin and copula, and includes helper functions for simply inserting smooth terms which can be used in testing.
 
 ### Creating a minimal longitudinal dataset
 
@@ -163,7 +163,7 @@ head(sim_fit)
 dim(sim_fit)
 ```
 
-The ouptut is a dataframe with one column for each simulation replicate with rows which match the original dataset supplied for the model fit.
+The output is a dataframe with one column for each simulation replicate with rows which match the original dataset supplied for the model fit.
 
 ### Simulation from a fitted model (for new subjects)
 
@@ -214,4 +214,4 @@ head(cbind(future_panel[c("subject", "time")], sim_future))
 
 ### Missing data / observations handling
 
-The `gamlss.longitudinal` model relies on first order copula dependence to generate adjacent time points. If there are missing adjacent observations then the link between observations for an individual before and after that missing timpoint will be broken (i.e. independent) as we do not model dependence beyond the first order, but remaining observations that are adjacent will respect the dependence structure. 
+The `gamlss.longitudinal` model relies on first order copula dependence to generate adjacent time points. If there are missing adjacent observations then the link between observations for an individual before and after that missing timepoint will be broken (i.e. independent) as we do not model dependence beyond the first order, but remaining observations that are adjacent will respect the dependence structure. 
