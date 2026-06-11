@@ -1,5 +1,5 @@
 ---
-title: "Five-minute smoke test"
+title: "Quick verification of end-to-end workflow"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Five-minute smoke test}
@@ -16,9 +16,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-This vignette is the quickest runnable check that the main user workflow works:
-simulate data, fit a model, predict clear estimands, check diagnostics, simulate
-from the fit, and compare one familiar baseline.
+This vignette provides a runnable short test for the end-to-end model fit with simulation, fit, prediction/simulation and benchmark to standard models for a normal margin with normal copula over 3 timepoint observations of 20 subjects.
 
 ```{r smoke}
 library(gamlss.longitudinal)
@@ -68,10 +66,4 @@ benchmark_standard_models(
   comparators = "glm",
   fit = fit
 )
-```
-
-For source-tree testing, the same workflow is available as:
-
-```r
-source("inst/smoke-tests/new-user-smoke.R")
 ```

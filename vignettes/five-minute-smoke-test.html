@@ -12,7 +12,7 @@
 
 
 
-<title>Five-minute smoke test</title>
+<title>Quick verification of end-to-end workflow</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -337,14 +337,15 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 
-<h1 class="title toc-ignore">Five-minute smoke test</h1>
+<h1 class="title toc-ignore">Quick verification of end-to-end
+workflow</h1>
 
 
 
-<p>This vignette is the quickest runnable check that the main user
-workflow works: simulate data, fit a model, predict clear estimands,
-check diagnostics, simulate from the fit, and compare one familiar
-baseline.</p>
+<p>This vignette provides a runnable short test for the end-to-end model
+fit with simulation, fit, prediction/simulation and benchmark to
+standard models for a normal margin with normal copula over 3 timepoint
+observations of 20 subjects.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(gamlss.longitudinal)</span>
 <span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">library</span>(gamlss.dist)</span>
 <span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a></span>
@@ -534,7 +535,7 @@ baseline.</p>
 <span id="cb1-187"><a href="#cb1-187" tabindex="-1"></a><span class="co">#&gt; Benchmark Metrics</span></span>
 <span id="cb1-188"><a href="#cb1-188" tabindex="-1"></a><span class="co">#&gt; -----------------</span></span>
 <span id="cb1-189"><a href="#cb1-189" tabindex="-1"></a><span class="co">#&gt;                            Metric gamlss.longitudinal        glm</span></span>
-<span id="cb1-190"><a href="#cb1-190" tabindex="-1"></a><span class="co">#&gt;                Elapsed time (sec)                  NA   0.002451</span></span>
+<span id="cb1-190"><a href="#cb1-190" tabindex="-1"></a><span class="co">#&gt;                Elapsed time (sec)                  NA   0.001792</span></span>
 <span id="cb1-191"><a href="#cb1-191" tabindex="-1"></a><span class="co">#&gt;            Number of observations           6.000e+01  60.000000</span></span>
 <span id="cb1-192"><a href="#cb1-192" tabindex="-1"></a><span class="co">#&gt;                    Log likelihood          -4.322e+01 -43.375310</span></span>
 <span id="cb1-193"><a href="#cb1-193" tabindex="-1"></a><span class="co">#&gt;                               AIC           9.444e+01  92.750620</span></span>
@@ -559,33 +560,27 @@ baseline.</p>
 <span id="cb1-212"><a href="#cb1-212" tabindex="-1"></a><span class="co">#&gt; ---------------</span></span>
 <span id="cb1-213"><a href="#cb1-213" tabindex="-1"></a><span class="co">#&gt; Coefficient Estimates</span></span>
 <span id="cb1-214"><a href="#cb1-214" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-215"><a href="#cb1-215" tabindex="-1"></a><span class="co">#&gt;            term gamlss.longitudinal    glm</span></span>
-<span id="cb1-216"><a href="#cb1-216" tabindex="-1"></a><span class="co">#&gt;       intercept              1.1638 1.1657</span></span>
-<span id="cb1-217"><a href="#cb1-217" tabindex="-1"></a><span class="co">#&gt;  time_covariate              0.1383     NA</span></span>
-<span id="cb1-218"><a href="#cb1-218" tabindex="-1"></a><span class="co">#&gt;            time                  NA 0.1384</span></span>
-<span id="cb1-219"><a href="#cb1-219" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-220"><a href="#cb1-220" tabindex="-1"></a><span class="co">#&gt; Standard Errors</span></span>
-<span id="cb1-221"><a href="#cb1-221" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-222"><a href="#cb1-222" tabindex="-1"></a><span class="co">#&gt;            term gamlss.longitudinal     glm</span></span>
-<span id="cb1-223"><a href="#cb1-223" tabindex="-1"></a><span class="co">#&gt;       intercept             0.10414 0.10351</span></span>
-<span id="cb1-224"><a href="#cb1-224" tabindex="-1"></a><span class="co">#&gt;  time_covariate             0.07852      NA</span></span>
-<span id="cb1-225"><a href="#cb1-225" tabindex="-1"></a><span class="co">#&gt;            time                  NA 0.08018</span></span>
+<span id="cb1-215"><a href="#cb1-215" tabindex="-1"></a><span class="co">#&gt;       term gamlss.longitudinal    glm</span></span>
+<span id="cb1-216"><a href="#cb1-216" tabindex="-1"></a><span class="co">#&gt;  intercept              1.1638 1.1657</span></span>
+<span id="cb1-217"><a href="#cb1-217" tabindex="-1"></a><span class="co">#&gt;       time              0.1383 0.1384</span></span>
+<span id="cb1-218"><a href="#cb1-218" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-219"><a href="#cb1-219" tabindex="-1"></a><span class="co">#&gt; Standard Errors</span></span>
+<span id="cb1-220"><a href="#cb1-220" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-221"><a href="#cb1-221" tabindex="-1"></a><span class="co">#&gt;       term gamlss.longitudinal     glm</span></span>
+<span id="cb1-222"><a href="#cb1-222" tabindex="-1"></a><span class="co">#&gt;  intercept             0.10414 0.10351</span></span>
+<span id="cb1-223"><a href="#cb1-223" tabindex="-1"></a><span class="co">#&gt;       time             0.07852 0.08018</span></span>
+<span id="cb1-224"><a href="#cb1-224" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-225"><a href="#cb1-225" tabindex="-1"></a><span class="co">#&gt; 95% Lower Estimates</span></span>
 <span id="cb1-226"><a href="#cb1-226" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-227"><a href="#cb1-227" tabindex="-1"></a><span class="co">#&gt; 95% Lower Estimates</span></span>
-<span id="cb1-228"><a href="#cb1-228" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-229"><a href="#cb1-229" tabindex="-1"></a><span class="co">#&gt;            term gamlss.longitudinal     glm</span></span>
-<span id="cb1-230"><a href="#cb1-230" tabindex="-1"></a><span class="co">#&gt;       intercept             0.95972  0.9628</span></span>
-<span id="cb1-231"><a href="#cb1-231" tabindex="-1"></a><span class="co">#&gt;  time_covariate            -0.01555      NA</span></span>
-<span id="cb1-232"><a href="#cb1-232" tabindex="-1"></a><span class="co">#&gt;            time                  NA -0.0187</span></span>
-<span id="cb1-233"><a href="#cb1-233" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-234"><a href="#cb1-234" tabindex="-1"></a><span class="co">#&gt; 95% Upper Estimates</span></span>
-<span id="cb1-235"><a href="#cb1-235" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-236"><a href="#cb1-236" tabindex="-1"></a><span class="co">#&gt;            term gamlss.longitudinal    glm</span></span>
-<span id="cb1-237"><a href="#cb1-237" tabindex="-1"></a><span class="co">#&gt;       intercept              1.3679 1.3686</span></span>
-<span id="cb1-238"><a href="#cb1-238" tabindex="-1"></a><span class="co">#&gt;  time_covariate              0.2922     NA</span></span>
-<span id="cb1-239"><a href="#cb1-239" tabindex="-1"></a><span class="co">#&gt;            time                  NA 0.2956</span></span></code></pre></div>
-<p>For source-tree testing, the same workflow is available as:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">source</span>(<span class="st">&quot;inst/smoke-tests/new-user-smoke.R&quot;</span>)</span></code></pre></div>
+<span id="cb1-227"><a href="#cb1-227" tabindex="-1"></a><span class="co">#&gt;       term gamlss.longitudinal     glm</span></span>
+<span id="cb1-228"><a href="#cb1-228" tabindex="-1"></a><span class="co">#&gt;  intercept             0.95972  0.9628</span></span>
+<span id="cb1-229"><a href="#cb1-229" tabindex="-1"></a><span class="co">#&gt;       time            -0.01555 -0.0187</span></span>
+<span id="cb1-230"><a href="#cb1-230" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-231"><a href="#cb1-231" tabindex="-1"></a><span class="co">#&gt; 95% Upper Estimates</span></span>
+<span id="cb1-232"><a href="#cb1-232" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-233"><a href="#cb1-233" tabindex="-1"></a><span class="co">#&gt;       term gamlss.longitudinal    glm</span></span>
+<span id="cb1-234"><a href="#cb1-234" tabindex="-1"></a><span class="co">#&gt;  intercept              1.3679 1.3686</span></span>
+<span id="cb1-235"><a href="#cb1-235" tabindex="-1"></a><span class="co">#&gt;       time              0.2922 0.2956</span></span></code></pre></div>
 
 
 
