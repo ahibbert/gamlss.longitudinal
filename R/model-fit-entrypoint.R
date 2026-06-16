@@ -1,3 +1,10 @@
+#' Main entry point for model fitting, called from gamlss_longitudinal().
+#' 
+#' This function orchestrates the entire model fitting process, including:
+#' 1. Preprocessing and validation of input data and formulas by calling workflow_fn = .gl_prepare_fit_workflow (model-fit-workflow.R),
+#' 2. Execution of the optimization loop by calling optimizer_fn = .gl_run_prepared_fit_optimizer (model-fit-optimizer.R),
+#' 3. Finalization of the fit by calling finalize_fn = .gl_finalize_prepared_fit (model-fit-finalize.R)
+#' 
 .gl_run_gamlss_longitudinal_entrypoint <- function(
     dataset,
     margin_dist,

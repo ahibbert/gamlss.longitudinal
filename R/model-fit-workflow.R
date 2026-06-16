@@ -1,14 +1,9 @@
-#' Sets up all the data inputs / controls for the various later functions.
+#' Model fit workflow is called from model-fit-entrypoint.R and contains the first 
+#' of three primary steps of the fitting process, covering pre-fit work:
+#' - Preprocessing and validation of input data and formulas (model-preprocess.R)
+#' - Construction of model matrices and related components (model-matrix.R)
+#' - Initialization of starting parameters and optimizer context (model-fit-setup.R)
 #' 
-#' Many functions take in many of the same collections of arguments from the main model fit. 
-#' This function structures these inputs into a more organized list of lists, and puts them
-#' into the right format to be able to ingested by later functions. 
-#' 
-#' This is how we have solved the problem of needing to pass many of the same arguments to many different functions, 
-#' without needing to have one huge function that does everything. 
-#' 
-#' Each of the later functions can just take in the relevant sub-list of this list, and we only need to do the work of structuring the inputs once.
-#'
 #' @noRd
 .gl_prepare_fit_workflow <- function(
     dataset,
