@@ -1,4 +1,4 @@
-url: https://ahibbert.github.io/gamlss.longitudinal/
+url: https://gamlsslongitudinal.aydins-workbench.com/
 
 template:
   bootstrap: 5
@@ -56,9 +56,9 @@ reference:
     desc: Decision-oriented checks and visual diagnostics for fitted models.
     contents:
       - check_model
+      - diagnostics
       - check_missingness
       - copula_time_summary
-      - topmodels_diagnostics
       - plot_dist
       - plot_margin_fit
       - plot_copula_fit
