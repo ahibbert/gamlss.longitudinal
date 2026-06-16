@@ -1,315 +1,117 @@
-normalize_lag_time <- function(time) {
-
-  if (is.factor(time)) {
-
-    time <- as.character(time)
-
-  }
-
-  if (is.character(time)) {
-
-    time_numeric <- suppressWarnings(as.numeric(time))
-
-    if (anyNA(time_numeric)) {
-
-      stop("ERROR: time must be numeric or numeric-like when use_dlcopdpar=TRUE.")
-
-    }
-
-    time <- time_numeric
-
-  }
-
-  time - 1
-
-}
-
-
-.gl_validate_tabular_shape <- function(dataset, context = "dataset") {
-
-  if (!is.data.frame(dataset)) {
-
-    return(invisible(NULL))
-
-  }
-
-  if (nrow(dataset) == 0L) {
-
-    stop("ERROR: ", context, " must contain at least one row.", call. = FALSE)
-
-  }
-
-  if (ncol(dataset) == 0L) {
-
-    stop("ERROR: ", context, " must contain at least one column.", call. = FALSE)
-
-  }
-
-
-  list_cols <- names(dataset)[vapply(dataset, is.list, logical(1))]
-
-  if (length(list_cols) > 0L) {
-
-    stop(
-
-      "ERROR: ", context, " contains unsupported list-column(s): ",
-
-      paste(list_cols, collapse = ", "),
-
-      ". Flatten or remove list-columns before fitting.",
-
-      call. = FALSE
-
-    )
-
-  }
-
-
-  matrix_cols <- names(dataset)[vapply(dataset, function(x) is.matrix(x) || is.data.frame(x), logical(1))]
-
-  if (length(matrix_cols) > 0L) {
-
-    stop(
-
-      "ERROR: ", context, " contains unsupported matrix/data-frame column(s): ",
-
-      paste(matrix_cols, collapse = ", "),
-
-      ". Expand these columns into ordinary vector columns before fitting.",
-
-      call. = FALSE
-
-    )
-
-  }
-
-  invisible(NULL)
-
-}
-
-
-.gl_formula_variables <- function(...) {
-
-  formulas <- list(...)
-
-  unique(unlist(lapply(formulas, function(fml) all.vars(stats::as.formula(fml))), use.names = FALSE))
-
-}
-
-
-.gl_has_supported_base_column_class <- function(x) {
-
-  if (is.factor(x)) {
-
-    return(TRUE)
-
-  }
-
-  type <- typeof(x)
-
-  if (!type %in% c("double", "integer", "logical", "character")) {
-
-    return(FALSE)
-
-  }
-
-  base_class <- switch(
-
-    type,
-
-    double = "numeric",
-
-    integer = "integer",
-
-    logical = "logical",
-
-    character = "character"
-
+#' Prepare fitting data for gamlss_longitudinal()
+#'
+#' Renames user-supplied response, time, and subject columns to the internal names used by the fitting engine, 
+#' validates submitted data against various policies, expands structurally missing subject/time combinations 
+#' (for missingness checks and model matrix construction), and returns translated formulas for matrix construction.
+#'
+#' @noRd
+.gl_prepare_fit_data <- function(
+    dataset,
+    time_var,
+    subject_var,
+    mu.formula,
+    sigma.formula,
+    nu.formula,
+    tau.formula,
+    theta.formula,
+    zeta.formula,
+    verbose = 1) {
+
+  input_columns <- .gl_normalize_fit_input_columns(
+    dataset = dataset,
+    time_var = time_var,
+    subject_var = subject_var,
+    mu.formula = mu.formula,
+    verbose = verbose
+  )
+  dataset_original <- input_columns$dataset_original
+  dataset <- input_columns$dataset
+  response_var <- input_columns$response_var
+  var_map <- input_columns$var_map
+  formula_var_map <- input_columns$formula_var_map
+  time_covariate_is_factor <- input_columns$time_covariate_is_factor
+  time_covariate_levels <- input_columns$time_covariate_levels
+  time_covariate_ordered <- input_columns$time_covariate_ordered
+
+  formulas_int <- .gl_translate_fit_formulas(
+    mu.formula = mu.formula,
+    sigma.formula = sigma.formula,
+    nu.formula = nu.formula,
+    tau.formula = tau.formula,
+    theta.formula = theta.formula,
+    zeta.formula = zeta.formula,
+    formula_var_map = formula_var_map,
+    response_name = "response"
   )
 
-  identical(class(x), base_class)
+  mu.formula.int <- formulas_int$mu
+  sigma.formula.int <- formulas_int$sigma
+  nu.formula.int <- formulas_int$nu
+  tau.formula.int <- formulas_int$tau
+  theta.formula.int <- formulas_int$theta
+  zeta.formula.int <- formulas_int$zeta
 
+  .gl_validate_fitting_data_policy(
+    dataset,
+    formulas = list(mu.formula.int, sigma.formula.int, nu.formula.int, tau.formula.int, theta.formula.int, zeta.formula.int),
+    response_name = "response"
+  )
+
+  if (verbose > 1) {
+    cat("Input validation successful.\n")
+    cat("Data dimensions:", nrow(dataset), "x", ncol(dataset), "\n")
+    cat("Response variable:", response_var, "-> renamed to 'response'\n")
+    cat("Time variable:", time_var, "-> internal index 'time' and covariate 'time_covariate'\n")
+    cat("Subject variable:", subject_var, "-> renamed to 'subject'\n")
+    cat("Time points:", length(unique(dataset$time)), "\n")
+    cat("Subjects:", length(unique(dataset$subject)), "\n")
+  }
+
+  # Validate that all subject/time combinations are unique
+  subject_time_combo <- paste(dataset$subject, dataset$time, sep = "_")
+  if (length(subject_time_combo) != length(unique(subject_time_combo))) {
+    duplicate_combos <- subject_time_combo[duplicated(subject_time_combo)]
+    stop(
+      "ERROR: Duplicate subject/time combinations found.\n",
+      "Each subject must have exactly one observation per time point.\n",
+      "Duplicate combinations (first 10): ",
+      paste(unique(duplicate_combos)[1:min(10, length(unique(duplicate_combos)))], collapse = ", ")
+    )
+  }
+
+  if (verbose > 1) {
+    cat("Subject/time uniqueness check passed.\n")
+    cat("Unique subject/time combinations:", length(unique(subject_time_combo)), "\n\n")
+  }
+
+  expanded_panel <- .gl_expand_fit_panel(
+    dataset = dataset,
+    time_covariate_is_factor = time_covariate_is_factor,
+    time_covariate_levels = time_covariate_levels,
+    time_covariate_ordered = time_covariate_ordered,
+    verbose = verbose
+  )
+
+  dataset <- expanded_panel$dataset
+  missingness <- .gl_summarize_fit_missingness(dataset, verbose = verbose)
+  miss_by_time <- missingness$miss_by_time
+  pair_summary <- missingness$pair_summary
+  .gl_validate_fit_missingness_support(miss_by_time, pair_summary)
+
+  list(
+    dataset_original = dataset_original,
+    dataset = dataset,
+    response_var = response_var,
+    var_map = var_map,
+    formulas_int = list(
+      mu = mu.formula.int,
+      sigma = sigma.formula.int,
+      nu = nu.formula.int,
+      tau = tau.formula.int,
+      theta = theta.formula.int,
+      zeta = zeta.formula.int
+    ),
+    miss_by_time = miss_by_time,
+    pair_summary = pair_summary
+  )
 }
-
-
-.gl_validate_fitting_data_policy <- function(dataset, formulas, response_name = "response") {
-
-  formula_vars <- unique(unlist(lapply(formulas, function(fml) all.vars(stats::as.formula(fml))), use.names = FALSE))
-
-  missing_vars <- setdiff(formula_vars, names(dataset))
-
-  if (length(missing_vars) > 0L) {
-
-    stop(
-
-      "ERROR: formula variable(s) not found in dataset after internal name mapping: ",
-
-      paste(missing_vars, collapse = ", "),
-
-      call. = FALSE
-
-    )
-
-  }
-
-
-  response <- dataset[[response_name]]
-
-  if (!is.numeric(response) && !is.integer(response)) {
-
-    stop("ERROR: response variable must be numeric for gamlss_longitudinal().", call. = FALSE)
-
-  }
-
-  if (!.gl_has_supported_base_column_class(response)) {
-
-    stop(
-
-      "ERROR: response variable has unsupported class: ",
-
-      paste(class(response), collapse = "/"),
-
-      ". Use an ordinary numeric or integer response column.",
-
-      call. = FALSE
-
-    )
-
-  }
-
-  if (any(is.nan(response) | is.infinite(response))) {
-
-    stop("ERROR: response variable contains NaN or Inf values; only finite values or NA are allowed.", call. = FALSE)
-
-  }
-
-
-  predictor_vars <- setdiff(formula_vars, response_name)
-
-  unsupported <- character(0)
-
-  nonfinite <- character(0)
-
-  missing <- character(0)
-
-  character_predictors <- character(0)
-
-
-  for (nm in predictor_vars) {
-
-    col <- dataset[[nm]]
-
-    supported <- is.numeric(col) || is.integer(col) || is.logical(col) ||
-
-      is.factor(col) || is.character(col)
-
-    if (!supported || !.gl_has_supported_base_column_class(col)) {
-
-      unsupported <- c(unsupported, nm)
-
-      next
-
-    }
-
-    if (is.numeric(col) || is.integer(col)) {
-
-      if (any(is.nan(col) | is.infinite(col))) {
-
-        nonfinite <- c(nonfinite, nm)
-
-      }
-
-      if (any(is.na(col))) {
-
-        missing <- c(missing, nm)
-
-      }
-
-    } else if (is.factor(col) || is.character(col) || is.logical(col)) {
-
-      if (any(is.na(col))) {
-
-        missing <- c(missing, nm)
-
-      }
-
-      if (is.character(col)) {
-
-        character_predictors <- c(character_predictors, nm)
-
-      }
-
-    }
-
-  }
-
-
-  if (length(unsupported) > 0L) {
-
-    stop(
-
-      "ERROR: predictor column(s) have unsupported classes: ",
-
-      paste(unsupported, collapse = ", "),
-
-      ". Use numeric, integer, logical, factor, ordered factor, or character columns.",
-
-      call. = FALSE
-
-    )
-
-  }
-
-  if (length(nonfinite) > 0L) {
-
-    stop(
-
-      "ERROR: predictor column(s) contain NaN or Inf values: ",
-
-      paste(unique(nonfinite), collapse = ", "),
-
-      ". Clean non-finite predictor values before fitting.",
-
-      call. = FALSE
-
-    )
-
-  }
-
-  if (length(missing) > 0L) {
-
-    stop(
-
-      "ERROR: predictor column(s) contain missing values in submitted rows: ",
-
-      paste(unique(missing), collapse = ", "),
-
-      ". Missing responses and structurally missing visits are allowed, but predictor values must be observed.",
-
-      call. = FALSE
-
-    )
-
-  }
-
-  if (length(character_predictors) > 0L) {
-
-    warning(
-
-      "Character predictor column(s) will be treated as unordered categorical variables: ",
-
-      paste(unique(character_predictors), collapse = ", "),
-
-      ". Convert to factor to control level ordering explicitly.",
-
-      call. = FALSE
-
-    )
-
-  }
-
-  invisible(NULL)
-
-}
-
-
