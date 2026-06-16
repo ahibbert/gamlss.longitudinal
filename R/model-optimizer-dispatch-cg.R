@@ -1,0 +1,86 @@
+#' Run the CG optimizer branch
+#'
+#' @keywords internal
+#' @noRd
+.gl_run_fit_cg_optimizer <- function(
+    optimizer_context,
+    mm,
+    margin_dist,
+    copula_link,
+    copula_dist,
+    dataset,
+    include_dlcopdpar,
+    cg_gradient_method,
+    cg_hessian_method,
+    verbose,
+    cg_max_delta,
+    max_outer_iter,
+    check_elapsed_budget,
+    cg_update_lambda,
+    cg_max_lambda_updates,
+    cg_lambda_update_every,
+    lambda_penalty_K,
+    cg_armijo_c1,
+    cg_line_search,
+    cg_max_line_search_evals,
+    use_backtracking,
+    backtracking_max_halves,
+    cg_zeta_hessian,
+    cg_max_stall,
+    cg_raw_loglik_drop_tol,
+    cg_runner_fn = .gl_run_cg_optimizer) {
+  optimizer_state <- cg_runner_fn(
+    par_cov = optimizer_context$par_cov,
+    par_s = optimizer_context$par_s,
+    mm = mm,
+    margin_dist = margin_dist,
+    copula_link = copula_link,
+    copula_dist = copula_dist,
+    dataset = dataset,
+    pair_cache = optimizer_context$pair_cache,
+    margin_eval_cache = optimizer_context$margin_eval_cache,
+    cg_gradient_method = cg_gradient_method,
+    cg_hessian_method = cg_hessian_method,
+    verbose = verbose,
+    lambda_s = optimizer_context$lambda_s,
+    cg_max_delta = cg_max_delta,
+    log_lik_history = optimizer_context$log_lik_history,
+    par_history = optimizer_context$par_history,
+    cg_best_raw_loglik = optimizer_context$cg_best_raw_loglik,
+    cg_best_iteration = optimizer_context$cg_best_iteration,
+    outer_only_run_counter = optimizer_context$outer_only_run_counter,
+    max_outer_iter = max_outer_iter,
+    check_elapsed_budget = check_elapsed_budget,
+    include_dlcopdpar = include_dlcopdpar,
+    cg_update_lambda = cg_update_lambda,
+    cg_max_lambda_updates = cg_max_lambda_updates,
+    cg_lambda_update_every = cg_lambda_update_every,
+    cg_step_tol_eff = optimizer_context$cg_step_tol_eff,
+    lambda_penalty_K = lambda_penalty_K,
+    cg_armijo_c1 = cg_armijo_c1,
+    cg_line_search = cg_line_search,
+    cg_max_line_search_evals = cg_max_line_search_evals,
+    use_backtracking = use_backtracking,
+    backtracking_max_halves = backtracking_max_halves,
+    cg_zeta_hessian = cg_zeta_hessian,
+    cg_max_stall = cg_max_stall,
+    cg_raw_loglik_drop_tol = cg_raw_loglik_drop_tol,
+    outer_stop_crit = optimizer_context$outer_stop_crit,
+    cg_grad_tol_eff = optimizer_context$cg_grad_tol_eff,
+    df_s = optimizer_context$df_s,
+    outer_start_log_lik = optimizer_context$outer_start_log_lik,
+    outer_end_log_lik = optimizer_context$outer_end_log_lik,
+    outer_log_lik_change = optimizer_context$outer_log_lik_change,
+    cg_stop_reason = optimizer_context$cg_stop_reason,
+    cg_last_grad_inf = optimizer_context$cg_last_grad_inf,
+    cg_last_step_l2 = optimizer_context$cg_last_step_l2,
+    cg_raw_loglik_drop_from_best = optimizer_context$cg_raw_loglik_drop_from_best,
+    weights_final = optimizer_context$weights_final
+  )
+  optimizer_state$rs_block_trace <- optimizer_context$rs_block_trace
+  optimizer_state$outer_stop_crit <- optimizer_context$outer_stop_crit
+  optimizer_state$inner_stop_crit <- optimizer_context$inner_stop_crit
+  optimizer_state$cg_grad_tol_eff <- optimizer_context$cg_grad_tol_eff
+  optimizer_state$cg_step_tol_eff <- optimizer_context$cg_step_tol_eff
+  optimizer_state
+}
