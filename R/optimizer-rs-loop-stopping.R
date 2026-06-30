@@ -65,6 +65,7 @@
     summary_fn = .gl_print_outer_iteration_summary,
     streak_fn = .gl_update_outer_negative_streak,
     convergence_fn = .gl_print_outer_convergence) {
+      
   step_size <- (step_adjustment^min(outer_only_run_counter, max_steps)) * start_step_size
   outer_only_run_counter <- outer_only_run_counter + 1
   outer_end_log_lik <- calc_lik_out_end$log_lik["joint"]
