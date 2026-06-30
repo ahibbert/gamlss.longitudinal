@@ -1,0 +1,38 @@
+.gl_build_rs_optimizer_result <- function(
+    par_cov,
+    par_s,
+    lambda_s,
+    df_s,
+    calc_lik_out_end,
+    rs_block_trace,
+    outer_run_counter,
+    outer_only_run_counter,
+    outer_end_log_lik,
+    outer_log_lik_change,
+    outer_negative_streak,
+    step_size,
+    weights_final,
+    log_lik_history,
+    par_history,
+    first_outer_run,
+    outer_start_log_lik) {
+  list(
+    par_cov = par_cov,
+    par_s = par_s,
+    lambda_s = lambda_s,
+    df_s = df_s,
+    calc_lik_out_end = calc_lik_out_end,
+    rs_block_trace = rs_block_trace,
+    outer_run_counter = outer_run_counter,
+    outer_only_run_counter = outer_only_run_counter,
+    outer_end_log_lik = outer_end_log_lik,
+    outer_log_lik_change = outer_log_lik_change,
+    outer_negative_streak = outer_negative_streak,
+    step_size = step_size,
+    weights_final = weights_final,
+    log_lik_history = log_lik_history,
+    par_history = par_history,
+    first_outer_run = first_outer_run,
+    outer_start_log_lik = outer_start_log_lik
+  )
+}
