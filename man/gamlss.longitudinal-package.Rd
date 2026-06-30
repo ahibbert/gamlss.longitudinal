@@ -12,7 +12,7 @@ with flexible copula dependence structures across repeated measurements.
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://ahibbert.github.io/gamlss.longitudinal/}
+  \item \url{https://gamlsslongitudinal.aydins-workbench.com/}
   \item \url{https://github.com/ahibbert/gamlss.longitudinal}
   \item Report bugs at \url{https://github.com/ahibbert/gamlss.longitudinal/issues}
 }
