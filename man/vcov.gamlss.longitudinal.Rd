@@ -9,9 +9,13 @@
   par = NA,
   sep_d2 = TRUE,
   numderiv = FALSE,
-  method = c("analytical", "numderiv", "analytical_only"),
+  method = c("analytical", "numderiv", "analytical_only", "sandwich"),
   progress = interactive(),
   h = 1e-04,
+  cluster = NULL,
+  sandwich_h = 1e-05,
+  sandwich_adjust = TRUE,
+  sandwich_bread_method = c("analytical", "numderiv", "analytical_only"),
   ...
 )
 }
@@ -25,16 +29,30 @@ fitted coefficients.}
 
 \item{numderiv}{Logical; use the numerical Hessian path.}
 
-\item{method}{Character; Hessian method to use. \code{"analytical"} (default)
+\item{method}{Character; variance-covariance method to use. \code{"analytical"} (default)
 uses the semi-analytical Hessian from \code{R/hessian-analytical.R}.
 \code{"numderiv"} uses full finite-difference numerical second derivatives as a
-slower reference path. The legacy \code{numderiv} logical argument is still
-accepted and maps to \code{method = "numderiv"} when \code{TRUE}.}
+slower reference path. \code{"sandwich"} uses a cluster-robust sandwich estimator
+for fixed coefficients, with clusters defaulting to subjects. The legacy
+\code{numderiv} logical argument is still accepted and maps to
+\code{method = "numderiv"} when \code{TRUE}.}
 
 \item{progress}{Logical; show progress bars for slow Hessian calculations.}
 
 \item{h}{Numeric finite-difference step used by the analytical Hessian
 helper.}
+
+\item{cluster}{Optional cluster labels for \code{method = "sandwich"}. Defaults to
+the fitted subject identifiers.}
+
+\item{sandwich_h}{Numeric finite-difference step used for sandwich cluster
+score contributions.}
+
+\item{sandwich_adjust}{Logical; apply a finite-sample cluster correction to
+sandwich covariance estimates.}
+
+\item{sandwich_bread_method}{Character; Hessian method used for the sandwich
+bread.}
 
 \item{...}{Additional arguments, currently unused.}
 }

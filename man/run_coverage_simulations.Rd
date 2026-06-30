@@ -2,7 +2,7 @@
 % Please edit documentation in R/coverage-runner.R
 \name{run_coverage_simulations}
 \alias{run_coverage_simulations}
-\title{Run opt-in distribution/copula/method coverage simulations}
+\title{Run coverage simulation cases}
 \usage{
 run_coverage_simulations(
   families = NULL,
@@ -20,22 +20,16 @@ run_coverage_simulations(
 )
 }
 \arguments{
-\item{families}{Optional family names. Defaults to all supported non-mixed
-\code{gamlss.dist} families with \code{q}, \code{p}, and \code{d} functions.}
+\item{families}{Character vector of margin families to include. When \code{NULL},
+the default coverage families are used.}
 
-\item{copulas}{Copula codes.}
+\item{copulas}{Character vector of copula families to include.}
 
-\item{methods}{Fit methods. Defaults to \code{"gamlss"}, \code{"rs_separate"},
-\code{"rs_joint"}, and \code{"cg"}. Method \code{"gamlss2"} is also supported when the
-optional non-CRAN package is installed and explicitly requested. Standard
-comparator methods \code{"gee"}, \code{"glmm"}, \code{"gam"}, and \code{"glmmTMB"} are
-available for families that map to common mean-model families.}
+\item{methods}{Character vector of fitting methods to include.}
 
-\item{designs}{Simulation designs: \code{"intercept"}, \code{"covariate"},
-\code{"scale"}, \code{"time_dependence"}, or \code{"smooth"}.}
+\item{designs}{Character vector of simulation designs to include.}
 
-\item{include_mixed}{Logical; include mixed-support \code{gamlss.dist} families in
-the candidate family grid.}
+\item{include_mixed}{Include mixed discrete/continuous cases when \code{TRUE}.}
 
 \item{output_dir}{Directory for CSV/RDS outputs.}
 
@@ -60,5 +54,6 @@ A data frame of per-fit results. The return value also carries
 \code{"parameter_results"} and \code{"runtime_summary"} attributes.
 }
 \description{
-Run opt-in distribution/copula/method coverage simulations
+Runs a compact grid of coverage simulation cases and optionally writes CSV,
+RDS, and LaTeX summary outputs for reviewer inspection.
 }
