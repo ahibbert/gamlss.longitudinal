@@ -226,6 +226,39 @@ test_that("T202d simulate newdata breaks dependence across time-grid gaps", {
   expect_equal(as.numeric(actual[, 1]), expected)
 })
 
+test_that("T202e simulate newdata preserves adjacent fitted dependence", {
+  diag_data <- list(
+    family = "NO",
+    params = list(mu = rep(0, 3), sigma = rep(1, 3))
+  )
+  fit_data <- data.frame(
+    subject = rep(seq_len(80L), each = 3L),
+    time = rep(1:3, times = 80L),
+    theta_fit = rep(c(0.85, 0.85, NA_real_), times = 80L),
+    zeta_fit = rep(c(0, 0, NA_real_), times = 80L)
+  )
+  diag_data$params$mu <- rep(0, nrow(fit_data))
+  diag_data$params$sigma <- rep(1, nrow(fit_data))
+  object <- list(copula_dist = "N")
+
+  sim <- gamlss.longitudinal:::.gl_simulate_copula_matrix(
+    object,
+    diag_data,
+    nsim = 1,
+    fit_data = fit_data,
+    time_levels = 1:3
+  )
+  sim_df <- data.frame(
+    subject = fit_data$subject,
+    time = fit_data$time,
+    y = as.numeric(sim[, 1])
+  )
+  wide <- reshape(sim_df, idvar = "subject", timevar = "time", direction = "wide")
+
+  expect_gt(stats::cor(wide$y.1, wide$y.2), 0.55)
+  expect_gt(stats::cor(wide$y.2, wide$y.3), 0.55)
+})
+
 test_that("T203 check_model returns basic-check diagnostic object", {
   dat <- make_fixture_factor_time_interaction(n_subject = 14L)
   fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
@@ -600,4 +633,22 @@ test_that("T210 bootstrap_inference refits simulated responses", {
     )
   )
   expect_equal(boot_prefix$summary$term, prefix_terms)
+
+  boot_cluster <- bootstrap_inference(
+    fit,
+    R = 1,
+    terms = terms,
+    seed = 125,
+    type = "cluster",
+    fit_args = list(
+      max_outer_iter = 1,
+      max_inner_iter = 1,
+      outer_stop_crit = 1,
+      inner_stop_crit = 1,
+      use_backtracking = FALSE
+    )
+  )
+  expect_s3_class(boot_cluster, "gamlss_longitudinal_bootstrap")
+  expect_equal(boot_cluster$simulation_type, "cluster")
+  expect_equal(boot_cluster$summary$term, terms)
 })

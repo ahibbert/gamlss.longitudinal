@@ -112,6 +112,36 @@ test_that("verbose = 0 suppresses fitter iteration and model-fit banners", {
   expect_false(any(grepl("OUTER ITERATION|MODEL FIT", output)))
 })
 
+test_that("prediction evaluation value helper preserves q/y policy", {
+  diag_data <- list(
+    response = c(1, 2, NA),
+    subject = c(1, 1, 2)
+  )
+
+  expect_equal(
+    gamlss.longitudinal:::.gl_prediction_eval_values(5, "q", "cdf", diag_data, require_response = FALSE),
+    c(5, 5, 5)
+  )
+  expect_equal(
+    gamlss.longitudinal:::.gl_prediction_eval_values(c(1, 2, 3), "q", "cdf", diag_data, require_response = FALSE),
+    c(1, 2, 3)
+  )
+  expect_equal(
+    gamlss.longitudinal:::.gl_prediction_eval_values(NULL, "q", "cdf", diag_data, require_response = TRUE),
+    c(1, 2, NA)
+  )
+  expect_error(
+    gamlss.longitudinal:::.gl_prediction_eval_values(NULL, "q", "cdf", diag_data, require_response = FALSE),
+    "'q' is required for type = 'cdf' when no response is available.",
+    fixed = TRUE
+  )
+  expect_error(
+    gamlss.longitudinal:::.gl_prediction_eval_values(c(1, 2), "y", "density", diag_data, require_response = FALSE),
+    "'y' must be length 1 or match the number of prediction rows.",
+    fixed = TRUE
+  )
+})
+
 test_that("simulation covariate callback may return input data plus new columns", {
   dat <- simulate_longitudinal_dataset(
     n = 6,
