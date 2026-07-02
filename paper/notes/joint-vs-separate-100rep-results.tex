@@ -1,0 +1,481 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{pdflscape}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue
+}
+
+\title{Joint versus Separate Optimisation: 100-Replication Simulation Review}
+\author{gamlss.longitudinal JSS replication notes}
+\date{Compiled from outputs completed 2026-06-14}
+
+\begin{document}
+\maketitle
+
+\section{Purpose}
+
+This note summarises the 100-replication simulation comparing the two
+random-search optimisation strategies used in the JSS replication workflow:
+\texttt{rs\_joint} and \texttt{rs\_separate}.  The goal was to test whether
+joint optimisation gives a practically meaningful improvement over separate
+optimisation once the iteration caps are increased enough to give the joint
+method a fairer convergence opportunity.
+
+\section{Run Provenance}
+
+The completed checkpointed run wrote the final combined outputs on
+\textbf{2026-06-14 22:49:15 +1000}.  The checkpointing design wrote one CSV
+per replication before combining results, so machine restarts no longer discard
+all in-memory progress.
+
+\begin{table}[ht]
+\centering
+\caption{Completed run artifacts.}
+\begin{tabular}{ll}
+\toprule
+Item & Value \\
+\midrule
+Replications & 100 \\
+Rows per replication & 36 \\
+Total result rows & 3600 \\
+\texttt{rs\_joint} fits & 1800 \\
+\texttt{rs\_separate} fits & 1800 \\
+Checkpoint directory &
+\texttt{results/jss-replication/expanded/checkpoints/03-joint-vs-separate-optimization-100rep-outer16} \\
+Final result CSV &
+\texttt{results/jss-replication/expanded/data/03-joint-vs-separate-optimization-results.csv} \\
+Summary table &
+\texttt{results/jss-replication/expanded/tables/03-joint-vs-separate-optimization-summary.csv} \\
+Metric-win table &
+\texttt{results/jss-replication/expanded/tables/03-joint-vs-separate-optimization-metric-wins.csv} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Simulation Design}
+
+The formal run used the expanded profile for module 03,
+\texttt{03-joint-vs-separate-optimization}.  The simulation grid was built
+with \texttt{run\_coverage\_simulations()} and then fit with only the two
+longitudinal random-search methods, \texttt{rs\_separate} and
+\texttt{rs\_joint}.  Table~\ref{tab:settings} lists the settings used in the
+completed run.
+
+\begin{table}[ht]
+\centering
+\caption{Simulation settings used in the 100-replication run.}
+\label{tab:settings}
+\begin{tabular}{>{\ttfamily}ll}
+\toprule
+Setting & Value and role \\
+\midrule
+profile & \texttt{expanded}; writes under \texttt{results/jss-replication/expanded}. \\
+families & \texttt{NO}, \texttt{NBI}. \texttt{NO} is the normal response family; \texttt{NBI} is the negative-binomial type I count family. \\
+copulas & \texttt{N}, \texttt{C}, \texttt{G}. These are Gaussian, Clayton, and Gumbel copulas. \\
+designs & \texttt{intercept}, \texttt{covariate}, \texttt{time\_dependence}. Details are given below. \\
+n & 48 subjects per simulated data set. \\
+times & Four repeated measurements, \(\{1,2,3,4\}\), per subject before missingness. \\
+dependence & \texttt{strong}; used for constant-dependence designs. \\
+missingness & \texttt{none}; no responses were removed after simulation. \\
+methods & \texttt{rs\_separate}, \texttt{rs\_joint}. \\
+start\_mode & \texttt{default}; no truth-adjacent warm start was requested. \\
+max\_outer\_iter & 16. \\
+max\_inner\_iter & 8. \\
+max\_elapsed\_sec & 120 seconds per fit attempt. \\
+base seed & 20260528. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Response Families}
+
+The response distribution was generated from \texttt{gamlss.dist} families.
+For the two families used here, the coverage simulator applies conservative
+default parameters:
+
+\begin{itemize}
+  \item \texttt{NO}: \(\mu = 0\), \(\sigma = 1\).
+  \item \texttt{NBI}: \(\mu = 4\), \(\sigma = 0.5\).
+\end{itemize}
+
+These base values are used directly in the \texttt{intercept} and
+\texttt{time\_dependence} designs.  In the \texttt{covariate} design, the
+\(\mu\) parameter is modified by a subject-level covariate as described below.
+
+\subsection{Copula Families and Dependence Strength}
+
+The simulator uses a first-order longitudinal copula model between adjacent
+time points.  The included copula codes were:
+
+\begin{itemize}
+  \item \texttt{N}: Gaussian copula, parameterised by a correlation-like
+  \(\theta\) with Fisher-\(z\) link in the fitted model.
+  \item \texttt{C}: Clayton copula, parameterised internally through Kendall's
+  \(\tau\) in the simulator and a positive \(\theta\) link in the fitted model.
+  \item \texttt{G}: Gumbel copula, also generated from a Kendall's \(\tau\)
+  path and fit through the Gumbel parameter link.
+\end{itemize}
+
+For constant-dependence designs, the \texttt{strong} dependence setting maps to
+\(\rho = 0.65\) for the Gaussian copula and \(\tau = 0.55\) for the Clayton and
+Gumbel copulas.  For the \texttt{time\_dependence} design, the constant
+\texttt{strong} setting is replaced by a deterministic time-varying dependence
+path:
+
+\begin{itemize}
+  \item \texttt{N}: \(\theta(t) = 0.1 + 0.45\,s(t)\), where \(s(t)\) rescales
+  the left endpoint of each adjacent time pair to \([0,1]\).
+  \item \texttt{C} and \texttt{G}: \(\tau(t) = 0.1 + 0.3\,s(t)\).
+\end{itemize}
+
+With four time points, the adjacent pair left endpoints are \(1,2,3\), so the
+time-varying path is evaluated over three adjacent-pair dependence levels.
+
+\subsection{Designs}
+
+The three design settings control which part of the data-generating model is
+non-constant and which formulas are used when fitting each method.
+
+\paragraph{\texttt{intercept}.}
+All marginal parameters and the copula parameter are constant.  The fitted
+formulas are intercept-only for the margins and dependence:
+\[
+\mu \sim 1,\quad \sigma \sim 1,\quad \nu \sim 1,\quad \tau \sim 1,\quad
+\theta \sim 1,\quad \zeta \sim 1.
+\]
+
+\paragraph{\texttt{covariate}.}
+A subject-level covariate \(x\) is generated by rescaling the subject index to
+\([0,1]\) and then centering it.  The data-generating \(\mu\) parameter varies
+with this covariate.  For positive baseline means, the simulator uses
+\[
+\mu(x) = \mu_0 \exp(0.15x),
+\]
+while for non-positive baseline means it uses
+\[
+\mu(x) = \mu_0 + 0.15x.
+\]
+Thus, for \texttt{NO}, \(\mu(x)=0.15x\); for \texttt{NBI},
+\(\mu(x)=4\exp(0.15x)\).  The fitted formulas use \(x\) only in the mean
+submodel:
+\[
+\mu \sim x,\quad \sigma \sim 1,\quad \nu \sim 1,\quad \tau \sim 1,\quad
+\theta \sim 1,\quad \zeta \sim 1.
+\]
+
+\paragraph{\texttt{time\_dependence}.}
+The marginal response model remains intercept-only, but the adjacent-time
+copula dependence changes across time.  The fitted dependence formula is
+\[
+\theta \sim \text{time},
+\]
+with the other marginal parameters held at intercept-only formulas.  This
+design is the one that directly tests recovery of time-varying dependence; it
+is also why \texttt{benchmark\_theta\_time\_abs\_error} is finite only for the
+time-dependence scenarios.
+
+\subsection{Replication and Seeding}
+
+For replication \(r\), the module called
+\texttt{run\_coverage\_simulations()} with seed
+\[
+20260528 + 3000 + 100r.
+\]
+Inside the coverage grid runner, the individual case seed is offset again by
+the case index \(i\), giving effective case-level seeds
+\[
+20260528 + 3000 + 100r + i.
+\]
+This made each family--copula--design--method cell reproducible while avoiding
+identical random streams across cells.
+
+\subsection{Optimisation Settings}
+
+Both methods were run with the same outer, inner, and elapsed-time caps.  The
+\texttt{rs\_separate} method optimises marginal and dependence components in a
+separate/backfitting-style sequence, while \texttt{rs\_joint} evaluates the
+joint marginal-plus-copula objective in the random-search loop.  The increased
+\texttt{max\_outer\_iter = 16} and \texttt{max\_elapsed\_sec = 120} settings
+were chosen after the 10-replication calibration showed that the lower-cap
+joint run had avoidable non-convergence.
+
+Each replication therefore contained
+\[
+2 \text{ families} \times 3 \text{ copulas} \times 3 \text{ designs}
+\times 2 \text{ methods} = 36
+\]
+fits.  Across 100 replications, this gives 1800 paired comparison cells and
+3600 fitted-model rows.
+
+\section{Candidate Set}
+
+The module first mined retained exploratory summaries and selected seven
+candidate cases for review.  These candidates determined the copula set used by
+the formal grid.  Five were classified as \texttt{joint\_win}, one as
+\texttt{tie\_control}, and one as \texttt{cautionary}.
+
+\begin{table}[ht]
+\centering
+\caption{Selected candidate sources.}
+\begin{tabular}{llll}
+\toprule
+Candidate & Role & Copula & Source \\
+\midrule
+\texttt{jvs-01} & \texttt{joint\_win} & \texttt{N} &
+\texttt{top\_cases\_loglik\_logscore\_all\_rmse\_improved} \\
+\texttt{jvs-02} & \texttt{joint\_win} & \texttt{N} &
+\texttt{stress\_balanced\_candidates} \\
+\texttt{jvs-03} & \texttt{joint\_win} & \texttt{C} &
+\texttt{top\_cases\_loglik\_logscore\_all\_rmse\_improved} \\
+\texttt{jvs-04} & \texttt{joint\_win} & \texttt{N} &
+\texttt{stress\_balanced\_candidates} \\
+\texttt{jvs-05} & \texttt{joint\_win} & \texttt{N} &
+\texttt{stress\_balanced\_candidates} \\
+\texttt{jvs-06} & \texttt{tie\_control} & \texttt{G} &
+\texttt{top\_cases\_loglik\_logscore\_all\_rmse\_improved} \\
+\texttt{jvs-07} & \texttt{cautionary} & \texttt{C} &
+\texttt{joint\_vs\_separate\_delta\_summary} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Overall Completion, Convergence, and Runtime}
+
+Both methods completed most fits, but the separate optimiser retained a clear
+convergence advantage.  The joint optimiser's convergence improved relative to
+the earlier low-cap pilot, but did not reach parity with the separate method.
+
+\begin{table}[ht]
+\centering
+\caption{Overall method-level completion and runtime.}
+\begin{tabular}{lrrrrr}
+\toprule
+Method & Fits & Success rate & Convergence rate & Median sec. & Mean sec. \\
+\midrule
+\texttt{rs\_joint} & 1800 & 0.966 & 0.861 & 5.10 & 15.68 \\
+\texttt{rs\_separate} & 1800 & 0.983 & 0.982 & 1.71 & 9.35 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\caption{Completion and runtime by response family.}
+\begin{tabular}{llrrrr}
+\toprule
+Method & Family & Success rate & Convergence rate & Median sec. & Mean sec. \\
+\midrule
+\texttt{rs\_joint} & \texttt{NBI} & 0.932 & 0.863 & 13.14 & 28.17 \\
+\texttt{rs\_separate} & \texttt{NBI} & 0.967 & 0.967 & 5.67 & 17.68 \\
+\texttt{rs\_joint} & \texttt{NO} & 1.000 & 0.858 & 2.31 & 3.19 \\
+\texttt{rs\_separate} & \texttt{NO} & 1.000 & 0.998 & 0.74 & 1.02 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Additional Fit Outcomes}
+
+The result table also records diagnostic fit outcomes beyond success,
+convergence, and runtime.  These include convergence-timeout classifications,
+warnings, marginal fallback use, likelihood components, parameter recovery
+errors, and fitted dependence summaries.  Table~\ref{tab:additional-fit}
+summarises the most informative populated fields.
+
+\begin{table}[ht]
+\centering
+\caption{Additional method-level fit outcomes.}
+\label{tab:additional-fit}
+\begin{tabular}{lrr}
+\toprule
+Outcome & \texttt{rs\_joint} & \texttt{rs\_separate} \\
+\midrule
+Convergence-timeout rate & 0.034 & 0.017 \\
+Warning rate & 0.188 & 0.083 \\
+Marginal fallback rate & 0.000 & 0.000 \\
+Median joint log-likelihood & -269.50 & -273.19 \\
+Median marginal log-likelihood & -297.26 & -299.36 \\
+Median copula log-likelihood & 41.63 & 40.29 \\
+Median max. absolute parameter error & 0.333 & 0.336 \\
+Median absolute copula-\(\tau\) error & 0.055 & 0.057 \\
+90th percentile elapsed sec. & 42.14 & 23.44 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All recorded failures were classified as convergence timeouts; there were no
+marginal fallback fits in either method, and all fits used the default attempt
+path.  The unpaired method-level medians suggest slightly higher likelihoods
+and slightly smaller parameter errors for \texttt{rs\_joint}, but the paired
+finite deltas were close to neutral: mean paired joint-log-likelihood delta was
+\(-0.32\), median paired joint-log-likelihood delta was \(-0.35\), and joint
+won 49.1\% of finite paired likelihood comparisons.  For maximum absolute
+parameter error, joint had a small paired advantage, with mean separate-minus-
+joint error \(0.0031\), median \(0.0029\), and a 51.0\% joint win rate.  For
+absolute copula-\(\tau\) error, the sign reversed slightly: mean
+separate-minus-joint error was \(-0.0021\), median \(-0.0012\), and the joint
+win rate was 48.9\%.
+
+\section{Metric-Win Results}
+
+The metric-win table compares methods within paired simulation cells.  For
+error and scoring metrics, lower raw values are better; for
+\texttt{benchmark\_pit\_ks\_p\_value}, larger values are better.  Runtime is
+also treated as a metric where lower is better.  Some metrics have fewer finite
+comparisons because failures or non-finite benchmark quantities remove paired
+cells from that metric.
+
+\begin{table}[ht]
+\centering
+\caption{Selected metric win and win-or-tie rates.}
+\begin{tabular}{llrrrr}
+\toprule
+Metric & Method & Finite \(n\) & Wins & Win rate & Win/tie rate \\
+\midrule
+\texttt{neg\_log\_score} & \texttt{rs\_joint} & 1739 & 871 & 0.492 & 0.785 \\
+\texttt{neg\_log\_score} & \texttt{rs\_separate} & 1770 & 901 & 0.508 & 0.796 \\
+\texttt{mean\_rmse} & \texttt{rs\_joint} & 1739 & 879 & 0.496 & 0.517 \\
+\texttt{mean\_rmse} & \texttt{rs\_separate} & 1770 & 893 & 0.504 & 0.517 \\
+\texttt{q90\_mae} & \texttt{rs\_joint} & 1739 & 1032 & 0.582 & 0.597 \\
+\texttt{q90\_mae} & \texttt{rs\_separate} & 1770 & 1021 & 0.576 & 0.589 \\
+\texttt{theta\_time\_abs\_error} & \texttt{rs\_joint} & 600 & 309 & 0.515 & 0.530 \\
+\texttt{theta\_time\_abs\_error} & \texttt{rs\_separate} & 600 & 291 & 0.485 & 0.495 \\
+\texttt{lower\_tail\_error\_05} & \texttt{rs\_joint} & 1739 & 1309 & 0.739 & 0.739 \\
+\texttt{lower\_tail\_error\_05} & \texttt{rs\_separate} & 1770 & 1387 & 0.783 & 0.783 \\
+\texttt{upper\_tail\_error\_05} & \texttt{rs\_joint} & 1739 & 939 & 0.530 & 0.532 \\
+\texttt{upper\_tail\_error\_05} & \texttt{rs\_separate} & 1770 & 1027 & 0.580 & 0.580 \\
+\texttt{pit\_mean\_abs\_error} & \texttt{rs\_joint} & 1739 & 792 & 0.447 & 0.507 \\
+\texttt{pit\_mean\_abs\_error} & \texttt{rs\_separate} & 1770 & 980 & 0.553 & 0.601 \\
+\texttt{interval\_coverage\_95} & \texttt{rs\_joint} & 1739 & 960 & 0.542 & 0.542 \\
+\texttt{interval\_coverage\_95} & \texttt{rs\_separate} & 1770 & 1089 & 0.615 & 0.615 \\
+\texttt{elapsed\_sec} & \texttt{rs\_joint} & 1800 & 117 & 0.065 & 0.081 \\
+\texttt{elapsed\_sec} & \texttt{rs\_separate} & 1800 & 1683 & 0.935 & 0.943 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Scenario-Level Deltas}
+
+Table~\ref{tab:scenario-deltas} reports scenario-level averages for the paired
+comparison.  The delta columns use the sign convention:
+
+\[
+\Delta_{\mathrm{error}} =
+\text{separate error} - \text{joint error},
+\]
+so positive values favour the joint method for error and score metrics.  For
+joint log-likelihood,
+\[
+\Delta_{\log L} =
+\log L_{\mathrm{joint}} - \log L_{\mathrm{separate}},
+\]
+so positive values also favour the joint method.  For elapsed time,
+\[
+\Delta_{\mathrm{time}} =
+\text{separate sec.} - \text{joint sec.},
+\]
+so negative values indicate that the joint method was slower.
+
+\begin{landscape}
+\begin{longtable}{lllrrrrrrrr}
+\caption{Scenario-level paired deltas, ordered by core win rate.}
+\label{tab:scenario-deltas}\\
+\toprule
+Family & Copula & Design & Joint conv. & Sep. conv. & Core win &
+\(\Delta\) NLS & \(\Delta\) mean RMSE & \(\Delta\) q90 &
+\(\Delta\theta(t)\) & \(\Delta\) sec. \\
+\midrule
+\endfirsthead
+\toprule
+Family & Copula & Design & Joint conv. & Sep. conv. & Core win &
+\(\Delta\) NLS & \(\Delta\) mean RMSE & \(\Delta\) q90 &
+\(\Delta\theta(t)\) & \(\Delta\) sec. \\
+\midrule
+\endhead
+\texttt{NO} & \texttt{G} & \texttt{intercept} & 0.74 & 1.00 & 0.533 & -0.011 & 0.018 & 0.021 & -- & -3.219 \\
+\texttt{NO} & \texttt{N} & \texttt{intercept} & 1.00 & 1.00 & 0.525 & 0.013 & 0.019 & 0.011 & -- & -1.476 \\
+\texttt{NO} & \texttt{C} & \texttt{time\_dependence} & 1.00 & 0.99 & 0.508 & 0.000 & 0.001 & -0.001 & 0.040 & -1.396 \\
+\texttt{NO} & \texttt{G} & \texttt{time\_dependence} & 1.00 & 0.99 & 0.504 & -0.007 & 0.012 & 0.003 & -0.019 & -1.307 \\
+\texttt{NO} & \texttt{C} & \texttt{intercept} & 0.58 & 1.00 & 0.498 & 0.010 & -0.013 & 0.016 & -- & -2.973 \\
+\texttt{NO} & \texttt{N} & \texttt{covariate} & 1.00 & 1.00 & 0.495 & -0.017 & 0.010 & 0.007 & -- & -1.452 \\
+\texttt{NO} & \texttt{G} & \texttt{covariate} & 0.77 & 1.00 & 0.478 & 0.004 & 0.012 & 0.006 & -- & -3.263 \\
+\texttt{NO} & \texttt{N} & \texttt{time\_dependence} & 1.00 & 1.00 & 0.464 & 0.011 & -0.003 & -0.007 & -0.006 & -0.674 \\
+\texttt{NO} & \texttt{C} & \texttt{covariate} & 0.63 & 1.00 & 0.455 & -0.012 & -0.014 & -0.003 & -- & -3.751 \\
+\texttt{NBI} & \texttt{G} & \texttt{time\_dependence} & 0.98 & 0.98 & 0.400 & 0.034 & 0.042 & 0.020 & 0.034 & -2.776 \\
+\texttt{NBI} & \texttt{N} & \texttt{covariate} & 0.43 & 0.73 & 0.378 & -0.017 & 0.024 & 0.062 & -- & -23.441 \\
+\texttt{NBI} & \texttt{N} & \texttt{time\_dependence} & 1.00 & 1.00 & 0.362 & 0.005 & 0.027 & -0.060 & 0.013 & -18.264 \\
+\texttt{NBI} & \texttt{C} & \texttt{intercept} & 0.89 & 1.00 & 0.360 & -0.004 & 0.044 & 0.180 & -- & -5.776 \\
+\texttt{NBI} & \texttt{G} & \texttt{intercept} & 0.85 & 1.00 & 0.355 & -0.004 & 0.095 & 0.180 & -- & -6.504 \\
+\texttt{NBI} & \texttt{C} & \texttt{time\_dependence} & 0.99 & 0.99 & 0.352 & -0.007 & 0.014 & 0.160 & -0.058 & -2.882 \\
+\texttt{NBI} & \texttt{N} & \texttt{intercept} & 1.00 & 1.00 & 0.348 & 0.003 & 0.025 & 0.090 & -- & -17.566 \\
+\texttt{NBI} & \texttt{G} & \texttt{covariate} & 0.76 & 1.00 & 0.313 & -0.010 & -0.140 & -0.153 & -- & -9.353 \\
+\texttt{NBI} & \texttt{C} & \texttt{covariate} & 0.87 & 1.00 & 0.295 & -0.012 & -0.089 & -0.118 & -- & -7.847 \\
+\bottomrule
+\end{longtable}
+\end{landscape}
+
+\section{Interpretation}
+
+The 100-replication run gives a more conservative picture than the earlier
+10-replication calibration.  The joint method is competitive on selected
+prediction and dependence-recovery metrics, but it does not dominate the
+separate method overall.
+
+\paragraph{Where joint optimisation helped most.}
+The clearest joint-favouring scenarios were in the Gaussian/normal family.  The
+\texttt{NO + G + intercept} and \texttt{NO + N + intercept} scenarios had the
+highest core win rates.  The \texttt{NO + C + time\_dependence} case is still a
+useful example because both methods converged reliably and the joint method
+showed a positive mean gain on the time-varying dependence error.  Across all
+finite paired cells, the joint method had a small edge on
+\texttt{benchmark\_q90\_mae} and \texttt{benchmark\_theta\_time\_abs\_error}.
+
+\paragraph{Where separate optimisation remained stronger.}
+The separate method remained substantially faster.  It won or tied on runtime
+in 94.3\% of paired comparisons, while the joint method won or tied in only
+8.1\%.  Separate optimisation also retained better global convergence:
+98.2\% versus 86.1\%.  Calibration and tail metrics generally leaned separate,
+especially \texttt{benchmark\_pit\_mean\_abs\_error},
+\texttt{benchmark\_tail\_error\_lower\_05}, and
+\texttt{benchmark\_tail\_error\_upper\_05}.
+
+\paragraph{Family-level pattern.}
+The \texttt{NBI} scenarios were materially harder.  Joint optimisation had
+lower success and convergence rates for \texttt{NBI}, and some
+\texttt{NBI + N} cells were especially slow.  Even where the joint method
+improved some predictive metrics in \texttt{NBI}, it often did so with much
+larger runtime costs and weaker convergence.
+
+\paragraph{Bottom line.}
+The full run supports a nuanced conclusion: increasing the iteration cap made
+joint optimisation viable enough for review, but it did not make joint
+optimisation the uniformly preferred method.  Joint optimisation is best framed
+as a targeted option that can improve upper-quantile prediction or
+time-varying dependence recovery in some Gaussian scenarios, while separate
+optimisation remains the more stable and computationally efficient default.
+
+\section{Figures}
+
+The completed run also produced two diagnostic figures:
+
+\begin{itemize}
+  \item
+  \texttt{results/jss-replication/expanded/figures/03-joint-vs-separate-optimization-deltas.png}
+  \item
+  \texttt{results/jss-replication/expanded/figures/03-joint-vs-separate-optimization-metric-dashboard.png}
+\end{itemize}
+
+These are not embedded here to keep the LaTeX source portable across working
+directories, but they should be reviewed alongside this note.
+
+\end{document}

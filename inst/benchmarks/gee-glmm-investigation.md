@@ -359,8 +359,10 @@ metrics:
 
 ## Open Implementation Questions
 
-- GEEs target marginal mean parameters; GLMMs target conditional mean
-  parameters. Benchmarks must state the estimand before comparing bias.
+- GEEs target marginal mean parameters; GLMM coefficient estimates remain
+  conditional-model estimates, but benchmark response-mean predictions are
+  scored with population-level fixed-effect predictions when compared against
+  marginal truth.
 - Some GLMM competitors cannot represent heteroskedasticity or arbitrary GAMLSS
   shape parameters. Those should be labelled as unsupported rather than failed.
 - `glmmTMB` should remain optional because it is valuable but heavy; benchmark

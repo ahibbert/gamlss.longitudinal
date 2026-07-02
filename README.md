@@ -16,7 +16,7 @@ library(gamlss.longitudinal)
 
 ## Start here
 
-For a full overview of available support articles / vignettes: [Article guide](https://ahibbert.github.io/gamlss.longitudinal/articles/site-guide.html)
+For a full overview of available support articles / vignettes: [Article guide](https://gamlsslongitudinal.aydins-workbench.com/articles/site-guide.html)
 
 After installation, you can run a fast end-to-end smoke test to ensure key components have been loaded correctly with:
 
@@ -26,14 +26,14 @@ source(system.file("smoke-tests", "new-user-smoke.R", package = "gamlss.longitud
 
 Two workflow examples to get started:
 
-- [Minimal workflow](https://ahibbert.github.io/gamlss.longitudinal/articles/standard-workflow.html)
-- [Detailed worked example](https://ahibbert.github.io/gamlss.longitudinal/articles/native-simulation-workflow.html)
+- [Minimal workflow](https://gamlsslongitudinal.aydins-workbench.com/articles/standard-workflow.html)
+- [Detailed worked example](https://gamlsslongitudinal.aydins-workbench.com/articles/native-simulation-workflow.html)
 
 Reference guides for specific parts of the workflow:
 
-- [Inference](https://ahibbert.github.io/gamlss.longitudinal/articles/inference-uncertainty.html)
-- [Diagnostics](https://ahibbert.github.io/gamlss.longitudinal/articles/diagnostics-decisions.html)
-- [Simulator usage](https://ahibbert.github.io/gamlss.longitudinal/articles/simulator-usage.html)
+- [Inference](https://gamlsslongitudinal.aydins-workbench.com/articles/inference-uncertainty.html)
+- [Diagnostics](https://gamlsslongitudinal.aydins-workbench.com/articles/diagnostics-decisions.html)
+- [Simulator usage](https://gamlsslongitudinal.aydins-workbench.com/articles/simulator-usage.html)
 
 ## Review and reproducibility
 
