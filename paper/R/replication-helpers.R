@@ -17,6 +17,93 @@ jss_settings <- function() {
   )
 }
 
+jss_module_paths <- function(settings, module_id) {
+  list(
+    data = file.path(settings$data_dir, paste0(module_id, "-data.csv")),
+    table = file.path(settings$tables_dir, paste0(module_id, "-status.csv")),
+    figure = file.path(settings$figures_dir, paste0(module_id, "-stub.png"))
+  )
+}
+
+jss_external_data_status <- function(envvar = NULL) {
+  if (is.null(envvar) || is.na(envvar) || !nzchar(envvar)) {
+    return(list(envvar = NA_character_, status = "not_required"))
+  }
+  value <- Sys.getenv(envvar, unset = "")
+  if (!nzchar(value)) {
+    return(list(envvar = envvar, status = "not_set"))
+  }
+  list(
+    envvar = envvar,
+    status = if (file.exists(value)) "available" else "path_not_found"
+  )
+}
+
+jss_write_stub_module <- function(settings, module_id, title, family, copula,
+                                  focus, planned_outputs,
+                                  external_envvar = NULL,
+                                  external_data_note = "not required") {
+  paths <- jss_module_paths(settings, module_id)
+  external <- jss_external_data_status(external_envvar)
+  data <- data.frame(
+    module_id = module_id,
+    title = title,
+    profile = settings$profile,
+    analysis_state = "stub",
+    family = family,
+    copula = copula,
+    focus = focus,
+    external_data_envvar = external$envvar,
+    external_data_status = external$status,
+    external_data_note = external_data_note,
+    stringsAsFactors = FALSE
+  )
+  utils::write.csv(data, paths$data, row.names = FALSE)
+
+  output_rows <- data.frame(
+    module_id = module_id,
+    artifact = c("data", "table", "figure"),
+    path = unlist(paths, use.names = FALSE),
+    status = "stub",
+    planned_outputs = planned_outputs,
+    stringsAsFactors = FALSE
+  )
+  utils::write.csv(output_rows, paths$table, row.names = FALSE)
+
+  plot_data <- data.frame(
+    stage = c("pipeline", "analysis", "paper output"),
+    complete = c(1, 0, 0)
+  )
+  p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = stage, y = complete, fill = stage)) +
+    ggplot2::geom_col(width = 0.7, show.legend = FALSE) +
+    ggplot2::coord_cartesian(ylim = c(0, 1)) +
+    ggplot2::scale_y_continuous(breaks = c(0, 1), labels = c("pending", "stub ready")) +
+    ggplot2::labs(
+      title = paste("STUB:", title),
+      subtitle = "Pipeline artifact only; final JSS analysis is pending.",
+      x = NULL,
+      y = NULL
+    ) +
+    ggplot2::theme_minimal(base_size = 11)
+  ggplot2::ggsave(paths$figure, p, width = 7, height = 4.5, dpi = 220, bg = "white")
+
+  list(
+    module_id = module_id,
+    title = title,
+    status = "stub",
+    data = paths$data,
+    tables = paths$table,
+    figures = paths$figure,
+    notes = planned_outputs
+  )
+}
+
+jss_collect_module_files <- function(...) {
+  modules <- list(...)
+  files <- unlist(lapply(modules, function(x) c(x$data, x$tables, x$figures)), use.names = FALSE)
+  unique(files[file.exists(files)])
+}
+
 jss_methods <- function(profile) {
   methods <- c("gamlss", "rs_separate", "rs_joint", "cg")
   if (identical(profile, "expanded") && requireNamespace("gamlss2", quietly = TRUE)) {
