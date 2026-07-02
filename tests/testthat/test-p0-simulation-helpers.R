@@ -20,6 +20,52 @@ test_that("simulate_longitudinal_dataset returns balanced long data", {
   expect_equal(dat$true_theta[dat$time != "t1"], rep(0.2, 12))
 })
 
+test_that("simulation seed helper restores caller RNG state", {
+  if (exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)) {
+    old_seed <- get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+    on.exit(assign(".Random.seed", old_seed, envir = .GlobalEnv), add = TRUE)
+  } else {
+    on.exit({
+      if (exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)) {
+        rm(".Random.seed", envir = .GlobalEnv)
+      }
+    }, add = TRUE)
+  }
+
+  set.seed(999)
+  before <- get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+  restore <- gamlss.longitudinal:::.sim_set_seed_restore(123)
+  expect_false(identical(get(".Random.seed", envir = .GlobalEnv, inherits = FALSE), before))
+  expect_invisible(restore())
+  expect_identical(get(".Random.seed", envir = .GlobalEnv, inherits = FALSE), before)
+
+  rm(".Random.seed", envir = .GlobalEnv)
+  restore <- gamlss.longitudinal:::.sim_set_seed_restore(123)
+  expect_true(exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE))
+  expect_invisible(restore())
+  expect_false(exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE))
+})
+
+test_that("simulation uniform bounds helper validates and clamps uniforms", {
+  u <- c(0, 0.1, 0.9, 1)
+
+  expect_equal(gamlss.longitudinal:::.sim_apply_u_bounds(u, NULL), u)
+  expect_equal(
+    gamlss.longitudinal:::.sim_apply_u_bounds(u, c(0.05, 0.95)),
+    c(0.05, 0.1, 0.9, 0.95)
+  )
+  expect_error(
+    gamlss.longitudinal:::.sim_validate_u_bounds(c(0.5, 0.5)),
+    "finite increasing",
+    fixed = TRUE
+  )
+  expect_error(
+    gamlss.longitudinal:::.sim_validate_u_bounds(c(-0.1, 0.9)),
+    "inside [0, 1]",
+    fixed = TRUE
+  )
+})
+
 test_that("simulate_longitudinal_dataset supports function and time-varying parameters", {
   dat <- simulate_longitudinal_dataset(
     n = 5,
@@ -99,6 +145,78 @@ test_that("simulate_longitudinal_covariates expands subject and observation cova
   expect_true(all(c("group", "time_scaled") %in% names(dat)))
   expect_equal(length(unique(dat$group[dat$subject == "1"])), 1)
   expect_equal(unique(dat$time_scaled), c(0, 0.5, 1))
+})
+
+test_that("fitted-model newdata simulation builds a deterministic time grid", {
+  nd <- data.frame(
+    subject = c("a", "a", "b", "b"),
+    time = c(2, 1, 2, 1),
+    response = NA_real_
+  )
+  object <- list(response_margin = 1:3)
+
+  grid <- .gl_simulation_time_grid(nd, object)
+
+  expect_equal(grid$time_for_grid, nd$time)
+  expect_equal(grid$time_levels, 1:3)
+  expect_equal(grid$time_idx, c(2, 1, 2, 1))
+})
+
+test_that("fitted-model newdata simulation respects factor time order", {
+  nd <- data.frame(
+    subject = c("a", "a", "b", "b"),
+    time = c(1, 2, 1, 2),
+    time_covariate = factor(c("followup", "baseline", "followup", "baseline"),
+      levels = c("baseline", "followup", "later")
+    ),
+    response = NA_real_
+  )
+  object <- list(response_margin = factor(character(), levels = c("baseline", "followup", "later")))
+
+  grid <- .gl_simulation_time_grid(nd, object)
+
+  expect_equal(grid$time_for_grid, nd$time_covariate)
+  expect_equal(grid$time_levels, c("baseline", "followup", "later"))
+  expect_equal(grid$time_idx, c(2, 1, 2, 1))
+})
+
+test_that("fitted-model newdata simulation rejects duplicate subject-time rows", {
+  nd <- data.frame(
+    subject = c("a", "a"),
+    time = c(1, 1),
+    response = NA_real_
+  )
+  object <- list(response_margin = 1:2)
+
+  expect_error(
+    .gl_simulation_time_grid(nd, object),
+    "at most one row per subject/time",
+    fixed = TRUE
+  )
+})
+
+test_that("fitted-model newdata simulation aligns dependence parameters", {
+  nd_eval <- data.frame(
+    .gl_sim_time_idx = c(1L, 2L, 3L, 1L, 2L, 3L)
+  )
+  time_levels <- 1:3
+
+  expect_equal(
+    .gl_simulation_align_dependence_parameter(numeric(0), 6L, nd_eval, time_levels),
+    rep(NA_real_, 6)
+  )
+  expect_equal(
+    .gl_simulation_align_dependence_parameter(11:16, 6L, nd_eval, time_levels),
+    as.numeric(11:16)
+  )
+  expect_equal(
+    .gl_simulation_align_dependence_parameter(c(0.2, 0.4, 0.6, 0.8), 6L, nd_eval, time_levels),
+    c(0.2, 0.4, NA, 0.6, 0.8, NA)
+  )
+  expect_equal(
+    .gl_simulation_align_dependence_parameter(c(3, 4), 6L, nd_eval, time_levels),
+    c(3, 4, 3, 4, 3, 4)
+  )
 })
 
 test_that("simulate_longitudinal_dataset runs across native copula families", {
