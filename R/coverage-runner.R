@@ -234,6 +234,8 @@ run_coverage_simulations <- function(
 
 #'   `"scale"`, `"time_dependence"`, or `"smooth"`.
 
+#' @noRd
+
 # ---- coverage-runner-case.R ----
 
 .coverage_run_case <- function(
