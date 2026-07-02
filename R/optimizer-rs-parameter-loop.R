@@ -86,6 +86,7 @@
         dataset = dataset,
         pair_cache = pair_cache,
         margin_eval_cache = margin_eval_cache,
+        current_calc_lik_out = if (exists("calc_lik_out_end", inherits = FALSE)) calc_lik_out_end else NULL,
         first_outer_run = first_outer_run,
         outer_start_log_lik = outer_start_log_lik,
         timer = timer,
