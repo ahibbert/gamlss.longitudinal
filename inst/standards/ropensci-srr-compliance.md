@@ -19,6 +19,15 @@ Status meanings:
   release work are needed before claiming full compliance.
 - Not applicable: intentionally out of package scope, with rationale documented.
 
+Latest local evidence, 2026-06-14 on Windows 11 x64 with R 4.4.1:
+`devtools::document()`, `devtools::test(reporter = "summary")`, opt-in extended
+`testthat::test_dir()`, `R CMD build .`, `R CMD check --as-cran --no-manual`,
+`urlchecker::url_check()`, `spelling::spell_check_package()`, the new-user smoke
+test, and the default JSS smoke replication all passed. The CRAN-style check had
+0 ERRORs, 0 WARNINGs, and 3 NOTEs: new submission plus optional `gamlss2`
+availability via `Additional_repositories`, local time verification, and
+unavailable local pandoc for checking `README.md`/`NEWS.md`.
+
 ## General Standards
 
 | ID | Status | Evidence / change needed |
@@ -28,7 +37,7 @@ Status meanings:
 | G1.2 | Met | README includes a lifecycle statement. |
 | G1.3 | Met | CONTRIBUTING defines the main statistical and workflow terms. |
 | G1.4 | Met | User-facing functions are roxygen2 documented and Rd files are generated. |
-| G1.4a | Met | Dense numerical/backend internals in `R/likelihood.R`, `R/model-fit.R`, `R/model-matrix.R`, `R/model-vcov.R`, `R/hessian-*.R`, and `R/copula-backend-*.R` have concise `@noRd` roxygen context. |
+| G1.4a | Met | Dense numerical/backend internals in `R/likelihood-*.R`, `R/model-fit.R`, `R/model-matrix.R`, `R/model-vcov.R`, `R/hessian-*.R`, and `R/copula-backend-*.R` have concise `@noRd` roxygen context. |
 | G1.5 | Met | Reproduction and benchmark scaffolds are under `inst/jss-replication` and `inst/benchmarks`. |
 | G1.6 | Met | Comparator helpers support GEE, GLMM, GAM, and GAMLSS baselines when optional dependencies are present. |
 | G2.0 | Met | Length/scalar assertions exist for core controls and fitting inputs. |
