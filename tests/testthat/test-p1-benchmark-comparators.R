@@ -360,6 +360,58 @@ test_that("benchmark_standard_models reports truth-aware quantile and tail metri
   expect_true(is.finite(bench$results$benchmark_upper_tail_error_90))
 })
 
+test_that("GLMM benchmark mean RMSE uses population-level predictions", {
+  skip_if_not_installed("lme4")
+
+  set.seed(42)
+  n_subject <- 18L
+  n_time <- 4L
+  subject <- factor(rep(seq_len(n_subject), each = n_time))
+  time <- rep(seq_len(n_time), times = n_subject)
+  x <- stats::rnorm(n_subject * n_time)
+  true_mu <- 1 + 0.35 * time - 0.2 * x
+  subject_intercept <- rep(seq(-1.25, 1.25, length.out = n_subject), each = n_time)
+
+  dat <- data.frame(
+    y = true_mu + subject_intercept + stats::rnorm(n_subject * n_time, sd = 0.04),
+    subject = subject,
+    time = time,
+    x = x,
+    true_mu = true_mu,
+    true_sigma = 0.04
+  )
+
+  bench <- benchmark_standard_models(
+    data = dat,
+    formula = y ~ time + x,
+    subject_var = "subject",
+    family = "gaussian",
+    comparators = "glmm",
+    truth_family = "NO"
+  )
+
+  fit <- bench$fits$glmm
+  population_pred <- stats::predict(
+    fit,
+    newdata = dat,
+    type = "response",
+    re.form = NA,
+    allow.new.levels = TRUE
+  )
+  conditional_pred <- stats::predict(
+    fit,
+    newdata = dat,
+    type = "response",
+    allow.new.levels = TRUE
+  )
+
+  population_rmse <- sqrt(mean((population_pred - dat$true_mu)^2))
+  conditional_rmse <- sqrt(mean((conditional_pred - dat$true_mu)^2))
+
+  expect_equal(bench$results$benchmark_mean_rmse, population_rmse, tolerance = 1e-8)
+  expect_lt(population_rmse, conditional_rmse)
+})
+
 test_that("benchmark_standard_models fits GEE and GLMM comparators when installed", {
   skip_if_not_installed("geepack")
   skip_if_not_installed("lme4")

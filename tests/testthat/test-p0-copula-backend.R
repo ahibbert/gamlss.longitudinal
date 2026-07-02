@@ -299,6 +299,28 @@ test_that("native t df first derivative matches VineCopula", {
   expect_equal(.copula_deriv(u1, u2, "t", rho, df, deriv = "par2", log = TRUE), dlogddf_vine, tolerance = 1e-5)
 })
 
+test_that("native t multi-derivative helper matches scalar derivative calls", {
+  u1 <- seq(0.12, 0.88, length.out = 8)
+  u2 <- rev(seq(0.18, 0.82, length.out = 8))
+  rho <- seq(0.25, 0.55, length.out = 8)
+  df <- seq(3.5, 7, length.out = 8)
+
+  out <- .copula_t_deriv_many(
+    u1,
+    u2,
+    rho,
+    df,
+    derivs = c("u1", "u2", "par", "par2"),
+    log = c(u1 = FALSE, u2 = FALSE, par = TRUE, par2 = TRUE)
+  )
+
+  expect_equal(out$u1, .copula_t_deriv(u1, u2, rho, df, deriv = "u1", log = FALSE))
+  expect_equal(out$u2, .copula_t_deriv(u1, u2, rho, df, deriv = "u2", log = FALSE))
+  expect_equal(out$par, .copula_t_deriv(u1, u2, rho, df, deriv = "par", log = TRUE))
+  expect_equal(out$par2, .copula_t_deriv(u1, u2, rho, df, deriv = "par2", log = TRUE))
+  expect_equal(attr(out, "density"), .copula_t_pdf(u1, u2, rho, df))
+})
+
 test_that("native t copula fit matches stored regression values", {
   suppressPackageStartupMessages({
     library(gamlss)
