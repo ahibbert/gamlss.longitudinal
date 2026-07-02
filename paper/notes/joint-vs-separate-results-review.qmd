@@ -1,0 +1,355 @@
+---
+title: "Joint versus Separate Optimization: Results Review"
+subtitle: "Module 03 candidate selection and expanded review simulation"
+date: "2026-06-12"
+format:
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+    geometry:
+      - margin=18mm
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+candidate_path <- file.path(
+  "..", "..", "results", "jss-replication", "expanded", "data",
+  "03-joint-vs-separate-optimization-candidate-selection.csv"
+)
+results_path <- file.path(
+  "..", "..", "results", "jss-replication", "expanded", "data",
+  "03-joint-vs-separate-optimization-results.csv"
+)
+summary_path <- file.path(
+  "..", "..", "results", "jss-replication", "expanded", "tables",
+  "03-joint-vs-separate-optimization-summary.csv"
+)
+metric_path <- file.path(
+  "..", "..", "results", "jss-replication", "expanded", "tables",
+  "03-joint-vs-separate-optimization-metric-wins.csv"
+)
+delta_figure <- file.path(
+  "..", "..", "results", "jss-replication", "expanded", "figures",
+  "03-joint-vs-separate-optimization-deltas.png"
+)
+dashboard_figure <- file.path(
+  "..", "..", "results", "jss-replication", "expanded", "figures",
+  "03-joint-vs-separate-optimization-metric-dashboard.png"
+)
+
+candidates <- read.csv(candidate_path, stringsAsFactors = FALSE)
+results <- read.csv(results_path, stringsAsFactors = FALSE)
+metric_wins <- read.csv(metric_path, stringsAsFactors = FALSE)
+
+fmt <- function(x, digits = 3) {
+  ifelse(is.na(x), "", format(signif(x, digits), trim = TRUE, scientific = FALSE))
+}
+
+metric_label <- c(
+  benchmark_mean_rmse = "Mean RMSE",
+  benchmark_mean_mae = "Mean MAE",
+  benchmark_mean_bias = "Mean bias",
+  benchmark_rmse = "Observed RMSE",
+  benchmark_mae = "Observed MAE",
+  benchmark_q90_mae = "90th percentile MAE",
+  benchmark_neg_log_score = "Negative log score",
+  benchmark_upper_tail_error_90 = "90th percentile upper-tail error",
+  benchmark_theta_time_abs_error = "Theta time absolute error",
+  benchmark_interval_coverage_95 = "95% interval coverage",
+  benchmark_interval_width_95 = "95% interval width",
+  benchmark_pit_mean_abs_error = "PIT mean absolute error",
+  benchmark_pit_ks_p_value = "PIT KS p-value",
+  benchmark_tail_error_lower_05 = "Lower 5% tail error",
+  benchmark_tail_error_upper_05 = "Upper 5% tail error",
+  elapsed_sec = "Runtime"
+)
+
+score_rule <- c(
+  benchmark_interval_coverage_95 = "closer to 0.95",
+  benchmark_pit_ks_p_value = "higher",
+  elapsed_sec = "lower"
+)
+
+pair_key_cols <- c(
+  "joint_review_rep", "family", "copula", "design", "n_subject", "n_time",
+  "dependence", "missingness", "start_mode"
+)
+pair_key <- interaction(results[pair_key_cols], drop = TRUE, lex.order = TRUE)
+deltas <- do.call(rbind, lapply(unique(pair_key), function(key) {
+  x <- results[pair_key == key, , drop = FALSE]
+  joint <- x[x$method == "rs_joint", , drop = FALSE][1, , drop = FALSE]
+  separate <- x[x$method == "rs_separate", , drop = FALSE][1, , drop = FALSE]
+  data.frame(
+    family = joint$family,
+    copula = joint$copula,
+    design = joint$design,
+    delta_joint_loglik = joint$joint_loglik - separate$joint_loglik,
+    delta_elapsed_sec = joint$elapsed_sec - separate$elapsed_sec,
+    delta_mean_rmse = joint$benchmark_mean_rmse - separate$benchmark_mean_rmse,
+    delta_neg_log_score = joint$benchmark_neg_log_score - separate$benchmark_neg_log_score,
+    delta_theta_time_abs_error = joint$benchmark_theta_time_abs_error -
+      separate$benchmark_theta_time_abs_error,
+    stringsAsFactors = FALSE
+  )
+}))
+
+run_status <- aggregate(
+  cbind(success = success == TRUE, converged = converged == TRUE, elapsed_sec = elapsed_sec) ~ method,
+  data = results,
+  FUN = function(x) {
+    if (is.logical(x)) sum(x) else stats::median(x, na.rm = TRUE)
+  }
+)
+run_status$n <- as.integer(table(results$method)[run_status$method])
+run_status <- run_status[, c("method", "n", "success", "converged", "elapsed_sec")]
+names(run_status) <- c("Method", "Fits", "Successful", "Marked converged", "Median seconds")
+
+delta_summary <- data.frame(
+  Metric = c(
+    "Joint log-likelihood",
+    "Negative log score",
+    "Mean RMSE",
+    "Theta time absolute error",
+    "Runtime"
+  ),
+  Direction = c("higher is better", "lower is better", "lower is better", "lower is better", "lower is better"),
+  `Finite pairs` = c(
+    sum(is.finite(deltas$delta_joint_loglik)),
+    sum(is.finite(deltas$delta_neg_log_score)),
+    sum(is.finite(deltas$delta_mean_rmse)),
+    sum(is.finite(deltas$delta_theta_time_abs_error)),
+    sum(is.finite(deltas$delta_elapsed_sec))
+  ),
+  `Joint better` = c(
+    sum(deltas$delta_joint_loglik > 0, na.rm = TRUE),
+    sum(deltas$delta_neg_log_score < 0, na.rm = TRUE),
+    sum(deltas$delta_mean_rmse < 0, na.rm = TRUE),
+    sum(deltas$delta_theta_time_abs_error < 0, na.rm = TRUE),
+    sum(deltas$delta_elapsed_sec < 0, na.rm = TRUE)
+  ),
+  `Mean delta` = c(
+    mean(deltas$delta_joint_loglik, na.rm = TRUE),
+    mean(deltas$delta_neg_log_score, na.rm = TRUE),
+    mean(deltas$delta_mean_rmse, na.rm = TRUE),
+    mean(deltas$delta_theta_time_abs_error, na.rm = TRUE),
+    mean(deltas$delta_elapsed_sec, na.rm = TRUE)
+  ),
+  `Median delta` = c(
+    stats::median(deltas$delta_joint_loglik, na.rm = TRUE),
+    stats::median(deltas$delta_neg_log_score, na.rm = TRUE),
+    stats::median(deltas$delta_mean_rmse, na.rm = TRUE),
+    stats::median(deltas$delta_theta_time_abs_error, na.rm = TRUE),
+    stats::median(deltas$delta_elapsed_sec, na.rm = TRUE)
+  ),
+  check.names = FALSE
+)
+
+candidate_display <- candidates[, c(
+  "candidate_id", "review_role", "copula", "scenario", "profile_id",
+  "source_name", "delta_train_joint_loglik_mean",
+  "delta_test_log_score_per_obs_mean", "delta_train_rmse_tau_mean"
+)]
+names(candidate_display) <- c(
+  "ID", "Role", "Copula", "Scenario", "Profile", "Source",
+  "Train joint LL delta", "Held-out log score delta/obs", "Tau RMSE delta"
+)
+candidate_display$Scenario[is.na(candidate_display$Scenario)] <- ""
+candidate_display$Profile[is.na(candidate_display$Profile)] <- ""
+candidate_display$`Train joint LL delta` <- fmt(candidate_display$`Train joint LL delta`)
+candidate_display$`Held-out log score delta/obs` <- fmt(candidate_display$`Held-out log score delta/obs`)
+candidate_display$`Tau RMSE delta` <- fmt(candidate_display$`Tau RMSE delta`)
+
+metric_pivot <- reshape(
+  metric_wins[, c("metric", "estimand", "method", "n_finite", "wins", "ties", "losses", "win_or_tie_rate")],
+  idvar = c("metric", "estimand"),
+  timevar = "method",
+  direction = "wide"
+)
+metric_pivot$Metric <- ifelse(
+  metric_pivot$metric %in% names(metric_label),
+  metric_label[metric_pivot$metric],
+  metric_pivot$metric
+)
+metric_pivot$`Joint win/tie` <- fmt(as.numeric(metric_pivot$win_or_tie_rate.rs_joint) * 100)
+metric_pivot$`Separate win/tie` <- fmt(as.numeric(metric_pivot$win_or_tie_rate.rs_separate) * 100)
+metric_pivot$`Joint W-T-L` <- paste(metric_pivot$wins.rs_joint, metric_pivot$ties.rs_joint, metric_pivot$losses.rs_joint, sep = "-")
+metric_pivot$`Separate W-T-L` <- paste(metric_pivot$wins.rs_separate, metric_pivot$ties.rs_separate, metric_pivot$losses.rs_separate, sep = "-")
+metric_display <- metric_pivot[, c("Metric", "estimand", "Joint win/tie", "Separate win/tie", "Joint W-T-L", "Separate W-T-L")]
+names(metric_display)[2] <- "Estimand"
+```
+
+# Executive Summary
+
+This report reviews the current `03-joint-vs-separate-optimization` module.
+The module now has two layers of evidence:
+
+1. A historical candidate-selection pass that mines retained exploratory summaries.
+2. A fresh expanded review simulation comparing `rs_joint` and `rs_separate`.
+
+The result is not a simple "`joint` always wins" story. The current evidence is
+more useful and more defensible by estimand:
+
+- Joint optimization is strongest for dependence-sensitive and distributional
+  targets, including theta-time recovery, PIT calibration, quantiles, and lower
+  tail behavior.
+- Separate optimization is faster and has cleaner convergence status in this
+  run.
+- Direct mean/observed-response metrics are mixed, with neither method
+  dominating across all cases.
+
+# Run Configuration and Outputs
+
+The expanded review run used:
+
+- families: `NO`, `NBI`;
+- copulas: `N`, `C`, `G`;
+- designs: `intercept`, `covariate`, `time_dependence`;
+- subjects: `48`;
+- repeated time points: `1:4`;
+- methods: `rs_separate`, `rs_joint`;
+- replicate count: `10` per family/copula/design cell;
+- maximum outer iterations: `8`;
+- maximum inner iterations: `8`;
+- per-fit elapsed-time limit: `45` seconds.
+
+The generated outputs are:
+
+- `results/jss-replication/expanded/data/03-joint-vs-separate-optimization-candidate-selection.csv`
+- `results/jss-replication/expanded/data/03-joint-vs-separate-optimization-results.csv`
+- `results/jss-replication/expanded/tables/03-joint-vs-separate-optimization-summary.csv`
+- `results/jss-replication/expanded/tables/03-joint-vs-separate-optimization-metric-wins.csv`
+- `results/jss-replication/expanded/figures/03-joint-vs-separate-optimization-deltas.png`
+- `results/jss-replication/expanded/figures/03-joint-vs-separate-optimization-metric-dashboard.png`
+
+# Candidate Selection
+
+The historical candidate-mining step selected seven review cases:
+
+- five `joint_win` cases;
+- one `tie_control` case;
+- one `cautionary` case.
+
+```{r}
+knitr::kable(candidate_display, booktabs = TRUE, longtable = TRUE)
+```
+
+The five `joint_win` cases were selected because historical summaries showed
+positive gains in held-out log score and training joint log-likelihood, usually
+with reductions in dependence RMSE. The cautionary case is useful because it
+has likelihood/log-score gains but worse tau RMSE, which prevents the paper
+from overclaiming that likelihood improvement is automatically better for every
+estimand.
+
+# Fresh Expanded Simulation
+
+The fresh expanded run produced 360 model fits: 180 paired cases with one
+`rs_separate` and one `rs_joint` fit in each case.
+
+```{r}
+run_status_print <- run_status
+run_status_print$`Median seconds` <- fmt(run_status_print$`Median seconds`)
+knitr::kable(run_status_print, booktabs = TRUE)
+```
+
+Separate optimization completed successfully in all 180 fits and was marked
+converged in all 180 fits. Joint optimization completed successfully in 174 of
+180 fits and was marked converged in 103 of 180 fits. The non-successful joint
+fits were retained as missing metric rows in the win/tie/loss summaries.
+
+Runtime favored separate optimization. Median runtime was about 0.26 seconds
+for separate optimization in the 1-replicate run; in the 10-replicate run the
+median was about 0.62 seconds for separate optimization and about 1.57 seconds
+for joint optimization.
+
+# Joint-minus-Separate Deltas
+
+Positive deltas mean joint is larger than separate. For error and runtime
+metrics, negative deltas are better for joint.
+
+```{r}
+delta_summary_print <- delta_summary
+delta_summary_print$`Mean delta` <- fmt(delta_summary_print$`Mean delta`)
+delta_summary_print$`Median delta` <- fmt(delta_summary_print$`Median delta`)
+knitr::kable(delta_summary_print, booktabs = TRUE)
+```
+
+The 10-replicate run shows:
+
+- joint optimization retained a clear advantage for theta-time dependence
+  recovery;
+- negative log score and calibration became slightly less favorable to joint
+  than in the 1-replicate check;
+- mean RMSE remained essentially mixed;
+- theta-time absolute error was better for joint in 35 of 60 finite
+  time-dependence cases;
+- runtime was better for joint in only 10 of 180 paired cases.
+
+# Metric Win/Tie Summary
+
+Win/tie rates below are percentages. They are computed case-by-case using the
+benchmark scoring rules.
+
+```{r}
+knitr::kable(metric_display, booktabs = TRUE, longtable = TRUE)
+```
+
+Important patterns:
+
+- Dependence: joint had the stronger result for `benchmark_theta_time_abs_error`
+  with a 66.7 percent win/tie rate versus 33.3 percent for separate.
+- Calibration: joint was slightly stronger on PIT metrics.
+- Quantiles and tails: joint was stronger on `benchmark_q90_mae` and lower-tail
+  error; upper-tail behavior was close.
+- Mean and observed-response fit: mixed. Separate was stronger on observed MAE
+  and observed RMSE win/tie rates; joint was slightly stronger on mean MAE.
+- Runtime: separate clearly dominated.
+
+# Figures
+
+```{r, out.width="100%"}
+knitr::include_graphics(delta_figure)
+```
+
+```{r, out.width="100%"}
+knitr::include_graphics(dashboard_figure)
+```
+
+# Interpretation for the Paper
+
+The most defensible interpretation is by estimand rather than by a single
+overall winner.
+
+Joint optimization is worth emphasizing when the paper discusses dependence
+recovery and distributional fit. It is especially relevant for settings where
+copula/dependence estimation affects calibration, quantiles, and tail behavior.
+
+Separate optimization remains a strong baseline. It is faster, has cleaner
+convergence status in this run, and remains competitive on mean and
+observed-response metrics.
+
+The paper should therefore avoid saying that joint optimization universally
+dominates. A stronger claim is:
+
+> Joint optimization can improve dependence-sensitive and distributional
+> estimands, but those gains come with runtime and convergence-status costs.
+> Comparisons should be reported by estimand.
+
+# Limitations and Next Checks
+
+This run is a review-scale expanded run with 10 replicates per
+family/copula/design cell. The module can be rerun with more replicates by
+setting `GAMLSS_LONGITUDINAL_JSS_JVS_REPS`, for example to `100`.
+
+Recommended next checks:
+
+- rerun the expanded module with more replicates for the 7 selected candidate
+  scenarios;
+- inspect why successful joint fits are less often marked converged;
+- decide whether the cautionary case should be included in the manuscript or
+  kept for supplementary discussion;
+- add a focused table that separates dependence/calibration metrics from mean
+  and runtime metrics.
