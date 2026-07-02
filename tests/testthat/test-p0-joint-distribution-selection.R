@@ -128,6 +128,68 @@ test_that("select_joint_distribution can screen with factor copula time intercep
   expect_equal(selected$copula_family, "N")
 })
 
+test_that("joint distribution fit formulas preserve time-intercept policies", {
+  intercept_only <- gamlss.longitudinal:::.joint_selection_fit_formulas(
+    response_var = "response",
+    time_var = "visit",
+    time_intercepts = FALSE,
+    copula_time_intercepts = FALSE
+  )
+  time_specific <- gamlss.longitudinal:::.joint_selection_fit_formulas(
+    response_var = "response",
+    time_var = "visit",
+    time_intercepts = TRUE,
+    copula_time_intercepts = TRUE
+  )
+
+  expect_equal(deparse(intercept_only$mu_formula), "response ~ 1")
+  expect_equal(deparse(intercept_only$par_formula), "~1")
+  expect_equal(deparse(intercept_only$theta_formula), "~1")
+  expect_match(deparse(time_specific$mu_formula), "response ~ factor\\(visit\\)")
+  expect_match(deparse(time_specific$par_formula), "~factor\\(visit\\)")
+  expect_match(deparse(time_specific$theta_formula), "~factor\\(visit\\)")
+})
+
+test_that("joint distribution fit row helpers preserve success and failure schemas", {
+  fit <- list(convergence = list(converged = TRUE, hit_outer_limit = FALSE))
+  fit_metrics <- list(
+    logLik = -12,
+    AIC = 30,
+    BIC = 35,
+    model_selection = rbind(
+      LogLik = c(marginal = -10, copula = -2, joint = -12),
+      AIC = c(marginal = 20, copula = 6, joint = 30),
+      BIC = c(marginal = 23, copula = 8, joint = 35),
+      EDF = c(marginal = 2, copula = 1, joint = 3)
+    )
+  )
+
+  success <- gamlss.longitudinal:::.joint_selection_success_row(
+    margin_family = "NO",
+    copula_family = "N",
+    fit = fit,
+    fit_metrics = fit_metrics,
+    elapsed = 1.5,
+    warnings = c("a", "a", "b")
+  )
+  failure <- gamlss.longitudinal:::.joint_selection_failed_row(
+    margin_family = "NO",
+    copula_family = "C",
+    elapsed = 2,
+    warnings = "warn",
+    error = "failed"
+  )
+
+  expect_named(success, names(failure))
+  expect_equal(success$logLik, -12)
+  expect_equal(success$EDF, 3)
+  expect_true(success$converged)
+  expect_equal(success$warnings, "a\nb")
+  expect_true(is.na(success$error))
+  expect_false(failure$converged)
+  expect_equal(failure$error, "failed")
+})
+
 test_that("select_joint_distribution rejects zero likelihood resets after nonzero history", {
   fit <- list(
     log_lik_history = cbind(
@@ -156,6 +218,81 @@ test_that("select_joint_distribution rejects zero likelihood resets after nonzer
   fit_metrics$model_selection["LogLik", ] <- c(marginal = -20, copula = 3, joint = -17)
   fit_metrics$logLik <- -17
   expect_null(gamlss.longitudinal:::.joint_selection_invalid_fit_reason(fit, fit_metrics))
+})
+
+test_that("joint distribution finalizer ranks successes and preserves fit ordering", {
+  margin_selection <- data.frame(family = "NO", stringsAsFactors = FALSE)
+  attr(margin_selection, "response_type") <- "realAll"
+
+  rows <- list(
+    data.frame(
+      margin_family = "NO",
+      copula_family = "C",
+      logLik = -12,
+      AIC = 30,
+      BIC = 35,
+      EDF = 3,
+      converged = TRUE,
+      hit_outer_limit = FALSE,
+      elapsed_sec = 1,
+      warnings = "",
+      error = NA_character_,
+      stringsAsFactors = FALSE
+    ),
+    data.frame(
+      margin_family = "NO",
+      copula_family = "N",
+      logLik = -10,
+      AIC = 25,
+      BIC = 31,
+      EDF = 3,
+      converged = TRUE,
+      hit_outer_limit = FALSE,
+      elapsed_sec = 2,
+      warnings = "",
+      error = NA_character_,
+      stringsAsFactors = FALSE
+    ),
+    data.frame(
+      margin_family = "NO",
+      copula_family = "t",
+      logLik = NA_real_,
+      AIC = NA_real_,
+      BIC = NA_real_,
+      EDF = NA_real_,
+      converged = FALSE,
+      hit_outer_limit = NA,
+      elapsed_sec = 3,
+      warnings = "",
+      error = "failed",
+      stringsAsFactors = FALSE
+    )
+  )
+
+  out <- gamlss.longitudinal:::.joint_selection_finalize_result(
+    rows = rows,
+    fit_store = list("fit-C", "fit-N", "fit-t"),
+    n_pairs = 8L,
+    criterion = "AIC",
+    margin_selection = margin_selection,
+    time_intercepts = TRUE,
+    time_var = "visit",
+    copula_time_intercepts = TRUE,
+    keep_fits = TRUE
+  )
+
+  expect_s3_class(out, "joint_distribution_selection")
+  expect_equal(out$copula_family, c("N", "C", "t"))
+  expect_equal(out$rank, c(1L, 2L, NA_integer_))
+  expect_equal(out$delta_AIC, c(0, 5, NA))
+  expect_equal(out$n_pairs, rep(8L, 3))
+  expect_equal(attr(out, "selected"), "NO+N")
+  expect_equal(attr(out, "response_type"), "realAll")
+  expect_true(isTRUE(attr(out, "time_intercepts")))
+  expect_equal(attr(out, "time_var"), "visit")
+  expect_true(isTRUE(attr(out, "copula_time_intercepts")))
+  expect_equal(attr(out, "copula_time_var"), "visit")
+  expect_equal(attr(out, "fits"), list("fit-N", "fit-C", "fit-t"))
 })
 
 test_that("select_joint_distribution retains failures and includes t candidates", {

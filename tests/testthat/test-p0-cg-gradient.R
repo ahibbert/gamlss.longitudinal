@@ -105,3 +105,62 @@ test_that("CG analytical gradient matches finite differences on a tiny model", {
 
   expect_equal(unname(analytical), unname(finite_diff), tolerance = 1e-4)
 })
+
+test_that("copula parameter gradient maps pair derivatives onto beta coefficients", {
+  mm_cg <- list(
+    x = list(
+      theta = cbind(theta = rep(1, 4), x = c(0, 1, 0, 1))
+    )
+  )
+  eta <- list(theta = rep(0, 4))
+  eta_dr <- list(theta = rep(2, 4))
+  calc_lik <- list(
+    copula_row_id1 = c(1L, 2L, 2L, 4L),
+    copula_theta_index_map = seq_len(4)
+  )
+
+  grad <- gamlss.longitudinal:::.cg_copula_parameter_gradient(
+    "theta",
+    derivative = c(1, 2, 3, 4),
+    eta = eta,
+    eta_dr = eta_dr,
+    mm_cg = mm_cg,
+    calc_lik = calc_lik,
+    response = rep(0, 4)
+  )
+
+  expect_equal(grad, c(theta.theta = 20, theta.x = 18))
+})
+
+test_that("CG margin natural scores use margin derivatives and zero missing pieces", {
+  margin_par <- c("mu", "sigma", "nu")
+  eta <- list(
+    mu = rep(0, 3),
+    sigma = rep(0, 3),
+    nu = rep(0, 3)
+  )
+  calc_lik <- list(
+    margin_deriv = list(
+      dldm = c(1, 2, 3),
+      dldd.extra = c(4, 5, 6)
+    )
+  )
+
+  scores <- gamlss.longitudinal:::.cg_margin_natural_scores(
+    margin_par = margin_par,
+    eta = eta,
+    eta_inv = list(mu = rep(0, 3)),
+    mm_cg = list(x = list()),
+    calc_lik = calc_lik,
+    margin_dist = NULL,
+    copula_derivatives = list(),
+    include_dlcopdpar = FALSE,
+    response = rep(0, 3),
+    response_margin = rep(1, 3),
+    response_subject = seq_len(3)
+  )
+
+  expect_equal(scores$mu, c(1, 2, 3))
+  expect_equal(scores$sigma, c(4, 5, 6))
+  expect_equal(scores$nu, c(0, 0, 0))
+})
