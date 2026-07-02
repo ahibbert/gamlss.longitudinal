@@ -25,6 +25,7 @@
 ^_check($|/)
 ^.*\.Rcheck($|/)
 ^_.*\.log$
+^rcmdcheck-as-cran-no-manual\.log$
 ^.*\.tar\.gz$
 ^benchmark_standard_models_metrics\.(pdf|tex)$
 ^tests/REGRESSION_TEST_PLAN\.md$
@@ -32,3 +33,4 @@
 ^make_.*_paper_outputs\.R$
 ^analyze_results\.R$
 ^vignettes/.*\.html$
+^pkgdown($|/)

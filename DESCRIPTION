@@ -29,7 +29,7 @@ License: GPL-3
 Encoding: UTF-8
 Language: en-US
 LazyData: true
-URL: https://ahibbert.github.io/gamlss.longitudinal/,
+URL: https://gamlsslongitudinal.aydins-workbench.com/,
     https://github.com/ahibbert/gamlss.longitudinal
 BugReports: https://github.com/ahibbert/gamlss.longitudinal/issues
 Suggests:
