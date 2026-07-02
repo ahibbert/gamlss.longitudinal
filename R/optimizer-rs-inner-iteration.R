@@ -1,4 +1,7 @@
-#' Run one RS inner likelihood-score-backfitting iteration
+#' Run one RS inner likelihood-score-backfitting iteration:
+#' calculates likelihood with .gl_evaluate_rs_likelihood_state (see R/optimizer-rs-likelihood.R), 
+#' calculates score with .gl_evaluate_rs_parameter_score_state (see R/optimizer-rs-score.R), 
+#' and performs backfitting step with .gl_run_rs_backfitting_step (see R/optimizer-rs-backfitting.R).
 #'
 #' @noRd
 .gl_run_rs_inner_iteration_step <- function(
@@ -12,6 +15,7 @@
     dataset,
     pair_cache,
     margin_eval_cache,
+    current_calc_lik_out = NULL,
     first_outer_run,
     outer_start_log_lik,
     timer,
@@ -42,7 +46,8 @@
     likelihood_state_fn,
     score_state_fn,
     backfitting_step_fn) {
-  rs_likelihood_state <- likelihood_state_fn(
+
+  likelihood_state_args <- list(
     rs_calc_eta = rs_calc_eta,
     par_cov = par_cov,
     par_s = par_s,
@@ -59,6 +64,14 @@
     log_lik_history = log_lik_history,
     par_history = par_history
   )
+  likelihood_state_formals <- names(formals(likelihood_state_fn))
+  if ("..." %in% likelihood_state_formals || "par_name" %in% likelihood_state_formals) {
+    likelihood_state_args$par_name <- par_name
+  }
+  if ("..." %in% likelihood_state_formals || "current_calc_lik_out" %in% likelihood_state_formals) {
+    likelihood_state_args$current_calc_lik_out <- current_calc_lik_out
+  }
+  rs_likelihood_state <- do.call(likelihood_state_fn, likelihood_state_args)
   eta <- rs_likelihood_state$eta
   eta_dr <- rs_likelihood_state$eta_dr
   eta_inv <- rs_likelihood_state$eta_inv
