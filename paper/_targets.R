@@ -6,6 +6,7 @@ source(file.path("paper", "R", "02-simulation-delaporte-clayton.R"))
 source(file.path("paper", "R", "03-joint-vs-separate-optimization.R"))
 source(file.path("paper", "R", "04-missingness-dropout-sensitivity.R"))
 source(file.path("paper", "R", "07-gamma-copula-misspecification.R"))
+source(file.path("paper", "R", "08-simulation-sensitivity-correlation-misspecification.R"))
 
 tar_option_set(
   packages = c("gamlss.longitudinal", "gamlss.dist", "ggplot2"),
@@ -25,13 +26,18 @@ list(
   tar_target(module_04_missingness_dropout, jss_run_04_missingness_dropout(settings)),
   tar_target(module_07_gamma_copula_misspecification, jss_run_07_gamma_copula_misspecification(settings)),
   tar_target(
+    module_08_simulation_sensitivity_correlation_misspecification,
+    jss_run_08_simulation_sensitivity_correlation_misspecification(settings)
+  ),
+  tar_target(
     module_files,
     jss_collect_module_files(
       module_01_bcpe_t,
       module_02_delaporte_clayton,
       module_03_joint_vs_separate,
       module_04_missingness_dropout,
-      module_07_gamma_copula_misspecification
+      module_07_gamma_copula_misspecification,
+      module_08_simulation_sensitivity_correlation_misspecification
     ),
     format = "file"
   ),

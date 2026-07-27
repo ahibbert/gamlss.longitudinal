@@ -2,12 +2,12 @@
 % Please edit documentation in R/benchmark-report.R
 \name{write_benchmark_report}
 \alias{write_benchmark_report}
-\title{Write an adoption benchmark report}
+\title{Write a benchmark report}
 \usage{
 write_benchmark_report(
   benchmark,
-  path = file.path("results", "adoption_benchmarks", "adoption_benchmark_report.md"),
-  title = "gamlss.longitudinal Adoption Benchmark Report",
+  path = file.path("results", "benchmark_report.md"),
+  title = "gamlss.longitudinal Benchmark Report",
   comparator_status = benchmark_comparator_status(),
   metrics = NULL,
   include_case_results = FALSE,
@@ -16,8 +16,8 @@ write_benchmark_report(
 )
 }
 \arguments{
-\item{benchmark}{A \code{gamlss_longitudinal_adoption_benchmark} object from
-\code{\link[=run_adoption_benchmarks]{run_adoption_benchmarks()}} or a results data frame accepted by
+\item{benchmark}{A \code{gamlss_longitudinal_benchmark} object from
+\code{\link[=benchmark_standard_models]{benchmark_standard_models()}} or a results data frame accepted by
 \code{\link[=summarise_benchmark_results]{summarise_benchmark_results()}}.}
 
 \item{path}{Markdown output path.}
@@ -41,5 +41,5 @@ data frame.}
 The normalized report path, invisibly.
 }
 \description{
-Write an adoption benchmark report
+Write a benchmark report
 }

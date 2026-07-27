@@ -70,15 +70,13 @@ reference:
       - plot_fixed_terms
       - plot_smooth_terms
   - title: Simulation and benchmarks
-    desc: Data generators and opt-in comparator benchmarks for adoption evidence.
+    desc: Data generators and opt-in comparator benchmarks.
     contents:
       - simulate_longitudinal_covariates
       - simulate_longitudinal_dataset
       - run_coverage_simulations
       - benchmark_comparator_status
       - benchmark_standard_models
-      - adoption_benchmark_scenarios
-      - run_adoption_benchmarks
       - summarise_benchmark_results
       - format_benchmark_report
       - write_benchmark_report

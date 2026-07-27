@@ -6,7 +6,7 @@ Author: Aydin Sareff-Hibbert
 Maintainer: Aydin Sareff-Hibbert <aydin.hibbert@sydney.edu.au>
 Description: Fits longitudinal generalized additive models for location, scale
     and shape (GAMLSS) with flexible copula dependence structures across time.
-    Provides adoption-focused helpers for marginal-family screening,
+    Provides workflow helpers for marginal-family screening,
     longitudinal fitting, inference, prediction, simulation, diagnostics, and
     opt-in benchmarks against common GEE, GLMM, and GAM baselines.
 Depends:
