@@ -40,7 +40,7 @@ confirm that tables and figures were regenerated rather than hand-edited.
 
 ## Paper Modules
 
-The replication workflow is organised into seven numbered modules:
+The replication workflow is organised into eight numbered modules:
 
 1. `01-simulation-bcpe-t.R`: continuous BCPE margin with t-copula simulation.
 2. `02-simulation-delaporte-clayton.R`: Delaporte margin with Clayton copula
@@ -51,6 +51,9 @@ The replication workflow is organised into seven numbered modules:
 6. `06-application-rand-doctor-visits.R`: RAND doctor-visits application.
 7. `07-gamma-copula-misspecification.R`: Gamma-margin copula
    mis-specification simulation.
+8. `08-simulation-sensitivity-correlation-misspecification.R`: standard-model
+   sensitivity benchmark under AR(1), exchangeable, time-varying, and
+   covariate-dependent correlation structures.
 
 Each module writes at least one CSV artifact and one PNG figure artifact. Most
 module outputs are currently marked as stubs so the target graph, manifest
@@ -66,6 +69,14 @@ runs can set `GAMLSS_LONGITUDINAL_JSS_JVS_REPS`,
 Module 07 expanded runs default to a 10-replicate pilot over the full
 generating/fitted copula grid. Set `GAMLSS_LONGITUDINAL_JSS_MISSPEC_STAGE=full`
 to continue from completed pilot checkpoints up to the 100-replicate run.
+
+Module 08 materialises the finalized T=20 correlation-misspecification benchmark
+tables from the archived exploratory run. Set
+`GAMLSS_LONGITUDINAL_JSS_CORR_MISSPEC_RUN_DIR` to point at a different completed
+benchmark run directory if the benchmark is regenerated. The source runner for
+regenerating the standard-model grid, all-pair dependence summaries, sandwich
+standard errors, and story tables is under
+`paper/R/08-simulation-sensitivity-correlation-misspecification/standard-model-benchmarking/`.
 
 The LIPID and RAND application data are private and must not be committed to
 this repository. Future secure/local runs can provide them through

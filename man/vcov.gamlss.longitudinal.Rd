@@ -34,8 +34,8 @@ uses the semi-analytical Hessian from \code{R/hessian-analytical.R}.
 \code{"numderiv"} uses full finite-difference numerical second derivatives as a
 slower reference path. \code{"sandwich"} uses a cluster-robust sandwich estimator
 for fixed coefficients, with clusters defaulting to subjects. The legacy
-\code{numderiv} logical argument is still accepted and maps to
-\code{method = "numderiv"} when \code{TRUE}.}
+\code{numderiv} logical argument is still accepted and maps to \code{method = "numderiv"}
+when \code{TRUE}.}
 
 \item{progress}{Logical; show progress bars for slow Hessian calculations.}
 

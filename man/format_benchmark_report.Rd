@@ -2,11 +2,11 @@
 % Please edit documentation in R/benchmark-report.R
 \name{format_benchmark_report}
 \alias{format_benchmark_report}
-\title{Format an adoption benchmark report}
+\title{Format a benchmark report}
 \usage{
 format_benchmark_report(
   benchmark,
-  title = "gamlss.longitudinal Adoption Benchmark Report",
+  title = "gamlss.longitudinal Benchmark Report",
   comparator_status = benchmark_comparator_status(),
   metrics = NULL,
   include_case_results = FALSE,
@@ -15,8 +15,8 @@ format_benchmark_report(
 )
 }
 \arguments{
-\item{benchmark}{A \code{gamlss_longitudinal_adoption_benchmark} object from
-\code{\link[=run_adoption_benchmarks]{run_adoption_benchmarks()}} or a results data frame accepted by
+\item{benchmark}{A \code{gamlss_longitudinal_benchmark} object from
+\code{\link[=benchmark_standard_models]{benchmark_standard_models()}} or a results data frame accepted by
 \code{\link[=summarise_benchmark_results]{summarise_benchmark_results()}}.}
 
 \item{title}{Report title.}

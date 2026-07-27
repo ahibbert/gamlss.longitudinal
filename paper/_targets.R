@@ -8,6 +8,7 @@ source(file.path("paper", "R", "04-missingness-dropout-sensitivity.R"))
 source(file.path("paper", "R", "05-application-lipid.R"))
 source(file.path("paper", "R", "06-application-rand-doctor-visits.R"))
 source(file.path("paper", "R", "07-gamma-copula-misspecification.R"))
+source(file.path("paper", "R", "08-simulation-sensitivity-correlation-misspecification.R"))
 
 tar_option_set(
   packages = c("gamlss.longitudinal", "gamlss.dist", "ggplot2"),
@@ -29,6 +30,10 @@ list(
   tar_target(module_06_rand_doctor_visits, jss_run_06_rand_doctor_visits(settings)),
   tar_target(module_07_gamma_copula_misspecification, jss_run_07_gamma_copula_misspecification(settings)),
   tar_target(
+    module_08_simulation_sensitivity_correlation_misspecification,
+    jss_run_08_simulation_sensitivity_correlation_misspecification(settings)
+  ),
+  tar_target(
     module_files,
     jss_collect_module_files(
       module_01_bcpe_t,
@@ -37,7 +42,8 @@ list(
       module_04_missingness_dropout,
       module_05_lipid_application,
       module_06_rand_doctor_visits,
-      module_07_gamma_copula_misspecification
+      module_07_gamma_copula_misspecification,
+      module_08_simulation_sensitivity_correlation_misspecification
     ),
     format = "file"
   ),
