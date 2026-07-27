@@ -39,7 +39,6 @@
   )
 }
 
-
 .copula_deriv2 <- function(u1, u2, family, par, par2 = 0, deriv) {
   family <- .copula_family_code(family)
 

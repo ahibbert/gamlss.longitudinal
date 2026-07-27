@@ -16,7 +16,6 @@
   }, numeric(1), USE.NAMES = FALSE)
 }
 
-
 .copula_joe_tau_to_par <- function(tau) {
   tau <- pmin(pmax(as.numeric(tau), 0), 0.999999)
 

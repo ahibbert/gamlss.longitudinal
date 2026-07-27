@@ -2,7 +2,6 @@
   pmax(as.numeric(par2), 2.000001)
 }
 
-
 .copula_t_df_step <- function(df, rel = 1e-3) {
   pmin(pmax(rel * abs(df), 1e-4), 0.25 * (df - 2))
 }
@@ -44,11 +43,9 @@
   )
 }
 
-
 .copula_t_pdf <- function(u1, u2, par, par2) {
   .copula_t_components(u1, u2, par, par2)$density
 }
-
 
 .copula_t_hfunc1 <- function(u1, u2, par, par2) {
   vals <- .copula_recycle(.copula_clamp01(u1), .copula_clamp01(u2), .copula_gaussian_rho(par), .copula_t_df(par2))
@@ -70,7 +67,6 @@
   .copula_clamp01(stats::pt((y - rho * x) / scale, df = df + 1))
 }
 
-
 .copula_t_cdf_one <- function(u1, u2, rho, df) {
   x <- stats::qt(u1, df = df)
 
@@ -84,7 +80,6 @@
 
   stats::integrate(integrand, lower = -Inf, upper = x, rel.tol = 1e-7)$value
 }
-
 
 .copula_t_cdf <- function(u1, u2, par, par2) {
   vals <- .copula_recycle(.copula_clamp01(u1), .copula_clamp01(u2), .copula_gaussian_rho(par), .copula_t_df(par2))

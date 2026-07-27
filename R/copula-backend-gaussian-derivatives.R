@@ -13,7 +13,6 @@
 
   rho <- rep(rho, length.out = n)
 
-
   z1 <- stats::qnorm(u1)
 
   z2 <- stats::qnorm(u2)
@@ -21,7 +20,6 @@
   denom <- 1 - rho^2
 
   density <- .copula_gaussian_pdf(u1, u2, rho)
-
 
   out <- switch(deriv,
     u1 = {
@@ -49,7 +47,6 @@
     },
     stop("Unsupported Gaussian derivative: ", deriv, call. = FALSE)
   )
-
 
   out[!is.finite(out)] <- 0
 
