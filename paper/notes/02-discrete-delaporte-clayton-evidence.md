@@ -2,7 +2,7 @@
 
 ## Reviewed Sources
 
-- Scripts moved to `R (testing)/02-discrete-delaporte-clayton/`.
+- Final reproduction scripts promoted to `paper/scripts/final-simulations/nbi-clayton/`.
 - Current Clayton showcase report retained under
   `results/jss-exploratory/02-discrete-delaporte-clayton/rs_clayton_showcase_fit_quality`.
 - Duplicate timestamped `fit_quality_summary_*` files archived.
@@ -26,4 +26,3 @@
 
 Keep current report outputs active; consult archive only for run-history
 comparisons.
-

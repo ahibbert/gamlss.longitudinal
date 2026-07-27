@@ -2,7 +2,7 @@
 
 ## Reviewed Sources
 
-- Scripts moved to `R (testing)/01-continuous-bcpe-t/`.
+- Final reproduction scripts promoted to `paper/scripts/final-simulations/bcpe-t/`.
 - Compact results retained under `results/jss-exploratory/01-continuous-bcpe-t/`.
 - Raw per-replicate `.rds` files archived under `results/_archive/testing-cleanup-20260612/results/bcpe_t_current_defaults_rep100_*`.
 
@@ -24,4 +24,3 @@
 
 Keep summaries active for paper review; use the archive only if an unpublished
 diagnostic needs raw fit objects.
-
