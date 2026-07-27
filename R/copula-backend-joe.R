@@ -2,7 +2,6 @@
   pmax(as.numeric(par), 1)
 }
 
-
 .copula_joe_parts <- function(u1, u2, par) {
   vals <- .copula_recycle(.copula_clamp01(u1), .copula_clamp01(u2), .copula_joe_theta(par))
 
@@ -21,11 +20,9 @@
   list(u1 = u1, u2 = u2, theta = theta, a = a, b = b, s = s, cdf = 1 - s^(1 / theta))
 }
 
-
 .copula_joe_cdf <- function(u1, u2, par) {
   .copula_clamp01(.copula_joe_parts(u1, u2, par)$cdf)
 }
-
 
 .copula_joe_pdf <- function(u1, u2, par) {
   p <- .copula_joe_parts(u1, u2, par)
@@ -46,7 +43,6 @@
 
   out
 }
-
 
 .copula_joe_hfunc1 <- function(u1, u2, par) {
   p <- .copula_joe_parts(u1, u2, par)

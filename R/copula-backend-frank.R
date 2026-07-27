@@ -2,7 +2,6 @@
   as.numeric(par)
 }
 
-
 .copula_frank_cdf <- function(u1, u2, par) {
   vals <- .copula_recycle(.copula_clamp01(u1), .copula_clamp01(u2), .copula_frank_par(par))
 
@@ -28,7 +27,6 @@
 
   .copula_clamp01(out)
 }
-
 
 .copula_frank_pdf <- function(u1, u2, par) {
   vals <- .copula_recycle(.copula_clamp01(u1), .copula_clamp01(u2), .copula_frank_par(par))
@@ -59,7 +57,6 @@
 
   out
 }
-
 
 .copula_frank_hfunc1 <- function(u1, u2, par) {
   vals <- .copula_recycle(.copula_clamp01(u1), .copula_clamp01(u2), .copula_frank_par(par))

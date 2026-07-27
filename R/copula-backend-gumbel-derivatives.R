@@ -1,7 +1,6 @@
 .copula_gumbel_deriv <- function(u1, u2, par, deriv, log = FALSE) {
   p <- .copula_gumbel_parts(u1, u2, par)
 
-
   indep <- p$theta <= 1 + 1e-8
 
   if (any(indep)) {
@@ -30,7 +29,6 @@
   } else {
     out <- numeric(length(p$theta))
   }
-
 
   dep <- !indep
 
@@ -78,7 +76,6 @@
     },
     stop("Unsupported Gumbel derivative: ", deriv, call. = FALSE)
   )
-
 
   out[dep] <- if (isTRUE(log)) score else density * score
 

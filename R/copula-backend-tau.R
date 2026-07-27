@@ -37,7 +37,6 @@
   )
 }
 
-
 .copula_par_to_tau <- function(family, par, par2 = 0) {
   family <- .copula_family_code(family)
 

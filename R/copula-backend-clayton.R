@@ -2,11 +2,9 @@
   pmax(as.numeric(par), 0)
 }
 
-
 .copula_clayton_s <- function(u1, u2, theta) {
   u1^(-theta) + u2^(-theta) - 1
 }
-
 
 .copula_clayton_cdf <- function(u1, u2, par) {
   u1 <- .copula_clamp01(u1)
@@ -35,7 +33,6 @@
 
   out
 }
-
 
 .copula_clayton_pdf <- function(u1, u2, par) {
   u1 <- .copula_clamp01(u1)
@@ -66,7 +63,6 @@
 
   out
 }
-
 
 .copula_clayton_hfunc1 <- function(u1, u2, par) {
   u1 <- .copula_clamp01(u1)
