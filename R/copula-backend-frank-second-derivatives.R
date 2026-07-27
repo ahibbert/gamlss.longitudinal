@@ -7,7 +7,6 @@
 
   theta <- vals[[3]]
 
-
   indep <- abs(theta) <= 1e-6
 
   if (any(indep)) {
@@ -36,7 +35,6 @@
     out <- numeric(length(theta))
   }
 
-
   dep <- !indep
 
   u1_dep <- u1[dep]
@@ -44,7 +42,6 @@
   u2_dep <- u2[dep]
 
   theta_dep <- theta[dep]
-
 
   out[dep] <- switch(deriv,
     u1 = {
@@ -82,7 +79,6 @@
     },
     stop("Unsupported Frank second derivative: ", deriv, call. = FALSE)
   )
-
 
   out[!is.finite(out)] <- 0
 

@@ -9,7 +9,6 @@
 
   df <- vals[[4]]
 
-
   out <- switch(deriv,
     u1 = {
       h <- pmin(1e-5, 0.25 * u1, 0.25 * (1 - u1))
@@ -70,7 +69,6 @@
     },
     stop("Unsupported t second derivative: ", deriv, call. = FALSE)
   )
-
 
   out[!is.finite(out)] <- 0
 

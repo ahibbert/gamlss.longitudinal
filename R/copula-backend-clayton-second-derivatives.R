@@ -13,7 +13,6 @@
 
   theta <- rep(theta, length.out = n)
 
-
   out <- numeric(n)
 
   indep <- theta <= 1e-8
@@ -40,7 +39,6 @@
     return(out)
   }
 
-
   dep <- !indep
 
   u1_dep <- u1[dep]
@@ -52,7 +50,6 @@
   s <- .copula_clayton_s(u1_dep, u2_dep, theta_dep)
 
   density <- .copula_clayton_pdf(u1_dep, u2_dep, theta_dep)
-
 
   out[dep] <- switch(deriv,
     u1 = {
@@ -112,7 +109,6 @@
     },
     stop("Unsupported Clayton second derivative: ", deriv, call. = FALSE)
   )
-
 
   out[!is.finite(out)] <- 0
 
