@@ -74,7 +74,7 @@ e.g. GA(), NO(), PO(), NBI(), etc.}
 
 \item{subject_var}{Name of the subject identifier in \code{dataset}.}
 
-\item{mu.formula}{Formula for the mean parameter of the marginal distribution}
+\item{mu.formula}{Formula for the mu parameter of the marginal distribution}
 
 \item{sigma.formula}{Formula for the sigma parameter of the marginal distribution}
 
@@ -87,16 +87,26 @@ e.g. GA(), NO(), PO(), NBI(), etc.}
 \item{zeta.formula}{Formula for the zeta parameter of the copula distribution}
 
 \item{include_dlcopdpar}{Include the derivative of the copula likelihood with respect
-to the margin parameters in the joint likelihood.}
+to the margin parameters in the joint likelihood. This is only relevant for method=\code{RS} fits
+and is \code{TRUE} by default. Setting this to \code{FALSE} can speed up fitting for most models
+due to separately optimised margin and copula fits at the expense of a slightly less optimal overall fit.
+For some models, including the dlcopdpar contribution can be important for good convergence and fit.}
 
 \item{check_dlcopdpar_gradient}{If \code{TRUE}, run an optional finite-difference
 diagnostic for the margin score contribution when \code{include_dlcopdpar = TRUE}.}
 
 \item{inner_stop_crit}{Stopping criterion for the inner loop. If \code{NA} or
-\code{NULL}, an automatic data-adaptive value is used.}
+\code{NULL}, an automatic data-adaptive value is used. This is based on change in log
+likelihood in each iteration so \code{0.1} results in algorithm stopping in the inner loop
+if likelihood changes by less than 0.1 in that iteration.
+Setting this to \code{0} forces the inner loop to run for the full \code{max_inner_iter} iterations.
+Note inner iterations are only relevant for the RS algorithm as CG does not have an inner loop.}
 
 \item{outer_stop_crit}{Stopping criterion for the outer loop. If \code{NA} or
-\code{NULL}, an automatic data-adaptive value is used.}
+\code{NULL}, an automatic data-adaptive value is used. This is based on change
+in log likelihood in each iteration so \code{0.1} results in algorithm stopping
+if likelihood changes by less than 0.1 in that outer iteration.
+Setting this to \code{0} forces the outer loop to run for the full \code{max_outer_iter} iterations.}
 
 \item{start_step_size}{Initial step size for the backfitting algorithm}
 
@@ -115,18 +125,20 @@ used for the default joint warm start.}
 
 \item{verbose}{Level of output to the console 3 = ALL, 0 = Minimal}
 
-\item{plot_results}{Plot the results of the optimisation}
+\item{plot_results}{Plot the results of the optimisation (depreciated)}
 
-\item{true_val}{True values for the parameters if known for plotting}
+\item{true_val}{True values for the parameters if known for plotting (depreciated)}
 
-\item{method}{Optimisation method to use, RS() is the default}
+\item{method}{Optimisation method to use, 'RS' for Rigby and Stasinopoulis backfitting (default) or 'CG' for Cole and Green.}
 
-\item{max_outer_iter}{Maximum number of outer iterations}
+\item{max_outer_iter}{Maximum number of outer iterations for the optimisation algorithm (both RS and CG).}
 
-\item{max_inner_iter}{Maximum number of inner iterations}
+\item{max_inner_iter}{Maximum number of inner iterations for the RS backfitting algorithm.
+Not relevant for CG which does not have an inner loop.}
 
 \item{max_negative_outer_streak}{Maximum number of consecutive negative outer
-log-likelihood changes allowed before stopping.}
+log-likelihood changes allowed before stopping.
+(This is a safeguard against very badly formed likelihood steps which can cause the algorithm to diverge and produce NaNs. Setting this to \code{Inf} disables this stopping criterion.)}
 
 \item{max_elapsed_sec}{Optional maximum elapsed fitting time in seconds.
 If finite, the optimiser stops with an error once this budget is exceeded.}
@@ -203,7 +215,7 @@ numerical reference path if the analytical Hessian cannot be inverted.}
 \item{vcov_numderiv}{Logical; passed to \code{vcov.gamlss.longitudinal()} when
 \code{compute_vcov = TRUE}.}
 
-\item{use_Rcpp}{Use Rcpp for matrix operations}
+\item{use_Rcpp}{Use Rcpp for matrix operations (depreciated)}
 
 \item{lambda_start}{Optional starting value for smooth-term penalties.}
 
@@ -220,30 +232,35 @@ the RS weighted least-squares proposal. Use \code{Inf} to disable.}
 }
 \description{
 This function fits a longitudinal model to a dataset with gamlss margins
-and copula fit to dependence. Any linear or factor covariates can be fit
-to any parameters of the copula or margin distributions. The model is fit
-using RS() optimisation and the joint likelihood by default. Select
-use dlcopdpar=FALSE to fit separately optimised models for the margin and
-copula likelihoods which can be quicker with a slight loss to overall fit.
+and a first-order copula dependence structure. Any linear, factor, or smooth
+covariates can be included in the model formulas for either the margin parameters
+(up to four parameters depending on the family, mu, sigma, nu, tau)
+or the copula parameters theta (up to two depending on the copula, theta, zeta).
 }
 \details{
-Formula inputs are converted to fixed-effect and smooth model matrices by
-\code{create_model_matrices()}. The user-supplied \code{time_var} is preserved for
-formulas as an internal \code{time_covariate} column, while an internal numeric
-\code{time} index is used for ordering longitudinal margins and adjacent copula
-pairs. Numeric and integer time inputs are used directly, numeric-like
-character time inputs are converted with \code{\link[=as.numeric]{as.numeric()}}, and categorical time
-should be supplied as a factor. Ordered factors are treated with treatment
-contrasts rather than polynomial contrasts so factor-level effects are
-interpretable as level comparisons.
+Formulas are specified as for standard gamlss models, with the response variable on the left-hand side
+of the formula for the mu parameter and the right-hand side specifying the predictors for each parameter.
+The sigma, nu, tau, theta, and zeta formulas may be specified with a left-hand side of \code{~} to indicate no response variable.
+e.g. \code{mu.formula = response ~ x1 + s(x2)}, \code{sigma.formula = ~ x3}, \code{theta.formula = ~ time}.
 
-The fitting data are converted to a plain data frame. Structurally missing
-subject-time combinations are expanded to explicit rows with missing
-responses. Response \code{NA} values may be present unless an entire margin or an
-adjacent copula pair has no complete responses, in which case fitting stops.
-Submitted predictor values must be observed and finite. Response \code{NA} values
-represent missing outcomes, but response \code{NaN}, \code{Inf}, and \code{-Inf} values stop
-before fitting. The package does not impute missing values; structurally
-inserted rows are represented in \code{model.frame(fit, type = "expanded")}, while
-observed response rows are available from \code{model.frame(fit, type = "observed")}.
+The marginal distribution is specified by a gamlss family object, e.g. GA(), NO(), PO(), NBI(), etc.,
+while the copula distribution is specified by a character code for one of the implemented
+copula families: Gaussian ("N"), Clayton ("C"), Frank ("F"), Gumbel ("G"), Joe ("J"),
+or Student's t ("t"). The copula dependence structure is first-order, with
+adjacent copula pairs linking the margins at each time point. The copula parameters
+are shared across all adjacent pairs but may vary with covariates including time.
+
+The user must specify both the time variable and the subject identifier as these are required for the model structure.
+The time variable is used to order the margins and adjacent copula pairs,
+and the subject identifier is used to link the repeated measurements for each subject.
+The response variable must be included in the \code{mu.formula} as the left-hand side.
+
+The model is fit using Rigby and Stasinopoulis (RS) optimisation against
+the full joint likelihood by default, which iteratively updates the margin
+and copula parameters in turn until convergence. We provide alternative methods,
+including a separately optimised RS method which optimises margin and copula
+likelihood separately which is faster but slightly less optimal for overall fit,
+and the Cole and Green method (CG) which updates based on the full first
+and second derivative matrix updating all parameters at once which is generally the
+slowest method but may provide better fits for some models.
 }
