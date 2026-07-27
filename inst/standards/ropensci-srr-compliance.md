@@ -38,7 +38,7 @@ unavailable local pandoc for checking `README.md`/`NEWS.md`.
 | G1.3 | Met | CONTRIBUTING defines the main statistical and workflow terms. |
 | G1.4 | Met | User-facing functions are roxygen2 documented and Rd files are generated. |
 | G1.4a | Met | Dense numerical/backend internals in `R/likelihood-*.R`, `R/model-fit.R`, `R/model-matrix.R`, `R/model-vcov.R`, `R/hessian-*.R`, and `R/copula-backend-*.R` have concise `@noRd` roxygen context. |
-| G1.5 | Met | Reproduction and benchmark scaffolds are under `inst/jss-replication` and `inst/benchmarks`. |
+| G1.5 | Met | Reproduction scaffolds are under `inst/jss-replication`; the correlation-misspecification benchmark runner is under `paper/R/08-simulation-sensitivity-correlation-misspecification/standard-model-benchmarking`. |
 | G1.6 | Met | Comparator helpers support GEE, GLMM, GAM, and GAMLSS baselines when optional dependencies are present. |
 | G2.0 | Met | Length/scalar assertions exist for core controls and fitting inputs. |
 | G2.0a | Met | CONTRIBUTING documents scalar/vector expectations for the main APIs. |
