@@ -7,7 +7,6 @@
 
   theta <- vals[[3]]
 
-
   indep <- abs(theta) <= 1e-8
 
   if (any(indep)) {
@@ -37,7 +36,6 @@
     out <- numeric(length(theta))
   }
 
-
   dep <- !indep
 
   theta_dep <- theta[dep]
@@ -58,7 +56,6 @@
 
   density <- .copula_frank_pdf(u1_dep, u2_dep, theta_dep)
 
-
   score <- switch(deriv,
     u1 = -theta_dep + 2 * theta_dep * eu * (ev - 1) / den,
     u2 = -theta_dep + 2 * theta_dep * ev * (eu - 1) / den,
@@ -71,7 +68,6 @@
     },
     stop("Unsupported Frank derivative: ", deriv, call. = FALSE)
   )
-
 
   out[dep] <- if (isTRUE(log)) score else density * score
 

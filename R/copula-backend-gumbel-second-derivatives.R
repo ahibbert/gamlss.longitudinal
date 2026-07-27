@@ -1,7 +1,6 @@
 .copula_gumbel_deriv2 <- function(u1, u2, par, deriv) {
   p <- .copula_gumbel_parts(u1, u2, par)
 
-
   indep <- p$theta <= 1 + 1e-6
 
   if (any(indep)) {
@@ -29,7 +28,6 @@
   } else {
     out <- numeric(length(p$theta))
   }
-
 
   dep <- !indep
 
@@ -83,7 +81,6 @@
     },
     stop("Unsupported Gumbel second derivative: ", deriv, call. = FALSE)
   )
-
 
   out[!is.finite(out)] <- 0
 

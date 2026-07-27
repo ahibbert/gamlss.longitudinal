@@ -1,7 +1,6 @@
 .copula_joe_deriv <- function(u1, u2, par, deriv, log = FALSE) {
   p <- .copula_joe_parts(u1, u2, par)
 
-
   indep <- p$theta <= 1 + 1e-8
 
   if (any(indep)) {
@@ -31,7 +30,6 @@
     out <- numeric(length(p$theta))
   }
 
-
   dep <- !indep
 
   p_dep <- lapply(p, function(x) x[dep])
@@ -51,7 +49,6 @@
   k <- p_dep$theta * p_dep$s + (p_dep$theta - 1) * du * dv
 
   density <- .copula_joe_pdf(p_dep$u1, p_dep$u2, p_dep$theta)
-
 
   score <- switch(deriv,
     u1 = {
@@ -97,7 +94,6 @@
     },
     stop("Unsupported Joe derivative: ", deriv, call. = FALSE)
   )
-
 
   out[dep] <- if (isTRUE(log)) score else density * score
 
