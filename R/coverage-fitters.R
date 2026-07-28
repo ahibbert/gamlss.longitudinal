@@ -280,7 +280,6 @@
 
   start_from_supplied <- !all(is.na(start_from))
 
-
   if (identical(method, "cg") && !start_from_supplied) {
     rs_start <- tryCatch(
       .coverage_longitudinal_start_fit(
@@ -308,7 +307,6 @@
     )
   }
 
-
   attempts[[length(attempts) + 1L]] <- .coverage_longitudinal_attempt(
 
     dat, family, copula, method, design,
@@ -319,7 +317,6 @@
     warm_start_joint = TRUE,
     attempt_label = if (start_from_supplied) "explicit_start" else "default"
   )
-
 
   if (identical(method, "cg")) {
     attempts[[length(attempts) + 1L]] <- .coverage_longitudinal_attempt(
@@ -348,7 +345,6 @@
       attempt_label = "damped_interior_start"
     )
   }
-
 
   chosen_idx <- .coverage_longitudinal_chosen_index(attempts)
 
@@ -580,7 +576,6 @@
     list(value = simpleError("Package 'gamlss2' is required for method = 'gamlss2'."), warnings = character(0))
   }
 
-
   success <- !inherits(captured$value, "error") &&
 
     is.finite(as.numeric(stats::logLik(captured$value)))
@@ -715,7 +710,6 @@
     )
   }
 
-
   if (is.null(comparator_family)) {
     elapsed <- as.numeric(difftime(Sys.time(), start, units = "secs"))
 
@@ -726,7 +720,6 @@
       error = paste0("No standard comparator family mapping for GAMLSS family '", family, "'.")
     ))
   }
-
 
   dat_fit <- dat
 
@@ -756,7 +749,6 @@
       warning = if (length(captured$warnings)) paste(unique(captured$warnings), collapse = " | ") else NA_character_
     ))
   }
-
 
   row <- captured$value$results[1L, , drop = FALSE]
 
