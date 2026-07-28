@@ -22,7 +22,6 @@
   col_nom
 }
 
-
 #' Return NA if all values are NA, otherwise return the most common non-NA value
 #'
 #' @noRd
@@ -37,7 +36,6 @@
 
   names(tab)[which.max(tab)]
 }
-
 
 #' Build the NA-free proxy data used only for model-matrix construction
 #' This does not alter likelihood calculations (which still use original dataset).
@@ -91,7 +89,6 @@
 
   dataset_mm
 }
-
 
 #' Prepare the per-parameter data passed to gamlss2/mgcv matrix routines
 #'
