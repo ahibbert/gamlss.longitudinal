@@ -98,6 +98,87 @@ jss_write_stub_module <- function(settings, module_id, title, family, copula,
   )
 }
 
+jss_copy_final_artifacts <- function(settings, module_id, title, source_dir, artifacts, notes) {
+  required <- c("source_file", "output_file", "artifact_type", "role")
+  missing_cols <- setdiff(required, names(artifacts))
+  if (length(missing_cols) > 0L) {
+    stop(
+      "Artifact specification for ", module_id, " is missing column(s): ",
+      paste(missing_cols, collapse = ", "),
+      call. = FALSE
+    )
+  }
+
+  if (!dir.exists(source_dir)) {
+    stop("Missing final artifact source directory: ", source_dir, call. = FALSE)
+  }
+
+  dest_base <- stats::setNames(
+    c(settings$data_dir, settings$tables_dir, settings$figures_dir),
+    c("data", "table", "figure")
+  )
+  bad_types <- setdiff(unique(artifacts$artifact_type), names(dest_base))
+  if (length(bad_types) > 0L) {
+    stop(
+      "Unknown artifact type(s) for ", module_id, ": ",
+      paste(bad_types, collapse = ", "),
+      call. = FALSE
+    )
+  }
+
+  artifacts$module_id <- module_id
+  artifacts$title <- title
+  artifacts$status <- "current"
+  artifacts$source_path <- file.path(source_dir, artifacts$source_file)
+  artifacts$output_path <- file.path(
+    unname(dest_base[artifacts$artifact_type]),
+    artifacts$output_file
+  )
+
+  missing_sources <- artifacts$source_path[!file.exists(artifacts$source_path)]
+  if (length(missing_sources) > 0L) {
+    stop(
+      "Missing final artifact(s) for ", module_id, ": ",
+      paste(missing_sources, collapse = ", "),
+      call. = FALSE
+    )
+  }
+
+  invisible(lapply(unique(dirname(artifacts$output_path)), dir.create, recursive = TRUE, showWarnings = FALSE))
+  copied <- file.copy(artifacts$source_path, artifacts$output_path, overwrite = TRUE)
+  if (any(!copied)) {
+    stop(
+      "Failed to copy final artifact(s) for ", module_id, ": ",
+      paste(artifacts$source_path[!copied], collapse = ", "),
+      call. = FALSE
+    )
+  }
+
+  index_path <- file.path(settings$data_dir, paste0(module_id, "-source-artifacts.csv"))
+  index <- artifacts[
+    ,
+    c("module_id", "title", "status", "role", "artifact_type", "source_path", "output_path"),
+    drop = FALSE
+  ]
+  index$source_path <- normalizePath(index$source_path, winslash = "/", mustWork = TRUE)
+  index$output_path <- normalizePath(index$output_path, winslash = "/", mustWork = TRUE)
+  utils::write.csv(index, index_path, row.names = FALSE)
+
+  data_files <- c(index_path, artifacts$output_path[artifacts$artifact_type == "data"])
+  table_files <- artifacts$output_path[artifacts$artifact_type == "table"]
+  figure_files <- artifacts$output_path[artifacts$artifact_type == "figure"]
+
+  list(
+    module_id = module_id,
+    title = title,
+    status = "current",
+    data = unname(data_files),
+    tables = unname(table_files),
+    figures = unname(figure_files),
+    notes = notes
+  )
+}
+
 jss_collect_module_files <- function(...) {
   modules <- list(...)
   files <- unlist(lapply(modules, function(x) c(x$data, x$tables, x$figures)), use.names = FALSE)
