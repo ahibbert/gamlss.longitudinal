@@ -22,7 +22,6 @@ best_fit <- function(x, ...) {
   UseMethod("best_fit")
 }
 
-
 #' @rdname best_fit
 
 #' @export
@@ -30,7 +29,6 @@ best_fit <- function(x, ...) {
 best_fit_family <- function(x, ...) {
   UseMethod("best_fit_family")
 }
-
 
 .margin_family_object <- function(family_name) {
   if (length(family_name) != 1L || is.na(family_name) || !nzchar(family_name)) {
@@ -49,7 +47,6 @@ best_fit_family <- function(x, ...) {
 
   tryCatch(do.call(family_fun, list()), error = function(e) NULL)
 }
-
 
 #' @export
 
@@ -81,11 +78,9 @@ best_fit.margin_selection <- function(x, ...) {
   )
 }
 
-
 #' @export
 
 best_fit.margin_screen <- best_fit.margin_selection
-
 
 #' @export
 
@@ -93,11 +88,9 @@ best_fit_family.margin_selection <- function(x, ...) {
   best_fit(x)$family
 }
 
-
 #' @export
 
 best_fit_family.margin_screen <- best_fit_family.margin_selection
-
 
 #' @export
 
@@ -108,7 +101,6 @@ best_fit_family.margin_screen <- best_fit_family.margin_selection
 
   .subset2(as.data.frame(x), name, exact = FALSE)
 }
-
 
 #' @export
 

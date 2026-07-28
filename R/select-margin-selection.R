@@ -88,7 +88,6 @@ select_margin <- function(
   time_intercepts <- inputs$time_intercepts
   time_var <- inputs$time_var
 
-
   fit <- NULL
 
   if (isTRUE(trace)) {
@@ -113,11 +112,9 @@ select_margin <- function(
     }))
   }
 
-
   if (is.null(fit$fits)) {
     stop("gamlss::fitDist() did not return a fits table.", call. = FALSE)
   }
-
 
   out <- data.frame(
     family = names(fit$fits),
@@ -133,9 +130,7 @@ select_margin <- function(
     out <- out[out$family %in% families, , drop = FALSE]
   }
 
-
   out$screen_model <- "pooled_intercept"
-
 
   if (isTRUE(time_intercepts) && nrow(out) > 0L) {
     time_fits <- .select_margin_time_intercept_fits(
@@ -177,7 +172,6 @@ select_margin <- function(
     }
   }
 
-
   out <- out[order(out$AIC), , drop = FALSE]
 
   rownames(out) <- NULL
@@ -196,7 +190,6 @@ select_margin <- function(
       inherits = FALSE
     ))
   }, logical(1), USE.NAMES = FALSE)
-
 
   attr(out, "selected") <- if (nrow(out) > 0L) out$family[[1L]] else NA_character_
 
