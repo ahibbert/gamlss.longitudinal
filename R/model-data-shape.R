@@ -11,7 +11,6 @@
     stop("ERROR: ", context, " must contain at least one column.", call. = FALSE)
   }
 
-
   list_cols <- names(dataset)[vapply(dataset, is.list, logical(1))]
 
   if (length(list_cols) > 0L) {
