@@ -6,7 +6,20 @@ template:
 navbar:
   structure:
     left: [intro, reference, articles]
-    right: [github]
+    right: [home, blog, playground, longitudinal, github]
+  components:
+    home:
+      text: Home
+      href: https://aydins-workbench.com
+    blog:
+      text: Blog
+      href: https://blog.aydins-workbench.com
+    playground:
+      text: GAMLSS Playground
+      href: https://gamlss.aydins-workbench.com
+    longitudinal:
+      text: gamlss.longitudinal
+      href: http://gamlsslongitudinal.aydins-workbench.com
 
 articles:
   - title: Start here
