@@ -90,7 +90,7 @@
     #Per-outer-loop flag for the first iteration in the outer loop, 
     # used to control some logging and caching behavior
     first_outer_run <- TRUE
-    
+
     # Run the RS parameter iterations (inner GLIM loop)
     rs_parameter_iterations <- parameter_iterations_fn(
       mm = mm,

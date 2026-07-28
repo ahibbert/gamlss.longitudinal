@@ -45,7 +45,7 @@
     score_state_fn,
     backfitting_step_fn,
     time_fn) {
-  
+
   # For each parameter in the model, run the inner iteration (GLIM) loop to update the parameter estimates
   for (par_name in names(mm$x)) {
     if (verbose > 2) {
