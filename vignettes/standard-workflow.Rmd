@@ -346,8 +346,6 @@ print(bench_smooth)
 
 In general, note that the purpose of the gamlss.longitudinal model is to accurately capture the full joint distribution shape. If the item of interest is just the mean, then gamlss.longitudinal is unlikely to provide large gains except for where distributions are clearly non-standard. By modelling the whole joint outcome distribution we can more accurately answer questions such as whether quantiles, tail risks, or uncertainty (SEs, confidence intervals, prediction intervals) change in a meaningful way. In addition, note that the consumption of degrees of freedom for calculation of accurate conditional AICs for random effect models can be substantial compared to the small number of parameters needed to fit a copula-based dependence structure.
 
-We provide additional information on comparisons in other vignettes: `vignette("benchmarking-adoption", package = "gamlss.longitudinal")` for scenario-level benchmark reporting.
-
 ##
 
 For a more detailed walk-through example, including interpretation of model fit and diagnostics, please review the [Detailed worked example](native-simulation-workflow.html).
