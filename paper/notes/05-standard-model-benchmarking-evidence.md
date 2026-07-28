@@ -2,27 +2,28 @@
 
 ## Reviewed Sources
 
-- Placeholder scripts folder retained at `R (testing)/05-standard-model-benchmarking/`.
+- Paper-facing runner scripts promoted to
+  `paper/R/08-simulation-sensitivity-correlation-misspecification/standard-model-benchmarking/`.
 - Package implementation lives in `R/benchmark-*.R`.
 - Extended benchmark outputs retained under
-  `results/jss-exploratory/05-standard-model-benchmarking/adoption_benchmarks_extended`.
+  `results/jss-exploratory/05-standard-model-benchmarking/rs-joint-standard-model-grid`.
 - Pilot benchmark output archived.
 
 ## Retained Evidence
 
-- Extended benchmark results, case results, scenarios, comparator status,
-  summary CSV, and Markdown report.
-- `inst/benchmarks/gee-glmm-investigation.md` remains untouched.
+- Extended benchmark results, case results, scenario grids, comparator status,
+  summary CSV, and generated report/table outputs.
+- The older adoption benchmark API and runner were removed after being
+  superseded by the standard-model benchmarking campaign.
 
 ## Captured Insights
 
-- The extended benchmark supersedes the pilot and is the active evidence source
-  for GLM/GEE/GLMM/GAM-style comparator review.
-- The raw benchmark object was archived while CSV and report summaries remain
-  active.
+- The RS-joint standard-model benchmark supersedes the older adoption benchmark
+  pilot and extended outputs for GLM/GEE comparator review.
+- The older adoption benchmark CSV and report summaries are historical outputs,
+  not active package API evidence.
 
 ## Archive Decision
 
-Keep extended benchmark summaries active; use archived pilot only for historical
-comparison.
-
+Keep RS-joint standard-model benchmark summaries active; use older adoption
+benchmark outputs only for historical comparison.
