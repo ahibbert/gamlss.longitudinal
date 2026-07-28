@@ -86,8 +86,6 @@
   pairs
 }
 
-
-
 .select_copula_adjacent_pairs <- function(data, subject_var, time_var, u_var, lags) {
   ord <- order(data[[subject_var]], data[[time_var]])
   data <- data[ord, , drop = FALSE]
