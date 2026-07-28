@@ -19,7 +19,6 @@
   identical(class(x), base_class)
 }
 
-
 .gl_validate_fitting_data_policy <- function(dataset, formulas, response_name = "response") {
   formula_vars <- unique(unlist(lapply(formulas, function(fml) all.vars(stats::as.formula(fml))), use.names = FALSE))
 
@@ -54,7 +53,6 @@
     stop("ERROR: response variable contains NaN or Inf values; only finite values or NA are allowed.", call. = FALSE)
   }
 
-
   predictor_vars <- setdiff(formula_vars, response_name)
   unsupported <- character(0)
   nonfinite <- character(0)
@@ -86,7 +84,6 @@
       }
     }
   }
-
 
   if (length(unsupported) > 0L) {
     stop(
