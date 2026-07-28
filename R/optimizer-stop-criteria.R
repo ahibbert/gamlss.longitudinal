@@ -5,7 +5,6 @@
   is.null(x) || (length(x) == 1 && is.na(x))
 }
 
-
 #' Validate a positive and finite stopping criterion
 #'
 #' @noRd
