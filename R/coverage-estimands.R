@@ -65,7 +65,6 @@
   c("N", "C", "F", "G", "J", "t")
 }
 
-
 #' @keywords internal
 
 #' @noRd
@@ -73,7 +72,6 @@
 .coverage_supported_methods <- function() {
   c("gamlss", "gamlss2", "rs_separate", "rs_joint", "cg", "gee", "glmm", "gam", "glmmTMB")
 }
-
 
 #' @keywords internal
 
@@ -83,7 +81,6 @@
   c("intercept", "covariate", "scale", "time_dependence", "smooth")
 }
 
-
 #' @keywords internal
 
 #' @noRd
@@ -91,7 +88,6 @@
 .coverage_default_methods <- function() {
   c("gamlss", "rs_separate", "rs_joint", "cg")
 }
-
 
 #' @keywords internal
 
@@ -104,7 +100,6 @@
 
   invisible(TRUE)
 }
-
 
 #' @keywords internal
 
@@ -127,14 +122,12 @@
   )
 }
 
-
 #' @keywords internal
 
 #' @noRd
 
 .coverage_family_catalog <- function(include_mixed = FALSE) {
   requireNamespace("gamlss.dist", quietly = TRUE)
-
 
   objects <- getNamespaceExports("gamlss.dist")
 
@@ -221,7 +214,6 @@
 
   list(value = value, warnings = warnings)
 }
-
 
 #' @keywords internal
 
@@ -336,7 +328,6 @@
     out[[par_name]] <- as.numeric(value)
   }
 
-
   safe_overrides <- .coverage_safe_margin_param_overrides(family_name)
 
   for (par_name in intersect(names(safe_overrides), names(out))) {
@@ -349,7 +340,6 @@
 
   out
 }
-
 
 #' @keywords internal
 
@@ -370,7 +360,6 @@
     strong = 0.65
   )
 
-
   if (copula %in% c("N")) {
     list(theta = rho)
   } else if (copula %in% c("t")) {
@@ -379,7 +368,6 @@
     list(tau = tau)
   }
 }
-
 
 #' @keywords internal
 
@@ -417,7 +405,6 @@
   amplitude * wave
 }
 
-
 #' @keywords internal
 
 #' @noRd
@@ -439,7 +426,6 @@
     as.numeric(out)
   }
 }
-
 
 #' @keywords internal
 
@@ -471,7 +457,6 @@
     0.1 + 0.3 * time_scaled
   })
 }
-
 
 #' @keywords internal
 
@@ -505,7 +490,6 @@
   out
 }
 
-
 #' @keywords internal
 
 #' @noRd
@@ -515,7 +499,6 @@
     return(NA)
   }
 
-
   margin_dist <- do.call(get(family, envir = asNamespace("gamlss.dist")), list())
 
   copula_link <- get_copula_dist(copula)$copula_link
@@ -523,7 +506,6 @@
   truth <- .coverage_truth_summary(dat, copula)
 
   out <- numeric(0)
-
 
   for (par_name in names(margin_dist$parameters)) {
     if (!par_name %in% names(truth)) next
@@ -535,7 +517,6 @@
     out[paste0(par_name, ".intercept")] <- as.numeric(linkfun(truth[[par_name]]))[1]
   }
 
-
   if ("theta" %in% names(truth) && is.finite(truth[["theta"]])) {
     out["theta.intercept"] <- as.numeric(copula_link$theta.linkfun(truth[["theta"]]))[1]
   }
@@ -544,10 +525,8 @@
     out["zeta.intercept"] <- as.numeric(copula_link$zeta.linkfun(truth[["zeta"]]))[1]
   }
 
-
   if (length(out) == 0L) NA else out
 }
-
 
 #' @keywords internal
 
@@ -557,7 +536,6 @@
   margin_dist <- do.call(get(family, envir = asNamespace("gamlss.dist")), list())
 
   rows <- list()
-
 
   add_margin_rows <- function(par_name) {
     truth_col <- paste0("true_", par_name)
@@ -609,11 +587,9 @@
     }
   }
 
-
   for (par_name in names(margin_dist$parameters)) {
     rows[[length(rows) + 1L]] <- add_margin_rows(par_name)
   }
-
 
   if ("true_theta" %in% names(dat)) {
     theta_ok <- is.finite(dat$true_theta)
@@ -645,7 +621,6 @@
     }
   }
 
-
   if (identical(copula, "t") && "true_zeta" %in% names(dat)) {
     zeta_ok <- is.finite(dat$true_zeta)
 
@@ -660,7 +635,6 @@
       )
     }
   }
-
 
   rows <- rows[!vapply(rows, is.null, logical(1))]
 
@@ -728,7 +702,6 @@
     stringsAsFactors = FALSE
   )
 }
-
 
 #' @keywords internal
 
@@ -829,7 +802,6 @@
   "concern"
 }
 
-
 #' @keywords internal
 
 #' @noRd
@@ -847,7 +819,6 @@
 
   out[order(out$parameter, out$term), , drop = FALSE]
 }
-
 
 #' @keywords internal
 
@@ -878,7 +849,6 @@
   if (is.null(eta_out) || is.null(eta_out$eta)) {
     return(empty)
   }
-
 
   errors <- numeric(0)
 
@@ -912,7 +882,6 @@
     }
   }
 
-
   for (parameter in names(fit$margin_dist$parameters)) {
     truth_col <- paste0("true_", parameter)
 
@@ -926,7 +895,6 @@
 
     if (!is.null(truth_eta)) add_errors(parameter, truth_eta)
   }
-
 
   if ("true_theta" %in% names(dat)) {
     theta_link <- get_copula_dist(copula)$copula_link$theta.linkfun
@@ -943,7 +911,6 @@
 
     if (!is.null(truth_eta)) add_errors("zeta", truth_eta)
   }
-
 
   if (length(errors) == 0L) {
     return(empty)
@@ -992,7 +959,6 @@
   "review"
 }
 
-
 #' @keywords internal
 #' @noRd
 .coverage_joint_class <- function(method, delta_pct) {
@@ -1010,7 +976,6 @@
 
   "review"
 }
-
 
 #' @keywords internal
 #' @noRd
@@ -1035,11 +1000,9 @@
 
   results$joint_review_class <- "missing"
 
-
   group_cols <- c("family", "copula", "design", "n_subject", "n_time", "dependence", "missingness", "start_mode")
 
   group_key <- interaction(results[group_cols], drop = TRUE, lex.order = TRUE)
-
 
   for (key in unique(group_key)) {
     idx <- which(group_key == key)
@@ -1055,7 +1018,6 @@
     gamlss_fit_method <- group$marginal_fit_method[group$method == "gamlss" & group$success][1]
 
     rs_joint_ll <- group$joint_loglik[group$method == "rs_separate" & group$success][1]
-
 
     if (length(gamlss2_ll) == 1L && is.finite(gamlss2_ll)) {
       results$gamlss2_marginal_loglik[idx] <- gamlss2_ll
@@ -1094,7 +1056,6 @@
     }
   }
 
-
   results$margin_review_class <- vapply(seq_len(nrow(results)), function(i) {
     .coverage_margin_class(results$method[[i]], results$margin_gap_pct_vs_reference[[i]])
   }, character(1))
@@ -1105,7 +1066,6 @@
 
   results
 }
-
 
 #' @keywords internal
 #' @noRd
