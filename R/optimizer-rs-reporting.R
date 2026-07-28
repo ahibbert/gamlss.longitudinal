@@ -16,7 +16,6 @@
   invisible(out_temp)
 }
 
-
 #' Print the outer-convergence message when tolerance is satisfied
 #'
 #' @noRd
