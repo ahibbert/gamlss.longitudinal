@@ -17,7 +17,7 @@
 #' @srrstats {G1.3} Met: CONTRIBUTING defines the main statistical and workflow terms used by the package.
 #' @srrstats {G1.4} Met: exported user-facing functions are documented with roxygen2 and regenerated into Rd files.
 #' @srrstats {G1.4a} Met: dense numerical/backend internals have concise `@noRd` roxygen context.
-#' @srrstats {G1.5} Met: replication and benchmark scaffolds live under `inst/jss-replication` and `inst/benchmarks`.
+#' @srrstats {G1.5} Met: replication scaffolds live under `inst/jss-replication`; the correlation-misspecification benchmark runner lives under `paper/R/08-simulation-sensitivity-correlation-misspecification/standard-model-benchmarking`.
 #' @srrstats {G1.6} Met: opt-in benchmark helpers compare against GEE, GLMM, GAM, and GAMLSS baselines when optional packages are installed.
 #' @srrstats {G2.0} Met: scalar controls, family names, copula choices, data columns, and formula inputs are asserted before fitting.
 #' @srrstats {G2.0a} Met: CONTRIBUTING documents scalar/vector expectations for the main fitting and workflow APIs.
