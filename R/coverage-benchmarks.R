@@ -126,7 +126,6 @@
     return(empty)
   }
 
-
   if (identical(family$family, "gaussian")) {
     sigma_hat <- .coverage_comparator_dispersion(y, fitted, family)
 
@@ -163,7 +162,6 @@
     return(empty)
   }
 
-
   list(
     q = as.numeric(out_q),
     cdf_at_q = pmin(pmax(as.numeric(cdf), 0), 1)
@@ -198,7 +196,6 @@
     return(empty)
   }
 
-
   out <- empty
 
   if ("true_mu" %in% names(dat)) {
@@ -214,7 +211,6 @@
       out["benchmark_mean_rmse"] <- sqrt(mean(err_mu^2))
     }
   }
-
 
   truth_dist <- .coverage_true_margin_distribution(dat, gamlss_family, p = 0.9)
 
@@ -243,7 +239,6 @@
 
     out["benchmark_upper_tail_error_90"] <- mean(comparator_upper_tail - true_upper_tail, na.rm = TRUE)
   }
-
 
   ok_obs <- is.finite(dat$response) & is.finite(fitted)
 
@@ -314,7 +309,6 @@
     return(empty)
   }
 
-
   tryCatch(
     {
       diag_data <- tryCatch(.gl_fitted_distribution(fit, newdata = NULL, require_response = FALSE), error = function(e) NULL)
@@ -331,7 +325,6 @@
         return(empty)
       }
 
-
       params <- diag_data$params
 
       mu_hat <- if ("mu" %in% names(params)) as.numeric(params$mu) else as.numeric(params[[1L]])
@@ -339,7 +332,6 @@
       fitted <- rep(NA_real_, n)
 
       fitted[idx] <- mu_hat[seq_along(idx)]
-
 
       out <- empty
 
@@ -367,7 +359,6 @@
         }
       }
 
-
       truth_dist <- .coverage_true_margin_distribution(dat, family, p = 0.9)
 
       fitted_q90 <- rep(NA_real_, n)
@@ -381,7 +372,6 @@
       fitted_pit <- rep(NA_real_, n)
 
       fitted_density <- rep(NA_real_, n)
-
 
       fitted_q90[idx] <- tryCatch(
 
@@ -418,7 +408,6 @@
         as.numeric(.gl_call_family_fun("d", diag_data$family, dat$response[idx], params))[seq_along(idx)],
         error = function(e) rep(NA_real_, length(idx))
       )
-
 
       ok_q90 <- is.finite(truth_dist$q) & is.finite(fitted_q90)
 
@@ -471,7 +460,6 @@
 
         out["benchmark_tail_error_upper_05"] <- mean(pit >= 0.95, na.rm = TRUE) - 0.05
       }
-
 
       out
     },

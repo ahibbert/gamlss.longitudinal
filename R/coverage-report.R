@@ -146,7 +146,6 @@ write_coverage_summary_report <- function(
   )
 }
 
-
 #' Build coverage report table bundle
 #'
 #' @noRd
@@ -585,7 +584,6 @@ write_coverage_summary_report <- function(
 
   list(fit_df = fit_df, by_copula = by_copula)
 }
-
 
 #' Build coverage report runtime tables
 #'
