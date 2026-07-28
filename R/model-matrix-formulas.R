@@ -31,7 +31,6 @@
   out
 }
 
-
 #' Convert a one-sided parameter formula to a response formula
 #' 
 #' This is so the user doesn't have to specify a response variable 
@@ -61,10 +60,8 @@
     stop("Invalid formula input: ", deparse(fml))
   }
 
-
   as.formula(paste(response_name, "~", rhs_txt), env = parent.frame())
 }
-
 
 #' Determines if we have a one or two parameter copula based on the copula family, 
 #' and returns the names of the parameters to be included in model matrix construction.
