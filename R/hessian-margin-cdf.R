@@ -15,39 +15,16 @@
 #' @noRd
 
 .calc_dFdpar <- function(eta_inv, mm, margin_dist, response, h = 1e-4) {
-
-  margin_pars <- names(eta_inv)[names(eta_inv) %in% c("mu", "sigma", "nu", "tau")]
-
-
-  # Build argument list for the p-function
-
-  pfun_name <- paste0("p", margin_dist$family[1])
-
-  pfun <- tryCatch(eval(parse(text = pfun_name)), error = function(e) NULL)
-
-  if (is.null(pfun)) stop("Cannot find CDF function: ", pfun_name)
-
-
-  args_base <- list()
-
-  args_base[["q"]] <- response
-
-  for (pn in c("mu", "sigma", "nu", "tau")) {
-
-    if (pn %in% names(eta_inv)) args_base[[pn]] <- eta_inv[[pn]]
-
-  }
-
-  valid_args_base <- args_base[names(args_base) %in% names(formals(pfun))]
-
+  cdf_setup <- .hessian_margin_cdf_setup(eta_inv, margin_dist, response)
+  margin_pars <- cdf_setup$margin_pars
+  pfun <- cdf_setup$pfun
+  valid_args_base <- cdf_setup$args_base
 
   result <- vector("list", length(margin_pars))
 
   names(result) <- margin_pars
 
-
   for (pn in margin_pars) {
-
     args_p <- valid_args_base
 
     args_m <- valid_args_base
@@ -67,14 +44,10 @@
     dF[!is.finite(dF)] <- 0
 
     result[[pn]] <- as.numeric(dF)
-
   }
 
   result
-
 }
-
-
 
 #' Second diagonal derivative d2F/dpar^2 (per observation)
 
@@ -83,41 +56,20 @@
 #' @keywords internal
 
 .calc_d2Fdpar2 <- function(eta_inv, mm, margin_dist, response, h = 1e-4) {
-
-  margin_pars <- names(eta_inv)[names(eta_inv) %in% c("mu", "sigma", "nu", "tau")]
-
-
-  pfun_name <- paste0("p", margin_dist$family[1])
-
-  pfun <- tryCatch(eval(parse(text = pfun_name)), error = function(e) NULL)
-
-  if (is.null(pfun)) stop("Cannot find CDF function: ", pfun_name)
-
-
-  args_base <- list()
-
-  args_base[["q"]] <- response
-
-  for (pn in c("mu", "sigma", "nu", "tau")) {
-
-    if (pn %in% names(eta_inv)) args_base[[pn]] <- eta_inv[[pn]]
-
-  }
-
-  valid_args_base <- args_base[names(args_base) %in% names(formals(pfun))]
+  cdf_setup <- .hessian_margin_cdf_setup(eta_inv, margin_dist, response)
+  margin_pars <- cdf_setup$margin_pars
+  pfun <- cdf_setup$pfun
+  valid_args_base <- cdf_setup$args_base
 
   F0 <- do.call(pfun, valid_args_base)
 
   F0[!is.finite(F0)] <- NA
 
-
   result <- vector("list", length(margin_pars))
 
   names(result) <- margin_pars
 
-
   for (pn in margin_pars) {
-
     args_p <- valid_args_base
 
     args_m <- valid_args_base
@@ -137,14 +89,10 @@
     d2F[!is.finite(d2F)] <- 0
 
     result[[pn]] <- as.numeric(d2F)
-
   }
 
   result
-
 }
-
-
 
 #' Cross second derivative d2F/(dpar1 dpar2) (per observation)
 
@@ -153,31 +101,12 @@
 #' @keywords internal
 
 .calc_d2Fdpar_cross <- function(eta_inv, mm, margin_dist, response, h = 1e-4) {
-
-  margin_pars <- names(eta_inv)[names(eta_inv) %in% c("mu", "sigma", "nu", "tau")]
+  cdf_setup <- .hessian_margin_cdf_setup(eta_inv, margin_dist, response)
+  margin_pars <- cdf_setup$margin_pars
+  pfun <- cdf_setup$pfun
+  valid_args_base <- cdf_setup$args_base
 
   n_par <- length(margin_pars)
-
-
-  pfun_name <- paste0("p", margin_dist$family[1])
-
-  pfun <- tryCatch(eval(parse(text = pfun_name)), error = function(e) NULL)
-
-  if (is.null(pfun)) stop("Cannot find CDF function: ", pfun_name)
-
-
-  args_base <- list()
-
-  args_base[["q"]] <- response
-
-  for (pn in c("mu", "sigma", "nu", "tau")) {
-
-    if (pn %in% names(eta_inv)) args_base[[pn]] <- eta_inv[[pn]]
-
-  }
-
-  valid_args_base <- args_base[names(args_base) %in% names(formals(pfun))]
-
 
   # result[[par1]][[par2]] = d2F/(d par1 d par2)
 
@@ -186,25 +115,21 @@
   names(result) <- margin_pars
 
   for (pn in margin_pars) {
-
     result[[pn]] <- vector("list", n_par)
 
     names(result[[pn]]) <- margin_pars
 
-    result[[pn]][[pn]] <- NULL  # diagonal handled by .calc_d2Fdpar2
-
+    result[[pn]][[pn]] <- NULL # diagonal handled by .calc_d2Fdpar2
   }
 
-
-  if (n_par < 2) return(result)
-
+  if (n_par < 2) {
+    return(result)
+  }
 
   for (i in seq_len(n_par - 1)) {
-
     pn1 <- margin_pars[i]
 
     for (j in (i + 1):n_par) {
-
       pn2 <- margin_pars[j]
 
       h1 <- .natural_fd_step(as.numeric(valid_args_base[[pn1]]), pn1, margin_dist, h)
@@ -213,14 +138,21 @@
 
       # 4-point mixed-derivative formula
 
-      args_pp <- valid_args_base; args_pp[[pn1]] <- args_pp[[pn1]] + h1; args_pp[[pn2]] <- args_pp[[pn2]] + h2
+      args_pp <- valid_args_base
+      args_pp[[pn1]] <- args_pp[[pn1]] + h1
+      args_pp[[pn2]] <- args_pp[[pn2]] + h2
 
-      args_pm <- valid_args_base; args_pm[[pn1]] <- args_pm[[pn1]] + h1; args_pm[[pn2]] <- args_pm[[pn2]] - h2
+      args_pm <- valid_args_base
+      args_pm[[pn1]] <- args_pm[[pn1]] + h1
+      args_pm[[pn2]] <- args_pm[[pn2]] - h2
 
-      args_mp <- valid_args_base; args_mp[[pn1]] <- args_mp[[pn1]] - h1; args_mp[[pn2]] <- args_mp[[pn2]] + h2
+      args_mp <- valid_args_base
+      args_mp[[pn1]] <- args_mp[[pn1]] - h1
+      args_mp[[pn2]] <- args_mp[[pn2]] + h2
 
-      args_mm <- valid_args_base; args_mm[[pn1]] <- args_mm[[pn1]] - h1; args_mm[[pn2]] <- args_mm[[pn2]] - h2
-
+      args_mm <- valid_args_base
+      args_mm[[pn1]] <- args_mm[[pn1]] - h1
+      args_mm[[pn2]] <- args_mm[[pn2]] - h2
 
       Fpp <- do.call(pfun, args_pp)
 
@@ -237,21 +169,14 @@
       result[[pn1]][[pn2]] <- as.numeric(d2F)
 
       result[[pn2]][[pn1]] <- as.numeric(d2F)
-
     }
-
   }
 
   result
-
 }
-
-
 
 # ------------------------------------------------------------
 
 # 2.  Per-pair copula Hessian contributions
 
 # ------------------------------------------------------------
-
-
