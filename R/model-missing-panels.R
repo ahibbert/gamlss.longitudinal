@@ -46,7 +46,6 @@
   list(dataset = dataset, inserted_n = inserted_n)
 }
 
-
 #' Summarize response missingness by margin and margin pair for dependence
 #'
 #' @noRd
