@@ -2,7 +2,6 @@
 
 utils::globalVariables(c("theoretical", "observed", "detrended", "midpoint", "root_diff", "band_lower", "band_upper", "time", "split_group", "expected"))
 
-
 #' Diagnostic generics for fitted longitudinal GAMLSS-copula models
 
 #'
@@ -19,58 +18,38 @@ utils::globalVariables(c("theoretical", "observed", "detrended", "midpoint", "ro
 
 NULL
 
-
 #' @export
 
 pithist <- function(object, ...) {
-
   UseMethod("pithist")
-
 }
-
 
 #' @export
 
 qqrplot <- function(object, ...) {
-
   UseMethod("qqrplot")
-
 }
-
 
 #' @export
 
 wormplot <- function(object, ...) {
-
   UseMethod("wormplot")
-
 }
-
 
 #' @export
 
 rootogram <- function(object, ...) {
-
   UseMethod("rootogram")
-
 }
-
 
 #' @export
 
 proscore <- function(object, ...) {
-
   UseMethod("proscore")
-
 }
-
 
 #' @export
 
 procast <- function(object, ...) {
-
   UseMethod("procast")
-
 }
-
-
