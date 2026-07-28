@@ -90,18 +90,9 @@ test_that("benchmark report paths receive markdown suffixes", {
     method = c("rs_separate", "gee"),
     benchmark_mean_rmse = c(0.1, 0.3)
   )
-  benchmark <- structure(
-    list(
-      results = results,
-      summary = gamlss.longitudinal::summarise_benchmark_results(results, metrics = "benchmark_mean_rmse"),
-      scenarios = NULL
-    ),
-    class = "gamlss_longitudinal_adoption_benchmark"
-  )
-
   out_base <- file.path(tempdir(), "standards-report")
   out_path <- gamlss.longitudinal::write_benchmark_report(
-    benchmark,
+    results,
     path = out_base,
     metrics = "benchmark_mean_rmse"
   )
