@@ -209,7 +209,6 @@ run_coverage_simulations <- function(
   results
 }
 
-
 #' Run opt-in distribution/copula/method coverage simulations
 
 #'
@@ -389,7 +388,6 @@ run_coverage_simulations <- function(
 
   covariates <- NULL
 
-
   if (design %in% c("covariate", "scale", "smooth")) {
     covariates <- function(base) {
       x <- sim_rescale01(as.numeric(base$.sim_subject_index))
@@ -444,7 +442,6 @@ run_coverage_simulations <- function(
     }
   }
 
-
   copula_params <- if (identical(design, "time_dependence")) {
     .coverage_time_varying_copula_params(copula)
   } else if (identical(design, "smooth")) {
@@ -467,7 +464,6 @@ run_coverage_simulations <- function(
     .coverage_copula_params(copula, dependence = dependence)
   }
 
-
   simulate_longitudinal_dataset(
     n = n,
     times = times,
@@ -482,7 +478,6 @@ run_coverage_simulations <- function(
   )
 }
 
-
 #' @keywords internal
 
 #' @noRd
@@ -494,13 +489,11 @@ run_coverage_simulations <- function(
     return(dat)
   }
 
-
   n_subject <- length(unique(dat$subject))
 
   n_time <- length(unique(dat$time))
 
   n_target <- max(1L, floor(nrow(dat) * prop))
-
 
   if (identical(missingness, "mcar")) {
     eligible <- which(dat$time != min(dat$time))
@@ -512,7 +505,6 @@ run_coverage_simulations <- function(
     return(dat)
   }
 
-
   subject_index <- as.integer(dat$subject)
 
   time_values <- sort(unique(dat$time))
@@ -521,7 +513,6 @@ run_coverage_simulations <- function(
 
   dat[!drop_idx, , drop = FALSE]
 }
-
 
 #' @keywords internal
 
@@ -547,7 +538,6 @@ run_coverage_simulations <- function(
     list(mu = response ~ 1, sigma = ~1, nu = ~1, tau = ~1, theta = ~1, zeta = ~1)
   }
 }
-
 
 #' @keywords internal
 
