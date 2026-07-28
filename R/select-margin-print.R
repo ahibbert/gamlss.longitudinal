@@ -6,7 +6,6 @@ screen_margin <- function(...) {
   select_margin(...)
 }
 
-
 #' @export
 
 print.margin_screen <- function(x, ..., n = 10L) {
