@@ -3,7 +3,7 @@
 
 # ---- benchmark-report.R ----
 
-#' Format an adoption benchmark report
+#' Format a benchmark report
 
 #'
 
@@ -19,9 +19,9 @@
 
 #'
 
-#' @param benchmark A `gamlss_longitudinal_adoption_benchmark` object from
+#' @param benchmark A `gamlss_longitudinal_benchmark` object from
 
-#'   [run_adoption_benchmarks()] or a results data frame accepted by
+#'   [benchmark_standard_models()] or a results data frame accepted by
 
 #'   [summarise_benchmark_results()].
 
@@ -51,7 +51,7 @@
 
 format_benchmark_report <- function(
     benchmark,
-    title = "gamlss.longitudinal Adoption Benchmark Report",
+    title = "gamlss.longitudinal Benchmark Report",
     comparator_status = benchmark_comparator_status(),
     metrics = NULL,
     include_case_results = FALSE,
@@ -75,7 +75,6 @@ format_benchmark_report <- function(
 
   scenario_headlines <- .benchmark_report_group_headlines(scenario_summary, "benchmark_scenario")
 
-
   lines <- c(
     .benchmark_report_run_summary_section(title, inputs),
     .benchmark_report_scenario_plan_section(scenarios, digits = digits),
@@ -95,11 +94,10 @@ format_benchmark_report <- function(
     )
   )
 
-
   lines
 }
 
-#' Write an adoption benchmark report
+#' Write a benchmark report
 
 #'
 
@@ -115,8 +113,8 @@ format_benchmark_report <- function(
 
 write_benchmark_report <- function(
     benchmark,
-    path = file.path("results", "adoption_benchmarks", "adoption_benchmark_report.md"),
-    title = "gamlss.longitudinal Adoption Benchmark Report",
+    path = file.path("results", "benchmark_report.md"),
+    title = "gamlss.longitudinal Benchmark Report",
     comparator_status = benchmark_comparator_status(),
     metrics = NULL,
     include_case_results = FALSE,
@@ -261,15 +259,17 @@ write_benchmark_report <- function(
 
 .benchmark_report_inputs <- function(benchmark, metrics = NULL) {
   if (inherits(benchmark, "gamlss_longitudinal_adoption_benchmark")) {
-    primary_method <- .benchmark_infer_primary_method(benchmark$results)
+    results <- as.data.frame(benchmark$results, stringsAsFactors = FALSE)
+    summary <- summarise_benchmark_results(results, metrics = metrics)
+    primary_method <- .benchmark_infer_primary_method(results)
 
     return(list(
-      results = benchmark$results,
-      summary = benchmark$summary,
+      results = results,
+      summary = summary,
       scenarios = benchmark$scenarios,
-      reps = benchmark$reps,
-      metrics = benchmark$metrics,
-      interpretation = .benchmark_interpretation(benchmark$results, primary_method = primary_method, metrics = benchmark$metrics),
+      reps = length(unique(results$benchmark_rep %||% 1L)),
+      metrics = summary$metric_catalog$metric,
+      interpretation = .benchmark_interpretation(results, primary_method = primary_method, metrics = metrics),
       primary_method = primary_method
     ))
   }
@@ -306,7 +306,6 @@ write_benchmark_report <- function(
     primary_method = primary_method
   )
 }
-
 
 `%||%` <- function(x, y) {
   if (is.null(x)) y else x
@@ -755,7 +754,6 @@ write_benchmark_report <- function(
 
   eligible <- results[available & success, , drop = FALSE]
 
-
   empty_leaders <- data.frame(
     domain = character(),
     metric = character(),
@@ -767,7 +765,6 @@ write_benchmark_report <- function(
     leading_methods = character(),
     stringsAsFactors = FALSE
   )
-
 
   summary <- NULL
 
@@ -822,7 +819,6 @@ write_benchmark_report <- function(
       rownames(leaders) <- NULL
     }
   }
-
 
   out <- list(
     primary_method = primary_method,
@@ -1105,7 +1101,6 @@ write_benchmark_report <- function(
   cat("Coefficient Estimates\n\n")
 
   print(.benchmark_print_method_columns(coefficients$estimates), digits = digits, row.names = FALSE)
-
 
   long <- as.data.frame(coefficients$long, stringsAsFactors = FALSE)
 

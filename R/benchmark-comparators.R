@@ -3,7 +3,7 @@
 
 # ---- benchmark-comparator.R ----
 
-#' Fit standard longitudinal comparator models for adoption benchmarks
+#' Fit standard longitudinal comparator models for benchmarks
 
 #'
 
@@ -127,7 +127,6 @@ benchmark_standard_models <- function(
   quantile_prob <- inputs$quantile_prob
   interval_level <- inputs$interval_level
 
-
   comparator_runs <- lapply(comparators, function(comparator) {
     .benchmark_fit_one(
       data = data,
@@ -245,7 +244,6 @@ benchmark_standard_models <- function(
     interval_level = interval_level
   )
 }
-
 
 #' Assemble a benchmark_standard_models() return object
 #'
@@ -423,7 +421,6 @@ benchmark_standard_models <- function(
     stop("Unknown comparator: ", comparator, call. = FALSE)
   }
 
-
   start <- Sys.time()
 
   warnings <- character(0)
@@ -431,7 +428,6 @@ benchmark_standard_models <- function(
   fit <- NULL
 
   error <- NULL
-
 
   if (!isTRUE(status_row$available)) {
     elapsed <- as.numeric(difftime(Sys.time(), start, units = "secs"))
@@ -449,7 +445,6 @@ benchmark_standard_models <- function(
       )
     ))
   }
-
 
   smooth_comparators <- c("gam", "gamm")
 
@@ -472,7 +467,6 @@ benchmark_standard_models <- function(
       )
     ))
   }
-
 
   captured <- withCallingHandlers(
     tryCatch(
@@ -539,7 +533,6 @@ benchmark_standard_models <- function(
   } else {
     NA_real_
   }
-
 
   list(
     fit = fit,
@@ -665,7 +658,6 @@ benchmark_standard_models <- function(
     NA_character_
   }
 
-
   y <- .benchmark_response(formula, data)
 
   pred <- .benchmark_predict_response(fit, data)
@@ -701,7 +693,6 @@ benchmark_standard_models <- function(
   ll <- if (success) .benchmark_scalar_fit_stat(stats::logLik(fit)) else NA_real_
 
   aic <- if (success) .benchmark_supplied_fit_aic(fit) else NA_real_
-
 
   list(
     fit = fit,
@@ -782,7 +773,6 @@ benchmark_standard_models <- function(
 
   estimates <- .benchmark_wide_values(long, "estimate")
 
-
   reference <- long[long$method == reference_method, , drop = FALSE]
 
   uncertainty <- long
@@ -820,7 +810,6 @@ benchmark_standard_models <- function(
 
     )
   }
-
 
   list(
     parameter = parameter,
@@ -1040,7 +1029,6 @@ benchmark_standard_models <- function(
 
   dat <- .benchmark_response_data(data, formula)
 
-
   if ("true_mu" %in% names(dat)) {
     ok_truth <- is.finite(dat$true_mu) & is.finite(fitted)
 
@@ -1055,7 +1043,6 @@ benchmark_standard_models <- function(
     }
   }
 
-
   pred_dist <- .benchmark_predictive_distribution(y, fitted, family, p = p, interval_level = interval_level)
 
   truth_dist <- .coverage_true_margin_distribution(
@@ -1064,7 +1051,6 @@ benchmark_standard_models <- function(
     family = .benchmark_truth_family(family, truth_family = truth_family),
     p = p
   )
-
 
   ok_q <- is.finite(pred_dist$q_p) & is.finite(truth_dist$q)
 
@@ -1078,7 +1064,6 @@ benchmark_standard_models <- function(
     out["benchmark_neg_log_score"] <- mean(-log(pmax(pred_dist$density[ok_density], .Machine$double.xmin)), na.rm = TRUE)
   }
 
-
   comparator_at_truth <- .coverage_comparator_distribution(y, fitted, family, truth_dist$q, p = p)
 
   ok_tail <- is.finite(comparator_at_truth$cdf_at_q) & is.finite(truth_dist$cdf)
@@ -1091,7 +1076,6 @@ benchmark_standard_models <- function(
     )
   }
 
-
   ok_interval <- is.finite(y) & is.finite(pred_dist$lower) & is.finite(pred_dist$upper)
 
   if (any(ok_interval)) {
@@ -1099,7 +1083,6 @@ benchmark_standard_models <- function(
 
     out["benchmark_interval_width_95"] <- mean(pred_dist$upper[ok_interval] - pred_dist$lower[ok_interval], na.rm = TRUE)
   }
-
 
   ok_pit <- is.finite(pred_dist$pit)
 
@@ -1118,7 +1101,6 @@ benchmark_standard_models <- function(
 
     out["benchmark_tail_error_upper_05"] <- mean(pit >= 0.95, na.rm = TRUE) - 0.05
   }
-
 
   out
 }
@@ -1158,7 +1140,6 @@ benchmark_standard_models <- function(
 
   dat <- .benchmark_response_data(data, formula)
 
-
   if ("true_mu" %in% names(dat)) {
     ok_truth <- is.finite(dat$true_mu) & is.finite(fitted)
 
@@ -1173,7 +1154,6 @@ benchmark_standard_models <- function(
     }
   }
 
-
   alpha <- (1 - interval_level) / 2
 
   q_pred <- tryCatch(stats::predict(fit, newdata = data, type = "quantile", probs = c(alpha, 1 - alpha, p)), error = function(e) NULL)
@@ -1185,7 +1165,6 @@ benchmark_standard_models <- function(
   upper <- if (!is.null(q_cols)) as.numeric(q_cols[[2L]]) else rep(NA_real_, nrow(data))
 
   q_p <- if (!is.null(q_cols)) as.numeric(q_cols[[3L]]) else rep(NA_real_, nrow(data))
-
 
   pit <- .benchmark_predict_gamlss_vector(fit, data, type = "cdf", value_name = "cdf", q = y)
 
@@ -1200,7 +1179,6 @@ benchmark_standard_models <- function(
 
   cdf_at_truth_q <- .benchmark_predict_gamlss_vector(fit, data, type = "cdf", value_name = "cdf", q = truth_dist$q)
 
-
   ok_q <- is.finite(q_p) & is.finite(truth_dist$q)
 
   if (any(ok_q)) {
@@ -1213,13 +1191,11 @@ benchmark_standard_models <- function(
     out["benchmark_neg_log_score"] <- mean(-log(pmax(density[ok_density], .Machine$double.xmin)), na.rm = TRUE)
   }
 
-
   ok_tail <- is.finite(cdf_at_truth_q) & is.finite(truth_dist$cdf)
 
   if (any(ok_tail)) {
     out["benchmark_upper_tail_error_90"] <- mean((1 - cdf_at_truth_q[ok_tail]) - (1 - truth_dist$cdf[ok_tail]), na.rm = TRUE)
   }
-
 
   ok_interval <- is.finite(y) & is.finite(lower) & is.finite(upper)
 
@@ -1228,7 +1204,6 @@ benchmark_standard_models <- function(
 
     out["benchmark_interval_width_95"] <- mean(upper[ok_interval] - lower[ok_interval], na.rm = TRUE)
   }
-
 
   ok_pit <- is.finite(pit)
 
@@ -1247,7 +1222,6 @@ benchmark_standard_models <- function(
 
     out["benchmark_tail_error_upper_05"] <- mean(pit >= 0.95, na.rm = TRUE) - 0.05
   }
-
 
   out
 }
@@ -1272,7 +1246,6 @@ benchmark_standard_models <- function(
   }
 
   alpha <- (1 - interval_level) / 2
-
 
   if (identical(family$family, "gaussian")) {
     sigma_hat <- .coverage_comparator_dispersion(y, fitted, family)
@@ -1339,7 +1312,6 @@ benchmark_standard_models <- function(
   } else {
     return(empty)
   }
-
 
   list(
     q_p = as.numeric(q_p),
@@ -1526,7 +1498,6 @@ print.gamlss_longitudinal_benchmark <- function(x, digits = max(3, getOption("di
 
   cat("Estimand note: mean-fit metrics compare response-mean predictions; distributional metrics use fitted quantiles, densities, PIT values, intervals, and tail probabilities where available.\n\n")
 
-
   interpretation_table <- .benchmark_interpretation_table(x$interpretation)
 
   if (nrow(interpretation_table) > 0L) {
@@ -1547,11 +1518,9 @@ print.gamlss_longitudinal_benchmark <- function(x, digits = max(3, getOption("di
     }
   }
 
-
   cat("\nBenchmark Details\n")
 
   cat("-----------------\n")
-
 
   successful_results <- x$results
 
@@ -1568,7 +1537,6 @@ print.gamlss_longitudinal_benchmark <- function(x, digits = max(3, getOption("di
 
     print(.benchmark_print_method_columns(.benchmark_print_metric_labels(metric_table)), digits = digits, row.names = FALSE)
   }
-
 
   .benchmark_print_coefficient_comparison(x$coefficients, digits = digits)
 
