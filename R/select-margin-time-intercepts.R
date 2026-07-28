@@ -9,7 +9,6 @@
     stop("Need at least three finite response values with non-missing time values to screen time-intercept margins.", call. = FALSE)
   }
 
-
   fit_data <- data.frame(
     response = response[keep],
     time_intercept = factor(time[keep], levels = unique(time[keep])),
@@ -30,7 +29,6 @@
     stats::as.formula("~ 1")
   }
 
-
   rows <- lapply(families, function(family_name) {
     family <- .margin_family_object(family_name)
 
@@ -43,7 +41,6 @@
       ))
     }
 
-
     fit_args <- list(
       formula = mu_formula,
       family = family,
@@ -55,7 +52,6 @@
     for (par_name in setdiff(names(family$parameters), "mu")) {
       fit_args[[paste0(par_name, ".formula")]] <- par_formula
     }
-
 
     fit <- tryCatch(
       {
@@ -92,7 +88,6 @@
       stringsAsFactors = FALSE
     )
   })
-
 
   do.call(rbind, rows)
 }
