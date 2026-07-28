@@ -7,7 +7,7 @@ local_jss_repo_root <- function() {
   repo_root
 }
 
-test_that("JSS replication skeleton declares seven paper modules", {
+test_that("JSS replication skeleton declares eight paper modules", {
   repo_root <- local_jss_repo_root()
   module_files <- file.path(
     repo_root, "paper", "R",
@@ -18,7 +18,8 @@ test_that("JSS replication skeleton declares seven paper modules", {
       "04-missingness-dropout-sensitivity.R",
       "05-application-lipid.R",
       "06-application-rand-doctor-visits.R",
-      "07-gamma-copula-misspecification.R"
+      "07-gamma-copula-misspecification.R",
+      "08-simulation-sensitivity-correlation-misspecification.R"
     )
   )
   expect_true(all(file.exists(module_files)))
