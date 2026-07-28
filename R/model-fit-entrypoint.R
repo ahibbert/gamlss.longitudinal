@@ -5,6 +5,7 @@
 #' 2. Execution of the optimization loop by calling optimizer_fn = .gl_run_prepared_fit_optimizer (model-fit-optimizer.R),
 #' 3. Finalization of the fit by calling finalize_fn = .gl_finalize_prepared_fit (model-fit-finalize.R)
 #' 
+#' @noRd
 .gl_run_gamlss_longitudinal_entrypoint <- function(
     dataset,
     margin_dist,

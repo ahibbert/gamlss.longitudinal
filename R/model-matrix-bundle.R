@@ -33,7 +33,6 @@
   )
 }
 
-
 #' Warn about rank-deficient fixed-effect model matrices
 #'
 #' @noRd

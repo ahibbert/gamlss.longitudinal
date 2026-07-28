@@ -1,4 +1,4 @@
-﻿#' Fit a longitudinal joint regression model
+#' Fit a longitudinal joint regression model
 #'
 #' This function fits a longitudinal model to a dataset with gamlss margins
 #' and a first-order copula dependence structure. Any linear, factor, or smooth
