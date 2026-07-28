@@ -77,7 +77,6 @@ summarise_benchmark_results <- function(
 
   group_key <- interaction(results[group_cols], drop = TRUE, lex.order = TRUE)
 
-
   case_rows <- list()
 
   for (metric in metrics) {
@@ -124,7 +123,6 @@ summarise_benchmark_results <- function(
     do.call(rbind, case_rows)
   }
 
-
   if (nrow(case_results) == 0L) {
     summary <- data.frame()
   } else {
@@ -159,7 +157,6 @@ summarise_benchmark_results <- function(
 
     rownames(summary) <- NULL
   }
-
 
   out <- list(
     summary = summary,
@@ -241,7 +238,6 @@ summarise_benchmark_results <- function(
   )
 }
 
-
 .benchmark_metric_score <- function(value, rule, target) {
   if (identical(rule, "lower")) {
     return(value)
@@ -257,7 +253,6 @@ summarise_benchmark_results <- function(
 
   abs(value - target)
 }
-
 
 .benchmark_case_label <- function(score, best_score, tie_tolerance, absolute_tolerance) {
   if (!is.finite(score) || !is.finite(best_score)) {
