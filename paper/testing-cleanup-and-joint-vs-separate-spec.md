@@ -26,9 +26,9 @@ Use the same buckets for exploratory scripts and exploratory results:
 4. `04-missingness-dropout-sensitivity`
    - Missingness/dropout sensitivity checks.
    - Comparison of complete-case, missingness-aware, and sensitivity designs.
-5. `05-standard-model-benchmarking`
-   - Placeholder bucket for comparisons with standard GLM, GEE, GLMM, GAM,
-     and related comparator models.
+5. `08-simulation-sensitivity-correlation-misspecification`
+   - Promoted JSS module bucket for comparisons with standard GLM and GEE
+     comparator models under correlation misspecification.
 
 Recommended exploratory layout:
 
@@ -38,7 +38,7 @@ R (testing)/
   02-discrete-delaporte-clayton/
   03-joint-vs-separate-optimization/
   04-missingness-dropout-sensitivity/
-  05-standard-model-benchmarking/
+  08-simulation-sensitivity-correlation-misspecification/
   _archive-delete-after-insight-capture/
 
 results/jss-exploratory/
@@ -46,7 +46,7 @@ results/jss-exploratory/
   02-discrete-delaporte-clayton/
   03-joint-vs-separate-optimization/
   04-missingness-dropout-sensitivity/
-  05-standard-model-benchmarking/
+  08-simulation-sensitivity-correlation-misspecification/
 ```
 
 The formal paper workflow should continue to write final regenerated artifacts
@@ -75,9 +75,9 @@ Observed exploratory script categories in `R (testing)/`:
   `showcase_rs_joint_fit_quality_report.R`,
   `plot_stress_effect_search_trends.R`.
 - Missingness: `simulation_bcpe_t_missingness_comparison.R`.
-- Benchmarking: current implementation is mostly in package code:
-  `R/benchmark-*.R`, plus outputs in `results/adoption_benchmarks_*` and notes
-  under `inst/benchmarks/`.
+- Benchmarking: current reusable comparator implementation is mostly in package
+  code (`R/benchmark-*.R`). The module 08 paper runner now lives under
+  `paper/R/08-simulation-sensitivity-correlation-misspecification/standard-model-benchmarking/`.
 
 Large exploratory result directories currently include:
 
@@ -85,8 +85,8 @@ Large exploratory result directories currently include:
   per-replicate `.rds` files plus compact CSV summaries.
 - `results/rs_joint_*`: about 180 MB combined, with thousands of cell-level
   `.rds` files plus summary/candidate CSVs and PNG reports.
-- `results/adoption_benchmarks_*`: standard-model benchmark pilot and extended
-  outputs.
+- `results/jss-exploratory/05-standard-model-benchmarking/`: standard-model
+  benchmark pilot and extended outputs.
 - `results/rs_clayton_showcase_fit_quality`: discrete/joint optimisation
   report tables and repeated timestamped fit summaries.
 
@@ -267,4 +267,3 @@ Cleanup is complete when:
 - `paper/R/03-joint-vs-separate-optimization.R` no longer writes a stub and
   produces real data, tables, and figures through the targets workflow;
 - `paper/manifest.csv` records the final non-stub outputs for module 03.
-
