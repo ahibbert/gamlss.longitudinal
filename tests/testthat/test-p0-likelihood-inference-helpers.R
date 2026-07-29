@@ -18,6 +18,12 @@ test_that("likelihood comparison input helper validates and labels models", {
   expect_equal(names(out), c("model_1", "model_2"))
   expect_s3_class(out[[1]], "gamlss.longitudinal")
 
+  labelled <- gamlss.longitudinal:::.gl_likelihood_compare_models(
+    list(reduced, full),
+    labels = c("fit_zeta", "fit_full")
+  )
+  expect_equal(names(labelled), c("fit_zeta", "fit_full"))
+
   named <- gamlss.longitudinal:::.gl_likelihood_compare_models(list(reduced = reduced, full = full))
   expect_equal(names(named), c("reduced", "full"))
 
@@ -34,7 +40,19 @@ test_that("likelihood comparison input helper validates and labels models", {
   )
 })
 
-test_that("likelihood comparison table computes sorted sequential LR metrics", {
+test_that("likelihood comparison captures call labels", {
+  labels <- gamlss.longitudinal:::.gl_likelihood_compare_call_labels(
+    quote(list(fit_zeta, chosen = fit_full))
+  )
+  expect_equal(labels, c("fit_zeta", "chosen"))
+
+  inline_list_labels <- gamlss.longitudinal:::.gl_likelihood_compare_call_labels(
+    quote(list(list(fit_zeta, fit_full)))
+  )
+  expect_equal(inline_list_labels, c("fit_zeta", "fit_full"))
+})
+
+test_that("likelihood comparison table sorts by AIC by default", {
   reduced <- make_likelihood_compare_fit(-10, par = c(mu = 1))
   full <- make_likelihood_compare_fit(-6, par = c(mu = 1, sigma = 2))
   models <- list(full = full, reduced = reduced)
@@ -42,13 +60,13 @@ test_that("likelihood comparison table computes sorted sequential LR metrics", {
   out <- gamlss.longitudinal:::.gl_likelihood_compare_table(models, sort = TRUE)
 
   expect_s3_class(out, "gamlss_longitudinal_likelihood_compare")
-  expect_equal(out$model, c("reduced", "full"))
-  expect_equal(out$df, c(1, 2))
-  expect_equal(out$logLik, c(-10, -6))
-  expect_equal(out$AIC, c(22, 16))
-  expect_equal(out$delta_df, c(NA_real_, 1))
-  expect_equal(out$LR_statistic, c(NA_real_, 8))
-  expect_equal(out$p_value[2], stats::pchisq(8, df = 1, lower.tail = FALSE))
+  expect_equal(out$model, c("full", "reduced"))
+  expect_equal(out$df, c(2, 1))
+  expect_equal(out$logLik, c(-6, -10))
+  expect_equal(out$AIC, c(16, 22))
+  expect_equal(out$delta_df, c(NA_real_, -1))
+  expect_equal(out$LR_statistic, c(NA_real_, -8))
+  expect_true(is.na(out$p_value[2]))
 })
 
 test_that("likelihood comparison table can preserve input order and warns for n mismatch", {
@@ -66,12 +84,12 @@ test_that("likelihood comparison table can preserve input order and warns for n 
 })
 
 test_that("likelihood_compare delegates to helper output", {
-  reduced <- make_likelihood_compare_fit(-10, par = c(mu = 1))
-  full <- make_likelihood_compare_fit(-6, par = c(mu = 1, sigma = 2))
+  fit_reduced <- make_likelihood_compare_fit(-10, par = c(mu = 1))
+  fit_full <- make_likelihood_compare_fit(-6, par = c(mu = 1, sigma = 2))
 
-  out <- likelihood_compare(reduced = reduced, full = full)
+  out <- likelihood_compare(fit_reduced, fit_full)
 
   expect_s3_class(out, "gamlss_longitudinal_likelihood_compare")
-  expect_equal(out$model, c("reduced", "full"))
-  expect_equal(out$LR_statistic[2], 8)
+  expect_equal(out$model, c("fit_full", "fit_reduced"))
+  expect_equal(out$AIC, c(16, 22))
 })
