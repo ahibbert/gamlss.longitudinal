@@ -48,7 +48,7 @@
 
 #'   objects.
 
-#' @param sort Logical; order models by effective degrees of freedom before
+#' @param sort Logical; order models by AIC, lowest first, before
 
 #'   computing sequential comparisons.
 
@@ -59,7 +59,9 @@
 #' @export
 
 likelihood_compare <- function(..., sort = TRUE) {
-  models <- .gl_likelihood_compare_models(list(...))
+  labels <- .gl_likelihood_compare_call_labels(substitute(list(...)))
+
+  models <- .gl_likelihood_compare_models(list(...), labels = labels)
 
   .gl_likelihood_compare_table(models, sort = sort)
 }

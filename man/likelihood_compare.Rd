@@ -10,7 +10,7 @@ likelihood_compare(..., sort = TRUE)
 \item{...}{Fitted \code{gamlss.longitudinal} objects, or a single list of fitted
 objects.}
 
-\item{sort}{Logical; order models by effective degrees of freedom before
+\item{sort}{Logical; order models by AIC, lowest first, before
 computing sequential comparisons.}
 }
 \value{
