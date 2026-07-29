@@ -33,7 +33,11 @@ excluded by default.}
 predictors.}
 }
 \value{
-An object of class \code{gamlss_longitudinal_missingness_check}.
+An object of class \code{gamlss_longitudinal_missingness_check}. The
+\code{terms} element contains likelihood-ratio screening rows with \code{term},
+\code{statistic}, \code{df}, \code{p_value}, and \code{method}. The default method is a
+multivariable likelihood-ratio test; terms that are aliased in the
+multivariable model fall back to a single-predictor likelihood-ratio screen.
 }
 \description{
 \code{check_missingness()} screens whether response missingness is associated with
