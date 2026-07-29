@@ -1,9 +1,10 @@
 #' Normalize and validate likelihood-comparison model inputs
 #'
 #' @param models List collected from `...`.
+#' @param labels Optional labels captured from the unevaluated call.
 #' @return Named list of fitted models.
 #' @noRd
-.gl_likelihood_compare_models <- function(models) {
+.gl_likelihood_compare_models <- function(models, labels = NULL) {
   if (length(models) == 1L && is.list(models[[1L]]) && !inherits(models[[1L]], "gamlss.longitudinal")) {
     models <- models[[1L]]
   }
@@ -18,20 +19,61 @@
     stop("All inputs must be fitted 'gamlss.longitudinal' objects.", call. = FALSE)
   }
 
-  labels <- names(models)
+  model_names <- names(models)
 
-  if (is.null(labels) || any(labels == "")) {
-    labels <- paste0("model_", seq_along(models))
+  if (is.null(model_names)) {
+    model_names <- rep("", length(models))
   }
 
-  names(models) <- labels
+  if (!is.null(labels) && length(labels) == length(models)) {
+    missing_names <- model_names == ""
+
+    model_names[missing_names] <- labels[missing_names]
+  }
+
+  if (any(model_names == "")) {
+    model_names[model_names == ""] <- paste0("model_", which(model_names == ""))
+  }
+
+  names(models) <- model_names
   models
+}
+
+#' Capture likelihood-comparison labels from the user call
+#'
+#' @param expr Unevaluated `list(...)` call from `likelihood_compare()`.
+#' @return Character vector of labels, with empty strings for non-symbol inputs.
+#' @noRd
+.gl_likelihood_compare_call_labels <- function(expr) {
+  args <- as.list(expr)[-1L]
+
+  if (length(args) == 1L && is.call(args[[1L]]) && identical(args[[1L]][[1L]], as.name("list"))) {
+    args <- as.list(args[[1L]])[-1L]
+  }
+
+  labels <- rep("", length(args))
+
+  arg_names <- names(args)
+
+  if (is.null(arg_names)) {
+    arg_names <- rep("", length(args))
+  }
+
+  for (i in seq_along(args)) {
+    if (nzchar(arg_names[[i]])) {
+      labels[[i]] <- arg_names[[i]]
+    } else if (is.symbol(args[[i]])) {
+      labels[[i]] <- as.character(args[[i]])
+    }
+  }
+
+  labels
 }
 
 #' Build the likelihood-comparison result table
 #'
 #' @param models Named list of fitted `gamlss.longitudinal` objects.
-#' @param sort Logical; order rows by effective degrees of freedom and log-likelihood.
+#' @param sort Logical; order rows by AIC, lowest first.
 #' @return Classed likelihood-comparison data frame.
 #' @noRd
 .gl_likelihood_compare_table <- function(models, sort = TRUE) {
@@ -50,8 +92,12 @@
 
   loglik <- vapply(models, .gl_joint_loglik, numeric(1))
 
+  aic <- -2 * loglik + 2 * df
+
+  bic <- -2 * loglik + log(pmax(1, n_obs)) * df
+
   if (isTRUE(sort)) {
-    ord <- order(df, loglik)
+    ord <- order(aic, df, -loglik)
 
     labels <- labels[ord]
 
@@ -60,11 +106,11 @@
     df <- df[ord]
 
     loglik <- loglik[ord]
+
+    aic <- aic[ord]
+
+    bic <- bic[ord]
   }
-
-  aic <- -2 * loglik + 2 * df
-
-  bic <- -2 * loglik + log(pmax(1, n_obs)) * df
 
   delta_df <- c(NA_real_, diff(df))
 
