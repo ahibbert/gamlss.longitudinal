@@ -71,3 +71,39 @@ test_that("missingness assessment labels flagged and unflagged models", {
     "no_detected_covariate_association"
   )
 })
+
+test_that("missingness term tests fall back when multivariable terms are aliased", {
+  set.seed(1001)
+  n <- 80
+  x <- rnorm(n)
+  dat <- data.frame(
+    y = rnorm(n),
+    x = x,
+    x_dup = x
+  )
+  dat$y[dat$x > 0] <- NA
+
+  out <- suppressWarnings(check_missingness(dat, response_var = "y"))
+
+  expect_equal(out$terms$term, c("x", "x_dup"))
+  expect_equal(out$terms$method, rep("univariable_lrt", 2L))
+  expect_true(all(is.finite(out$terms$statistic)))
+  expect_true(all(is.finite(out$terms$p_value)))
+  expect_equal(out$assessment, "covariate_related_missingness")
+})
+
+test_that("missingness term fallback handles non-syntactic predictor names", {
+  set.seed(1002)
+  n <- 80
+  x <- rnorm(n)
+  dat <- data.frame(y = rnorm(n), check.names = FALSE)
+  dat[["x var"]] <- x
+  dat[["x copy"]] <- x
+  dat$y[dat[["x var"]] > 0] <- NA
+
+  out <- suppressWarnings(check_missingness(dat, response_var = "y"))
+
+  expect_equal(out$terms$term, c("x var", "x copy"))
+  expect_equal(out$terms$method, rep("univariable_lrt", 2L))
+  expect_true(all(is.finite(out$terms$p_value)))
+})

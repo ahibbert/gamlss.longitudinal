@@ -100,7 +100,7 @@
   if (nrow(model_data) < 3L || length(unique(model_data$.response_missing)) < 2L) {
     return(NULL)
   }
-  form <- stats::reformulate(predictors_used, response = ".response_missing")
+  form <- .missingness_formula(".response_missing", predictors_used)
   tryCatch(
     stats::glm(form, data = model_data, family = stats::binomial()),
     error = function(e) e
