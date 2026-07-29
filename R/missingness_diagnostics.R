@@ -19,7 +19,11 @@
 #' @param max_factor_levels Maximum number of levels allowed for default factor
 #'   predictors.
 #'
-#' @return An object of class `gamlss_longitudinal_missingness_check`.
+#' @return An object of class `gamlss_longitudinal_missingness_check`. The
+#'   `terms` element contains likelihood-ratio screening rows with `term`,
+#'   `statistic`, `df`, `p_value`, and `method`. The default method is a
+#'   multivariable likelihood-ratio test; terms that are aliased in the
+#'   multivariable model fall back to a single-predictor likelihood-ratio screen.
 #' @export
 check_missingness <- function(
     data,
