@@ -25,7 +25,8 @@ select_copula(
   t_df_grid = c(3, 4, 6, 8, 12, 20, 30),
   min_pairs = 10,
   time_intercepts = FALSE,
-  copula_time_intercepts = FALSE
+  copula_time_intercepts = FALSE,
+  tail_thresholds = c(0.05, 0.1, 0.2)
 )
 }
 \arguments{
@@ -76,11 +77,19 @@ the temporary marginal model and pass this setting through to
 \item{copula_time_intercepts}{Logical; if \code{TRUE}, screen each copula family
 with separate dependence parameters for each adjacent time-pair factor
 level. This does not impose a linear time trend.}
+
+\item{tail_thresholds}{Numeric vector of lower-tail probabilities used for
+empirical-versus-fitted tail co-occurrence and conditional tail exceedance
+summaries.}
 }
 \value{
 A data frame with one row per family and class
 \code{copula_selection}. The selected family is stored in the \code{selected}
-attribute.
+attribute. The main table includes fitted lower/upper tail co-occurrence
+and conditional exceedance probabilities at the smallest requested
+\code{tail_thresholds} value. Full empirical-versus-fitted tail diagnostic
+tables are stored in the \code{tail_cooccurrence} and
+\code{conditional_tail_exceedance} attributes.
 }
 \description{
 Screens supported copula families by maximising their native copula
