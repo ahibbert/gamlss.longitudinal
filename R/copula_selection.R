@@ -45,10 +45,17 @@
 #' @param copula_time_intercepts Logical; if `TRUE`, screen each copula family
 #'   with separate dependence parameters for each adjacent time-pair factor
 #'   level. This does not impose a linear time trend.
+#' @param tail_thresholds Numeric vector of lower-tail probabilities used for
+#'   empirical-versus-fitted tail co-occurrence and conditional tail exceedance
+#'   summaries.
 #'
 #' @return A data frame with one row per family and class
 #'   `copula_selection`. The selected family is stored in the `selected`
-#'   attribute.
+#'   attribute. The main table includes fitted lower/upper tail co-occurrence
+#'   and conditional exceedance probabilities at the smallest requested
+#'   `tail_thresholds` value. Full empirical-versus-fitted tail diagnostic
+#'   tables are stored in the `tail_cooccurrence` and
+#'   `conditional_tail_exceedance` attributes.
 #' @export
 select_copula <- function(
     data = NULL,
@@ -71,13 +78,15 @@ select_copula <- function(
     t_df_grid = c(3, 4, 6, 8, 12, 20, 30),
     min_pairs = 10,
     time_intercepts = FALSE,
-    copula_time_intercepts = FALSE) {
+    copula_time_intercepts = FALSE,
+    tail_thresholds = c(0.05, 0.10, 0.20)) {
   criterion <- match.arg(criterion)
   families <- vapply(families, .copula_family_code, character(1), USE.NAMES = FALSE)
   lags <- as.integer(lags)
   if (length(lags) < 1L || any(!is.finite(lags)) || any(lags < 1L)) {
     stop("lags must contain positive integers.", call. = FALSE)
   }
+  tail_thresholds <- .select_copula_tail_thresholds(tail_thresholds)
 
   pairs <- .select_copula_pairs(
     data = data,
@@ -118,7 +127,14 @@ select_copula <- function(
       copula_time = if (isTRUE(copula_time_intercepts)) pairs$copula_time else NULL
     )
   })
+  tail_diagnostics <- .select_copula_tail_diagnostics(
+    pairs = pairs,
+    fits = fits,
+    thresholds = tail_thresholds,
+    copula_time_intercepts = copula_time_intercepts
+  )
   out <- do.call(rbind, fits)
+  out <- .select_copula_add_tail_summary(out, tail_diagnostics)
   out$n_pairs <- nrow(pairs)
   out <- out[order(out[[criterion]], decreasing = identical(criterion, "logLik")), , drop = FALSE]
   rownames(out) <- NULL
@@ -128,6 +144,9 @@ select_copula <- function(
   attr(out, "pseudo_observation_source") <- attr(pairs, "pseudo_observation_source")
   attr(out, "copula_time_intercepts") <- isTRUE(copula_time_intercepts)
   attr(out, "copula_time_levels") <- if (isTRUE(copula_time_intercepts)) unique(pairs$copula_time) else NULL
+  attr(out, "tail_thresholds") <- tail_thresholds
+  attr(out, "tail_cooccurrence") <- tail_diagnostics$cooccurrence
+  attr(out, "conditional_tail_exceedance") <- tail_diagnostics$conditional
   class(out) <- c("copula_selection", "data.frame")
   out
 }

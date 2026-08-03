@@ -42,7 +42,7 @@
   k_per_level <- if (identical(family, "t")) 2 else 1
   k_total <- length(levels_time) * k_per_level
   tau <- vapply(fits, function(fit) fit$tau[[1L]], numeric(1))
-  data.frame(
+  out <- data.frame(
     family = family,
     par = NA_real_,
     par2 = if (identical(family, "t")) NA_real_ else 0,
@@ -53,6 +53,16 @@
     n_copula_time_levels = length(levels_time),
     stringsAsFactors = FALSE
   )
+  attr(out, "copula_time_fits") <- data.frame(
+    copula_time = levels_time,
+    family = family,
+    par = vapply(fits, function(fit) fit$par[[1L]], numeric(1)),
+    par2 = vapply(fits, function(fit) fit$par2[[1L]], numeric(1)),
+    tau = tau,
+    logLik = vapply(fits, function(fit) fit$logLik[[1L]], numeric(1)),
+    stringsAsFactors = FALSE
+  )
+  out
 }
 
 .select_copula_fit_one_par <- function(u1, u2, family, lower, upper, start = NULL, par2 = 0) {
