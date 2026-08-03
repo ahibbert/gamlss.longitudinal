@@ -21,5 +21,8 @@ best_fit_family.copula_selection <- function(x, ...) {
   if (identical(name, "best_fit")) {
     return(best_fit(x))
   }
+  if (name %in% c("tail_cooccurrence", "conditional_tail_exceedance", "tail_thresholds")) {
+    return(attr(x, name))
+  }
   .subset2(as.data.frame(x), name, exact = FALSE)
 }

@@ -61,6 +61,64 @@ test_that("select_copula accepts direct pseudo-observation pairs", {
   expect_equal(attr(selected, "selected"), "C")
 })
 
+test_that("select_copula reports tail cooccurrence and conditional tail diagnostics", {
+  dat <- simulate_longitudinal_dataset(
+    n = 80,
+    times = 1:4,
+    margin_dist = gamlss.dist::NO(),
+    margin_params = list(mu = 0, sigma = 1),
+    copula_dist = "C",
+    copula_params = list(theta = 3),
+    seed = 322
+  )
+
+  selected <- select_copula(
+    data = dat,
+    u_var = "u",
+    families = "C",
+    tail_thresholds = c(0.1, 0.2)
+  )
+
+  tail <- attr(selected, "tail_cooccurrence")
+  conditional <- attr(selected, "conditional_tail_exceedance")
+
+  expect_s3_class(tail, "data.frame")
+  expect_s3_class(conditional, "data.frame")
+  expect_equal(nrow(tail), 4L)
+  expect_equal(nrow(conditional), 4L)
+  expect_setequal(tail$tail, c("Lower", "Upper"))
+  expect_equal(attr(selected, "tail_thresholds"), c(0.1, 0.2))
+  expect_true(all(c(
+    "tail_threshold", "lower_tail_cooccurrence", "upper_tail_cooccurrence",
+    "lower_tail_exceedance", "upper_tail_exceedance"
+  ) %in% names(selected)))
+  expect_false(any(grepl("mae", names(selected), fixed = TRUE)))
+  expect_equal(selected$tail_threshold, 0.1)
+  expect_equal(selected$lower_tail_cooccurrence, tail$fitted[tail$threshold == 0.1 & tail$tail == "Lower"])
+  expect_equal(selected$upper_tail_cooccurrence, tail$fitted[tail$threshold == 0.1 & tail$tail == "Upper"])
+  expect_true(all(is.finite(selected$lower_tail_exceedance)))
+  expect_true(all(is.finite(selected$upper_tail_exceedance)))
+  expect_equal(
+    conditional$empirical,
+    pmin(pmax(tail$empirical / tail$threshold, 0), 1)
+  )
+  expect_equal(selected$tail_cooccurrence, tail)
+  expect_equal(selected$conditional_tail_exceedance, conditional)
+})
+
+test_that("select_copula validates tail thresholds", {
+  expect_error(
+    select_copula(
+      u1 = c(0.1, 0.2, 0.3, 0.4, 0.5),
+      u2 = c(0.2, 0.3, 0.4, 0.5, 0.6),
+      families = "N",
+      min_pairs = 3,
+      tail_thresholds = c(0, 0.1)
+    ),
+    "tail_thresholds"
+  )
+})
+
 test_that("select_copula creates pseudo-observations from a supplied margin", {
   dat <- simulate_longitudinal_dataset(
     n = 80,
@@ -181,6 +239,8 @@ test_that("select_copula can screen copulas with factor time-pair intercepts", {
   expect_equal(attr(selected, "copula_time_levels"), c("1->2", "2->3", "3->4"))
   expect_equal(selected$n_copula_time_levels, 3)
   expect_true(is.finite(selected$AIC))
+  expect_s3_class(attr(selected, "tail_cooccurrence"), "data.frame")
+  expect_true(all(is.finite(selected$lower_tail_exceedance)))
 
   expect_error(
     select_copula(
