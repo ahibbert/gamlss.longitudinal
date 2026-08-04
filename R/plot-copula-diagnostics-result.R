@@ -10,10 +10,10 @@
   list(
     empirical_overlay = empirical_overlay,
     quartile_correlation = quartile_correlation,
+    kendall_function = kendall_function,
     rosenblatt_by_time = rosenblatt_by_time,
     rosenblatt_qq = rosenblatt_qq,
     rosenblatt_lag = rosenblatt_lag,
-    kendall_function = kendall_function,
     tail_cooccurrence = tail_cooccurrence,
     conditional_tail_exceedance = conditional_tail_exceedance,
     residual_lag_correlation = residual_lag_correlation
