@@ -11,6 +11,8 @@
 #' @importFrom gamlss gamlss coefAll
 
 #' @importFrom gamlss.dist NO qZISICHEL
+
+#' @importFrom generics augment glance tidy
 NULL
 
 ########### NEW SIMPLIFIED FUNCTIONS

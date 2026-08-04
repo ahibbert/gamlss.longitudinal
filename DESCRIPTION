@@ -13,6 +13,7 @@ Depends:
     R (>= 4.1.0),
     gamlss.dist
 Imports:
+    generics,
     gamlss,
     rlang,
     latex2exp,
@@ -33,6 +34,8 @@ URL: https://gamlsslongitudinal.aydins-workbench.com/,
     https://github.com/ahibbert/gamlss.longitudinal
 BugReports: https://github.com/ahibbert/gamlss.longitudinal/issues
 Suggests:
+    flextable,
+    gt,
     knitr,
     rmarkdown,
     testthat (>= 3.0.0),
