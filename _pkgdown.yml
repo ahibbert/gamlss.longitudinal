@@ -62,7 +62,9 @@ reference:
       - bootstrap_inference
       - predict.gamlss.longitudinal
       - marginal_effects
+      - gamlss_longitudinal_table_methods
       - reporting_table
+      - publication_table
       - model_spec
       - simulate.gamlss.longitudinal
   - title: Diagnostics
@@ -87,6 +89,8 @@ reference:
     contents:
       - simulate_longitudinal_covariates
       - simulate_longitudinal_dataset
+      - adoption_benchmark_scenarios
+      - run_adoption_benchmarks
       - run_coverage_simulations
       - benchmark_comparator_status
       - benchmark_standard_models
