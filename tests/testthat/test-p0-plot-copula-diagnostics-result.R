@@ -19,10 +19,10 @@ test_that("copula diagnostics dashboard plot list preserves public names", {
     c(
       "empirical_overlay",
       "quartile_correlation",
+      "kendall_function",
       "rosenblatt_by_time",
       "rosenblatt_qq",
       "rosenblatt_lag",
-      "kendall_function",
       "tail_cooccurrence",
       "conditional_tail_exceedance",
       "residual_lag_correlation"
