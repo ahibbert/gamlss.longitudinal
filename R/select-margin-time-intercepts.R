@@ -61,7 +61,9 @@
           fit <- NULL
 
           invisible(utils::capture.output({
-            fit <- suppressWarnings(suppressMessages(do.call(gamlss::gamlss, fit_args)))
+            invisible(utils::capture.output({
+              fit <- suppressWarnings(suppressMessages(do.call(gamlss::gamlss, fit_args)))
+            }, type = "message"))
           }))
 
           fit
