@@ -72,6 +72,45 @@ test_that("missingness assessment labels flagged and unflagged models", {
   )
 })
 
+test_that("missingness term tests are ordered by strongest statistic", {
+  terms <- data.frame(
+    term = c("weak", "strong_negative", "strong_positive"),
+    statistic = c(1, -4, 3),
+    df = c(1, NA, 1),
+    p_value = c(0.3, 0.00001, 0.01),
+    method = c("multivariable_lrt", "wald_coefficient", "multivariable_lrt"),
+    stringsAsFactors = FALSE
+  )
+
+  out <- .missingness_order_term_tests(terms)
+
+  expect_equal(out$term, c("strong_negative", "strong_positive", "weak"))
+})
+
+test_that("missingness print formats tiny p-values like model summaries", {
+  chk <- .missingness_result(
+    response_summary = data.frame(n = 10L, n_missing = 3L, prop_missing = 0.3),
+    predictor_summary = data.frame(),
+    term_tests = data.frame(
+      term = "x",
+      statistic = 20,
+      df = 1,
+      p_value = 0.000001,
+      method = "multivariable_lrt",
+      stringsAsFactors = FALSE
+    ),
+    model = NULL,
+    alpha = 0.05,
+    assessment = "covariate_related_missingness",
+    message = "Response missingness is associated with observed predictor(s): x."
+  )
+
+  txt <- capture.output(print(chk, digits = 3))
+
+  expect_true(any(grepl("<0.0001", txt, fixed = TRUE)))
+  expect_equal(chk$terms$p_value, 0.000001)
+})
+
 test_that("missingness term tests fall back when multivariable terms are aliased", {
   set.seed(1001)
   n <- 80
@@ -103,7 +142,7 @@ test_that("missingness term fallback handles non-syntactic predictor names", {
 
   out <- suppressWarnings(check_missingness(dat, response_var = "y"))
 
-  expect_equal(out$terms$term, c("x var", "x copy"))
+  expect_setequal(out$terms$term, c("x var", "x copy"))
   expect_equal(out$terms$method, rep("univariable_lrt", 2L))
   expect_true(all(is.finite(out$terms$p_value)))
 })

@@ -110,21 +110,35 @@
           fallback[c("statistic", "df", "p_value", "method")]
       }
       rownames(tests) <- NULL
-      return(tests)
+      return(.missingness_order_term_tests(tests))
     }
   }
 
   coef_tab <- as.data.frame(summary(fit)$coefficients)
   coef_tab$term <- rownames(coef_tab)
   coef_tab <- coef_tab[coef_tab$term != "(Intercept)", , drop = FALSE]
-  data.frame(
+  .missingness_order_term_tests(data.frame(
     term = coef_tab$term,
     statistic = as.numeric(coef_tab$`z value`),
     df = NA_real_,
     p_value = as.numeric(coef_tab$`Pr(>|z|)`),
     method = "wald_coefficient",
     stringsAsFactors = FALSE
-  )
+  ))
+}
+
+.missingness_order_term_tests <- function(term_tests) {
+  if (nrow(term_tests) == 0L || !"statistic" %in% names(term_tests)) {
+    return(term_tests)
+  }
+  score <- abs(as.numeric(term_tests$statistic))
+  score[!is.finite(score)] <- -Inf
+  p_value <- as.numeric(term_tests$p_value)
+  p_value[!is.finite(p_value)] <- Inf
+  ord <- order(-score, p_value, term_tests$term, na.last = TRUE)
+  out <- term_tests[ord, , drop = FALSE]
+  rownames(out) <- NULL
+  out
 }
 
 .missingness_single_term_tests <- function(fit, terms) {

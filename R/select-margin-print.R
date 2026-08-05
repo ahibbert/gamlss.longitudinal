@@ -31,10 +31,6 @@ print.margin_screen <- function(x, ..., n = 10L) {
 
   print(display, row.names = FALSE)
 
-  if ("converged" %in% names(display) && any(!display$converged, na.rm = TRUE)) {
-    cat("\nWarning: one or more printed time-intercept marginal fits did not report convergence.\n")
-  }
-
   if (isTRUE(unsupported)) {
     cat("\nNote: one or more printed families are not currently supported by gamlss_longitudinal().\n")
   }

@@ -101,14 +101,16 @@ select_margin <- function(
     )
   } else {
     invisible(utils::capture.output({
-      fit <- suppressWarnings(suppressMessages(gamlss::fitDist(
+      invisible(utils::capture.output({
+        fit <- suppressWarnings(suppressMessages(gamlss::fitDist(
 
-        response,
-        type = type,
-        try.gamlss = try.gamlss,
-        trace = trace,
-        ...
-      )))
+          response,
+          type = type,
+          try.gamlss = try.gamlss,
+          trace = trace,
+          ...
+        )))
+      }, type = "message"))
     }))
   }
 
@@ -159,17 +161,6 @@ select_margin <- function(
 
     out <- out[is.finite(out$AIC), , drop = FALSE]
 
-    if (nrow(out) > 0L && any(!out$converged, na.rm = TRUE)) {
-      not_converged <- out$family[!out$converged]
-
-      warning(
-
-        "Time-intercept marginal screen retained finite-AIC fit(s) without confirmed convergence: ",
-        paste(not_converged, collapse = ", "),
-        ". Review the 'converged' column before selecting a final marginal family.",
-        call. = FALSE
-      )
-    }
   }
 
   out <- out[order(out$AIC), , drop = FALSE]
