@@ -407,7 +407,9 @@ test_that("T205 select_margin and screen_margin return ordered candidate tables 
   skip_if_not_installed("gamlss")
 
   y <- rnorm(30)
-  screen <- suppressWarnings(suppressMessages(select_margin(y, type = "realAll", try.gamlss = FALSE, trace = FALSE)))
+  expect_silent(
+    screen <- select_margin(y, type = "realAll", try.gamlss = FALSE, trace = FALSE)
+  )
 
   expect_s3_class(screen, "margin_selection")
   expect_s3_class(screen, "margin_screen")
@@ -421,7 +423,9 @@ test_that("T205 select_margin and screen_margin return ordered candidate tables 
   expect_equal(best_fit_family(screen)$family[1], screen$family[[1L]])
 
   dat <- data.frame(response = y)
-  from_data <- suppressWarnings(suppressMessages(screen_margin(dat, response_var = "response", type = "realAll", try.gamlss = FALSE, trace = FALSE)))
+  expect_silent(
+    from_data <- screen_margin(dat, response_var = "response", type = "realAll", try.gamlss = FALSE, trace = FALSE)
+  )
   expect_s3_class(from_data, "margin_selection")
   expect_s3_class(from_data, "margin_screen")
   expect_equal(attr(from_data, "selected"), from_data$family[[1L]])
@@ -431,16 +435,18 @@ test_that("T205 select_margin and screen_margin return ordered candidate tables 
     response = y + rep(c(-0.4, 0.2, 0.7), length.out = length(y)),
     time = rep(1:3, length.out = length(y))
   )
-  time_screen <- suppressWarnings(suppressMessages(select_margin(
-    dat_time,
-    response_var = "response",
-    time_var = "time",
-    time_intercepts = TRUE,
-    type = "realAll",
-    families = c("NO", "TF"),
-    try.gamlss = FALSE,
-    trace = FALSE
-  )))
+  expect_silent(
+    time_screen <- select_margin(
+      dat_time,
+      response_var = "response",
+      time_var = "time",
+      time_intercepts = TRUE,
+      type = "realAll",
+      families = c("NO", "TF"),
+      try.gamlss = FALSE,
+      trace = FALSE
+    )
+  )
   expect_s3_class(time_screen, "margin_selection")
   expect_true(isTRUE(attr(time_screen, "time_intercepts")))
   expect_equal(attr(time_screen, "time_var"), "time")
