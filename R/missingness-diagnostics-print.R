@@ -7,7 +7,9 @@ print.gamlss_longitudinal_missingness_check <- function(x, digits = max(3, getOp
   cat(x$message, "\n", sep = "")
   if (!is.null(x$terms) && nrow(x$terms) > 0L) {
     cat("\nPredictor tests:\n")
-    print(x$terms, digits = digits, row.names = FALSE)
+    display <- x$terms
+    display$p_value <- .gl_format_summary_p_value(display$p_value, digits + 1)
+    print(display, digits = digits, row.names = FALSE)
   }
   invisible(x)
 }
