@@ -1450,8 +1450,8 @@ jss_rand_write_latex_note <- function(paths, audit, theta_screen, primary_model,
       "The associated figures report the observed doctor-visit distribution, adjacent-wave ",
       "Kendall dependence, fitted covariate effects on the selected copula dependence parameter, ",
       "and available marginal-parameter standard errors. Exact-discrete longitudinal ",
-      "standard errors are marked unavailable when numerical Hessian ",
-      "estimation is singular or intentionally skipped."
+      "standard errors use analytical rectangle-likelihood Hessians when available ",
+      "and are marked unavailable only when Hessian estimation is singular or intentionally skipped."
     )
   )
   writeLines(lines, paths$latex_note, useBytes = TRUE)

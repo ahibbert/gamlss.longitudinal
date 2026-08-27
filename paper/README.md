@@ -1,27 +1,51 @@
 # JSS Replication Workflow
 
-This directory contains the full, CRAN-excluded replication workflow for the
-JSS paper. The installed package keeps only a lightweight smoke entry point in
-`inst/jss-replication/`; this directory is the paper-facing workflow used to
-regenerate expanded simulations, tables, figures, logs, session information,
-and output hashes.
+This directory contains the public, CRAN-excluded replication workflow for the
+JSS paper. LIPID is a separately identified private-data example and is never a
+prerequisite of the public target graph.
+
+## JSS Submission Preparation
+
+The paper is being reshaped as a JSS-first software article. Use these files as
+the authoring front door before changing the manuscript:
+
+- `jss-submission-audit.csv`: current manuscript items mapped to code,
+  reproduction status, and recommended placement.
+- `jss-manuscript-blueprint.md`: section-by-section replacement outline for the
+  JSS article.
+- `jss-submission-checklist.md`: blocking gates for manuscript, package,
+  replication, and submission packaging readiness.
+- `manuscript/jss-skeleton.tex`: JSS-style manuscript source skeleton.
+
+The main-paper example should be public, package-shipped, or fully simulated.
+Private LIPID and RAND data modules must remain secondary unless accepted data
+access instructions are supplied for reviewers.
 
 ## Quick Start
 
-```r
-source("paper/replicate.R")
+```text
+Rscript paper/replicate.R --profile smoke
+Rscript paper/replicate.R --profile paper
+Rscript paper/replicate.R --profile full --workers N
 ```
 
-By default the workflow runs the smoke profile. To run the expanded paper
-profile:
+The old `expanded` name temporarily maps to `paper`. Each profile has a separate
+target store and results directory. The bootstrap restores `paper/renv.lock`,
+then installs the checked-out package source before the graph starts. Its
+isolated library is stored under the platform user cache, keyed by lockfile hash
+and R major/minor version, to avoid cloud-sync locking in OneDrive checkouts.
+Set `GAMLSS_LONGITUDINAL_JSS_LIBRARY` to choose another isolated location. See
+`REVIEWER.md` for the clean-room path.
+Current executed acceptance checks and the remaining full/CI gates are recorded
+in `verification-status.md`.
 
-```r
-Sys.setenv(GAMLSS_LONGITUDINAL_JSS_PROFILE = "expanded")
-source("paper/replicate.R")
+Audit and publish only allowlisted public assets to a clean paper clone:
+
+```text
+Rscript paper/audit-manuscript.R --paper-repo <clone>
+Rscript paper/publish-assets.R --paper-repo <clone> --profile paper --dry-run
+Rscript paper/publish-assets.R --paper-repo <clone> --profile paper --apply
 ```
-
-The expanded profile is intentionally not CRAN-safe. It may take a long time and
-can optionally use `gamlss2` when that package is installed.
 
 ## Outputs
 
@@ -29,57 +53,50 @@ Generated files are written under `results/jss-replication/<profile>/`:
 
 - `tables/`: CSV summaries for paper tables.
 - `figures/`: PNG diagnostics and summary figures.
-- `logs/`: session information, timing, and output hashes.
+- `logs/`: current session/run metadata, concise target timings, structured fit
+  and target events, actual-input hashes, artifact hashes, figure-reference
+  comparisons, portable target-graph vertices/edges, a reviewer summary,
+  hashes of the provenance logs themselves, and the enforced full-profile
+  metric tolerance audit.
 - `manifest.csv`: mapping from paper result IDs to generated artifacts.
 
 The source manifest template is `paper/manifest.csv`. Treat this file as the
 authoritative map from manuscript result IDs to workflow targets and generated
 artifacts. The generated manifest is validated at the end of the workflow, and
-`logs/output_hashes.csv` records hashes for generated outputs so reviewers can
-confirm that tables and figures were regenerated rather than hand-edited.
+`logs/output_hashes.csv` records hashes for generated artifacts (not mutable log
+files), while `logs/provenance-hashes.csv` hashes the completed run logs.
 
-## Paper Modules
+## Public analysis modules
 
-The replication workflow is organised into eight numbered modules:
+The public graph contains the introductory and BCPE/t software-workflow figures
+plus six analysis modules:
 
-1. `01-simulation-bcpe-t.R`: continuous BCPE margin with t-copula simulation.
-2. `02-simulation-delaporte-clayton.R`: Delaporte margin with Clayton copula
-   simulation and parameter recovery.
-3. `03-joint-vs-separate-optimization.R`: joint versus separate optimisation.
-4. `04-missingness-dropout-sensitivity.R`: missingness and dropout sensitivity.
-5. `05-application-lipid.R`: LIPID clinical-trial application.
-6. `06-application-rand-doctor-visits.R`: RAND doctor-visits application.
-7. `07-gamma-copula-misspecification.R`: Gamma-margin copula
-   mis-specification simulation.
-8. `08-simulation-sensitivity-correlation-misspecification.R`: standard-model
-   sensitivity benchmark under AR(1), exchangeable, time-varying, and
-   covariate-dependent correlation structures.
+1. BCPE/t recovery from tracked replicate-level public inputs (`paper`) or a
+   checkpointed 100-replicate rerun (`full`).
+2. NBI/Clayton recovery from tracked replicate-level public inputs (`paper`) or
+   a checkpointed 100-replicate rerun (`full`).
+3. Joint-versus-separate tables rebuilt from tracked per-replicate deltas, with
+   the published 10/100/100 replicate designs rerun with checkpoints in `full`.
+4. Missingness/dropout figures rebuilt from tracked aggregate simulation inputs,
+   with the published 20-replicate checkpointed study rerun in `full`.
+5. Gamma-margin copula-family misspecification summaries and heatmap.
+6. Correlation-structure misspecification and standard-model benchmarking.
 
-Each module writes at least one CSV artifact and one PNG figure artifact. Most
-module outputs are currently marked as stubs so the target graph, manifest
-validation, and hash logging are testable before final paper analyses are
-filled in. Module 03 now writes the current joint-versus-separate optimisation
-candidate review and simulation comparison artifacts.
+`smoke` instead runs small new public simulations and representative workflow
+figures. `paper` never reads ignored local results. `full` uses fixed seeds and
+resumable checkpoints before rebuilding the same publication interfaces. Its
+final validation compares 2,000+ grouped estimands against the approved public
+inputs using `paper/tolerances.csv`; missing comparison rows and values outside
+the registered absolute-plus-relative bounds fail the pipeline.
 
-Module 03 expanded runs default to a practical review grid. Heavier follow-up
-runs can set `GAMLSS_LONGITUDINAL_JSS_JVS_REPS`,
-`GAMLSS_LONGITUDINAL_JSS_JVS_FAMILIES`, or
-`GAMLSS_LONGITUDINAL_JSS_JVS_DESIGNS`.
+The manifest records which artifact belongs to each module, its input bundle,
+verification policy, approved paper hash, and publication status. Public inline
+tables that still need conversion to generated `\\input{tables/...}` assets are
+listed in `overleaf-inline-table-checklist.md`.
 
-Module 07 expanded runs default to a 10-replicate pilot over the full
-generating/fitted copula grid. Set `GAMLSS_LONGITUDINAL_JSS_MISSPEC_STAGE=full`
-to continue from completed pilot checkpoints up to the 100-replicate run.
-
-Module 08 materialises the finalized T=20 correlation-misspecification benchmark
-tables from the archived exploratory run. Set
-`GAMLSS_LONGITUDINAL_JSS_CORR_MISSPEC_RUN_DIR` to point at a different completed
-benchmark run directory if the benchmark is regenerated. The source runner for
-regenerating the standard-model grid, all-pair dependence summaries, sandwich
-standard errors, and story tables is under
-`paper/R/08-simulation-sensitivity-correlation-misspecification/standard-model-benchmarking/`.
-
-The LIPID and RAND application data are private and must not be committed to
-this repository. Future secure/local runs can provide them through
-`GAMLSS_LONGITUDINAL_LIPID_DATA` and `GAMLSS_LONGITUDINAL_RAND_DATA`. The
-default workflow passes when these variables are unset and records that the
-external data were unavailable.
+LIPID data, synthetic analogues, fitted objects, pseudo-observations, residuals,
+design matrices, and data-derived intermediates must not be committed. Its
+sanitized data contract and formulas are in `paper/R/05-application-lipid.R`.
+Approved clinical assets are hash-only private publication artifacts and are
+never copied by `publish-assets.R`. RAND is likewise absent from every public
+profile.

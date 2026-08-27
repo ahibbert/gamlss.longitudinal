@@ -1,0 +1,8 @@
+artifact_group,comparison,absolute_tolerance,relative_tolerance,policy
+csv_tex,canonical_text_hash,0,0,Exact after UTF-8 BOM and newline canonicalization
+figures,png_dimensions_and_nonblank,0,0,Reference hash recorded but binary identity not required
+fixed_effect_bias,bias,0.005,0.05,Full rerun versus approved analysis-ready summary
+fixed_effect_rmse,rmse,0.005,0.05,Full rerun versus approved analysis-ready summary
+smooth_recovery,irmse,0.01,0.10,Full rerun versus approved analysis-ready summary
+predictive_scores,mean_score,0.01,0.05,Full rerun versus approved analysis-ready summary
+convergence,rate,0.03,0.10,Structured fit failures included in denominator
