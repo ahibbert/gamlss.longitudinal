@@ -43,6 +43,8 @@ jss_corr_misspec_paths <- function(settings) {
 jss_corr_misspec_source_paths <- function(source_run_dir) {
   story_dir <- file.path(source_run_dir, "story_tables")
   sandwich_dir <- file.path(source_run_dir, "sandwich_t20_grid")
+  if (!dir.exists(story_dir)) story_dir <- source_run_dir
+  if (!dir.exists(sandwich_dir)) sandwich_dir <- source_run_dir
   list(
     validation = file.path(sandwich_dir, "rs_joint_sandwich_validation_summary.csv"),
     status = file.path(sandwich_dir, "rs_joint_sandwich_status_by_rep.csv"),

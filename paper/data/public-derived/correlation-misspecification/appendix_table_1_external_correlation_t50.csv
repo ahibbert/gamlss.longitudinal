@@ -1,0 +1,7 @@
+"Level","Metric","AR(1) gamlss.long","AR(1) exch.","AR(1) AR(1)","AR(1) unstr.","AR(1) glm","Exchangeable gamlss.long","Exchangeable exch.","Exchangeable AR(1)","Exchangeable unstr.","Exchangeable glm"
+"Moderate","Mean RMSE (lower is better)","0.032","0.033","0.032","--","0.033","0.068","0.070","0.076","--","0.070"
+"High","Mean RMSE (lower is better)","0.042","0.046","0.042","--","0.046","0.091","0.092","0.103","--","0.092"
+"Moderate","Slope SE ratio (target: 1.0)","1.161","1.127","1.117","--","0.680","0.397","1.135","1.106","--","0.261"
+"High","Slope SE ratio (target: 1.0)","0.914","0.934","0.917","--","0.375","0.424","1.080","1.074","--","0.189"
+"Moderate","Slope coverage (target: 0.95)","0.983","0.967","0.967","--","0.783","0.617","0.950","1.000","--","0.483"
+"High","Slope coverage (target: 0.95)","0.900","0.950","0.917","--","0.467","0.500","0.983","0.981","--","0.233"

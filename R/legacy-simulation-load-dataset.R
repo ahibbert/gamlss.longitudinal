@@ -8,18 +8,11 @@ NULL
 
 loadDataset <- function(simOption = 5, plot_dist = FALSE, n = 100, d = 3, copula_dist = NA, margin_dist, copula.link = NA, par.copula, par.margin, covariates_input = NA) {
   if (simOption == 1) {
-    load("Data/rand_mvt.rds")
-    head(rand_mvt)
-
-    # Basic data setup
-    response <- rand_mvt[, 4:18] # [,4:18](4+2) ####Currently limiting to just 5 margins for simplicity
-    covariates <- list()
-    covariates[[1]] <- as.data.frame(rand_mvt[, 19]) # Age 19:33 - changed to age at start to avoid correlation with time
-    covariates[[2]] <- as.data.frame(rand_mvt[, 34:48]) # Time 34:48
-    covariates[[3]] <- as.data.frame(rand_mvt[, 3]) # Gender
-
-    # Setup data as longitudinal file
-    dataset <- create_longitudinal_dataset(response, covariates, labels = c("subject", "time", "response", "age", "year", "gender"))
+    stop(
+      "Legacy RAND data loading has been retired and is not shipped. ",
+      "Use a caller-supplied public dataset or one of the simulation options instead.",
+      call. = FALSE
+    )
   } else if (simOption == 2) {
     # set up D-vine copula model with mixed pair-copulas
     d <- 3

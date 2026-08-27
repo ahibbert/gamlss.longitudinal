@@ -1,63 +1,41 @@
+jss_run_script <- function(script, env, root) {
+  old_wd <- getwd()
+  on.exit(setwd(old_wd), add = TRUE)
+  setwd(root)
+  old <- Sys.getenv(names(env), unset = NA_character_)
+  on.exit({
+    for (i in seq_along(env)) {
+      if (is.na(old[[i]])) Sys.unsetenv(names(env)[[i]]) else do.call(Sys.setenv, stats::setNames(list(old[[i]]), names(env)[[i]]))
+    }
+  }, add = TRUE)
+  for (i in seq_along(env)) do.call(Sys.setenv, stats::setNames(list(env[[i]]), names(env)[[i]]))
+  withCallingHandlers(
+    sys.source(script, envir = new.env(parent = globalenv()), chdir = FALSE),
+    warning = function(w) {
+      expected <- grepl("max_outer_iter|not converged|BiCopHfunc|aes_string|deprecated", conditionMessage(w), ignore.case = TRUE)
+      if (expected) invokeRestart("muffleWarning")
+    }
+  )
+}
+
 jss_run_01_bcpe_t <- function(settings) {
-  module_id <- "01-simulation-bcpe-t"
-  source_dir <- file.path(
-    settings$root,
-    "results",
-    "jss-exploratory",
-    "01-continuous-bcpe-t",
-    "bcpe_t_current_defaults_rep100_comparison_p05_p2_fits"
-  )
-
-  artifacts <- data.frame(
-    source_file = c(
-      "paper_simulation_bcpe_t_fit_characteristics.csv",
-      "paper_simulation_bcpe_t_fit_characteristics.tex",
-      "paper_simulation_bcpe_t_fixed_parameter_bias_rmse.csv",
-      "paper_simulation_bcpe_t_fixed_parameter_bias_rmse.tex",
-      "paper_simulation_bcpe_t_gamlss2_variogram_p2_trim_exclusions.csv",
-      "paper_simulation_bcpe_t_fixed_effect_recovery.png",
-      "paper_simulation_bcpe_t_smooth_effect_recovery.png"
-    ),
-    output_file = c(
-      "01-simulation-bcpe-t-fit-characteristics.csv",
-      "01-simulation-bcpe-t-fit-characteristics.tex",
-      "01-simulation-bcpe-t-fixed-parameter-bias-rmse.csv",
-      "01-simulation-bcpe-t-fixed-parameter-bias-rmse.tex",
-      "01-simulation-bcpe-t-gamlss2-variogram-p2-trim-exclusions.csv",
-      "01-simulation-bcpe-t-fixed-effect-recovery.png",
-      "01-simulation-bcpe-t-smooth-effect-recovery.png"
-    ),
-    artifact_type = c(
-      "table",
-      "table",
-      "table",
-      "table",
-      "data",
-      "figure",
-      "figure"
-    ),
-    role = c(
-      "fit_characteristics_csv",
-      "fit_characteristics_latex",
-      "parameter_recovery_csv",
-      "parameter_recovery_latex",
-      "variogram_trim_audit",
-      "fixed_effect_recovery_figure",
-      "smooth_effect_recovery_figure"
-    ),
-    stringsAsFactors = FALSE
-  )
-
-  jss_copy_final_artifacts(
-    settings = settings,
-    module_id = module_id,
-    title = "BCPE margin with t-copula simulation",
-    source_dir = source_dir,
-    artifacts = artifacts,
-    notes = paste(
-      "Final 100-replicate BCPE/t paper artifacts with p = 0.5 and p = 2",
-      "variogram diagnostics, SE calibration, held-out predictive scores,",
-      "and the audited gamlss2 p = 2 variogram trim."
+  input <- file.path(settings$public_data_dir, "bcpe-t")
+  if (identical(settings$profile, "full")) {
+    input <- file.path(settings$data_dir, "bcpe-t-full")
+    jss_run_script(
+      file.path(settings$root, "paper", "scripts", "final-simulations", "bcpe-t", "simulation_bcpe_t_gamlss_comparison.R"),
+      c(OUT_DIR = input, N_FITS = "100", N_CORES = as.character(settings$workers), SAVE_FITS = "0", COMPUTE_PREDICTIVE_SCORES = "1", VARIOGRAM_P_VALUES = "0.5,2", MAX_ELAPSED_SEC = "180"),
+      settings$root
     )
+  }
+  jss_run_script(
+    file.path(settings$root, "paper", "scripts", "final-simulations", "bcpe-t", "make_bcpe_t_paper_outputs.R"),
+    c(BCPE_T_PAPER_RS_JOINT_DIR = input, BCPE_T_PAPER_COMPARISON_DIR = settings$out_dir),
+    settings$root
+  )
+  list(
+    module_id = "01-simulation-bcpe-t", status = "regenerated", data = character(),
+    tables = file.path(settings$out_dir, c("paper_simulation_bcpe_t_fit_characteristics.tex", "paper_simulation_bcpe_t_fixed_parameter_bias_rmse.tex")),
+    figures = file.path(settings$out_dir, c("paper_simulation_bcpe_t_fixed_effect_recovery.png", "paper_simulation_bcpe_t_smooth_effect_recovery.png"))
   )
 }
