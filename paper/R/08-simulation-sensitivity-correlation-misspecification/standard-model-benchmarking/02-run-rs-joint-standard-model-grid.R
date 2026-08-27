@@ -36,9 +36,40 @@ max_outer_iter <- bmk_env_int("GAMLSS_LONGITUDINAL_BENCHMARK_MAX_OUTER_ITER", 10
 max_inner_iter <- bmk_env_int("GAMLSS_LONGITUDINAL_BENCHMARK_MAX_INNER_ITER", 100L)
 checkpoint_every <- bmk_env_int("GAMLSS_LONGITUDINAL_BENCHMARK_CHECKPOINT_EVERY", 10L)
 
-stamp <- bmk_timestamp()
-run_dir <- file.path(bmk_output_root, paste0("run_", stamp))
-dir.create(run_dir, recursive = TRUE, showWarnings = FALSE)
+progress_path <- function(stem, completed = FALSE) {
+  suffix <- if (isTRUE(completed)) "_by_rep.csv" else "_checkpoint.csv"
+  file.path(run_dir, paste0(stem, suffix))
+}
+
+read_progress <- function(stem) {
+  candidates <- c(progress_path(stem, completed = TRUE), progress_path(stem))
+  path <- candidates[file.exists(candidates) & file.info(candidates)$size > 4L][1L]
+  if (length(path) == 0L || is.na(path)) return(data.frame())
+  tryCatch(
+    read.csv(path, stringsAsFactors = FALSE, check.names = FALSE),
+    error = function(e) stop("Could not read resumable benchmark progress: ", path, call. = FALSE)
+  )
+}
+
+active_run_file <- file.path(bmk_output_root, "active_run_dir.txt")
+latest_run_file <- file.path(bmk_output_root, "latest_run_dir.txt")
+requested_run_dir <- bmk_env("GAMLSS_LONGITUDINAL_BENCHMARK_RESUME_RUN_DIR", "")
+if (!nzchar(requested_run_dir) && file.exists(active_run_file)) {
+  requested_run_dir <- trimws(readLines(active_run_file, warn = FALSE)[1L])
+}
+if (!nzchar(requested_run_dir) && file.exists(latest_run_file)) {
+  requested_run_dir <- trimws(readLines(latest_run_file, warn = FALSE)[1L])
+}
+resuming <- nzchar(requested_run_dir) && dir.exists(requested_run_dir)
+if (resuming) {
+  run_dir <- normalizePath(requested_run_dir, winslash = "/", mustWork = TRUE)
+  message("Resuming benchmark run: ", run_dir)
+} else {
+  stamp <- bmk_timestamp()
+  run_dir <- file.path(bmk_output_root, paste0("run_", stamp))
+  dir.create(run_dir, recursive = TRUE, showWarnings = FALSE)
+  writeLines(normalizePath(run_dir, winslash = "/", mustWork = TRUE), active_run_file, useBytes = TRUE)
+}
 
 bmk_write_csv(bmk_session_info(source_used), file.path(run_dir, "session_info.csv"))
 bmk_write_csv(bmk_available_methods(), file.path(run_dir, "comparator_status.csv"))
@@ -57,7 +88,14 @@ scenario_table <- do.call(rbind, lapply(scenarios, function(x) {
     stringsAsFactors = FALSE
   )
 }))
-bmk_write_csv(scenario_table, file.path(run_dir, "scenario_grid.csv"))
+scenario_grid_path <- file.path(run_dir, "scenario_grid.csv")
+if (resuming && file.exists(scenario_grid_path)) {
+  previous_scenarios <- read.csv(scenario_grid_path, stringsAsFactors = FALSE, check.names = FALSE)
+  if (!identical(sort(previous_scenarios$scenario), sort(scenario_table$scenario))) {
+    stop("The requested scenarios do not match the resumable benchmark run.", call. = FALSE)
+  }
+}
+bmk_write_csv(scenario_table, scenario_grid_path)
 
 family_table <- do.call(rbind, lapply(families, function(x) {
   data.frame(
@@ -70,13 +108,34 @@ family_table <- do.call(rbind, lapply(families, function(x) {
     stringsAsFactors = FALSE
   )
 }))
-bmk_write_csv(family_table, file.path(run_dir, "family_grid.csv"))
+bmk_family_grid_path <- file.path(run_dir, "family_grid.csv")
+if (resuming && file.exists(bmk_family_grid_path)) {
+  previous_families <- read.csv(bmk_family_grid_path, stringsAsFactors = FALSE, check.names = FALSE)
+  if (!identical(sort(previous_families$family), sort(family_table$family))) {
+    stop("The requested families do not match the resumable benchmark run.", call. = FALSE)
+  }
+}
+bmk_write_csv(family_table, bmk_family_grid_path)
 
-result_rows <- list()
-coef_rows <- list()
-complexity_rows <- list()
-dependence_rows <- list()
-primary_status_rows <- list()
+as_progress_list <- function(x) if (is.data.frame(x) && nrow(x) > 0L) list(x) else list()
+result_rows <- as_progress_list(read_progress("benchmark_results"))
+coef_rows <- as_progress_list(read_progress("coefficient_results"))
+complexity_rows <- as_progress_list(read_progress("fit_complexity"))
+dependence_rows <- as_progress_list(read_progress("dependence_recovery"))
+primary_status_rows <- as_progress_list(read_progress("primary_status"))
+
+case_key <- function(x) paste(x$scenario, x$family, x$rep, sep = "::")
+previous_status <- bmk_bind_rows_fill(primary_status_rows)
+previous_results <- bmk_bind_rows_fill(result_rows)
+completed_keys <- character()
+if (nrow(previous_status) > 0L) {
+  status_success <- previous_status$success %in% c(TRUE, "TRUE", "True", "true", "1")
+  failed_keys <- case_key(previous_status[!status_success, , drop = FALSE])
+  result_keys <- if (nrow(previous_results) > 0L) unique(case_key(previous_results)) else character()
+  successful_keys <- case_key(previous_status[status_success, , drop = FALSE])
+  completed_keys <- unique(c(failed_keys, intersect(successful_keys, result_keys)))
+  message("Loaded ", length(completed_keys), " completed case(s) from resumable progress.")
+}
 case_index <- 0L
 total_cases <- length(scenarios) * length(families) * length(rep_ids)
 
@@ -87,6 +146,14 @@ for (scenario_name in names(scenarios)) {
     for (rep_id in rep_ids) {
       case_index <- case_index + 1L
       seed <- seed_base + case_index
+      current_key <- paste(scenario$scenario, spec$family, rep_id, sep = "::")
+      if (current_key %in% completed_keys) {
+        message(
+          "[", case_index, "/", total_cases, "] skipping completed ",
+          scenario$scenario, " / ", spec$family, " / rep ", rep_id
+        )
+        next
+      }
       message(
         "[", case_index, "/", total_cases, "] ",
         scenario$scenario, " / ", spec$family, " / rep ", rep_id
@@ -194,7 +261,7 @@ bmk_write_csv(complexity, file.path(run_dir, "fit_complexity_by_rep.csv"))
 bmk_write_csv(dependence, file.path(run_dir, "dependence_recovery_by_rep.csv"))
 bmk_write_csv(primary_status, file.path(run_dir, "primary_status_by_rep.csv"))
 
-latest_file <- file.path(bmk_output_root, "latest_run_dir.txt")
-writeLines(run_dir, latest_file, useBytes = TRUE)
+writeLines(run_dir, latest_run_file, useBytes = TRUE)
+writeLines(run_dir, active_run_file, useBytes = TRUE)
 
 message("Run complete: ", run_dir)
