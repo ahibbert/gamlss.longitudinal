@@ -63,6 +63,29 @@ test_that("copula misspecification checkpoints are atomic and worker-aware", {
   expect_true(grepl("workers = settings$workers", code, fixed = TRUE))
 })
 
+test_that("correlation benchmark checkpoints are replace-safe and resumable", {
+  root <- local_jss_repo_root()
+  scripts <- file.path(
+    root, "paper", "R", "08-simulation-sensitivity-correlation-misspecification",
+    "standard-model-benchmarking"
+  )
+  setup <- paste(readLines(file.path(scripts, "00-benchmark-setup.R"), warn = FALSE), collapse = "\n")
+  runner <- paste(readLines(file.path(scripts, "02-run-rs-joint-standard-model-grid.R"), warn = FALSE), collapse = "\n")
+  expect_true(grepl("file.rename(temporary, path)", setup, fixed = TRUE))
+  expect_true(grepl("active_run_dir.txt", runner, fixed = TRUE))
+  expect_true(grepl("GAMLSS_LONGITUDINAL_BENCHMARK_RESUME_RUN_DIR", runner, fixed = TRUE))
+  expect_true(grepl("skipping completed", runner, fixed = TRUE))
+
+  env <- new.env(parent = globalenv())
+  source(file.path(scripts, "00-benchmark-setup.R"), local = env)
+  output <- tempfile(fileext = ".csv")
+  env$bmk_write_csv(data.frame(value = 1), output)
+  env$bmk_write_csv(data.frame(value = 2), output)
+  expect_equal(utils::read.csv(output)$value, 2)
+  expect_false(file.exists(paste0(output, ".bak")))
+  expect_length(Sys.glob(paste0(output, ".tmp-*")), 0L)
+})
+
 test_that("promoted Monte Carlo runners validate and atomically replace checkpoints", {
   root <- local_jss_repo_root()
   scripts <- file.path(root, "paper", "scripts", "final-simulations", c(

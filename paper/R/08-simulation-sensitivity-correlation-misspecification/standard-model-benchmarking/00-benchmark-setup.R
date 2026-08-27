@@ -72,7 +72,20 @@ bmk_timestamp <- function() {
 
 bmk_write_csv <- function(x, path) {
   dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-  utils::write.csv(x, path, row.names = FALSE, na = "")
+  temporary <- paste0(path, ".tmp-", Sys.getpid())
+  backup <- paste0(path, ".bak")
+  on.exit(unlink(temporary, force = TRUE), add = TRUE)
+  utils::write.csv(x, temporary, row.names = FALSE, na = "")
+  if (file.exists(backup)) unlink(backup, force = TRUE)
+  had_previous <- file.exists(path)
+  if (had_previous && !file.rename(path, backup)) {
+    stop("Could not move the previous CSV aside before replacement: ", path, call. = FALSE)
+  }
+  if (!file.rename(temporary, path)) {
+    if (had_previous && file.exists(backup)) file.rename(backup, path)
+    stop("Could not atomically install CSV: ", path, call. = FALSE)
+  }
+  if (file.exists(backup)) unlink(backup, force = TRUE)
   invisible(path)
 }
 
