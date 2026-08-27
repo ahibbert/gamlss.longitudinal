@@ -27,12 +27,9 @@ bmk_script_dir <- file.path(
   "08-simulation-sensitivity-correlation-misspecification",
   "standard-model-benchmarking"
 )
-bmk_output_root <- file.path(
-  bmk_repo_root,
-  "results",
-  "jss-exploratory",
-  "08-simulation-sensitivity-correlation-misspecification",
-  "standard-model-benchmarking"
+bmk_output_root <- Sys.getenv(
+  "GAMLSS_LONGITUDINAL_BENCHMARK_OUTPUT_ROOT",
+  unset = file.path(bmk_repo_root, "results", "jss-exploratory", "08-simulation-sensitivity-correlation-misspecification", "standard-model-benchmarking")
 )
 
 bmk_env <- function(name, default = "") {

@@ -318,7 +318,39 @@ jss_misspec_margin_ci <- function(fit) {
   empty
 }
 
-jss_misspec_run_checkpoints <- function(grid, config, checkpoint_dir) {
+jss_misspec_atomic_csv <- function(x, path) {
+  temporary <- paste0(path, ".tmp")
+  utils::write.csv(x, temporary, row.names = FALSE)
+  if (file.exists(path)) unlink(path)
+  if (!file.rename(temporary, path)) stop("Could not atomically install checkpoint: ", path, call. = FALSE)
+  path
+}
+
+jss_misspec_run_scenario_checkpoints <- function(idx, pending, config) {
+  scenario <- pending[idx[1L], , drop = FALSE]
+  dat_seed <- jss_misspec_dataset_seed(
+    scenario$generating_copula,
+    scenario$tau_label,
+    scenario$n_subject,
+    scenario$rep,
+    config$seed
+  )
+  dat <- jss_misspec_simulate(
+    generating_copula = scenario$generating_copula,
+    target_tau = scenario$target_tau,
+    n_subject = scenario$n_subject,
+    config = config,
+    seed = dat_seed
+  )
+  for (j in idx) {
+    fit_row <- pending[j, , drop = FALSE]
+    out <- jss_misspec_fit_one(dat, fit_row, config)
+    jss_misspec_atomic_csv(out, fit_row$checkpoint_path)
+  }
+  length(idx)
+}
+
+jss_misspec_run_checkpoints <- function(grid, config, checkpoint_dir, workers = 1L) {
   dir.create(checkpoint_dir, recursive = TRUE, showWarnings = FALSE)
   pending <- jss_misspec_pending_grid(grid, checkpoint_dir)
   if (!nrow(pending)) {
@@ -327,31 +359,27 @@ jss_misspec_run_checkpoints <- function(grid, config, checkpoint_dir) {
 
   scenario_cols <- c("generating_copula", "tau_label", "target_tau", "n_subject", "n_time", "rep")
   scenario_key <- interaction(pending[scenario_cols], drop = TRUE, lex.order = TRUE)
-  done <- 0L
-  for (idx in split(seq_len(nrow(pending)), scenario_key)) {
-    scenario <- pending[idx[1L], , drop = FALSE]
-    dat_seed <- jss_misspec_dataset_seed(
-      scenario$generating_copula,
-      scenario$tau_label,
-      scenario$n_subject,
-      scenario$rep,
-      config$seed
-    )
-    dat <- jss_misspec_simulate(
-      generating_copula = scenario$generating_copula,
-      target_tau = scenario$target_tau,
-      n_subject = scenario$n_subject,
-      config = config,
-      seed = dat_seed
-    )
-    for (j in idx) {
-      fit_row <- pending[j, , drop = FALSE]
-      out <- jss_misspec_fit_one(dat, fit_row, config)
-      utils::write.csv(out, fit_row$checkpoint_path, row.names = FALSE)
-      done <- done + 1L
-    }
+  groups <- split(seq_len(nrow(pending)), scenario_key)
+  workers <- min(max(1L, as.integer(workers)), length(groups))
+  if (workers == 1L) {
+    return(invisible(sum(vapply(groups, jss_misspec_run_scenario_checkpoints, integer(1), pending = pending, config = config))))
   }
-  invisible(done)
+  worker_log <- file.path(dirname(checkpoint_dir), paste0(basename(checkpoint_dir), "-workers.log"))
+  cl <- parallel::makePSOCKcluster(workers, outfile = worker_log, setup_strategy = "parallel")
+  on.exit(parallel::stopCluster(cl), add = TRUE)
+  parallel::clusterEvalQ(cl, {
+    suppressPackageStartupMessages(library(gamlss.longitudinal))
+    suppressPackageStartupMessages(library(gamlss.dist))
+    suppressPackageStartupMessages(library(VineCopula))
+    NULL
+  })
+  functions <- ls(pattern = "^jss_misspec_", envir = .GlobalEnv)
+  parallel::clusterExport(cl, functions, envir = .GlobalEnv)
+  completed <- parallel::parLapplyLB(
+    cl, groups, jss_misspec_run_scenario_checkpoints,
+    pending = pending, config = config
+  )
+  invisible(sum(unlist(completed, use.names = FALSE)))
 }
 
 jss_misspec_read_checkpoints <- function(checkpoint_dir) {
@@ -541,7 +569,7 @@ jss_misspec_write_metric_heatmap <- function(summary, path, metric, title, fill_
   }
   p <- ggplot2::ggplot(
     summary,
-    ggplot2::aes_string(x = "fitted_copula", y = "generating_copula", fill = metric)
+    ggplot2::aes(x = fitted_copula, y = generating_copula, fill = .data[[metric]])
   ) +
     ggplot2::geom_tile(color = "white", linewidth = 0.2) +
     ggplot2::facet_grid(tau_label ~ n_subject, labeller = ggplot2::label_both) +
@@ -555,7 +583,7 @@ jss_misspec_write_metric_heatmap <- function(summary, path, metric, title, fill_
 jss_misspec_summary_panel <- function(plot_data, metric, title, fill_label, scale) {
   ggplot2::ggplot(
     plot_data,
-    ggplot2::aes_string(x = "fitted_copula", y = "generating_copula", fill = metric)
+    ggplot2::aes(x = fitted_copula, y = generating_copula, fill = .data[[metric]])
   ) +
     ggplot2::geom_tile(color = "white", linewidth = 0.25) +
     scale +
@@ -662,7 +690,7 @@ jss_run_07_gamma_copula_misspecification <- function(settings, stage = jss_missp
   grid <- jss_misspec_grid(config)
 
   utils::write.csv(grid, paths$grid, row.names = FALSE)
-  jss_misspec_run_checkpoints(grid, config, checkpoint_dir)
+  jss_misspec_run_checkpoints(grid, config, checkpoint_dir, workers = settings$workers)
 
   results <- jss_misspec_read_checkpoints(checkpoint_dir)
   results <- results[results$fit_id %in% grid$fit_id, , drop = FALSE]

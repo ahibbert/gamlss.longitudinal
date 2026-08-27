@@ -8,9 +8,17 @@ suppressPackageStartupMessages({
 })
 
 root <- normalizePath(".", winslash = "/", mustWork = TRUE)
+input_dir_override <- Sys.getenv("NBI_PAPER_INPUT_DIR", unset = "")
+output_dir_override <- Sys.getenv("NBI_PAPER_OUTPUT_DIR", unset = "")
 comparison_dir_override <- Sys.getenv("NBI_PAPER_COMPARISON_DIR", unset = "")
-if (nzchar(comparison_dir_override)) {
-  comparison_dir <- normalizePath(comparison_dir_override, winslash = "/", mustWork = TRUE)
+if (nzchar(input_dir_override)) {
+  input_dir <- normalizePath(input_dir_override, winslash = "/", mustWork = TRUE)
+  comparison_dir <- if (nzchar(output_dir_override)) output_dir_override else input_dir
+  dir.create(comparison_dir, recursive = TRUE, showWarnings = FALSE)
+  comparison_dir <- normalizePath(comparison_dir, winslash = "/", mustWork = TRUE)
+} else if (nzchar(comparison_dir_override)) {
+  input_dir <- normalizePath(comparison_dir_override, winslash = "/", mustWork = TRUE)
+  comparison_dir <- input_dir
 } else {
   comparison_dir <- file.path(
     root,
@@ -36,6 +44,7 @@ if (nzchar(comparison_dir_override)) {
       "nbi_highsignal_n500_rep100_comparison"
     )
   }
+  input_dir <- comparison_dir
 }
 prefix <- "paper_simulation_nbi_clayton_highsignal"
 
@@ -58,7 +67,7 @@ parameter_order <- c("mu", "sigma", "theta")
 marginal_parameters <- c("mu", "sigma")
 
 read_result <- function(name) {
-  path <- file.path(comparison_dir, name)
+  path <- file.path(input_dir, name)
   if (!file.exists(path)) {
     stop("Missing required result file: ", path, call. = FALSE)
   }
@@ -66,7 +75,7 @@ read_result <- function(name) {
 }
 
 read_optional_result <- function(name) {
-  path <- file.path(comparison_dir, name)
+  path <- file.path(input_dir, name)
   if (!file.exists(path)) {
     return(data.frame(model = character()))
   }

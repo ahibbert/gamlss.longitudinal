@@ -1,14 +1,14 @@
 #!/usr/bin/env Rscript
 
 suppressPackageStartupMessages({
-library(devtools)
 library(VineCopula)
 library(gamlss)
 library(gamlss.dist)
 library(ggplot2)
 })
 
-devtools::load_all(".", quiet = TRUE)
+suppressPackageStartupMessages(library(gamlss.longitudinal))
+list2env(as.list(getNamespace("gamlss.longitudinal"), all.names = TRUE), envir = .GlobalEnv)
 
 `%||%` <- function(x, y) if (is.null(x)) y else x
 

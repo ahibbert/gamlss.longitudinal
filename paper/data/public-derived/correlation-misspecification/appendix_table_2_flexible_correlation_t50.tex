@@ -1,0 +1,25 @@
+\begin{table}[htbp]
+\centering
+\caption{Appendix performance under generated time-varying and covariate-dependent correlation. Results are shown for T=50. Values are averaged over response families. Scenario labels are defined in Table~\ref{tab:scenario-design}. Median df ranges (total/dependence): gamlss.longitudinal 5.7/2.0; geepack exch. 4.0/1.0; geepack AR(1) 4.0/1.0; geepack unstr. --/--.}
+\label{tab:appendix-flexible-correlation-t50}
+\begin{tabular}{lrrrrr}
+\toprule
+ &  & \multicolumn{3}{c}{geepack (robust)} &  \\
+\cmidrule(lr){3-5}
+ & gamlss.long & exch. & AR(1) & unstr. & glm \\
+\midrule
+\addlinespace[0.25em]
+\multicolumn{6}{l}{\textit{Mean RMSE (lower is better)}} \\
+TIME-COR & 0.035 & 0.035 & 0.035 & -- & 0.035 \\
+COV-COR & 0.040 & 0.045 & 0.041 & -- & 0.045 \\
+\addlinespace[0.25em]
+\multicolumn{6}{l}{\textit{Slope SE ratio (target: 1.0)}} \\
+TIME-COR & 1.021 & 1.065 & 1.083 & -- & 0.455 \\
+COV-COR & 0.967 & 1.005 & 1.104 & -- & 0.392 \\
+\addlinespace[0.25em]
+\multicolumn{6}{l}{\textit{Slope coverage (target: 0.95)}} \\
+TIME-COR & 0.963 & 0.933 & 0.933 & -- & 0.617 \\
+COV-COR & 0.933 & 0.967 & 0.983 & -- & 0.517 \\
+\bottomrule
+\end{tabular}
+\end{table}

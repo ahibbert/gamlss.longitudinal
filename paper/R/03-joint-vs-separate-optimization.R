@@ -363,7 +363,7 @@ jss_joint_case_definitions <- function() {
 }
 
 jss_joint_simulation_settings <- function(settings) {
-  if (identical(settings$profile, "expanded")) {
+  if (settings$profile %in% c("expanded", "full")) {
     return(list(
       reps = jss_joint_env_int("GAMLSS_LONGITUDINAL_JSS_JVS_REPS", 20L),
       max_outer_iter = jss_joint_env_int("GAMLSS_LONGITUDINAL_JSS_JVS_MAX_OUTER", 250L),

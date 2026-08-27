@@ -1,0 +1,7 @@
+"Scenario","Metric","gamlss.long T=50","exch. T=50","AR(1) T=50","unstr. T=50","glm T=50"
+"TIME-COR","Mean RMSE (lower is better)","0.035","0.035","0.035","--","0.035"
+"TIME-COR","Slope SE ratio (target: 1.0)","1.021","1.065","1.083","--","0.455"
+"TIME-COR","Slope coverage (target: 0.95)","0.963","0.933","0.933","--","0.617"
+"COV-COR","Mean RMSE (lower is better)","0.040","0.045","0.041","--","0.045"
+"COV-COR","Slope SE ratio (target: 1.0)","0.967","1.005","1.104","--","0.392"
+"COV-COR","Slope coverage (target: 0.95)","0.933","0.967","0.983","--","0.517"
