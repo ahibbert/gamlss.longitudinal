@@ -42,6 +42,11 @@ collected in [REVIEW.md](REVIEW.md). The rOpenSci statistical standards
 crosswalk is available at `inst/standards/ropensci-srr-compliance.md`, and the
 paper replication entry point is documented in `paper/README.md`.
 
+For JSS preparation specifically, start with
+`vignettes/jss-start-here.Rmd`, `paper/jss-submission-checklist.md`,
+`paper/jss-submission-audit.csv`, and
+`paper/jss-manuscript-blueprint.md`.
+
 ## References
 
 The marginal modelling framework follows GAMLSS, as described by Stasinopoulos and colleagues (2024). The dependence layer uses bivariate copulas, following standard copula references, e.g. Nelsen (2006).
