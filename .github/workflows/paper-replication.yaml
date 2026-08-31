@@ -36,7 +36,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install --yes libgsl-dev
+          sudo apt-get install --yes libglpk-dev libgsl-dev
       - name: Install replication bootstrap
         shell: Rscript {0}
         run: |
