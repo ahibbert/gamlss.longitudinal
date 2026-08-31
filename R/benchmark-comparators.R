@@ -1479,6 +1479,7 @@ benchmark_comparator_status <- function() {
     nobs = nobs,
     logLik = NA_real_,
     AIC = NA_real_,
+    BIC = NA_real_,
     mae = NA_real_,
     rmse = NA_real_,
     benchmark_mae = NA_real_,
