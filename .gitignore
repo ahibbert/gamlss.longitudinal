@@ -39,6 +39,7 @@ paper/data/**/*.log
 *.synctex.gz
 *.out
 temp/
+tmp/
 statistical_modelling_redline.tex
 paper/notes/*-results.pdf
 paper/notes/*-review.pdf
