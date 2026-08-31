@@ -137,7 +137,12 @@ utils::globalVariables(c(
 #'
 #' @noRd
 .gl_margin_fixed_family_args <- function(margin_dist, n) {
-  family <- as.character(margin_dist$family[1])
+  family <- if (is.character(margin_dist)) {
+    margin_dist[[1L]]
+  } else {
+    margin_dist$family[[1L]]
+  }
+  family <- as.character(family)
   out <- list()
 
   if (identical(family, "BI")) {
