@@ -25,7 +25,7 @@ jobs:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       GAMLSS_LONGITUDINAL_JSS_STRICT_WARNINGS: 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: r-lib/actions/setup-r@v2
         with:
           r-version: ${{ matrix.r }}
@@ -47,10 +47,13 @@ jobs:
         if: matrix.r == 'release'
         shell: Rscript {0}
         run: |
-          repos <- getOption("repos")
+          cran <- Sys.getenv("RSPM")
+          if (!nzchar(cran)) {
+            cran <- "https://cloud.r-project.org"
+          }
           repos <- c(
             gamlss2 = "https://gamlss-dev.r-universe.dev",
-            repos[!names(repos) %in% "gamlss2"]
+            CRAN = cran
           )
           options(repos = repos)
 
