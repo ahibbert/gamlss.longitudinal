@@ -31,10 +31,11 @@ jobs:
           r-version: ${{ matrix.r }}
           use-public-rspm: true
           extra-repositories: https://gamlss-dev.R-universe.dev
-      - uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          dependencies: 'NA'
-          extra-packages: any::renv
+      - name: Install replication bootstrap
+        shell: Rscript {0}
+        run: |
+          options(repos = c(CRAN = "https://cloud.r-project.org"))
+          install.packages("renv")
       - name: Run clean public replication
         shell: bash
         run: Rscript paper/replicate.R --profile "${{ matrix.profile }}" --workers 2
