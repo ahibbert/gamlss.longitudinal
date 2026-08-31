@@ -81,6 +81,7 @@ build_copula_pair_cache <- function(response, response_margin, response_subject)
   theta_index_map[theta_rows] <- seq_along(theta_rows)
 
   cache <- list(
+    observed_margin_base = obs_response,
     row_id1 = pair_df$row_id1,
     row_id2 = pair_df$row_id2,
     Fx_1_2_template = Fx_1_2_template,

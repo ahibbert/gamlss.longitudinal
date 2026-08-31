@@ -39,12 +39,17 @@
     numerator = numerator,
     denom = denom,
     q = q,
-    density = density
+    density = density,
+    log_density = log_density
   )
 }
 
 .copula_t_pdf <- function(u1, u2, par, par2) {
   .copula_t_components(u1, u2, par, par2)$density
+}
+
+.copula_t_logpdf <- function(u1, u2, par, par2) {
+  .copula_t_components(u1, u2, par, par2)$log_density
 }
 
 .copula_t_hfunc1 <- function(u1, u2, par, par2) {
