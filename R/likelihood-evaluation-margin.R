@@ -26,6 +26,10 @@
       }
     }
   }
+  margin_deriv_input <- c(
+    margin_deriv_input,
+    .gl_margin_fixed_family_args(margin_dist, n_obs)
+  )
   margin_deriv_input
 }
 

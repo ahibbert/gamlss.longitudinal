@@ -11,6 +11,7 @@
   for (pn in c("mu", "sigma", "nu", "tau")) {
     if (pn %in% names(eta_inv)) args_base[[pn]] <- eta_inv[[pn]]
   }
+  args_base <- c(args_base, .gl_margin_fixed_family_args(margin_dist, length(response)))
 
   list(
     margin_pars = margin_pars,

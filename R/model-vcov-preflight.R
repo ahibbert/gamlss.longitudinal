@@ -32,22 +32,15 @@
   if (method %in% c("analytical", "analytical_only") &&
     identical(calc_lik_out$likelihood_type, "discrete_rectangle")) {
     zero_fraction <- mean(response == 0, na.rm = TRUE)
-    msg <- paste0(
-      "Analytical Hessian is not yet implemented for exact discrete rectangle likelihoods; ",
-      "falling back to numerical Hessian."
-    )
     if (is.finite(zero_fraction) && zero_fraction >= 0.35) {
-      msg <- paste0(
-        "Analytical Hessian for zero-heavy discrete margins may be numerically delicate; ",
-        msg
+      warning(
+        paste0(
+          "Analytical Hessian for zero-heavy discrete margins may be numerically delicate; ",
+          sprintf("zero fraction = %.3f.", zero_fraction)
+        ),
+        call. = FALSE
       )
     }
-    if (identical(method, "analytical_only")) {
-      stop(msg, call. = FALSE)
-    }
-    warning(msg, call. = FALSE)
-    method <- "numderiv"
-    method_used <- "numderiv"
   }
 
   list(method = method, method_used = method_used)
