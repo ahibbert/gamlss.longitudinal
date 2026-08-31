@@ -10,6 +10,7 @@
   for (pn in margin_pars) {
     base_args[[pn]] <- as.numeric(eta_inv[[pn]])
   }
+  base_args <- c(base_args, .gl_margin_fixed_family_args(margin_dist, length(response)))
 
   list(
     margin_pars = margin_pars,
