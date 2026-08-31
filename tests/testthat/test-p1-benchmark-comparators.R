@@ -105,6 +105,27 @@ test_that("benchmark_standard_models records smooth failures for GEE and GLMM wh
   expect_true(all(grepl("Smooth terms via s\\(\\.\\.\\.\\) are only supported", bench$results$error)))
 })
 
+test_that("benchmark rows keep one schema when a comparator cannot fit the formula", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 10L)
+  dat$id <- factor(dat$id)
+  primary_fit <- stats::lm(y ~ time_raw + gender + age, data = dat)
+
+  bench <- benchmark_standard_models(
+    data = dat,
+    formula = y ~ time_raw + gender + s(age, bs = "ps"),
+    subject_var = "id",
+    family = "gaussian",
+    comparators = c("glm", "gam"),
+    fit = primary_fit,
+    fit_name = "primary"
+  )
+
+  expect_equal(bench$results$method, c("primary", "glm", "gam"))
+  expect_true("BIC" %in% names(bench$results))
+  expect_true(is.na(bench$results$BIC[bench$results$method == "glm"]))
+  expect_false(bench$results$success[bench$results$method == "glm"])
+})
+
 test_that("benchmark_standard_models can score the supplied primary fit", {
   dat <- make_fixture_factor_time_interaction(n_subject = 10L)
   dat$id <- factor(dat$id)
