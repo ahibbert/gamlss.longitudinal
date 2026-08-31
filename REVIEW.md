@@ -192,6 +192,9 @@ The paper workflow is repository-only and excluded from CRAN/source builds.
 
 Start here:
 
+- `paper/jss-submission-checklist.md`: blocking JSS submission gates.
+- `paper/jss-submission-audit.csv`: manuscript item to repository artifact map.
+- `paper/jss-manuscript-blueprint.md`: JSS-first manuscript outline.
 - `paper/README.md`: replication instructions.
 - `paper/manifest.csv`: claim-to-artifact map.
 - `paper/_targets.R`: pipeline wiring.

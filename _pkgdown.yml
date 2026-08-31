@@ -26,6 +26,7 @@ articles:
     navbar: Start here
     contents:
       - site-guide
+      - jss-start-here
   - title: Worked examples
     navbar: Worked examples
     contents:

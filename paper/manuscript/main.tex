@@ -1,0 +1,2007 @@
+\documentclass{article}
+
+\usepackage{arxiv}
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+%\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{lipsum}		% Can be removed after putting your text content
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[super,comma,sort&compress]{natbib} 
+\usepackage{doi}
+\usepackage{amsmath}
+\usepackage{bbm}
+\usepackage{bm}
+%\usepackage{amsthm}
+%\usepackage{amssymb}
+\usepackage{color}
+\usepackage{siunitx}
+\usepackage{subcaption} 
+\usepackage{multirow} 
+\usepackage{listings}
+\usepackage[table]{xcolor}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{threeparttable}
+\usepackage{float}
+\usepackage{graphicx}
+
+\usepackage{siunitx}
+\sisetup{
+  detect-weight=true,
+  detect-inline-weight=math
+}
+
+\usepackage{makecell}
+\renewcommand\cellalign{tl}
+\renewcommand\theadalign{tl}
+
+\newcommand{\stdcell}[1]{\makecell[tl]{#1}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}m{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+% JSS-style code listings: quiet, compact, and mostly monochrome
+\definecolor{jsscodebg}{gray}{0.985}
+\definecolor{jsscoderule}{gray}{0.78}
+\definecolor{jsscodegray}{gray}{0.35}
+
+\lstdefinestyle{mystyle}{
+    language=R,
+    backgroundcolor=\color{jsscodebg},
+    basicstyle=\ttfamily\footnotesize,
+    commentstyle=\itshape\color{jsscodegray},
+    keywordstyle=\bfseries,
+    stringstyle=\ttfamily,
+    identifierstyle=\ttfamily,
+    numbers=none,
+    frame=lines,
+    framerule=0.4pt,
+    rulecolor=\color{jsscoderule},
+    xleftmargin=0.5em,
+    xrightmargin=0.5em,
+    aboveskip=0.8\baselineskip,
+    belowskip=0.8\baselineskip,
+    columns=fullflexible,
+    keepspaces=true,
+    breaklines=true,
+    breakatwhitespace=true,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    captionpos=b
+}
+
+\lstset{style=mystyle}
+
+\newcommand{\E}{\text{E}}
+\newcommand{\NA}{\text{-}}
+\newcommand{\Var}{\text{Var}}
+\newcommand{\Corr}{\text{Corr}}
+\newcommand{\Cov}{\text{Cov}}
+\newcommand{\Prob}{\text{P}}
+\newcommand{\pkg}{\textbf}
+\newcommand{\jsschange}[1]{\textcolor{red}{#1}}
+\newcommand{\jssplaceholder}[1]{\par\noindent\textcolor{red}{\textbf{[Draft wording:} #1\textbf{]}}\par}
+\newcommand{\jssrevisionnote}[1]{%
+  \par\noindent\fcolorbox{red}{red!5}{%
+    \begin{minipage}{0.96\linewidth}
+    \textcolor{red}{\textbf{Next steps:} #1}
+    \end{minipage}}%
+  \par}
+\newcommand{\jsssuggestion}[1]{%
+  \par\smallskip\noindent\fcolorbox{red}{red!3}{%
+    \begin{minipage}{0.94\linewidth}
+    \textcolor{red}{\textbf{Reviewer-facing suggestion.} #1}
+    \end{minipage}}%
+  \par\smallskip}
+
+\title{{gamlss.longitudinal: Longitudinal GAMLSS Models With Copula Dependence in R}}
+
+\author{ \href{https://orcid.org/0009-0002-6621-8793}{\includegraphics[scale=0.06]{orcid.pdf}\hspace{1mm}Aydin Sareff-Hibbert} \\
+	Faculty of Medicine and Health\\
+	University of Sydney\\
+	NSW, Australia \\
+	\texttt{aydin.hibbert@sydney.edu.au} \\
+	%% examples of more authors
+	\And
+	\href{https://orcid.org/0000-0003-1270-1499}{\includegraphics[scale=0.06]{orcid.pdf}\hspace{1mm}Gillian Z. Heller} \\
+	Faculty of Medicine and Health\\
+	University of Sydney\\
+	NSW, Australia \\
+	\texttt{gillian.heller@sydney.edu.au} \\
+}
+
+\renewcommand{\shorttitle}{{gamlss.longitudinal: longitudinal GAMLSS copula models}}
+
+\hypersetup{
+pdftitle={gamlss.longitudinal: Longitudinal GAMLSS models with copula dependence in R},
+pdfsubject={q-bio.NC, q-bio.QM},
+pdfauthor={Aydin Sareff-Hibbert, Gillian Z. Heller},
+pdfkeywords={generalized joint regression, random effects, mixed models, copula, correlated data},
+}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\jssplaceholder{Longitudinal analyses often require flexible marginal distributions and interpretable within-subject dependence, especially when scale, skewness, tails, or dependence vary with time or covariates. The R package \pkg{gamlss.longitudinal} implements first-order copula dependence for GAMLSS margins in a formula-based workflow. Any supported marginal parameter and copula parameter can depend on fixed or smooth covariates, allowing users to model location, scale, shape, and adjacent-time dependence in one fitted object. The package provides model fitting, distribution and copula screening, inference, diagnostics, prediction, simulation, and replication workflows. A reproducible worked example and targeted validation studies illustrate parameter recovery, diagnostic checks, optimizer tradeoffs, and the relationship to existing R tools for GAMLSS, GEE/GLMM, bivariate copula regression, and vine copulas.}
+\end{abstract}
+
+
+
+\jssrevisionnote{- Overall trying to stay below 30 pages as over 30 is considered as potentially taking much longer to review.
+- Have changed the focus throughout to focus more on software and reproducibility upfront since that's more the expectation of JSS as far as I can tell
+}
+
+\section{Introduction}
+
+\jssrevisionnote{For JSS we might need to change the focus of this introduction a bit to be more around the software contribution. Need to highlight (1) longitudinal data may need covariate-dependent mean, scale, shape, and dependence; (2) existing R workflows solve parts of this problem but not the whole formula-based longitudinal GAMLSS-copula workflow; (3) \pkg{gamlss.longitudinal} is the software contribution.}
+\jsssuggestion{Next high-value revision: make the first two pages read less like a methods proposal and more like a software article. The introduction should quickly establish the workflow gap, name the package, and tell the reader what they can do in R. Save extended motivation for copulas and vines for the model section or a shorter comparison subsection.}
+
+This paper introduces a new model for regression of longitudinal data which is straightforward for a practitioner to build and interpret, while being flexible enough to capture detailed characteristics of longitudinal datasets. Longitudinal data often present with not only changing mean parameters over time but also any one or multiple of changing variance, skewness, tail behavior, zero-inflation and within-subject correlation. Not only may all these characteristics change with time, but they also may vary with other covariates related to the subject or time-point.
+
+The most common method today for modeling longitudinal data is using Generalized Linear Mixed Models which use random effect terms to account for known correlation or Generalized Estimating Equations\citep{Liang1986} which use a correlation matrix and quasi-likelihood approach. Both GLMMs and GEEs are \jsschange{widely available and familiar to applied users}, with a range of available software packages, and just a single term needs to be included in the additive predictor for the GLMM or in the correlation matrix for the GEE for a significant correlation adjustment, with more complex structures being possible. However, these models are mean-models, and therefore unable to capture changing variance, skewness etc. with time or covariates. In addition, they are limited to a much smaller set of distributions, generally exponential family, which may not be appropriate for all datasets.
+
+GAMLSS goes some way to solving a number of these issues for the general case, allowing all parameters of a marginal distribution to depend on covariates, which enables careful modeling of variance, skewness, tail behavior and zero-inflation with covariates. However, the model assumes independence between observations by default. The framework does include support for random effect terms, however these introduce their own drawbacks, in particular, substantially changing the interpretation of the covariates to a conditional model. Many meta-analyses have shown that GLMMs are often applied incorrectly due to their complexity, even for the mean-model only case. 
+
+One solution to modeling within-subject correlation for a GAMLSS model is the use of vine copulas. Vine copulas \cite{czado_vine_2022} deconstruct multivariate dependence into multiple bivariate copulas which can then be made to depend on covariates if desired. Vine copula methods are implemented in two stages with a marginal model being implemented separately, and a vine copula structure then being imposed on the CDF transform of the margins based on the fitted marginal model. This is referred to as a two-stage model for this reason. These models are extremely flexible, however they can quickly become over-parameterized, and the two-stage method is already complex with additional work being required afterwards to calculate adjusted estimates for marginal parameters which are generally of most interest. One solution has been implemented for solving this complexity in the bivariate case: GJRM. The GJRM software \citep{Marra2017} provides a framework and R software package for joint-likelihood regression of bivariate correlated data with almost any gamlss marginal distributions and bivariate copulas, and outputs adjusted parameter estimates and standard errors which can be readily interpreted. The software also provides additional functionality for modeling limited trivariate datasets, primarily binary data with trivariate normal copulas. This limitation to primarily bivariate data naturally substantially limits its applications for longitudinal datasets. In addition, parameterization would need to be addressed in higher dimensions, as a formula is required for each margin in the GJRM framework. A Bayesian alternative for simultaneous inference of copula-based models has also been implemented to model covariate dependent margins and copula, and compare favourably to the two-stage alternatives as well as VGAM in simulation studies\cite{Klein2016}.
+
+Detailed comparisons of GEE, GLMM and copula-based methods for regression of correlated longitudinal data have previously shown that for non-normal correlated data, longitudinal copula-based models provide a superior model with more consistently accurate and interpretable coefficients than the GLMM, and better or comparable fit than both the GLMM and GEE, while providing more flexibility in choice of marginal distributions, and control over correlation structure \cite{sareffhibbert2025comparisoncopulabasedmixedmodel}. The copula method applied in this review, however, was limited to the bivariate and trivariate case due to available software, and suggests the method could be extended to the multivariate case. In general, both the GLMM and GEE treat correlation as a nuisance parameter and do not lend themselves to a careful understanding and deliberate modeling of the correlation structure as can be achieved with copulas.
+
+\textbf{There is no \jsschange{direct practitioner-facing} likelihood framework for longitudinal data that jointly estimates flexible GAMLSS margins and interpretable, covariate-dependent serial dependence while preserving marginal distributional interpretation.}
+
+We introduce a new, flexible longitudinal model which:
+\begin{itemize}
+    \item Includes a \jsschange{formula-based} model formulation: one formula for each distributional feature: mean, scale, shape, \textit{and} correlation, but can be specified minimally (e.g. just mean model with correlation adjustment using copula)
+    \item Provides directly interpretable covariate estimates and standard errors accounting for correlation by default, no additional steps needed, and marginal interpretation is preserved
+    \item Uses \jsschange{a likelihood-based objective under the specified first-order dependence model, supporting comparison with likelihood-based models and workflows that require the fitted distribution, such as simulation}
+    \item Includes all standard tools used for longitudinal regression today mirroring currently used functional forms in alternative packages, including diagnostics, prediction methods and simulation capabilities
+\end{itemize}
+
+Our approach is to deliberately restrict our model to fit gamlss margins and a first-order D-vine, with parameters shared between timepoints but able to vary based on covariates (including time), making joint distributional longitudinal regression more accessible to researchers.
+
+In this paper we:
+\begin{itemize}
+    \item Introduce the \textbf{theoretical underpinnings} of a flexible joint-regression model for longitudinal data using copulas and distributional marginal models, including mathematical framework in section \ref{sec:model_overview} and optimization approach in section \ref{sec:optimization}
+    \item Provide users with an overview of the \textbf{core functionality} and workflow for the \texttt{gamlss.longitudinal} package (section \ref{sec:software-design})
+    \item Briefly demonstrate \textbf{model performance in simulation setting} against a range of known true distributions (section \ref{sec:sim_recovery}), provide guidance on optimization choice (section \ref{sec:sim_jvs}) and sensitivity to model assumptions (section \ref{sec:sim_sensitivity})
+    \item Apply the approach to a \textbf{real-world example} on a large clinical trial showing a treatment effect captured on both marginal and conditioned copula parameters (section \ref{sec:application})
+\end{itemize}
+
+\subsection{Comparison to existing approaches and software}
+
+Copulas are a highly useful tool for modeling dependent data (joint distributions) as they allow for separate modeling of marginal distributions and correlation structures, while providing an interpretable distribution-style approach to modeling correlation rather than treating it as a nuisance correction. 
+
+In two dimensions, copula models are extremely convenient as a bivariate distribution can be deconstructed into a combination of two marginal distributions and a single copula function. There are many two-dimensional copula functions available for capturing different dependence shapes, for example asymmetric upper or lower tail dependence with the Gumbel or Clayton copulas respectively, or differing levels of symmetric tail dependence with a t-copula (see Figure \ref{fig:example-copulas}).
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{charts/intro - copula examples.png}
+    \caption{Example simulated copula shapes showing Clayton, Gumbel and t copulas capturing differing dependence shapes.}
+    \label{fig:example-copulas}
+\end{figure}
+
+In more than two dimensions, a multivariate distribution is deconstructed into a combination of marginal distributions and a d-dimensional multivariate copula of the same dimension as the original multivariate distribution. Any multivariate distribution, in this case a longitudinal dataset, can be deconstructed into a combination of its marginal distribution and its dependence structure \citep{Sklar1973}. This deconstruction provides an interpretable separation of model parameters between margins and dependence structure. In this framework both the marginal distribution and copula can be modeled directly and depend on covariates\citep{Joe1997}\citep{Patton2006}, as opposed to the the mixed model approach which splits a marginal distribution into a combination of a random effect distribution and a conditional distribution, and where only the conditional model truly depends on covariates.
+
+One major drawback of multivariate copulas is that there are very limited multivariate copula distributions available, making using them quite restrictive. However, vine copulas or pair-copula deconstructions provide a method for modeling a multivariate copula through the use of 'pair-copulas', essentially describing a multivariate copula through a combination of bivariate copulas \citep{czado_vine_2022,aas_pair-copula_2009,smith_modeling_2010}. In addition, it is possible to depend each copula on any number of fixed or smooth covariate shapes\citep{vatternagler2018}. This method of modeling multivariate dependence through pair copulas combined with marginal models has been used in a broad range of fields including finance \citep{domma_statistical_2009}, healthcare \citep{sun_heavy-tailed_2008,lambert_copula}, and insurance \citep{frees_credibility_2005}. Multiple methods have also been proposed for modeling both time-dependence and between-outcome dependence simultaneously \citep{smith_copula_2015,czado2015,Beareseo2015}. 
+
+The vine copula method for modeling multivariate copula is extremely powerful, allowing for every detail of a correlation structure to be captured. However, there are two significant drawbacks. First, the method uses a two stage model fitting approach, fitting the marginal distribution followed by fitting a copula function using a vine structure. While computationally convenient, this method does not provide the most optimal fit to the overall joint likelihood of the dataset, and does not provide adjusted marginal parameters and standard errors compared to simply fitting a marginal model without adjustment. All alternative popular models such as the GLMM or GEE are jointly optimized and provide adjusted marginal parameter estimates and standard errors by default. Importantly, the true standard errors for covariates accounting for the correlation need to be estimated manually often via simulation and will be adjusted, which can result in marginal covariate significance changing after correlation is adjusted for. Second, and we would argue more importantly, the model becomes extremely complex to specify and interpret with a higher number of time points. 
+
+For example, consider a T-time point patient dataset with time treated as a factor, a treatment effect, and a linear covariate controlling for the effect of age. The simplest model with a basic fit for each parameter using a GLMM is:
+$$g(\mu_{it})=\beta_0 + \beta_t t+\beta_{treat}\mathbbm{1}_{treat}+\beta_{age}*age +b_i \text{ for } t=1,..,T$$
+
+In this simple case we have $T+2$ parameters plus the parameter for the random effect, resulting in $T+3$ parameters total. The structure makes inference reasonably simple. For the comparable joint model we can fit the simplest model of a single GLM structure for the margin at all time points with a time-dependent covariate and covariate for treatment and age, i.e.
+
+$$g(\mu_{t})=\beta_0 + \beta_t t+\beta_{treat}\mathbbm{1}_{treat}+\beta_{age}*age \text{ for } t=1,..,T$$
+
+This GLM marginal model saves one parameter compared to the GLMM, $T+2$ parameters. To account for dependence, we then specify a copula structure for the dependence structure. For the standard VineCopula, a T-dimensional copula fit requires $T(T-1)/2$ parameters with only intercepts for the copula parameters, or $T(T-1)$ if the chosen bivariate copulas have 2 parameters. This parameterisation becomes extreme beyond a few time points. For example, if $T=10$, the GLMM would have the $10+3$ parameters including the random effect, while the VineCopula method begins with $10+2$ parameters for the GLM then introduces $10(9)/2=45$ parameters for the correlation structure, totalling 57 parameters, most of which are for the covariance. This will also scale multiplicatively with additional numbers of covariates, for example adding a linear age term and a treatment effect for the copula parameters would result in $3\times 45=135$ parameters just for the copulas. Ideally if there is an age effect on correlation but it is reasonably similar between time points then it could be collapsed to a single covariate. In addition, interpreting this number of correlation structures, even if many are considered as independence copulas, becomes an onerous task. 
+
+The advantage of the VineCopula method is the extreme level of flexibility with a different marginal distribution being possible to be modeled for every time point and a different copula being able to be potentially modeled for every $T(T-1)/2$ bivariate copula, with all the models being able to depend on covariates. However, generally in the case of longitudinal datasets, the marginal distribution is similar between time points, perhaps with changing shape based on covariates or time. In addition, the shape of the correlation structure rarely substantially varies between time points, though may exhibit slowly changing shape over time or for different covariate combinations. This provides a substantial opportunity for simplifying copula-based regression models through providing a method for simplifying the correlation structure and jointly modelling this with the marginal distributions. To solve the issue of parameterization, we can introduce a shared modeling formula between timepoints which can take a single intercept parameter by default or be scaled to vary with changing time or covariates as needed. We relate our general \jsschange{simplifications} to the more general trend of simplification of vine copula models in the literature where assumptions and restrictions are placed on the structure to gain computational tractability and increase interpretability\cite{nagler_simplified_2025}.
+
+With longitudinal datasets we are able to simplify the assumptions for a pair copula deconstruction. Longitudinal data have a natural ordering, with adjacent dependence often being the most important structure and dependence generally decaying with time-distance. D-vine structures\cite{smith_copula_2015} provide a standard vine structure which accounts for known serial correlation in datasets. We can simplify this dependence structure further by assuming only first order copulas (i.e. adjacent time points) require modeling, and beyond the first order dependence is captured by the natural time lag dependence that comes from modeling the first order, in the same way as an autoregressive-style structure. Note that, importantly, while a structure such as the unstructured GEE must have a parameter for second order dependence if there is any level of correlation between non-adjacent time points, the pair copula deconstruction only requires modeling beyond the first order if dependence conditional on the first order modeled dependence is significant. To illustrate this, consider a 5-time-point multivariate normal where we simulate 80 percent first order correlation using copulas, and assume independence copulas beyond the first order, then the correlation between timepairs with 1,2,3 and 4 time distance have correlation of $0.8$, $0.8^2=0.64$, $0.8^3=0.512$ and $0.8^4=.4096$, in the same way as an AR(1) simulation structure. This naturally extends to if adjacent timepoints have different levels of correlation, different correlation structures and/or depend on covariates. Whether the lag is being accurately captured must then be reviewed as part of model diagnostics if only first-order dependence is assumed. This method of creating a first-order truncated D-vine for longitudinal datasets (without covariate dependent copula parameters) has analyzed and compared to an AR1 linear mixed model and performs favourably on likelihood-based criteria\cite{killiches2018}.
+
+Our method pairs a simplified first-order D-vine structure with flexible gamlss margins, and introduces simplified single formulas for each distribution/correlation parameter into a joint likelihood model. The resulting model is less general than a Vine Copula plus marginal model method, but more interpretable and usable for longitudinal regression; more distributionally flexible than a GLMM/GEE; and extends beyond the bivariate/trivariate restriction of the GJRM.
+
+We briefly summarise the key features of representative available longitudinal regression packages in Table \ref{tab:r-software-comparison}. \pkg{gamlss} and \pkg{gamlss2} are the primary implementations for GAMLSS, we use \pkg{geepack} for GEE, \pkg{lme4} as the most popular implementation for GLMMs, \jsschange{\pkg{GJRM}} and \pkg{VineCopula} / \pkg{rvinecopulib} including \pkg{gamCopula} for copula covariate dependence as the most capable copula-based longitudinal modelling packages.
+
+\begin{table}[H]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3.5pt}
+\renewcommand{\arraystretch}{1.15}
+\caption{Comparison of related R software for longitudinal distributional regression and dependence modelling.}
+\label{tab:r-software-comparison}
+\begin{tabularx}{\linewidth}{@{} L{2.35cm} L{2.25cm} c L{1.75cm} c c c c L{1.55cm} L{1.8cm} @{}}
+\toprule
+Software &
+Marginal flexibility &
+Time points &
+Dependence method &
+Time dep. &
+Cov. dep. &
+Shape / tails &
+Higher order &
+Interpretation &
+Estimation \\
+\midrule
+\pkg{gamlss} / \pkg{gamlss2} &
+Up to 4-parameter GAMLSS &
+Any &
+None by default &
+N/A & N/A & N/A & No &
+Marginal &
+Marginal likelihood \\
+
+\pkg{geepack} &
+Exponential-family mean models &
+Any &
+Working correlation &
+Yes & No & No & Yes &
+Marginal &
+EE / quasi-likelihood \\
+
+\pkg{lme4} &
+Exponential-family mean models &
+Any &
+Random effects &
+Indirect\textsuperscript{a} &
+Indirect\textsuperscript{a} &
+No & Yes &
+Conditional &
+ML / REML \\
+
+\pkg{GJRM} &
+Up to 4-parameter GAMLSS &
+2--3 &
+Copula &
+Yes & Yes & Yes & N/A &
+Marginal &
+ML / penalized likelihood \\
+
+\pkg{VineCopula} / \pkg{rvinecopulib} + margins &
+User-supplied margins &
+Any &
+Vine copula &
+Yes & Yes & Yes & Yes &
+Marginal\textsuperscript{b} &
+Staged estimation \\
+
+\pkg{gamlss.longitudinal} &
+Up to 4-parameter GAMLSS &
+Any &
+First-order vine copula &
+Yes & Yes & Yes & No &
+Marginal &
+Joint ML / penalized likelihood \\
+\bottomrule
+\end{tabularx}
+
+\vspace{0.5em}
+\begin{minipage}{0.96\linewidth}
+\footnotesize
+\textsuperscript{a} In \pkg{lme4}, time- or covariate-varying dependence can be induced indirectly through random slopes or model structure, but dependence parameters are not modelled as direct marginal or copula regression parameters.
+\textsuperscript{b} Interpretation depends on the separately fitted marginal model.
+``Any'' means arbitrary repeated-measure panels in principle; practical use still depends on data size and model complexity.
+\end{minipage}
+\end{table}
+
+In summary, the main practical limitation of \pkg{gamlss}/\pkg{gamlss2} in a longitudinal data setting is that repeated observations are assumed independent unless additional correlation structure is supplied. \pkg{geepack} provides robust marginal mean inference, but does not define a full distributional likelihood for simulation, likelihood-based prediction, or tail-dependence modelling. \pkg{lme4} induces dependence through random effects, giving a conditional rather than marginal interpretation. \pkg{GJRM} is the closest joint-regression relative, but is primarily bivariate, with limited three-outcome extensions. General vine-copula workflows using \pkg{VineCopula} or \pkg{rvinecopulib} are more flexible for high-order dependence, but are typically two-step approaches and less direct for shared longitudinal regression formulas and adjusted marginal inference. \pkg{gamlss.longitudinal} provides a method for \jsschange{formula-based} joint GAMLSS regression with covariate-dependent first-order copula dependence, at the cost of not modelling strong residual higher-order dependence.
+
+\section{Statistical Model} \label{sec:model_overview}
+
+\jsssuggestion{This is the highest-priority statistical reviewer risk. Before the likelihood equations, add one compact notation paragraph defining subject $i$, ordered time index $t$, response $Y_{it}$, observed panels, marginal covariates, and copula-pair covariates. Then state exactly when the objective is the likelihood for the fitted first-order model and when it should be interpreted as a simplified/truncated dependence model.}
+
+We introduce a longitudinal regression model which jointly fits marginal distributions with up to four parameters and covariance using copulas up to two parameters. 
+\\\\
+Let the observations of interest be $y_{it}$ drawn from multivariate distribution $Y$ with subjects $i=1....n$ observed at ordered times $t=1...T$. Then for the marginal model we assume $Y$ follows some marginal distribution $\mathcal{D}$:
+\begin{equation}
+Y \sim \mathcal{D}(\mu,\sigma, \nu, \tau)    
+\end{equation}
+\\
+For continuous marginal distributions, we can model the dependence structure using a copula directly using this marginal model. First, we define that distribution $\mathcal{D}$ has probability density function $f(y)$ and cumulative density $F(y)$. So once marginal distributions are modeled then the joint cumulative distributions $u_t=F_t(y_t)$ representing the subset of $F(y)$ for each time point, distributed uniformly on $[0,1]$, follow some multivariate copula distribution $F \sim \mathcal{C}$.
+
+We use a pair copula decomposition to represent the multivariate copula $\mathcal{C}$ in terms of $T(T-1)/2$ bivariate copulas. As our time points $t=1...n$ are ordered, we define a D-vine tree sequence\citep{smith_copula_2015} so that we can model adjacent observations in the first tree. So then we have bivariate copula functions $c_{t,t+1}(u_t,u_{t+1})$ to model timepoint pairs $(1,2), (2,3)...(T-1,T)$, for $t=1,...,T-1$, as well as bivariate copulas dependent on the first order copulas in trees beyond the first order.
+
+To further simplify the model for inference, we assume the same marginal distribution for every modeled time point (dependent on any fixed or smooth terms), and the same copula function linking every adjacent pair of marginal distributions (adjacent time points), i.e. a copula fit for times (1,2), (2,3), ..., (T-1, T), resulting in T-1 total copula fits (also dependent on any fixed or smooth terms). A test is included as part of the modeling package to provide information on the validity of this assumption for any given dataset. This allows for a simple-to-apply model structure where the model can fit a minimal model with just a single formula (e.g. intercept) for $\mu$, for a single parameter gamlss marginal distribution, generally the mean of the marginal distributions, and a single formula for $\theta$, a copula parameter that is shared for all the copula functions. Or alternatively for a more flexible fit, we are able to specify a model with up to 6 formulas, one for each parameter of the gamlss marginal distribution, $\mu$, $\sigma$, $\nu$, $\tau$, and one for each parameter of the copula function, $\theta$, $\zeta$, with each being able to change with a factor time variable (essentially creating a separate intercept for each copula or margin per time point) and to depend on any number of other fixed or smooth covariates. 
+
+More formally, for each parameter, $p=\mu,\sigma, \nu, \tau, \theta,\zeta$ we have a single linear predictor dependent on fixed and smooth terms:
+\begin{equation}
+\eta_p = X_p \beta_p + \sum_{r=1}^{R_p} B_{pr} b_{pr},
+\end{equation}
+where:
+\begin{itemize}
+\item $X_p$ is the fixed-effect design matrix for parameter $p$,
+\item $B_{pr}$ is the basis matrix for smooth term $r$ in parameter $p$,
+\item $R_p$ the the number of smooth terms for parameter $p$,
+\item $\beta_p$ are the fixed coefficients for parameter $p$,
+\item $b_{pr}$ are the smooth basis coefficients for smooth term $r$ in parameter $p$.
+\end{itemize}
+
+Each linear predictor, including for copula parameters, is unconstrained and is connected to the marginal or copula parameter estimate through a link function $g_p(\eta_p)$ which constrains the range of the transformed linear predictor to the range of the parameter being modeled.
+
+Copulas available for modelling dependence in \pkg{gamlss.longitudinal} are described in tables \ref{tab:copula_families} and \ref{tab:copula_functions_tail_dependence} with short notes on suggested usage.
+
+\begin{table}
+\centering
+\small
+\caption{Copula families included in the longitudinal GAMLSS copula model.}
+\label{tab:copula_families}
+\renewcommand{\arraystretch}{1.35}
+\begin{tabularx}{\textwidth}{@{} L{2.6cm} L{3.0cm} L{2.7cm} Y @{}}
+\toprule
+Copula & Parameters & Kendall's $\tau$ & Common usage \\
+\midrule
+Gaussian
+&
+$\theta=\rho \in (-1,1)$
+&
+$\frac{2}{\pi}\arcsin(\rho)$
+&
+Symmetric dependence.
+\\
+Student-$t$
+&
+\stdcell{$\theta=\rho \in (-1,1)$,\\ $\zeta=\nu>2$}
+&
+$\frac{2}{\pi}\arcsin(\rho)$
+&
+Symmetric dependence with correlated extremes in both tails.
+\\
+Clayton
+&
+$\theta>0$
+&
+$\frac{\theta}{\theta+2}$
+&
+Lower-tail dependence.
+\\
+Frank
+&
+$\theta \neq 0$
+&
+No closed form
+&
+Flexible positive or negative dependence; symmetric; no tail dependence.
+\\
+Gumbel
+&
+$\theta \geq 1$
+&
+$1-\frac{1}{\theta}$
+&
+Upper-tail dependence.
+\\
+Joe
+&
+$\theta \geq 1$
+&
+No closed form
+&
+Strong upper-tail dependence.
+\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+
+\begin{table}
+\centering
+\scriptsize
+\caption{Copula functions and tail-dependence properties for consecutive longitudinal observations. Here $u_t$ and $u_{t+1}$ denote marginal probability-scale responses at adjacent times.}
+\label{tab:copula_functions_tail_dependence}
+\renewcommand{\arraystretch}{1.35}
+\begin{tabularx}{\textwidth}{@{} L{2cm} Y L{2.8cm} L{2.8cm} @{}}
+\toprule
+Copula & Copula function $C(u_t,u_{t+1})$ & Lower tail $\lambda_L$ & Upper tail $\lambda_U$ \\
+\midrule
+Gaussian
+&
+$\Phi_{\rho}\{\Phi^{-1}(u_t),\Phi^{-1}(u_{t+1})\}$
+&
+$0$
+&
+$0$
+\\
+Student-$t$
+&
+$t_{\nu,\rho}\{t_{\nu}^{-1}(u_t),t_{\nu}^{-1}(u_{t+1})\}$
+&
+$\scriptstyle 2t_{\nu+1}\!\left(-\sqrt{\frac{(\nu+1)(1-\rho)}{1+\rho}}\right)$
+&
+$\scriptstyle 2t_{\nu+1}\!\left(-\sqrt{\frac{(\nu+1)(1-\rho)}{1+\rho}}\right)$
+\\
+Clayton
+&
+$\left(u_t^{-\theta}+u_{t+1}^{-\theta}-1\right)^{-1/\theta}$
+&
+$2^{-1/\theta}$
+&
+$0$
+\\
+Frank
+&
+$\begin{aligned}
+-\frac{1}{\theta}\log\!\left[
+1+
+\frac{(e^{-\theta u_t}-1)(e^{-\theta u_{t+1}}-1)}
+     {e^{-\theta}-1}
+\right]
+\end{aligned}$
+&
+$0$
+&
+$0$
+\\
+Gumbel
+&
+$\begin{aligned}
+\exp\!\left(
+-\left[
+(-\log u_t)^\theta
++
+(-\log u_{t+1})^\theta
+\right]^{1/\theta}
+\right)
+\end{aligned}$
+&
+$0$
+&
+$2-2^{1/\theta}$
+\\
+Joe
+&
+$\begin{aligned}
+1-\left[
+(1-u_t)^\theta
++
+(1-u_{t+1})^\theta
+-
+(1-u_t)^\theta(1-u_{t+1})^\theta
+\right]^{1/\theta}
+\end{aligned}$
+&
+$0$
+&
+$2-2^{1/\theta}$
+\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+
+
+\subsection{Optimization} \label{sec:optimization}
+
+\jsssuggestion{Keep optimizer detail proportional in the main paper. Reviewers need to know which algorithms are available, when users should choose RS, separate RS, CG, or numerical Hessian options, and how convergence is reported. Longer derivative and trust-region mechanics can move to the appendix unless they are needed to justify a result in Section~\ref{sec:sim_jvs}.}
+
+The joint log-likelihood for a multivariate distribution with a marginal distribution with density $f$ and a D-vine copula is well known. For our case, we assume there is no residual correlation beyond the first order that's not already captured for simplicity, resulting in a first-order D-vine copula model, so then all pair-copulas beyond the first tree are independence copulas. In this case the likelihood collapses to:
+
+\begin{align}\label{eqn:joint_likelihood}
+\ell(\mu,\sigma,\nu,\tau,\theta,\zeta) &=\sum_{i=1}^{n}\sum_{t=1}^{T}\log f_t(y_{it};\mu_t,\sigma_t,\nu_t,\tau_t) \notag \\
+&+
+\sum_{i=1}^{n}\sum_{t=1}^{T-1}
+\log
+c_{t,t+1}
+\left(
+F_t(y_{i,t};\mu,\sigma,\nu,\tau) ,
+F_{t+1}(y_{i,t+1};\mu,\sigma,\nu,\tau);
+\theta_{t,t+1},\zeta_{t,t+1}
+\right).
+\end{align}
+
+\jssplaceholder{For continuous margins and the specified first-order copula construction, the fitted objective is the likelihood for the model defined by these marginal and adjacent-pair dependence assumptions. When the data-generating process has material residual higher-order dependence beyond this structure, the fitted model should be treated as a simplified first-order longitudinal dependence model and checked with residual and tail-dependence diagnostics.}
+\jsssuggestion{Turn the preceding draft wording into final prose rather than a note. Suggested final sentence: ``For continuous margins, Equation~\ref{eqn:joint_likelihood} is the likelihood of the model defined by the specified GAMLSS margins and first-order pair-copula construction. If the observed process has residual conditional dependence beyond adjacent pairs, the fitted objective remains useful as a simplified first-order longitudinal dependence model, but higher-order residual diagnostics and sandwich or bootstrap checks should be used before relying on model-based inference.''}
+
+When smooth terms are present, a penalty matrix is introduced such that $P=\texttt{blockdiag}(\lambda_{pr}S_{pr})$. Second difference penalties are used by default unless the basis has an explicit penalty assigned.
+
+In this case the likelihood is expanded to a penalized likelihood if required by the optimization method:
+\begin{equation}\label{eqn:pen_likelihood}
+\tilde \ell(\bm{\beta}_{\text{all}})
+= \ell(\bm{\beta}_{\text{all}}) - \frac{1}{2}\bm{\beta}_{\text{all}}^\top P\,\bm{\beta}_{\text{all}}.
+\end{equation}
+
+The gamlss.longitudinal package includes two optimizer options. 
+
+First, the Rigby and Stasinopoulis method (RS)\citep{Rigby2005} iteratively loops through IRLS and backfitting steps for each parameter one at a time in the order of the parameter \jsschange{hierarchy}, mirroring the method incorporated in \pkg{gamlss} but with the addition of the copula parameters: \begin{equation*}
+\mu \rightarrow \sigma \rightarrow \nu \rightarrow \tau \rightarrow \theta \rightarrow \zeta,
+\end{equation*} for only included parameters in a given fit. The optimization stops when \begin{equation*}
+\left|\ell^{(m+1)} - \ell^{(m)}\right| \le \texttt{outer\_stop\_crit}.
+\end{equation*} 
+The RS method has the advantage of only relying on first derivatives so steps are substantially faster to run than a method that requires the full Hessian matrix. 
+
+The second method is Cole and Green (CG)\cite{cole_smoothing_1992}, using the full Hessian for each iteration with steps constrained to a trust region. This method moves all parameters in each iteration so is generally more efficient but slower to run each iteration due to the need to compute the full Hessian, including numerical derivatives for quantities without analytical options available.
+
+Both methods are directly extended to include copula parameters from the work of Rigby and Stasinopoulis which are discussed in detail in the provided detailed appendices of their foundational paper\cite{Rigby2005}. Small adjustments are made to the implementation of trust regions for both methods for a balance between stability and speed. More detail on the CG and RS methods that have been implemented are included in Appendix \ref{sec:app_algorithms}.
+
+Note that for the inclusion of the penalisation in the likelihood there is a \jsschange{slightly} different implementation between the methods. For the CG method the penalized likelihood in equation \ref{eqn:pen_likelihood} is used directly as the objective function while for RS the penalty is applied in the weighted least squares step to optimize GAIC with regards to lambda and prespecified smoother penalty $K$ for each individual parameter in each loop.
+
+\subsection{Additional details on optimization}
+
+In equation (\ref{eqn:joint_likelihood}), the quantities of interest for optimization of the joint likelihood are logarithms of the functions:
+
+\begin{align*}
+    f_t(y;\mu,\sigma,\nu,\tau)\text{ and } c_{t,t+1}(F_t(y;\mu,\sigma,\nu,\tau),F_{t+1}(y;\mu,\sigma,\nu,\tau);\theta,\zeta)
+\end{align*}
+
+with regard to each of the fitted parameters.
+
+It is common to fit marginal models and copula models separately such that marginal models are fit first then copulas on the residuals of that marginal model. In that case we can fully separate optimisation of the joint likelihood function of equation (\ref{eqn:joint_likelihood}) into a marginal component $\ell_m$ and copula component $\ell_c$ and optimise separately. However, there are advantages which can be gained through joint optimisation of parameters, particularly to the overall fit and for inference.
+
+In a joint optimisation, we need to consider derivatives of the overall likelihood function with regard to each of the six parameters regardless of it is the marginal or copula component of the likelihood. 
+
+Derivatives of $\ell_m$ with regard to marginal parameters ($\mu$, $\sigma$, $\nu$, $\tau$) and $\ell_c$ with regard to copula parameters ($\theta$,$\zeta$) are straightforward based on the marginal or copula distributions employed. Derivatives of the marginal likelihood, $\ell_m$, with regard to copula parameters $\theta,\zeta$ are also straightforward as there is no relationship so the joint likelihood with regard to copula parameters collapses to the copula likelihood. However, derivatives of the $\ell_c$ with regard to the marginal parameters include the original derivatives of the marginal likelihood and derivatives of the copula likelihood. This is because the goodness of fit of the copula depends on the fitted margins parameters explicitly since they define the inputs to the copula density. This is to be expected as to optimize the joint fit there is a tradeoff between marginal and copula fit. 
+
+For example, take the derivative of the joint likelihood, $\ell$, with regard to marginal parameters, for generality, $\lambda_1$ and $\lambda_2$ are parameters of both $f$ and $F$, with notation $i,t$ suppressed where reasonable for simplicity. Let's define simpler notation as:
+\[
+u_{it} = F(y_{it}),
+\qquad
+u_{i,t+1} = F(y_{i,t+1}),
+\qquad
+c_{it} = c(u_{it},u_{i,t+1}).
+\]
+
+
+So then we can write the joint log-likelihood and its first derivative as
+\begin{align*}
+\ell
+&=
+\sum_{i=1}^{n}\sum_{t=1}^{T}
+\log f(y_{it})
++
+\sum_{i=1}^{n}\sum_{t=1}^{T-1}
+\log c\left(u_{it},u_{i,t+1}\right),
+\\
+\frac{\partial \ell}{\partial \lambda_1}
+&=
+\sum_{i=1}^{n}\sum_{t=1}^{T}
+\frac{\partial \log f(y_{it})}{\partial \lambda_1}
++
+\sum_{i=1}^{n}\sum_{t=1}^{T-1}
+\frac{1}{c_{it}}
+\frac{\partial c_{it}}{\partial \lambda_1}.
+\end{align*}
+
+The mixed second derivative is
+\begin{align*}
+\frac{\partial^2 \ell}
+{\partial \lambda_1 \partial \lambda_2}
+&=
+\sum_{i=1}^{n}\sum_{t=1}^{T}
+\frac{\partial^2 \log f(y_{it})}
+{\partial \lambda_1 \partial \lambda_2}
+\\
+&\quad+
+\sum_{i=1}^{n}\sum_{t=1}^{T-1}
+\left[
+\frac{
+c_{it}
+\displaystyle\frac{\partial^2 c_{it}}
+{\partial \lambda_1 \partial \lambda_2}
+-
+\displaystyle\frac{\partial c_{it}}{\partial \lambda_1}
+\displaystyle\frac{\partial c_{it}}{\partial \lambda_2}
+}
+{c_{it}^2}
+\right].
+\end{align*}
+
+To calculate $\frac{\partial c}{\partial\lambda_1}$ when $\lambda$ is a marginal parameter, the derivatives are only available through the marginal functions $u_{it}$ and $u_{i,t+1}$. So applying the chain rule we can find this quantity as:
+
+\begin{align*}
+\frac{\partial c_{it}}{\partial \lambda_1}
+&=
+\frac{\partial c_{it}}{\partial u_{it}}
+\frac{\partial u_{it}}{\partial \lambda_1}
++
+\frac{\partial c_{it}}{\partial u_{i,t+1}}
+\frac{\partial u_{i,t+1}}{\partial \lambda_1}.
+\end{align*}
+
+Similarly, the mixed second derivative is
+\begin{align*}
+\frac{\partial^2 c_{it}}
+{\partial \lambda_1 \partial \lambda_2}
+&=
+\frac{\partial^2 c_{it}}{\partial u_{it}^2}
+\frac{\partial u_{it}}{\partial \lambda_1}
+\frac{\partial u_{it}}{\partial \lambda_2}
++
+\frac{\partial c_{it}}{\partial u_{it}}
+\frac{\partial^2 u_{it}}
+{\partial \lambda_1 \partial \lambda_2}
+\\
+&\quad+
+\frac{\partial^2 c_{it}}
+{\partial u_{it}\,\partial u_{i,t+1}}
+\frac{\partial u_{it}}{\partial \lambda_1}
+\frac{\partial u_{i,t+1}}{\partial \lambda_2}
+\\
+&\quad+
+\frac{\partial^2 c_{it}}
+{\partial u_{i,t+1}\,\partial u_{it}}
+\frac{\partial u_{i,t+1}}{\partial \lambda_1}
+\frac{\partial u_{it}}{\partial \lambda_2}
+\\
+&\quad+
+\frac{\partial^2 c_{it}}{\partial u_{i,t+1}^2}
+\frac{\partial u_{i,t+1}}{\partial \lambda_1}
+\frac{\partial u_{i,t+1}}{\partial \lambda_2}
++
+\frac{\partial c_{it}}{\partial u_{i,t+1}}
+\frac{\partial^2 u_{i,t+1}}
+{\partial \lambda_1 \partial \lambda_2}.
+\end{align*}
+
+The functions $f$, $c$ and $\frac{\partial c}{ \partial u}$ (for any $i,t$) are well known quantities that can be directly calculated for an observation based on the copula and marginal distributions if the margins are continuous. However, the derivatives of $F(y_{it})$ with respect to marginal parameters requires some manual calculation as is often not available in closed form so when needed is calculated using numerical methods.
+
+The other complexity is for discrete marginal distributions, in particular for evaluation of $c_{it}(u_{it},u_{i,t+1})$. To allow for discrete marginal fits, a method is required for fitting copulas that takes into account the fact that copulas are continuous on $(0,1)$ for both inputs.
+
+The issue is that the observation $y_{it}$ does not refer to a point probability but an interval $(F(y_{it}-1),F(y_{it}))$ for an integer response. Across both inputs of a copula, this results in a rectangular region of the copula function. For timepoints $t,t+1$, let:
+\[
+  a_{it} = F_{it}^{-}(y_{it}), \quad
+  b_{it} = F_{it}(y_{it}), \quad
+  a_{i,t+1} = F_{i,t+1}^{-}(y_{i,t+1}), \quad
+  b_{i,t+1} = F_{i,t+1}(y_{i,t+1}), \quad
+  d_{it}=b_{it}-a_{it}
+\]
+Then we have the copula rectangular region as:
+\[
+  \Delta C_{it}=C_{it}(a_{it},a_{i,t+1})
+  +
+  C_{it}(b_1,b_2)
+  -
+  C_{it}(a_1,b_2)
+  -
+  C_{it}(b_1,a_2)
+  .
+\]
+and the contribution to the log likelihood is
+\[\frac{
+  \Delta C_{it}}{d_{it}d_{i,t+1}}
+\]
+where
+\[ \lim_{m\to 0} \frac{
+  \Delta C_{it}}{d_{it}d_{i,t+1}} =c_{it}(u_t,u_{i,t+1}).
+\]
+
+Altenatively we provide the options for approximate fits using PIT \(a + V(b-a)\)  \(c(U_1^{DT},U_2^{DT})\) or midpoint of range \((a+b)/2\) so that \(c(U_1^{mid},U_2^{mid})\).
+
+Finally, variance / covariance is calculated following the likelihood calculations above filling the entire joint Hessian matrix. The package provides the option to calculate the variance-covariance matrix used for standard error calculations either fully numerically against the joint likelihood or via a semi-analytical method where all available analytical quantities of the Hessian are calculated directly, with only components without a closed form being calculated numerically (primarily the derivatives of $F(y_{it})$ with respect to marginal parameters). We find the analytical method provides extremely close estimates to the numerical method while being vastly superior in terms of speed of computation. 
+
+We calculate the variance from the negative of the inverse Hessian:
+\begin{equation*}
+\widehat{\operatorname{Var}}_{\text{num}}(\hat{\beta}) = -\left(H\right)^{-1}.
+\end{equation*}
+
+Standard errors are reported as
+\begin{equation*}
+\widehat{\operatorname{SE}}(\hat{\beta}_a) = \sqrt{\left|\left(H\right)^{-1}_{aa}\right|}.
+\end{equation*}
+
+More detailed overviews of the optimization approach / algorithm and additional calculated quantities are available in Appendix \ref{sec:app_algorithms}.
+
+\section{Software design and user interface} \label{sec:software-design}
+
+\jssrevisionnote{Key functionality to cover: \texttt{gamlss\_longitudinal()}, formula inputs, supported families/copulas, selection helpers, fitted-object structure, S3 methods, diagnostics, prediction, simulation, uncertainty, optimizer controls, and reviewer workflows. Idea here is to use this section to show how the software works with regard to the actual software contribution to be a bit more JSS style (most seem to have code + output inline showing key functions), then the following section to show validation/performance of the model. In general JSS requires all core workflows to be reproducible so including this allows us to still keep in the applications example as an exception given we can't share the data.
+- Need to decide which outputs are actually worth including here re:plots or tables}
+\jsssuggestion{This section is now strong enough to become the paper's primary reproducible workflow. The next pass should prune rather than expand: keep the data generation/fitting code, one screening table, one compact summary output, one diagnostic figure, and one prediction or simulation summary. Everything else can be mentioned as available through vignettes.}
+
+\subsection{Package design and scope}
+
+\pkg{gamlss.longitudinal} provides an interface for users to specify a longitudinal GAMLSS model with a formula for each parameter of the marginal distribution and copula. The software provides functions for end-to-end analysis of longitudinal datasets including:
+\begin{itemize}
+    \item Exploratory analysis including plotting longitudinal datasets and dependence, and selection of copula and marginal distribution with respect to time-effects
+    \item Core model fitting with a broad range of optimizer controls and model setup, as well as integrated variance/covariance calculation for any fit
+    \item Model diagnostics for both marginal and joint/dependence fit, and detailed capabilities available for prediction and simulation from the fitted model 
+\end{itemize}
+
+The software is not designed to directly handle missing data (for example through multiple imputation), though it will fit on datasets with missing observations, and does not implement higher order vine copula fitting beyond the first order implemented through formulas for the copula \jsschange{parameters}.
+
+We have carefully designed the interfaces and code structure of our package to follow the guidance for best practices for statistical software development including the more general guidance of Wilson et al\cite{wilson_best_2014}\cite{wilson_good_2017} and more specifically following the rOpenSci Statistical Software Peer Review guidance\cite{mark_padgham_2021_5556756}, particularly for software for Regression and Supervised Learning and Probability Distributions given the purpose of the package. \cite{Rpackages2e}\cite{wickham_r_2023}\cite{noauthor_tidy_nodate}. We provide more details on mapping to these frameworks including replication requirements in section \ref{sec:reproducibility}.
+
+Detailed vignettes are available for simple and complex workflows, interpretation, inference, prediction, diagnostics, simulation, and reproduction at: https://gamlsslongitudinal.aydins-workbench.com/articles/site-guide.html.
+
+\subsection{Guided BCPE/t example and fitting interface}
+\jsssuggestion{Use this BCPE/t example as the main public example for JSS. The private LIPID analysis can then be framed as a secondary illustration, while this section carries the reproducibility burden.}
+
+We provide an overview of the package's key functionality with a simulated dataset for easy replication of the workflow. The section aims to highlight the main features for fits in one place: a four-parameter GAMLSS margin, a two-parameter copula, fixed covariates, smooth covariates, parameter-specific formulas, selection helpers, diagnostics, prediction, and simulation from a fitted model. 
+
+\subsubsection{Simulation}
+
+For this example, we choose the highly flexible four-parameter continuous Box Cox Power Exponential marginal distribution and the two-parameter \jsschange{Student's $t$} copula to describe the adjacent-pair correlation structure. We then specify covariates $X_1\sim \texttt{N}(0,1)$, $X_2\sim \texttt{Bernoulli}(0,0.5)$, and $S_1\sim \texttt{Uniform}(0,1)$, with realisations $x_1$, $x_2$ and $s_1$. 
+
+For the smooth terms we define:
+\begin{align*}
+    f_{\mu}(s1)&=0.55\sin(2\pi s_1) \\
+    f_{\sigma}(s1)&=0.3\cos(2\pi s_1) - 0.1(s_1-0.5)^2 \\
+    f_{\theta}(s_1)&=\jsschange{2\{0.25\sin(\pi s_1 + 0.4) + 0.12(s_1-0.5)\}} \\    
+\end{align*}
+
+This example uses the \jsschange{built-in} helper for generating longitudinal datasets \texttt{simulate\_longitudinal\_dataset()} to generate a BCPE-margin, \jsschange{Student's $t$-copula} longitudinal dataset with covariate-dependent marginal and dependence parameters. \textcolor{red}{The larger validation in Section 5.1 uses the archived replication script, which implements the same data-generating mechanism together with parallel fitting, scoring, and output generation.}
+
+\textcolor{red}{Simulation code will go in appendix}
+\jsssuggestion{Avoid showing \texttt{gamlss.longitudinal:::get\_copula\_dist()} in the final article, because triple-colon calls signal reliance on an internal API. Either export a small helper for copula links, wrap this in a package vignette helper, or move the full simulation-generation code to an appendix and keep the main text to \texttt{dat <- simulate\_longitudinal\_dataset(...)} plus the fitted formulas.}
+\begin{lstlisting}
+margin <- gamlss.dist::BCPE(mu.link = "log")
+copula_link <- gamlss.longitudinal:::get_copula_dist("t")$copula_link
+
+smooth_mu <- function(s1) 0.55 * sin(2 * pi * s1)
+smooth_sigma <- function(s1) {
+  0.30 * cos(2 * pi * s1) - 0.10 * (s1 - 0.50)^2
+}
+smooth_theta <- function(s1) {
+  2 * (0.25 * sin(pi * s1 + 0.40) + 0.12 * (s1 - 0.50))
+}
+
+dat <- simulate_longitudinal_dataset(
+  n = 500,
+  times = seq_len(4),
+  margin_dist = margin,
+  copula_dist = "t",
+  seed = 101,
+  subject_var = "id",
+  time_var = "time",
+  response_var = "response",
+  covariates = function(data) {
+    simulate_longitudinal_covariates(
+      data,
+      subject = list(
+        x1 = function(d) rnorm(nrow(d)),
+        x2 = function(d) rbinom(nrow(d), size = 1, prob = 0.5),
+        s1 = function(d) runif(nrow(d))
+      ),
+      observation = list(
+        t = function(d) {
+          (d$.sim_time_index - 1) / (max(d$.sim_time_index) - 1)
+        }
+      )
+    )
+  },
+  margin_params = list(
+    mu = function(d) {
+      eta <- log(2.20) + 0.12 * d$x1 - 0.10 * d$x2 +
+        0.18 * d$t + smooth_mu(d$s1)
+      margin$mu.linkinv(eta)
+    },
+    sigma = function(d) {
+      eta <- margin$sigma.linkfun(0.30) + 0.18 * d$x1 +
+        0.12 * d$x2 + 0.15 * d$t + smooth_sigma(d$s1)
+      margin$sigma.linkinv(eta)
+    },
+    nu = function(d) {
+      0.00 + 0.10 * d$x1 - 0.08 * d$x2 + 0.12 * d$t
+    },
+    tau = function(d) {
+      eta <- margin$tau.linkfun(margin$tau.linkinv(0.50)) -
+        0.08 * d$x1 + 0.10 * d$x2 + 0.11 * d$t
+      margin$tau.linkinv(eta)
+    }
+  ),
+  copula_params = list(
+    theta = function(d) {
+      eta <- copula_link$theta.linkfun(copula_link$theta.linkinv(0.75)) +
+        0.25 * d$x1 - 0.10 * d$x2 + 0.20 * d$t +
+        smooth_theta(d$s1)
+      copula_link$theta.linkinv(eta)
+    },
+    zeta = function(d) {
+      eta <- copula_link$zeta.linkfun(copula_link$zeta.linkinv(0.50)) +
+        0.12 * d$x1 - 0.10 * d$x2 + 0.10 * d$t
+      copula_link$zeta.linkinv(eta)
+    }
+  )
+)
+\end{lstlisting}
+
+\subsubsection{Main fitting function \texttt{gamlss\_longitudinal()}}
+
+The primary fitting function is \texttt{gamlss\_longitudinal()}. Each parameter has its own formula. The marginal formulas \texttt{mu.formula}, \texttt{sigma.formula}, \texttt{nu.formula}, and \texttt{tau.formula} describe the BCPE location, scale, skewness, and kurtosis parameters. The copula formulas \texttt{theta.formula} and \texttt{zeta.formula} describe the t-copula dependence parameter (overall correlation) and degrees-of-freedom parameter (tail heaviness). Time and subject columns are supplied explicitly so that the package can construct observed marginal contributions and adjacent-time copula pairs.
+
+The \texttt{mu.formula} must be supplied as it specifies the response, however all other formulas can be omitted and will be set to the intercept by default if required by the distribution or copula.
+
+\begin{lstlisting}[language=R]
+fit <- gamlss_longitudinal(
+  dataset = dat,
+  time_var = "time",
+  subject_var = "id",
+  margin_dist = BCPE(),
+  copula_dist = "t",
+  mu.formula = response ~ x1 + x2 + t + s(s1, k = 10),
+  sigma.formula = ~ x1 + x2 + t + s(s1, k = 10),
+  nu.formula = ~ x1 + x2 + t,
+  tau.formula = ~ x1 + x2 + t,
+  theta.formula = ~ x1 + x2 + t + s(s1, k = 10),
+  zeta.formula = ~ x1 + x2 + t,
+  method = "RS",
+  compute_vcov = TRUE
+)
+summary(fit)
+# GAMLSS Longitudinal Model Summary
+# --------------------------------
+# Margin distribution: BCPE 
+# Copula distribution: t 
+# Observations: 2000  | Subjects: 500  | Time points: 4 
+# Fixed coefficients: 24  | Smooth terms: 3  | Smooth EDF: 12.2515 
+# VCOV: analytical  | Requested: analytical 
+# Hessian condition number:  8309 
+# 
+# Fixed coefficients:
+# --------------------
+#   [mu]
+#     term             estimate  std_error   p_value  signif
+#     mu.intercept       2.2569     0.0312   0.00000  ***   
+#     mu.x1              0.1730     0.0192  <0.00001  ***   
+#     mu.x2             -0.1526     0.0407   0.00017  ***   
+#     mu.t               0.3425     0.0290  <0.00001  ***   
+#   --------------------
+...
+#   Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+# 
+# Smooth terms:
+# --------------------
+#  parameter   smooth_term    edf
+#         mu s(s1, k = 10) 6.2397
+#      sigma s(s1, k = 10) 3.4249
+#      theta s(s1, k = 10) 2.5870
+# Use plot(object) to visualize smooth and fixed terms with confidence bands.
+# 
+# Model Selection Criteria:
+# --------------------
+#          marginal     copula      joint
+# LogLik -2283.2898   802.6515 -1480.6384
+# AIC     4617.9088 -1584.1290  3033.7798
+# BIC     4761.6534 -1524.8325  3236.8210
+# EDF       25.6646    10.5870    36.2515
+# --------------------------------
+\end{lstlisting}
+
+The fitted object stores the formulas, fitted coefficients, convergence metadata, likelihood components, parameter transforms, and covariance information needed for post-fit inference. The user can easily inspect and report the model without manually reconstructing the design matrices or re-running the optimizer. All key optimizer inputs such as optimization approach, step sizes and stopping criteria can all be updated through \jsschange{control arguments}.
+
+\subsubsection{Model selection helpers}
+
+The package includes lightweight helpers for common pre-fit workflows for modelling, including plotting, reviewing missingness, and selection of reasonable starting distributions for the margin and copula fits.
+
+\texttt{plot\_dist()} provides a time-faceted view of marginal distributions as histograms alongside empirical copula dependence between timepoints, allowing the user to visually review marginal and copula shape as well as dependence assumptions for first-order dependence (i.e. reducing dependence with time-distance). 
+
+\begin{lstlisting}[language=R]
+plot_dist(
+  dat,
+  subject_var = "id",
+  time_var = "time",
+  response_var = "response"
+)
+\end{lstlisting}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.5\linewidth]{charts/software - plot_dist.png}
+    \caption{\jsschange{Exploratory marginal and adjacent-pair dependence display produced by \texttt{plot\_dist()} for the simulated BCPE/t dataset.}}
+    \label{fig:plot_dist}
+\end{figure}
+
+Marginal distributions are screened by likelihood-criteria using \texttt{margin\_screen()}. By default the helper reviews distributions with time-varying parameters to ensure the best overall distribution is selected after accounting for time trends, rather than biasing to more complex distributions which can capture time-based effects in a single distribution. 
+
+\begin{lstlisting}[language=R]
+margin_screen <- select_margin(
+  data = dat,
+  response_var = "response",
+  time_var = "time",
+  time_intercepts = TRUE,
+  families = c("BCPE", "BCCG", "GA", "GG")
+)
+print(margin_screen)
+# Marginal Distribution Screen
+# ----------------------------
+# Selected: BCPE 
+#
+#  family      AIC     type    screen_model pooled_AIC converged rank delta_AIC
+#    BCPE 6412.358 realplus time_intercepts   6428.765      TRUE    1   0.00000
+#      GG 6430.931 realplus time_intercepts   6451.084      TRUE    2  18.57307
+#    BCCG 6431.090 realplus time_intercepts   6451.201      TRUE    3  18.73175
+#      GA 6529.782 realplus time_intercepts   6562.895      TRUE    4 117.42416
+\end{lstlisting}
+
+Once a candidate marginal family has been chosen, \texttt{select\_copula()} can screen supported copula families using adjacent-time pseudo-observation pairs. The screening fit can use a temporary marginal model with time-specific intercepts or user-supplied marginal formulas. For this example, screening the Gaussian, Frank, Clayton, Gumbel, Joe, and t copulas should identify whether the data require symmetric tail dependence, or heavier tails, beyond a Gaussian copula.
+
+\begin{lstlisting}[language=R]
+copula_screen <- select_copula(
+  data = dat,
+  response_var = "response",
+  margin_dist = BCPE(),
+  subject_var = "id",
+  time_var = "time",
+  families = c("N", "C", "F", "G", "J", "t"),
+  criterion = "AIC",
+  copula_time_intercepts = TRUE
+)
+print(copula_screen)
+#   family par par2       tau    logLik       AIC       BIC n_copula_time_levels n_pairs
+# 1      t  NA   NA 0.7033199 1205.4839 -2398.968 -2367.088                    3    1500
+# 2      G  NA    0 0.6935440 1170.8238 -2335.648 -2319.708                    3    1500
+# 3      F  NA    0 0.7202372 1150.9608 -2295.922 -2279.982                    3    1500
+# 4      N  NA    0 0.6869735 1129.6558 -2253.312 -2237.372                    3    1500
+# 5      J  NA    0 0.6166488  992.4974 -1978.995 -1963.055                    3    1500
+# 6      C  NA    0 0.5701087  834.8428 -1663.686 -1647.746                    3    1500
+\end{lstlisting}
+
+The selected margins and copulas should be considered as a shortlist which may change once covariates are introduced. In some cases the selected margin and copula may be different for a joint versus separate fit as is done above. For a more detailed screening, \texttt{select\_joint\_distribution()} can be used to compare every candidate margin/copula combination. This selection is relatively slow and should ideally only be performed on a smaller set of candidate margin and copula distributions if required.
+
+\texttt{plot\_margin\_fit()} and \texttt{plot\_copula\_fit()} can be used to visually review fitted distributional shapes against the empirical data.
+
+Alongside distributional shape, row or response missingness is a common feature in longitudinal datasets. We provide a helper function \texttt{check\_missingness()} which summarises missingness trends by time, as well as fitting a basic univariate GLM for each covariate against missingness to highlight potential missingness trends for user review.
+
+\subsubsection{Standard methods}
+
+Standard methods for regular fitted model R objects are available wherever possible. Accessors are available for coefficients, confidence intervals, likelihood, fitted and residuals, model frame, formulas and more. 
+
+This is one of the key software contributions relative to an ad hoc / manual calculation for inference objects of interest for a copula plus arbitrary marginal model. The fitted object is inspectable, reusable, and compatible with common R modelling approaches.
+
+\begin{lstlisting}[language=R]
+summary(fit)
+coef(fit)
+vcov(fit)
+confint(fit)
+wald_test(fit)
+logLik(fit)
+nobs(fit)
+formula(fit)
+terms(fit)
+head(fitted(fit))
+head(residuals(fit))
+head(model.frame(fit))
+\end{lstlisting}
+
+The only difference from most standard models such as a GLM is that covariates may be attached to any parameter of the marginal or copula distribution, not just the mean, so the \jsschange{interpretation} differs depending on the parameter a covariate is related to.
+
+We also provide the function \texttt{likelihood\_compare()} to easily compare fit characteristics of different candidate models.
+
+\jsssuggestion{Do not include all standard-method outputs. Keep \texttt{summary(fit)} in the main text and add one compact table or sentence showing that \texttt{coef()}, \texttt{vcov()}, \texttt{confint()}, \texttt{predict()}, \texttt{simulate()}, and \texttt{logLik()} are implemented. Full accessor output can live in the vignette.}
+
+\subsubsection{{Diagnostics, prediction, and simulation}}
+
+For a longitudinal gamlss model, both the margin and dependence (joint) model fit need to be reviewed. Standard marginal diagnostics are provided through \texttt{plot(fit)} including PIT histogram, QQ plot, worm plot and rootogram. Joint distribution diagnostics are provided by \texttt{plot\_copula\_diagnostics(fit)}. This software brings together a range of common dependence diagnostics and directly applies these to the joint fitted model for review in one place. 
+
+Fitted terms are available to plot through \texttt{plot\_terms(fit)} and fitted copula and marginal distribution can be \jsschange{overlaid} over the data and faceted by \jsschange{covariates} using \texttt{plot\_margin\_fit(fit)} and \texttt{plot\_copula\_fit(fit)}.
+
+\begin{lstlisting}[language=R]
+plot(fit)
+plot_copula_diagnostics(fit)
+plot_terms(fit)
+plot_margin_fit(fit)
+plot_copula_fit(fit)
+check_model(fit)
+\end{lstlisting}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{charts/software - plot_copula_diagnostics.png}
+    \caption{\jsschange{Dependence diagnostics produced by \texttt{plot\_copula\_diagnostics(fit)} for the fitted BCPE/t example.}}
+    \label{fig:plot_copula_diagnostics}
+\end{figure}
+
+We provide the inbuilt function \texttt{check\_model(fit)} as a minimal diagnostic for major model errors which flags failure if convergence is not met, marginal PIT is not uniform by KS p-value $> 0.05$, PIT tail ratios at $0.05$ and $0.1$ are greater than 2, and if absolute lag-1 Rosenblatt normal score residual correlation is greater than $0.25$.
+
+Prediction uses the fitted marginal distribution and supplied covariate data. Prediction can be done across all normal dimensions used in model analysis. In addition, any parameter of the distribution can also be predicted, not just the mean so is a full predictive distribution. \jsschange{Add a small \texttt{newdat} construction and show either fitted quantiles or an interval; otherwise this example will not be executable as printed.}
+
+\begin{lstlisting}[language=R]
+pred <- predict(
+  fit,
+  newdata = newdat,
+  type = "mean",
+  interval = "confidence"
+)
+head(pred)
+\end{lstlisting}
+
+Importantly, for a joint distribution, it's not possible to preserve correlation when predicting using the marginal coefficients. If the joint distribution (i.e. covariance) is of particular interest, often referred to as trajectories, the simulation function will be of more interest. Simulation uses the fitted joint distribution to generate new longitudinal responses on the original or a supplied panel structure which preserve covariance. In the BCPE/t example, simulations from the fitted model can be compared with the observed by marginal histograms, time-specific summaries, adjacent-pair rank correlations, or tail co-occurrence. This gives the reader a practical model-checking workflow that is more informative than coefficient inspection alone.
+
+\begin{lstlisting}[language=R]
+sim <- simulate(fit, nsim = 50)
+head(sim)
+\end{lstlisting}
+
+Simulation is also used for bootstrap inference if of interest to the user and can be used as an alternative or a check on \jsschange{likelihood-based} model confidence intervals. Note that this bootstrap iteratively simulates and fits consecutive \texttt{gamlss\_longitudinal} models so can be quite \jsschange{time-intensive} for high iteration limits.
+
+\begin{lstlisting}[language=R]
+boot <- bootstrap_inference(
+  fit,
+  R = 5,
+  seed = 20260521
+)
+
+\end{lstlisting}
+
+\section{{Validation and performance}}
+
+\jssrevisionnote{This section should be condensed. Keep targeted evidence only: continuous recovery, discrete recovery, optimizer guidance, first-order misspecification, and copula misspecification. Move large simulation grids, extra smooth plots, and detailed sensitivity appendices to supplementary material.}
+\jsssuggestion{Aim for a short validation section with a reviewer-readable purpose for each subsection: likelihood implementation check, correct-specification recovery, optimizer guidance, first-order misspecification, copula misspecification, and missingness sensitivity if space permits. Avoid presenting this as an exhaustive methods simulation study.}
+
+We provide a range of simulated results to analyze the performance of the \pkg{gamlss.longitudinal} model and package. 
+
+First we compare the results of \pkg{gamlss.longitudinal} fits against a standard \pkg{gamlss2} fit for a continuous and discrete marginal example with both marginal parameters (distributional shape) and copula parameters (dependence shape) which change with time, fixed covariates and smooth covariates.  
+
+Second, we analyze the performance of the default joint RS optimization method, which directly optimizes the joint likelihood, against the faster implementation which optimizes the marginal and copula likelihoods separately, which does not require calculation of cross derivatives between the margin and copula likelihoods. Note that, importantly, both methods still calculate adjusted final variance-covariance based on the full hessian, so standard errors for coefficients are adjusted for the modeled dependence structure, but the coefficient estimates differ due to the optimization target.
+
+Third, we review the performance of the model in the presence of assumption violation, in particular: significant dependence beyond the first order, mis-specification of dependence shape (copula function), and missingness structures. 
+
+\subsection{Parameter recovery and overall fit} \label{sec:sim_recovery}
+
+\jssrevisionnote{Because the BCPE/t scenario is now used as the guided software example in Section 3, this subsection should become the validation summary for that same scenario. Keep the Monte Carlo design, recovery/coverage/scoring results, and runtime comparison here, but remove duplicated workflow code once Section 3 is finalized.}
+
+\jsschange{The guided BCPE/t workflow in Section 3 shows how a user fits, checks, predicts from, and simulates from a single model. We now use the same data-generating mechanism as a validation case by repeating the simulation and comparing \pkg{gamlss.longitudinal} with a marginal \pkg{gamlss2} reference fit. This separates two questions: Section 3 asks whether the package workflow is usable and inspectable, while this section asks whether the fitted model recovers the known marginal and dependence structure under correct specification.}
+
+We first review the performance of gamlss.longitudinal for a fully specified model and compare fit performance to the standard gamlss model.
+
+We then run 1,000 simulations and fits of these distributions at differing total sample sizes of N=1000 and N=5000, and differing number of time points at $T=5$ and $T=20$. \jssplaceholder{Replace this with the exact final simulation design used for the JSS paper: number of replicates, sample sizes, time points, fixed seed policy, script path, output manifest IDs, and runtime.}
+\jsssuggestion{For JSS, report one compact Monte Carlo design table instead of describing the design in prose only. Include rows for continuous BCPE/t and discrete NBI/Clayton, with columns for $n$, $T$, replicates, fitted packages, seeds, output table/figure IDs, and runtime.}
+
+Plots comparing the accuracy of the recovery of the simulated non-smooth terms for the gamlss.longitudinal model compared to the reference gamlss2 are provided in figure \ref{fig:sim_fixed_recovery} and for the smooth terms in figure \ref{fig:sim_smooth_recovery}. Overall fit characteristics including in-fit log-likelihood as well as out of sample variogram score and log score are included in table \ref{tab:fit-characteristics} and bias, RMSE and coverage for all covariates are included in table \ref{tab:parameter-recovery}.
+
+In terms of fixed effects, gamlss.longitudinal provides highly comparable fits to gamlss2 with similar range of bias across fits for all fitted marginal parameters. However, it is of note that the gamlss.longitudinal model appears to provide slightly more accurate fits for marginal parameters on average than gamlss2, resulting in slightly better RMSE for all parameters, with the greatest RMSE impact on non-$\mu$ parameters, which are generally more important in the copula fit. In addition, due to the gamlss.longitudinal model adjusting for the known correlation in the simulation, the coverage estimates for the 95 percent confidence interval from the gamlss.longitudinal model are highly accurate and all in the range of .90-.99 for covariates, while the gamlss2 model seems to provide too narrow confidence intervals, coverage  estimates in the range .70-.85 for intercept and $x_1$, $x_2$ (though interestingly the estimate for $t$ has quite accurate coverage). This behavior is expected given the lack of correlation fit for gamlss2 and how positive correlation in a longitudinal model generally results in too-small SE estimates if it is not accounted for.
+
+\begin{figure}
+    \centering  
+    \includegraphics[width=1\linewidth]{charts/paper_simulation_bcpe_t_fixed_effect_recovery.png}
+    \caption{Non-smooth term recovery presented as absolute bias per fit for the gamlss2 and gamlss.longitudinal model fits to the BCPE + t simulated data.}
+    \label{fig:sim_fixed_recovery}
+\end{figure}
+
+Smooth terms are highly comparable between the gamlss2 and gamlss.longitudinal fits for both $\mu$ and $\sigma$, however, this is one area where we suggest a slight advantage for the gamlss2 model. The gamlss.longitudinal model optimises for the joint fit between margin and copula so makes tradeoffs to the marginal fit to optimise the joint fit including the copula. This results in a slightly better smooth shape for both $\mu$ and $\sigma$ for the gamlss2 model over gamlss.longitudinal, and this is reflected in the IRMSE for those fitted terms.
+
+\jsschange{In this correctly specified validation setting,} overall fit characteristics favour gamlss.longitudinal due to capturing the correlation structure alongside the flexible marginal distribution. Log likelihood, out-of-sample log score and variogram scores favour the gamlss.longitudinal model. The largest disadvantage for the gamlss.longitudinal model compared to the optimized gamlss2 \jsschange{package} is runtime which for this example is approximately 20x slower, though note the gamlss.longitudinal \jsschange{package} is optimizing an additional smooth term for $\theta$.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.8\linewidth]{charts/paper_simulation_bcpe_t_smooth_effect_recovery.png}
+    \caption{Fitted smooth effects with 50 percent range bands across simulations for the gamlss and gamlss.longitudinal models to the BCPE + t simulated data. True simulated smooth is indicated as a dashed black line.}
+    \label{fig:sim_smooth_recovery}
+\end{figure}
+
+\input{tables/paper_simulation_bcpe_t_fit_characteristics}
+\input{tables/paper_simulation_bcpe_t_fixed_parameter_bias_rmse}
+
+We provide a similar example of a fully specified model with discrete Negative Binomial margin and the skewed Clayton copula in Appendix \ref{apx:sim_recovery}.
+
+\subsection{Choice of optimisation approach} \label{sec:sim_jvs}
+\jsssuggestion{Convert this subsection into practical optimizer guidance. The important reader takeaway is: use separate RS for exploratory screens when speed matters, use joint RS/CG for final likelihood-based fits when dependence and marginal parameters share covariates, and inspect convergence, Hessian conditioning, and diagnostics before reporting inference.}
+
+The gamlss.longitudinal package provides three optimizer options: RS with separately optimized margin and copula, RS with jointly optimized margin and copula, and CG with jointly optimized margin and copula. 
+
+In general, we find that the joint-likelihood optimizing models, CG and RS joint (with cross terms), either match or outperform the separately optimized RS in terms of overall fit while sacrificing some marginal fit, including marginal parameter recovery, in return for a greater overall fit.
+
+The disadvantage of the joint models is that they are substantially slower to optimize than the separate optimization due to the need to calculate cross-derivatives between the copula and marginal likelihood which \jsschange{requires additional computation and, for some terms, numerical differentiation}. Our suggestion is that RS separate can be used as a \jsschange{preliminary} model (as needed) that can be refined to a joint model once the broad set of desired covariates are defined, depending on computational restrictions for the use case.
+
+To provide guidance to users and interested researchers, we provide a set of examples which highlight the situations in which we find the jointly optimized models provide substantially different fits to separately optimized models. 
+
+We have developed six example cases which have been selected from a broad grid to demonstrate dimensions on which the joint and separate models are separated in performance, however, note that for many data shapes outside these examples, the results from both fitted optimizers can be quite similar. In general, we have not observed large differences in joint versus separate performance on the basis of choice of margin or copula function, so we present a set of simple margin and copula combinations. 
+
+The largest factors which result in improved fit performance for the jointly optimized model compared to the separately optimized model are:
+\begin{enumerate}
+    \item greater overall correlation strength between margins, $\tau$,
+    \item a greater number of timepoints (holding sample size constant), $T$,
+    \item shared covariates between non-location (non-$\mu$) marginal parameters and copula parameter, $\theta$, and/or
+    \item larger sample size, $N$.
+\end{enumerate}
+
+In general, correlation strength and number of timepoints (items 1 and 2) seem to relate to the relative contribution of the copula likelihood to the overall likelihood, while shared covariates and sample size (items 3 and 4) appear to relate to the joint model's ability to capture additional nuance in the overall distributional shape by optimizing all parameters simultaneously against the joint rather than separate likelihood.
+
+For all these fits we use a fixed $\mu$ formula, while varying the strength of a binary covariate, a continuous (linear fit) covariate, and a time effect covariate for $\sigma$, the variance parameter for the margin, and $\theta$, the correlation parameter for the copula / covariance:
+\begin{lstlisting}
+sigma.formula = ~ x_cont + x_bin + time_effect
+theta.formula = ~ x_cont + x_bin + t_pair_effect    
+\end{lstlisting}
+
+The six example cases which provide information on the effect of the key dimensions on fit performance are shown in Table \ref{tab:sim_jvs_scenarios}. We compare the performance of the two models based on overall fit, using in-sample log-likelihood and held-out variogram scores with $p=2$ and $p=0.5$ to protect against interpreting improved likelihood due to overfit as purely better performance. We simulate the underlying model 100 times per replication to calculate the variogram scores. We have performed 100 replications for each example and present the average change in each model fit criteria in Table \ref{tab:jvs-small-sample-no} for the Normal margin, Table \ref{tab:jvs-small-sample-ga} for the Gamma, and Table \ref{tab:jvs-small-sample-nbi} for the Negative Binomial. 
+
+\begin{table}[h]
+\centering
+\caption{Joint versus separate optimisation simulation scenarios}
+\label{tab:sim_jvs_scenarios}
+\begin{tabularx}{\linewidth}{@{} l X l l
+  S[table-format=3.0]
+  S[table-format=2.0]
+  S[table-format=4.0]
+  S[table-format=1.1] @{}}
+\toprule
+Case & Role & Family & Copula &
+\multicolumn{1}{c}{$n$} &
+\multicolumn{1}{c}{$T$} &
+\multicolumn{1}{c}{Rows} &
+\multicolumn{1}{c}{$\theta$ strength} \\
+\midrule
+JVS1 & Control: no correlation                         & NO, GA, NBI & N & 40  & 75 & 3000 & 0.0 \\
+JVS2 & Low correlation                                 & NO, GA, NBI & N & 40  & 75 & 3000 & 1.5 \\
+JVS3 & High correlation                                & NO, GA, NBI & N & 40  & 75 & 3000 & 3.5 \\
+JVS4 & JVS3 with lower $T$ and same total sample size  & NO, GA, NBI & N & 150 & 20 & 3000 & 3.5 \\
+JVS5 & JVS3 with weaker $\sigma$ effect                & NO, GA, NBI & N & 40  & 75 & 3000 & 3.5 \\
+JVS6 & JVS3 with larger $n$ and same $T$                & NO, GA, NBI & N & 100 & 75 & 7500 & 3.5 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+
+
+JVS 1-3 demonstrate the effect of increasing the correlation strength in the simulation, holding all other factors constant, and directly results in greater log-likelihood performance and variogram score improvement on held out / new datasets. JVS1 acts as a 'control'-type example where no correlation is present, and the models are essentially identical in performance as would be expected. JVS2 introduces moderate correlation and shows a small advantage in log likelihood in all examples for the joint model, though variogram scores are inconclusive. JVS3 has strong correlation and shows substantially improved log likelihoods for all margin choices and improvements to the variogram scores for $p=2$ and $p=0.5$ for both the median and IQR of the differences.
+
+JVS 4 extends JVS3 and only decreases the number of timepoints, $T$, while keeping sample size, $N$, constant. The result is reduced relative performance of the joint versus separate optimization
+
+JVS 5 extends JVS3 and decreases the strength of the covariates for $\sigma$, essentially reducing the strength of the relationship between $\sigma$ and $\theta$. The result is decreased relative performance for the joint versus separate model with weaker shared movement between $\sigma$ and $\theta$.
+
+JVS 6 doubles the sample size, $N$, holding all other factors constant, and shows how higher sample size increases the relative performance for the joint model, and, in particular, increases how clearly the variogram scores differentiate the joint model as a better \jsschange{fit to} the underlying data.
+
+\input{tables/normal-joint-vs-separate-six-case-median-iqr-table}
+\input{tables/gamma-joint-vs-separate-six-case-median-iqr-table}
+\input{tables/negative-binomial-joint-vs-separate-six-case-median-iqr-table}
+
+\subsection{Sensitivity testing} \label{sec:sim_sensitivity}
+\jsssuggestion{Keep the sensitivity section focused on user guidance. The most important point is not that the package wins every comparison, but when first-order dependence is adequate, when sandwich SEs help, and when exchangeable or strong residual higher-order dependence should push the user to another model.}
+
+\subsubsection{Mis-specification of correlation structure and benchmark to GEE} \label{sec:sim_sensitivity_benchmark}
+
+A key assumption in the gamlss.longitudinal modeling framework is that all relevant correlation can be captured with first order copulas fit to adjacent pair timepoints, leaving any dependent copulas beyond the first order as independent. This does not mean that there is no correlation beyond adjacent pairs, however, it does necessarily require that correlation decreases with time-distance of observations based on the dependence specified for the first order copulas.
+
+This means that auto-regressive time-dependence structures will generally fit reasonably in the gamlss.longitudinal framework, and any time- or covariate-dependent adjacent pair dependence can be captured very accurately. However, a dataset where dependence does not decay with distance may not be accurately captured by the gamlss.longitudinal structure.
+
+To provide readers with an understanding of the model's sensitivity to this model assumption violation, we provide examples of the model's fit to a range of dependence structures in this section. To assess performance in various dependence settings, rather than simply showing gamlss.longitudinal results, we compare results to the most popular alternative marginal modelling framework, the GEE. Our benchmark results in this section are a comparison between \pkg{gamlss.longitudinal} and \pkg{geepack} with various correlation structures, as well as a glm for reference. 
+
+Naturally, we know that for more complex distributional shapes, such as the BCPE example earlier, the benchmark models which use exponential family fits will not be able to accurately capture the marginal shape. For a fair comparison, we generate from exponential family distributions Normal, Gamma, binary and Poisson and simulate correlation structures specified as exchangeable, AR(1), and covariate and time dependent (non-smooth). We generate the data for exchangeable and AR(1) structures using \pkg{mvtnorm}, while covariate and time dependent simulations are generated using normal copulas. An overview of the included simulation settings is provided in Table \ref{tab:scenario-design}.
+
+\input{tables/08-simulation-sensitivity-correlation-misspecification-scenario-design}
+
+We then compare fits on various dimensions for the GEE with exchangeable, AR(1) and unstructured correlation structures with a gamlss.longitudinal fit. The results for AR(1) and exchangeable generating data are available in Table \ref{tab:external-correlation} while time- and covariate-dependent data fits are provided in Table \ref{tab:flexible-correlation}.
+
+\input{tables/08-simulation-sensitivity-correlation-misspecification-external-correlation}
+\input{tables/08-simulation-sensitivity-correlation-misspecification-flexible-correlation}
+
+We find that for AR(1) correlation, the gamlss.longitudinal model performs similarly to the AR(1) GEE across marginal and inference metrics, with slightly better dependence recovery, however, at the cost of longer runtime (see left hand side of table \ref{tab:external-correlation}).
+
+Unsurprisingly, for exchangeable correlation structures, the gamlss.longitudinal model is not capturing residual non-adjacent correlation accurately and underperforms substantially in covariate SE accuracy and resulting coverage compared to the exchangeable GEE (see left hand side of table \ref{tab:external-correlation}) and this increases slightly with greater $T$. We also find that the naive standard errors provided by the \jsschange{gamlss.longitudinal} model by default substantially underperform on SE accuracy  compared to the AR(1) model with sandwich estimators. The GEE is more robust to dependence misspecification due to the \jsschange{sandwich} estimators used for SE calculation. For this reason, gamlss.longitudinal also provides the option for variance-covariance calculation with sandwich estimators, and we include the result of these inline. The sandwich estimator adjustment provides substantially improved SE estimates for gamlss.longitudinal in the mis-specified exchangeable case. 
+
+Now, more importantly, for time-dependent and covariate dependent correlation, the gamlss.longitudinal model is uniquely designed to capture these trends. For the time-dependent correlation data, the unstructured GEE is a correctly specified model, however for the covariate dependent (non-time) correlation, there is no correctly specified GEE since multiple correlation values would be needed for a single parameter slot. Results for the fits to the covariate- and time-dependent data are available in Table \ref{tab:flexible-correlation}.
+
+We find that for time- and covariate-dependent data, the gamlss.longitudinal model substantially outperforms the GEE alternatives with substantially better dependence recovery ($\tau$), and provides generally better SE estimates and coverage for marginal parameters.
+
+For the time-dependent data, gamlss.longitudinal provides the best dependence recovery ($\tau$), and comparable marginal recovery to the AR(1) and exchangeable GEEs. The unstructured GEE does provide the best dependence recovery of the GEEs, however this is substantially outperformed by gamlss.longitudinal, and is balanced by a worse marginal fit for the unstructured GEE than even the less-parameterised GEE alternatives.
+
+For the covariate dependent correlation, the gamlss.longitudinal model provides not only substantially better dependence recovery but also better marginal recovery, particularly for SE ratio and coverage than all the GEEs. 
+
+Surprisingly, the unstructured GEE provides highly unstable results for both time- and covariate- dependent cases, likely due to the very high degrees of freedom needed to fit the dependence in this case for 20 timepoints, which results in 190 required correlation parameters for the GEE compared to 2 for the gamlss.longitudinal fit and 1 for the exchangeable and AR(1) GEEs.
+
+\subsubsection{Mis-specification of copula}
+
+The impact of marginal mis-specification for both marginal and copula models has been broadly covered in previous research and would extend to both marginal and joint misfit in this overall model. 
+
+For this model, there are two types of dependence model mis-specification; first, structural mismatch in correlation structure where there is substantial correlation beyond the first order which cannot be captured by the gamlss.longitudinal structure, for example, and exchangeable correlation structure as covered in the previous section (section \ref{sec:sim_sensitivity_benchmark}) and, second, mis-specification of the copula function. 
+
+To assess the impact on gamlss.longitudinal fit, we present a simulation of a distribution where marginal distributions have only intercept fits, essentially assuming we have correctly specified marginal covariates such that they don't have an impact on the covariance structure, and simulate all available copulas, and then fit with all available copulas in the package. We specify Gamma margins to ensure we include basic marginal estimation error with a link function included. We test at moderate and high correlation based on roughly matching effective rank correlation ($\tau$) and at small, medium and large sample sizes. We then fit a joint gamlss.longitudinal model to every generated dataset with every available copula (including all mis-specified copulas) to compare correctly specified fits to those which have deliberately incorrect copulas. 
+
+Results for the fit impact of copula misspecification are presented as heatmaps in Figure \ref{fig:sim_sensitivity_copmisspesification}. The figure shows the impact of misspecification on log likelihood, marginal parameter RMSE and dependence as $\tau$ absolute error as a difference against the fitted model with correctly specified copula.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{charts/07-gamma-copula-misspecification-paper-summary-heatmap.png}
+    \caption{Comparison of fit characteristics for a generated joint distribution fit with all available copulas (where all except one are misspecified). Left to right: log likelihood, marginal parameter RMSE, \jsschange{$\tau$ parameter} recovery RMSE}
+    \label{fig:sim_sensitivity_copmisspesification}
+\end{figure}
+
+Broadly we find that mis-specification is most impactful when sample size is higher, correlation is stronger and when mis-specification of shape is more severe (i.e. opposite shape). 
+
+With regard to sample size and correlation strength, we find that mis-specification of copula is more impactful when dependence is higher and sample size is higher: average loss to joint log likelihood in these examples was approximately -0.02 per observation at moderate correlation but -0.08 per observation at high correlation (total log likelihood loss scales with sample size, but per-observation loss scales with dependence). As sample size appears to only change the strength of the effect, not the trends, we simply show results at the highest simulated sample size of $n=500$.
+
+With regard to dependence shape, mis-specification's impact on log likelihood is most pronounced for copulas with opposite tail structures, in particular here, if Clayton is the generating copula then data is lower tail correlated, and choice of Joe copulas which are upper tail correlated (or \jsschange{vice versa}) results in substantial losses in joint likelihood. This same trend extends to dependence recovery, with absolute $\tau$ error most extreme for Clayton/Joe mis-specification. This would suggest that if copula choice is uncertain or equal between options, potentially choosing a symmetric copula provides lower average risk of misspecification resulting in particularly bad fits.
+
+Importantly, note that if correlation is high and the copula is mis-specified then this can result in worse marginal fits, not just dependence fits. The average margin parameter RMSE for correctly specified copula is 0.024 while for the incorrectly specified copulas is 0.065.
+
+Fortunately, AIC-based selection is quite accurate at selecting the appropriate copula in these simulations when sample size is high and correlation is high, which are the cases where mis-specification is most impactful on fit. For example, the Clayton copula is correctly selected in 58/60 Clayton copula simulations for these cases. The weak spot is moderate \jsschange{dependence} at small sample size. For example, under Gaussian copula simulation with n=50, T=4 (N=200 total), AIC selects Gaussian 1/10 simulations, Clayton 3/10, Frank 4/10 and Gumbel 2/10 which indicates a relatively random copula selection. However note that likelihood differences here would be the smallest.
+
+\subsubsection{Missingness structures}
+
+The gamlss.longitudinal package supports fitting longitudinal data with missing observations, however note that the model does not directly account for missingness as part of model fit, and simply fits models to the available margins and margin pairs for the dependence.
+
+One important note: since gamlss.longitudinal models adjacent correlation, if all observations for a subject are adjacent (e.g. all except the latest observations are available) then all observations will remain linked and modeled as correlated. However, if observations for an observational unit are split (e.g. a missing observation in a middle of the time series) then the grouped observations will not exhibit correlation since dependence beyond the first order is explicitly not modeled. If there are a large number of split clusters of observations per subject, this may result in incorrect overall optimization.
+
+We briefly review two common missingness trends in longitudinal data: missingness at random, and missingness increasing with time (i.e. dropout) and their impact on model fit, comparing gamlss.longitudinal to gamlss2 as a benchmark. We show the impact on marginal fixed covariate RMSE with increasing missingness in figure \ref{fig:sim_sensitivity_mar_fixed} and marginal smooth effects in figure \ref{fig:sim_sensitivity_mar_smooth}.
+
+\begin{figure} [h]
+    \centering
+    \includegraphics[width=1\linewidth]{charts/smooth_selected_recovery_curves.png}
+    \caption{Sensitivity to missingness at random and by time: smooth parameter recovery for gamlss2 compared to gamlss.longitudinal at greater levels of missingness.}
+    \label{fig:sim_sensitivity_mar_smooth}
+\end{figure}
+
+The model handles missing data directly, testing total observations per observational unit and noting missing observations.
+
+The results are quite reassuring, with smooth parameter recovery still providing very accurate estimates for $\mu$ even under 50 percent time-based dropout, and $\sigma$ only showing small increases in smooth fit noise at 50 percent time-based missingness (see Figure \ref{fig:sim_sensitivity_mar_smooth}). We see that the smooth term for $\theta$ does begin to present a small amount of bias in the tails at 30 percent missingness and slightly more at 50 percent, however, the fit may still be acceptable depending on the use case, and shows that the model still broadly captures the trends in correlation for the more complex smooth term. In terms of non-smooth terms, the model provides increasing RMSE for fixed terms with increasing missingness, comparable to the gamlss2 model. 
+
+One potential option for increasing fit and parameter recovery in the presence of missing data may be the use of multiple imputation prior to modelling using gamlss.longitudinal.
+
+\section{\jsschange{Secondary clinical illustration}} \label{sec:application}
+
+\jssrevisionnote{For JSS, we need a reproducible primary example using public, package-shipped, or fully simulated data - that \jsschange{can} be the example in section 3 and / or the vignette. Instead of a worked example, we'll use the LIPID example mainly to show interesting outputs rather than diagnostics etc. }
+\jsssuggestion{Open this section by explicitly saying that the LIPID analysis is not the primary reproducible example because the underlying data cannot be redistributed. This protects the submission: Section~\ref{sec:software-design} is the reproducible workflow; this section is an applied illustration of the same workflow on a clinical trial dataset.}
+
+\jsschange{Here we provide a secondary applied illustration of} the \jsschange{\pkg{gamlss.longitudinal}} model \jsschange{using} a \jsschange{long-term} clinical trial dataset which exhibits a changing distributional margin shape over time and with covariates including treatment effect, and changing strength of covariance with treatment effect and other covariates.
+
+A deliberately similar simulated worked example is included as a part of the package vignettes as well as easily available online at: https://gamlsslongitudinal.aydins-workbench.com/articles/native-simulation-workflow.html to allow readers to follow along in their own code if desired.
+
+%This is directly from the study wording
+The Long-Term Intervention with Pravastatin in Ischemic Disease (LIPID) trial is a randomized control trial run over five years with the primary outcome measured being CHD events. 
+
+Multiple baseline characteristics for patients are captured including medical history and plasma cholesterol levels. Cholesterol levels and CHD events are then monitored throughout the study period. The study showed that pravastatin significantly reduced mortality and coronary heart disease (CHD) events in 9014 patients with known CHD and total cholesterol 4.0 to 7.0 mmol/L at baseline. Secondary objectives analyzed showed that CHD events reduced according to lipid (cholesterol) levels.
+
+Cholesterol levels are a key risk factor for CHD events, and the effects of pravastatin treatments on cholesterol are discussed in detail in the relevant article \citep{simes}. The relationship between cholesterol levels and subsequent CHD events are analyzed and established in the article using Cox models.
+
+As a primary predictor for CHD events, we develop a model for the effect of the treatment on total cholesterol levels throughout the study period. 
+
+For computational convenience, we take a 10 percent randomized sample of patients from the dataset for this analysis, resulting in 902 patients with cholesterol observations at baseline, at 6 months, and every year of the study, resulting in 7 time points.
+
+There is a level of dropout in the dataset with overall 14.3 percent of cholesterol values missing, with 4 percent missing at the first timepoint and 36 percent missing by the last timepoint. 
+
+%Add tail metrics to the description of the copula I think
+Total cholesterol measurements are in mmol/L so are positive continuous and exhibit a slight right skew. The range of average cholesterol levels at each measured time point is from 4.9-5.1 with variance in the range 0.9-1.2 with both the mean and variance exhibiting a slightly decreasing trend with time. The shape in terms of skew and kurtosis also appears to change between timepoints. Overall correlation of total cholesterol observations between timepoints is strong, with 0.71-0.78 correlation for adjacent observations and a decay over time-distance to an observed 0.59 correlation between the first and last observations in the treatment period. Adjacent pair correlation trends slightly with time, with later observations exhibiting lower pair correlation.
+
+The existence of (1) high correlation between observations, (2) correlation appearing to change with time plus (3) our interest in testing the effect of the treatment on correlation as well as (4) the potential effect of covariates on correlation highlights the need for a model that can accurately model this correlation structure in an interpretable way. In addition, the changing shape of the distribution indicates a flexible marginal distribution may be required.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{charts/lipid margin fit comparison.png}
+    \caption{\jsschange{Fitted BCPE and Gamma distributions overlaid on histograms of total cholesterol, with overlaid kernel density estimates.}}
+    \label{fig:lipid-margin-selection}
+\end{figure}
+
+First, we review the marginal distribution, and select the best fitting based on AIC. We compare models with a pooled intercept (i.e. common between timepoints) to marginal distributions with all parameters allowed to vary with time since this may select a different distribution. In this case, the flexible Box Cox Power Exponential (BCPE) is the best fitting marginal distribution and the time-dependent parameters provide a better overall AIC than the pooled intercepts. Compared to the next best alternatives of the Gamma and Generalized Gamma, the BCPE more accurately captures the changing kurtosis of the distribution over time which results in better capturing of the mode, particularly at 6 months, and times 3 and 6 (Figure \ref{fig:lipid-margin-selection}). 
+
+\begin{table}
+\label{tab:marginal-screen}
+\caption{Marginal distribution screening results}
+\centering
+\begin{tabular}[t]{lrrrrrr}
+\toprule
+  & \textbf{BCPE} & BCPEo & GA & GG & BCCG & BCCGo\\
+\midrule
+AIC & 15104.47 & 15104.47 & 15111.26 & 15121.97 & 15123.38 & 15123.38\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+With  margins selected, we select the copula distribution of best fit, also using AIC. We find that the t-copula provides by far the best fit by AIC. Even though the Normal and t copulas provide very similar levels of fitted overall correlation, the t-copula more accurately captures the observed stronger tail correlation in the dataset (Figure \ref{fig:copula-selection} and Table \ref{tab:copula-lik-selection}).
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{charts/lipid - fitted versus empirical copula.png}
+    \caption{Empirical copula compared to fitted normal and t-copula.}
+    \label{fig:copula-selection}
+\end{figure}
+
+\begin{table}
+\centering
+\caption{Comparison of candidate copula families based on model fit and tail behaviour.}
+\label{tab:copula-lik-selection}
+\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{
+\fontsize{9}{11}\selectfont
+\begin{threeparttable}
+\begin{tabular}[t]{lrrrrrrrrrr}
+\toprule
+\multicolumn{1}{c}{ } & \multicolumn{6}{c}{Model fit} & \multicolumn{4}{c}{Tail behaviour at 5\%} \\
+\cmidrule(l{3pt}r{3pt}){2-7} \cmidrule(l{3pt}r{3pt}){8-11}
+Copula & $\tau$ & LogLik & AIC & $\Delta$AIC & BIC & $\Delta$BIC & Lower co-occurrence & Upper co-occurrence & Lower exceedance & Upper exceedance\\
+\midrule
+\textbf{Student's $t$} & 0.574 & 2109.7 & -4195.4 & 0.0 & -4118.7 & 0.0 & 2.65 & 2.65 & 53.05 & 53.05\\
+Frank & 0.586 & 2005.9 & -3999.7 & 195.7 & -3961.4 & 157.4 & 1.39 & 1.39 & 27.70 & 27.70\\
+Gaussian & 0.560 & 1991.7 & -3971.3 & 224.1 & -3933.0 & 185.7 & 2.31 & 2.31 & 46.23 & 46.23\\
+Gumbel & 0.543 & 1884.8 & -3757.6 & 437.8 & -3719.3 & 399.5 & 1.64 & 3.20 & 32.84 & 64.01\\
+Clayton & 0.473 & 1691.4 & -3370.7 & 824.7 & -3332.4 & 786.3 & 3.40 & 0.64 & 67.99 & 12.88\\
+Joe & 0.445 & 1425.7 & -2839.4 & 1356.0 & -2801.1 & 1317.6 & 0.58 & 3.38 & 11.57 & 67.64\\
+\midrule
+\textit{Empirical benchmark} & \textendash & \textendash & \textendash & \textendash & \textendash & \textendash & \textit{2.63} & \textit{1.77} & \textit{52.68 }& \textit{35.42}\\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\item The selected model was chosen using AIC. The selected copula was the Student's $t$ copula. The empirical benchmark row reports the corresponding observed tail quantities. Co-occurrence and conditional exceedance quantities are reported as percentages and were evaluated at a 5 percent tail threshold. \jsschange{$\Delta$AIC and $\Delta$BIC} are calculated relative to the best-performing model under the corresponding criterion.
+\end{tablenotes}
+\end{threeparttable}}
+\end{table}
+
+For additional confirmation for our initial choice of margin and copula, we compare joint fits for three margins BCPE, GG and GA, with t, Frank and normal copulas and this confirms our selection of BCPE + t copula as the best overall fit. Note it is possible that the joint selection may prefer an alternative model to the marginal fits which provides a better overall fit to the dataset as opposed to separate margin and copula fit.
+
+The gamlss.longitudinal software includes standard functions for margin and copula selection including \texttt{select\_margin()}, \texttt{select\_copula()}, and \texttt{select\_joint\_distribution()}.
+
+Now we begin covariate selection. We specify a longitudinal gamlss model with BCPE margins and t-copula dependence. As with the general gamlss approach, we follow the parameter hierarchy in model development starting with marginal parameters $\mu, \sigma, \nu, \tau$ and following with copula parameters $\theta, \zeta$. One additional complication in this framework is that once copula parameters are fit, these will necessarily adjust the standard errors for marginal parameters resulting in another iteration of marginal fit adjustment being required.
+
+\begin{table}
+\centering
+\caption{
+Likelihood comparison of candidate \texttt{gamlss.longitudinal} models.
+}
+\label{tab:likelihood-comparison}
+\begin{threeparttable}
+\scriptsize
+\setlength{\tabcolsep}{3.5pt}
+\renewcommand{\arraystretch}{1.10}
+\begin{tabular}{
+    l
+    r
+    r
+    r
+    r
+    r
+    r
+}
+\toprule
+Model &
+$n$ &
+df &
+logLik &
+AIC &
+BIC &
+$\Delta$df  \\
+\midrule
+
+\texttt{$\mu$ all}
+    & 6314 & 32.02 & $-4850$ & 9764 & 9981
+    & --  \\
+
+\texttt{$\mu$ = s(response\_baseline)+time+treat+time$\times$treat+age+sex+smoking+diabetes+stroke}
+    & 6314 & 25.85 & $-4800$ & 9652 & 9826
+    & $-6.175$ \\
+
+\texttt{+ $\sigma$ all}
+    & 6314 & 55.14 & $-4740$ & 9590 & 9962
+    & 29.287  \\
+
+\texttt{+ $\sigma$ - s(response\_baseline)}
+    & 6314 & 51.85 & $-4741$ & 9585 & 9935
+    & $-3.291$ \\
+
+\texttt{+ $\sigma$ - age, sex, smoking, uap, stroke}
+    & 6314 & 42.85 & $-4743$ & 9573 & 9862
+    & $-8.993$ \\
+
+\texttt{+ $\sigma$ = time + treat + time$\times$treat + hyperten + diabetes + dyspnoea}
+    & 6314 & 41.85 & $-4745$ & 9573 & 9855
+    & $-1.001$  \\
+
+\texttt{+ $\nu$ all}
+    & 6314 & 67.84 & $-4708$ & 9551 & 10009
+    & 25.990  \\
+
+\texttt{+ $\nu$ = treat}
+    & 6314 & 42.83 & $-4716$ & 9517 & 9806
+    & $-25.008$ \\
+
+\texttt{+ $\tau$ all}
+    & 6314 & 68.86 & $-4701$ & 9539 & 10004
+    & 26.024  \\
+
+\texttt{+ $\tau$ = smoking}
+    & 6314 & 43.83 & $-4714$ & 9515 & 9811
+    & $-25.029$ \\
+
+\texttt{+ $\theta$ all}
+    & 6314 & 67.88 & $-4684$ & 9504 & 9963
+    & 24.053\\
+
+\texttt{+ $\theta$ = treat + mi + dyspnoea}
+    & 6314 & 47.43 & $-4695$ & 9486 & 9806
+    & $-20.455$  \\
+
+\texttt{+ $\zeta$ all}
+    & 6314 & 72.40 & $-4688$ & 9520 & 10009
+    & 24.972  \\
+
+\texttt{+ $\zeta$ = 1}
+    & 6314 & 47.43 & $-4695$ & 9486 & 9806
+    & $-1.941$ \\
+
+\textbf{Final model (reduce non-significant covariates)}
+    & \textbf{6314}
+    & \textbf{38.87}
+    & \textbf{$-4702$}
+    & \textbf{9482}
+    & \textbf{9744}
+    & \textbf{$-8.559$}\\
+
+\bottomrule
+\end{tabular}
+\begin{tablenotes}[flushleft]
+\footnotesize
+\item
+Sequential likelihood-ratio comparisons are made between each model and the
+model in the preceding row. The final selected model is shown in bold.
+Lower AIC and BIC values indicate better model fit after penalising model
+complexity.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+We provide a reduced model build summary in Table \ref{tab:likelihood-comparison}. The final model code is included below for reference and fitted model covariates are presented in Table \ref{tab:covariate-estimates}. 
+
+\begin{lstlisting}
+fit <- gamlss_longitudinal(
+  dataset=dataset,
+  margin_dist=BCPE(),
+  copula_dist='t',
+  mu.formula=response~time_collapsed+s(response_baseline) + TREAT + time_collapsed*TREAT + age_group + sex + SMOKING_3 + STROKE_Y,
+  sigma.formula=~time + TREAT + as.factor(HYPERTEN=="Y") + DIAB_MEL,
+  nu.formula=~TREAT,
+  tau.formula=~SMOKING_3,
+  theta.formula=~ TREAT + hist_mi + DYSPNOEA_covariate,
+  zeta.formula=~ 1,
+  time_var="time",
+  subject_var="PID"
+)
+\end{lstlisting}
+
+
+\begin{table}[htbp]
+\centering
+\caption{Final model covariate estimates (BCPE margins with Student's $t$ copula).}
+\label{tab:covariate-estimates}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{threeparttable}
+\begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}p{0.30\linewidth} S[table-format=1.3] S[table-format=1.3] >{\raggedright\arraybackslash}p{0.20\linewidth} >{\raggedleft\arraybackslash}p{0.10\linewidth} >{\centering\arraybackslash}p{0.06\linewidth}@{}}
+\toprule
+\makecell[l]{Covariate} & \makecell[l]{Level / term} & {Estimate} & {SE} & {95\% CI} & {$p$} & {Sig.}\\
+\midrule
+\rowcolor{gray!15}\multicolumn{7}{@{}l}{\textbf{Margin: $\mu$ (location)}}\\
+\addlinespace[0.15em]
+\textit{Intercept} & -- & 5.705 & 0.047 & [5.613, 5.797] & 0.000 & ***\\
+\multirow{4}{*}{Time (visit)} & \quad 3 & -0.053 & 0.030 & [-0.113, 0.006] & 0.077 & .\\
+ & \quad 4 & -0.062 & 0.038 & [-0.136, 0.013] & 0.107 &  \\
+ & \quad 5 & -0.114 & 0.041 & [-0.195, -0.034] & 0.005 & **\\
+ & \quad 6 & -0.238 & 0.047 & [-0.330, -0.146] & <0.001 & ***\\
+Treatment & treatment vs control & -1.125 & 0.032 & [-1.188, -1.061] & <0.001 & ***\\
+\multirow{3}{*}{Age group} & \quad 60--64 & -0.141 & 0.037 & [-0.212, -0.069] & <0.001 & ***\\
+ & \quad 65--69 & -0.138 & 0.037 & [-0.210, -0.065] & <0.001 & ***\\
+ & \quad $\ge 70$ & -0.178 & 0.041 & [-0.259, -0.097] & <0.001 & ***\\
+Sex & male vs female & -0.193 & 0.038 & [-0.267, -0.120] & <0.001 & ***\\
+Smoking & yes vs no & 0.131 & 0.028 & [0.075, 0.186] & <0.001 & ***\\
+Stroke history & yes vs no & -0.267 & 0.087 & [-0.438, -0.097] & 0.002 & **\\
+\multirow{4}{*}{Treatment $\times$ time} & \quad visit 3 & 0.081 & 0.040 & [0.002, 0.160] & 0.045 & *\\
+ & \quad visit 4 & 0.217 & 0.053 & [0.114, 0.320] & <0.001 & ***\\
+ & \quad visit 5 & 0.237 & 0.057 & [0.126, 0.348] & <0.001 & ***\\
+ & \quad visit 6 & 0.341 & 0.065 & [0.213, 0.469] & <0.001 & ***\\
+\addlinespace[0.6em]
+\specialrule{0.6pt}{0pt}{0.25em}
+\rowcolor{gray!15}\multicolumn{7}{@{}l}{\textbf{Margin: $\sigma$ (scale)}}\\
+\addlinespace[0.15em]
+\textit{Intercept} & -- & -2.257 & 0.032 & [-2.321, -2.194] & 0.000 & ***\\
+\multirow{6}{*}{Time (visit)} & \quad 1 & 0.111 & 0.029 & [0.054, 0.168] & <0.001 & ***\\
+ & \quad 2 & 0.140 & 0.033 & [0.075, 0.206] & <0.001 & ***\\
+ & \quad 3 & 0.178 & 0.035 & [0.110, 0.246] & <0.001 & ***\\
+ & \quad 4 & 0.228 & 0.036 & [0.158, 0.298] & <0.001 & ***\\
+ & \quad 5 & 0.239 & 0.036 & [0.169, 0.310] & <0.001 & ***\\
+ & \quad 6 & 0.283 & 0.039 & [0.206, 0.360] & <0.001 & ***\\
+Treatment & treatment vs control & 0.202 & 0.031 & [0.142, 0.262] & <0.001 & ***\\
+Hypertension & yes vs no & 0.074 & 0.025 & [0.025, 0.123] & 0.003 & **\\
+Diabetes & yes vs no & 0.178 & 0.044 & [0.093, 0.264] & <0.001 & ***\\
+\addlinespace[0.6em]
+\specialrule{0.6pt}{0pt}{0.25em}
+\rowcolor{gray!15}\multicolumn{7}{@{}l}{\textbf{Margin: $\nu$ (skewness)}}\\
+\addlinespace[0.15em]
+\textit{Intercept} & -- & 0.944 & 0.129 & [0.692, 1.196] & <0.001 & ***\\
+Treatment & treatment vs control & -1.242 & 0.168 & [-1.571, -0.914] & <0.001 & ***\\
+\addlinespace[0.6em]
+\specialrule{0.6pt}{0pt}{0.25em}
+\rowcolor{gray!15}\multicolumn{7}{@{}l}{\textbf{Margin: $\tau$ (kurtosis)}}\\
+\addlinespace[0.15em]
+\textit{Intercept} & -- & 0.508 & 0.047 & [0.415, 0.600] & <0.001 & ***\\
+Smoking & yes vs no & -0.131 & 0.057 & [-0.244, -0.018] & 0.023 & *\\
+\addlinespace[0.6em]
+\specialrule{0.6pt}{0pt}{0.25em}
+\rowcolor{gray!15}\multicolumn{7}{@{}l}{\textbf{Copula: $\theta$ (overall correlation)}}\\
+\addlinespace[0.15em]
+\textit{Intercept} & -- & 0.641 & 0.037 & [0.569, 0.713] & <0.001 & ***\\
+Treatment & treatment vs control & 0.202 & 0.039 & [0.125, 0.280] & <0.001 & ***\\
+History of MI & yes vs no & -0.105 & 0.034 & [-0.172, -0.037] & 0.002 & **\\
+Dyspnoea & level 2 vs baseline & -0.173 & 0.062 & [-0.294, -0.051] & 0.005 & **\\
+\addlinespace[0.6em]
+\specialrule{0.6pt}{0pt}{0.25em}
+\rowcolor{gray!15}\multicolumn{7}{@{}l}{\textbf{Copula: $\zeta$ (tail correlation)}}\\
+\addlinespace[0.15em]
+\textit{Intercept} & -- & 1.202 & 0.180 & [0.848, 1.555] & <0.001 & ***\\
+\bottomrule
+\end{tabularx}
+\begin{tablenotes}[flushleft]
+\footnotesize
+\item Sig.
+\texttt{***} $p<0.001$, \texttt{**} $p<0.01$, \texttt{*} $p<0.05$, \texttt{.} $p<0.1$. Link functions for $\mu$,$\sigma$,$\nu$,$\tau$,$\theta$,$\zeta$ are identity, log, identity, log, logit, and log(x-2) respectively.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+As was the case in the original study, we find a strong treatment effect on the location parameter, $\mu$, indicating the treatment has a significant effect on reducing median total cholesterol. We also find that while there is not a consistent time trend for the control group, the treatment effect does slightly degrade with time as evidenced by the significant negative treament-time interaction with the control group having a generally decreasing cholesterol with time and the treatment group having a relatively increasing cholesterol over time, though this only represents approximately a tenth of the overall treatment effect at the greatest point.
+
+There is also a significant treatment and time effect on the variance with the treatment group having an effect on increasing variance over the control, and variance increasing over time for the distribution. The treatment effect also extends to the skewness paramater $\nu$, with the control group presenting negative skew and the treatment group presenting positive skew.
+
+We show the fitted overall distribution over time for the two groups for illustration of the changing marginal moments dependent on treatment effect in Figure \ref{fig:lipid-dist-over-time}.
+
+\begin{figure}
+    \centering
+\includegraphics[width=1\linewidth]{charts/Observed v Fitted Density Treat v Control over time.png}
+    \caption{Fitted Total Cholesterol estimates for Treatment v Control group plot against true distribution histograms.}
+    \label{fig:lipid-dist-over-time}
+\end{figure}
+
+After accounting for marginal effects, we find there is also a significant effect of covariates on the dependence shape. Correlation between observations for individuals is higher for the treatment group than the control group, indicating greater stability of cholesterol levels over time, alongside the known lower cholesterol levels based on the fit for the $\mu$ parameter. Interestingly, we also find that patients with more complex medical history including history of myocardial infarction or baseline symptoms of dyspnoea show lower stability in cholesterol levels over time (lower correlation of observations).
+
+In addition, the shape of the best fitting dependence distribution, the t-copula, provides some additional information of potential interest. While the normal copula has a more consistent level of correlation across a distribution, the t-copula has stronger tail correlation (both joint and opposite tails, i.e. the corners) and the t-parameter is highly significant for this fit. In particular, patients who have cholesterol levels in the upper tail of the distribution after accounting for other covariate effects (i.e. very high cholesterol) exhibit higher correlation than the normal, which could be for multiple reasons, including potentially due to some unknown additional covariates not available to the researchers. The t-copula here also more accurately captures a larger number of individuals who \jsschange{exhibit} opposite tail behaviour than the normal, i.e. patients who move from the highest to the lowest percentiles between timepoints are more prevalent than the normal copula fit suggests.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.75\linewidth]{charts/Copula fit control v treatment.png}
+    \caption{Fitted versus observed copula for treatment versus control groups}
+    \label{fig:lipid-copula-by-treat}   
+\end{figure}
+
+Standard marginal diagnostics are included through \texttt{plot(fit)}: Probability Integral Transform histogram, Quantile-Quantile plot, worm plot and rootogram. In this case all look reasonable with some deviation in the upper tail of the worm plot. Each of these can also be reviewed faceted by covariates and/or time through the inbuilt functions. The margin diagnostics are available in Figure \ref{fig:lipid-margin-diagnostics}.
+
+For copula fit, we provide a range of diagnostics to provide a comprehensive view of joint fit performance with \texttt{plot\_copula\_diagnostics(fit)}. The joint distribution diagnostics are available in Figure \ref{fig:lipid-copula-diagnostics}. None of these diagnostics are novel, however standard presentation of all components in one view provides a single assessment panel for key components of joint fit as is common for marginal diagnostics. We primarily rely on three groups of diagnostic calculations: (1) comparisons of fitted versus observed rank correlation in various views; by decile, by ranked probability and by overlay of fit over histogram (2) Rosenblatt residuals which are model residuals which take into account the fitted covariance structure in three different views: by margin, overall normality, and by lag, and (3) Actual versus observed joint probabilities of observations including: tail-co-occurrence in the upper and lower tails, conditional tail \jsschange{exceedance} in the upper and lower tails, and residual dependence between time points. In general all joint distribution diagnostics here appear very reasonable.
+
+\section{\jsschange{Reproducibility}}\label{sec:reproducibility}
+
+\jssrevisionnote{JSS requires replication materials for the paper. This section should briefly describe exactly how reviewers regenerate the manuscript results and what is excluded because of private data.}
+\jsssuggestion{This should be the next section to make non-placeholder. Even provisional replication details are better than blank notes here because JSS reviewers will check whether every main table and figure maps to code, data, seed, output files, and session information.}
+
+\jssplaceholder{State that \texttt{paper/replicate.R} is the paper-facing replication entry point. Document the smoke profile with \texttt{source("paper/replicate.R")} and the expanded profile with \texttt{Sys.setenv("GAMLSS\_LONGITUDINAL\_JSS\_PROFILE", "expanded"); source("paper/replicate.R")}.}
+\jsssuggestion{Suggested structure: one paragraph for installation and smoke replication, one paragraph for expanded replication and expected runtime, one paragraph for private-data exclusions. Mention \texttt{paper/manifest.csv} as the table mapping result IDs to scripts, output paths, hashes, and reproduction status.}
+
+\jssplaceholder{Add final expected runtime, platform, package versions, session-info location, output-hash location, and a sentence explaining how \texttt{paper/manifest.csv} maps result IDs to generated tables and figures.}
+
+\jssplaceholder{State the final data policy: the primary worked example is public/package-shipped/simulated; private LIPID/RAND modules are either supplementary or skipped unless accepted data access instructions are supplied.}
+\jsssuggestion{Add one sentence that the BCPE/t example in Section~\ref{sec:software-design} is fully reproducible without private files. Then state whether LIPID and RAND outputs are skipped, supplied as precomputed illustration only, or reproducible through formal access instructions.}
+
+\section{{Discussion}}
+
+\jssrevisionnote{Tone down broad claims such as ``simple'', ``robust'', and ``full joint likelihood'' unless the exact assumptions and validation evidence are stated nearby. End with practical guidance: use this package when marginal distributional shape or adjacent-time dependence is scientifically important; check residual higher-order dependence and tail behavior before relying on inference.}
+\jsssuggestion{For the final paragraph, shift from claiming broad superiority to giving user guidance: use \pkg{gamlss.longitudinal} when distributional shape or covariate-dependent adjacent-time dependence is scientifically important; prefer other tools when the target is mean-only inference, random-effect conditional interpretation, arbitrary high-order vines, or exchangeable dependence with strong non-adjacent residual correlation.}
+
+We introduce a novel joint-likelihood regression approach and software, \texttt{gamlss.longitudinal}, which allows practitioners to carefully model both marginal and dependence features dependent on time and covariates, while maintaining a high level of model interpretability.
+
+We show that the approach has highly comparable, if not improved, marginal fit compared to standard gamlss models while providing substantial additional overall distribution fit through the fitted copula. In addition, we highlight that the default jointly optimized \texttt{gamlss.longitudinal} model generally outperforms a separately optimized model by likelihood criteria and variogram scores when correlation is higher, there are a larger number of timepoints, and covariates are shared between non-location parameters and the copula parameters.
+
+\jsschange{We review sensitivity to} mis-specification of correlation structure, correlation shape, and missingness and \jsschange{find that performance is satisfactory in the studied settings except where there is a high level of residual dependence beyond the first order}. We show that use of sandwich estimators can \jsschange{substantially} improve standard errors for the \texttt{gamlss.longitudinal} model in these cases but fit is still sub-optimal. We also compare the GEE to \texttt{gamlss.longitudinal} as part of sensitivity and show the \texttt{gamlss.longitudinal} model performs comparably to an accurately specified GEE for AR(1) correlation structure, while performing unfavourably on exchangeable correlation. However, when correlation is time- or covariate-dependent, the longitudinal gamlss model provides the most competitive fits, even compared to an unstructured GEE.  
+
+A limitation of the implemented approach is the explicit reliance on first-order dependence only. It may be possible to implement an automatic residual fit to excess post fit residual dependence that also adjusts fitted parameters, however the gain in overall fit would need to be balanced against the complexity it would introduce to model building and inference. The other limitation of the approach is the expanded complexity of the likelihood calculations for the joint model which substantially increase runtime over separate optimization approaches which may be able to be solved in future implementations of this method.
+
+In general, we suggest that the \texttt{gamlss.longitudinal} approach and package provide an approachable method for practitioners to implement longitudinal regression models where the joint distribution requires the more flexible distributional shapes provided by gamlss and/or the correlation structure depends on covariates or time effects.
+
+\newpage
+\appendix 
+
+\jssrevisionnote{Appendix strategy for JSS: keep only material that directly supports implementation review. Move long optimizer derivations, large simulation grids, and private-data diagnostics to supplementary material where possible. The main paper should remain software-centered and preferably near or below 30 pages.}
+
+\section{Algorithms}\label{sec:app_algorithms}
+
+\jssrevisionnote{Condense this appendix for the main submission. Keep user-facing optimizer guidance in the main text and put detailed RS/CG derivations in supplementary material unless a JSS reviewer needs them to understand the implementation.}
+
+\subsection{RS Algorithm}
+
+\textbf{Score calculation}
+
+We calculate 
+\begin{equation*}
+z_{p,i} = \eta_{p,i} + \frac{u_{p,i}}{w_{p,i}},
+\end{equation*}
+where
+\begin{align*}
+u_{p,i} &= \frac{\partial \ell}{\partial \eta_{p,i}}, \text{ and} \\
+w_{p,i} &= \left(\frac{\partial \ell}{\partial \eta_{p,i}}\right)^2.
+\end{align*}
+
+Note that these quantities are in fact calculated from its components which can be calculated from the derivatives of the link function with regard to parameters and copula / margin likelihood with regard to parameters i.e. $\frac{\partial \ell}{\partial \eta_{p,i}} = \frac{\partial \ell}{\partial p_i}\frac{\partial p_i}{\partial \eta_{p,i}}$.
+
+Rarely, extremely small values for weights are created where gradients are small which result in extreme contributions to the overall fit. These extreme weight contributions are stabilised by replacing $w_{p,i}$ with $1$ and zeroing the matching
+score contribution for that iteration. 
+
+\textbf{Weighted Penalized Least Squares}
+
+For parameter $p$, the design matrix includes both fixed and smooth basis terms:
+\begin{equation*}
+\widetilde X_p = [X_p \; B_{p1} \; \cdots \; B_{pR_p}].
+\end{equation*}
+
+Let $W_p = \operatorname{diag}(w_{p,1},\dots,w_{p,n})$. Then the penalised inner update solves
+\begin{equation*}
+\left(\widetilde X_p^\top W_p \widetilde X_p + \lambda_{pr}S_{pr}\right)\beta_p^{\text{upd}}
+= \widetilde X_p^\top W_p z_p,
+\end{equation*}
+where $\lambda_{pr}S_{pr}$ is the penalty for the smooth terms in for parameter $p$.
+
+The step size is then adjusted as a step between 0 and 1 such that:
+\begin{equation*}
+\beta_p^{\text{new}} = (1-\alpha)\beta_p^{\text{old}} + \alpha\beta_p^{\text{upd}}.
+\end{equation*}
+
+In addition we include protection for 'backtracking' where the model is adjusting a parameter but moving the joint likelihood in the wrong direction (i.e. has jumped too far). If backtracking is on and an iteration lowers the joint likelihood then we halve $\alpha$ and try the step again iteratively until the likelihood is improved or the maximum number of backtracking steps is reached. This is essentially a simplified trust region algorithm.
+
+\textbf{Smoothing Parameters}
+
+Smoothing parameter $\lambda_{pr}$ is optimized at the start of each parameter step after the first outer iteration initialises the parameters. Both K and $\lambda$ can be pre-specified if desired or they are automatically given reasonable starting values, this is optimized using GAIC with the penalty $K$.
+
+\begin{equation*}
+\operatorname{GAIC}(\lambda_{pr}) = -2\ell + K \sum_r \operatorname{tr}\left\{\left(B_{pr}^\top W_p B_{pr} + \lambda_{pr}S_{pr}\right)^{-1} B_{pr}^\top W_p B_{pr}\right\},
+\end{equation*}
+
+By default this is currently optimized using the package \pkg{optim} and L-BFGS-B with lower bound $0.01$ and upper bound
+$10^6$.
+
+\subsection{CG Algorithm}
+
+The CG algorithm is well documented, however we note the following improvements. In general we found substantial difficulties in correct optimization of the CG algorithm without restrictions. In particular, the fit would often get stuck in local optimum locations after taking too-large steps. To improve the CG optimization performance, we include multiple methods for restricting step to reasonable moves up the likelihood curve.
+
+\jssplaceholder{Rewrite this optimizer-detail sentence formally if retained: explain the smoothing-parameter update schedule, why early updates can destabilize the optimizer, and which package control sets the update interval. Current draft wording was informal and should not appear in the submission.}
+
+Penalized gradient
+\begin{equation*}
+g = \nabla \ell(\bm{\beta}_{\text{all}}) - P\bm{\beta}_{\text{all}}.
+\end{equation*}
+
+Adjusted Hessian
+\begin{equation*}
+A_{\text{base}} = H_{\text{pen}} = H_{\text{obs}} - P.
+\end{equation*}
+
+\textbf{Trust Region Candidates}
+
+Let $\Delta$ denote the current trust radius. At each outer iteration the code evaluates a set of
+candidate steps.
+
+If $\|g\|_2 > 0$, the code includes the boundary step
+\begin{equation*}
+d_{\text{grad}} = \Delta \frac{g}{\|g\|_2}.
+\end{equation*}
+
+\textbf{Damped Newton candidates.}
+For each ridge value
+\begin{equation*}
+\rho \in \{0, 10^{-8}, 10^{-6}, 10^{-4}, 10^{-2}, 1, 10, 100\},
+\end{equation*}
+the code attempts to solve
+\begin{equation*}
+\left(A_{\text{base}} + \rho I\right)d_\rho = g.
+\end{equation*}
+
+If the solve is finite, both
+\begin{equation*}
+d_\rho \quad \text{and} \quad -d_\rho
+\end{equation*}
+are added to the candidate set.
+
+\textbf{Radius and component caps.}
+Each candidate $d$ is then modified by:
+\begin{enumerate}
+\item an $\ell_2$ trust-region projection,
+\begin{equation*}
+d \leftarrow d\,\frac{\Delta}{\|d\|_2}, \qquad \text{if } \|d\|_2 > \Delta,
+\end{equation*}
+\item a per-component cap,
+\begin{equation*}
+d \leftarrow d\,\frac{\texttt{cg\_max\_delta}}{\max_j |d_j|},
+\qquad \text{if } \max_j |d_j| > \texttt{cg\_max\_delta}.
+\end{equation*}
+\end{enumerate}
+
+\textbf{Trust Region Step Selection}
+
+For each $d$ we calculate the potential quadratic improvement and only include potential improvements greater than zero.
+\begin{equation*}
+g^\top d - \frac{1}{2} d^\top A_{\text{base}} d > 0.
+\end{equation*}
+
+We then calculate the true improvement:
+\begin{equation*}
+\ell(\bm{\beta}_{\text{all}} + d) - \ell(\bm{\beta}_{\text{all}}).
+\end{equation*}
+
+We accept candidates only if:
+\begin{itemize}
+    \item The actual improvement is greater than the maximum of 10 percent of the quadratic improvement estimate (adjustable)
+    \item The actual improvement is greater than the outer stopping criteria 
+\end{itemize}
+
+Essentially this tells us if we are making a quality step of the likelihood is starting to look unreliable in terms of curvature at the point or our step is badly scaled. If none are accepted then we halve the step size up to max backtracking halves.
+
+We then update the trust region using the ratio of $r = \texttt{actual / expected}$, so:
+\begin{align*}
+\Delta_{\text{new}} &= \max\left(\frac{\Delta_{\text{used}}}{2}, \texttt{cg\_step\_tol}\right), && \text{if } r < 0.25 \text{ or no accepted step}, \\
+\Delta_{\text{new}} &= \min\left(2\Delta_{\text{used}}, \Delta_{\max}\right), && \text{if } r > 0.75 \text{ and } \|d\|_2 \ge 0.9\Delta_{\text{used}}, \\
+\Delta_{\text{new}} &= \Delta_{\text{used}}, && \text{otherwise},
+\end{align*}
+with
+\begin{equation*}
+\Delta_{\max} = \max\bigl(\texttt{cg\_max\_delta}, 10\,\texttt{cg\_step\_tol}_{\text{eff}}\bigr).
+\end{equation*}
+
+\textbf{Convergence}
+
+Let the accepted step be $d^{(m)}$ and let $\Delta \ell^{(m)}$ be the outer log-likelihood change.
+The code only declares convergence when there was an improving step and all of the following hold:
+\begin{align*}
+|\Delta \ell^{(m)}| &\le \texttt{outer\_stop\_crit}, \\
+\left\|\nabla \ell(\bm{\beta}^{(m+1)}) - P\bm{\beta}^{(m+1)}\right\|_\infty &\le \texttt{cg\_grad\_tol}_{\text{eff}}, \\
+\|d^{(m)}\|_2 &\le \texttt{cg\_step\_tol}_{\text{eff}}.
+\end{align*}
+
+
+
+
+\section{Variance-covariance calculation}
+\subsubsection{Numerical Hessian Used by \texttt{method = "numderiv"}}
+
+Let $\beta_a$ denote coefficient $a$ and let $h$ be the step size for calculations. The numerical Hessian is computed directly on the joint log-likelihood. $e_a$ is a vector of length $\beta_a$ with all zeros except for a 1 for the coefficient for $a$.
+
+For each $a$,
+\begin{equation*}
+H_{aa}^{\text{num}} =
+\frac{\ell(\hat{\beta}+h e_a) + \ell(\hat{\beta}-h e_a) - 2\ell(\hat{\beta})}{h^2}.
+\end{equation*}
+
+For $a \neq b$,
+\begin{equation*}
+H_{ab}^{\text{num}} =
+\frac{
+\ell(\hat{\beta}+he_a+he_b)
+- \ell(\hat{\beta}+he_a-he_b)
+- \ell(\hat{\beta}-he_a+he_b)
++ \ell(\hat{\beta}-he_a-he_b)
+}{4h^2}.
+\end{equation*}
+
+We then calculate the variance from the negative of the inverse:
+\begin{equation*}
+\widehat{\operatorname{Var}}_{\text{num}}(\hat{\beta}) = -\left(H^{\text{num}}\right)^{-1}.
+\end{equation*}
+
+Standard errors are reported as
+\begin{equation*}
+\widehat{\operatorname{SE}}(\hat{\beta}_a) = \sqrt{\left|\left(H^{\text{num}}\right)^{-1}_{aa}\right|}.
+\end{equation*}
+
+\textbf{Analytical Hessian Used by \texttt{method = "analytical"}}
+
+This method is considered 'semi-analytical' as the method attempts to derive every quantity possible analytically, and falls back to numerical derivatives for components that do not have closed form solutions available. In particular, we manually have to calculate first and second derivatives of the marginal CDFs for the margins as noted in Section \ref{sec:model_overview}, second derivatives of the log density of the margins with regards to untransformed parameters are more straightforward to calculate numerically (section \ref{sec:vcov_logfx}).
+
+\subsection{Analytical Hessian Used by \texttt{method = "analytical"}}
+\subsubsection{Derivatives of the marginal CDF, $F$}\label{sec:vcov_ana_Fx}
+
+For a margin parameter $p \in \{\mu,\sigma,\nu,\tau\}$ the code evaluates the CDF
+$F(y_i)$ and approximates:
+\begin{align*}
+\frac{\partial F_i}{\partial p_i}
+&\approx \frac{F_i(p_i+h)-F_i(p_i-h)}{2h}, \\
+\frac{\partial^2 F_i}{\partial p_i^2}
+&\approx \frac{F_i(p_i+h)+F_i(p_i-h)-2F_i(p_i)}{h^2}, \\
+\frac{\partial^2 F_i}{\partial p_i\,\partial q_i}
+&\approx \frac{F_i(p_i+h,q_i+h)-F_i(p_i+h,q_i-h)-F_i(p_i-h,q_i+h)+F_i(p_i-h,q_i-h)}{4h^2}.
+\end{align*}
+
+\subsubsection{Observed Margin Log-Density Second Derivatives}\label{sec:vcov_logfx}
+
+\begin{equation*}
+\ell_{m,i} = \log f(y_i \mid \psi_i).
+\end{equation*}
+
+For a diagonal term,
+\begin{equation*}
+\frac{\partial^2 \ell_{m,i}}{\partial p_i^2}
+\approx
+\frac{\ell_{m,i}(p_i+h_i)-2\ell_{m,i}(p_i)+\ell_{m,i}(p_i-h_i)}{h_i^2},
+\end{equation*}
+and for a cross term,
+\begin{equation*}
+\frac{\partial^2 \ell_{m,i}}{\partial p_i\,\partial q_i}
+\approx
+\frac{
+\ell_{m,i}(p_i+h_i,q_i+h_q)
+-\ell_{m,i}(p_i+h_i,q_i-h_q)
+-\ell_{m,i}(p_i-h_i,q_i+h_q)
++\ell_{m,i}(p_i-h_i,q_i-h_q)
+}{4h_i h_q},
+\end{equation*}
+with parameter-scaled steps
+\begin{equation*}
+h_i = 10^{-4}\max(|p_i|,10^{-6}).
+\end{equation*}
+
+\subsubsection{Copula Hessian Contributions}
+
+The code obtains first and second derivatives of the copula density using
+internal functions, together with small finite-difference approximations for derivatives not exposed directly. We then apply chain rule corrections for the effect of the link function. For example, when $\theta$ is represented on the link scale $\eta_\theta$, the code applies the chain rule
+correction
+\begin{equation*}
+\frac{\partial^2 \log c_k}{\partial \eta_{\theta,k}^2}
+=
+\frac{\partial^2 \log c_k}{\partial \theta_k^2}
+\left(\frac{\partial \theta_k}{\partial \eta_{\theta,k}}\right)^2
++
+\frac{\partial \log c_k}{\partial \theta_k}
+\frac{\partial^2 \theta_k}{\partial \eta_{\theta,k}^2}.
+\end{equation*}
+
+\paragraph{Margin-parameter contributions from the copula.}
+For a margin parameter $p$ attached to observation $i$ in the first slot of a pair,
+the code uses
+\begin{equation*}
+\frac{\partial \log c_k}{\partial p_i}
+= \frac{c_{u_1,k}}{c_k}\,\frac{\partial F_i}{\partial p_i},
+\end{equation*}
+and the diagonal second derivative contribution
+\begin{equation*}
+\frac{\partial^2 \log c_k}{\partial p_i^2}
+=
+\frac{c_{u_1u_1,k}\left(\frac{\partial F_i}{\partial p_i}\right)^2 + c_{u_1,k}\frac{\partial^2 F_i}{\partial p_i^2}}{c_k}
+-
+\left(\frac{c_{u_1,k}}{c_k}\frac{\partial F_i}{\partial p_i}\right)^2.
+\end{equation*}
+
+Similarly, for two different margin parameters $p$ and $q$ attached to the same observation in the
+same slot,
+\begin{equation*}
+\frac{\partial^2 \log c_k}{\partial p_i\,\partial q_i}
+=
+\frac{c_{u_1u_1,k}\frac{\partial F_i}{\partial p_i}\frac{\partial F_i}{\partial q_i} + c_{u_1,k}\frac{\partial^2 F_i}{\partial p_i\partial q_i}}{c_k}
+-
+\left(\frac{c_{u_1,k}}{c_k}\frac{\partial F_i}{\partial p_i}\right)
+\left(\frac{c_{u_1,k}}{c_k}\frac{\partial F_i}{\partial q_i}\right).
+\end{equation*}
+
+For cross-pair observation terms, the code stores pair-indexed contributions of the form
+\begin{equation*}
+\frac{\partial^2 \log c_k}{\partial p_i\,\partial q_j}
+=
+\frac{c_{u_1u_2,k}}{c_k}
+\frac{\partial F_i}{\partial p_i}
+\frac{\partial F_j}{\partial q_j}
+-
+\left(\frac{c_{u_1,k}}{c_k}\frac{\partial F_i}{\partial p_i}\right)
+\left(\frac{c_{u_2,k}}{c_k}\frac{\partial F_j}{\partial q_j}\right).
+\end{equation*}
+
+\subsubsection{Assembly of the Hessian}
+
+The final coefficient-space Hessian is assembled by the chain rule. Let coefficient $a$ belong to
+parameter block $p_a$ with design column $x_a$, and coefficient $b$ belong to parameter block
+$p_b$ with design column $x_b$. Then, for ordinary observation-indexed blocks, the code computes
+\begin{equation*}
+H_{ab} = \sum_{i=1}^n x_{ia} x_{ib}
+\frac{\partial^2 \ell}{\partial \eta_{p_a,i} \partial \eta_{p_b,i}}.
+\end{equation*}
+
+For margin--margin blocks, the working second derivative is
+\begin{equation*}
+\frac{\partial^2 \ell}{\partial \eta_{p_a,i} \partial \eta_{p_b,i}}
+=
+\left(
+\frac{\partial^2 \ell_{\text{margin},i}}{\partial \psi_{p_a,i}\partial \psi_{p_b,i}}
++
+\frac{\partial^2 \ell_{\text{copula},i}}{\partial \psi_{p_a,i}\partial \psi_{p_b,i}}
+\right)
+\dot g^{-1}_{p_a,i}\dot g^{-1}_{p_b,i}.
+\end{equation*}
+
+Pair-indexed blocks involving $\theta$ and $\zeta$ are assembled using the pair map from the first
+margin in each adjacent pair to the relevant copula design row.
+
+The final analytical covariance estimate is then
+\begin{equation*}
+\widehat{\operatorname{Var}}_{\text{ana}}(\hat{\beta}) = -\left(H^{\text{ana}}\right)^{-1},
+\end{equation*}
+with standard errors
+\begin{equation*}
+\widehat{\operatorname{se}}(\hat{\beta}_a) = \sqrt{\left|\left(H^{\text{ana}}\right)^{-1}_{aa}\right|}.
+\end{equation*}
+
+
+\subsubsection{Smooth term variance}
+In addition to the overall covariance matrix for \texttt{object\$par}, the package computes a separate
+variance approximation for smooth basis coefficients.
+
+For a smooth basis matrix $B$, smoothing parameter $\lambda$, penalty matrix $P$, and per-parameter
+working weights $W$, the code defines the penalised precision matrix
+\begin{equation*}
+Q = B^\top W B + \lambda P.
+\end{equation*}
+
+The smooth-coefficient covariance is then approximated as
+\begin{equation*}
+\widehat{\operatorname{Var}}(b) = Q^{-1}\hat\sigma_p^2,
+\end{equation*}
+where the parameter-specific scale estimate is
+\begin{equation*}
+\hat\sigma_p^2 = \frac{1}{\bar w_p}
+\end{equation*}
+when positive IRLS weights are available for that parameter, and otherwise falls back to the sample
+variance of residuals from the fitted mean curve.
+
+The code also computes the smoother matrix
+\begin{equation*}
+A = B Q^{-1} B^\top W,
+\end{equation*}
+and reports:
+\begin{align*}
+\operatorname{edf} &= \operatorname{tr}(A), \\
+\widehat{\operatorname{se}}\{B b\}_i &= \sqrt{\hat\sigma_p^2 A_{ii}}.
+\end{align*}
+
+These smooth-term variances are returned separately from the overall covariance matrix.
+
+
+\section{Simulation: Joint versus separate optimization performance for Gamma and Negative Binomial} \label{apx:sim_JvS}
+
+
+\section{Simulation - gamlss.longitudinal v gamlss2: Parameter recovery and fit for Discrete margin and Clayton copula} \label{apx:sim_recovery}
+
+\begin{figure}
+    \centering  
+    \includegraphics[width=1\linewidth]{charts/paper_simulation_nbi_clayton_highsignal_fixed_effect_recovery.png}
+    \caption{Fixed effects recovery presented as absolute bias per fit for the gamlss2 and gamlss.longitudinal model fits to the NBI+Clayton simulated data.}
+    \label{fig:sim_fixed_recovery}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{charts/paper_simulation_nbi_clayton_highsignal_smooth_effect_recovery.png}
+    \caption{Fitted smooth effects with 50 percent range bands across simulations for the gamlss and gamlss.longitudinal models to the NBI+Clayton simulated data. True simulated smooth is indicated as a dashed black line.}
+    \label{fig:sim_smooth_recovery}
+\end{figure}
+
+\input{tables/paper_simulation_nbi_clayton_highsignal_fit_characteristics}
+\input{tables/paper_simulation_nbi_clayton_highsignal_fixed_parameter_bias_rmse}
+
+
+\section{Missingness impact on RMSE}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{charts/fixed_margin_rmse_by_missingness.png}
+    \caption{Sensitivity to missingness at random and by time: fixed parameter recovery for gamlss2 compared to gamlss.longitudinal at greater levels of missingness.}
+    \label{fig:sim_sensitivity_mar_fixed}
+\end{figure}
+
+
+\section{Cholesterol levels model diagnostics}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{charts/lipid - margin diagnostics.png}
+    \caption{Standard marginal distribution fit diagnostics}
+    \label{fig:lipid-margin-diagnostics}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{charts/lipid - dependence diagnostics.png}
+    \caption{Joint distribution diagnostics}
+    \label{fig:lipid-copula-diagnostics}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{lipid - term plot.png}
+    \caption{Term plot for final model for cholesterol data}
+    \label{fig:lipid-term-plot}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.75\linewidth]{charts/Tail co-occurrence.png}
+    \caption{Tail co-occurrence for the fitted normal and t-copula compared to the observed occurrence}
+    \label{fig:cooccurence}
+\end{figure}
+
+\newpage
+\bibliographystyle{plainnat}
+\bibliography{sample}
+
+\end{document}
