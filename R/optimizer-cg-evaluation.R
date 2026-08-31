@@ -66,7 +66,8 @@
     margin_eval_cache = margin_eval_cache
   ), error = function(e) NULL)
 
-  if (is.null(lik)) {
+  if (is.null(lik) || identical(lik$valid, FALSE) ||
+      !is.finite(as.numeric(lik$log_lik["joint"]))) {
     return(NULL)
   }
 
