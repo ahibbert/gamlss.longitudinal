@@ -31,6 +31,12 @@ jobs:
           r-version: ${{ matrix.r }}
           use-public-rspm: true
           extra-repositories: https://gamlss-dev.R-universe.dev
+      - name: Install Ubuntu system requirements
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libgsl-dev
       - name: Install replication bootstrap
         shell: Rscript {0}
         run: |
