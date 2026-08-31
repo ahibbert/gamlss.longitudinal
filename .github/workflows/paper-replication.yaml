@@ -37,14 +37,55 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes libglpk-dev libgsl-dev
-      - name: Install replication bootstrap
+      - name: Install reference-environment bootstrap
+        if: matrix.r == '4.4.1'
         shell: Rscript {0}
         run: |
           options(repos = c(CRAN = "https://cloud.r-project.org"))
           install.packages("renv")
+      - name: Install current-release dependencies
+        if: matrix.r == 'release'
+        shell: Rscript {0}
+        run: |
+          repos <- getOption("repos")
+          repos <- c(
+            gamlss2 = "https://gamlss-dev.r-universe.dev",
+            repos[!names(repos) %in% "gamlss2"]
+          )
+          options(repos = repos)
+
+          install.packages(c("renv", "jsonlite"))
+          lock <- jsonlite::read_json("paper/renv.lock", simplifyVector = FALSE)
+          packages <- names(lock$Packages)
+          priority <- rownames(installed.packages(
+            priority = c("base", "recommended")
+          ))
+          packages <- setdiff(packages, c(priority, "renv", "gamlss2"))
+          install.packages(packages, Ncpus = 2L)
+          install.packages("gamlss2", Ncpus = 2L)
+
+          required <- c(packages, "renv", "gamlss2")
+          missing <- required[!vapply(
+            required,
+            requireNamespace,
+            quietly = TRUE,
+            FUN.VALUE = logical(1)
+          )]
+          if (length(missing)) {
+            stop("Current-release dependencies unavailable: ",
+                 paste(missing, collapse = ", "))
+          }
       - name: Run clean public replication
         shell: bash
-        run: Rscript paper/replicate.R --profile "${{ matrix.profile }}" --workers 2
+        run: |
+          restore=()
+          if [[ "${{ matrix.r }}" == "release" ]]; then
+            restore+=(--no-restore)
+          fi
+          Rscript paper/replicate.R \
+            --profile "${{ matrix.profile }}" \
+            --workers 2 \
+            "${restore[@]}"
       - uses: actions/upload-artifact@v4
         with:
           name: replication-${{ matrix.os }}-r-${{ matrix.r }}-${{ matrix.profile }}
