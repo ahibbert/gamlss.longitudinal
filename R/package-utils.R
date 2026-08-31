@@ -121,9 +121,30 @@ utils::globalVariables(c(
 
   type <- tolower(paste(as.character(margin_dist$type), collapse = " "))
 
-  family %in% c("PO", "PIG", "NBI", "NBII", "DEL", "SICHEL", "SI", "ZIP", "ZAP", "DPO", "DNO") ||
+  unsupported_bounded <- c("BB", "DBI", "ZABB", "ZABI", "ZIBB", "ZIBI")
 
-    grepl("discrete|count", type)
+  family %in% c(
+    "PO", "PIG", "NBI", "NBII", "DEL", "SICHEL", "SI",
+    "ZIP", "ZIP2", "ZAP", "DPO", "DNO",
+    "ZINBI", "ZINBII", "ZINBF",
+    "BI"
+  ) ||
+
+    (grepl("discrete|count", type) && !(family %in% unsupported_bounded))
+}
+
+#' Fixed distribution arguments supplied by the longitudinal likelihood
+#'
+#' @noRd
+.gl_margin_fixed_family_args <- function(margin_dist, n) {
+  family <- as.character(margin_dist$family[1])
+  out <- list()
+
+  if (identical(family, "BI")) {
+    out$bd <- rep(1, n)
+  }
+
+  out
 }
 
 #' Check whether a GAMLSS margin parameter has complete link metadata

@@ -132,8 +132,9 @@
 #' @param compute_vcov Logical; if `TRUE` (default), compute and store the
 #' model variance-covariance output at the end of fitting.
 #' @param vcov_method Character; fit-time vcov method when `compute_vcov = TRUE`.
-#' One of `"analytical"` or `"numderiv"`. Analytical vcov falls back to the
-#' numerical reference path if the analytical Hessian cannot be inverted.
+#' One of `"analytical"` or `"numderiv"`. Analytical vcov covers continuous
+#' margins and supported exact-discrete rectangle likelihoods, and falls back
+#' to the numerical reference path if the analytical Hessian cannot be inverted.
 #' @param vcov_numderiv Logical; passed to `vcov.gamlss.longitudinal()` when
 #' `compute_vcov = TRUE`.
 #' @param use_Rcpp Use Rcpp for matrix operations (depreciated)
