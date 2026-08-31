@@ -33,7 +33,10 @@ test_that("benchmark predictive distribution returns Poisson count summaries", {
   expect_equal(pred$q_p, stats::qpois(0.9, lambda = fitted))
   expect_equal(pred$lower, stats::qpois(0.1, lambda = fitted))
   expect_equal(pred$upper, stats::qpois(0.9, lambda = fitted))
-  expect_equal(pred$pit, stats::ppois(y, lambda = fitted))
+  expect_equal(
+    pred$pit,
+    stats::ppois(y, lambda = fitted) - 0.5 * stats::dpois(y, lambda = fitted)
+  )
   expect_equal(pred$density, stats::dpois(y, lambda = fitted))
 })
 
