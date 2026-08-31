@@ -35,6 +35,11 @@ calc_F_x <- function(eta_inv, mm, margin_dist, response) {
     }
   }
 
+  margin_deriv_input <- c(
+    margin_deriv_input,
+    .gl_margin_fixed_family_args(margin_dist, length(response))
+  )
+
   negative_response <- is.finite(response) & response < 0
 
   if (.is_discrete_margin(margin_dist) && any(negative_response)) {
