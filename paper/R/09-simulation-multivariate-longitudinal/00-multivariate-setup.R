@@ -49,6 +49,14 @@ mvt_env_num <- function(name, default) {
   if (length(value) == 0L || is.na(value) || !is.finite(value)) default else value
 }
 
+mvt_registered_timeout <- function(name, default) {
+  raw <- Sys.getenv(name, unset = "")
+  if (!nzchar(raw)) return(as.numeric(default))
+  value <- suppressWarnings(as.numeric(raw))
+  if (length(value) != 1L || is.na(value) || value <= 0) return(Inf)
+  value
+}
+
 mvt_env_flag <- function(name, default = FALSE) {
   value <- tolower(mvt_env(name, if (isTRUE(default)) "true" else "false"))
   value %in% c("1", "true", "t", "yes", "y")
@@ -71,6 +79,225 @@ mvt_default_comparators <- function() {
     "gamlss.longitudinal",
     "gamCopula_markov",
     "gamCopula_vine_simplified"
+  )
+}
+
+mvt_nearest_neighbor_comparators <- function() {
+  # Prespecified bound for JSS-014: exactly two tractable, task-matched
+  # copula comparators. Full-vine and low-dimensional alternatives remain
+  # documented sensitivities/exclusions, not additional headline benchmarks.
+  c("gamCopula_markov", "gamCopula_vine_simplified")
+}
+
+mvt_capability_snapshot <- function(as_of = as.Date("2026-09-01")) {
+  software <- c("gamlss.longitudinal", "gamCopula", "GJRM", "geepack", "glmmTMB", "gamlss", "VineCopula")
+  installed_versions <- vapply(software, function(package) {
+    package_path <- suppressWarnings(find.package(package, quiet = TRUE))
+    if (!length(package_path) || !nzchar(package_path)) return("not_installed")
+    description <- tryCatch(read.dcf(file.path(package_path, "DESCRIPTION"), fields = "Version"), error = function(e) NULL)
+    if (is.null(description) || !length(description) || !nzchar(description[[1L]])) {
+      stop("Installed version unavailable for ", package, call. = FALSE)
+    }
+    as.character(description[[1L]])
+  }, character(1L))
+  source_versions <- c(
+    gamlss.longitudinal = as.character(read.dcf(file.path(mvt_repo_root, "DESCRIPTION"), fields = "Version")[[1L]]),
+    gamCopula = "0.0-8", GJRM = "0.2-6.9", geepack = "1.3.13",
+    glmmTMB = "1.1.14", gamlss = "5.5-0", VineCopula = "2.6.1"
+  )
+  claim_software <- c(
+    "gamlss.longitudinal", "gamCopula", "gamCopula", "gamCopula", "GJRM",
+    "geepack", "geepack", "glmmTMB", "gamlss", "VineCopula"
+  )
+  version_sources <- c(
+    gamlss.longitudinal = "DESCRIPTION",
+    gamCopula = "https://cran.r-project.org/web/packages/gamCopula/DESCRIPTION",
+    GJRM = "https://cran.r-project.org/web/packages/GJRM/DESCRIPTION",
+    geepack = "https://cran.r-project.org/web/packages/geepack/DESCRIPTION",
+    glmmTMB = "https://cran.r-project.org/web/packages/glmmTMB/DESCRIPTION",
+    gamlss = "https://cran.r-project.org/web/packages/gamlss/DESCRIPTION",
+    VineCopula = "https://cran.r-project.org/web/packages/VineCopula/DESCRIPTION"
+  )
+  data.frame(
+    as_of = rep(format(as_of, "%Y-%m-%d"), length(claim_software)),
+    retrieved_on = rep(format(as_of, "%Y-%m-%d"), length(claim_software)),
+    claim_id = sprintf("CAP-%03d", seq_along(claim_software)),
+    software = claim_software,
+    source_version = unname(source_versions[claim_software]),
+    version_source_url = unname(version_sources[claim_software]),
+    installed_version = unname(installed_versions[claim_software]),
+    claim_type = c(
+      "evaluation_role", "headline_workflow", "headline_workflow", "tractability",
+      "task_equivalence", "standard_benchmark", "stress_test", "context_only",
+      "context_only", "backend_only"
+    ),
+    claim_value = c(
+      "focal", "retain_markov", "retain_simplified_vine", "full_vine_sensitivity_only",
+      "exclude_non_equivalent", "family_specific_GEE", "unstructured_T20plus",
+      "mixed_model_context", "independence_margin_context", "copula_backend"
+    ),
+    claim = c(
+      "The focal workflow fits longitudinal distributional regression with adjacent copulas.",
+      "The two-stage adjacent Markov gamCopula workflow is a retained headline comparator.",
+      "The two-stage simplified-vine gamCopula workflow is a retained headline comparator.",
+      "The full-vine gamCopula workflow is excluded from the registered headline grid by an a priori bounded-comparator scope decision.",
+      "GJRM is excluded from the empirical grid because visit-as-equation encoding changes the model dimension and estimand.",
+      "geepack GEE results are reported separately for every response family in the scenario grid.",
+      "Unstructured geepack GEE at T at least 20 is treated as a feasibility stress test.",
+      "glmmTMB is capability context rather than an additional empirical method because the retained lme4 fit already represents the mixed-model class.",
+      "gamlss is independence-margin context and cannot estimate longitudinal dependence.",
+      "VineCopula is a copula backend and does not itself fit matched longitudinal marginal regressions."
+    ),
+    documentation_topic = c(
+      "method-traceability registry model fitting wrapper",
+      "gamCopula::gamBiCopFit maximum penalized likelihood",
+      "gamCopula::gamVineSeqFit sequential GAM-vine estimation",
+      "gamCopula::gamVineSeqFit sequential GAM-vine estimation",
+      "GJRM::gjrm formula-list interface",
+      "geepack::geeglm family and corstr arguments",
+      "geepack::geeglm unstructured corstr",
+      "glmmTMB vignette section The unstructured covariance",
+      "gamlss::gamlss location scale and shape interface",
+      "VineCopula::RVineCopSelect pair-copula selection"
+    ),
+    documentation_url = c(
+      "inst/standards/method-traceability.csv",
+      "https://search.r-project.org/CRAN/refmans/gamCopula/html/gamBiCopFit.html",
+      "https://search.r-project.org/CRAN/refmans/gamCopula/html/gamVineSeqFit.html",
+      "https://search.r-project.org/CRAN/refmans/gamCopula/html/gamVineSeqFit.html",
+      "https://search.r-project.org/CRAN/refmans/GJRM/html/gjrm.html",
+      "https://search.r-project.org/CRAN/refmans/geepack/html/geeglm.html",
+      "https://search.r-project.org/CRAN/refmans/geepack/html/geeglm.html",
+      "https://cran.r-project.org/web/packages/glmmTMB/vignettes/covstruct.html#the-unstructured-covariance",
+      "https://search.r-project.org/CRAN/refmans/gamlss/html/gamlss.html",
+      "https://search.r-project.org/CRAN/refmans/VineCopula/html/RVineCopSelect.html"
+    ),
+    empirical_evidence_link = c(
+      "paper/R/09-simulation-multivariate-longitudinal/00-multivariate-setup.R#mvt_fit_gamlss_longitudinal",
+      "nearest_neighbor_results.csv#gamCopula_markov",
+      "nearest_neighbor_results.csv#gamCopula_vine_simplified",
+      "comparator_scope_registry.csv#gamCopula_vine",
+      "comparator_scope_registry.csv#GJRM",
+      "gee_family_results.csv",
+      "gee_unstructured_stress_test.csv",
+      "comparator_scope_registry.csv#glmmTMB",
+      "comparator_scope_registry.csv#gamlss_independence",
+      "comparator_scope_registry.csv#VineCopula"
+    ),
+    empirical_evidence = c(
+      "Implementation hook for the fitted focal method.",
+      "Attempt and uncertainty rows for the retained Markov workflow.",
+      "Attempt and uncertainty rows for the retained simplified-vine workflow.",
+      "A priori qualitative scope decision; no unfrozen legacy runtime is used as evidence.",
+      "A priori non-equivalence decision rather than an empirical infeasibility claim.",
+      "Family-specific GEE attempt and uncertainty rows.",
+      "T=20 unstructured GEE attempt and failure rows.",
+      "Capability-only decision recorded in the scope registry.",
+      "Independence-only decision recorded in the scope registry.",
+      "Backend-only decision recorded in the scope registry."
+    ),
+    stringsAsFactors = FALSE
+  )
+}
+
+mvt_capability_registered_urls <- function() {
+  list(
+    version_source_url = c(
+      "DESCRIPTION",
+      "https://cran.r-project.org/web/packages/gamCopula/DESCRIPTION",
+      "https://cran.r-project.org/web/packages/GJRM/DESCRIPTION",
+      "https://cran.r-project.org/web/packages/geepack/DESCRIPTION",
+      "https://cran.r-project.org/web/packages/glmmTMB/DESCRIPTION",
+      "https://cran.r-project.org/web/packages/gamlss/DESCRIPTION",
+      "https://cran.r-project.org/web/packages/VineCopula/DESCRIPTION"
+    ),
+    documentation_url = c(
+      "inst/standards/method-traceability.csv",
+      "https://search.r-project.org/CRAN/refmans/gamCopula/html/gamBiCopFit.html",
+      "https://search.r-project.org/CRAN/refmans/gamCopula/html/gamVineSeqFit.html",
+      "https://search.r-project.org/CRAN/refmans/GJRM/html/gjrm.html",
+      "https://search.r-project.org/CRAN/refmans/geepack/html/geeglm.html",
+      "https://cran.r-project.org/web/packages/glmmTMB/vignettes/covstruct.html#the-unstructured-covariance",
+      "https://search.r-project.org/CRAN/refmans/gamlss/html/gamlss.html",
+      "https://search.r-project.org/CRAN/refmans/VineCopula/html/RVineCopSelect.html"
+    )
+  )
+}
+
+mvt_capability_provenance_validation <- function(capabilities) {
+  required <- c(
+    "claim_id", "as_of", "retrieved_on", "software", "source_version", "version_source_url",
+    "installed_version", "claim_type", "claim_value", "claim", "documentation_topic",
+    "documentation_url", "empirical_evidence_link", "empirical_evidence"
+  )
+  problems <- character()
+  if (!all(required %in% names(capabilities))) {
+    problems <- c(problems, paste("missing columns", paste(setdiff(required, names(capabilities)), collapse = ",")))
+    return(list(valid = FALSE, problems = problems, required = required))
+  }
+  if (!nrow(capabilities)) problems <- c(problems, "no claims")
+  if (anyDuplicated(capabilities$claim_id)) problems <- c(problems, "duplicate claim_id")
+  if (any(!grepl("^CAP-[0-9]{3}$", capabilities$claim_id))) problems <- c(problems, "invalid claim_id")
+  atomic_key <- paste(capabilities$software, capabilities$claim_type, capabilities$claim_value, capabilities$claim, sep = "\r")
+  if (anyDuplicated(atomic_key)) problems <- c(problems, "duplicate atomic claim")
+  if (any(!nzchar(trimws(capabilities$claim)))) problems <- c(problems, "blank claim")
+  valid_date <- function(x) {
+    parsed <- suppressWarnings(as.Date(as.character(x), format = "%Y-%m-%d"))
+    grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", x) & !is.na(parsed)
+  }
+  if (any(!valid_date(capabilities$as_of))) problems <- c(problems, "invalid as_of")
+  if (any(!valid_date(capabilities$retrieved_on))) problems <- c(problems, "invalid retrieved_on")
+  pinned <- "^[0-9]+([.-][0-9]+)+$"
+  if (any(!grepl(pinned, capabilities$source_version))) problems <- c(problems, "unknown or unpinned source_version")
+  if (any(!(grepl(pinned, capabilities$installed_version) | capabilities$installed_version == "not_installed"))) {
+    problems <- c(problems, "unknown installed_version")
+  }
+  registered_urls <- mvt_capability_registered_urls()
+  if (any(!capabilities$version_source_url %in% registered_urls$version_source_url)) {
+    problems <- c(problems, "unregistered or unresolved version_source_url")
+  }
+  if (any(!capabilities$documentation_url %in% registered_urls$documentation_url)) {
+    problems <- c(problems, "unregistered or unresolved documentation_url")
+  }
+  if (any(!nzchar(trimws(capabilities$claim_type))) || any(!nzchar(trimws(capabilities$claim_value)))) {
+    problems <- c(problems, "non-atomic claim encoding")
+  }
+  if (any(!nzchar(trimws(capabilities$empirical_evidence_link)))) problems <- c(problems, "blank empirical evidence link")
+  list(valid = length(problems) == 0L, problems = unique(problems), required = required)
+}
+
+mvt_comparator_scope_registry <- function() {
+  data.frame(
+    method = c(
+      "gamCopula_markov", "gamCopula_vine_simplified", "gamCopula_vine",
+      "GJRM", "geepack_GEE", "glmmTMB", "gamlss_independence", "VineCopula"
+    ),
+    decision = c(
+      "retain", "retain", "targeted_sensitivity_only", "exclude_empirical",
+      "standard_model_track", "context_only", "context_only", "backend_only"
+    ),
+    headline_empirical_comparator = c(TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE),
+    matched_task = c(
+      "same data, marginal mean formulas, adjacent dependence target, and replicate seeds",
+      "same data, marginal mean formulas, multivariate copula target, and replicate seeds",
+      "same task but not tractable across the prespecified production grid",
+      "equation-oriented low-dimensional joint models are not equivalent to an arbitrary-T longitudinal first-order fit",
+      "same marginal-mean estimand but no full distributional joint-likelihood estimand",
+      "mixed-model capability context; the empirical GLMM benchmark is implemented with lme4",
+      "same marginal distribution class without a repeated-outcome dependence model",
+      "copula backend only; no fitted longitudinal marginal regression"
+    ),
+    limitation_or_infeasibility = c(
+      "two-stage fit; margin and dependence uncertainty is not equivalent to joint estimation",
+      "simplified-vine restriction; two-stage uncertainty is not equivalent to joint estimation",
+      "excluded a priori to keep the headline comparison to two bounded nearest-neighbor workflows; reserve for a separately registered sensitivity",
+      "forcing repeated visits into separate equations changes dimension, formulas, and estimand",
+      "working-correlation and robust mean inference answer a narrower question; unstructured correlation scales quadratically in T",
+      "does not provide a task-equivalent copula estimand; avoid duplicating the retained random-intercept GLMM class benchmark",
+      "independence cannot assess recovery of longitudinal dependence",
+      "dependency used by gamCopula workflows; adding it as a separate method would not define matched fitted margins"
+    ),
+    stringsAsFactors = FALSE
   )
 }
 
@@ -120,6 +347,88 @@ mvt_write_csv <- function(x, path) {
   invisible(path)
 }
 
+mvt_replace_file_atomic <- function(temporary, path, backup = NULL) {
+  if (!file.exists(temporary)) stop("Atomic replacement source does not exist: ", temporary, call. = FALSE)
+  if (!file.exists(path)) {
+    if (!file.rename(temporary, path)) stop("Could not atomically install file: ", path, call. = FALSE)
+    return(invisible(path))
+  }
+  if (is.null(backup)) backup <- tempfile(paste0(".", basename(path), "-previous-"), tmpdir = dirname(path))
+  if (file.exists(backup)) stop("Atomic replacement backup path unexpectedly exists: ", backup, call. = FALSE)
+  if (.Platform$OS.type == "windows") {
+    ps_literal <- function(value) paste0("'", gsub("'", "''", normalizePath(value, winslash = "/", mustWork = FALSE), fixed = TRUE), "'")
+    command <- paste0(
+      "[System.IO.File]::Replace(", ps_literal(temporary), ",",
+      ps_literal(path), ",", ps_literal(backup), ",$true)"
+    )
+    status <- suppressWarnings(system2(
+      "powershell", c("-NoProfile", "-NonInteractive", "-Command", shQuote(command)),
+      stdout = TRUE, stderr = TRUE
+    ))
+    if (!identical(attr(status, "status") %||% 0L, 0L) || !file.exists(path)) {
+      stop("Windows atomic aggregate replacement failed: ", paste(status, collapse = " | "), call. = FALSE)
+    }
+  } else if (!file.rename(temporary, path)) {
+    stop("Could not atomically replace file: ", path, call. = FALSE)
+  }
+  if (file.exists(backup) && !file.remove(backup)) warning("Atomic replacement succeeded but its rollback backup remains: ", backup)
+  invisible(path)
+}
+
+mvt_save_rds_atomic <- function(x, path, lease) {
+  mvt_assert_active_lease(lease, path)
+  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+  temporary <- tempfile(paste0(".", basename(path), "-"), tmpdir = dirname(path))
+  on.exit(unlink(temporary, force = TRUE), add = TRUE)
+  saveRDS(x, temporary, version = 3)
+  mvt_assert_active_lease(lease, path)
+  mvt_replace_file_atomic(temporary, path)
+  invisible(path)
+}
+
+mvt_write_csv_atomic <- function(x, path, lease) {
+  owner <- mvt_assert_active_lease(lease, path)
+  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+  temporary <- tempfile(paste0(".", basename(path), "-"), tmpdir = dirname(path))
+  on.exit(unlink(temporary, force = TRUE), add = TRUE)
+  utils::write.csv(x, temporary, row.names = FALSE, na = "")
+  mvt_assert_active_lease(lease, path)
+  mvt_replace_file_atomic(temporary, path)
+  commit <- list(
+    schema_version = 1L,
+    file = basename(path), owner_role = "lease_parent", writer_pid = as.integer(owner$pid),
+    lease_nonce = owner$nonce, hostname = owner$hostname,
+    written_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"),
+    sha256 = mvt_sha256_file(path), rows = as.integer(nrow(x)),
+    columns = names(x), schema_sha256 = mvt_hash_object(names(x)),
+    bytes = as.numeric(file.info(path)$size)
+  )
+  mvt_save_rds_atomic(commit, paste0(path, ".commit.rds"), lease)
+  mvt_save_rds_atomic(commit, paste0(path, ".ownership.rds"), lease)
+  invisible(path)
+}
+
+mvt_write_lines_atomic <- function(lines, path, lease) {
+  owner <- mvt_assert_active_lease(lease, path)
+  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+  temporary <- tempfile(paste0(".", basename(path), "-"), tmpdir = dirname(path))
+  on.exit(unlink(temporary, force = TRUE), add = TRUE)
+  writeLines(lines, temporary, useBytes = TRUE)
+  mvt_assert_active_lease(lease, path)
+  mvt_replace_file_atomic(temporary, path)
+  commit <- list(
+    schema_version = 1L, file = basename(path), owner_role = "lease_parent",
+    writer_pid = as.integer(owner$pid), lease_nonce = owner$nonce,
+    hostname = owner$hostname, written_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"),
+    sha256 = mvt_sha256_file(path), rows = as.integer(length(lines)),
+    columns = character(), schema_sha256 = mvt_hash_object(character()),
+    bytes = as.numeric(file.info(path)$size)
+  )
+  mvt_save_rds_atomic(commit, paste0(path, ".commit.rds"), lease)
+  mvt_save_rds_atomic(commit, paste0(path, ".ownership.rds"), lease)
+  invisible(path)
+}
+
 mvt_result_names <- function() {
   c(
     "fit_status",
@@ -139,6 +448,15 @@ mvt_expected_output_files <- function() {
     "coefficient_summary.csv",
     "dependence_recovery_summary.csv",
     "variogram_summary.csv",
+    "gee_family_results.csv",
+    "gee_unstructured_stress_test.csv",
+    "nearest_neighbor_results.csv",
+    "nearest_neighbor_paired_contrasts.csv",
+    "capability_snapshot_2026-09-01.csv",
+    "comparator_scope_registry.csv",
+    "phase2_attempt_reconciliation.csv",
+    "phase2_benchmark_audit.csv",
+    "phase2_benchmark_audit.md",
     "case_method_completion_summary.csv",
     "pilot_feasibility_by_method.csv",
     "pilot_feasibility_by_scenario.csv",
@@ -152,6 +470,147 @@ mvt_expected_output_files <- function() {
     "package_versions.csv",
     "session_info.txt"
   )
+}
+
+mvt_phase2_public_output_allowlist <- function() {
+  list(
+    attempt_artifacts = c(
+      "scenario_grid.csv", "run_metadata.csv", "package_versions.csv",
+      "worker_attestations.csv", "checkpoint_rejections.csv",
+      paste0(mvt_result_names(), "_by_rep.csv")
+    ),
+    evidence_artifacts = c(
+      "gee_family_results.csv", "gee_unstructured_stress_test.csv",
+      "nearest_neighbor_results.csv", "nearest_neighbor_paired_contrasts.csv",
+      "capability_snapshot_2026-09-01.csv", "comparator_scope_registry.csv",
+      "phase2_attempt_reconciliation.csv", "phase2_benchmark_audit.csv",
+      "phase2_benchmark_audit.md"
+    )
+  )
+}
+
+mvt_phase2_claim_output_contract <- function() {
+  list(
+    schema_version = 1L,
+    required_fields = c(
+      "claim_id", "scenario_key", "row_key", "metric", "direction",
+      "denominator", "effect_artifact", "effect_column", "mcse_column",
+      "ci_lower_column", "ci_upper_column", "interval_support", "wording_strength"
+    ),
+    directions = c("higher", "lower", "positive", "negative", "no_direction"),
+    interval_support = c("supported", "not_supported", "not_applicable"),
+    wording_strength = c("exact", "directional", "cautious", "descriptive"),
+    effect_artifacts = setdiff(
+      mvt_phase2_public_output_allowlist()$evidence_artifacts,
+      c("phase2_benchmark_audit.md")
+    )
+  )
+}
+
+mvt_phase2_claim_wording_matrix <- function() {
+  rbind(
+    expand.grid(
+      direction_class = "directional", interval_support = "supported",
+      wording_strength = c("exact", "directional", "cautious", "descriptive"),
+      stringsAsFactors = FALSE
+    ),
+    expand.grid(
+      direction_class = "no_direction", interval_support = "not_applicable",
+      wording_strength = c("exact", "cautious", "descriptive"),
+      stringsAsFactors = FALSE
+    )
+  )
+}
+
+mvt_add_phase2_evidence_keys <- function(x) {
+  if (!is.data.frame(x) || !nrow(x)) return(x)
+  scenario_fields <- intersect(
+    c("scenario", "generator", "dependence", "correlation_level", "n_time", "n_subject", "total_rows", "family"),
+    names(x)
+  )
+  row_fields <- unique(c(scenario_fields, intersect(c("method", "neighbor", "metric", "check"), names(x))))
+  x$scenario_key <- if (length(scenario_fields)) {
+    do.call(paste, c(lapply(x[scenario_fields], as.character), sep = "|"))
+  } else {
+    rep("all", nrow(x))
+  }
+  x$row_key <- if (length(row_fields)) {
+    do.call(paste, c(lapply(x[row_fields], as.character), sep = "|"))
+  } else {
+    paste0("row-", seq_len(nrow(x)))
+  }
+  x
+}
+
+mvt_validate_phase2_claim_rows <- function(claims, evidence_dir) {
+  contract <- mvt_phase2_claim_output_contract()
+  missing <- setdiff(contract$required_fields, names(claims))
+  if (length(missing)) stop("Phase 2 claim output contract is missing fields: ", paste(missing, collapse = ", "), call. = FALSE)
+  if (!nrow(claims) || anyDuplicated(claims$claim_id) || any(!nzchar(trimws(as.character(claims$claim_id))))) {
+    stop("Phase 2 claim IDs must be nonempty and unique.", call. = FALSE)
+  }
+  text_fields <- setdiff(contract$required_fields, "claim_id")
+  if (any(vapply(claims[text_fields], function(x) any(is.na(x) | !nzchar(trimws(as.character(x)))), logical(1L)))) {
+    stop("Phase 2 claim output contract contains blank keys or evidence fields.", call. = FALSE)
+  }
+  if (!all(as.character(claims$direction) %in% contract$directions)) stop("Phase 2 claim direction is not registered.", call. = FALSE)
+  if (!all(as.character(claims$interval_support) %in% contract$interval_support)) stop("Phase 2 claim interval support is not registered.", call. = FALSE)
+  if (!all(as.character(claims$wording_strength) %in% contract$wording_strength)) stop("Phase 2 claim wording strength is not registered.", call. = FALSE)
+  if (!all(as.character(claims$effect_artifact) %in% contract$effect_artifacts)) stop("Phase 2 claim effect artifact is not allowlisted.", call. = FALSE)
+  for (i in seq_len(nrow(claims))) {
+    claim <- claims[i, , drop = FALSE]
+    path <- file.path(evidence_dir, as.character(claim$effect_artifact))
+    if (!file.exists(path)) stop("Phase 2 claim effect artifact is missing: ", path, call. = FALSE)
+    table <- utils::read.csv(path, stringsAsFactors = FALSE, check.names = FALSE)
+    required_columns <- unlist(claim[c("effect_column", "denominator", "mcse_column", "ci_lower_column", "ci_upper_column")], use.names = FALSE)
+    if (!all(c("scenario_key", "row_key", "metric", required_columns) %in% names(table))) {
+      stop("Phase 2 claim effect artifact lacks its registered key/metric/uncertainty columns: ", basename(path), call. = FALSE)
+    }
+    hit <- as.character(table$scenario_key) == as.character(claim$scenario_key) &
+      as.character(table$row_key) == as.character(claim$row_key) &
+      as.character(table$metric) == as.character(claim$metric)
+    if (sum(hit) != 1L) stop("Phase 2 claim does not resolve to exactly one evidence row: ", claim$claim_id, call. = FALSE)
+    values <- suppressWarnings(as.numeric(table[hit, required_columns, drop = TRUE]))
+    effect <- values[[1L]]; denominator <- values[[2L]]; mcse <- values[[3L]]
+    lower <- values[[4L]]; upper <- values[[5L]]
+    if (any(!is.finite(values))) stop("Phase 2 claim effect, denominator, MCSE, or CI is non-finite.", call. = FALSE)
+    if (denominator <= 0 || denominator != floor(denominator)) stop("Phase 2 claim denominator must be a positive integer.", call. = FALSE)
+    if (mcse < 0) stop("Phase 2 claim MCSE must be nonnegative.", call. = FALSE)
+    if (lower > upper || effect < lower || effect > upper) stop("Phase 2 claim confidence interval is inverted or does not contain its effect.", call. = FALSE)
+    direction <- as.character(claim$direction)
+    positive <- direction %in% c("positive", "higher")
+    negative <- direction %in% c("negative", "lower")
+    if ((positive && effect <= 0) || (negative && effect >= 0)) stop("Phase 2 claim direction contradicts the effect sign.", call. = FALSE)
+    computed_support <- if (positive) {
+      if (lower > 0) "supported" else "not_supported"
+    } else if (negative) {
+      if (upper < 0) "supported" else "not_supported"
+    } else {
+      "not_applicable"
+    }
+    if (!identical(as.character(claim$interval_support), computed_support)) stop("Phase 2 claim interval-support label contradicts its confidence interval.", call. = FALSE)
+    wording <- as.character(claim$wording_strength)
+    direction_class <- if (direction == "no_direction") "no_direction" else "directional"
+    allowed <- mvt_phase2_claim_wording_matrix()
+    allowed_row <- allowed$direction_class == direction_class &
+      allowed$interval_support == computed_support &
+      allowed$wording_strength == wording
+    if (!any(allowed_row)) {
+      stop(
+        "Phase 2 claim direction/interval/wording combination is not allowed; every directional expected direction requires a confidence interval wholly supporting it.",
+        call. = FALSE
+      )
+    }
+  }
+  invisible(TRUE)
+}
+
+mvt_validate_phase2_claim_outputs <- function(
+    claims, evidence_dir,
+    attestation_path = mvt_phase2_snapshot_attestation_path(),
+    signature_path = mvt_phase2_snapshot_signature_path()) {
+  mvt_validate_phase2_claim_evidence(evidence_dir, attestation_path, signature_path)
+  mvt_validate_phase2_claim_rows(claims, evidence_dir)
 }
 
 mvt_study_protocol_tables <- function() {
@@ -197,14 +656,13 @@ mvt_study_protocol_tables <- function() {
 
   comparator_table <- data.frame(
     method = mvt_allowed_comparators(),
-    role = c(
-      rep("main", length(mvt_default_comparators())),
-      "legacy_alias",
-      "targeted_sensitivity",
-      "appendix_sensitivity"
-    ),
+    role = "standard_or_focal_context",
     stringsAsFactors = FALSE
   )
+  comparator_table$role[comparator_table$method %in% mvt_nearest_neighbor_comparators()] <- "headline_nearest_neighbor"
+  comparator_table$role[comparator_table$method == "gamCopula"] <- "legacy_alias"
+  comparator_table$role[comparator_table$method == "gamCopula_vine"] <- "targeted_sensitivity"
+  comparator_table$role[comparator_table$method == "glmm_slope"] <- "appendix_sensitivity"
   comparator_table$description <- c(
     "GLM independence mean model",
     "Random-intercept GLMM primary comparator",
@@ -277,7 +735,7 @@ mvt_study_protocol_tables <- function() {
       "Native gamlss.longitudinal simulator track",
       "Dependence scenarios cover exchangeable, AR(1), time-varying, and covariate-dependent structures",
       "Standard GLM/GEE/GLMM comparators",
-      "gamCopula Markov, simplified-vine, and targeted full-vine comparators",
+      "Exactly two headline nearest-neighbor gamCopula workflows; full vine is targeted sensitivity only",
       "gamlss.longitudinal comparator",
       "GJRM excluded from high-dimensional comparator grid",
       "Primary coefficient, prediction, calibration, dependence, variogram, and runtime metrics",
@@ -295,7 +753,7 @@ mvt_study_protocol_tables <- function() {
       "mvt_simulate_native(); native_* dependence specs",
       "mvt_dependence_specs(include_appendix = TRUE)",
       "mvt_fit_standard_models(); mvt_run_one_gee(); mvt_run_glmm_slope()",
-      "mvt_fit_gamcopula(); mvt_fit_gamcopula_vine(); mvt_simulate_gamcopula_response(); gamCopula runtime dependency checks",
+      "mvt_nearest_neighbor_comparators(); mvt_comparator_scope_registry(); mvt_fit_gamcopula(); mvt_fit_gamcopula_vine()",
       "mvt_fit_gamlss_longitudinal(); mvt_variogram_score()",
       "Protocol scope and absence from mvt_default_comparators()",
       "mvt_distribution_metrics(); mvt_coef_table_one(); mvt_dependence_recovery_row(); mvt_variogram_score(); mvt_summarise_results()",
@@ -313,7 +771,7 @@ mvt_study_protocol_tables <- function() {
       "scenario_grid.csv generator/dependence rows; truth columns in by-rep outputs",
       "scenario_grid.csv; dependence_recovery_by_rep.csv",
       "fit_status_by_rep.csv; benchmark_results_by_rep.csv; coefficient_results_by_rep.csv",
-      "fit_status_by_rep.csv rows for gamCopula_markov and gamCopula_vine_simplified; dependence_recovery_by_rep.csv; variogram_scores_by_rep.csv; targeted full-vine sensitivity for covariate-dependent dependence",
+      "nearest_neighbor_results.csv; nearest_neighbor_paired_contrasts.csv; comparator_scope_registry.csv; optional targeted full-vine sensitivity",
       "fit_status_by_rep.csv rows for gamlss.longitudinal; dependence_recovery_by_rep.csv; variogram_scores_by_rep.csv",
       "comparators.csv; fit_status_by_rep.csv contains no GJRM method",
       "benchmark_results_by_rep.csv; coefficient_results_by_rep.csv; dependence_recovery_by_rep.csv; variogram_scores_by_rep.csv; runtime_by_rep.csv",
@@ -340,6 +798,8 @@ mvt_study_protocol_tables <- function() {
     family_design = family_table,
     dependence_design = dependence_table,
     comparators = comparator_table,
+    capability_snapshot_2026_09_01 = mvt_capability_snapshot(),
+    comparator_scope_registry = mvt_comparator_scope_registry(),
     metrics = metrics_table,
     expected_artifacts = output_table,
     publication_readiness = readiness,
@@ -1346,18 +1806,41 @@ mvt_elapsed_do_call <- function(fun, args = list()) {
   out
 }
 
+mvt_subprocess_identity_probe <- function() {
+  namespace_path <- normalizePath(
+    getNamespaceInfo(asNamespace("gamlss.longitudinal"), "path"),
+    winslash = "/", mustWork = TRUE
+  )
+  list(
+    package = "gamlss.longitudinal",
+    version = as.character(utils::packageVersion("gamlss.longitudinal")),
+    namespace_path = namespace_path
+  )
+}
+
+mvt_parallel_equivalence_tolerances <- function() {
+  c(absolute = 1e-10, relative = 1e-10)
+}
+
 mvt_run_fit_with_timeout <- function(fun_name, args = list(), timeout = Inf) {
   start <- Sys.time()
   if (is.finite(timeout) && timeout > 0 && requireNamespace("callr", quietly = TRUE)) {
+    expected_execution <- getOption(
+      "gamlss.longitudinal.mvt.execution_attestation",
+      mvt_execution_attestation_contract(configuration_fingerprint = "standalone-subprocess")
+    )
     value <- tryCatch(
       callr::r(
-        function(fun_name, args, repo_root) {
+        function(fun_name, args, repo_root, expected_execution) {
           setwd(repo_root)
           source(file.path("paper", "R", "09-simulation-multivariate-longitudinal", "00-multivariate-setup.R"))
-          mvt_load_package()
-          mvt_elapsed_do_call(get(fun_name, envir = globalenv()), args)
+          Sys.setenv(GAMLSS_LONGITUDINAL_MVT_SOURCE = "local")
+          identity <- mvt_verify_execution_attestation(expected_execution, load = TRUE)
+          out <- mvt_elapsed_do_call(get(fun_name, envir = globalenv()), args)
+          out$subprocess_attestation <- identity
+          out
         },
-        args = list(fun_name = fun_name, args = args, repo_root = mvt_repo_root),
+        args = list(fun_name = fun_name, args = args, repo_root = mvt_repo_root, expected_execution = expected_execution),
         timeout = timeout
       ),
       error = function(e) e
@@ -1367,6 +1850,13 @@ mvt_run_fit_with_timeout <- function(fun_name, args = list(), timeout = Inf) {
         value = value,
         warnings = character(),
         elapsed_sec = as.numeric(difftime(Sys.time(), start, units = "secs"))
+      ))
+    }
+    identity <- value$subprocess_attestation
+    if (!mvt_execution_attestation_matches(identity, expected_execution)) {
+      return(list(
+        value = simpleError("Timed fit subprocess checkout attestation failed."),
+        warnings = character(), elapsed_sec = as.numeric(difftime(Sys.time(), start, units = "secs"))
       ))
     }
     return(value)
@@ -1602,12 +2092,46 @@ mvt_distribution_metrics <- function(data, params, spec, p = 0.9, interval_level
   out
 }
 
+mvt_value_converged <- function(value) {
+  if (inherits(value, "error") || is.null(value)) return(FALSE)
+  if (inherits(value, "merMod")) {
+    messages <- value@optinfo$conv$lme4$messages
+    optimizer_code <- value@optinfo$conv$opt %||% 0L
+    return(!length(messages) && all(suppressWarnings(as.numeric(optimizer_code)) == 0))
+  }
+  if (inherits(value, "geeglm")) {
+    error_code <- value$geese$error %||% NA_integer_
+    return(length(error_code) == 1L && is.finite(error_code) && error_code == 0L)
+  }
+  if (is.list(value) || is.environment(value)) {
+    if (!is.null(value[["converged"]])) return(isTRUE(value[["converged"]]))
+    if (inherits(value, "mvt_gamcopula_fit") && !is.null(value[["margin_fit"]][["converged"]])) {
+      return(isTRUE(value[["margin_fit"]][["converged"]]))
+    }
+  }
+  TRUE
+}
+
+mvt_value_stop_reason <- function(value, converged, error_msg = NA_character_) {
+  if (inherits(value, "error")) return("error")
+  reason <- if (is.list(value) || is.environment(value)) {
+    value[["stop_reason"]] %||% value[["optimizer_stop_reason"]] %||% NULL
+  } else {
+    NULL
+  }
+  if (!is.null(reason) && length(reason) && nzchar(as.character(reason[[1L]]))) return(as.character(reason[[1L]]))
+  if (isTRUE(converged)) "converged" else if (!is.na(error_msg) && nzchar(error_msg)) "error" else "nonconverged"
+}
+
 mvt_method_result_row <- function(row, spec, method, fit_result, pred = NULL, extra = list()) {
-  success <- !inherits(fit_result$value, "error") && !is.null(fit_result$value)
+  converged <- mvt_value_converged(fit_result$value)
+  success <- !inherits(fit_result$value, "error") && !is.null(fit_result$value) && converged
   error_msg <- if (success) {
     NA_character_
   } else if (inherits(fit_result$value, "error")) {
     conditionMessage(fit_result$value)
+  } else if (!is.null(fit_result$value) && !converged) {
+    "Optimizer did not converge."
   } else {
     "Fit returned NULL."
   }
@@ -1630,8 +2154,12 @@ mvt_method_result_row <- function(row, spec, method, fit_result, pred = NULL, ex
     gamlss_family = spec$gamlss_family,
     rep = row$rep,
     method = method,
+    attempted = TRUE,
     available = TRUE,
     success = success,
+    converged = converged,
+    retained = success,
+    stop_reason = mvt_value_stop_reason(fit_result$value, converged, error_msg),
     status_class = mvt_fit_status_class(
       success,
       error_msg,
@@ -1652,6 +2180,14 @@ mvt_method_result_row <- function(row, spec, method, fit_result, pred = NULL, ex
     out$error,
     out$warning
   )
+  subprocess_identity <- fit_result$subprocess_attestation %||% NULL
+  out$subprocess_package_verified <- if (is.null(subprocess_identity)) NA else isTRUE(subprocess_identity$verified)
+  out$subprocess_source_sha256 <- subprocess_identity$verified_source_sha256 %||% NA_character_
+  out$subprocess_namespace_path <- subprocess_identity$loaded_namespace_path %||% NA_character_
+  out$subprocess_dependency_fingerprint <- subprocess_identity$dependency_fingerprint %||% NA_character_
+  out$subprocess_runtime_fingerprint <- subprocess_identity$runtime_fingerprint %||% NA_character_
+  out$subprocess_configuration_fingerprint <- subprocess_identity$configuration_fingerprint %||% NA_character_
+  out$subprocess_full_verified <- if (is.null(subprocess_identity)) NA else isTRUE(subprocess_identity$full_verified)
   for (nm in names(extra)) {
     if (!nm %in% c("y")) out[[nm]] <- mvt_scalar_extra(extra[[nm]])
   }
@@ -1718,6 +2254,17 @@ mvt_fit_standard_models <- function(dat, spec, row, dep) {
     truth_family = spec$gamlss_family,
     distributional_metrics = TRUE
   )
+  fit_converged <- vapply(as.character(fit$results$method), function(method) {
+    candidate <- fit$fits[[method]] %||% NULL
+    mvt_value_converged(candidate)
+  }, logical(1L))
+  fit$results$converged <- fit_converged
+  fit$results$success <- (fit$results$success %in% TRUE) & fit_converged
+  fit$results$retained <- fit$results$success
+  fit$results$stop_reason <- ifelse(fit_converged, "converged", "optimizer_nonconvergence")
+  if (!"error" %in% names(fit$results)) fit$results$error <- NA_character_
+  failed_convergence <- !fit_converged & (is.na(fit$results$error) | !nzchar(trimws(as.character(fit$results$error))))
+  fit$results$error[failed_convergence] <- "Optimizer did not converge."
   fit$results$case_id <- row$case_id
   fit$results$scenario <- row$scenario
   fit$results$generator <- row$generator
@@ -1756,9 +2303,9 @@ mvt_fit_standard_models <- function(dat, spec, row, dep) {
 mvt_run_one_gee <- function(dat, spec, row, corstr) {
   if (is.null(spec$standard_family)) return(list(results = data.frame(), coefficients = data.frame(), fit = NULL))
   timeout <- if (identical(corstr, "unstructured")) {
-    mvt_env_num("GAMLSS_LONGITUDINAL_MVT_GEE_UNSTRUCTURED_TIMEOUT_SEC", if (row$n_time >= 50L) 30 else Inf)
+    mvt_registered_timeout("GAMLSS_LONGITUDINAL_MVT_GEE_UNSTRUCTURED_TIMEOUT_SEC", if (row$n_time >= 50L) 30 else 60)
   } else {
-    mvt_env_num("GAMLSS_LONGITUDINAL_MVT_GEE_TIMEOUT_SEC", Inf)
+    mvt_registered_timeout("GAMLSS_LONGITUDINAL_MVT_GEE_TIMEOUT_SEC", 300)
   }
   run <- function() {
     gamlss.longitudinal::benchmark_standard_models(
@@ -1774,9 +2321,17 @@ mvt_run_one_gee <- function(dat, spec, row, corstr) {
     )
   }
   start <- Sys.time()
+  subprocess_attestation <- NULL
   value <- if (is.finite(timeout) && timeout > 0 && requireNamespace("callr", quietly = TRUE)) {
-    tryCatch(callr::r(function(dat, spec, corstr) {
-      gamlss.longitudinal::benchmark_standard_models(
+    expected_execution <- getOption(
+      "gamlss.longitudinal.mvt.execution_attestation",
+      mvt_execution_attestation_contract(configuration_fingerprint = "standalone-gee")
+    )
+    child <- tryCatch(callr::r(function(dat, spec, corstr, root, setup_path, expected_execution) {
+      source(setup_path, local = .GlobalEnv)
+      Sys.setenv(GAMLSS_LONGITUDINAL_MVT_SOURCE = "local")
+      identity <- mvt_verify_execution_attestation(expected_execution, load = TRUE)
+      result <- gamlss.longitudinal::benchmark_standard_models(
         data = dat,
         formula = response ~ time + x + z,
         subject_var = "subject",
@@ -1787,7 +2342,19 @@ mvt_run_one_gee <- function(dat, spec, row, corstr) {
         distributional_metrics = TRUE,
         waves = dat$time_index
       )
-    }, args = list(dat = dat, spec = spec, corstr = corstr), timeout = timeout), error = function(e) e)
+      list(result = result, attestation = identity)
+    }, args = list(
+      dat = dat, spec = spec, corstr = corstr,
+      root = mvt_repo_root,
+      setup_path = file.path(mvt_script_dir, "00-multivariate-setup.R"),
+      expected_execution = expected_execution
+    ), timeout = timeout), error = function(e) e)
+    if (inherits(child, "error")) child else {
+      subprocess_attestation <- child$attestation
+      if (!mvt_execution_attestation_matches(subprocess_attestation, expected_execution)) {
+        simpleError("Timed GEE subprocess checkout attestation failed.")
+      } else child$result
+    }
   } else {
     tryCatch(run(), error = function(e) e)
   }
@@ -1806,6 +2373,19 @@ mvt_run_one_gee <- function(dat, spec, row, corstr) {
   value$results$method <- method
   value$results$comparator <- method
   value$results$elapsed_sec <- elapsed
+  gee_converged <- mvt_value_converged(value$fits$gee %||% NULL)
+  value$results$converged <- gee_converged
+  value$results$success <- (value$results$success %in% TRUE) & gee_converged
+  value$results$retained <- value$results$success
+  value$results$stop_reason <- if (gee_converged) "converged" else "optimizer_nonconvergence"
+  if (!gee_converged) value$results$error <- "Optimizer did not converge."
+  value$results$subprocess_package_verified <- if (is.null(subprocess_attestation)) NA else isTRUE(subprocess_attestation$verified)
+  value$results$subprocess_source_sha256 <- subprocess_attestation$verified_source_sha256 %||% NA_character_
+  value$results$subprocess_namespace_path <- subprocess_attestation$loaded_namespace_path %||% NA_character_
+  value$results$subprocess_dependency_fingerprint <- subprocess_attestation$dependency_fingerprint %||% NA_character_
+  value$results$subprocess_runtime_fingerprint <- subprocess_attestation$runtime_fingerprint %||% NA_character_
+  value$results$subprocess_configuration_fingerprint <- subprocess_attestation$configuration_fingerprint %||% NA_character_
+  value$results$subprocess_full_verified <- if (is.null(subprocess_attestation)) NA else isTRUE(subprocess_attestation$full_verified)
   prefix <- data.frame(
     case_id = row$case_id,
     scenario = row$scenario,
@@ -2782,6 +3362,10 @@ mvt_is_standard_variogram_fit <- function(fit) {
 }
 
 mvt_variogram_score <- function(dat, fit, method, row, spec, nsim = 50L, seed = NULL) {
+  nsim <- suppressWarnings(as.integer(nsim))
+  if (length(nsim) != 1L || is.na(nsim) || nsim <= 0L) {
+    return(mvt_variogram_empty(row, spec, method, "Variogram simulation skipped because nsim <= 0."))
+  }
   if (!requireNamespace("scoringRules", quietly = TRUE)) {
     return(mvt_variogram_empty(row, spec, method, "Package 'scoringRules' is not installed."))
   }
@@ -2817,9 +3401,86 @@ mvt_variogram_score <- function(dat, fit, method, row, spec, nsim = 50L, seed = 
   out
 }
 
+mvt_run_variogram_score <- function(
+    dat, fit, method, row, spec, nsim = 50L, seed = NULL,
+    timeout = mvt_env_num("GAMLSS_LONGITUDINAL_MVT_VARIOGRAM_TIMEOUT_SEC", 300)) {
+  nsim <- suppressWarnings(as.integer(nsim))
+  if (length(nsim) != 1L || is.na(nsim) || nsim <= 0L) {
+    return(mvt_variogram_score(dat, fit, method, row, spec, nsim = nsim, seed = seed))
+  }
+  if (is.finite(timeout) && timeout > 0 && requireNamespace("callr", quietly = TRUE)) {
+    value <- tryCatch(
+      callr::r(
+        function(dat, fit, method, row, spec, nsim, seed, repo_root) {
+          setwd(repo_root)
+          source(file.path("paper", "R", "09-simulation-multivariate-longitudinal", "00-multivariate-setup.R"))
+          Sys.setenv(GAMLSS_LONGITUDINAL_MVT_SOURCE = "local")
+          mvt_load_package()
+          mvt_variogram_score(dat, fit, method, row, spec, nsim = nsim, seed = seed)
+        },
+        args = list(
+          dat = dat, fit = fit, method = method, row = row, spec = spec,
+          nsim = nsim, seed = seed, repo_root = mvt_repo_root
+        ),
+        timeout = timeout
+      ),
+      error = function(e) e
+    )
+    if (inherits(value, "error")) {
+      out <- mvt_variogram_empty(row, spec, method, conditionMessage(value))
+      out$variogram_nsim <- nsim
+      return(out)
+    }
+    return(value)
+  }
+  mvt_variogram_score(dat, fit, method, row, spec, nsim = nsim, seed = seed)
+}
+
+mvt_enforce_attempt_schema <- function(results) {
+  if (!is.data.frame(results) || !nrow(results)) return(results)
+  if (!"attempted" %in% names(results)) results$attempted <- TRUE
+  results$attempted[is.na(results$attempted)] <- TRUE
+  results$attempted <- results$attempted %in% TRUE
+  if (!"converged" %in% names(results)) results$converged <- results$success %in% TRUE
+  results$converged <- results$converged %in% TRUE
+  if (!"success" %in% names(results)) results$success <- results$converged
+  results$success <- results$success %in% TRUE & results$converged
+  if (!"retained" %in% names(results)) results$retained <- results$success
+  results$retained <- results$retained %in% TRUE & results$converged & results$success
+  if (!"stop_reason" %in% names(results)) results$stop_reason <- ifelse(results$converged, "converged", "nonconverged")
+  results$stop_reason[is.na(results$stop_reason) | !nzchar(trimws(results$stop_reason))] <- ifelse(
+    results$converged[is.na(results$stop_reason) | !nzchar(trimws(results$stop_reason))], "converged", "nonconverged"
+  )
+  if (!"error" %in% names(results)) results$error <- NA_character_
+  if (!"warning" %in% names(results)) results$warning <- NA_character_
+  if (!"elapsed_sec" %in% names(results)) results$elapsed_sec <- NA_real_
+  if (!"status_class" %in% names(results)) results$status_class <- NA_character_
+  missing_status <- is.na(results$status_class) | !nzchar(trimws(as.character(results$status_class)))
+  missing_status <- missing_status |
+    (!results$success & tolower(as.character(results$status_class)) %in% c("ok", "success")) |
+    (results$success & tolower(as.character(results$status_class)) %in% c("error", "timeout"))
+  if (any(missing_status)) results$status_class[missing_status] <- vapply(which(missing_status), function(i) {
+    mvt_fit_status_class(results$success[[i]], results$error[[i]], results$warning[[i]])
+  }, character(1L))
+  if (!"failure_reason_short" %in% names(results)) results$failure_reason_short <- NA_character_
+  missing_reason <- is.na(results$failure_reason_short) | !nzchar(trimws(as.character(results$failure_reason_short)))
+  missing_reason <- missing_reason | (!results$success & results$failure_reason_short == "none")
+  if (any(missing_reason)) results$failure_reason_short[missing_reason] <- mapply(
+    mvt_failure_reason_short,
+    results$success[missing_reason], results$status_class[missing_reason],
+    results$error[missing_reason], results$warning[missing_reason], USE.NAMES = FALSE
+  )
+  accuracy_cols <- intersect(
+    c("mae", "rmse", grep("^benchmark_", names(results), value = TRUE), "logLik", "AIC", "BIC"),
+    names(results)
+  )
+  if (length(accuracy_cols) && any(!results$retained)) results[!results$retained, accuracy_cols] <- NA
+  results
+}
+
 mvt_status_from_results <- function(results) {
   if (!is.data.frame(results) || nrow(results) == 0L) return(data.frame())
-  out <- results
+  out <- mvt_enforce_attempt_schema(results)
   if (!"available" %in% names(out)) out$available <- TRUE
   if (!"success" %in% names(out)) out$success <- NA
   if (!"warning" %in% names(out)) out$warning <- NA_character_
@@ -2846,7 +3507,8 @@ mvt_status_from_results <- function(results) {
     c(
       "case_id", "scenario", "generator", "dependence", "correlation_level",
       "n_time", "n_subject", "total_rows", "family", "gamlss_family", "rep",
-      "method", "available", "success", "status_class", "elapsed_sec", "nobs",
+      "method", "attempted", "available", "success", "converged", "retained",
+      "stop_reason", "status_class", "elapsed_sec", "nobs",
       "failure_reason_short", "warning", "error"
     ),
     names(out)
@@ -2854,7 +3516,7 @@ mvt_status_from_results <- function(results) {
   out[, keep, drop = FALSE]
 }
 
-mvt_run_case <- function(row, seed_base = 20260818L, require_gamcopula = TRUE) {
+mvt_run_case <- function(row, seed_base = 20260818L, require_gamcopula = TRUE, case_seed = NULL) {
   if (isTRUE(require_gamcopula)) {
     mvt_require_namespaces("gamCopula", strict = TRUE)
   }
@@ -2862,19 +3524,31 @@ mvt_run_case <- function(row, seed_base = 20260818L, require_gamcopula = TRUE) {
   deps <- mvt_dependence_specs(include_appendix = TRUE)
   spec <- families[[row$family_name]]
   dep <- mvt_resize_dependence(deps[[row$dependence_name]], row$n_time)
-  seed <- seed_base + match(row$family_name, names(families)) * 100000L +
+  active_comparators <- mvt_active_comparators()
+  derived_seed <- seed_base + match(row$family_name, names(families)) * 100000L +
     match(row$dependence_name, names(deps)) * 1000L + row$n_time * 10L + row$rep
+  seed <- if (is.null(case_seed)) as.integer(derived_seed) else as.integer(case_seed)
+  if (length(seed) != 1L || is.na(seed) || !identical(seed, as.integer(derived_seed))) {
+    stop("case_seed does not match the registered deterministic seed formula for ", row$case_id, call. = FALSE)
+  }
 
   sim_capture <- mvt_elapsed_capture(mvt_simulate_case(row, seed = seed))
   if (inherits(sim_capture$value, "error")) {
-    status <- mvt_method_result_row(row, spec, "simulation", sim_capture)
+    benchmark_results <- mvt_bind_rows_fill(lapply(
+      active_comparators,
+      function(method) mvt_method_result_row(row, spec, method, sim_capture)
+    ))
+    fit_status <- mvt_status_from_results(benchmark_results)
     return(list(
-      fit_status = status,
-      benchmark_results = status,
+      fit_status = fit_status,
+      benchmark_results = benchmark_results,
       coefficient_results = data.frame(),
       dependence_recovery = data.frame(),
       variogram_scores = data.frame(),
-      runtime = status[c("case_id", "method", "elapsed_sec", "success", "error")]
+      runtime = benchmark_results[intersect(
+        c("case_id", "scenario", "family", "rep", "method", "attempted", "success", "converged", "retained", "stop_reason", "status_class", "elapsed_sec", "failure_reason_short", "warning", "error"),
+        names(benchmark_results)
+      )]
     ))
   }
   dat <- sim_capture$value
@@ -2886,10 +3560,8 @@ mvt_run_case <- function(row, seed_base = 20260818L, require_gamcopula = TRUE) {
   dep_rows <- list()
   vario_rows <- list()
   status_rows <- list()
-  active_comparators <- mvt_active_comparators()
-
   if (length(mvt_standard_comparators(active_comparators)) > 0L) {
-    standard <- mvt_capture(mvt_fit_standard_models(dat, spec, row, dep))
+    standard <- mvt_elapsed_capture(mvt_fit_standard_models(dat, spec, row, dep))
     if (!inherits(standard$value, "error")) {
       result_rows[[length(result_rows) + 1L]] <- standard$value$results
       coef_rows[[length(coef_rows) + 1L]] <- mvt_annotate_coefficients(standard$value$coefficients, spec)
@@ -2897,7 +3569,7 @@ mvt_run_case <- function(row, seed_base = 20260818L, require_gamcopula = TRUE) {
       standard_fits <- standard_fits[names(standard_fits) %in% mvt_standard_comparators(active_comparators)]
       for (fit_name in names(standard_fits)) {
         if (!is.null(standard_fits[[fit_name]])) {
-          vario_rows[[length(vario_rows) + 1L]] <- mvt_variogram_score(
+          vario_rows[[length(vario_rows) + 1L]] <- mvt_run_variogram_score(
             model_dat, standard_fits[[fit_name]], fit_name, row, spec,
             nsim = mvt_env_int("GAMLSS_LONGITUDINAL_MVT_VARIOGRAM_NSIM", 20L),
             seed = seed + 7000L + match(fit_name, names(standard_fits))
@@ -2905,13 +3577,13 @@ mvt_run_case <- function(row, seed_base = 20260818L, require_gamcopula = TRUE) {
         }
       }
     } else {
-      result_rows[[length(result_rows) + 1L]] <- mvt_method_result_row(
-        row,
-        spec,
-        "standard_models",
-        list(value = standard$value, warnings = standard$warnings, elapsed_sec = NA_real_),
-        extra = list(y = y)
-      )
+      failed_standard <- list(value = standard$value, warnings = standard$warnings, elapsed_sec = standard$elapsed_sec)
+      result_rows[[length(result_rows) + 1L]] <- mvt_bind_rows_fill(lapply(
+        mvt_standard_comparators(active_comparators),
+        function(method) mvt_method_result_row(
+          row, spec, method, failed_standard, extra = list(y = y)
+        )
+      ))
     }
   }
 
@@ -2920,7 +3592,7 @@ mvt_run_case <- function(row, seed_base = 20260818L, require_gamcopula = TRUE) {
     result_rows[[length(result_rows) + 1L]] <- gee$results
     coef_rows[[length(coef_rows) + 1L]] <- mvt_annotate_coefficients(gee$coefficients, spec)
     if (!is.null(gee$fit)) {
-      vario_rows[[length(vario_rows) + 1L]] <- mvt_variogram_score(
+      vario_rows[[length(vario_rows) + 1L]] <- mvt_run_variogram_score(
         model_dat, gee$fit, paste0("gee_", corstr), row, spec,
         nsim = mvt_env_int("GAMLSS_LONGITUDINAL_MVT_VARIOGRAM_NSIM", 20L),
         seed = seed + 7200L + match(corstr, dep$gee_correlations)
@@ -2933,7 +3605,7 @@ mvt_run_case <- function(row, seed_base = 20260818L, require_gamcopula = TRUE) {
     result_rows[[length(result_rows) + 1L]] <- glmm_slope$results
     coef_rows[[length(coef_rows) + 1L]] <- mvt_annotate_coefficients(glmm_slope$coefficients, spec)
     if (!is.null(glmm_slope$fit)) {
-      vario_rows[[length(vario_rows) + 1L]] <- mvt_variogram_score(
+      vario_rows[[length(vario_rows) + 1L]] <- mvt_run_variogram_score(
         model_dat, glmm_slope$fit, "glmm_slope", row, spec,
         nsim = mvt_env_int("GAMLSS_LONGITUDINAL_MVT_VARIOGRAM_NSIM", 20L),
         seed = seed + 7400L
@@ -2945,7 +3617,10 @@ mvt_run_case <- function(row, seed_base = 20260818L, require_gamcopula = TRUE) {
     gl <- mvt_run_fit_with_timeout(
       "mvt_fit_gamlss_longitudinal_for_case",
       args = list(dat = dat, row = row),
-      timeout = mvt_env_num("GAMLSS_LONGITUDINAL_MVT_PRIMARY_MAX_ELAPSED_SEC", 180)
+      timeout = mvt_env_num(
+        "GAMLSS_LONGITUDINAL_MVT_GAMLSS_TIMEOUT_SEC",
+        mvt_env_num("GAMLSS_LONGITUDINAL_MVT_PRIMARY_MAX_ELAPSED_SEC", 180)
+      )
     )
     extra_gl <- list(y = y)
     pred_gl <- NULL
@@ -2966,7 +3641,7 @@ mvt_run_case <- function(row, seed_base = 20260818L, require_gamcopula = TRUE) {
     if (inherits(gl$value, "gamlss.longitudinal")) {
       coef_rows[[length(coef_rows) + 1L]] <- mvt_coef_table_one(gl$value, "gamlss.longitudinal", row, spec)
       dep_rows[[length(dep_rows) + 1L]] <- mvt_dependence_recovery_row(dat, gl$value, "gamlss.longitudinal", row, spec)
-      vario_rows[[length(vario_rows) + 1L]] <- mvt_variogram_score(
+      vario_rows[[length(vario_rows) + 1L]] <- mvt_run_variogram_score(
         model_dat, gl$value, "gamlss.longitudinal", row, spec,
         nsim = mvt_env_int("GAMLSS_LONGITUDINAL_MVT_VARIOGRAM_NSIM", 20L),
         seed = seed + 9000L
@@ -3017,7 +3692,7 @@ mvt_run_case <- function(row, seed_base = 20260818L, require_gamcopula = TRUE) {
     if (inherits(gc_fit$value, "mvt_gamcopula_fit")) {
       coef_rows[[length(coef_rows) + 1L]] <- mvt_coef_table_one(gc_fit$value, gc_method, row, spec)
       dep_rows[[length(dep_rows) + 1L]] <- mvt_dependence_recovery_row(dat, gc_fit$value, gc_method, row, spec)
-      vario_rows[[length(vario_rows) + 1L]] <- mvt_variogram_score(
+      vario_rows[[length(vario_rows) + 1L]] <- mvt_run_variogram_score(
         model_dat, gc_fit$value, gc_method, row, spec,
         nsim = mvt_env_int("GAMLSS_LONGITUDINAL_MVT_VARIOGRAM_NSIM", 20L),
         seed = seed + if (identical(gc_method, "gamCopula_vine")) 9700L else if (identical(gc_method, "gamCopula_vine_simplified")) 9650L else 9500L
@@ -3025,11 +3700,29 @@ mvt_run_case <- function(row, seed_base = 20260818L, require_gamcopula = TRUE) {
     }
   }
 
-  benchmark_results <- mvt_bind_rows_fill(result_rows)
+  benchmark_results <- mvt_enforce_attempt_schema(mvt_bind_rows_fill(result_rows))
   fit_status <- mvt_status_from_results(benchmark_results)
   coefficient_results <- mvt_bind_rows_fill(coef_rows)
   dependence_recovery <- mvt_bind_rows_fill(dep_rows)
   variogram_scores <- mvt_bind_rows_fill(vario_rows)
+  retained_keys <- paste(
+    benchmark_results$case_id[benchmark_results$retained %in% TRUE],
+    benchmark_results$method[benchmark_results$retained %in% TRUE], sep = "\r"
+  )
+  retain_accuracy_rows <- function(table) {
+    if (!is.data.frame(table) || !nrow(table)) return(table)
+    key <- paste(table$case_id, table$method, sep = "\r")
+    table[key %in% retained_keys, , drop = FALSE]
+  }
+  coefficient_results <- retain_accuracy_rows(coefficient_results)
+  dependence_recovery <- retain_accuracy_rows(dependence_recovery)
+  if (nrow(variogram_scores)) {
+    variogram_key <- paste(variogram_scores$case_id, variogram_scores$method, sep = "\r")
+    failed_vario <- !variogram_key %in% retained_keys
+    variogram_scores$variogram_score_p05[failed_vario] <- NA_real_
+    variogram_scores$variogram_score_p2[failed_vario] <- NA_real_
+    variogram_scores$error[failed_vario] <- "Fit was not retained; variogram accuracy excluded."
+  }
   if (nrow(benchmark_results) > 0L && "method" %in% names(benchmark_results)) {
     scored_methods <- if (nrow(variogram_scores) > 0L && "method" %in% names(variogram_scores)) {
       unique(variogram_scores$method)
@@ -3050,7 +3743,10 @@ mvt_run_case <- function(row, seed_base = 20260818L, require_gamcopula = TRUE) {
       variogram_scores <- mvt_bind_rows_fill(variogram_scores, empty_vario)
     }
   }
-  runtime <- benchmark_results[, intersect(c("case_id", "scenario", "family", "method", "elapsed_sec", "success", "error"), names(benchmark_results)), drop = FALSE]
+  runtime <- benchmark_results[, intersect(
+    c("case_id", "scenario", "family", "rep", "method", "attempted", "success", "converged", "retained", "stop_reason", "status_class", "elapsed_sec", "failure_reason_short", "warning", "error"),
+    names(benchmark_results)
+  ), drop = FALSE]
 
   list(
     fit_status = fit_status,
@@ -3064,6 +3760,1373 @@ mvt_run_case <- function(row, seed_base = 20260818L, require_gamcopula = TRUE) {
 
 mvt_default_run_dir <- function(stage) {
   file.path(mvt_output_root, paste0(stage, "_", mvt_timestamp()))
+}
+
+mvt_checkpoint_schema_version <- 3L
+mvt_identity_algorithm <- "SHA-256"
+mvt_identity_version <- "mvt-identity-v3"
+mvt_producer_id <- "module09-multivariate-longitudinal-benchmark"
+mvt_producer_version <- "3"
+mvt_active_leases <- new.env(parent = emptyenv())
+
+mvt_hash_object <- function(x) {
+  if (!requireNamespace("digest", quietly = TRUE)) {
+    stop("Package 'digest' is required for canonical SHA-256 identity.", call. = FALSE)
+  }
+  digest::digest(x, algo = "sha256", serialize = TRUE, serializeVersion = 3)
+}
+
+mvt_sha256_file <- function(path) {
+  if (!requireNamespace("digest", quietly = TRUE)) {
+    stop("Package 'digest' is required for canonical SHA-256 identity.", call. = FALSE)
+  }
+  digest::digest(file = path, algo = "sha256", serialize = FALSE)
+}
+
+mvt_files_fingerprint <- function(paths, root = mvt_repo_root) {
+  paths <- sort(unique(normalizePath(paths[file.exists(paths)], winslash = "/", mustWork = TRUE)))
+  root <- normalizePath(root, winslash = "/", mustWork = TRUE)
+  labels <- ifelse(startsWith(paths, paste0(root, "/")), substring(paths, nchar(root) + 2L), paths)
+  hashes <- vapply(paths, mvt_sha256_file, character(1L))
+  manifest <- paste(labels, hashes, sep = "\t", collapse = "\n")
+  mvt_hash_object(list(
+    algorithm = mvt_identity_algorithm,
+    identity_version = mvt_identity_version,
+    sorted_manifest = manifest
+  ))
+}
+
+mvt_runtime_identity <- function() {
+  soft <- extSoftVersion()
+  blas <- unname(soft["BLAS"] %||% NA_character_)
+  if (!length(blas) || is.na(blas) || !nzchar(blas)) blas <- "default"
+  lapack <- tryCatch(La_library(), error = function(e) "")
+  if (!length(lapack) || is.na(lapack) || !nzchar(lapack)) lapack <- "default"
+  list(
+    r_version = R.version.string,
+    platform = R.version$platform,
+    rng_kind = RNGkind(),
+    blas = blas,
+    lapack = lapack
+  )
+}
+
+mvt_hardware_identity <- function() {
+  ram_bytes <- NA_real_
+  if (.Platform$OS.type == "windows") {
+    ram_text <- tryCatch(system2("powershell", c("-NoProfile", "-Command", "(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory"), stdout = TRUE, stderr = FALSE), error = function(e) character())
+    if (length(ram_text)) ram_bytes <- suppressWarnings(as.numeric(trimws(ram_text[[1L]])))
+  }
+  list(
+    hostname = unname(Sys.info()[["nodename"]]),
+    cpu_model = Sys.getenv("PROCESSOR_IDENTIFIER", unset = unname(Sys.info()[["machine"]])),
+    logical_cores = parallel::detectCores(logical = TRUE),
+    physical_cores = parallel::detectCores(logical = FALSE),
+    ram_bytes = ram_bytes,
+    parent_pid = as.integer(Sys.getpid())
+  )
+}
+
+mvt_checkout_package_identity <- function() {
+  root <- normalizePath(mvt_repo_root, winslash = "/", mustWork = TRUE)
+  files <- c(
+    list.files(file.path(root, "R"), pattern = "[.]R$", full.names = TRUE),
+    file.path(root, c("DESCRIPTION", "NAMESPACE"))
+  )
+  files <- sort(normalizePath(files[file.exists(files)], winslash = "/", mustWork = TRUE))
+  description <- read.dcf(file.path(root, "DESCRIPTION"))
+  list(
+    algorithm = mvt_identity_algorithm,
+    identity_version = mvt_identity_version,
+    package = "gamlss.longitudinal",
+    version = unname(description[1L, "Version"]),
+    checkout_path = root,
+    source_sha256 = mvt_files_fingerprint(files, root),
+    source_files = substring(files, nchar(root) + 2L),
+    source_file_count = length(files)
+  )
+}
+
+mvt_dependency_packages <- function() {
+  c(
+    "gamlss.longitudinal", "gamlss", "gamlss.dist", "gamCopula", "VineCopula",
+    "mvtnorm", "geepack", "lme4", "mgcv", "callr", "scoringRules"
+  )
+}
+
+mvt_dependency_source_sha256 <- function(package, namespace_path) {
+  if (!nzchar(namespace_path) || !dir.exists(namespace_path)) return(NA_character_)
+  if (identical(package, "gamlss.longitudinal") &&
+      identical(normalizePath(namespace_path, winslash = "/", mustWork = TRUE),
+        normalizePath(mvt_repo_root, winslash = "/", mustWork = TRUE))) {
+    return(mvt_checkout_package_identity()$source_sha256)
+  }
+  candidates <- c(
+    file.path(namespace_path, c("DESCRIPTION", "NAMESPACE")),
+    list.files(file.path(namespace_path, "R"), full.names = TRUE),
+    list.files(file.path(namespace_path, "libs"), recursive = TRUE, full.names = TRUE),
+    list.files(file.path(namespace_path, "Meta"), pattern = "package[.]rds$", full.names = TRUE)
+  )
+  candidates <- candidates[file.exists(candidates) & !(file.info(candidates)$isdir %in% TRUE)]
+  if (!length(candidates)) return(NA_character_)
+  mvt_files_fingerprint(candidates, namespace_path)
+}
+
+mvt_dependency_identity_table <- function(
+    packages = mvt_dependency_packages(),
+    focal_identity = mvt_checkout_package_identity(),
+    focal_checkout = TRUE) {
+  rows <- lapply(sort(unique(packages)), function(package) {
+    available <- requireNamespace(package, quietly = TRUE)
+    if (identical(package, focal_identity$package) && isTRUE(focal_checkout)) {
+      path <- focal_identity$checkout_path
+      version <- focal_identity$version
+      source_sha256 <- focal_identity$source_sha256
+      available <- TRUE
+    } else if (available) {
+      path <- normalizePath(getNamespaceInfo(asNamespace(package), "path"), winslash = "/", mustWork = TRUE)
+      version <- as.character(utils::packageVersion(package))
+      source_sha256 <- mvt_dependency_source_sha256(package, path)
+    } else {
+      path <- NA_character_
+      version <- NA_character_
+      source_sha256 <- NA_character_
+    }
+    data.frame(
+      package = package, available = available, version = version,
+      namespace_path = path, source_sha256 = source_sha256,
+      stringsAsFactors = FALSE
+    )
+  })
+  mvt_canonical_dependency_identity(do.call(rbind, rows))
+}
+
+mvt_canonical_dependency_identity <- function(x) {
+  required <- c("package", "available", "version", "namespace_path", "source_sha256")
+  if (!is.data.frame(x) || !identical(sort(names(x)), sort(required))) {
+    stop("Dependency identity table has an invalid schema.", call. = FALSE)
+  }
+  x <- x[, required, drop = FALSE]
+  x$package <- as.character(x$package)
+  x$available <- as.logical(x$available)
+  x$version <- as.character(x$version)
+  x$namespace_path <- as.character(x$namespace_path)
+  x$source_sha256 <- as.character(x$source_sha256)
+  x <- x[order(x$package), , drop = FALSE]
+  rownames(x) <- NULL
+  x
+}
+
+mvt_runtime_fingerprint <- function(runtime = mvt_runtime_identity()) {
+  mvt_hash_object(runtime)
+}
+
+mvt_execution_attestation_contract <- function(
+    fingerprints = mvt_checkpoint_fingerprints(), configuration_fingerprint = "standalone") {
+  dependencies <- fingerprints$dependency_identity %||% fingerprints$package_versions
+  if (is.null(dependencies) || !is.data.frame(dependencies) || !nrow(dependencies)) {
+    dependencies <- mvt_dependency_identity_table()
+  }
+  dependencies <- mvt_canonical_dependency_identity(dependencies)
+  list(
+    identity_algorithm = fingerprints$algorithm %||% mvt_identity_algorithm,
+    identity_version = fingerprints$identity_version %||% mvt_identity_version,
+    package_identity = fingerprints$package_identity %||% mvt_checkout_package_identity(),
+    dependency_identity = dependencies,
+    dependency_fingerprint = mvt_hash_object(dependencies),
+    runtime_identity = fingerprints$runtime_identity %||% mvt_runtime_identity(),
+    runtime_fingerprint = mvt_runtime_fingerprint(fingerprints$runtime_identity %||% mvt_runtime_identity()),
+    configuration_fingerprint = configuration_fingerprint
+  )
+}
+
+mvt_verify_execution_attestation <- function(expected, load = TRUE) {
+  focal <- mvt_verify_checkout_package(expected$package_identity, load = load)
+  dependencies <- mvt_dependency_identity_table(
+    packages = as.character(expected$dependency_identity$package),
+    focal_identity = expected$package_identity,
+    focal_checkout = TRUE
+  )
+  dependencies <- mvt_canonical_dependency_identity(dependencies)
+  expected_dependencies <- mvt_canonical_dependency_identity(expected$dependency_identity)
+  dependency_fingerprint <- mvt_hash_object(dependencies)
+  expected_dependency_fingerprint <- mvt_hash_object(expected_dependencies)
+  runtime <- mvt_runtime_identity()
+  runtime_fingerprint <- mvt_runtime_fingerprint(runtime)
+  expected_runtime_fingerprint <- mvt_runtime_fingerprint(expected$runtime_identity)
+  valid <- identical(dependencies, expected_dependencies) &&
+    identical(dependency_fingerprint, expected$dependency_fingerprint) &&
+    identical(expected_dependency_fingerprint, expected$dependency_fingerprint) &&
+    identical(runtime_fingerprint, expected$runtime_fingerprint) &&
+    identical(expected_runtime_fingerprint, expected$runtime_fingerprint) &&
+    is.character(expected$configuration_fingerprint) && length(expected$configuration_fingerprint) == 1L &&
+    nzchar(expected$configuration_fingerprint)
+  if (!valid) {
+    stop("Full dependency/runtime/configuration execution attestation failed.", call. = FALSE)
+  }
+  c(focal, list(
+    dependency_identity = dependencies,
+    dependency_fingerprint = dependency_fingerprint,
+    runtime_identity = runtime,
+    runtime_fingerprint = runtime_fingerprint,
+    configuration_fingerprint = expected$configuration_fingerprint,
+    full_verified = TRUE
+  ))
+}
+
+mvt_execution_attestation_matches <- function(attestation, expected) {
+  is.list(attestation) && isTRUE(attestation$full_verified) && isTRUE(attestation$verified) &&
+    identical(attestation$verified_source_sha256, expected$package_identity$source_sha256) &&
+    identical(attestation$loaded_namespace_path, expected$package_identity$checkout_path) &&
+    identical(attestation$loaded_version, expected$package_identity$version) &&
+    identical(
+      mvt_canonical_dependency_identity(attestation$dependency_identity),
+      mvt_canonical_dependency_identity(expected$dependency_identity)
+    ) &&
+    identical(attestation$dependency_fingerprint, expected$dependency_fingerprint) &&
+    identical(attestation$runtime_identity, expected$runtime_identity) &&
+    identical(attestation$runtime_fingerprint, expected$runtime_fingerprint) &&
+    identical(attestation$configuration_fingerprint, expected$configuration_fingerprint)
+}
+
+mvt_verify_checkout_package <- function(expected = mvt_checkout_package_identity(), load = TRUE) {
+  if (isTRUE(load)) {
+    if (!requireNamespace("pkgload", quietly = TRUE)) stop("pkgload is required for checkout loading.", call. = FALSE)
+    pkgload::load_all(expected$checkout_path, quiet = TRUE, export_all = TRUE, helpers = FALSE)
+  }
+  actual <- mvt_checkout_package_identity()
+  namespace_path <- normalizePath(
+    getNamespaceInfo(asNamespace(expected$package), "path"), winslash = "/", mustWork = TRUE
+  )
+  loaded_version <- as.character(utils::packageVersion(expected$package))
+  valid <- identical(actual$source_sha256, expected$source_sha256) &&
+    identical(actual$version, expected$version) && identical(loaded_version, expected$version) &&
+    identical(namespace_path, expected$checkout_path)
+  if (!valid) {
+    stop(
+      "Checked-out package attestation failed: expected ", expected$version, " at ", expected$checkout_path,
+      " with SHA-256 ", expected$source_sha256, "; loaded ", loaded_version, " at ", namespace_path,
+      " with SHA-256 ", actual$source_sha256, ".", call. = FALSE
+    )
+  }
+  c(expected, list(
+    verified = TRUE,
+    loaded_namespace_path = namespace_path,
+    loaded_version = loaded_version,
+    verified_source_sha256 = actual$source_sha256,
+    libpaths = paste(normalizePath(.libPaths(), winslash = "/", mustWork = FALSE), collapse = ";"),
+    runtime_identity = mvt_runtime_identity()
+  ))
+}
+
+mvt_attestation_row <- function(
+    attestation, role = "worker", pid = Sys.getpid(),
+    setup_path = file.path(mvt_script_dir, "00-multivariate-setup.R")) {
+  runtime <- attestation$runtime_identity %||% mvt_runtime_identity()
+  gc_state <- attestation$gc_state %||% gc()
+  data.frame(
+    role = role, pid = as.integer(pid), verified = isTRUE(attestation$verified),
+    setup_path = normalizePath(setup_path, winslash = "/", mustWork = FALSE),
+    package = attestation$package, package_version = attestation$loaded_version %||% attestation$version,
+    checkout_path = attestation$checkout_path,
+    loaded_namespace_path = attestation$loaded_namespace_path %||% NA_character_,
+    source_sha256 = attestation$source_sha256,
+    verified_source_sha256 = attestation$verified_source_sha256 %||% NA_character_,
+    dependency_fingerprint = attestation$dependency_fingerprint %||% NA_character_,
+    runtime_fingerprint = attestation$runtime_fingerprint %||% mvt_runtime_fingerprint(runtime),
+    configuration_fingerprint = attestation$configuration_fingerprint %||% NA_character_,
+    full_verified = isTRUE(attestation$full_verified),
+    identity_algorithm = attestation$algorithm, identity_version = attestation$identity_version,
+    r_version = runtime$r_version, platform = runtime$platform,
+    rng_kind = paste(runtime$rng_kind, collapse = "/"), blas = runtime$blas, lapack = runtime$lapack,
+    hostname = unname(Sys.info()[["nodename"]]),
+    libpaths = attestation$libpaths %||% paste(.libPaths(), collapse = ";"),
+    gc_peak_ncells = as.numeric(gc_state["Ncells", "max used"]),
+    gc_peak_vcells = as.numeric(gc_state["Vcells", "max used"]),
+    stringsAsFactors = FALSE
+  )
+}
+
+mvt_checkpoint_fingerprints <- function() {
+  producer_files <- file.path(
+    mvt_script_dir,
+    c("00-multivariate-setup.R", "01-run-pilot-grid.R", "02-run-main-grid.R")
+  )
+  checkout <- mvt_checkout_package_identity()
+  dependencies <- mvt_dependency_identity_table(
+    packages = mvt_dependency_packages(), focal_identity = checkout, focal_checkout = TRUE
+  )
+  dependencies <- mvt_canonical_dependency_identity(dependencies)
+  list(
+    algorithm = mvt_identity_algorithm,
+    identity_version = mvt_identity_version,
+    producer_id = mvt_producer_id,
+    producer_version = mvt_producer_version,
+    producer_fingerprint = mvt_hash_object(list(
+      producer_id = mvt_producer_id,
+      producer_version = mvt_producer_version,
+      sorted_source_fingerprint = mvt_files_fingerprint(producer_files)
+    )),
+    code_fingerprint = checkout$source_sha256,
+    package_fingerprint = mvt_hash_object(dependencies),
+    package_identity = checkout,
+    dependency_identity = dependencies,
+    package_versions = dependencies,
+    runtime_identity = mvt_runtime_identity()
+  )
+}
+
+mvt_checkpoint_configuration <- function(
+    seed_base, require_gamcopula, active_comparators = mvt_active_comparators()) {
+  list(
+    seed_base = as.integer(seed_base),
+    require_gamcopula = isTRUE(require_gamcopula),
+    active_comparators = as.character(active_comparators),
+    source = mvt_env("GAMLSS_LONGITUDINAL_MVT_SOURCE", "installed"),
+    compute_vcov = mvt_env_flag("GAMLSS_LONGITUDINAL_MVT_COMPUTE_VCOV", TRUE),
+    max_inner_iter = mvt_env_int("GAMLSS_LONGITUDINAL_MVT_MAX_INNER_ITER", 60L),
+    max_outer_iter = mvt_env_int("GAMLSS_LONGITUDINAL_MVT_MAX_OUTER_ITER", 60L),
+    repair_correlation = mvt_env_flag("GAMLSS_LONGITUDINAL_MVT_REPAIR_CORRELATION", TRUE),
+    summary_vcov = mvt_env_flag("GAMLSS_LONGITUDINAL_MVT_SUMMARY_VCOV", TRUE),
+    primary_timeout_sec = mvt_registered_timeout("GAMLSS_LONGITUDINAL_MVT_PRIMARY_MAX_ELAPSED_SEC", 180),
+    gee_timeout_sec = mvt_registered_timeout("GAMLSS_LONGITUDINAL_MVT_GEE_TIMEOUT_SEC", 300),
+    gee_unstructured_timeout_sec = mvt_registered_timeout("GAMLSS_LONGITUDINAL_MVT_GEE_UNSTRUCTURED_TIMEOUT_SEC", 60),
+    gamcopula_timeout_sec = mvt_registered_timeout("GAMLSS_LONGITUDINAL_MVT_GAMCOPULA_TIMEOUT_SEC", 180),
+    gamcopula_markov_timeout_sec = mvt_registered_timeout("GAMLSS_LONGITUDINAL_MVT_GAMCOPULA_MARKOV_TIMEOUT_SEC", 180),
+    gamcopula_vine_timeout_sec = mvt_registered_timeout("GAMLSS_LONGITUDINAL_MVT_GAMCOPULA_VINE_TIMEOUT_SEC", 180),
+    gamcopula_pit_seed = mvt_env_int("GAMLSS_LONGITUDINAL_MVT_GAMCOPULA_PIT_SEED", 7349L),
+    variogram_nsim = mvt_env_int("GAMLSS_LONGITUDINAL_MVT_VARIOGRAM_NSIM", 20L),
+    vine_dependence_nsim = mvt_env_int("GAMLSS_LONGITUDINAL_MVT_VINE_DEPENDENCE_NSIM", 500L),
+    runtime_identity = mvt_runtime_identity()
+  )
+}
+
+mvt_timeout_contract <- function(configuration, methods = configuration$active_comparators) {
+  required <- c()
+  if (any(grepl("^gee_", methods))) required <- c(required, "gee_timeout_sec")
+  if ("gee_unstructured" %in% methods) required <- c(required, "gee_unstructured_timeout_sec")
+  if ("gamlss.longitudinal" %in% methods) required <- c(required, "primary_timeout_sec")
+  if ("gamCopula_markov" %in% methods) required <- c(required, "gamcopula_markov_timeout_sec")
+  if (any(c("gamCopula_vine", "gamCopula_vine_simplified") %in% methods)) {
+    required <- c(required, "gamcopula_vine_timeout_sec")
+  }
+  values <- suppressWarnings(as.numeric(unlist(configuration[required], use.names = FALSE)))
+  list(
+    valid = length(required) > 0L && length(values) == length(required) && all(is.finite(values) & values > 0),
+    required = required,
+    values = stats::setNames(values, required)
+  )
+}
+
+mvt_grid_is_exact_production <- function(grid) {
+  production <- mvt_phase2_production_contract()
+  required <- c("case_id", "time_name", "n_time", "family_name", "dependence_name", "rep")
+  if (!is.data.frame(grid) || !all(required %in% names(grid))) return(FALSE)
+  expected <- expand.grid(
+    time_name = production$time_names,
+    dependence_name = production$dependence,
+    rep = production$reps,
+    family_name = production$families,
+    KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE
+  )
+  expected$n_time <- production$n_time
+  expected$case_id <- mapply(
+    function(time_name, dependence_name, family_name, rep) {
+      paste(time_name, dependence_name, family_name, sprintf("rep%03d", as.integer(rep)), sep = "__")
+    },
+    expected$time_name, expected$dependence_name, expected$family_name, expected$rep,
+    USE.NAMES = FALSE
+  )
+  fields <- required
+  actual <- grid[order(grid$case_id), fields, drop = FALSE]
+  expected <- expected[order(expected$case_id), fields, drop = FALSE]
+  rownames(actual) <- rownames(expected) <- NULL
+  nrow(actual) == production$cases && identical(
+    lapply(actual, as.character), lapply(expected, as.character)
+  )
+}
+
+mvt_case_seed <- function(row, seed_base = 20260818L) {
+  families <- mvt_family_specs(include_special = TRUE)
+  deps <- mvt_dependence_specs(include_appendix = TRUE)
+  as.integer(seed_base + match(row$family_name, names(families)) * 100000L +
+    match(row$dependence_name, names(deps)) * 1000L + row$n_time * 10L + row$rep)
+}
+
+mvt_canonical_grid_order <- function(grid) {
+  time_rank <- if ("time_name" %in% names(grid)) match(grid$time_name, names(mvt_time_specs())) else grid$n_time
+  dependence_rank <- if ("dependence_name" %in% names(grid)) {
+    match(grid$dependence_name, names(mvt_dependence_specs(include_appendix = TRUE)))
+  } else {
+    seq_len(nrow(grid))
+  }
+  family_rank <- if ("family_name" %in% names(grid)) {
+    match(grid$family_name, names(mvt_family_specs(include_special = TRUE)))
+  } else {
+    seq_len(nrow(grid))
+  }
+  order(
+    time_rank, dependence_rank, suppressWarnings(as.integer(grid$rep)),
+    family_rank, as.character(grid$case_id),
+    na.last = TRUE
+  )
+}
+
+mvt_prepare_tasks <- function(
+    grid, seed_base, require_gamcopula, fingerprints = mvt_checkpoint_fingerprints(),
+    workers_requested = mvt_env_int("GAMLSS_LONGITUDINAL_MVT_WORKERS", 1L),
+    run_started_at = Sys.time()) {
+  if (!is.data.frame(grid) || !nrow(grid) || !"case_id" %in% names(grid)) {
+    stop("The multivariate task grid must contain at least one case_id.", call. = FALSE)
+  }
+  if (anyDuplicated(as.character(grid$case_id))) {
+    stop("The multivariate task grid contains duplicate case_id values.", call. = FALSE)
+  }
+  configuration <- mvt_checkpoint_configuration(seed_base, require_gamcopula)
+  configuration_fingerprint <- mvt_hash_object(configuration)
+  execution_attestation <- mvt_execution_attestation_contract(
+    fingerprints = fingerprints,
+    configuration_fingerprint = configuration_fingerprint
+  )
+  execution_fingerprint <- mvt_hash_object(execution_attestation)
+  planned_methods <- as.character(configuration$active_comparators)
+  lapply(seq_len(nrow(grid)), function(i) {
+    row <- grid[i, , drop = FALSE]
+    case_seed <- mvt_case_seed(row, seed_base)
+    case_contract <- list(
+      schema_version = mvt_checkpoint_schema_version,
+      identity_algorithm = fingerprints$algorithm %||% mvt_identity_algorithm,
+      identity_version = fingerprints$identity_version %||% mvt_identity_version,
+      producer_id = fingerprints$producer_id %||% mvt_producer_id,
+      producer_version = fingerprints$producer_version %||% mvt_producer_version,
+      row = lapply(row, function(x) as.character(x[[1L]])),
+      case_seed = case_seed,
+      configuration_fingerprint = configuration_fingerprint,
+      producer_fingerprint = fingerprints$producer_fingerprint,
+      code_fingerprint = fingerprints$code_fingerprint,
+      package_fingerprint = fingerprints$package_fingerprint,
+      execution_fingerprint = execution_fingerprint
+    )
+    list(
+      task_index = i,
+      case_id = as.character(row$case_id[[1L]]),
+      row = row,
+      seed_base = as.integer(seed_base),
+      case_seed = case_seed,
+      workers_requested = as.integer(workers_requested),
+      run_started_at = mvt_iso_timestamp(run_started_at),
+      planned_methods = planned_methods,
+      require_gamcopula = isTRUE(require_gamcopula),
+      execution_attestation = execution_attestation,
+      execution_fingerprint = execution_fingerprint,
+      producer_id = fingerprints$producer_id %||% mvt_producer_id,
+      producer_version = fingerprints$producer_version %||% mvt_producer_version,
+      configuration_fingerprint = configuration_fingerprint,
+      producer_fingerprint = fingerprints$producer_fingerprint,
+      code_fingerprint = fingerprints$code_fingerprint,
+      package_fingerprint = fingerprints$package_fingerprint,
+      contract_fingerprint = mvt_hash_object(case_contract)
+    )
+  })
+}
+
+mvt_case_checkpoint_dir <- function(run_dir) file.path(run_dir, "case_checkpoints")
+
+mvt_run_lock_path <- function(run_dir) file.path(run_dir, ".mvt-run.lock")
+
+mvt_acquire_run_lock <- function(run_dir) {
+  dir.create(run_dir, recursive = TRUE, showWarnings = FALSE)
+  lock_path <- mvt_run_lock_path(run_dir)
+  acquired <- dir.create(lock_path, recursive = FALSE, showWarnings = FALSE)
+  if (!isTRUE(acquired)) {
+    owner_path <- file.path(lock_path, "owner.rds")
+    owner <- tryCatch(suppressWarnings(readRDS(owner_path)), error = function(e) NULL)
+    detail <- if (is.list(owner)) paste0("pid=", owner$pid, " host=", owner$hostname, " started=", owner$started_at) else "owner unavailable"
+    stop("Multivariate run directory is already leased: ", lock_path, " (", detail, ")", call. = FALSE)
+  }
+  owner <- list(
+    pid = as.integer(Sys.getpid()), hostname = unname(Sys.info()[["nodename"]]),
+    started_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"),
+    nonce = mvt_hash_object(list(Sys.getpid(), Sys.time(), normalizePath(run_dir, winslash = "/", mustWork = TRUE)))
+  )
+  tryCatch(
+    saveRDS(owner, file.path(lock_path, "owner.rds"), version = 3),
+    error = function(e) {
+      unlink(lock_path, recursive = TRUE, force = TRUE)
+      stop("Could not initialize multivariate run-directory lease: ", conditionMessage(e), call. = FALSE)
+    }
+  )
+  token <- new.env(parent = emptyenv())
+  assign(owner$nonce, token, envir = mvt_active_leases)
+  structure(
+    list(
+      path = normalizePath(lock_path, winslash = "/", mustWork = TRUE),
+      run_dir = normalizePath(run_dir, winslash = "/", mustWork = TRUE),
+      owner = owner,
+      token = token
+    ),
+    class = "mvt_run_lease"
+  )
+}
+
+mvt_assert_active_lease <- function(lease, target = NULL) {
+  if (!inherits(lease, "mvt_run_lease") || !is.list(lease) || !is.environment(lease$token)) {
+    stop("A valid active multivariate run lease is required.", call. = FALSE)
+  }
+  lock_path <- normalizePath(lease$path, winslash = "/", mustWork = FALSE)
+  disk_owner <- tryCatch(readRDS(file.path(lock_path, "owner.rds")), error = function(e) NULL)
+  registry_token <- if (exists(lease$owner$nonce, envir = mvt_active_leases, inherits = FALSE)) {
+    get(lease$owner$nonce, envir = mvt_active_leases, inherits = FALSE)
+  } else {
+    NULL
+  }
+  valid <- dir.exists(lock_path) && is.list(disk_owner) &&
+    identical(disk_owner$nonce, lease$owner$nonce) &&
+    identical(as.integer(disk_owner$pid), as.integer(Sys.getpid())) &&
+    identical(as.integer(lease$owner$pid), as.integer(Sys.getpid())) &&
+    identical(registry_token, lease$token)
+  if (!valid) stop("The multivariate run lease is inactive, forged, or owned by another process.", call. = FALSE)
+  if (!is.null(target)) {
+    target_norm <- normalizePath(target, winslash = "/", mustWork = FALSE)
+    run_prefix <- paste0(normalizePath(lease$run_dir, winslash = "/", mustWork = TRUE), "/")
+    if (!startsWith(target_norm, run_prefix)) stop("Lease does not own aggregate target: ", target, call. = FALSE)
+  }
+  invisible(lease$owner)
+}
+
+mvt_release_run_lock <- function(lease) {
+  mvt_assert_active_lease(lease)
+  lease_owner <- lease$owner
+  lock_path <- normalizePath(lease$path, winslash = "/", mustWork = FALSE)
+  if (!endsWith(lock_path, "/.mvt-run.lock")) stop("Refusing to release an unexpected lock path.", call. = FALSE)
+  if (dir.exists(lock_path)) {
+    disk_owner <- tryCatch(readRDS(file.path(lock_path, "owner.rds")), error = function(e) NULL)
+    owned <- is.list(lease_owner) && is.list(disk_owner) &&
+      identical(lease_owner$nonce, disk_owner$nonce) &&
+      identical(as.integer(lease_owner$pid), as.integer(Sys.getpid()))
+    if (!owned) stop("Refusing to release a run-directory lease owned by another process.", call. = FALSE)
+    unlink(lock_path, recursive = TRUE, force = TRUE)
+  }
+  if (exists(lease_owner$nonce, envir = mvt_active_leases, inherits = FALSE)) {
+    rm(list = lease_owner$nonce, envir = mvt_active_leases)
+  }
+  invisible(!dir.exists(lock_path))
+}
+
+mvt_case_checkpoint_path <- function(run_dir, case_id) {
+  if (!grepl("^[A-Za-z0-9_.-]+$", case_id)) {
+    stop("Unsafe case_id for checkpoint path: ", case_id, call. = FALSE)
+  }
+  file.path(mvt_case_checkpoint_dir(run_dir), paste0(case_id, ".rds"))
+}
+
+mvt_iso_timestamp <- function(time = Sys.time()) {
+  format(as.POSIXct(time, tz = "UTC"), "%Y-%m-%dT%H:%M:%OS3Z", tz = "UTC")
+}
+
+mvt_parse_iso_timestamp <- function(value) {
+  if (!is.character(value) || length(value) != 1L || is.na(value) ||
+      !grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$", value)) {
+    return(as.POSIXct(NA, tz = "UTC"))
+  }
+  suppressWarnings(as.POSIXct(value, format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC"))
+}
+
+mvt_checkpoint_time_bounds_valid <- function(metadata) {
+  fields <- c("run_started_at", "task_started_at", "task_completed_at", "created_at")
+  parsed <- lapply(fields, function(field) mvt_parse_iso_timestamp(metadata[[field]]))
+  if (any(vapply(parsed, is.na, logical(1L)))) return(FALSE)
+  seconds <- vapply(parsed, as.numeric, numeric(1L))
+  names(seconds) <- fields
+  seconds[["run_started_at"]] <= seconds[["task_started_at"]] &&
+    seconds[["task_started_at"]] <= seconds[["task_completed_at"]] &&
+    seconds[["task_completed_at"]] == seconds[["created_at"]] &&
+    seconds[["created_at"]] <= as.numeric(Sys.time()) + 300
+}
+
+mvt_checkpoint_worker_attestation_valid <- function(metadata, task) {
+  attestation <- metadata$worker_attestation
+  is.list(attestation) &&
+    identical(as.integer(attestation$pid), as.integer(metadata$worker_pid)) &&
+    identical(attestation$writer_role, metadata$writer_role) &&
+    identical(attestation$execution_fingerprint, task$execution_fingerprint) &&
+    identical(attestation$configuration_fingerprint, task$configuration_fingerprint) &&
+    identical(attestation$contract_fingerprint, task$contract_fingerprint) &&
+    identical(attestation$attestation_sha256, mvt_hash_object(attestation[setdiff(names(attestation), "attestation_sha256")]))
+}
+
+mvt_checkpoint_result_valid <- function(result, task) {
+  if (!is.list(result) || !identical(sort(names(result)), sort(mvt_result_names()))) return(FALSE)
+  if (!all(vapply(result, is.data.frame, logical(1L)))) return(FALSE)
+  required <- result[c("fit_status", "benchmark_results", "runtime")]
+  if (any(vapply(required, nrow, integer(1L)) < 1L)) return(FALSE)
+  semantic_fields <- c(
+    "case_id", "method", "attempted", "success", "converged", "retained",
+    "stop_reason", "status_class", "elapsed_sec", "failure_reason_short", "error"
+  )
+  if (!all(vapply(required, function(x) all(semantic_fields %in% names(x)), logical(1L)))) return(FALSE)
+  required_methods <- lapply(required, function(x) as.character(x$method))
+  if (any(vapply(required_methods, anyDuplicated, integer(1L)) > 0L)) return(FALSE)
+  if (!setequal(required_methods$fit_status, required_methods$benchmark_results) ||
+      !setequal(required_methods$fit_status, required_methods$runtime)) return(FALSE)
+  if (!setequal(required_methods$fit_status, task$planned_methods)) return(FALSE)
+  semantic_ok <- vapply(required, function(x) {
+    attempted <- x$attempted %in% TRUE
+    success <- x$success %in% TRUE
+    converged <- x$converged %in% TRUE
+    retained <- x$retained %in% TRUE
+    elapsed <- suppressWarnings(as.numeric(x$elapsed_sec))
+    reasons <- as.character(x$failure_reason_short)
+    stops <- as.character(x$stop_reason)
+    statuses <- as.character(x$status_class)
+    errors <- as.character(x$error)
+    all(attempted) && !anyNA(x$success) && !anyNA(x$converged) && !anyNA(x$retained) &&
+      all(!retained | (success & converged)) && all(success == retained) &&
+      all(is.finite(elapsed) & elapsed >= 0) && all(nzchar(trimws(stops))) &&
+      all(nzchar(trimws(statuses))) &&
+      all(!retained | tolower(statuses) %in% c("ok", "warning", "success")) &&
+      all(retained | tolower(statuses) %in% c("error", "timeout", "warning")) &&
+      all(!retained | stops == "converged") &&
+      all(retained | (!is.na(errors) & nzchar(trimws(errors)))) &&
+      all(retained | (!is.na(reasons) & nzchar(trimws(reasons)) & reasons != "none"))
+  }, logical(1L))
+  if (!all(semantic_ok)) return(FALSE)
+  semantic_compare <- c(
+    "attempted", "success", "converged", "retained", "stop_reason",
+    "status_class", "failure_reason_short", "error"
+  )
+  normalized_semantics <- lapply(required, function(x) {
+    x <- x[order(match(as.character(x$method), task$planned_methods)), c("method", semantic_compare), drop = FALSE]
+    rownames(x) <- NULL
+    x
+  })
+  if (!identical(normalized_semantics$fit_status, normalized_semantics$benchmark_results) ||
+      !identical(normalized_semantics$fit_status, normalized_semantics$runtime)) return(FALSE)
+  benchmark <- result$benchmark_results
+  nonretained <- !(benchmark$retained %in% TRUE)
+  accuracy <- intersect(c("mae", "rmse", grep("^benchmark_", names(benchmark), value = TRUE), "logLik", "AIC", "BIC"), names(benchmark))
+  if (any(nonretained) && length(accuracy) && any(vapply(benchmark[nonretained, accuracy, drop = FALSE], function(x) any(is.finite(suppressWarnings(as.numeric(x)))), logical(1L)))) return(FALSE)
+  populated <- result[vapply(result, nrow, integer(1L)) > 0L]
+  case_ok <- all(vapply(populated, function(x) {
+    "case_id" %in% names(x) && all(as.character(x$case_id) == task$case_id)
+  }, logical(1L)))
+  if (!case_ok) return(FALSE)
+  auxiliary_schemas <- list(
+    coefficient_results = c(
+      "case_id", "scenario", "family", "rep", "method", "parameter", "term",
+      "estimate", "std_error", "truth", "bias", "conf.low", "conf.high"
+    ),
+    dependence_recovery = c(
+      "case_id", "scenario", "family", "rep", "method", "dependence_scope",
+      "dependence_n", "theta_mae", "theta_rmse", "tau_mae", "tau_rmse"
+    ),
+    variogram_scores = c(
+      "case_id", "scenario", "family", "rep", "method",
+      "variogram_score_p05", "variogram_score_p2", "error"
+    )
+  )
+  for (name in names(auxiliary_schemas)) {
+    table <- result[[name]]
+    if (!nrow(table)) next
+    if (!all(auxiliary_schemas[[name]] %in% names(table))) return(FALSE)
+    if (!all(as.character(table$method) %in% task$planned_methods)) return(FALSE)
+    retained_methods <- as.character(benchmark$method[benchmark$retained %in% TRUE])
+    if (name != "variogram_scores" && !all(as.character(table$method) %in% retained_methods)) return(FALSE)
+  }
+  TRUE
+}
+
+mvt_case_checkpoint_valid <- function(checkpoint, task) {
+  if (!is.list(checkpoint) || !is.list(checkpoint$metadata)) return(FALSE)
+  metadata <- checkpoint$metadata
+  expected <- c(
+    "checkpoint_schema_version", "identity_algorithm", "identity_version", "producer_id", "producer_version", "case_id", "task_index", "case_seed",
+    "workers_requested", "planned_methods",
+    "configuration_fingerprint", "producer_fingerprint", "code_fingerprint",
+    "package_fingerprint", "execution_fingerprint", "contract_fingerprint",
+    "run_started_at", "task_started_at", "task_completed_at", "created_at",
+    "worker_pid", "writer_role", "worker_attestation"
+  )
+  if (!all(expected %in% names(metadata))) return(FALSE)
+  identical(metadata$checkpoint_schema_version, mvt_checkpoint_schema_version) &&
+    identical(metadata$identity_algorithm, mvt_identity_algorithm) &&
+    identical(metadata$identity_version, mvt_identity_version) &&
+    identical(metadata$producer_id, task$producer_id) &&
+    identical(metadata$producer_version, task$producer_version) &&
+    identical(metadata$case_id, task$case_id) &&
+    length(metadata$task_index) == 1L && !is.na(metadata$task_index) &&
+    metadata$task_index == floor(metadata$task_index) && metadata$task_index > 0L &&
+    identical(as.integer(metadata$task_index), as.integer(task$task_index)) &&
+    identical(metadata$case_seed, as.integer(task$case_seed)) &&
+    length(metadata$workers_requested) == 1L && is.finite(metadata$workers_requested) &&
+    metadata$workers_requested >= 1L && metadata$workers_requested == floor(metadata$workers_requested) &&
+    identical(metadata$planned_methods, task$planned_methods) &&
+    identical(metadata$configuration_fingerprint, task$configuration_fingerprint) &&
+    identical(metadata$producer_fingerprint, task$producer_fingerprint) &&
+    identical(metadata$code_fingerprint, task$code_fingerprint) &&
+    identical(metadata$package_fingerprint, task$package_fingerprint) &&
+    identical(metadata$execution_fingerprint, task$execution_fingerprint) &&
+    identical(metadata$contract_fingerprint, task$contract_fingerprint) &&
+    length(metadata$worker_pid) == 1L && is.finite(metadata$worker_pid) &&
+    metadata$worker_pid == floor(metadata$worker_pid) && metadata$worker_pid > 0L &&
+    length(metadata$writer_role) == 1L && metadata$writer_role %in% c("psock_worker", "serial_parent") &&
+    mvt_checkpoint_time_bounds_valid(metadata) &&
+    mvt_checkpoint_worker_attestation_valid(metadata, task) &&
+    mvt_checkpoint_result_valid(checkpoint$result, task)
+}
+
+mvt_case_checkpoint_issues <- function(checkpoint, task) {
+  issues <- character()
+  if (!is.list(checkpoint)) return("checkpoint_not_list")
+  if (!is.list(checkpoint$metadata)) return("metadata_missing")
+  metadata <- checkpoint$metadata
+  comparisons <- c(
+    schema = identical(metadata$checkpoint_schema_version, mvt_checkpoint_schema_version),
+    identity_algorithm = identical(metadata$identity_algorithm, mvt_identity_algorithm),
+    identity_version = identical(metadata$identity_version, mvt_identity_version),
+    producer_id = identical(metadata$producer_id, task$producer_id),
+    producer_version = identical(metadata$producer_version, task$producer_version),
+    case_id = identical(metadata$case_id, task$case_id),
+    task_index = length(metadata$task_index) == 1L && !is.na(metadata$task_index) &&
+      metadata$task_index == floor(metadata$task_index) && metadata$task_index > 0L &&
+      identical(as.integer(metadata$task_index), as.integer(task$task_index)),
+    case_seed = identical(metadata$case_seed, as.integer(task$case_seed)),
+    workers_requested = length(metadata$workers_requested) == 1L &&
+      is.finite(metadata$workers_requested) && metadata$workers_requested >= 1L &&
+      metadata$workers_requested == floor(metadata$workers_requested),
+    planned_methods = identical(metadata$planned_methods, task$planned_methods),
+    configuration = identical(metadata$configuration_fingerprint, task$configuration_fingerprint),
+    producer = identical(metadata$producer_fingerprint, task$producer_fingerprint),
+    code = identical(metadata$code_fingerprint, task$code_fingerprint),
+    packages = identical(metadata$package_fingerprint, task$package_fingerprint),
+    execution = identical(metadata$execution_fingerprint, task$execution_fingerprint),
+    contract = identical(metadata$contract_fingerprint, task$contract_fingerprint),
+    time_bounds = mvt_checkpoint_time_bounds_valid(metadata),
+    worker_pid = length(metadata$worker_pid) == 1L && is.finite(metadata$worker_pid) &&
+      metadata$worker_pid == floor(metadata$worker_pid) && metadata$worker_pid > 0L,
+    worker_ownership = mvt_checkpoint_worker_attestation_valid(metadata, task)
+  )
+  issues <- c(issues, names(comparisons)[!comparisons])
+  if (!mvt_checkpoint_result_valid(checkpoint$result, task)) issues <- c(issues, "semantic_result_schema")
+  unique(issues)
+}
+
+mvt_read_case_checkpoint <- function(path, task) {
+  if (!file.exists(path)) return(NULL)
+  tryCatch({
+    checkpoint <- readRDS(path)
+    issues <- mvt_case_checkpoint_issues(checkpoint, task)
+    if (!length(issues)) checkpoint else structure(
+      list(), class = "mvt_rejected_checkpoint",
+      rejection_reason = paste(issues, collapse = "|")
+    )
+  }, error = function(e) structure(
+    list(), class = "mvt_rejected_checkpoint",
+    rejection_reason = paste0("read_error:", conditionMessage(e))
+  ))
+}
+
+mvt_archive_stale_checkpoint <- function(path, run_dir, reason = "invalid") {
+  if (!file.exists(path)) return(invisible(FALSE))
+  stale_dir <- file.path(mvt_case_checkpoint_dir(run_dir), "stale")
+  dir.create(stale_dir, recursive = TRUE, showWarnings = FALSE)
+  destination <- tempfile(
+    paste0(basename(path), ".", gsub("[^A-Za-z0-9_-]+", "_", reason), ".", format(Sys.time(), "%Y%m%d%H%M%S"), "."),
+    tmpdir = stale_dir
+  )
+  if (!file.rename(path, destination)) {
+    stop("Could not archive stale case checkpoint: ", path, call. = FALSE)
+  }
+  invisible(destination)
+}
+
+mvt_write_case_checkpoint_atomic <- function(
+    result, task, path,
+    writer_role = if (task$workers_requested > 1L) "psock_worker" else "serial_parent",
+    task_started_at = Sys.time()) {
+  writer_role <- match.arg(writer_role, c("psock_worker", "serial_parent"))
+  task_started_at <- as.POSIXct(task_started_at, tz = "UTC")
+  completed_at <- Sys.time()
+  worker_attestation <- list(
+    pid = as.integer(Sys.getpid()), writer_role = writer_role,
+    execution_fingerprint = task$execution_fingerprint,
+    configuration_fingerprint = task$configuration_fingerprint,
+    contract_fingerprint = task$contract_fingerprint
+  )
+  worker_attestation$attestation_sha256 <- mvt_hash_object(worker_attestation)
+  checkpoint <- list(
+    metadata = list(
+      checkpoint_schema_version = mvt_checkpoint_schema_version,
+      identity_algorithm = mvt_identity_algorithm,
+      identity_version = mvt_identity_version,
+      producer_id = task$producer_id,
+      producer_version = task$producer_version,
+      case_id = task$case_id,
+      task_index = as.integer(task$task_index),
+      case_seed = as.integer(task$case_seed),
+      workers_requested = as.integer(task$workers_requested),
+      planned_methods = task$planned_methods,
+      configuration_fingerprint = task$configuration_fingerprint,
+      producer_fingerprint = task$producer_fingerprint,
+      code_fingerprint = task$code_fingerprint,
+      package_fingerprint = task$package_fingerprint,
+      execution_fingerprint = task$execution_fingerprint,
+      contract_fingerprint = task$contract_fingerprint,
+      run_started_at = task$run_started_at,
+      task_started_at = mvt_iso_timestamp(task_started_at),
+      task_completed_at = mvt_iso_timestamp(completed_at),
+      created_at = mvt_iso_timestamp(completed_at),
+      worker_pid = as.integer(Sys.getpid()),
+      writer_role = writer_role,
+      worker_attestation = worker_attestation
+    ),
+    result = result
+  )
+  if (!mvt_case_checkpoint_valid(checkpoint, task)) {
+    stop("Refusing incomplete multivariate case checkpoint: ", task$case_id, call. = FALSE)
+  }
+  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+  temporary <- tempfile(paste0(".", basename(path), "-"), tmpdir = dirname(path))
+  on.exit(unlink(temporary, force = TRUE), add = TRUE)
+  saveRDS(checkpoint, temporary, version = 3)
+  if (!mvt_case_checkpoint_valid(readRDS(temporary), task)) {
+    stop("Temporary multivariate case checkpoint failed validation: ", task$case_id, call. = FALSE)
+  }
+  if (file.exists(path)) stop("Refusing concurrent checkpoint overwrite: ", path, call. = FALSE)
+  if (!file.rename(temporary, path)) stop("Could not atomically install case checkpoint: ", path, call. = FALSE)
+  invisible(path)
+}
+
+mvt_run_checkpoint_task <- function(task, run_dir, run_case_fun, writer_role = "serial_parent") {
+  task_started_at <- Sys.time()
+  old_options <- options(gamlss.longitudinal.mvt.execution_attestation = task$execution_attestation)
+  on.exit(options(old_options), add = TRUE)
+  result <- run_case_fun(
+    task$row,
+    seed_base = task$seed_base,
+    require_gamcopula = task$require_gamcopula,
+    case_seed = task$case_seed
+  )
+  path <- mvt_case_checkpoint_path(run_dir, task$case_id)
+  mvt_write_case_checkpoint_atomic(
+    result, task, path, writer_role = writer_role,
+    task_started_at = task_started_at
+  )
+  list(task_index = task$task_index, case_id = task$case_id, path = path, worker_pid = Sys.getpid())
+}
+
+mvt_order_result_rows <- function(x, grid, methods) {
+  if (!is.data.frame(x) || nrow(x) < 2L) return(x)
+  scenario_order <- unique(as.character(grid$scenario))
+  family_order <- unique(as.character(grid$family_name))
+  keys <- list(
+    if ("scenario" %in% names(x)) match(as.character(x$scenario), scenario_order) else rep(1L, nrow(x)),
+    if ("rep" %in% names(x)) suppressWarnings(as.integer(x$rep)) else rep(1L, nrow(x)),
+    if ("method" %in% names(x)) match(as.character(x$method), methods) else rep(1L, nrow(x)),
+    if ("family" %in% names(x)) match(as.character(x$family), family_order) else rep(1L, nrow(x)),
+    if ("case_id" %in% names(x)) match(as.character(x$case_id), grid$case_id) else rep(1L, nrow(x))
+  )
+  for (column in intersect(c("term", "parameter", "dependence_scope"), names(x))) {
+    keys[[length(keys) + 1L]] <- as.character(x[[column]])
+  }
+  keys <- lapply(keys, function(key) {
+    if (is.numeric(key) || is.integer(key)) key[is.na(key)] <- Inf else key[is.na(key)] <- "\U0010ffff"
+    key
+  })
+  out <- x[do.call(order, c(keys, list(na.last = TRUE))), , drop = FALSE]
+  rownames(out) <- NULL
+  out
+}
+
+mvt_collect_case_checkpoints <- function(tasks, run_dir, grid, methods) {
+  checkpoints <- lapply(tasks, function(task) {
+    checkpoint <- mvt_read_case_checkpoint(mvt_case_checkpoint_path(run_dir, task$case_id), task)
+    if (is.null(checkpoint) || inherits(checkpoint, "mvt_rejected_checkpoint")) {
+      stop("Missing or invalid completed checkpoint: ", task$case_id, call. = FALSE)
+    }
+    checkpoint$result
+  })
+  stats::setNames(lapply(mvt_result_names(), function(name) {
+    mvt_order_result_rows(
+      mvt_bind_rows_fill(lapply(checkpoints, `[[`, name)),
+      grid = grid,
+      methods = methods
+    )
+  }), mvt_result_names())
+}
+
+mvt_checkpoint_manifest <- function(tasks, run_dir) {
+  rows <- lapply(tasks, function(task) {
+    path <- mvt_case_checkpoint_path(run_dir, task$case_id)
+    checkpoint <- tryCatch(readRDS(path), error = function(e) NULL)
+    if (!mvt_case_checkpoint_valid(checkpoint, task)) {
+      stop("Checkpoint set failed final semantic validation: ", task$case_id, call. = FALSE)
+    }
+    data.frame(
+      task_index = task$task_index, case_id = task$case_id,
+      case_seed = task$case_seed, contract_fingerprint = task$contract_fingerprint,
+      checkpoint_sha256 = mvt_sha256_file(path),
+      result_sha256 = mvt_hash_object(checkpoint$result),
+      writer_pid = checkpoint$metadata$worker_pid,
+      writer_role = checkpoint$metadata$writer_role,
+      worker_attestation_sha256 = checkpoint$metadata$worker_attestation$attestation_sha256,
+      created_at = checkpoint$metadata$created_at,
+      stringsAsFactors = FALSE
+    )
+  })
+  out <- do.call(rbind, rows)
+  rownames(out) <- NULL
+  out
+}
+
+mvt_csv_serialized_sha256 <- function(x) {
+  path <- tempfile(fileext = ".csv")
+  on.exit(unlink(path, force = TRUE), add = TRUE)
+  utils::write.csv(x, path, row.names = FALSE, na = "")
+  mvt_sha256_file(path)
+}
+
+mvt_validate_aggregate_file_commit <- function(
+    path, expected_nonce = NULL, expected_pid = NULL,
+    expected_commit_sha256 = NULL, expected_ownership_sha256 = NULL) {
+  commit_path <- paste0(path, ".commit.rds")
+  ownership_path <- paste0(path, ".ownership.rds")
+  commit <- tryCatch(suppressWarnings(readRDS(commit_path)), error = function(e) NULL)
+  ownership <- tryCatch(suppressWarnings(readRDS(ownership_path)), error = function(e) NULL)
+  required <- c(
+    "schema_version", "file", "owner_role", "writer_pid", "lease_nonce",
+    "hostname", "written_at", "sha256", "rows", "columns", "schema_sha256", "bytes"
+  )
+  if (!file.exists(path) || !is.list(commit) || !is.list(ownership) ||
+      !all(required %in% names(commit)) || !identical(commit, ownership)) {
+    stop("Aggregate commit/ownership record is missing, incomplete, or incoherent: ", basename(path), call. = FALSE)
+  }
+  actual <- mvt_read_optional_csv(path)
+  valid <- identical(commit$schema_version, 1L) &&
+    identical(commit$file, basename(path)) && identical(commit$owner_role, "lease_parent") &&
+    is.finite(commit$writer_pid) && commit$writer_pid > 0L &&
+    is.character(commit$lease_nonce) && length(commit$lease_nonce) == 1L && nzchar(commit$lease_nonce) &&
+    identical(commit$sha256, mvt_sha256_file(path)) &&
+    identical(as.integer(commit$rows), as.integer(nrow(actual))) &&
+    identical(as.character(commit$columns), names(actual)) &&
+    identical(commit$schema_sha256, mvt_hash_object(names(actual))) &&
+    identical(as.numeric(commit$bytes), as.numeric(file.info(path)$size))
+  if (!is.null(expected_nonce)) valid <- valid && identical(commit$lease_nonce, expected_nonce)
+  if (!is.null(expected_pid)) valid <- valid && identical(as.integer(commit$writer_pid), as.integer(expected_pid))
+  if (!is.null(expected_commit_sha256)) valid <- valid && identical(mvt_sha256_file(commit_path), expected_commit_sha256)
+  if (!is.null(expected_ownership_sha256)) valid <- valid && identical(mvt_sha256_file(ownership_path), expected_ownership_sha256)
+  if (!valid) stop("Aggregate commit/ownership fields do not reconcile: ", basename(path), call. = FALSE)
+  list(
+    commit = commit,
+    commit_sha256 = mvt_sha256_file(commit_path),
+    ownership_sha256 = mvt_sha256_file(ownership_path)
+  )
+}
+
+mvt_validate_lines_file_commit <- function(path) {
+  commit_path <- paste0(path, ".commit.rds")
+  ownership_path <- paste0(path, ".ownership.rds")
+  commit <- tryCatch(readRDS(commit_path), error = function(e) NULL)
+  ownership <- tryCatch(readRDS(ownership_path), error = function(e) NULL)
+  lines <- if (file.exists(path)) readLines(path, warn = FALSE) else character()
+  valid <- file.exists(path) && is.list(commit) && identical(commit, ownership) &&
+    identical(commit$schema_version, 1L) && identical(commit$file, basename(path)) &&
+    identical(commit$owner_role, "lease_parent") &&
+    is.finite(commit$writer_pid) && commit$writer_pid > 0L &&
+    is.character(commit$lease_nonce) && length(commit$lease_nonce) == 1L && nzchar(commit$lease_nonce) &&
+    identical(commit$sha256, mvt_sha256_file(path)) &&
+    identical(as.integer(commit$rows), as.integer(length(lines))) &&
+    identical(commit$columns, character()) &&
+    identical(commit$schema_sha256, mvt_hash_object(character())) &&
+    identical(as.numeric(commit$bytes), as.numeric(file.info(path)$size))
+  if (!valid) stop("Line artifact commit/ownership fields do not reconcile: ", basename(path), call. = FALSE)
+  invisible(commit)
+}
+
+mvt_validate_aggregate_table_semantics <- function(grid, tables, methods) {
+  required <- c("fit_status", "benchmark_results", "runtime")
+  if (!all(required %in% names(tables))) stop("Committed aggregate snapshot is missing attempt tables.", call. = FALSE)
+  expected_keys <- do.call(paste, c(
+    merge(grid["case_id"], data.frame(method = methods, stringsAsFactors = FALSE), by = NULL, sort = FALSE),
+    sep = "\r"
+  ))
+  for (name in required) {
+    table <- tables[[name]]
+    semantic <- c(
+      "case_id", "method", "attempted", "success", "converged", "retained",
+      "stop_reason", "status_class", "elapsed_sec", "failure_reason_short", "error"
+    )
+    if (!all(semantic %in% names(table))) stop("Aggregate semantic schema failure: ", name, call. = FALSE)
+    keys <- paste(table$case_id, table$method, sep = "\r")
+    if (nrow(table) != length(expected_keys) || anyDuplicated(keys) || !setequal(keys, expected_keys)) {
+      stop("Aggregate case-method cross-product failure: ", name, call. = FALSE)
+    }
+    attempted <- table$attempted %in% TRUE
+    success <- table$success %in% TRUE
+    converged <- table$converged %in% TRUE
+    retained <- table$retained %in% TRUE
+    elapsed <- suppressWarnings(as.numeric(table$elapsed_sec))
+    stop_reason <- as.character(table$stop_reason)
+    status_class <- as.character(table$status_class)
+    failure <- as.character(table$failure_reason_short)
+    error <- as.character(table$error)
+    if (!all(attempted) || any(success != retained) || any(retained & !converged) ||
+        any(!is.finite(elapsed) | elapsed < 0) || any(!nzchar(trimws(stop_reason)) | is.na(stop_reason)) ||
+        any(retained & stop_reason != "converged") || any(retained & !tolower(status_class) %in% c("ok", "warning", "success")) ||
+        any(!retained & (is.na(error) | !nzchar(trimws(error)))) ||
+        any(!retained & (is.na(failure) | !nzchar(trimws(failure)) | failure == "none"))) {
+      stop("Aggregate attempt semantics are contradictory: ", name, call. = FALSE)
+    }
+  }
+  semantic_compare <- c(
+    "case_id", "method", "attempted", "success", "converged", "retained",
+    "stop_reason", "status_class", "failure_reason_short", "error"
+  )
+  normalized <- lapply(tables[required], function(x) {
+    x <- x[order(match(x$case_id, grid$case_id), match(x$method, methods)), semantic_compare, drop = FALSE]
+    rownames(x) <- NULL
+    x
+  })
+  if (!identical(normalized$fit_status, normalized$benchmark_results) ||
+      !identical(normalized$fit_status, normalized$runtime)) {
+    stop("Aggregate attempt tables disagree on semantic status fields.", call. = FALSE)
+  }
+  benchmark <- tables$benchmark_results
+  nonretained <- !(benchmark$retained %in% TRUE)
+  accuracy <- intersect(c(
+    "mae", "rmse", "logLik", "AIC", "BIC", grep("^benchmark_", names(benchmark), value = TRUE)
+  ), names(benchmark))
+  if (any(nonretained) && length(accuracy) && any(vapply(
+    benchmark[nonretained, accuracy, drop = FALSE],
+    function(x) any(is.finite(suppressWarnings(as.numeric(x)))), logical(1L)
+  ))) stop("Nonretained aggregate rows contribute accuracy evidence.", call. = FALSE)
+  for (name in c("coefficient_results", "dependence_recovery", "variogram_scores")) {
+    table <- tables[[name]]
+    if (is.null(table) || !nrow(table)) next
+    if (!all(c("case_id", "scenario", "family", "rep", "method") %in% names(table))) {
+      stop("Aggregate truth-table binding schema failure: ", name, call. = FALSE)
+    }
+    if (!all(paste(table$case_id, table$method, sep = "\r") %in% expected_keys)) {
+      stop("Aggregate truth table contains an unregistered case-method key: ", name, call. = FALSE)
+    }
+    grid_binding <- grid
+    if (!"family" %in% names(grid_binding) && "family_name" %in% names(grid_binding)) grid_binding$family <- grid_binding$family_name
+    binding_fields <- intersect(c("scenario", "generator", "dependence", "correlation_level", "n_time", "n_subject", "total_rows", "family", "rep"), names(grid_binding))
+    lookup <- grid_binding[match(table$case_id, grid_binding$case_id), binding_fields, drop = FALSE]
+    comparable <- intersect(binding_fields, names(table))
+    if (length(comparable) && any(vapply(comparable, function(field) {
+      !identical(as.character(table[[field]]), as.character(lookup[[field]]))
+    }, logical(1L)))) stop("Aggregate truth table metadata contradicts its registered case: ", name, call. = FALSE)
+  }
+  if (nrow(tables$coefficient_results) &&
+      !all(c("parameter", "term", "estimate", "std_error", "truth", "bias", "conf.low", "conf.high") %in%
+        names(tables$coefficient_results))) {
+    stop("Coefficient truth table is incomplete.", call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+mvt_write_aggregate_snapshot <- function(
+    tasks, run_dir, grid, methods, rows, checkpoint_manifest_before,
+    configuration, production_run, lease) {
+  checkpoint_manifest_after <- mvt_checkpoint_manifest(tasks, run_dir)
+  if (!identical(checkpoint_manifest_after, checkpoint_manifest_before)) {
+    stop("Checkpoint set changed during parent aggregate commit.", call. = FALSE)
+  }
+  mvt_validate_aggregate_table_semantics(grid, rows, methods)
+  artifact_names <- mvt_phase2_public_output_allowlist()$attempt_artifacts
+  artifact_paths <- file.path(run_dir, artifact_names)
+  missing <- !file.exists(artifact_paths)
+  if (any(missing)) stop("Cannot commit incomplete aggregate snapshot: ", paste(artifact_names[missing], collapse = ", "), call. = FALSE)
+  artifact_rows <- lapply(seq_along(artifact_paths), function(i) {
+    path <- artifact_paths[[i]]
+    validated <- mvt_validate_aggregate_file_commit(
+      path, expected_nonce = lease$owner$nonce, expected_pid = lease$owner$pid
+    )
+    commit <- validated$commit
+    data.frame(
+      file = artifact_names[[i]], sha256 = commit$sha256,
+      rows = commit$rows, schema_sha256 = commit$schema_sha256,
+      bytes = commit$bytes, writer_pid = commit$writer_pid,
+      owner_role = commit$owner_role, lease_nonce = commit$lease_nonce,
+      commit_sha256 = validated$commit_sha256,
+      ownership_sha256 = validated$ownership_sha256,
+      stringsAsFactors = FALSE
+    )
+  })
+  artifacts <- do.call(rbind, artifact_rows)
+  expected_result_hashes <- vapply(names(rows), function(name) {
+    mvt_csv_serialized_sha256(rows[[name]])
+  }, character(1L))
+  actual_result_hashes <- stats::setNames(
+    artifacts$sha256[match(paste0(names(rows), "_by_rep.csv"), artifacts$file)], names(rows)
+  )
+  if (!identical(unname(actual_result_hashes), unname(expected_result_hashes))) {
+    stop("Aggregate CSVs do not exactly serialize the validated checkpoint payloads.", call. = FALSE)
+  }
+  snapshot <- list(
+    schema_version = 1L, status = "preparing",
+    committed_at = NA_character_,
+    lease_nonce = lease$owner$nonce, owner_pid = lease$owner$pid,
+    producer_id = mvt_producer_id, producer_version = mvt_producer_version,
+    production_run = isTRUE(production_run), configuration = configuration,
+    configuration_fingerprint = tasks[[1L]]$configuration_fingerprint,
+    execution_attestation = tasks[[1L]]$execution_attestation,
+    grid = grid, methods = methods, tasks = tasks,
+    checkpoint_manifest = checkpoint_manifest_after,
+    artifacts = artifacts, expected_result_hashes = expected_result_hashes
+  )
+  snapshot_path <- file.path(run_dir, "aggregate_snapshot.rds")
+  mvt_save_rds_atomic(snapshot, snapshot_path, lease)
+  manifest_precommit <- mvt_checkpoint_manifest(tasks, run_dir)
+  if (!identical(manifest_precommit, checkpoint_manifest_after) || any(vapply(
+    seq_len(nrow(artifacts)), function(i) {
+      !identical(mvt_sha256_file(file.path(run_dir, artifacts$file[[i]])), artifacts$sha256[[i]])
+    }, logical(1L)
+  ))) stop("Checkpoint or aggregate set changed immediately before snapshot commit.", call. = FALSE)
+  snapshot$status <- "committed_immutable"
+  snapshot$committed_at <- format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z")
+  mvt_save_rds_atomic(snapshot, snapshot_path, lease)
+  manifest_postcommit <- mvt_checkpoint_manifest(tasks, run_dir)
+  if (!identical(manifest_postcommit, checkpoint_manifest_after) || any(vapply(
+    seq_len(nrow(artifacts)), function(i) {
+      !identical(mvt_sha256_file(file.path(run_dir, artifacts$file[[i]])), artifacts$sha256[[i]])
+    }, logical(1L)
+  ))) stop("Checkpoint or aggregate set changed immediately after snapshot commit.", call. = FALSE)
+  snapshot_commit <- list(
+    schema_version = 1L, status = "committed_immutable",
+    file = basename(snapshot_path), owner_role = "lease_parent",
+    lease_nonce = lease$owner$nonce, writer_pid = lease$owner$pid,
+    sha256 = mvt_sha256_file(snapshot_path), bytes = as.numeric(file.info(snapshot_path)$size),
+    snapshot_schema_sha256 = mvt_hash_object(names(snapshot)),
+    checkpoint_manifest_sha256 = mvt_hash_object(snapshot$checkpoint_manifest),
+    artifacts_sha256 = mvt_hash_object(snapshot$artifacts),
+    committed_at = snapshot$committed_at
+  )
+  mvt_save_rds_atomic(snapshot_commit, paste0(snapshot_path, ".commit.rds"), lease)
+  mvt_save_rds_atomic(snapshot_commit, paste0(snapshot_path, ".ownership.rds"), lease)
+  invisible(snapshot)
+}
+
+mvt_validate_committed_snapshot <- function(run_dir, require_production = FALSE) {
+  snapshot_path <- file.path(run_dir, "aggregate_snapshot.rds")
+  snapshot <- tryCatch(suppressWarnings(readRDS(snapshot_path)), error = function(e) NULL)
+  commit <- tryCatch(suppressWarnings(readRDS(paste0(snapshot_path, ".commit.rds"))), error = function(e) NULL)
+  ownership <- tryCatch(suppressWarnings(readRDS(paste0(snapshot_path, ".ownership.rds"))), error = function(e) NULL)
+  root_fields <- c(
+    "schema_version", "status", "file", "owner_role", "lease_nonce", "writer_pid",
+    "sha256", "bytes", "snapshot_schema_sha256", "checkpoint_manifest_sha256",
+    "artifacts_sha256", "committed_at"
+  )
+  if (!is.list(snapshot) || !identical(snapshot$status, "committed_immutable") || !is.list(commit) ||
+      !is.list(ownership) || !identical(commit, ownership) || !all(root_fields %in% names(commit)) ||
+      !identical(commit$status, "committed_immutable") ||
+      !identical(commit$schema_version, 1L) || !identical(commit$file, basename(snapshot_path)) ||
+      !identical(commit$owner_role, "lease_parent") ||
+      !identical(commit$sha256, mvt_sha256_file(snapshot_path)) ||
+      !identical(as.numeric(commit$bytes), as.numeric(file.info(snapshot_path)$size)) ||
+      !identical(commit$snapshot_schema_sha256, mvt_hash_object(names(snapshot))) ||
+      !identical(commit$checkpoint_manifest_sha256, mvt_hash_object(snapshot$checkpoint_manifest)) ||
+      !identical(commit$artifacts_sha256, mvt_hash_object(snapshot$artifacts)) ||
+      !identical(commit$lease_nonce, snapshot$lease_nonce) ||
+      !identical(as.integer(commit$writer_pid), as.integer(snapshot$owner_pid))) {
+    stop("Run directory does not contain a valid immutable aggregate snapshot.", call. = FALSE)
+  }
+  if (isTRUE(require_production) && !isTRUE(snapshot$production_run)) {
+    stop("Aggregate snapshot is not registered as an exact production run.", call. = FALSE)
+  }
+  if (isTRUE(require_production)) {
+    current_fingerprints <- mvt_checkpoint_fingerprints()
+    current_execution <- mvt_execution_attestation_contract(
+      current_fingerprints,
+      configuration_fingerprint = snapshot$configuration_fingerprint
+    )
+    stored_task <- snapshot$tasks[[1L]]
+    current_fields <- c("producer_fingerprint", "code_fingerprint", "package_fingerprint")
+    stale <- any(vapply(current_fields, function(field) {
+      !identical(stored_task[[field]], current_fingerprints[[field]])
+    }, logical(1L))) ||
+      !identical(snapshot$configuration_fingerprint, mvt_hash_object(snapshot$configuration)) ||
+      !identical(stored_task$execution_fingerprint, mvt_hash_object(current_execution))
+    if (stale) {
+      stop("Production aggregate snapshot is stale relative to the current producer/code/package/runtime/configuration identity.", call. = FALSE)
+    }
+    current_attestation <- mvt_verify_execution_attestation(current_execution, load = TRUE)
+    if (!mvt_execution_attestation_matches(current_attestation, current_execution)) {
+      stop("Production aggregate snapshot current execution attestation failed.", call. = FALSE)
+    }
+  }
+  for (i in seq_len(nrow(snapshot$artifacts))) {
+    artifact <- snapshot$artifacts[i, , drop = FALSE]
+    path <- file.path(run_dir, artifact$file)
+    validated <- tryCatch(mvt_validate_aggregate_file_commit(
+      path,
+      expected_nonce = snapshot$lease_nonce,
+      expected_pid = snapshot$owner_pid,
+      expected_commit_sha256 = artifact$commit_sha256,
+      expected_ownership_sha256 = artifact$ownership_sha256
+    ), error = function(e) e)
+    file_commit <- if (inherits(validated, "error")) NULL else validated$commit
+    if (is.null(file_commit) || !identical(file_commit$sha256, artifact$sha256) ||
+        !identical(as.integer(file_commit$rows), as.integer(artifact$rows)) ||
+        !identical(file_commit$schema_sha256, artifact$schema_sha256) ||
+        !identical(as.numeric(file_commit$bytes), as.numeric(artifact$bytes)) ||
+        !identical(file_commit$owner_role, artifact$owner_role) ||
+        !identical(as.integer(file_commit$writer_pid), as.integer(artifact$writer_pid)) ||
+        !identical(file_commit$lease_nonce, artifact$lease_nonce)) {
+      stop("Committed aggregate artifact is missing or mutable: ", artifact$file, call. = FALSE)
+    }
+  }
+  current_manifest <- mvt_checkpoint_manifest(snapshot$tasks, run_dir)
+  if (!identical(current_manifest, snapshot$checkpoint_manifest)) {
+    stop("Checkpoint hashes/schema no longer reconcile with the committed snapshot.", call. = FALSE)
+  }
+  rows <- mvt_collect_case_checkpoints(snapshot$tasks, run_dir, snapshot$grid, snapshot$methods)
+  for (name in names(rows)) {
+    path <- file.path(run_dir, paste0(name, "_by_rep.csv"))
+    if (!identical(mvt_csv_serialized_sha256(rows[[name]]), mvt_sha256_file(path))) {
+      stop("Aggregate payload no longer reconciles with checkpoints: ", name, call. = FALSE)
+    }
+  }
+  loaded <- stats::setNames(lapply(names(rows), function(name) {
+    mvt_read_optional_csv(file.path(run_dir, paste0(name, "_by_rep.csv")))
+  }), names(rows))
+  mvt_validate_aggregate_table_semantics(snapshot$grid, loaded, snapshot$methods)
+  invisible(c(snapshot, list(rows = loaded)))
+}
+
+mvt_phase2_snapshot_attestation_path <- function() {
+  Sys.getenv("GAMLSS_LONGITUDINAL_MVT_ATTESTATION", unset = "")
+}
+
+mvt_phase2_snapshot_signature_path <- function() {
+  Sys.getenv("GAMLSS_LONGITUDINAL_MVT_ATTESTATION_SIGNATURE", unset = "")
+}
+
+mvt_phase2_pinned_public_key <- function() {
+  as.raw(c(66, 91, 71, 233, 21, 247, 172, 45, 215, 202, 170, 0, 64,
+    43, 83, 206, 23, 50, 48, 154, 25, 217, 178, 37, 252, 59, 158, 195,
+    237, 0, 31, 216))
+}
+
+mvt_phase2_parse_approval_time <- function(x) {
+  if (!is.character(x) || length(x) != 1L || is.na(x) ||
+      !grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$", x)) {
+    stop("Phase 2 snapshot approval timestamp is not RFC3339 UTC.", call. = FALSE)
+  }
+  parsed <- as.POSIXct(strptime(x, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"))
+  if (is.na(parsed) || !identical(format(parsed, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"), x)) {
+    stop("Phase 2 snapshot approval timestamp is not a real RFC3339 UTC instant.", call. = FALSE)
+  }
+  parsed
+}
+
+mvt_read_signed_snapshot_approval <- function(attestation_path, signature_path) {
+  if (!requireNamespace("sodium", quietly = TRUE)) stop("sodium is required for Phase 2 snapshot approval verification.", call. = FALSE)
+  if (!nzchar(attestation_path) || !nzchar(signature_path)) {
+    stop("Phase 2 snapshot lacks a detached production approval signature.", call. = FALSE)
+  }
+  root <- paste0(tolower(normalizePath(mvt_repo_root, winslash = "/", mustWork = TRUE)), "/")
+  approval_paths <- vapply(c(attestation_path, signature_path), normalizePath, character(1L),
+    winslash = "/", mustWork = TRUE)
+  if (any(startsWith(tolower(paste0(approval_paths, "/")), root))) {
+    stop("Phase 2 snapshot approval attestation/signature must be external to the checkout.", call. = FALSE)
+  }
+  message_raw <- readBin(approval_paths[[1L]], "raw", n = file.info(approval_paths[[1L]])$size)
+  signature_raw <- readBin(approval_paths[[2L]], "raw", n = file.info(approval_paths[[2L]])$size)
+  if (!isTRUE(tryCatch(sodium::sig_verify(message_raw, signature_raw,
+      mvt_phase2_pinned_public_key()), error = function(e) FALSE))) {
+    stop("Phase 2 snapshot approval lacks a valid detached production signature.", call. = FALSE)
+  }
+  approval <- tryCatch(unserialize(message_raw), error = function(e) NULL)
+  expected_names <- c(
+    "schema_version", "study", "snapshot_sha256", "snapshot_schema_version",
+    "producer_id", "producer_version", "configuration_fingerprint",
+    "audit_sha256", "artifact_manifest_sha256", "checkpoint_manifest_sha256",
+    "approved_at_utc", "approver"
+  )
+  if (!is.list(approval) || !identical(names(approval), expected_names) ||
+      !identical(approval$schema_version, 2L) || !identical(approval$study, "multivariate-benchmark") ||
+      !is.character(approval$approver) || length(approval$approver) != 1L ||
+      !nzchar(trimws(approval$approver))) {
+    stop("Phase 2 detached approval schema/study/approver is invalid.", call. = FALSE)
+  }
+  mvt_phase2_parse_approval_time(approval$approved_at_utc)
+  approval
+}
+
+mvt_phase2_snapshot_trust_sha256 <- function(run_dir) {
+  path <- file.path(run_dir, "aggregate_snapshot.rds")
+  if (!file.exists(path)) stop("Phase 2 candidate snapshot is missing.", call. = FALSE)
+  mvt_sha256_file(path)
+}
+
+mvt_write_phase2_snapshot_candidate <- function(run_dir, snapshot) {
+  committed <- mvt_validate_committed_snapshot(run_dir, require_production = TRUE)
+  if (!isTRUE(snapshot$production_run) ||
+      !identical(mvt_hash_object(snapshot$checkpoint_manifest), mvt_hash_object(committed$checkpoint_manifest)) ||
+      !identical(mvt_hash_object(snapshot$artifacts), mvt_hash_object(committed$artifacts))) {
+    stop("Phase 2 candidate input does not match the reconciled exact production snapshot.", call. = FALSE)
+  }
+  audit <- mvt_phase2_audit_from_committed_snapshot(committed)
+  if (!mvt_phase2_production_eligible(audit)) {
+    stop("Phase 2 candidate emission requires every registered production audit check to pass.", call. = FALSE)
+  }
+  candidate_hash <- mvt_phase2_snapshot_trust_sha256(run_dir)
+  candidate_dir <- file.path(mvt_output_root, "snapshot-candidates")
+  dir.create(candidate_dir, recursive = TRUE, showWarnings = FALSE)
+  run_id <- gsub("[^A-Za-z0-9_.-]+", "_", basename(normalizePath(run_dir, winslash = "/", mustWork = TRUE)))
+  path <- file.path(candidate_dir, paste0(run_id, "-", substr(candidate_hash, 1L, 16L), ".csv"))
+  row <- data.frame(
+    registry_version = 1L, snapshot_schema_version = snapshot$schema_version,
+    profile = "full", status = "candidate_pending_independent_promotion",
+    snapshot_sha256 = candidate_hash,
+    producer_id = snapshot$producer_id, producer_version = snapshot$producer_version,
+    configuration_fingerprint = snapshot$configuration_fingerprint,
+    run_dir = normalizePath(run_dir, winslash = "/", mustWork = TRUE),
+    created_at = snapshot$committed_at, stringsAsFactors = FALSE
+  )
+  temporary <- tempfile(paste0(".", basename(path), "-"), tmpdir = candidate_dir)
+  on.exit(unlink(temporary, force = TRUE), add = TRUE)
+  utils::write.csv(row, temporary, row.names = FALSE)
+  if (file.exists(path)) {
+    existing <- utils::read.csv(path, stringsAsFactors = FALSE, check.names = FALSE)
+    if (!identical(existing, row)) stop("Phase 2 candidate registry path already contains different content.", call. = FALSE)
+  } else if (!file.rename(temporary, path)) {
+    stop("Could not atomically install the external Phase 2 candidate record.", call. = FALSE)
+  }
+  invisible(path)
+}
+
+mvt_validate_approved_snapshot <- function(
+    run_dir, attestation_path = mvt_phase2_snapshot_attestation_path(),
+    require_production = TRUE,
+    signature_path = mvt_phase2_snapshot_signature_path()) {
+  snapshot <- mvt_validate_committed_snapshot(run_dir, require_production = require_production)
+  candidate_hash <- mvt_phase2_snapshot_trust_sha256(run_dir)
+  audit <- mvt_phase2_audit_from_committed_snapshot(snapshot)
+  if (!mvt_phase2_production_eligible(audit)) stop("Phase 2 approved snapshot fails its production audit.", call. = FALSE)
+  approval <- mvt_read_signed_snapshot_approval(attestation_path, signature_path)
+  if (!identical(approval$snapshot_sha256, candidate_hash) ||
+      !identical(approval$snapshot_schema_version, snapshot$schema_version) ||
+      !identical(approval$producer_id, snapshot$producer_id) ||
+      !identical(approval$producer_version, snapshot$producer_version) ||
+      !identical(approval$configuration_fingerprint, snapshot$configuration_fingerprint) ||
+      !identical(approval$audit_sha256, mvt_hash_object(audit)) ||
+      !identical(approval$artifact_manifest_sha256, mvt_hash_object(snapshot$artifacts)) ||
+      !identical(approval$checkpoint_manifest_sha256, mvt_hash_object(snapshot$checkpoint_manifest))) {
+    stop("Phase 2 signed approval does not bind the immutable snapshot/configuration/producer/audit.", call. = FALSE)
+  }
+  after <- mvt_validate_committed_snapshot(run_dir, require_production = require_production)
+  if (!identical(candidate_hash, mvt_phase2_snapshot_trust_sha256(run_dir)) ||
+      !identical(mvt_hash_object(snapshot$artifacts), mvt_hash_object(after$artifacts)) ||
+      !identical(mvt_hash_object(snapshot$checkpoint_manifest), mvt_hash_object(after$checkpoint_manifest)) ||
+      !identical(mvt_hash_object(audit), mvt_hash_object(mvt_phase2_audit_from_committed_snapshot(after)))) {
+    stop("Phase 2 snapshot changed after signed approval validation.", call. = FALSE)
+  }
+  attr(snapshot, "approved_snapshot_sha256") <- candidate_hash
+  attr(snapshot, "approval") <- approval
+  snapshot
 }
 
 mvt_read_result_table <- function(run_dir, name) {
@@ -3082,7 +5145,22 @@ mvt_read_existing_results <- function(run_dir) {
   )
 }
 
-mvt_completed_case_ids <- function(existing) {
+mvt_completed_case_ids <- function(existing, planned_methods = NULL) {
+  if (!is.null(planned_methods) && length(planned_methods)) {
+    status <- existing[["fit_status"]]
+    benchmark <- existing[["benchmark_results"]]
+    if (!is.data.frame(status) || !is.data.frame(benchmark) ||
+        !all(c("case_id", "method") %in% names(status)) ||
+        !all(c("case_id", "method") %in% names(benchmark))) return(character())
+    cases <- intersect(unique(as.character(status$case_id)), unique(as.character(benchmark$case_id)))
+    complete <- vapply(cases, function(case_id) {
+      status_methods <- status$method[status$case_id == case_id]
+      benchmark_methods <- benchmark$method[benchmark$case_id == case_id]
+      all(vapply(planned_methods, function(method) sum(status_methods == method) == 1L, logical(1L))) &&
+        all(vapply(planned_methods, function(method) sum(benchmark_methods == method) == 1L, logical(1L)))
+    }, logical(1L))
+    return(cases[complete])
+  }
   sources <- existing[c("fit_status", "benchmark_results", "runtime")]
   ids <- unique(unlist(lapply(sources, function(x) {
     if (is.data.frame(x) && "case_id" %in% names(x)) unique(x$case_id) else character()
@@ -3100,7 +5178,12 @@ mvt_preflight_check <- function(check, status, detail = "", n = NA_integer_) {
   )
 }
 
-mvt_write_preflight <- function(grid, run_dir, require_gamcopula = TRUE, resume = TRUE) {
+mvt_write_preflight <- function(grid, run_dir, require_gamcopula = TRUE, resume = TRUE, lease = NULL) {
+  owns_lease <- is.null(lease)
+  if (owns_lease) {
+    lease <- mvt_acquire_run_lock(run_dir)
+    on.exit(mvt_release_run_lock(lease), add = TRUE)
+  }
   active <- mvt_active_comparators()
   packages <- c("gamlss", "gamlss.dist", "mvtnorm", "VineCopula", "callr")
   if (isTRUE(require_gamcopula) || any(grepl("^gamCopula", active))) packages <- c(packages, "gamCopula")
@@ -3110,6 +5193,9 @@ mvt_write_preflight <- function(grid, run_dir, require_gamcopula = TRUE, resume 
   package_status <- mvt_require_namespaces(packages, strict = FALSE)
   existing_outputs <- file.exists(file.path(run_dir, paste0(mvt_result_names(), "_by_rep.csv"))) |
     file.exists(file.path(run_dir, paste0(mvt_result_names(), "_checkpoint.csv")))
+  existing_case_checkpoints <- length(list.files(
+    mvt_case_checkpoint_dir(run_dir), pattern = "[.]rds$", full.names = TRUE
+  ))
   row_cap_ok <- nrow(grid) > 0L && "total_rows" %in% names(grid) && all(grid$total_rows <= 5000L)
   unstructured_t50 <- "gee_unstructured" %in% active && "n_time" %in% names(grid) && any(grid$n_time >= 50L)
   unstructured_timeout <- mvt_env_num("GAMLSS_LONGITUDINAL_MVT_GEE_UNSTRUCTURED_TIMEOUT_SEC", if (unstructured_t50) 30 else Inf)
@@ -3140,9 +5226,12 @@ mvt_write_preflight <- function(grid, run_dir, require_gamcopula = TRUE, resume 
     ),
     mvt_preflight_check(
       "resume_configuration",
-      if (isTRUE(resume) || !any(existing_outputs)) "pass" else "warn",
-      paste("resume", resume, "| existing result/checkpoint files", sum(existing_outputs)),
-      sum(existing_outputs)
+      if (isTRUE(resume) || (!any(existing_outputs) && existing_case_checkpoints == 0L)) "pass" else "warn",
+      paste(
+        "resume", resume, "| existing aggregate files", sum(existing_outputs),
+        "| case checkpoints", existing_case_checkpoints
+      ),
+      sum(existing_outputs) + existing_case_checkpoints
     ),
     mvt_preflight_check(
       "gee_unstructured_timeout",
@@ -3152,7 +5241,7 @@ mvt_write_preflight <- function(grid, run_dir, require_gamcopula = TRUE, resume 
     )
   )
   out <- mvt_bind_rows_fill(checks)
-  mvt_write_csv(out, file.path(run_dir, "preflight_checks.csv"))
+  mvt_write_csv_atomic(out, file.path(run_dir, "preflight_checks.csv"), lease = lease)
   lines <- c(
     "# Multivariate Simulation Preflight",
     "",
@@ -3165,33 +5254,72 @@ mvt_write_preflight <- function(grid, run_dir, require_gamcopula = TRUE, resume 
     "",
     paste0("- ", out$check, " [", out$status, "]: ", out$detail)
   )
-  writeLines(lines, file.path(run_dir, "preflight_checks.md"), useBytes = TRUE)
+  mvt_write_lines_atomic(lines, file.path(run_dir, "preflight_checks.md"), lease = lease)
   invisible(out)
 }
 
-mvt_write_run_metadata <- function(run_dir, grid, seed_base, require_gamcopula, resume) {
+mvt_write_run_metadata <- function(
+    run_dir, grid, seed_base, require_gamcopula, resume,
+    workers = mvt_env_int("GAMLSS_LONGITUDINAL_MVT_WORKERS", 1L),
+    workers_used = workers,
+    fingerprints = mvt_checkpoint_fingerprints(), configuration_fingerprint = "",
+    run_started = Sys.time(), run_completed = NA, run_elapsed_sec = NA_real_, lease = NULL) {
+  owns_lease <- is.null(lease)
+  if (owns_lease) {
+    lease <- mvt_acquire_run_lock(run_dir)
+    on.exit(mvt_release_run_lock(lease), add = TRUE)
+  }
+  runtime <- mvt_runtime_identity()
+  hardware <- mvt_hardware_identity()
+  gc_state <- gc()
   metadata <- data.frame(
     name = c(
       "created_at",
+      "run_started_at", "run_completed_at", "run_elapsed_sec",
       "repo_root",
       "seed_base",
       "require_gamcopula",
       "resume",
       "active_comparators",
       "n_cases",
-      "r_version",
-      "platform"
+      "workers_requested",
+      "workers_used",
+      "checkpoint_schema_version",
+      "identity_algorithm", "identity_version", "producer_id", "producer_version",
+      "checkpoint_configuration_fingerprint",
+      "producer_fingerprint",
+      "code_fingerprint",
+      "package_fingerprint",
+      "r_version", "platform", "rng_kind", "blas", "lapack",
+      "hostname", "cpu_model", "logical_cores", "physical_cores", "ram_bytes", "parent_pid",
+      "gc_peak_ncells", "gc_peak_vcells"
     ),
     value = c(
       format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"),
+      format(run_started, "%Y-%m-%d %H:%M:%S %Z"),
+      if (length(run_completed) == 1L && !is.na(run_completed)) format(run_completed, "%Y-%m-%d %H:%M:%S %Z") else "",
+      as.character(run_elapsed_sec),
       mvt_repo_root,
       as.character(seed_base),
       as.character(require_gamcopula),
       as.character(resume),
       paste(mvt_active_comparators(), collapse = ","),
       as.character(nrow(grid)),
-      R.version.string,
-      R.version$platform
+      as.character(workers),
+      as.character(workers_used),
+      as.character(mvt_checkpoint_schema_version),
+      fingerprints$algorithm %||% mvt_identity_algorithm,
+      fingerprints$identity_version %||% mvt_identity_version,
+      fingerprints$producer_id %||% mvt_producer_id,
+      fingerprints$producer_version %||% mvt_producer_version,
+      configuration_fingerprint,
+      fingerprints$producer_fingerprint,
+      fingerprints$code_fingerprint,
+      fingerprints$package_fingerprint,
+      runtime$r_version, runtime$platform, paste(runtime$rng_kind, collapse = "/"), runtime$blas, runtime$lapack,
+      hardware$hostname, hardware$cpu_model, as.character(hardware$logical_cores), as.character(hardware$physical_cores),
+      as.character(hardware$ram_bytes), as.character(hardware$parent_pid),
+      as.character(gc_state["Ncells", "max used"]), as.character(gc_state["Vcells", "max used"])
     ),
     stringsAsFactors = FALSE
   )
@@ -3206,55 +5334,248 @@ mvt_write_run_metadata <- function(run_dir, grid, seed_base, require_gamcopula, 
       )
     )
   }
-  mvt_write_csv(metadata, file.path(run_dir, "run_metadata.csv"))
-  mvt_write_csv(
-    mvt_package_versions(c(
-      "gamlss.longitudinal", "gamlss", "gamlss.dist", "gamCopula",
-      "VineCopula", "mvtnorm", "geepack", "lme4", "mgcv",
-      "callr", "scoringRules", "ggplot2"
-    )),
-    file.path(run_dir, "package_versions.csv")
+  mvt_write_csv_atomic(metadata, file.path(run_dir, "run_metadata.csv"), lease = lease)
+  recorded_versions <- fingerprints$package_versions %||% mvt_package_versions(c(
+    "gamlss.longitudinal", "gamlss", "gamlss.dist", "gamCopula", "VineCopula",
+    "mvtnorm", "geepack", "lme4", "mgcv", "callr", "scoringRules", "ggplot2"
+  ))
+  mvt_write_csv_atomic(
+    recorded_versions,
+    file.path(run_dir, "package_versions.csv"), lease = lease
   )
-  writeLines(capture.output(utils::sessionInfo()), file.path(run_dir, "session_info.txt"), useBytes = TRUE)
+  mvt_write_lines_atomic(
+    capture.output(utils::sessionInfo()), file.path(run_dir, "session_info.txt"), lease = lease
+  )
   invisible(run_dir)
 }
 
-mvt_run_grid <- function(grid, run_dir, seed_base = 20260818L, checkpoint_every = 5L, require_gamcopula = TRUE) {
+mvt_run_grid <- function(
+    grid, run_dir, seed_base = 20260818L, checkpoint_every = 5L,
+    require_gamcopula = TRUE,
+    workers = mvt_env_int("GAMLSS_LONGITUDINAL_MVT_WORKERS", 1L),
+    run_case_fun = mvt_run_case,
+    worker_load_local = TRUE,
+    fingerprints = mvt_checkpoint_fingerprints()) {
+  run_started <- Sys.time()
   dir.create(mvt_output_root, recursive = TRUE, showWarnings = FALSE)
   dir.create(run_dir, recursive = TRUE, showWarnings = FALSE)
+  run_lock <- mvt_acquire_run_lock(run_dir)
+  on.exit(mvt_release_run_lock(run_lock), add = TRUE)
+  workers <- suppressWarnings(as.integer(workers))
+  if (length(workers) != 1L || is.na(workers) || workers < 1L) {
+    stop("GAMLSS_LONGITUDINAL_MVT_WORKERS must be a positive integer.", call. = FALSE)
+  }
   resume <- mvt_env_flag("GAMLSS_LONGITUDINAL_MVT_RESUME", TRUE)
-  existing <- if (isTRUE(resume)) mvt_read_existing_results(run_dir) else stats::setNames(vector("list", length(mvt_result_names())), mvt_result_names())
-  completed <- mvt_completed_case_ids(existing)
-  mvt_write_csv(grid, file.path(run_dir, "scenario_grid.csv"))
-  mvt_write_preflight(grid, run_dir, require_gamcopula = require_gamcopula, resume = resume)
-  mvt_write_run_metadata(run_dir, grid, seed_base, require_gamcopula, resume)
-  rows <- lapply(mvt_result_names(), function(name) {
-    current <- existing[[name]]
-    if (is.data.frame(current) && nrow(current) > 0L) list(current) else list()
-  })
-  names(rows) <- mvt_result_names()
-  for (i in seq_len(nrow(grid))) {
-    if (grid$case_id[[i]] %in% completed) {
-      message("[", i, "/", nrow(grid), "] ", grid$case_id[[i]], " (resume skip)")
-      next
+  methods <- mvt_active_comparators()
+  grid <- grid[mvt_canonical_grid_order(grid), , drop = FALSE]
+  rownames(grid) <- NULL
+  tasks <- mvt_prepare_tasks(
+    grid, seed_base, require_gamcopula, fingerprints,
+    workers_requested = workers, run_started_at = run_started
+  )
+  production_run <- mvt_grid_is_exact_production(grid)
+  if (production_run) {
+    current_fingerprints <- mvt_checkpoint_fingerprints()
+    fingerprint_fields <- c(
+      "algorithm", "identity_version", "producer_id", "producer_version",
+      "producer_fingerprint", "code_fingerprint", "package_fingerprint"
+    )
+    fingerprints_current <- all(vapply(fingerprint_fields, function(field) {
+      identical(fingerprints[[field]] %||% NULL, current_fingerprints[[field]] %||% NULL)
+    }, logical(1L)))
+    if (!identical(run_case_fun, mvt_run_case) || !fingerprints_current) {
+      stop("Production multivariate runs require the registered case runner and current producer/code/package fingerprints.", call. = FALSE)
     }
-    message("[", i, "/", nrow(grid), "] ", grid$case_id[[i]])
-    out <- mvt_run_case(grid[i, , drop = FALSE], seed_base = seed_base, require_gamcopula = require_gamcopula)
-    for (nm in names(rows)) rows[[nm]][[length(rows[[nm]]) + 1L]] <- out[[nm]]
-    if (checkpoint_every > 0L && i %% checkpoint_every == 0L) {
-      for (nm in names(rows)) {
-        mvt_write_csv(mvt_bind_rows_fill(rows[[nm]]), file.path(run_dir, paste0(nm, "_checkpoint.csv")))
-      }
+    timeout_check <- mvt_timeout_contract(
+      mvt_checkpoint_configuration(seed_base, require_gamcopula), methods
+    )
+    if (!timeout_check$valid) {
+      stop(
+        "Production multivariate runs require finite positive registered timeouts for every GEE/callr method: ",
+        paste(timeout_check$required, timeout_check$values, sep = "=", collapse = ", "),
+        call. = FALSE
+      )
+    }
+    if (!isTRUE(worker_load_local) ||
+        !identical(mvt_env("GAMLSS_LONGITUDINAL_MVT_SOURCE", "installed"), "local")) {
+      stop("Production multivariate runs require fully attested checked-out local source.", call. = FALSE)
     }
   }
+  dir.create(mvt_case_checkpoint_dir(run_dir), recursive = TRUE, showWarnings = FALSE)
+
+  existed <- vapply(tasks, function(task) {
+    file.exists(mvt_case_checkpoint_path(run_dir, task$case_id))
+  }, logical(1L))
+  rejections <- list()
+  checkpoints <- lapply(tasks, function(task) {
+    path <- mvt_case_checkpoint_path(run_dir, task$case_id)
+    checkpoint <- if (isTRUE(resume)) mvt_read_case_checkpoint(path, task) else NULL
+    rejected <- inherits(checkpoint, "mvt_rejected_checkpoint")
+    if (file.exists(path) && (rejected || !isTRUE(resume))) {
+      reason <- if (isTRUE(resume)) attr(checkpoint, "rejection_reason") %||% "invalid" else "resume_disabled"
+      quarantine <- mvt_archive_stale_checkpoint(path, run_dir, reason)
+      rejections[[length(rejections) + 1L]] <<- data.frame(
+        case_id = task$case_id, source_path = path,
+        quarantine_path = normalizePath(quarantine, winslash = "/", mustWork = FALSE),
+        rejection_reason = reason, rejected_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"),
+        parent_pid = Sys.getpid(), stringsAsFactors = FALSE
+      )
+      checkpoint <- NULL
+    }
+    checkpoint
+  })
+  rejection_ledger <- mvt_bind_rows_fill(rejections)
+  if (!nrow(rejection_ledger)) rejection_ledger <- data.frame(
+    case_id = character(), source_path = character(), quarantine_path = character(),
+    rejection_reason = character(), rejected_at = character(), parent_pid = integer(),
+    stringsAsFactors = FALSE
+  )
+  prior_rejections <- mvt_read_optional_csv(file.path(run_dir, "checkpoint_rejections.csv"))
+  if (nrow(prior_rejections)) {
+    rejection_ledger <- mvt_bind_rows_fill(prior_rejections, rejection_ledger)
+  }
+  if (nrow(rejection_ledger)) {
+    rejection_ledger <- unique(rejection_ledger)
+    rownames(rejection_ledger) <- NULL
+  }
+  mvt_write_csv_atomic(rejection_ledger, file.path(run_dir, "checkpoint_rejections.csv"), lease = run_lock)
+  completed <- !vapply(checkpoints, is.null, logical(1L))
+  pending <- tasks[!completed]
+  workers_used <- if (length(pending)) min(workers, length(pending)) else 0L
+  if (workers_used > 1L && isTRUE(worker_load_local) &&
+      !identical(mvt_env("GAMLSS_LONGITUDINAL_MVT_SOURCE", "installed"), "local")) {
+    stop(
+      "Parallel multivariate runs require GAMLSS_LONGITUDINAL_MVT_SOURCE=local so parent and PSOCK workers use the checked-out code.",
+      call. = FALSE
+    )
+  }
+  expected_execution <- tasks[[1L]]$execution_attestation
+  expected_package_identity <- expected_execution$package_identity
+  parent_attestation <- if (identical(mvt_env("GAMLSS_LONGITUDINAL_MVT_SOURCE", "installed"), "local")) {
+    mvt_verify_execution_attestation(expected_execution, load = identical(run_case_fun, mvt_run_case))
+  } else {
+    c(expected_package_identity, list(
+      verified = NA, loaded_namespace_path = NA_character_, loaded_version = expected_package_identity$version,
+      verified_source_sha256 = expected_package_identity$source_sha256,
+      runtime_identity = mvt_runtime_identity(), libpaths = paste(.libPaths(), collapse = ";")
+    ))
+  }
+  attestation_rows <- list(mvt_attestation_row(parent_attestation, role = "parent", pid = Sys.getpid()))
+
+  mvt_write_csv_atomic(grid, file.path(run_dir, "scenario_grid.csv"), lease = run_lock)
+  mvt_write_preflight(grid, run_dir, require_gamcopula = require_gamcopula, resume = resume, lease = run_lock)
+  mvt_write_run_metadata(
+    run_dir, grid, seed_base, require_gamcopula, resume,
+    workers = workers, workers_used = workers_used, fingerprints = fingerprints,
+    configuration_fingerprint = tasks[[1L]]$configuration_fingerprint,
+    run_started = run_started, lease = run_lock
+  )
+  message(sprintf(
+    "Multivariate checkpoint audit: existing=%d valid=%d rejected=%d pending=%d workers=%d",
+    sum(existed), sum(completed), sum(existed & !completed), length(pending), workers_used
+  ))
+
+  if (length(pending) && workers_used == 1L) {
+    for (i in seq_along(pending)) {
+      task <- pending[[i]]
+      message("[", i, "/", length(pending), "] ", task$case_id)
+      mvt_run_checkpoint_task(task, run_dir, run_case_fun, writer_role = "serial_parent")
+    }
+  } else if (length(pending)) {
+    message("Starting ", workers_used, " Windows-safe PSOCK workers for ", length(pending), " unique case(s).")
+    cluster <- parallel::makePSOCKcluster(workers_used, outfile = "")
+    on.exit(if (!is.null(cluster)) try(parallel::stopCluster(cluster), silent = TRUE), add = TRUE)
+    setup_path <- normalizePath(
+      file.path(mvt_script_dir, "00-multivariate-setup.R"),
+      winslash = "/", mustWork = TRUE
+    )
+    worker_attestations <- parallel::clusterCall(cluster, function(path, load_local, expected_execution) {
+      source(path, local = .GlobalEnv)
+      if (isTRUE(load_local)) {
+        Sys.setenv(GAMLSS_LONGITUDINAL_MVT_SOURCE = "local")
+        identity <- mvt_verify_execution_attestation(expected_execution, load = TRUE)
+      } else {
+        expected_identity <- expected_execution$package_identity
+        identity <- c(expected_identity, list(
+          verified = NA, loaded_namespace_path = NA_character_, loaded_version = expected_identity$version,
+          verified_source_sha256 = expected_identity$source_sha256, full_verified = FALSE,
+          runtime_identity = mvt_runtime_identity(), libpaths = paste(.libPaths(), collapse = ";")
+        ))
+      }
+      list(pid = Sys.getpid(), setup_path = normalizePath(path, winslash = "/", mustWork = TRUE), identity = identity)
+    }, setup_path, isTRUE(worker_load_local), expected_execution)
+    if (isTRUE(worker_load_local)) {
+      verified <- vapply(worker_attestations, function(x) {
+        mvt_execution_attestation_matches(x$identity, expected_execution)
+      }, logical(1L))
+      if (!all(verified)) stop("One or more PSOCK worker checkout attestations failed.", call. = FALSE)
+    }
+    parallel::parLapplyLB(
+      cluster,
+      pending,
+      function(task, destination, case_runner) {
+        mvt_run_checkpoint_task(task, destination, case_runner, writer_role = "psock_worker")
+      },
+      destination = normalizePath(run_dir, winslash = "/", mustWork = TRUE),
+      case_runner = run_case_fun
+    )
+    post_worker_attestations <- parallel::clusterCall(cluster, function(path, load_local, expected_execution) {
+      identity <- if (isTRUE(load_local)) {
+        mvt_verify_execution_attestation(expected_execution, load = FALSE)
+      } else {
+        expected_identity <- expected_execution$package_identity
+        c(expected_identity, list(
+          verified = NA, loaded_namespace_path = NA_character_, loaded_version = expected_identity$version,
+          verified_source_sha256 = expected_identity$source_sha256, full_verified = FALSE,
+          runtime_identity = mvt_runtime_identity(), libpaths = paste(.libPaths(), collapse = ";")
+        ))
+      }
+      identity$gc_state <- gc()
+      list(pid = Sys.getpid(), setup_path = normalizePath(path, winslash = "/", mustWork = TRUE), identity = identity)
+    }, setup_path, isTRUE(worker_load_local), expected_execution)
+    if (isTRUE(worker_load_local)) {
+      post_verified <- vapply(post_worker_attestations, function(x) {
+        mvt_execution_attestation_matches(x$identity, expected_execution)
+      }, logical(1L))
+      if (!all(post_verified)) stop("One or more post-task PSOCK worker checkout attestations failed.", call. = FALSE)
+    }
+    attestation_rows <- c(attestation_rows, lapply(post_worker_attestations, function(x) {
+      mvt_attestation_row(x$identity, role = "worker", pid = x$pid, setup_path = x$setup_path)
+    }))
+    parallel::stopCluster(cluster)
+    cluster <- NULL
+  }
+
+  checkpoint_manifest_before <- mvt_checkpoint_manifest(tasks, run_dir)
+  mvt_write_csv_atomic(
+    mvt_bind_rows_fill(attestation_rows), file.path(run_dir, "worker_attestations.csv"), lease = run_lock
+  )
+
+  rows <- mvt_collect_case_checkpoints(tasks, run_dir, grid, methods)
   for (nm in names(rows)) {
-    mvt_write_csv(mvt_bind_rows_fill(rows[[nm]]), file.path(run_dir, paste0(nm, "_by_rep.csv")))
+    mvt_write_csv_atomic(rows[[nm]], file.path(run_dir, paste0(nm, "_by_rep.csv")), lease = run_lock)
   }
   run_dir_norm <- normalizePath(run_dir, winslash = "/", mustWork = FALSE)
   output_root_norm <- normalizePath(mvt_output_root, winslash = "/", mustWork = FALSE)
   if (startsWith(run_dir_norm, output_root_norm)) {
     writeLines(run_dir, file.path(mvt_output_root, "latest_run_dir.txt"), useBytes = TRUE)
   }
+  run_completed <- Sys.time()
+  mvt_write_run_metadata(
+    run_dir, grid, seed_base, require_gamcopula, resume,
+    workers = workers, workers_used = workers_used, fingerprints = fingerprints,
+    configuration_fingerprint = tasks[[1L]]$configuration_fingerprint,
+    run_started = run_started, run_completed = run_completed,
+    run_elapsed_sec = as.numeric(difftime(run_completed, run_started, units = "secs")),
+    lease = run_lock
+  )
+  snapshot <- mvt_write_aggregate_snapshot(
+    tasks = tasks, run_dir = run_dir, grid = grid, methods = methods, rows = rows,
+    checkpoint_manifest_before = checkpoint_manifest_before,
+    configuration = mvt_checkpoint_configuration(seed_base, require_gamcopula),
+    production_run = production_run, lease = run_lock
+  )
+  if (isTRUE(production_run)) mvt_write_phase2_snapshot_candidate(run_dir, snapshot)
   invisible(run_dir)
 }
 
@@ -3274,6 +5595,8 @@ mvt_merge_run_shards <- function(source_dirs, target_dir) {
   source_dirs <- normalizePath(source_dirs[nzchar(source_dirs)], winslash = "/", mustWork = TRUE)
   if (length(source_dirs) == 0L) stop("No source shard directories supplied.", call. = FALSE)
   dir.create(target_dir, recursive = TRUE, showWarnings = FALSE)
+  lease <- mvt_acquire_run_lock(target_dir)
+  on.exit(mvt_release_run_lock(lease), add = TRUE)
 
   read_table <- function(dir, file) {
     path <- file.path(dir, file)
@@ -3297,7 +5620,7 @@ mvt_merge_run_shards <- function(source_dirs, target_dir) {
   if ("source_shard" %in% names(grid)) grid$source_shard <- NULL
   if (nrow(grid) == 0L) stop("No scenario_grid.csv rows found in shard directories.", call. = FALSE)
   grid <- grid[order(grid$n_time, grid$dependence_name, grid$family_name, grid$rep), , drop = FALSE]
-  mvt_write_csv(grid, file.path(target_dir, "scenario_grid.csv"))
+  mvt_write_csv_atomic(grid, file.path(target_dir, "scenario_grid.csv"), lease)
 
   for (name in mvt_result_names()) {
     combined <- mvt_bind_rows_fill(lapply(source_dirs, read_result_table, name = name))
@@ -3305,28 +5628,27 @@ mvt_merge_run_shards <- function(source_dirs, target_dir) {
     if (nrow(combined) > 0L) {
       key_cols <- intersect(c("case_id", "method", "parameter", "term", "dependence_scope"), names(combined))
       if (length(key_cols) > 0L) combined <- unique(combined)
-      mvt_write_csv(combined, file.path(target_dir, paste0(name, "_by_rep.csv")))
+      mvt_write_csv_atomic(combined, file.path(target_dir, paste0(name, "_by_rep.csv")), lease)
     }
   }
 
   preflight <- mvt_bind_rows_fill(lapply(source_dirs, read_table, file = "preflight_checks.csv"))
-  if (nrow(preflight) > 0L) mvt_write_csv(preflight, file.path(target_dir, "preflight_checks.csv"))
+  if (nrow(preflight) > 0L) mvt_write_csv_atomic(preflight, file.path(target_dir, "preflight_checks.csv"), lease)
   metadata <- mvt_bind_rows_fill(lapply(source_dirs, read_table, file = "run_metadata.csv"))
-  if (nrow(metadata) > 0L) mvt_write_csv(metadata, file.path(target_dir, "run_metadata.csv"))
+  if (nrow(metadata) > 0L) mvt_write_csv_atomic(metadata, file.path(target_dir, "run_metadata.csv"), lease)
   versions <- unique(mvt_bind_rows_fill(lapply(source_dirs, read_table, file = "package_versions.csv")))
   if ("source_shard" %in% names(versions)) versions$source_shard <- NULL
-  if (nrow(versions) > 0L) mvt_write_csv(versions, file.path(target_dir, "package_versions.csv"))
-  writeLines(
+  if (nrow(versions) > 0L) mvt_write_csv_atomic(versions, file.path(target_dir, "package_versions.csv"), lease)
+  mvt_write_lines_atomic(
     c(
       "Merged multivariate longitudinal simulation shards.",
       paste("Generated:", format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z")),
       "Source shards:",
       paste0("- ", source_dirs)
     ),
-    file.path(target_dir, "session_info.txt"),
-    useBytes = TRUE
+    file.path(target_dir, "session_info.txt"), lease
   )
-  writeLines(
+  mvt_write_lines_atomic(
     c(
       "# Merged Preflight",
       "",
@@ -3334,21 +5656,29 @@ mvt_merge_run_shards <- function(source_dirs, target_dir) {
       "",
       paste0("- ", basename(source_dirs))
     ),
-    file.path(target_dir, "preflight_checks.md"),
-    useBytes = TRUE
+    file.path(target_dir, "preflight_checks.md"), lease
   )
-  mvt_summarise_results(target_dir)
-  mvt_write_artifact_manifest(target_dir)
+  mvt_write_lines_atomic(
+    c(
+      "NONPUBLICATION: merged legacy shards have no case-checkpoint hash reconciliation.",
+      "Use mvt_run_grid() to produce a committed immutable aggregate snapshot."
+    ),
+    file.path(target_dir, "NONPUBLICATION.txt"), lease
+  )
   invisible(target_dir)
 }
 
 mvt_summarise_results <- function(run_dir = mvt_read_run_dir()) {
-  results <- mvt_read_optional_csv(file.path(run_dir, "benchmark_results_by_rep.csv"))
-  coefs <- mvt_read_optional_csv(file.path(run_dir, "coefficient_results_by_rep.csv"))
+  lease <- mvt_acquire_run_lock(run_dir)
+  released <- FALSE
+  on.exit(if (!released) mvt_release_run_lock(lease), add = TRUE)
+  committed <- mvt_validate_committed_snapshot(run_dir, require_production = FALSE)
+  results <- committed$rows$benchmark_results
+  coefs <- committed$rows$coefficient_results
   if (nrow(results) == 0L) stop("benchmark_results_by_rep.csv is missing or empty.", call. = FALSE)
   if (nrow(coefs) == 0L) stop("coefficient_results_by_rep.csv is missing or empty.", call. = FALSE)
-  dep <- mvt_read_optional_csv(file.path(run_dir, "dependence_recovery_by_rep.csv"))
-  vario <- mvt_read_optional_csv(file.path(run_dir, "variogram_scores_by_rep.csv"))
+  dep <- committed$rows$dependence_recovery
+  vario <- committed$rows$variogram_scores
 
   result_metrics <- intersect(
     c("mae", "rmse", "benchmark_mean_rmse", "benchmark_neg_log_score", "benchmark_pit_mean_abs_error", "logLik", "logLik_df", "AIC", "BIC", "elapsed_sec"),
@@ -3387,24 +5717,40 @@ mvt_summarise_results <- function(run_dir = mvt_read_run_dir()) {
   } else {
     data.frame()
   }
-  mvt_write_csv(result_summary, file.path(run_dir, "benchmark_summary.csv"))
-  mvt_write_csv(coef_summary, file.path(run_dir, "coefficient_summary.csv"))
-  mvt_write_csv(dep_summary, file.path(run_dir, "dependence_recovery_summary.csv"))
-  mvt_write_csv(vario_summary, file.path(run_dir, "variogram_summary.csv"))
+  mvt_write_csv_atomic(result_summary, file.path(run_dir, "benchmark_summary.csv"), lease)
+  mvt_write_csv_atomic(coef_summary, file.path(run_dir, "coefficient_summary.csv"), lease)
+  mvt_write_csv_atomic(dep_summary, file.path(run_dir, "dependence_recovery_summary.csv"), lease)
+  mvt_write_csv_atomic(vario_summary, file.path(run_dir, "variogram_summary.csv"), lease)
   status_path <- file.path(run_dir, "fit_status_by_rep.csv")
   if (file.exists(status_path)) {
-    status <- utils::read.csv(status_path, stringsAsFactors = FALSE, check.names = FALSE)
-    status <- mvt_status_from_results(status)
-    mvt_write_csv(status, status_path)
-    mvt_write_csv(mvt_case_method_completion_summary(status), file.path(run_dir, "case_method_completion_summary.csv"))
+    status <- committed$rows$fit_status
+    mvt_write_csv_atomic(mvt_case_method_completion_summary(status), file.path(run_dir, "case_method_completion_summary.csv"), lease)
   }
-  feasibility <- mvt_write_pilot_feasibility(run_dir)
+  feasibility <- mvt_write_pilot_feasibility(run_dir, lease = lease)
+  mvt_release_run_lock(lease)
+  released <- TRUE
+  phase2 <- if (isTRUE(committed$production_run)) {
+    approval <- tryCatch(mvt_validate_approved_snapshot(run_dir), error = function(e) e)
+    if (inherits(approval, "error")) {
+      list(
+        production_eligible = FALSE,
+        reason = "candidate_pending_independent_promotion",
+        detail = conditionMessage(approval),
+        candidate_snapshot_sha256 = mvt_phase2_snapshot_trust_sha256(run_dir)
+      )
+    } else {
+      mvt_write_phase2_benchmark_evidence(run_dir)
+    }
+  } else {
+    list(production_eligible = FALSE, reason = "nonproduction aggregate snapshot")
+  }
   invisible(list(
     results = result_summary,
     coefficients = coef_summary,
     dependence = dep_summary,
     variogram = vario_summary,
-    feasibility = feasibility
+    feasibility = feasibility,
+    phase2 = phase2
   ))
 }
 
@@ -3512,7 +5858,12 @@ mvt_status_counts <- function(status, group_cols) {
   mvt_bind_rows_fill(rows)
 }
 
-mvt_write_pilot_feasibility <- function(run_dir = mvt_read_run_dir(), target_reps = mvt_env_int("GAMLSS_LONGITUDINAL_MVT_TARGET_REPS", 100L)) {
+mvt_write_pilot_feasibility <- function(run_dir = mvt_read_run_dir(), target_reps = mvt_env_int("GAMLSS_LONGITUDINAL_MVT_TARGET_REPS", 100L), lease = NULL) {
+  owns_lease <- is.null(lease)
+  if (owns_lease) {
+    lease <- mvt_acquire_run_lock(run_dir)
+    on.exit(mvt_release_run_lock(lease), add = TRUE)
+  }
   status_path <- file.path(run_dir, "fit_status_by_rep.csv")
   grid_path <- file.path(run_dir, "scenario_grid.csv")
   if (!file.exists(status_path) || !file.exists(grid_path)) return(data.frame())
@@ -3550,9 +5901,9 @@ mvt_write_pilot_feasibility <- function(run_dir = mvt_read_run_dir(), target_rep
     )
   }
 
-  mvt_write_csv(method_summary, file.path(run_dir, "pilot_feasibility_by_method.csv"))
-  mvt_write_csv(scenario_summary, file.path(run_dir, "pilot_feasibility_by_scenario.csv"))
-  mvt_write_csv(overall_method, file.path(run_dir, "pilot_feasibility_overall_method.csv"))
+  mvt_write_csv_atomic(method_summary, file.path(run_dir, "pilot_feasibility_by_method.csv"), lease)
+  mvt_write_csv_atomic(scenario_summary, file.path(run_dir, "pilot_feasibility_by_scenario.csv"), lease)
+  mvt_write_csv_atomic(overall_method, file.path(run_dir, "pilot_feasibility_overall_method.csv"), lease)
 
   total_mean_sec <- sum(overall_method$mean_elapsed_sec, na.rm = TRUE)
   projected_core_sec <- total_mean_sec * projection_multiplier
@@ -3594,7 +5945,7 @@ mvt_write_pilot_feasibility <- function(run_dir = mvt_read_run_dir(), target_rep
   } else {
     lines <- c(lines, paste0("- ", non_candidate$method, ": ", non_candidate$recommendation))
   }
-  writeLines(lines, file.path(run_dir, "pilot_feasibility.md"), useBytes = TRUE)
+  mvt_write_lines_atomic(lines, file.path(run_dir, "pilot_feasibility.md"), lease)
   invisible(list(by_method = method_summary, by_scenario = scenario_summary, overall_method = overall_method))
 }
 
@@ -3631,7 +5982,7 @@ mvt_write_artifact_manifest <- function(run_dir = mvt_read_run_dir()) {
       artifact_type = vapply(rel, mvt_artifact_type, character(1)),
       bytes = as.numeric(info$size),
       modified = format(info$mtime, "%Y-%m-%d %H:%M:%S %Z"),
-      md5 = unname(tools::md5sum(files)),
+      sha256 = unname(vapply(files, mvt_sha256_file, character(1L))),
       stringsAsFactors = FALSE
     )
     manifest <- manifest[order(manifest$artifact_type, manifest$path), , drop = FALSE]
@@ -3658,7 +6009,7 @@ mvt_write_artifact_manifest <- function(run_dir = mvt_read_run_dir()) {
   } else {
     lines <- c(lines, paste0("- ", summary$artifact_type, ": ", summary$path))
   }
-  lines <- c(lines, "", "See `artifact_manifest.csv` for file paths, sizes, timestamps, and MD5 hashes.")
+  lines <- c(lines, "", "See `artifact_manifest.csv` for file paths, sizes, timestamps, and SHA-256 hashes.")
   writeLines(lines, file.path(run_dir, "artifact_manifest.md"), useBytes = TRUE)
   invisible(manifest)
 }
@@ -3791,6 +6142,7 @@ mvt_audit_run_dir <- function(run_dir = mvt_read_run_dir()) {
   vario <- read_optional("variogram_scores_by_rep.csv")
   metadata <- read_optional("run_metadata.csv")
   preflight <- read_optional("preflight_checks.csv")
+  phase2_audit <- read_optional("phase2_benchmark_audit.csv")
 
   metadata_value <- function(name, default = NA_character_) {
     if (nrow(metadata) == 0L || !all(c("name", "value") %in% names(metadata))) return(default)
@@ -3837,6 +6189,16 @@ mvt_audit_run_dir <- function(run_dir = mvt_read_run_dir()) {
         "preflight rows missing"
       },
       if (nrow(preflight) > 0L) sum(preflight$status == "fail") else NA_integer_
+    ),
+    mvt_audit_check(
+      "phase2_benchmark_audit_clean",
+      if (nrow(phase2_audit) > 0L && "status" %in% names(phase2_audit) && !any(phase2_audit$status == "fail")) "pass" else "fail",
+      if (nrow(phase2_audit) > 0L && "status" %in% names(phase2_audit)) {
+        paste("failures", sum(phase2_audit$status == "fail"), "| checks", nrow(phase2_audit))
+      } else {
+        "phase2_benchmark_audit.csv missing or malformed"
+      },
+      if (nrow(phase2_audit) > 0L && "status" %in% names(phase2_audit)) sum(phase2_audit$status == "fail") else NA_integer_
     ),
     mvt_audit_check(
       "benchmark_main_methods_present",
@@ -4291,4 +6653,803 @@ mvt_group_metric_summary <- function(data, group_cols, metrics, extra_bool = cha
     }
   }
   if (length(rows) == 0L) data.frame() else do.call(rbind, rows)
+}
+
+mvt_wilson_interval <- function(events, attempts, level = 0.95) {
+  if (!is.finite(events) || !is.finite(attempts) || attempts < 1L || events < 0L || events > attempts) {
+    return(c(lower = NA_real_, upper = NA_real_))
+  }
+  z <- stats::qnorm(1 - (1 - level) / 2)
+  p <- events / attempts
+  denominator <- 1 + z^2 / attempts
+  centre <- (p + z^2 / (2 * attempts)) / denominator
+  half_width <- z * sqrt(p * (1 - p) / attempts + z^2 / (4 * attempts^2)) / denominator
+  c(lower = max(0, centre - half_width), upper = min(1, centre + half_width))
+}
+
+mvt_mean_interval <- function(x, level = 0.95) {
+  x <- suppressWarnings(as.numeric(x))
+  x <- x[is.finite(x)]
+  if (!length(x)) return(c(mean = NA_real_, mcse = NA_real_, lower = NA_real_, upper = NA_real_))
+  estimate <- mean(x)
+  mcse <- if (length(x) > 1L) stats::sd(x) / sqrt(length(x)) else NA_real_
+  critical <- if (length(x) > 1L) stats::qt(1 - (1 - level) / 2, df = length(x) - 1L) else NA_real_
+  c(
+    mean = estimate,
+    mcse = mcse,
+    lower = if (is.finite(mcse)) estimate - critical * mcse else NA_real_,
+    upper = if (is.finite(mcse)) estimate + critical * mcse else NA_real_
+  )
+}
+
+mvt_phase2_metadata_value <- function(metadata, name, default = "") {
+  if (!nrow(metadata) || !all(c("name", "value") %in% names(metadata))) return(default)
+  value <- metadata$value[metadata$name == name]
+  if (!length(value) || is.na(value[[1L]]) || !nzchar(value[[1L]])) default else as.character(value[[1L]])
+}
+
+mvt_phase2_planned_methods <- function(metadata) {
+  value <- mvt_phase2_metadata_value(metadata, "active_comparators", "")
+  if (!nzchar(value)) value <- mvt_phase2_metadata_value(metadata, "env.GAMLSS_LONGITUDINAL_MVT_COMPARATORS", "")
+  if (!nzchar(value)) return(character())
+  methods <- trimws(strsplit(value, ",", fixed = TRUE)[[1L]])
+  unique(methods[nzchar(methods)])
+}
+
+mvt_phase2_attempt_reconciliation <- function(grid, status, benchmark, planned_methods) {
+  if (!nrow(grid) || !"case_id" %in% names(grid) || !length(planned_methods)) return(data.frame())
+  grid_cases <- unique(as.character(grid$case_id))
+  expected <- merge(
+    data.frame(case_id = grid_cases, stringsAsFactors = FALSE),
+    data.frame(method = planned_methods, stringsAsFactors = FALSE),
+    by = NULL
+  )
+  expected$planned <- TRUE
+  count_keys <- function(data, count_name) {
+    if (!nrow(data) || !all(c("case_id", "method") %in% names(data))) {
+      out <- expected[FALSE, c("case_id", "method"), drop = FALSE]
+      out[[count_name]] <- integer()
+      return(out)
+    }
+    key <- paste(data$case_id, data$method, sep = "\r")
+    tab <- table(key)
+    split_key <- strsplit(names(tab), "\r", fixed = TRUE)
+    out <- data.frame(
+      case_id = vapply(split_key, `[[`, character(1L), 1L),
+      method = vapply(split_key, `[[`, character(1L), 2L),
+      stringsAsFactors = FALSE
+    )
+    out[[count_name]] <- as.integer(tab)
+    out
+  }
+  status_counts <- count_keys(status, "status_rows")
+  benchmark_counts <- count_keys(benchmark, "benchmark_rows")
+  out <- merge(expected, status_counts, by = c("case_id", "method"), all = TRUE)
+  out <- merge(out, benchmark_counts, by = c("case_id", "method"), all = TRUE)
+  out$planned[is.na(out$planned)] <- FALSE
+  out$status_rows[is.na(out$status_rows)] <- 0L
+  out$benchmark_rows[is.na(out$benchmark_rows)] <- 0L
+  out$status_exactly_once <- out$planned & out$status_rows == 1L
+  out$benchmark_exactly_once <- out$planned & out$benchmark_rows == 1L
+  out$unexpected <- !out$planned
+  out$reconciled <- out$planned & out$status_exactly_once & out$benchmark_exactly_once
+  out[order(out$case_id, out$method), , drop = FALSE]
+}
+
+mvt_phase2_penalty <- function(values) {
+  values <- suppressWarnings(as.numeric(values))
+  values <- values[is.finite(values)]
+  if (!length(values)) return(NA_real_)
+  worst <- max(values)
+  worst + 0.10 * max(1, abs(worst))
+}
+
+mvt_phase2_penalty_rule <- function() {
+  "within each scenario/family/time cell, compute the pool from successful finite rows across the complete prespecified planned-method set; replace every failed or non-finite lower-is-better metric with the pool maximum plus 10% of max(1, abs(maximum)); fixed before summaries"
+}
+
+mvt_phase2_group_index <- function(data, group_row, group_cols) {
+  idx <- rep(TRUE, nrow(data))
+  for (col in group_cols) idx <- idx & data[[col]] == group_row[[col]][1L]
+  idx[is.na(idx)] <- FALSE
+  idx
+}
+
+mvt_phase2_method_summary <- function(status, benchmark, methods, planned_methods = methods) {
+  if (!nrow(status) || !length(methods)) return(data.frame())
+  all_status <- mvt_status_from_results(status)
+  all_benchmark <- benchmark
+  planned_methods <- unique(as.character(planned_methods[nzchar(planned_methods)]))
+  if (!length(planned_methods)) planned_methods <- unique(as.character(all_status$method))
+  status <- all_status
+  status <- status[status$method %in% methods, , drop = FALSE]
+  if (!nrow(status)) return(data.frame())
+  group_cols <- intersect(
+    c("scenario", "generator", "dependence", "correlation_level", "n_time", "n_subject", "total_rows", "family", "gamlss_family", "method"),
+    names(status)
+  )
+  groups <- unique(status[group_cols])
+  metric_key <- paste(benchmark$case_id, benchmark$method, sep = "\r")
+  status_key <- paste(status$case_id, status$method, sep = "\r")
+  metric_match <- match(status_key, metric_key)
+  rmse_metric <- suppressWarnings(as.numeric(benchmark$benchmark_mean_rmse[metric_match]))
+  nls_metric <- if ("benchmark_neg_log_score" %in% names(benchmark)) {
+    suppressWarnings(as.numeric(benchmark$benchmark_neg_log_score[metric_match]))
+  } else {
+    rep(NA_real_, nrow(status))
+  }
+  rows <- vector("list", nrow(groups))
+  for (i in seq_len(nrow(groups))) {
+    idx <- mvt_phase2_group_index(status, groups[i, , drop = FALSE], group_cols)
+    sub <- status[idx, , drop = FALSE]
+    success <- mvt_status_success(sub$success)
+    rmse_values <- rmse_metric[idx]
+    nls_values <- nls_metric[idx]
+    elapsed <- suppressWarnings(as.numeric(sub$elapsed_sec))
+    included <- success & is.finite(rmse_values)
+    success_interval <- mvt_wilson_interval(sum(success), nrow(sub))
+    accuracy <- mvt_mean_interval(rmse_values[included])
+    nls_included <- success & is.finite(nls_values)
+    nls_conditional <- mvt_mean_interval(nls_values[nls_included])
+    elapsed_included <- success & is.finite(elapsed)
+    elapsed_conditional <- mvt_mean_interval(elapsed[elapsed_included])
+    cell_cols <- setdiff(group_cols, "method")
+    cell_status_idx <- mvt_phase2_group_index(all_status, groups[i, , drop = FALSE], intersect(cell_cols, names(all_status)))
+    cell_status <- all_status[cell_status_idx & all_status$method %in% planned_methods, , drop = FALSE]
+    retained_keys <- unique(paste(
+      cell_status$case_id[mvt_status_success(cell_status$success)],
+      cell_status$method[mvt_status_success(cell_status$success)],
+      sep = "\r"
+    ))
+    cell_idx <- mvt_phase2_group_index(all_benchmark, groups[i, , drop = FALSE], intersect(cell_cols, names(all_benchmark)))
+    cell_benchmark <- all_benchmark[cell_idx & all_benchmark$method %in% planned_methods, , drop = FALSE]
+    cell_benchmark_key <- paste(cell_benchmark$case_id, cell_benchmark$method, sep = "\r")
+    cell_benchmark <- cell_benchmark[cell_benchmark_key %in% retained_keys, , drop = FALSE]
+    rmse_penalty <- mvt_phase2_penalty(cell_benchmark$benchmark_mean_rmse)
+    nls_penalty <- if ("benchmark_neg_log_score" %in% names(cell_benchmark)) mvt_phase2_penalty(cell_benchmark$benchmark_neg_log_score) else NA_real_
+    elapsed_penalty <- mvt_phase2_penalty(suppressWarnings(as.numeric(
+      cell_status$elapsed_sec[mvt_status_success(cell_status$success)]
+    )))
+    rmse_penalized <- rmse_values
+    rmse_penalized[!included] <- rmse_penalty
+    nls_penalized <- nls_values
+    nls_penalized[!nls_included] <- nls_penalty
+    elapsed_penalized <- elapsed
+    elapsed_penalized[!elapsed_included] <- elapsed_penalty
+    rmse_penalized_interval <- mvt_mean_interval(rmse_penalized)
+    nls_penalized_interval <- mvt_mean_interval(nls_penalized)
+    elapsed_penalized_interval <- mvt_mean_interval(elapsed_penalized)
+    failure_detail <- if (any(!success)) {
+      paste0(sub$method[!success], "=", sub$failure_reason_short[!success])
+    } else {
+      character()
+    }
+    rows[[i]] <- cbind(
+      groups[i, , drop = FALSE],
+      data.frame(
+        evidence_role = if (identical(groups$method[[i]], "gee_unstructured") && groups$n_time[[i]] >= 20L) "high_dimensional_stress_test" else "routine_comparator",
+        n_attempted = nrow(sub),
+        n_converged = sum(success),
+        convergence_definition = "method returned a successful finite benchmark row after method-specific convergence checks",
+        n_included_accuracy = sum(included),
+        n_warning = sum(sub$status_class == "warning", na.rm = TRUE),
+        n_timeout = sum(sub$status_class == "timeout", na.rm = TRUE),
+        n_error = sum(sub$status_class == "error", na.rm = TRUE),
+        success_rate = mean(success),
+        success_mcse = sqrt(mean(success) * (1 - mean(success)) / nrow(sub)),
+        success_ci_lower = success_interval[["lower"]],
+        success_ci_upper = success_interval[["upper"]],
+        mean_rmse_conditional = accuracy[["mean"]],
+        mean_rmse_mcse = accuracy[["mcse"]],
+        mean_rmse_ci_lower = accuracy[["lower"]],
+        mean_rmse_ci_upper = accuracy[["upper"]],
+        mean_rmse_failure_penalized = rmse_penalized_interval[["mean"]],
+        mean_rmse_failure_penalized_mcse = rmse_penalized_interval[["mcse"]],
+        mean_rmse_failure_penalized_ci_lower = rmse_penalized_interval[["lower"]],
+        mean_rmse_failure_penalized_ci_upper = rmse_penalized_interval[["upper"]],
+        mean_neg_log_score_conditional = nls_conditional[["mean"]],
+        mean_neg_log_score_conditional_mcse = nls_conditional[["mcse"]],
+        mean_neg_log_score_conditional_ci_lower = nls_conditional[["lower"]],
+        mean_neg_log_score_conditional_ci_upper = nls_conditional[["upper"]],
+        mean_neg_log_score_failure_penalized = nls_penalized_interval[["mean"]],
+        mean_neg_log_score_failure_penalized_mcse = nls_penalized_interval[["mcse"]],
+        mean_neg_log_score_failure_penalized_ci_lower = nls_penalized_interval[["lower"]],
+        mean_neg_log_score_failure_penalized_ci_upper = nls_penalized_interval[["upper"]],
+        mean_elapsed_sec_conditional = elapsed_conditional[["mean"]],
+        mean_elapsed_sec_conditional_mcse = elapsed_conditional[["mcse"]],
+        mean_elapsed_sec_conditional_ci_lower = elapsed_conditional[["lower"]],
+        mean_elapsed_sec_conditional_ci_upper = elapsed_conditional[["upper"]],
+        mean_elapsed_sec_failure_penalized = elapsed_penalized_interval[["mean"]],
+        mean_elapsed_sec_failure_penalized_mcse = elapsed_penalized_interval[["mcse"]],
+        mean_elapsed_sec_failure_penalized_ci_lower = elapsed_penalized_interval[["lower"]],
+        mean_elapsed_sec_failure_penalized_ci_upper = elapsed_penalized_interval[["upper"]],
+        rmse_failure_penalty = rmse_penalty,
+        neg_log_score_failure_penalty = nls_penalty,
+        elapsed_failure_penalty = elapsed_penalty,
+        rmse_failure_penalty_pool_n = sum(is.finite(suppressWarnings(as.numeric(cell_benchmark$benchmark_mean_rmse)))),
+        neg_log_score_failure_penalty_pool_n = if ("benchmark_neg_log_score" %in% names(cell_benchmark)) sum(is.finite(suppressWarnings(as.numeric(cell_benchmark$benchmark_neg_log_score)))) else 0L,
+        elapsed_failure_penalty_pool_n = sum(is.finite(suppressWarnings(as.numeric(cell_status$elapsed_sec[mvt_status_success(cell_status$success)])))),
+        failure_penalty_planned_methods = paste(sort(planned_methods), collapse = ","),
+        failure_penalty_definition = mvt_phase2_penalty_rule(),
+        median_elapsed_sec = if (any(is.finite(elapsed))) stats::median(elapsed, na.rm = TRUE) else NA_real_,
+        elapsed_iqr_sec = if (sum(is.finite(elapsed)) > 1L) stats::IQR(elapsed, na.rm = TRUE) else NA_real_,
+        failure_reasons = mvt_collapse_nonempty(failure_detail, empty = "none"),
+        stringsAsFactors = FALSE
+      )
+    )
+  }
+  mvt_bind_rows_fill(rows)
+}
+
+mvt_nearest_neighbor_paired_contrasts <- function(status, benchmark, scenario_grid = data.frame()) {
+  neighbors <- mvt_nearest_neighbor_comparators()
+  methods <- c("gamlss.longitudinal", neighbors)
+  status <- mvt_status_from_results(status)
+  status <- status[status$method %in% methods, , drop = FALSE]
+  benchmark <- benchmark[benchmark$method %in% methods, , drop = FALSE]
+  if (!nrow(scenario_grid) || !"case_id" %in% names(scenario_grid)) return(data.frame())
+  if (!"family" %in% names(scenario_grid) && "family_name" %in% names(scenario_grid)) scenario_grid$family <- scenario_grid$family_name
+  group_cols <- intersect(c("scenario", "generator", "dependence", "correlation_level", "n_time", "family"), names(status))
+  if (!all(group_cols %in% names(scenario_grid))) return(data.frame())
+  case_groups <- unique(scenario_grid[group_cols])
+  metric_names <- intersect(c("benchmark_mean_rmse", "benchmark_neg_log_score", "elapsed_sec"), names(benchmark))
+  rows <- list()
+  k <- 1L
+  for (i in seq_len(nrow(case_groups))) {
+    group_idx <- mvt_phase2_group_index(status, case_groups[i, , drop = FALSE], group_cols)
+    group_status <- status[group_idx, , drop = FALSE]
+    benchmark_idx <- mvt_phase2_group_index(benchmark, case_groups[i, , drop = FALSE], group_cols)
+    group_benchmark <- benchmark[benchmark_idx, , drop = FALSE]
+    grid_idx <- mvt_phase2_group_index(scenario_grid, case_groups[i, , drop = FALSE], group_cols)
+    expected_cases <- unique(as.character(scenario_grid$case_id[grid_idx]))
+    focal_status <- group_status[group_status$method == "gamlss.longitudinal", , drop = FALSE]
+    for (neighbor in neighbors) {
+      neighbor_status <- group_status[group_status$method == neighbor, , drop = FALSE]
+      planned_cases <- expected_cases
+      focal_attempted <- planned_cases %in% as.character(focal_status$case_id)
+      neighbor_attempted <- planned_cases %in% as.character(neighbor_status$case_id)
+      focal_success <- stats::setNames(mvt_status_success(focal_status$success), focal_status$case_id)
+      neighbor_success <- stats::setNames(mvt_status_success(neighbor_status$success), neighbor_status$case_id)
+      for (metric in metric_names) {
+        focal <- group_benchmark[group_benchmark$method == "gamlss.longitudinal", c("case_id", metric), drop = FALSE]
+        neighbor_data <- group_benchmark[group_benchmark$method == neighbor, c("case_id", metric), drop = FALSE]
+        names(focal)[2L] <- "focal"
+        names(neighbor_data)[2L] <- "neighbor"
+        paired <- merge(focal, neighbor_data, by = "case_id", all = FALSE)
+        paired$focal <- suppressWarnings(as.numeric(paired$focal))
+        paired$neighbor <- suppressWarnings(as.numeric(paired$neighbor))
+        paired$both_success <- focal_success[paired$case_id] %in% TRUE & neighbor_success[paired$case_id] %in% TRUE
+        paired <- paired[paired$both_success & is.finite(paired$focal) & is.finite(paired$neighbor), , drop = FALSE]
+        difference <- paired$neighbor - paired$focal
+        interval <- mvt_mean_interval(difference)
+        wins <- sum(difference > 0)
+        win_interval <- mvt_wilson_interval(wins, length(difference))
+        rows[[k]] <- cbind(
+          case_groups[i, , drop = FALSE],
+          data.frame(
+            neighbor = neighbor,
+            metric = metric,
+            direction = "neighbor_minus_gamlss.longitudinal; positive favors gamlss.longitudinal for lower-is-better metrics",
+            comparison_population = "conditional on both methods succeeding with finite metric values",
+            failure_handling = paste0("conditional contrast excludes failed pairs; failure-inclusive sensitivity is reported in nearest_neighbor_results.csv using rule: ", mvt_phase2_penalty_rule()),
+            estimand_qualification = if (metric == "elapsed_sec") "runtime contrast is conditional on completed fits and is not an unconditional compute-cost estimand" else if (metric == "benchmark_neg_log_score") "negative-log-score contrast is conditional on completed fitted distributions" else "prediction-RMSE contrast is conditional on completed fits",
+            n_expected_pairs = length(expected_cases),
+            n_focal_attempted = sum(focal_attempted),
+            n_neighbor_attempted = sum(neighbor_attempted),
+            n_attempted_pairs = sum(focal_attempted & neighbor_attempted),
+            n_both_successful = length(difference),
+            n_focal_failed = sum(!(focal_success[planned_cases] %in% TRUE)),
+            n_neighbor_failed = sum(!(neighbor_success[planned_cases] %in% TRUE)),
+            mean_paired_difference = interval[["mean"]],
+            paired_difference_mcse = interval[["mcse"]],
+            paired_difference_ci_lower = interval[["lower"]],
+            paired_difference_ci_upper = interval[["upper"]],
+            focal_win_rate = if (length(difference)) wins / length(difference) else NA_real_,
+            focal_win_rate_ci_lower = win_interval[["lower"]],
+            focal_win_rate_ci_upper = win_interval[["upper"]],
+            stringsAsFactors = FALSE
+          )
+        )
+        k <- k + 1L
+      }
+    }
+  }
+  mvt_bind_rows_fill(rows)
+}
+
+mvt_phase2_production_contract <- function() {
+  list(
+    time_names = "t20", n_time = 20L,
+    families = c("gaussian", "poisson", "gamma", "binomial"),
+    dependence = c(
+      "external_exchangeable", "external_ar1",
+      "native_time_varying_adjacent", "native_covariate_dependent_adjacent"
+    ),
+    reps = 1:100,
+    methods = mvt_default_comparators(),
+    cases = 1600L,
+    method_rows = 14400L
+  )
+}
+
+mvt_phase2_audit_registry <- function() {
+  c(
+    "capability_snapshot_dated",
+    "capability_provenance_complete",
+    "headline_neighbor_count_bounded",
+    "headline_neighbors_match_registry",
+    "scenario_grid_unique_nonempty",
+    "production_time_grid_exact",
+    "production_family_set_exact",
+    "production_dependence_set_exact",
+    "production_replicates_exact",
+    "production_case_cardinality_exact",
+    "production_grid_cross_product_exact",
+    "production_method_registry_exact",
+    "production_attempt_cardinality_exact",
+    "production_registered_timeouts_finite",
+    "production_subprocess_attestations_complete",
+    "planned_methods_registered",
+    "attempt_cross_product_reconciles",
+    "expected_cases_reconcile",
+    "planned_method_sets_exact",
+    "case_method_sets_exact",
+    "paired_denominators_reconcile",
+    "headline_neighbor_rows_present",
+    "gee_results_family_specific",
+    "unstructured_high_dimension_is_stress_test",
+    "attempt_denominators_visible",
+    "failure_penalized_uncertainty_complete",
+    "comparison_uncertainty_complete",
+    "production_replication_target_met"
+  )
+}
+
+mvt_phase2_production_eligible <- function(audit) {
+  registry <- mvt_phase2_audit_registry()
+  is.data.frame(audit) && all(c("check", "status", "detail") %in% names(audit)) &&
+    nrow(audit) == length(registry) && !anyDuplicated(as.character(audit$check)) &&
+    identical(as.character(audit$check), registry) &&
+    !anyNA(audit$status) && identical(as.character(audit$status), rep("pass", length(registry)))
+}
+
+mvt_phase2_benchmark_audit <- function(
+    capabilities, scope, gee, neighbors, contrasts, grid, status, benchmark,
+    planned_methods, reconciliation, configuration = NULL, execution_attestation = NULL) {
+  production <- mvt_phase2_production_contract()
+  retained <- scope$method[scope$headline_empirical_comparator %in% TRUE]
+  required_gee_methods <- c("gee_independence", "gee_exchangeable", "gee_ar1", "gee_unstructured")
+  audit_row <- function(check, ok, detail) data.frame(check = check, status = if (isTRUE(ok)) "pass" else "fail", detail = detail, stringsAsFactors = FALSE)
+  expected_attempts <- nrow(grid) * length(planned_methods)
+  reconciliation_ok <- nrow(reconciliation) == expected_attempts &&
+    expected_attempts > 0L && all(reconciliation$planned) && all(reconciliation$reconciled) &&
+    !any(reconciliation$unexpected) && all(reconciliation$status_rows == 1L) && all(reconciliation$benchmark_rows == 1L)
+  contrast_uncertainty_cols <- c("paired_difference_mcse", "paired_difference_ci_lower", "paired_difference_ci_upper", "focal_win_rate_ci_lower", "focal_win_rate_ci_upper")
+  contrasts_nonempty <- nrow(contrasts) > 0L && all(contrasts$n_expected_pairs > 0L)
+  contrasts_uncertain <- contrasts_nonempty && all(contrast_uncertainty_cols %in% names(contrasts)) &&
+    all(contrasts$n_both_successful >= 2L) &&
+    all(vapply(contrast_uncertainty_cols, function(col) all(is.finite(contrasts[[col]])), logical(1L)))
+  penalized_cols <- c(
+    "mean_rmse_failure_penalized", "mean_rmse_failure_penalized_mcse", "mean_rmse_failure_penalized_ci_lower", "mean_rmse_failure_penalized_ci_upper",
+    "mean_neg_log_score_failure_penalized", "mean_neg_log_score_failure_penalized_mcse", "mean_neg_log_score_failure_penalized_ci_lower", "mean_neg_log_score_failure_penalized_ci_upper",
+    "mean_elapsed_sec_failure_penalized", "mean_elapsed_sec_failure_penalized_mcse", "mean_elapsed_sec_failure_penalized_ci_lower", "mean_elapsed_sec_failure_penalized_ci_upper"
+  )
+  summary_rows <- mvt_bind_rows_fill(gee, neighbors)
+  penalty_pool_cols <- c(
+    "rmse_failure_penalty_pool_n", "neg_log_score_failure_penalty_pool_n",
+    "elapsed_failure_penalty_pool_n", "failure_penalty_planned_methods"
+  )
+  expected_penalty_methods <- paste(sort(planned_methods), collapse = ",")
+  penalized_uncertain <- nrow(summary_rows) > 0L && all(penalized_cols %in% names(summary_rows)) &&
+    all(penalty_pool_cols %in% names(summary_rows)) &&
+    all(vapply(penalized_cols, function(col) all(is.finite(summary_rows[[col]])), logical(1L))) &&
+    all(summary_rows$rmse_failure_penalty_pool_n > 0L) &&
+    all(summary_rows$neg_log_score_failure_penalty_pool_n > 0L) &&
+    all(summary_rows$elapsed_failure_penalty_pool_n > 0L) &&
+    nzchar(expected_penalty_methods) &&
+    all(summary_rows$failure_penalty_planned_methods == expected_penalty_methods)
+  grid_family <- if ("family_name" %in% names(grid)) grid$family_name else if ("family" %in% names(grid)) grid$family else rep("", nrow(grid))
+  grid_for_audit <- grid
+  grid_for_audit$family <- as.character(grid_family)
+  gee_cell_cols <- intersect(
+    c("scenario", "generator", "dependence", "correlation_level", "n_time", "n_subject", "total_rows", "family"),
+    intersect(names(grid_for_audit), names(gee))
+  )
+  row_key <- function(data, cols) {
+    if (!nrow(data) || !length(cols)) return(character())
+    do.call(paste, c(lapply(data[cols], as.character), sep = "\r"))
+  }
+  expected_gee_cells <- if (length(gee_cell_cols)) unique(grid_for_audit[gee_cell_cols]) else data.frame()
+  expected_gee <- if (nrow(expected_gee_cells)) merge(
+    expected_gee_cells,
+    data.frame(method = required_gee_methods, stringsAsFactors = FALSE),
+    by = NULL
+  ) else data.frame()
+  gee_key_cols <- c(gee_cell_cols, "method")
+  expected_gee_keys <- row_key(expected_gee, gee_key_cols)
+  actual_gee_keys <- row_key(gee, gee_key_cols)
+  expected_families <- sort(unique(as.character(grid_family[nzchar(grid_family)])))
+  actual_families <- if ("family" %in% names(gee)) sort(unique(as.character(gee$family[nzchar(gee$family)]))) else character()
+  gee_reconciles <- nrow(expected_gee) > 0L && nrow(gee) == nrow(expected_gee) &&
+    !anyDuplicated(actual_gee_keys) && setequal(actual_gee_keys, expected_gee_keys) &&
+    setequal(actual_families, expected_families)
+  grid_n_time <- if ("n_time" %in% names(grid_for_audit)) suppressWarnings(as.numeric(grid_for_audit$n_time)) else rep(NA_real_, nrow(grid_for_audit))
+  high_grid <- grid_for_audit[is.finite(grid_n_time) & grid_n_time >= 20L, , drop = FALSE]
+  expected_stress <- if (nrow(high_grid) && length(gee_cell_cols)) unique(high_grid[gee_cell_cols]) else data.frame()
+  gee_n_time <- if ("n_time" %in% names(gee)) suppressWarnings(as.numeric(gee$n_time)) else rep(NA_real_, nrow(gee))
+  gee_method <- if ("method" %in% names(gee)) as.character(gee$method) else rep("", nrow(gee))
+  actual_stress <- gee[gee_method == "gee_unstructured" & is.finite(gee_n_time) & gee_n_time >= 20L, , drop = FALSE]
+  expected_stress_keys <- row_key(expected_stress, gee_cell_cols)
+  actual_stress_keys <- row_key(actual_stress, gee_cell_cols)
+  stress_reconciles <- nrow(expected_stress) > 0L && nrow(actual_stress) == nrow(expected_stress) &&
+    !anyDuplicated(actual_stress_keys) && setequal(actual_stress_keys, expected_stress_keys) &&
+    all(actual_stress$evidence_role == "high_dimensional_stress_test")
+  rep_groups <- if (nrow(grid)) interaction(grid$scenario, grid_family, drop = TRUE) else factor()
+  reps_per_cell <- if (length(rep_groups)) vapply(split(grid$rep, rep_groups), function(x) length(unique(x)), integer(1L)) else integer()
+  minimum_reps <- if (length(reps_per_cell)) min(reps_per_cell) else 0L
+  capability_validation <- mvt_capability_provenance_validation(capabilities)
+  status_cases <- if (all(c("case_id", "method") %in% names(status))) unique(as.character(status$case_id)) else character()
+  status_methods <- if (all(c("case_id", "method") %in% names(status))) unique(as.character(status$method)) else character()
+  benchmark_cases <- if (all(c("case_id", "method") %in% names(benchmark))) unique(as.character(benchmark$case_id)) else character()
+  benchmark_methods <- if (all(c("case_id", "method") %in% names(benchmark))) unique(as.character(benchmark$method)) else character()
+  grid_cases <- if ("case_id" %in% names(grid)) unique(as.character(grid$case_id)) else character()
+  paired_cols <- c("n_expected_pairs", "n_focal_attempted", "n_neighbor_attempted", "n_attempted_pairs", "n_both_successful")
+  paired_denominators_ok <- contrasts_nonempty && all(paired_cols %in% names(contrasts)) &&
+    all(contrasts$n_focal_attempted == contrasts$n_expected_pairs) &&
+    all(contrasts$n_neighbor_attempted == contrasts$n_expected_pairs) &&
+    all(contrasts$n_attempted_pairs == contrasts$n_expected_pairs) &&
+    all(contrasts$n_both_successful <= contrasts$n_attempted_pairs)
+  exact_time <- nrow(grid) == production$cases && "time_name" %in% names(grid) &&
+    identical(sort(unique(as.character(grid$time_name))), production$time_names) &&
+    all(suppressWarnings(as.integer(grid$n_time)) == production$n_time)
+  exact_families <- setequal(unique(as.character(grid_family)), production$families) &&
+    length(unique(as.character(grid_family))) == length(production$families)
+  exact_dependence <- "dependence_name" %in% names(grid) &&
+    setequal(unique(as.character(grid$dependence_name)), production$dependence) &&
+    length(unique(as.character(grid$dependence_name))) == length(production$dependence)
+  exact_reps <- setequal(unique(as.integer(grid$rep)), production$reps) &&
+    all(reps_per_cell == length(production$reps))
+  exact_methods <- identical(as.character(planned_methods), production$methods) &&
+    setequal(status_methods, production$methods) && setequal(benchmark_methods, production$methods)
+  exact_cardinality <- nrow(grid) == production$cases && nrow(status) == production$method_rows &&
+    nrow(benchmark) == production$method_rows && nrow(reconciliation) == production$method_rows
+  timeout_check <- if (is.list(configuration)) mvt_timeout_contract(configuration, planned_methods) else list(valid = FALSE, required = character(), values = numeric())
+  subprocess_methods <- intersect(
+    c("gee_independence", "gee_exchangeable", "gee_ar1", "gee_unstructured",
+      "gamlss.longitudinal", "gamCopula_markov", "gamCopula_vine_simplified"),
+    planned_methods
+  )
+  attestation_cols <- c(
+    "subprocess_full_verified", "subprocess_dependency_fingerprint",
+    "subprocess_runtime_fingerprint", "subprocess_configuration_fingerprint"
+  )
+  attested <- benchmark$method %in% subprocess_methods
+  subprocess_ok <- length(subprocess_methods) > 0L && all(attestation_cols %in% names(benchmark)) &&
+    sum(attested) == nrow(grid) * length(subprocess_methods) &&
+    all(benchmark$subprocess_full_verified[attested] %in% TRUE) &&
+    is.list(execution_attestation) &&
+    all(benchmark$subprocess_dependency_fingerprint[attested] == execution_attestation$dependency_fingerprint) &&
+    all(benchmark$subprocess_runtime_fingerprint[attested] == execution_attestation$runtime_fingerprint) &&
+    all(benchmark$subprocess_configuration_fingerprint[attested] == execution_attestation$configuration_fingerprint)
+  rows <- list(
+    audit_row("capability_snapshot_dated", nrow(capabilities) > 0L && all(capabilities$retrieved_on == "2026-09-01"), paste("rows", nrow(capabilities))),
+    audit_row(
+      "capability_provenance_complete",
+      capability_validation$valid,
+      if (capability_validation$valid) paste("unique atomic claims", nrow(capabilities)) else paste(capability_validation$problems, collapse = "; ")
+    ),
+    audit_row("headline_neighbor_count_bounded", length(retained) >= 1L && length(retained) <= 2L, paste("headline comparators", length(retained))),
+    audit_row("headline_neighbors_match_registry", setequal(retained, mvt_nearest_neighbor_comparators()), paste(retained, collapse = ",")),
+    audit_row("scenario_grid_unique_nonempty", nrow(grid) > 0L && "case_id" %in% names(grid) && !anyDuplicated(grid$case_id), paste("grid cases", nrow(grid))),
+    audit_row("production_time_grid_exact", exact_time, paste("required t20/T=20; actual", paste(unique(grid$time_name %||% "missing"), collapse = ","))),
+    audit_row("production_family_set_exact", exact_families, paste("required", paste(production$families, collapse = ","), "actual", paste(sort(unique(grid_family)), collapse = ","))),
+    audit_row("production_dependence_set_exact", exact_dependence, paste("required", paste(production$dependence, collapse = ","), "actual", paste(sort(unique(grid$dependence_name %||% "missing")), collapse = ","))),
+    audit_row("production_replicates_exact", exact_reps, paste("required reps 1:100; actual unique", length(unique(grid$rep)))),
+    audit_row("production_case_cardinality_exact", nrow(grid) == production$cases, paste("required", production$cases, "actual", nrow(grid))),
+    audit_row("production_grid_cross_product_exact", mvt_grid_is_exact_production(grid), "canonical t20 x dependence x rep x family case IDs and fields"),
+    audit_row("production_method_registry_exact", exact_methods, paste("required ordered", paste(production$methods, collapse = ","), "actual", paste(planned_methods, collapse = ","))),
+    audit_row("production_attempt_cardinality_exact", exact_cardinality, paste("required", production$method_rows, "status", nrow(status), "benchmark", nrow(benchmark), "reconciliation", nrow(reconciliation))),
+    audit_row("production_registered_timeouts_finite", timeout_check$valid, paste(timeout_check$required, timeout_check$values, sep = "=", collapse = ",")),
+    audit_row("production_subprocess_attestations_complete", subprocess_ok, paste("required methods", paste(subprocess_methods, collapse = ","), "attested rows", sum(attested))),
+    audit_row("planned_methods_registered", length(planned_methods) > 0L && all(c("gamlss.longitudinal", retained, required_gee_methods) %in% planned_methods), paste(planned_methods, collapse = ",")),
+    audit_row("attempt_cross_product_reconciles", reconciliation_ok, paste("expected", expected_attempts, "reconciliation rows", nrow(reconciliation), "status rows", nrow(status), "benchmark rows", nrow(benchmark))),
+    audit_row("expected_cases_reconcile", length(grid_cases) == nrow(grid) && setequal(status_cases, grid_cases) && setequal(benchmark_cases, grid_cases), paste("expected", length(grid_cases), "status", length(status_cases), "benchmark", length(benchmark_cases))),
+    audit_row("planned_method_sets_exact", length(planned_methods) > 0L && setequal(status_methods, planned_methods) && setequal(benchmark_methods, planned_methods), paste("expected", paste(sort(planned_methods), collapse = ","), "status", paste(sort(status_methods), collapse = ","), "benchmark", paste(sort(benchmark_methods), collapse = ","))),
+    audit_row("case_method_sets_exact", reconciliation_ok && length(status_cases) == nrow(grid) && setequal(status_methods, planned_methods), paste("cases", length(status_cases), "methods", paste(sort(status_methods), collapse = ","))),
+    audit_row("paired_denominators_reconcile", paired_denominators_ok, paste("contrast rows", nrow(contrasts), "minimum attempted pairs", if (nrow(contrasts)) min(contrasts$n_attempted_pairs) else 0L)),
+    audit_row("headline_neighbor_rows_present", nrow(neighbors) > 0L && all(c("gamlss.longitudinal", retained) %in% unique(neighbors$method)), paste("methods present", paste(sort(unique(neighbors$method)), collapse = ","))),
+    audit_row("gee_results_family_specific", gee_reconciles, paste("expected rows", nrow(expected_gee), "actual rows", nrow(gee), "expected families", paste(expected_families, collapse = ","), "actual families", paste(actual_families, collapse = ","))),
+    audit_row("unstructured_high_dimension_is_stress_test", stress_reconciles, paste("required T>=20 cells", nrow(expected_stress), "actual stress rows", nrow(actual_stress))),
+    audit_row("attempt_denominators_visible", all(c("n_attempted", "n_converged", "n_included_accuracy") %in% names(gee)) && all(c("n_attempted", "n_converged") %in% names(neighbors)), paste("GEE rows", nrow(gee), "neighbor rows", nrow(neighbors))),
+    audit_row("failure_penalized_uncertainty_complete", penalized_uncertain, paste("summary rows", nrow(summary_rows), "rule", mvt_phase2_penalty_rule())),
+    audit_row("comparison_uncertainty_complete", contrasts_uncertain, paste("paired contrast rows", nrow(contrasts), "minimum both-successful", if (nrow(contrasts)) min(contrasts$n_both_successful) else 0L)),
+    audit_row("production_replication_target_met", minimum_reps >= 100L, paste("minimum unique reps per scenario/family", minimum_reps, "required 100"))
+  )
+  out <- mvt_bind_rows_fill(rows)
+  registry <- mvt_phase2_audit_registry()
+  if (!identical(as.character(out$check), registry) || anyDuplicated(out$check)) {
+    stop("Internal Phase 2 audit registry/order mismatch.", call. = FALSE)
+  }
+  out
+}
+
+mvt_phase2_audit_from_committed_snapshot <- function(committed) {
+  if (!is.list(committed) || !isTRUE(committed$production_run) ||
+      !is.data.frame(committed$grid) || !is.list(committed$rows)) {
+    stop("Phase 2 production audit requires a reconciled exact production snapshot.", call. = FALSE)
+  }
+  grid <- committed$grid
+  status <- committed$rows$fit_status
+  benchmark <- committed$rows$benchmark_results
+  planned_methods <- committed$methods
+  reconciliation <- mvt_phase2_attempt_reconciliation(grid, status, benchmark, planned_methods)
+  capabilities <- mvt_capability_snapshot()
+  scope <- mvt_comparator_scope_registry()
+  gee <- mvt_phase2_method_summary(
+    status, benchmark,
+    c("gee_independence", "gee_exchangeable", "gee_ar1", "gee_unstructured"),
+    planned_methods = planned_methods
+  )
+  neighbors <- mvt_phase2_method_summary(
+    status, benchmark,
+    c("gamlss.longitudinal", mvt_nearest_neighbor_comparators()),
+    planned_methods = planned_methods
+  )
+  contrasts <- mvt_nearest_neighbor_paired_contrasts(status, benchmark, scenario_grid = grid)
+  mvt_phase2_benchmark_audit(
+    capabilities, scope, gee, neighbors, contrasts,
+    grid = grid, status = status, benchmark = benchmark,
+    planned_methods = planned_methods, reconciliation = reconciliation,
+    configuration = committed$configuration,
+    execution_attestation = committed$execution_attestation
+  )
+}
+
+mvt_phase2_expected_evidence <- function(committed) {
+  grid <- committed$grid
+  status <- committed$rows$fit_status
+  benchmark <- committed$rows$benchmark_results
+  methods <- committed$methods
+  capabilities <- mvt_capability_snapshot()
+  scope <- mvt_comparator_scope_registry()
+  gee <- mvt_phase2_method_summary(
+    status, benchmark,
+    c("gee_independence", "gee_exchangeable", "gee_ar1", "gee_unstructured"),
+    planned_methods = methods
+  )
+  stress <- gee[gee$method == "gee_unstructured" & gee$n_time >= 20L, , drop = FALSE]
+  neighbors <- mvt_phase2_method_summary(
+    status, benchmark,
+    c("gamlss.longitudinal", mvt_nearest_neighbor_comparators()),
+    planned_methods = methods
+  )
+  contrasts <- mvt_nearest_neighbor_paired_contrasts(status, benchmark, scenario_grid = grid)
+  reconciliation <- mvt_phase2_attempt_reconciliation(grid, status, benchmark, methods)
+  audit <- mvt_phase2_audit_from_committed_snapshot(committed)
+  keyed <- lapply(
+    list(gee = gee, stress = stress, neighbors = neighbors, contrasts = contrasts,
+         reconciliation = reconciliation, audit = audit),
+    mvt_add_phase2_evidence_keys
+  )
+  tables <- c(
+    list(
+      capability_snapshot_2026.09.01.csv = capabilities,
+      comparator_scope_registry.csv = scope
+    ),
+    stats::setNames(
+      keyed,
+      c(
+        "gee_family_results.csv", "gee_unstructured_stress_test.csv",
+        "nearest_neighbor_results.csv", "nearest_neighbor_paired_contrasts.csv",
+        "phase2_attempt_reconciliation.csv", "phase2_benchmark_audit.csv"
+      )
+    )
+  )
+  names(tables)[[1L]] <- "capability_snapshot_2026-09-01.csv"
+  audit_md <- c(
+    "# Phase 2 benchmark evidence audit", "",
+    "Capability snapshot date: 2026-09-01",
+    paste("Strict production eligibility:", if (mvt_phase2_production_eligible(audit)) "eligible" else "INELIGIBLE"),
+    paste("Evidence readiness:", if (all(audit$status == "pass")) "complete" else "INCOMPLETE - do not use for publication claims"),
+    "",
+    "The only headline nearest-neighbor empirical workflows are `gamCopula_markov` and `gamCopula_vine_simplified`. Comparisons are paired by simulation case and remain conditional on both methods succeeding; failure-inclusive method summaries are reported separately.",
+    "",
+    "High-dimensional unstructured GEE rows (`T >= 20`) are stress-test feasibility evidence, not routine comparator evidence.",
+    "Conditional paired contrasts exclude any pair with a failed or non-finite method. Failure-inclusive sensitivity summaries use the prespecified penalty rule recorded in the CSV outputs.",
+    "",
+    paste0("- ", audit$check, ": ", audit$status, " (", audit$detail, ")")
+  )
+  list(tables = tables, audit = audit, audit_md = audit_md)
+}
+
+mvt_validate_phase2_claim_evidence <- function(
+    run_dir, attestation_path = mvt_phase2_snapshot_attestation_path(),
+    signature_path = mvt_phase2_snapshot_signature_path()) {
+  committed <- mvt_validate_approved_snapshot(
+    run_dir, attestation_path = attestation_path, require_production = TRUE,
+    signature_path = signature_path
+  )
+  expected <- mvt_phase2_expected_evidence(committed)
+  if (!mvt_phase2_production_eligible(expected$audit)) {
+    stop("Approved Phase 2 snapshot no longer passes the exact production audit registry.", call. = FALSE)
+  }
+  for (name in names(expected$tables)) {
+    path <- file.path(run_dir, name)
+    mvt_validate_aggregate_file_commit(path)
+    if (!identical(mvt_csv_serialized_sha256(expected$tables[[name]]), mvt_sha256_file(path))) {
+      stop("Phase 2 claim evidence does not reconcile with the approved snapshot: ", name, call. = FALSE)
+    }
+  }
+  md_path <- file.path(run_dir, "phase2_benchmark_audit.md")
+  mvt_validate_lines_file_commit(md_path)
+  if (!identical(readLines(md_path, warn = FALSE), expected$audit_md)) {
+    stop("Phase 2 audit narrative does not reconcile with the approved snapshot.", call. = FALSE)
+  }
+  identity <- list(
+    snapshot_sha256 = attr(committed, "approved_snapshot_sha256"),
+    producer_id = committed$producer_id,
+    producer_version = committed$producer_version,
+    configuration_fingerprint = committed$configuration_fingerprint,
+    audit_registry_sha256 = mvt_hash_object(mvt_phase2_audit_registry()),
+    evidence_sha256 = vapply(
+      mvt_phase2_public_output_allowlist()$evidence_artifacts,
+      function(name) mvt_sha256_file(file.path(run_dir, name)), character(1L)
+    )
+  )
+  invisible(identity)
+}
+
+mvt_integrate_approved_phase2_snapshot <- function(
+    run_dir, destination_dir,
+    attestation_path = mvt_phase2_snapshot_attestation_path(),
+    signature_path = mvt_phase2_snapshot_signature_path()) {
+  identity <- mvt_validate_phase2_claim_evidence(run_dir, attestation_path, signature_path)
+  committed <- mvt_validate_approved_snapshot(run_dir, attestation_path,
+    require_production = TRUE, signature_path = signature_path)
+  destination <- normalizePath(destination_dir, winslash = "/", mustWork = FALSE)
+  if (file.exists(destination) || dir.exists(destination)) {
+    stop("Approved Phase 2 integration destination must not already exist.", call. = FALSE)
+  }
+  parent <- dirname(destination)
+  dir.create(parent, recursive = TRUE, showWarnings = FALSE)
+  staging <- tempfile(paste0(".", basename(destination), "-staging-"), tmpdir = parent)
+  dir.create(staging, recursive = FALSE, showWarnings = FALSE)
+  installed <- FALSE
+  on.exit(if (!installed && dir.exists(staging)) unlink(staging, recursive = TRUE, force = TRUE), add = TRUE)
+  snapshot_files <- c("aggregate_snapshot.rds", "aggregate_snapshot.rds.commit.rds", "aggregate_snapshot.rds.ownership.rds")
+  aggregate_files <- unlist(lapply(committed$artifacts$file, function(name) {
+    c(name, paste0(name, ".commit.rds"), paste0(name, ".ownership.rds"))
+  }), use.names = FALSE)
+  checkpoint_files <- file.path(
+    "case_checkpoints",
+    paste0(vapply(committed$tasks, `[[`, character(1L), "case_id"), ".rds")
+  )
+  evidence_files <- unlist(lapply(
+    mvt_phase2_public_output_allowlist()$evidence_artifacts,
+    function(name) c(name, paste0(name, ".commit.rds"), paste0(name, ".ownership.rds"))
+  ), use.names = FALSE)
+  relative <- unique(c(snapshot_files, aggregate_files, checkpoint_files, evidence_files))
+  for (name in relative) {
+    source <- file.path(run_dir, name)
+    target <- file.path(staging, name)
+    if (!file.exists(source)) stop("Approved Phase 2 integration source is incomplete: ", name, call. = FALSE)
+    dir.create(dirname(target), recursive = TRUE, showWarnings = FALSE)
+    if (!file.copy(source, target, overwrite = FALSE, copy.mode = TRUE, copy.date = TRUE)) {
+      stop("Could not stage approved Phase 2 artifact: ", name, call. = FALSE)
+    }
+  }
+  staged_identity <- mvt_validate_phase2_claim_evidence(staging, attestation_path, signature_path)
+  if (!identical(identity, staged_identity)) stop("Staged Phase 2 snapshot identity changed during integration.", call. = FALSE)
+  if (!file.rename(staging, destination)) stop("Could not atomically install approved Phase 2 snapshot integration.", call. = FALSE)
+  installed <- TRUE
+  final_identity <- mvt_validate_phase2_claim_evidence(destination, attestation_path, signature_path)
+  if (!identical(identity, final_identity)) stop("Installed Phase 2 snapshot identity failed post-copy validation.", call. = FALSE)
+  invisible(c(final_identity, list(integration_dir = destination, files = relative)))
+}
+
+mvt_quarantine_phase2_publication_evidence <- function(run_dir, quarantine_dir, lease) {
+  mvt_assert_active_lease(lease, file.path(run_dir, "publication-evidence"))
+  dir.create(quarantine_dir, recursive = TRUE, showWarnings = FALSE)
+  artifacts <- mvt_phase2_public_output_allowlist()$evidence_artifacts
+  for (artifact in artifacts) {
+    source <- file.path(run_dir, artifact)
+    related <- c(source, paste0(source, ".commit.rds"), paste0(source, ".ownership.rds"))
+    for (path in related[file.exists(related)]) {
+      destination <- file.path(
+        quarantine_dir,
+        paste0(format(Sys.time(), "%Y%m%d%H%M%OS3"), "-", basename(path))
+      )
+      if (!file.rename(path, destination)) stop("Could not quarantine stale publication evidence: ", path, call. = FALSE)
+    }
+  }
+  invisible(TRUE)
+}
+
+mvt_write_phase2_benchmark_evidence <- function(run_dir = mvt_read_run_dir()) {
+  lease <- mvt_acquire_run_lock(run_dir)
+  on.exit(mvt_release_run_lock(lease), add = TRUE)
+  committed <- mvt_validate_approved_snapshot(run_dir)
+  grid <- committed$grid
+  status <- committed$rows$fit_status
+  benchmark <- committed$rows$benchmark_results
+  planned_methods <- committed$methods
+  reconciliation <- mvt_phase2_attempt_reconciliation(grid, status, benchmark, planned_methods)
+  capabilities <- mvt_capability_snapshot()
+  scope <- mvt_comparator_scope_registry()
+  gee_methods <- c("gee_independence", "gee_exchangeable", "gee_ar1", "gee_unstructured")
+  gee <- mvt_phase2_method_summary(status, benchmark, gee_methods, planned_methods = planned_methods)
+  stress <- gee[gee$method == "gee_unstructured" & gee$n_time >= 20L, , drop = FALSE]
+  neighbors <- mvt_phase2_method_summary(
+    status,
+    benchmark,
+    c("gamlss.longitudinal", mvt_nearest_neighbor_comparators()),
+    planned_methods = planned_methods
+  )
+  contrasts <- mvt_nearest_neighbor_paired_contrasts(status, benchmark, scenario_grid = grid)
+  audit <- mvt_phase2_audit_from_committed_snapshot(committed)
+  if (!mvt_phase2_production_eligible(audit)) {
+    quarantine_dir <- file.path(run_dir, "nonpublication_evidence")
+    mvt_quarantine_phase2_publication_evidence(run_dir, quarantine_dir, lease)
+    dir.create(quarantine_dir, recursive = TRUE, showWarnings = FALSE)
+    mvt_write_csv_atomic(
+      audit, file.path(quarantine_dir, "phase2_benchmark_audit.csv"), lease = lease
+    )
+    mvt_write_lines_atomic(
+      c(
+        "NONPUBLICATION: Phase 2 audit failed.",
+        paste0(audit$check, "=", audit$status, ": ", audit$detail)
+      ),
+      file.path(quarantine_dir, "NONPUBLICATION.txt"), lease = lease
+    )
+    stop(
+      "Phase 2 aggregate snapshot is ineligible; publication evidence was not emitted. See nonpublication_evidence/.",
+      call. = FALSE
+    )
+  }
+  gee <- mvt_add_phase2_evidence_keys(gee)
+  stress <- mvt_add_phase2_evidence_keys(stress)
+  neighbors <- mvt_add_phase2_evidence_keys(neighbors)
+  contrasts <- mvt_add_phase2_evidence_keys(contrasts)
+  reconciliation <- mvt_add_phase2_evidence_keys(reconciliation)
+  audit <- mvt_add_phase2_evidence_keys(audit)
+  paths <- c(
+    capability = file.path(run_dir, "capability_snapshot_2026-09-01.csv"),
+    scope = file.path(run_dir, "comparator_scope_registry.csv"),
+    gee = file.path(run_dir, "gee_family_results.csv"),
+    stress = file.path(run_dir, "gee_unstructured_stress_test.csv"),
+    neighbors = file.path(run_dir, "nearest_neighbor_results.csv"),
+    contrasts = file.path(run_dir, "nearest_neighbor_paired_contrasts.csv"),
+    reconciliation = file.path(run_dir, "phase2_attempt_reconciliation.csv"),
+    audit = file.path(run_dir, "phase2_benchmark_audit.csv")
+  )
+  mvt_write_csv_atomic(capabilities, paths[["capability"]], lease = lease)
+  mvt_write_csv_atomic(scope, paths[["scope"]], lease = lease)
+  mvt_write_csv_atomic(gee, paths[["gee"]], lease = lease)
+  mvt_write_csv_atomic(stress, paths[["stress"]], lease = lease)
+  mvt_write_csv_atomic(neighbors, paths[["neighbors"]], lease = lease)
+  mvt_write_csv_atomic(contrasts, paths[["contrasts"]], lease = lease)
+  mvt_write_csv_atomic(reconciliation, paths[["reconciliation"]], lease = lease)
+  mvt_write_csv_atomic(audit, paths[["audit"]], lease = lease)
+  md_path <- file.path(run_dir, "phase2_benchmark_audit.md")
+  mvt_write_lines_atomic(
+    c(
+      "# Phase 2 benchmark evidence audit",
+      "",
+      "Capability snapshot date: 2026-09-01",
+      paste("Strict production eligibility:", if (mvt_phase2_production_eligible(audit)) "eligible" else "INELIGIBLE"),
+      paste("Evidence readiness:", if (all(audit$status == "pass")) "complete" else "INCOMPLETE - do not use for publication claims"),
+      "",
+      "The only headline nearest-neighbor empirical workflows are `gamCopula_markov` and `gamCopula_vine_simplified`. Comparisons are paired by simulation case and remain conditional on both methods succeeding; failure-inclusive method summaries are reported separately.",
+      "",
+      "High-dimensional unstructured GEE rows (`T >= 20`) are stress-test feasibility evidence, not routine comparator evidence.",
+      "Conditional paired contrasts exclude any pair with a failed or non-finite method. Failure-inclusive sensitivity summaries use the prespecified penalty rule recorded in the CSV outputs.",
+      "",
+      paste0("- ", audit$check, ": ", audit$status, " (", audit$detail, ")")
+    ),
+    md_path, lease = lease
+  )
+  invisible(list(
+    paths = c(paths, audit_md = md_path), audit = audit,
+    production_eligible = mvt_phase2_production_eligible(audit)
+  ))
 }
