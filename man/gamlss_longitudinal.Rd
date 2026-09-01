@@ -68,23 +68,29 @@ gamlss_longitudinal(
 and covariate columns.}
 
 \item{margin_dist}{One registered \code{gamlss.dist} family object. A fit uses one
-homogeneous margin family; see \code{\link{longitudinal_capabilities}}.}
+homogeneous margin family; see \code{\link[=longitudinal_capabilities]{longitudinal_capabilities()}}.}
 
 \item{copula_dist}{Copula distribution code for a registered route; see
-\code{\link{longitudinal_capabilities}}.}
+\code{\link[=longitudinal_capabilities]{longitudinal_capabilities()}}.}
 
 \item{time_var}{Name of the time variable in \code{dataset}.}
 
 \item{subject_var}{Name of the subject identifier in \code{dataset}.}
 
-\item{missingness}{Handling of intermittent response gaps. The default,
-\code{"error"}, stops when a subject has an unobserved scheduled visit between
-observed visits and directs the user to opt in explicitly. With
+\item{missingness}{Handling of unsupported response patterns. The default,
+\code{"error"}, stops when a subject has an unobserved scheduled visit before
+their first observation or between observed visits and directs the user to
+opt in explicitly. The ordinary likelihood supports complete panels and
+observed prefixes ending in terminal dropout. With
 \code{"segment"}, the likelihood is evaluated within contiguous observed
-segments and different segments are treated as independent. Terminal
-dropout and leading unobserved visits do not require segmentation. AIC and
+segments and different segments are treated as independent. The first
+observed visit after leading missing visits explicitly starts a segment.
+Terminal dropout does not require segmentation. AIC and
 BIC remain available for segmented fits under the stated independence
-assumption; numerical integration across gaps is not yet implemented.}
+assumption; ordinary model-Hessian inference is unavailable for this
+composite objective, so use cluster-sandwich or bootstrap sensitivity
+analysis. Numerical integration across gaps and a distinct delayed-entry
+likelihood are not yet implemented.}
 
 \item{mu.formula}{Formula for the mu parameter of the marginal distribution}
 
@@ -231,8 +237,8 @@ model variance-covariance output at the end of fitting.}
 
 \item{vcov_method}{Character; fit-time vcov method when \code{compute_vcov = TRUE}.
 One of \code{"analytical"} or \code{"numderiv"}. Analytical vcov covers continuous
-margins and supported exact-discrete rectangle likelihoods, and falls back to
-the numerical reference path if the analytical Hessian cannot be inverted.}
+margins and supported exact-discrete rectangle likelihoods, and falls back
+to the numerical reference path if the analytical Hessian cannot be inverted.}
 
 \item{vcov_numderiv}{Logical; passed to \code{vcov.gamlss.longitudinal()} when
 \code{compute_vcov = TRUE}.}
@@ -260,23 +266,15 @@ covariates can be included in the model formulas for either the margin parameter
 or the copula parameters theta (up to two depending on the copula, theta, zeta).
 }
 \details{
-Flat optimizer arguments are soft-deprecated for one release. New code
-should supply a single \code{optimizer_control} object. If a flat argument and
-the control object specify the same setting, fitting stops with an error.
-During this transition, a legacy flat control for the inactive optimizer is
-deprecated and ignored. In contrast, an explicitly supplied inactive \code{rs}
-or \code{cg} section in a new control object is an error, preventing accidental
-cross-method configuration.
-
 Formulas are specified as for standard gamlss models, with the response variable on the left-hand side
 of the formula for the mu parameter and the right-hand side specifying the predictors for each parameter.
 The sigma, nu, tau, theta, and zeta formulas may be specified with a left-hand side of \code{~} to indicate no response variable.
 e.g. \code{mu.formula = response ~ x1 + s(x2)}, \code{sigma.formula = ~ x3}, \code{theta.formula = ~ time}.
 
-The marginal distribution is specified by a gamlss family object, e.g. GA(), NO(), PO(), NBI(), etc.,
-while the copula distribution is specified by a character code for one of the implemented
-copula families: Gaussian ("N"), Clayton ("C"), Frank ("F"), Gumbel ("G"), Joe ("J"),
-or Student's t ("t"). The copula dependence structure is first-order, with
+The marginal distribution is specified by a registered \code{gamlss.dist} family
+object and the copula by a registered character code. Use
+\code{\link[=longitudinal_capabilities]{longitudinal_capabilities()}} to inspect the tested family/copula routes and
+their response-domain requirements. The copula dependence structure is first-order, with
 adjacent copula pairs linking the margins at each time point. The copula parameters
 are shared across all adjacent pairs but may vary with covariates including time.
 
@@ -293,4 +291,21 @@ likelihood separately which is faster but slightly less optimal for overall fit,
 and the Cole and Green method (CG) which updates based on the full first
 and second derivative matrix updating all parameters at once which is generally the
 slowest method but may provide better fits for some models.
+
+The ordered unique values of \code{time_var} define the scheduled visit order.
+Adjacent copula pairs link globally adjacent scheduled visits, rather than
+the next observed record for a subject. Numeric spacing is not used as an
+elapsed-time distance, so irregularly spaced values affect ordering only.
+Duplicate subject-time rows are rejected. Pair-level dependence covariates
+and parameters are evaluated at the earlier (left) scheduled row. With
+\code{missingness = "segment"}, pairs crossing an intermittent gap are omitted
+and the resulting observed segments contribute independently.
+
+Flat optimizer arguments are soft-deprecated for one release. New code
+should supply a single \code{optimizer_control} object. If a flat argument and
+the control object specify the same setting, fitting stops with an error.
+During this transition, a legacy flat control for the inactive optimizer is
+deprecated and ignored. In contrast, an explicitly supplied inactive \code{rs}
+or \code{cg} section in a new control object is an error, preventing accidental
+cross-method configuration.
 }

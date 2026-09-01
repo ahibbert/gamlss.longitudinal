@@ -86,6 +86,7 @@
     optimizer_control_requested = optimizer_control_requested,
     optimizer_control_effective = optimizer_control_effective
   )
+  return_list$model_selection <- aics
 
   return_list <- .gl_attach_fit_optimizer_traces(
     return_list = return_list,

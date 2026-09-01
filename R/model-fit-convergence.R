@@ -132,6 +132,11 @@
     df_s_total <- df_s_total + sum(unlist(df_s[[par_name]]))
   }
 
+  n_observed <- sum(is.finite(dataset$response))
+  if (n_observed < 1L) {
+    stop("Information criteria require at least one finite observed response.", call. = FALSE)
+  }
+
   aics <- rbind(
     t(calc_lik_out_end$log_lik),
     t(-calc_lik_out_end$log_lik * 2) + 2 * c(
@@ -143,7 +148,7 @@
       length(p_mar) + df_s_margin_total,
       length(p_cop) + df_s_cop_total,
       length(par_cov) + df_s_total
-    ) * log(nrow(dataset)),
+    ) * log(n_observed),
     t(c(
       length(p_mar) + df_s_margin_total,
       length(p_cop) + df_s_cop_total,

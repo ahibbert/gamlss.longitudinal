@@ -168,6 +168,13 @@ test_that("method-neutral convergence contract uses stable stop reasons", {
   base$objective <- NULL
   omitted <- do.call(gamlss.longitudinal:::.gl_build_convergence_info, base)
   expect_true(omitted$converged)
+
+  base$objective <- -10
+  base$outer_log_lik_change <- NA_real_
+  numerical <- do.call(gamlss.longitudinal:::.gl_build_convergence_info, base)
+  expect_false(numerical$converged)
+  expect_identical(numerical$stop_reason, "numerical_failure")
+  expect_identical(numerical$events$code, "numerical_failure")
 })
 
 test_that("nonconvergence conditions gate uncertainty but allow warned points", {

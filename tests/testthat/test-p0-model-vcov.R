@@ -158,7 +158,12 @@ test_that("current vcov solve methods require valid signed likelihood curvature"
     ),
     method = "numderiv",
     d2_mat = NULL,
-    response = c(1, 2, 3)
+    response = c(1, 2, 3),
+    gradient = list(
+      gradient = c(a = 0, b = 0),
+      steps = c(1e-4, 1e-4),
+      scaled_max = 0
+    )
   )
 
   expect_equal(out$vcov_final, solve(-hessian))

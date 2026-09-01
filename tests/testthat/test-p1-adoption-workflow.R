@@ -269,44 +269,43 @@ test_that("T203 check_model returns basic-check diagnostic object", {
 
   expect_s3_class(chk, "gamlss_longitudinal_check")
   expect_true(all(c(
-    "model", "fit", "convergence", "scores", "pit", "tail",
-    "basic_checks", "basic_checks_passed", "basic_checks_result",
-    "checks", "warnings"
+    "model", "fit", "convergence", "scores", "pit", "pit_method", "tail",
+    "basic_checks", "diagnostic_summary", "checks", "flags"
   ) %in% names(chk)))
+  expect_false(any(c("basic_checks_passed", "basic_checks_result", "warnings") %in% names(chk)))
   expect_false(any(c("recommendation", "decisions") %in% names(chk)))
   expect_true(is.data.frame(chk$scores))
   expect_true(is.data.frame(chk$basic_checks))
   expect_true(is.data.frame(chk$checks))
-  expect_true(is.data.frame(chk$warnings))
+  expect_true(is.data.frame(chk$flags))
   expect_equal(nrow(chk$basic_checks), 5L)
   expect_equal(
     chk$basic_checks$area,
     c("Convergence", "Marginal fit", "Tail fit", "Copula fit", "Variance calculation")
   )
-  expect_true(all(chk$basic_checks$status %in% c("PASS", "FAIL", "REVIEW")))
-  expect_true(all(chk$warnings$status == "FAIL"))
-  expect_true(is.logical(chk$basic_checks_passed))
-  expect_true(chk$basic_checks_result %in% c("passed", "review", "failed"))
-  expect_equal(chk$residual_dependence$cutoff, 0.3)
+  expect_false(any(chk$basic_checks$status %in% c("PASS", "FAIL")))
+  expect_true(chk$diagnostic_summary %in% c("descriptive", "review", "not_converged"))
+  expect_true(all(chk$residual_dependence$cutoff == 0.3))
   expect_true("n_pairs" %in% names(chk$residual_dependence))
 
   copula_diag <- suppressWarnings(plot_copula_diagnostics(fit, plot = FALSE, residual_lags = 1))
   expect_equal(
-    chk$residual_dependence$normal_score_cor,
+    chk$residual_dependence$normal_score_cor[chk$residual_dependence$lag == 1L],
     copula_diag$residual_lag_summary$cor_z,
     tolerance = 1e-12
   )
-  expect_equal(chk$residual_dependence$n_pairs, copula_diag$residual_lag_summary$n_pairs)
+  expect_equal(chk$residual_dependence$n_pairs[chk$residual_dependence$lag == 1L], copula_diag$residual_lag_summary$n_pairs)
+  expect_true(all(c("scope_status", "threshold_source") %in% names(chk$residual_dependence)))
 
   printed <- capture.output(print(chk))
   expect_lt(grep("Basic Checks", printed), grep("Scores", printed))
-  expect_true(any(grepl("Result:", printed, fixed = TRUE)))
-  expect_true(any(grepl("broader model diagnostics should also be reviewed", printed, fixed = TRUE)))
+  expect_true(any(grepl("Summary:", printed, fixed = TRUE)))
+  expect_true(any(grepl("not package pass/fail verdicts", printed, fixed = TRUE)))
   expect_false(any(grepl("Detailed checks", printed, fixed = TRUE)))
   expect_false(any(grepl("Failed checks", printed, fixed = TRUE)))
 })
 
-test_that("T203a check_model warns only for failed basic checks", {
+test_that("T203a check_model reports review flags without automatic warnings", {
   fixture <- get_valid_inference_fixture()
   dat <- fixture$data
   fit <- fixture$fit
@@ -315,18 +314,17 @@ test_that("T203a check_model warns only for failed basic checks", {
   fit_failed$convergence$converged <- FALSE
   failed_out <- capture_warnings(check_model(fit_failed, include_plots = FALSE, dependence_cor_cutoff = 0.99))
   chk_failed <- failed_out$value
-  expect_true(any(grepl("Basic model checks failed", failed_out$warnings, fixed = TRUE)))
-  expect_equal(chk_failed$basic_checks_result, "failed")
-  expect_true(any(chk_failed$warnings$area == "Convergence"))
+  expect_length(failed_out$warnings, 0L)
+  expect_equal(chk_failed$diagnostic_summary, "not_converged")
+  expect_true(any(chk_failed$flags$area == "Convergence"))
 
   fit_review <- fit
   fit_review$convergence$converged <- TRUE
   chk_review <- expect_no_warning(
     check_model(fit_review, include_vcov = TRUE, numderiv = TRUE, include_plots = FALSE, dependence_cor_cutoff = 0.99)
   )
-  expect_equal(chk_review$basic_checks_result, "review")
-  expect_true(any(chk_review$basic_checks$status == "REVIEW"))
-  expect_equal(nrow(chk_review$warnings), 0L)
+  expect_equal(chk_review$diagnostic_summary, "review")
+  expect_true(any(chk_review$basic_checks$status == "review"))
 
   tail_checks <- gamlss.longitudinal:::.gl_check_table(
     summary_obj = list(
@@ -340,8 +338,8 @@ test_that("T203a check_model warns only for failed basic checks", {
     dependence_cor_cutoff = 0.25,
     vcov_method = NA_character_
   )
-  expect_equal(tail_checks$status[tail_checks$area == "Tail fit"], "FAIL")
-  expect_equal(gamlss.longitudinal:::.gl_basic_checks_result(tail_checks), "failed")
+  expect_equal(tail_checks$status[tail_checks$area == "Tail fit"], "descriptive")
+  expect_equal(gamlss.longitudinal:::.gl_basic_checks_result(tail_checks), "descriptive")
 })
 
 test_that("T203b check_missingness screens response missingness against observed predictors", {

@@ -8,7 +8,9 @@ check_model(
   object,
   include_vcov = FALSE,
   include_plots = FALSE,
-  dependence_cor_cutoff = 0.25,
+  dependence_cor_cutoff = NULL,
+  pit_seed = 1L,
+  residual_lags = 1:3,
   ...
 )
 }
@@ -19,25 +21,29 @@ check_model(
 via \code{\link[=summary.gamlss.longitudinal]{summary.gamlss.longitudinal()}}.}
 
 \item{include_plots}{Logical; include standard diagnostic plot objects in
-\code{check$plots}. Visual review should usually use \code{plot(object)} or the
-explicit diagnostic helpers instead.}
+\code{check$plots}.}
 
-\item{dependence_cor_cutoff}{Absolute lag-1 Rosenblatt normal-score residual
-correlation above which the dependence check is flagged. The default is a
-review threshold rather than a formal hypothesis test.}
+\item{dependence_cor_cutoff}{Optional user-supplied absolute lag-1
+Rosenblatt normal-score residual-correlation threshold. The default \code{NULL}
+reports the value descriptively without flagging it.}
+
+\item{pit_seed}{Seed for randomized PIT values for discrete margins. The
+caller's random-number state is preserved.}
+
+\item{residual_lags}{Positive integer lags to summarize. Lags with no usable
+pairs are retained and marked unavailable.}
 
 \item{...}{Passed to \code{\link[=summary.gamlss.longitudinal]{summary.gamlss.longitudinal()}} when \code{include_vcov} is
 \code{TRUE}.}
 }
 \value{
-An object of class \code{gamlss_longitudinal_check}, including a compact
-\code{basic_checks} table, a full \code{checks} table, a \code{warnings} table containing
-failed checks, and overall \code{basic_checks_passed} and \code{basic_checks_result}
-fields.
+An object of class \code{gamlss_longitudinal_check}, including descriptive
+\code{basic_checks} and \code{checks} tables, any user-threshold \code{flags}, PIT method
+provenance, and residual-dependence scope by lag.
 }
 \description{
-\code{check_model()} turns diagnostics into a compact set of basic automated
-checks for broad applied use. It does not replace visual inspection, but it
-provides a stable first pass over convergence, marginal calibration, residual
-dependence, and scoring summaries.
+\code{check_model()} returns a compact descriptive diagnostic summary. Apart from
+the fitted object's explicit convergence contract, reported calibration and
+dependence statistics are not converted into package-defined pass/fail
+decisions.
 }

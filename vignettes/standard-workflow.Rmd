@@ -86,6 +86,10 @@ reviewed as part of model assessment. Missingness at random is generally well
 managed by the model when the relevant observed predictors are included, but
 missingness not at random may affect results. Use `check_missingness()` as a
 first screen for observed-feature associations with response missingness.
+The ordinary likelihood accepts complete panels and observed prefixes followed
+by dropout. Intermittent gaps and leading unobserved scheduled visits error by
+default; use `missingness = "segment"` only when you intend the documented
+between-segment independence assumption.
 
 ```{r missingness-check, eval = FALSE}
 check_missingness(
@@ -196,19 +200,23 @@ the reporting language around Hessian, numerical-Hessian, delta-method, and
 simulation-based uncertainty.
 
 See `vignette("diagnostics-decisions", package = "gamlss.longitudinal")` for
-the decision language around marginal, tail, dependence, and inference warnings.
+guidance on interpreting marginal, tail, dependence, and inference summaries.
 
 ## Step 3: Diagnostics
 
-We provide a built-in check_model() function which highlights basic automated check statuses and failed-check warnings in plain language from the fit diagnostics including convergence errors or unusual looking fit statistics.
+The built-in `check_model()` function records convergence and presents PIT,
+tail, and residual-dependence summaries for review. These summaries are
+descriptive; the package does not turn them into a universal model-fit verdict.
+An optional user-supplied dependence cutoff can add a review flag when an
+application has a justified tolerance; no cutoff is used by default.
 
 ```{r check}
 # Model checks
-check <- check_model(fit, include_vcov = TRUE, dependence_cor_cutoff = 0.25)
+check <- check_model(fit, include_vcov = TRUE)
 check
 check$basic_checks
-check$basic_checks_result
-check$warnings
+check$diagnostic_summary
+check$flags
 ```
 
 To visually review the fits for both margin and the dependence copula we provide plotting functions directly on the fit object: `plot(fit)` and `plot_copula_diagnostics(fit)`. For the margin plots, we include standard margin diagnostics:
@@ -231,12 +239,14 @@ plot_copula_diagnostics(fit)
 ```
 
 Treat the output as a decision aid:
-- if the model is not converging, for a highly complex model more iterations may be needed which can be specified by `max_outer_iter=N`. Usually, however, iteration warnings are either due to a model which is not ideally specified (e.g. incorrect copula or margin shape) or covariates which are adding complexity to the model without adding fit resulting in optimizer issues
-- lack of fit in the marginal diagnostics, `plot(fit)` or marginal warnings, generally indicate a poor selection of marginal distribution or marginal covariates
-- lack of fit in the copula diagnostics, `plot_copula_diagnostics(fit)` or residual dependence warnings, could either be choice of copula or copula covariates, or marginal distributions which are not fully accounting for pre-correlation margin effects resulting in a misshapen copula. The residual-dependence warning uses a practical correlation cutoff, not a formal test, so small remaining correlations should be reviewed visually
-- tail fit warnings mean quantile or probability claims may not be reliable
 
-Ideally all warnings should be rectified and diagnostics accepted as satisfactory prior to moving to reporting.
+- Nonconvergence requires optimizer and model-specification review before inference.
+- Patterns in marginal plots or PIT summaries can motivate reviewing the marginal family or covariates; they are not a package-defined failure test.
+- Residual dependence summaries can motivate reviewing the copula, copula covariates, or marginal specification. Interpret their magnitude in the scientific context.
+- Tail summaries should be considered directly when the intended claim concerns quantiles or probabilities.
+
+Resolve convergence or inference failures and document the substantive judgment
+used to interpret descriptive diagnostics before reporting results.
 
 ## Optional: Simulation and prediction
 

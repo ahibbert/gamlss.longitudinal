@@ -46,17 +46,21 @@ s$fit$vcov_method
 
 ```{r vcov}
 vc <- vcov(fit, method = "analytical")
-vc$method
-vc$method_requested
+vc
+attr(vc, "method")
+
+# Advanced metadata, including smooth covariance approximations
+vc_details <- vcov(fit, method = "analytical", details = TRUE)
+vc_details$method_requested
 ```
 
-If the analytical Hessian calculation fails, or the user selects `vcov(fit, method = "numderiv")` or `summary(fit, vcov_method="numderiv")`, the package will use a fully numerically estimated Hessian and records the method used. The `check_model(fit)` function will also provide a warning and flag status of the model as 'review' rather than passed or failed if the Hessian failed to calculate analytically.
+If the analytical Hessian calculation fails, or the user selects `vcov(fit, method = "numderiv")` or `summary(fit, vcov_method="numderiv")`, the package will use a fully numerically estimated Hessian and record the method used. `check_model(fit, include_vcov = TRUE)` reports this provenance with a descriptive review status; it does not issue a model-fit pass/fail verdict.
 
 `vcov(fit, method = "numderiv")` requests numerical-Hessian inference directly if preferred, or of interest to compare to the analytical method. Our standard package tests verify the two methods are within a small tolerance of one another at build time for a selection of fits, so generally the results should closely agree.
 
 ```{r numderiv}
 vc_num <- vcov(fit, method = "numderiv")
-vc_num$method
+attr(vc_num, "method")
 ```
 
 Since we are using the inverted Hessian directly, these intervals are conditional large-sample approximations. A comparison with bootstrap intervals can assess sensitivity to the local quadratic approximation, but does not add model-selection uncertainty or turn the result into unconditional all-parameter inference.

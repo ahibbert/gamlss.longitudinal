@@ -22,7 +22,9 @@
 #'   defaults (`0.1.0-provisional`) pending Phase-gate simulation calibration;
 #'   they are not claimed to be empirically calibrated. `gradient_tol` checks a
 #'   post-fit score standardized by observed curvature. It is unrelated to the
-#'   CG optimizer stopping tolerance commonly called `cg_grad_tol`.
+#'   CG optimizer stopping tolerance commonly called `cg_grad_tol`. The minimum
+#'   signed information eigenvalue is registered as zero and is not user
+#'   adjustable: every eigenvalue must be strictly greater than zero.
 #' @export
 inference_control <- function(
     profile = c("standard", "strict"),
@@ -35,6 +37,7 @@ inference_control <- function(
   profile <- match.arg(profile)
   defaults <- if (identical(profile, "strict")) {
     list(
+      information_eigenvalue_min = 0,
       symmetry_tol = 1e-9,
       rank_tol = 1e-9,
       condition_max = 1e8,
@@ -45,6 +48,7 @@ inference_control <- function(
     )
   } else {
     list(
+      information_eigenvalue_min = 0,
       symmetry_tol = 1e-7,
       rank_tol = 1e-10,
       condition_max = 1e12,
