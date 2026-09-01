@@ -26,10 +26,15 @@
       }
     }
   }
-  margin_deriv_input <- c(
-    margin_deriv_input,
+  # Production callers pass a GAMLSS family object. Some internal optimizer
+  # tests deliberately inject only a family name together with a derivative
+  # cache; there is no fixed-family metadata to recover in that case.
+  fixed_family_args <- if (is.list(margin_dist)) {
     .gl_margin_fixed_family_args(margin_dist, n_obs)
-  )
+  } else {
+    list()
+  }
+  margin_deriv_input <- c(margin_deriv_input, fixed_family_args)
   margin_deriv_input
 }
 
@@ -66,6 +71,37 @@
     }
   }
   margin_deriv
+}
+
+#' Evaluate marginal log densities without avoidable density-scale underflow
+#'
+#' @noRd
+.gl_likelihood_evaluate_margin_log_density <- function(
+    margin_deriv_input,
+    margin_eval_cache,
+    margin_dist,
+    margin_d,
+    discrete_margin) {
+  if (!"log" %in% margin_eval_cache$margin_d_args) {
+    return(log(margin_d))
+  }
+
+  log_input <- margin_deriv_input
+  log_input$log <- TRUE
+  margin_log_d <- .call_fast_count_family("logd", margin_dist$family[1], log_input)
+  if (is.null(margin_log_d)) {
+    margin_log_d <- .call_margin_family_cached(
+      margin_eval_cache$margin_dFUN,
+      log_input,
+      names(log_input)[names(log_input) %in% margin_eval_cache$margin_d_args],
+      # `log` is a scalar control argument for GAMLSS density functions. The
+      # row-cache expands scalar arguments, which is not safe for this flag.
+      cacheable = FALSE,
+      cache_env = margin_eval_cache$family_call_cache,
+      cache_prefix = paste0(margin_dist$family[1], ":logd")
+    )
+  }
+  margin_log_d
 }
 
 #' Evaluate marginal likelihood pieces for the joint likelihood
@@ -158,11 +194,19 @@
       cache_prefix = paste0(margin_dist$family[1], ":d")
     )
   }
+  margin_log_d <- .gl_likelihood_evaluate_margin_log_density(
+    margin_deriv_input = margin_deriv_input,
+    margin_eval_cache = margin_eval_cache,
+    margin_dist = margin_dist,
+    margin_d = margin_d,
+    discrete_margin = discrete_margin
+  )
   margin_d[!obs_response] <- NA
-  margin_d[!is.finite(margin_d) | margin_d <= 0] <- NA
+  margin_log_d[!obs_response] <- NA
 
   list(
     margin_d = margin_d,
+    margin_log_d = margin_log_d,
     margin_p = margin_p,
     margin_p_lower = margin_p_lower,
     margin_deriv = margin_deriv,
