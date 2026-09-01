@@ -3,7 +3,13 @@ jss_settings <- function(create = TRUE) {
   if (identical(profile, "expanded")) profile <- "paper"
   profile <- match.arg(profile, c("smoke", "paper", "full"))
   root <- Sys.getenv("GAMLSS_LONGITUDINAL_JSS_ROOT", unset = getwd())
-  out_dir <- file.path(root, "results", "jss-replication", profile)
+  out_override <- Sys.getenv("GAMLSS_LONGITUDINAL_JSS_OUT_DIR", unset = "")
+  out_dir <- if (nzchar(out_override)) {
+    candidate <- if (grepl("^(?:[A-Za-z]:[/\\\\]|/)", out_override)) out_override else file.path(root, out_override)
+    normalizePath(candidate, winslash = "/", mustWork = FALSE)
+  } else {
+    file.path(root, "results", "jss-replication", profile)
+  }
   dirs <- file.path(out_dir, c("data", "tables", "figures", "logs"))
   if (isTRUE(create)) invisible(lapply(dirs, dir.create, recursive = TRUE, showWarnings = FALSE))
   list(
@@ -467,7 +473,7 @@ jss_metric_key <- function(x, columns) {
 }
 
 jss_metric_snapshot <- function(x, study, keys, metric, tolerance_group,
-                                statistic = c("mean", "rmse", "rate"),
+                                statistic = c("mean", "median", "rmse", "rate"),
                                 source_column = metric) {
   statistic <- match.arg(statistic)
   if (!source_column %in% names(x)) {
@@ -482,6 +488,8 @@ jss_metric_snapshot <- function(x, study, keys, metric, tolerance_group,
     if (!length(v)) return(NULL)
     estimate <- if (identical(statistic, "rmse")) {
       sqrt(mean(v^2))
+    } else if (identical(statistic, "median")) {
+      stats::median(v)
     } else {
       mean(v)
     }
@@ -527,21 +535,21 @@ jss_full_metric_sources <- function(settings, reference = FALSE) {
   public <- settings$public_data_dir
   if (reference) {
     paths <- list(
-      bcpe = file.path(public, "bcpe-t"),
-      nbi = file.path(public, "nbi-clayton"),
+      recovery = file.path(public, "main-recovery"),
       missingness = file.path(public, "missingness"),
       copula = file.path(public, "copula-misspecification"),
-      jvs = file.path(public, "joint-vs-separate"),
-      corr = file.path(public, "correlation-misspecification")
+      optimizer_tables = file.path(public, "optimizer-benchmark", "tables"),
+      multivariate = file.path(public, "multivariate-benchmark"),
+      scaling_data = file.path(public, "fit-scaling")
     )
   } else {
     paths <- list(
-      bcpe = file.path(settings$data_dir, "bcpe-t-full"),
-      nbi = file.path(settings$data_dir, "nbi-clayton-full"),
+      recovery = file.path(settings$data_dir, "main-recovery"),
       missingness = file.path(settings$out_dir, "missingness"),
       copula = settings$data_dir,
-      jvs = file.path(settings$data_dir, "joint-vs-separate-full"),
-      corr = settings$tables_dir
+      optimizer_tables = settings$tables_dir,
+      multivariate = file.path(settings$data_dir, "multivariate-benchmark"),
+      scaling_data = settings$data_dir
     )
   }
   paths
@@ -553,47 +561,20 @@ jss_full_metric_snapshots <- function(settings, reference = FALSE) {
   add <- function(path, study, keys, specs, preprocess = identity) {
     out[[length(out) + 1L]] <<- jss_metric_snapshots_from_csv(path, study, keys, specs, preprocess)
   }
-  fixed_specs <- rbind(
-    jss_metric_spec("bias", tolerance_group = "fixed_effect_bias"),
-    jss_metric_spec("rmse", tolerance_group = "fixed_effect_rmse")
-  )
-  add(file.path(p$bcpe, "fixed_effects_bias_rmse_table.csv"), "bcpe_t_fixed",
-    c("scenario", "model", "n", "d", "parameter", "term"), fixed_specs)
-  add(file.path(p$bcpe, "smooth_integrated_metrics.csv"), "bcpe_t_smooth",
-    c("scenario", "model", "n", "d", "parameter"),
+  add(file.path(p$recovery, "fixed_parameter_recovery.csv"), "main_recovery_fixed",
+    c("study_id", "scenario_id", "method", "parameter", "term"), rbind(
+      jss_metric_spec("bias", tolerance_group = "fixed_effect_bias"),
+      jss_metric_spec("rmse", tolerance_group = "fixed_effect_rmse"),
+      jss_metric_spec("coverage", tolerance_group = "convergence")
+    ))
+  add(file.path(p$recovery, "smooth_recovery.csv"), "main_recovery_smooth",
+    c("study_id", "scenario_id", "method", "parameter"),
     jss_metric_spec("irmse", tolerance_group = "smooth_recovery"))
-  add(file.path(p$bcpe, "predictive_scores_by_rep.csv"), "bcpe_t_predictive",
-    c("scenario", "model", "variogram_p"), rbind(
-      jss_metric_spec("test_log_score_per_obs", tolerance_group = "predictive_scores"),
-      jss_metric_spec("variogram_score", tolerance_group = "predictive_scores")
-    ))
-  add(file.path(p$bcpe, "fit_run_log.csv"), "bcpe_t_convergence",
-    c("scenario", "model"), rbind(
+  add(file.path(p$recovery, "attempt_metadata.csv"), "main_recovery_attempts",
+    c("study_id", "scenario_id", "method"), rbind(
       jss_metric_spec("success", tolerance_group = "convergence", statistic = "rate"),
-      jss_metric_spec("converged", tolerance_group = "convergence", statistic = "rate")
-    ))
-
-  nbi_preprocess <- function(x) {
-    x$estimation_error <- jss_metric_numeric(x$estimate) - jss_metric_numeric(x$true_value)
-    x
-  }
-  add(file.path(p$nbi, "fixed_effects_by_rep.csv"), "nbi_clayton_fixed",
-    c("model", "parameter", "term"), rbind(
-      jss_metric_spec("estimation_error", "bias", "fixed_effect_bias", "mean"),
-      jss_metric_spec("estimation_error", "rmse", "fixed_effect_rmse", "rmse")
-    ), nbi_preprocess)
-  add(file.path(p$nbi, "smooth_integrated_metrics.csv"), "nbi_clayton_smooth",
-    c("scenario", "model", "parameter"),
-    jss_metric_spec("irmse", tolerance_group = "smooth_recovery"))
-  add(file.path(p$nbi, "predictive_scores_by_rep.csv"), "nbi_clayton_predictive",
-    c("scenario", "model", "variogram_p"), rbind(
-      jss_metric_spec("test_log_score_per_obs", tolerance_group = "predictive_scores"),
-      jss_metric_spec("variogram_score", tolerance_group = "predictive_scores")
-    ))
-  add(file.path(p$nbi, "nbi_sigma_compare_logs.csv"), "nbi_clayton_convergence",
-    c("engine"), rbind(
-      jss_metric_spec("success", tolerance_group = "convergence", statistic = "rate"),
-      jss_metric_spec("converged", tolerance_group = "convergence", statistic = "rate")
+      jss_metric_spec("converged", tolerance_group = "convergence", statistic = "rate"),
+      jss_metric_spec("retained", tolerance_group = "convergence", statistic = "rate")
     ))
 
   add(file.path(p$missingness, "fixed_term_summary_by_missingness.csv"), "missingness_fixed",
@@ -615,41 +596,33 @@ jss_full_metric_snapshots <- function(settings, reference = FALSE) {
       jss_metric_spec("converged", tolerance_group = "convergence", statistic = "rate")
     ))
 
-  for (bundle in c("normal", "gamma", "nbi")) {
-    path <- file.path(p$jvs, bundle, "data", "03-joint-vs-separate-optimization-deltas.csv")
-    add(path, paste0("joint_vs_separate_", bundle), c("case_id", "family"), rbind(
-      jss_metric_spec("delta_test_log_score_per_obs", tolerance_group = "predictive_scores"),
-      jss_metric_spec("delta_heldout_variogram_score_p05", tolerance_group = "predictive_scores"),
-      jss_metric_spec("delta_heldout_variogram_score_p2", tolerance_group = "predictive_scores"),
-      jss_metric_spec("rs_joint_success", tolerance_group = "convergence", statistic = "rate"),
-      jss_metric_spec("rs_separate_success", tolerance_group = "convergence", statistic = "rate")
+  optimizer_name <- "03-joint-vs-separate-optimization-difference-uncertainty.csv"
+  add(file.path(p$optimizer_tables, optimizer_name), "optimizer_benchmark",
+    c("case_id", "metric"), rbind(
+      jss_metric_spec("conditional_difference", tolerance_group = "paired_effect"),
+      jss_metric_spec("retention_difference", tolerance_group = "paired_effect"),
+      jss_metric_spec("convergence_difference", tolerance_group = "paired_effect"),
+      jss_metric_spec("failure_inclusive_difference", tolerance_group = "paired_effect")
     ))
-  }
 
-  corr_files <- c(
-    "table_2_external_correlation.csv" = "08-simulation-sensitivity-correlation-misspecification-external-correlation.csv",
-    "table_3_flexible_correlation.csv" = "08-simulation-sensitivity-correlation-misspecification-flexible-correlation.csv"
-  )
-  for (reference_name in names(corr_files)) {
-    path <- if (reference) file.path(p$corr, reference_name) else file.path(p$corr, corr_files[[reference_name]])
-    x <- utils::read.csv(path, stringsAsFactors = FALSE, check.names = FALSE)
-    keys <- names(x)[1:2]
-    for (column in names(x)[-(1:2)]) {
-      metric_label <- paste(x[[keys[[2L]]]], column, sep = "|")
-      values <- jss_metric_numeric(x[[column]])
-      tmp <- data.frame(row_key = paste0(keys[[1L]], "=", x[[keys[[1L]]]]), metric_value = values)
-      metric_type <- ifelse(grepl("coverage", metric_label, ignore.case = TRUE), "convergence",
-        ifelse(grepl("RMSE|MAE|SE ratio", metric_label, ignore.case = TRUE), "fixed_effect_rmse", "predictive_scores"))
-      for (i in seq_len(nrow(tmp))) {
-        if (!is.finite(tmp$metric_value[[i]])) next
-        out[[length(out) + 1L]] <- data.frame(
-          study = paste0("correlation_misspecification_", tools::file_path_sans_ext(reference_name)),
-          key = tmp$row_key[[i]], metric = metric_label[[i]], tolerance_group = metric_type[[i]],
-          statistic = "reported", value = tmp$metric_value[[i]], n = 1L, stringsAsFactors = FALSE
-        )
-      }
-    }
-  }
+  add(file.path(p$multivariate, "fit_status_by_rep.csv"), "multivariate_benchmark_status",
+    c("scenario", "family", "dependence", "n_time", "method"), rbind(
+      jss_metric_spec("success", tolerance_group = "convergence", statistic = "rate"),
+      jss_metric_spec("converged", tolerance_group = "convergence", statistic = "rate"),
+      jss_metric_spec("retained", tolerance_group = "convergence", statistic = "rate")
+    ))
+  add(file.path(p$multivariate, "benchmark_results_by_rep.csv"), "multivariate_benchmark_accuracy",
+    c("scenario", "family", "dependence", "n_time", "method"), rbind(
+      jss_metric_spec("benchmark_mean_rmse", tolerance_group = "fixed_effect_rmse"),
+      jss_metric_spec("benchmark_neg_log_score", tolerance_group = "predictive_scores")
+    ))
+
+  scaling_path <- if (reference) file.path(p$scaling_data, "attempts.csv") else
+    file.path(p$scaling_data, "10-fit-scaling-attempts.csv")
+  add(scaling_path, "fit_scaling", c("scenario_id", "model_class", "changed_factor"), rbind(
+    jss_metric_spec("elapsed_sec", tolerance_group = "runtime_scaling", statistic = "median"),
+    jss_metric_spec("retained", tolerance_group = "convergence", statistic = "rate")
+  ))
   result <- do.call(rbind, out)
   result[order(result$study, result$key, result$metric), , drop = FALSE]
 }
@@ -740,13 +713,29 @@ jss_write_run_metadata <- function(settings, started, bootstrap, store) {
   control_inputs <- c(
     file.path(settings$root, "DESCRIPTION"),
     list.files(file.path(settings$root, "R"), pattern = "[.]R$", full.names = TRUE, recursive = TRUE),
-    file.path(settings$root, "paper", c("manifest.csv", "seeds.csv", "tolerances.csv", "renv.lock", "_targets.R", "replicate.R", "bootstrap.R")),
+    file.path(settings$root, "paper", c(
+      "manifest.csv", "seeds.csv", "phase2-claims.csv", "tolerances.csv", "renv.lock",
+      "_targets.R", "replicate.R", "bootstrap.R", "main-recovery-trust-registry.csv",
+      "phase2-artifact-contract.csv"
+    )),
+    file.path(settings$root, "paper", "scripts", "phase2-evidence-approval.R"),
+    file.path(settings$root, "paper", "notes", "phase2-evidence-signing.md"),
     file.path(settings$root, "paper", "R", c(
       "replication-helpers.R", "public-paper-producers.R",
       "01-simulation-bcpe-t.R", "02-simulation-delaporte-clayton.R",
       "03-joint-vs-separate-optimization.R", "04-missingness-dropout-sensitivity.R",
       "07-gamma-copula-misspecification.R",
-      "08-simulation-sensitivity-correlation-misspecification.R"
+      "10-fit-scaling.R", "main-recovery-evidence.R",
+      "missingness-study-helpers.R", "phase2-evidence-contracts.R",
+      "phase2-central-integration.R", "phase2-paper-evidence.R",
+      file.path("09-simulation-multivariate-longitudinal", "00-multivariate-setup.R"),
+      file.path("09-simulation-multivariate-longitudinal", "17-write-phase2-benchmark-evidence.R")
+    )),
+    file.path(settings$root, "paper", "scripts", "final-simulations", c(
+      file.path("bcpe-t", "simulation_bcpe_t_gamlss_comparison.R"),
+      file.path("nbi-clayton", "compare_gamlss_ours_nbi_sigma_smooth.R"),
+      file.path("missingness", "run_missingness_study.R"),
+      file.path("main-recovery", "run_main_recovery_evidence.R")
     ))
   )
   inputs <- unique(control_inputs[file.exists(control_inputs)])
