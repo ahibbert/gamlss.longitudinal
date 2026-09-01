@@ -3,6 +3,12 @@
     stop("Diagnostics are only available for objects of class 'gamlss.longitudinal'.")
   }
 
+  .gl_validate_capability_route(
+    margin_dist = object$margin_dist,
+    copula_dist = object$copula_dist,
+    context = "diagnostics"
+  )
+
   copula_link <- get_copula_dist(object$copula_dist)$copula_link
 
   if (is.null(newdata)) {
