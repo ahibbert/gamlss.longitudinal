@@ -82,6 +82,11 @@ print.summary.gamlss.longitudinal <- function(x, digits = max(3, getOption("digi
         " | Validation:", hd$validation_profile %||% "unknown", "\n"
       )
     }
+    contract <- x$fit$inference_contract %||% attr(x, "inference_contract")
+    if (!is.null(contract)) {
+      cat("Inference target: fixed coefficients conditional on fitted smooth structure.\n")
+      cat("Omitted uncertainty: fixed-smooth covariance and smoothing-parameter uncertainty.\n")
+    }
   }
 
   cat("\nFixed coefficients:\n")

@@ -65,7 +65,12 @@ into one point-and-interval plot per model term and parameter.}
 }
 \value{
 Invisibly returns a nested list with x, fitted values, standard
-errors, and confidence limits for each fixed term.
+errors, and conditional pointwise confidence limits for each fixed term.
+Continuous design-column bands use the corresponding coefficient; grouped
+factor panels may display several design-column coefficients and their
+reference level. Bands remain marginal for each displayed design-column
+contribution and omit fixed-smooth and
+smoothing-parameter uncertainty; the returned object records this contract.
 }
 \description{
 This utility plots fixed-effect term contributions for a fitted

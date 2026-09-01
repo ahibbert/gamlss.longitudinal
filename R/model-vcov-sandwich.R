@@ -53,9 +53,23 @@
   out <- stats::setNames(rep(0, length(cluster_levels)), cluster_levels)
 
   margin_log <- rep(0, length(response))
-  margin_ok <- !is.na(calc_lik$margin_d) & calc_lik$margin_d > 0
+  margin_included <- !is.na(response)
+  margin_ok <- margin_included & is.finite(calc_lik$margin_d) & calc_lik$margin_d > 0
+  margin_bad <- margin_included & !margin_ok
+  if (any(margin_bad)) {
+    stop(.gl_inference_unavailable(list(
+      status = "unavailable",
+      failure_codes = "sandwich_invalid_margin_contribution",
+      message = paste0(
+        "Sandwich inference is unavailable because an included marginal ",
+        "likelihood contribution is nonfinite or nonpositive."
+      ),
+      component = "margin",
+      rows = which(margin_bad),
+      density = calc_lik$margin_d[margin_bad]
+    )))
+  }
   margin_log[margin_ok] <- log(calc_lik$margin_d[margin_ok])
-  margin_log[!is.finite(margin_log)] <- 0
   margin_sum <- rowsum(margin_log, cluster, reorder = FALSE)
   out[rownames(margin_sum)] <- out[rownames(margin_sum)] + margin_sum[, 1]
 
@@ -74,9 +88,22 @@
     }
 
     copula_log <- rep(0, length(row_id1))
-    copula_ok <- pair_ok & calc_lik$copula_d > 0
+    copula_ok <- pair_ok & is.finite(calc_lik$copula_d) & calc_lik$copula_d > 0
+    copula_bad <- pair_ok & !copula_ok
+    if (any(copula_bad)) {
+      stop(.gl_inference_unavailable(list(
+        status = "unavailable",
+        failure_codes = "sandwich_invalid_copula_contribution",
+        message = paste0(
+          "Sandwich inference is unavailable because an included copula ",
+          "likelihood contribution is nonfinite or nonpositive."
+        ),
+        component = "copula",
+        pairs = which(copula_bad),
+        density = calc_lik$copula_d[copula_bad]
+      )))
+    }
     copula_log[copula_ok] <- log(calc_lik$copula_d[copula_ok])
-    copula_log[!is.finite(copula_log)] <- 0
     copula_sum <- rowsum(copula_log, pair_cluster_1, reorder = FALSE)
     out[rownames(copula_sum)] <- out[rownames(copula_sum)] + copula_sum[, 1]
   }
