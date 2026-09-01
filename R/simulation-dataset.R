@@ -59,6 +59,11 @@ simulate_longitudinal_dataset <- function(
   if (anyDuplicated(times)) {
     stop("times must not contain duplicate values.", call. = FALSE)
   }
+  .gl_validate_capability_route(
+    margin_dist = margin_dist,
+    copula_dist = copula_dist,
+    context = "simulation"
+  )
   copula_dist <- .copula_family_code(copula_dist)
 
   long <- .sim_base_long_data(n, times, subject_var, time_var)
