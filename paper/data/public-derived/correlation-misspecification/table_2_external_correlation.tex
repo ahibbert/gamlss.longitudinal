@@ -1,0 +1,35 @@
+\begin{table}[htbp]
+\centering
+\caption{Performance and all-pair dependence recovery under generated AR(1) and exchangeable correlation. Results are shown for T=20. Values are averaged over response families. Scenario definitions are given in Table~\ref{tab:scenario-design}. The robust column uses the same gamlss.longitudinal fit as gamlss.long but replaces model-based coefficient SEs with subject-cluster sandwich SEs; fit and dependence metrics are therefore unchanged by design. Median df ranges (total/dependence): gamlss.longitudinal 4.7/1.0; gamlss.longitudinal robust 4.7/1.0; geepack exch. 4.0/1.0; geepack AR(1) 4.0/1.0; geepack unstr. 193.0/190.0.}
+\label{tab:external-correlation}
+\begin{tabular}{lrrrrrr@{\hspace{1em}}rrrrrr}
+\toprule
+ & \multicolumn{6}{c}{AR(1)} & \multicolumn{6}{c}{Exchangeable} \\
+\cmidrule(lr){2-7} \cmidrule(lr){8-13}
+ & \multicolumn{2}{c}{gamlss.long} & \multicolumn{3}{c}{geepack (robust)} &  & \multicolumn{2}{c}{gamlss.long} & \multicolumn{3}{c}{geepack (robust)} &  \\
+\cmidrule(lr){2-3} \cmidrule(lr){4-6} \cmidrule(lr){8-9} \cmidrule(lr){10-12}
+ & naive & robust & exch. & AR(1) & unstr. & glm & naive & robust & exch. & AR(1) & unstr. & glm \\
+\midrule
+\addlinespace[0.25em]
+\multicolumn{13}{l}{\textit{Mean RMSE (lower is better)}} \\
+Moderate & 0.042 & 0.042 & 0.042 & 0.041 & 0.045 & 0.042 & 0.070 & 0.070 & 0.070 & 0.073 & 0.081 & 0.070 \\
+High & 0.058 & 0.058 & 0.064 & 0.061 & 0.075 & 0.064 & 0.093 & 0.093 & 0.095 & 0.100 & 0.147 & 0.095 \\
+\addlinespace[0.25em]
+\multicolumn{13}{l}{\textit{Slope SE ratio (target: 1.0)}} \\
+Moderate & 1.057 & 1.049 & 1.042 & 1.065 & 2.031 & 0.638 & 0.522 & 1.013 & 1.012 & 1.029 & 0.780 & 0.358 \\
+High & 1.018 & 1.057 & 1.047 & 1.089 & 1.000 & 0.445 & 0.561 & 0.970 & 0.946 & 0.925 & 1.418 & 0.264 \\
+\addlinespace[0.25em]
+\multicolumn{13}{l}{\textit{Slope coverage (target: 0.95)}} \\
+Moderate & 0.950 & 0.983 & 0.967 & 0.967 & 0.933 & 0.767 & 0.700 & 0.933 & 0.933 & 0.933 & 0.833 & 0.483 \\
+High & 0.983 & 1.000 & 0.983 & 1.000 & 0.832 & 0.550 & 0.683 & 0.933 & 0.950 & 0.933 & 0.912 & 0.383 \\
+\addlinespace[0.25em]
+\multicolumn{13}{l}{\textit{Tau MAE}} \\
+Moderate & 0.005 & 0.005 & 0.081 & 0.015 & 0.054 & -- & 0.248 & 0.248 & 0.050 & 0.172 & 0.072 & -- \\
+High & 0.010 & 0.010 & 0.142 & 0.036 & 0.068 & -- & 0.376 & 0.376 & 0.075 & 0.145 & 0.106 & -- \\
+\addlinespace[0.25em]
+\multicolumn{13}{l}{\textit{Tau RMSE}} \\
+Moderate & 0.007 & 0.007 & 0.117 & 0.022 & 0.068 & -- & 0.263 & 0.263 & 0.050 & 0.200 & 0.085 & -- \\
+High & 0.011 & 0.011 & 0.181 & 0.040 & 0.087 & -- & 0.411 & 0.411 & 0.075 & 0.174 & 0.120 & -- \\
+\bottomrule
+\end{tabular}
+\end{table}

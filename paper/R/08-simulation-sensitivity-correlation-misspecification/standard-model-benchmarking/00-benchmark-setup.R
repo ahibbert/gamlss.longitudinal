@@ -27,12 +27,9 @@ bmk_script_dir <- file.path(
   "08-simulation-sensitivity-correlation-misspecification",
   "standard-model-benchmarking"
 )
-bmk_output_root <- file.path(
-  bmk_repo_root,
-  "results",
-  "jss-exploratory",
-  "08-simulation-sensitivity-correlation-misspecification",
-  "standard-model-benchmarking"
+bmk_output_root <- Sys.getenv(
+  "GAMLSS_LONGITUDINAL_BENCHMARK_OUTPUT_ROOT",
+  unset = file.path(bmk_repo_root, "results", "jss-exploratory", "08-simulation-sensitivity-correlation-misspecification", "standard-model-benchmarking")
 )
 
 bmk_env <- function(name, default = "") {
@@ -75,7 +72,20 @@ bmk_timestamp <- function() {
 
 bmk_write_csv <- function(x, path) {
   dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-  utils::write.csv(x, path, row.names = FALSE, na = "")
+  temporary <- paste0(path, ".tmp-", Sys.getpid())
+  backup <- paste0(path, ".bak")
+  on.exit(unlink(temporary, force = TRUE), add = TRUE)
+  utils::write.csv(x, temporary, row.names = FALSE, na = "")
+  if (file.exists(backup)) unlink(backup, force = TRUE)
+  had_previous <- file.exists(path)
+  if (had_previous && !file.rename(path, backup)) {
+    stop("Could not move the previous CSV aside before replacement: ", path, call. = FALSE)
+  }
+  if (!file.rename(temporary, path)) {
+    if (had_previous && file.exists(backup)) file.rename(backup, path)
+    stop("Could not atomically install CSV: ", path, call. = FALSE)
+  }
+  if (file.exists(backup)) unlink(backup, force = TRUE)
   invisible(path)
 }
 

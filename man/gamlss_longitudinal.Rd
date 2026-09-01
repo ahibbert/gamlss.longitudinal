@@ -209,8 +209,9 @@ finite differences when needed.}
 model variance-covariance output at the end of fitting.}
 
 \item{vcov_method}{Character; fit-time vcov method when \code{compute_vcov = TRUE}.
-One of \code{"analytical"} or \code{"numderiv"}. Analytical vcov falls back to the
-numerical reference path if the analytical Hessian cannot be inverted.}
+One of \code{"analytical"} or \code{"numderiv"}. Analytical vcov covers continuous
+margins and supported exact-discrete rectangle likelihoods, and falls back to
+the numerical reference path if the analytical Hessian cannot be inverted.}
 
 \item{vcov_numderiv}{Logical; passed to \code{vcov.gamlss.longitudinal()} when
 \code{compute_vcov = TRUE}.}

@@ -1,0 +1,165 @@
+---
+title: "JSS reviewer start here"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{JSS reviewer start here}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+This article is the reviewer-facing entry point for the JSS submission version
+of **gamlss.longitudinal**. It connects the paper, package interface,
+diagnostics, examples, and replication workflow.
+
+## What the package does
+
+`gamlss.longitudinal` fits longitudinal GAMLSS models with first-order copula
+dependence between adjacent repeated measurements. The main interface is
+`gamlss_longitudinal()`. Each supported marginal parameter and copula parameter
+can have its own formula, including fixed and smooth covariate effects.
+
+The package is intended for analyses where the marginal distributional shape or
+within-subject dependence is part of the scientific question. It is not an
+automatic imputation tool, an arbitrary higher-order vine fitting package, or a
+time-series forecasting engine beyond prediction on supplied new panels.
+
+## Quick install check
+
+After installing the package, run the smoke test:
+
+```{r smoke-test}
+source(system.file("smoke-tests", "new-user-smoke.R",
+  package = "gamlss.longitudinal"
+))
+```
+
+## Recommended workflow
+
+The main user workflow is:
+
+1. Inspect the longitudinal response and missingness pattern.
+2. Screen candidate marginal distributions.
+3. Screen candidate copula families.
+4. Fit the longitudinal GAMLSS-copula model.
+5. Inspect convergence, coefficients, and uncertainty.
+6. Check marginal and dependence diagnostics.
+7. Predict distributional summaries or simulate from the fitted model.
+
+The minimal workflow article demonstrates this path:
+
+```{r minimal-workflow}
+vignette("standard-workflow", package = "gamlss.longitudinal")
+```
+
+For a longer known-truth example, use:
+
+```{r detailed-workflow}
+vignette("native-simulation-workflow", package = "gamlss.longitudinal")
+```
+
+## Main interface
+
+A typical model fit has separate formulas for marginal and dependence
+parameters:
+
+```{r fit-template}
+fit <- gamlss_longitudinal(
+  mu.formula = response ~ time + group + s(baseline),
+  sigma.formula = ~ time + group,
+  theta.formula = ~ time + group,
+  dataset = dat,
+  time_var = "time",
+  subject_var = "id",
+  margin_dist = GA(),
+  copula_dist = "t"
+)
+summary(fit)
+```
+
+Use the final JSS paper example for the exact family, copula, and covariates.
+
+## Standard methods to inspect
+
+Reviewers should be able to inspect fitted objects through standard R methods:
+
+```{r standard-methods}
+coef(fit)
+vcov(fit)
+confint(fit)
+logLik(fit)
+nobs(fit)
+formula(fit)
+terms(fit)
+fitted(fit)
+residuals(fit)
+model.frame(fit)
+```
+
+Prediction and simulation use standard generics:
+
+```{r predict-simulate}
+predict(fit, newdata = newdat, type = "response")
+simulate(fit, nsim = 10)
+```
+
+## Diagnostics
+
+Marginal diagnostics and dependence diagnostics are both required for this
+model class:
+
+```{r diagnostics}
+plot(fit)
+plot_terms(fit)
+plot_margin_fit(fit)
+plot_copula_diagnostics(fit)
+check_model(fit)
+check_missingness(dat, subject_var = "id", time_var = "time")
+```
+
+See the diagnostics guide for interpretation:
+
+```{r diagnostics-vignette}
+vignette("diagnostics-decisions", package = "gamlss.longitudinal")
+```
+
+## Inference and uncertainty
+
+The inference guide covers Wald intervals, likelihood comparisons, bootstrap
+helpers, and uncertainty language:
+
+```{r inference-vignette}
+vignette("inference-uncertainty", package = "gamlss.longitudinal")
+```
+
+## Paper replication
+
+The repository version of the paper uses `paper/replicate.R` as the
+authoritative replication entry point. From the repository root:
+
+```{r paper-smoke}
+source("paper/replicate.R")
+```
+
+The smoke profile is intended as a fast reviewer check. The expanded profile is
+the full paper regeneration:
+
+```{r paper-expanded}
+Sys.setenv(GAMLSS_LONGITUDINAL_JSS_PROFILE = "expanded")
+source("paper/replicate.R")
+```
+
+Generated outputs are written under `results/jss-replication/<profile>/`.
+The manifest maps paper result IDs to files, and the logs include session
+information and output hashes.
+
+Private application data are not committed to the repository. The main JSS
+paper should therefore use a public, package-shipped, or simulated primary
+example unless accepted external data access instructions are provided.

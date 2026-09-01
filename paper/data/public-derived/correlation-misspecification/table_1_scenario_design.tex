@@ -1,0 +1,17 @@
+\begin{table}[htbp]
+\centering
+\caption{Simulation scenarios included in the benchmark. All scenarios used Normal, Gamma, and Binary response margins with a Gaussian copula; Poisson margins are excluded from these paper-facing tables. External scenarios are parameterised by Gaussian copula correlation $\rho$, while internal time-varying and covariate-dependent scenarios are parameterised on Kendall's $\tau$ scale.}
+\label{tab:scenario-design}
+\begin{tabular}{lrrll}
+\toprule
+Scenario & n & T & Dependence & $\rho$ / $\tau$ \\
+\midrule
+EXCH-M & 120 & 20, 50 & Exchangeable & 0.45 \\
+EXCH-H & 120 & 20, 50 & Exchangeable & 0.75 \\
+AR1-M & 120 & 20, 50 & AR(1) & 0.55 \\
+AR1-H & 120 & 20, 50 & AR(1) & 0.78 \\
+TIME-COR & 120 & 20, 50 & Time-varying adjacent & 0.35--0.70 \\
+COV-COR & 120 & 20, 50 & Covariate-dependent adjacent & $\operatorname{logit}^{-1}\{\operatorname{logit}(0.55) + 1.10x\}$ \\
+\bottomrule
+\end{tabular}
+\end{table}

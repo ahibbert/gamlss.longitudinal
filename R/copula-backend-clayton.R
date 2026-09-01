@@ -64,6 +64,30 @@
   out
 }
 
+.copula_clayton_logpdf <- function(u1, u2, par) {
+  u1 <- .copula_clamp01(u1)
+  u2 <- .copula_clamp01(u2)
+  theta <- .copula_clayton_theta(par)
+
+  out <- rep(0, length.out = max(length(u1), length(u2), length(theta)))
+  u1 <- rep(u1, length.out = length(out))
+  u2 <- rep(u2, length.out = length(out))
+  theta <- rep(theta, length.out = length(out))
+
+  dep <- theta > 1e-10
+  if (any(dep)) {
+    a <- -theta[dep] * log(u1[dep])
+    b <- -theta[dep] * log(u2[dep])
+    m <- pmax(a, b)
+    log_s <- m + log(exp(a - m) + exp(b - m) - exp(-m))
+    out[dep] <- log1p(theta[dep]) -
+      (theta[dep] + 1) * (log(u1[dep]) + log(u2[dep])) -
+      (2 + 1 / theta[dep]) * log_s
+  }
+
+  out
+}
+
 .copula_clayton_hfunc1 <- function(u1, u2, par) {
   u1 <- .copula_clamp01(u1)
 

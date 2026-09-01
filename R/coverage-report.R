@@ -184,6 +184,10 @@ write_coverage_summary_report <- function(
   n_cases <- nrow(results)
   total_success <- sum(results$success)
   total_failed <- nrow(results) - total_success
+  converged <- if ("converged" %in% names(results)) as.logical(results$converged) else rep(NA, nrow(results))
+  total_converged <- sum(results$success & !is.na(converged) & converged)
+  total_nonconverged <- sum(results$success & !is.na(converged) & !converged)
+  total_convergence_unknown <- sum(results$success & is.na(converged))
   wall_note <- "Wall time is not inferred from per-fit timings; per-fit elapsed times are summed by method below."
   label_text <- if (!is.null(run_label) && length(run_label) > 0L && !is.na(run_label[[1L]])) {
     run_label[[1L]]
@@ -217,8 +221,12 @@ write_coverage_summary_report <- function(
     ),
     "",
     paste0(
-      "Total fitted cases: ", n_cases, ". Successful: ", total_success,
-      ". Failed: ", total_failed, "."
+      "Total fitted cases: ", n_cases,
+      ". Completed without an execution error: ", total_success,
+      ". Optimizer-converged: ", total_converged,
+      ". Completed but not converged: ", total_nonconverged,
+      ". Convergence status unavailable: ", total_convergence_unknown,
+      ". Execution failures: ", total_failed, "."
     ),
     "",
     if (!is.null(results_file)) paste0("Results file: ", .coverage_tex_texttt(basename(results_file)), ".") else NULL,
@@ -228,9 +236,10 @@ write_coverage_summary_report <- function(
       NULL
     },
     "",
-    "\\section*{Fit Success}",
-    .coverage_tex_table(tables$fit_df, "Fit success by method"),
-    .coverage_tex_table(tables$by_copula, "Fit success by copula and method"),
+    "\\section*{Execution Completion}",
+    "A completed fit is not necessarily optimizer-converged; inspect the structured convergence output separately.",
+    .coverage_tex_table(tables$fit_df, "Execution completion by method"),
+    .coverage_tex_table(tables$by_copula, "Execution completion by copula and method"),
     "",
     "\\section*{Runtime}",
     wall_note,

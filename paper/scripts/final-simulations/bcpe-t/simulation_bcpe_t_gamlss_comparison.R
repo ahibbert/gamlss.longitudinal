@@ -4,7 +4,6 @@
 # Defaults are deliberately small so the script can be smoke-tested quickly.
 
 suppressPackageStartupMessages({
-  library(devtools)
   library(parallel)
   library(VineCopula)
   library(gamlss)
@@ -13,7 +12,8 @@ suppressPackageStartupMessages({
   library(ggplot2)
 })
 
-devtools::load_all(".", quiet = TRUE)
+suppressPackageStartupMessages(library(gamlss.longitudinal))
+list2env(as.list(getNamespace("gamlss.longitudinal"), all.names = TRUE), envir = .GlobalEnv)
 
 set.seed(20260513)
 
@@ -67,6 +67,7 @@ include_dlcopdpar <- as.logical(as.integer(Sys.getenv("INCLUDE_DLCOPDPAR", unset
 optim_method <- Sys.getenv("OPT_METHOD", unset = "RS")
 max_outer_iter <- as.integer(Sys.getenv("MAX_OUTER_ITER", unset = "1000"))
 max_inner_iter <- as.integer(Sys.getenv("MAX_INNER_ITER", unset = "100"))
+max_elapsed_sec <- as.numeric(Sys.getenv("MAX_ELAPSED_SEC", unset = "180"))
 outer_stop_crit_env <- Sys.getenv("OUTER_STOP_CRIT", unset = NA_character_)
 outer_stop_crit <- if (is.na(outer_stop_crit_env) || !nzchar(outer_stop_crit_env)) {
   NA_real_
@@ -318,7 +319,11 @@ run_one_rep_and_save <- function(task) {
   ))
   flush.console()
   result <- run_one_rep(task)
-  saveRDS(result, task_result_path(task))
+  final_path <- task_result_path(task)
+  temporary_path <- paste0(final_path, ".", Sys.getpid(), ".tmp")
+  saveRDS(result, temporary_path)
+  if (file.exists(final_path)) file.remove(final_path)
+  if (!file.rename(temporary_path, final_path)) stop("Could not atomically install checkpoint: ", final_path)
   cat(sprintf(
     "[pid %s] finished scenario %d n=%d d=%d rep=%d -> %s\n",
     Sys.getpid(), task$scenario_id, task$n, task$d, task$rep, task_result_path(task)
@@ -452,6 +457,7 @@ fit_longitudinal_model <- function(dat) {
     outer_stop_crit = outer_stop_crit,
     max_outer_iter = max_outer_iter,
     max_inner_iter = max_inner_iter,
+    max_elapsed_sec = max_elapsed_sec,
     start_step_size = start_step_size,
     step_adjustment = step_adjustment,
     max_steps = max_steps,
@@ -1200,14 +1206,24 @@ tasks <- do.call(
   })
 )
 tasks <- split(tasks, seq_len(nrow(tasks)))
+checkpoint_results <- lapply(tasks, function(task) {
+  path <- task_result_path(task)
+  if (!file.exists(path)) return(NULL)
+  tryCatch(readRDS(path), error = function(e) NULL)
+})
+completed <- !vapply(checkpoint_results, is.null, logical(1))
+results <- checkpoint_results[completed]
+tasks <- tasks[!completed]
 
 cat(sprintf(
-  "Running %d fit replicate(s) across %d scenario(s) using %d core(s).\n",
-  length(rep_ids), nrow(scenarios), min(n_cores, length(tasks))
+  "Running %d fit replicate(s) across %d scenario(s): %d checkpoint(s) complete, %d pending, using up to %d core(s).\n",
+  length(rep_ids), nrow(scenarios), sum(completed), length(tasks), min(n_cores, max(1L, length(tasks)))
 ))
 
-if (length(tasks) == 1 || n_cores <= 1) {
-  results <- lapply(tasks, run_one_rep_and_save)
+if (length(tasks) == 0L) {
+  new_results <- list()
+} else if (length(tasks) == 1 || n_cores <= 1) {
+  new_results <- lapply(tasks, run_one_rep_and_save)
 } else {
   rscript_bin <- Sys.getenv(
     "R_SCRIPT",
@@ -1231,14 +1247,14 @@ if (length(tasks) == 1 || n_cores <= 1) {
   parallel::clusterCall(cl, setwd, project_root)
   worker_status <- parallel::clusterEvalQ(cl, {
     suppressPackageStartupMessages({
-      library(devtools)
       library(VineCopula)
       library(gamlss)
       library(gamlss2)
       library(gamlss.dist)
       library(ggplot2)
     })
-    devtools::load_all(getwd(), quiet = TRUE)
+    suppressPackageStartupMessages(library(gamlss.longitudinal))
+    list2env(as.list(getNamespace("gamlss.longitudinal"), all.names = TRUE), envir = .GlobalEnv)
     list(pid = Sys.getpid(), wd = getwd())
   })
   cat("Worker setup complete:\n")
@@ -1261,8 +1277,9 @@ if (length(tasks) == 1 || n_cores <= 1) {
     quit(save = "no", status = 0)
   }
 
-  results <- parallel::parLapplyLB(cl, tasks, run_one_rep_and_save)
+  new_results <- parallel::parLapplyLB(cl, tasks, run_one_rep_and_save)
 }
+results <- c(results, new_results)
 
 fixed_all <- bind_non_null(lapply(results, `[[`, "fixed"))
 smooth_all <- bind_non_null(lapply(results, `[[`, "smooth"))

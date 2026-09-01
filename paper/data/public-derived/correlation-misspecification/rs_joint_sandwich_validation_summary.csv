@@ -1,0 +1,2 @@
+"expected_cases","completed_status_cases","successful_cases","failed_cases","coefficient_rows","nonfinite_sandwich_se","max_abs_estimate_difference_vs_original","median_elapsed_sec","median_fit_elapsed_sec","median_sandwich_elapsed_sec"
+360,360,360,0,1080,0,0,14.1540286540985,12.4978636503219,1.44103848934173

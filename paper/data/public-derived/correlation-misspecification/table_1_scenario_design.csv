@@ -1,0 +1,7 @@
+"Scenario","n","T","Dependence","$\rho$ / $\tau$"
+"EXCH-M",120,"20, 50","Exchangeable","0.45"
+"EXCH-H",120,"20, 50","Exchangeable","0.75"
+"AR1-M",120,"20, 50","AR(1)","0.55"
+"AR1-H",120,"20, 50","AR(1)","0.78"
+"TIME-COR",120,"20, 50","Time-varying adjacent","0.35--0.70"
+"COV-COR",120,"20, 50","Covariate-dependent adjacent","$\operatorname{logit}^{-1}\{\operatorname{logit}(0.55) + 1.10x\}$"
