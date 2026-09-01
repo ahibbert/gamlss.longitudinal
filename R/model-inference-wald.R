@@ -36,7 +36,11 @@
 
 #'
 
-#' @return An object of class `gamlss_longitudinal_wald_test`.
+#' @return An object of class `gamlss_longitudinal_wald_test`. Its
+#'   `inference_contract` attribute records the contrast coefficient block,
+#'   covariance method (including fallback), conditioning, diagnostics, and
+#'   validity status. Unidentified or singular contrast covariance raises a
+#'   classed `gamlss_longitudinal_inference_unavailable` condition.
 
 #' @export
 
@@ -102,11 +106,26 @@ wald_test <- function(
   LVL <- L %*% V %*% t(L)
 
   if (isTRUE(joint)) {
-    stat <- tryCatch(
-
-      as.numeric(t(diff) %*% solve(LVL, diff)),
-      error = function(e) NA_real_
-    )
+    LVL_sym <- (LVL + t(LVL)) / 2
+    eigenvalues <- tryCatch(eigen(LVL_sym, symmetric = TRUE, only.values = TRUE)$values,
+                            error = function(e) rep(NA_real_, nrow(LVL_sym)))
+    eigen_scale <- if (all(is.finite(eigenvalues))) max(abs(eigenvalues)) else Inf
+    tolerance <- sqrt(.Machine$double.eps) * max(1, eigen_scale)
+    identified <- all(is.finite(LVL_sym)) && all(is.finite(eigenvalues)) &&
+      qr(LVL_sym, tol = tolerance)$rank == nrow(LVL_sym) && min(eigenvalues) > tolerance
+    if (!identified) {
+      stop(.gl_inference_unavailable(list(
+        status = "unavailable",
+        failure_codes = "wald_contrast_covariance_singular",
+        message = paste0(
+          "Wald inference is unavailable because the joint contrast covariance ",
+          "is singular or not positive definite."
+        ),
+        contrast_covariance = LVL_sym,
+        eigenvalues = eigenvalues
+      )))
+    }
+    stat <- as.numeric(t(diff) %*% solve(LVL_sym, diff))
 
     out <- data.frame(
       hypothesis = paste(rownames(L), collapse = ", "),
@@ -150,6 +169,10 @@ wald_test <- function(
   )
   contract$covariance_contract <- vc$inference_contract %||%
     .gl_fixed_inference_contract(vc, coefficient_names = names(estimates))
+  contract$method_requested <- method
+  contract$method_used <- vc$method %||% method
+  contract$fallback_used <- contract$covariance_contract$fallback_used %||% FALSE
+  contract$diagnostics <- contract$covariance_contract$diagnostics %||% vc$hessian_diagnostics
   attr(out, "inference_contract") <- contract
 
   class(out) <- c("gamlss_longitudinal_wald_test", "data.frame")

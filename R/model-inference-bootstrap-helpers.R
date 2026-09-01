@@ -101,6 +101,12 @@
     validity_status = if (min_reps >= 2L) "available_with_reported_failures" else "insufficient_successful_replicates",
     failure_states = unique(stats::na.omit(errors))
   )
+  contract$computational_minimum <- 2L
+  contract$inferential_adequacy <- "not_assessed_from_replicate_count"
+  contract$adequacy_note <- paste0(
+    "Two successful replicates are the computational minimum for a finite ",
+    "standard deviation, not evidence of adequate bootstrap inference."
+  )
   out <- list(
     summary = summary,
     replicates = as.data.frame(boot_coef, stringsAsFactors = FALSE),

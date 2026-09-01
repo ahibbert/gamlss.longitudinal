@@ -3,7 +3,7 @@
 #' @noRd
 .gl_inference_unavailable <- function(diagnostics) {
   codes <- diagnostics$failure_codes %||% "unknown_inference_failure"
-  message <- paste0(
+  message <- diagnostics$message %||% paste0(
     "Hessian-based inference is unavailable (",
     paste(codes, collapse = ", "), "). The fitted model is unchanged."
   )

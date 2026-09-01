@@ -83,7 +83,7 @@ inference_contracts <- function() {
       "model-selection uncertainty; uncertainty outside selected fixed coefficients",
       "fitted model is an adequate data-generating model and successful refits are representative",
       "refit error, explicit nonconvergence, missing/nonfinite target coefficient, or insufficient successful term replicates",
-      "replicate failures and per-term successful counts reported", "percentile bootstrap"
+      "replicate failures and per-term successful counts reported; two successful replicates are only a computational minimum, not evidence of inferential adequacy", "percentile bootstrap"
     ),
     row(
       "bootstrap_cluster_fixed", "bootstrap_inference(type='cluster')",
@@ -93,7 +93,7 @@ inference_contracts <- function() {
       "model-selection uncertainty; uncertainty outside selected fixed coefficients",
       "subjects are independent sampling units and successful refits are representative",
       "refit error, explicit nonconvergence, missing/nonfinite target coefficient, or insufficient successful term replicates",
-      "replicate failures and per-term successful counts reported", "cluster percentile bootstrap"
+      "replicate failures and per-term successful counts reported; two successful replicates are only a computational minimum, not evidence of inferential adequacy", "cluster percentile bootstrap"
     ),
     row(
       "wald_fixed", "wald_test", "Wald z or chi-square test",
@@ -110,8 +110,8 @@ inference_contracts <- function() {
       "conditions on the compared specifications, a common observed dataset, and the chosen row order",
       "model-selection uncertainty; boundary corrections; uncertainty from non-nested comparison or changed analysis samples",
       "models are correctly ordered and nested, use the same observations, and differ by identifiable interior parameters",
-      "nonpositive degrees-of-freedom increment, nonfinite likelihood, different observation counts, non-nested models, or boundary null",
-      "structural checks only; nesting and boundary conditions require user judgment", "asymptotic chi-square reference approximation"
+      "nonpositive degrees-of-freedom increment, negative/nonfinite likelihood ratio, changed observed sample or objective, unverified nesting, or boundary null",
+      "conservative runtime sample/objective/design checks; boundary conditions still require user judgment", "asymptotic chi-square reference approximation"
     ),
     row(
       "confint_fixed", "confint", "Wald normal interval",
@@ -150,8 +150,8 @@ inference_contracts <- function() {
       "inherits fixed-covariance validity", "exploratory conditional approximation"
     ),
     row(
-      "fixed_term_pointwise", "plot_fixed_terms", "single-coefficient Wald band",
-      "one fixed design-column contribution", "one fixed coefficient per displayed term",
+      "fixed_term_pointwise", "plot_fixed_terms", "design-column Wald band",
+      "displayed fixed design-column contribution(s)", "the fixed coefficient(s) represented by each displayed design column or grouped factor panel",
       "conditional on all other fixed and smooth coefficients",
       "covariance with other fixed terms; all smooth and smoothing-parameter uncertainty",
       "single-column term decomposition is the intended estimand",
@@ -221,13 +221,20 @@ inference_contracts <- function() {
 .gl_fixed_inference_contract <- function(vcov_out, coefficient_names = NULL) {
   method <- vcov_out$method %||% vcov_out$method_requested %||% "analytical"
   diagnostics <- vcov_out$hessian_diagnostics %||% list()
-  .gl_inference_contract(
+  out <- .gl_inference_contract(
     .gl_vcov_contract_id(method),
     coefficient_names = coefficient_names,
     method = method,
     validity_status = diagnostics$status %||% "not_recorded",
     failure_states = diagnostics$failure_codes %||% character()
   )
+  out$method_requested <- vcov_out$method_requested %||% method
+  out$method_used <- vcov_out$method %||% method
+  out$fallback_used <- !identical(
+    as.character(out$method_requested)[1L], as.character(out$method_used)[1L]
+  )
+  out$diagnostics <- diagnostics
+  out
 }
 
 .gl_smooth_coefficient_names <- function(object) {
@@ -247,13 +254,60 @@ inference_contracts <- function() {
       vcov_out, coefficient_names = names(object$par)
     )
   }
+
+  expected_smooth <- list()
+  for (parameter in names(object$par_s %||% list())) {
+    for (term in names(object$par_s[[parameter]] %||% list())) {
+      n_coef <- length(object$par_s[[parameter]][[term]])
+      covariance <- vcov_out$vcov$smooth_vcov[[parameter]][[term]] %||% NULL
+      standard_error <- vcov_out$vcov$smooth_se[[parameter]][[term]] %||% NULL
+      covariance_ok <- is.matrix(covariance) &&
+        identical(dim(covariance), c(n_coef, n_coef)) && all(is.finite(covariance))
+      se_ok <- length(standard_error) == n_coef && all(is.finite(standard_error))
+      expected_smooth[[length(expected_smooth) + 1L]] <- data.frame(
+        parameter = parameter,
+        term = term,
+        status = if (covariance_ok) "complete" else if (se_ok) "diagonal_only" else "unavailable",
+        reason = if (covariance_ok) "full_block_available" else if (se_ok) {
+          "only_coefficient_standard_errors_available"
+        } else {
+          "smooth_covariance_block_missing_or_invalid"
+        },
+        stringsAsFactors = FALSE
+      )
+    }
+  }
+  block_status <- if (length(expected_smooth)) do.call(rbind, expected_smooth) else {
+    data.frame(
+      parameter = character(), term = character(), status = character(),
+      reason = character(), stringsAsFactors = FALSE
+    )
+  }
+  smooth_status <- if (!nrow(block_status)) {
+    "not_applicable"
+  } else if (all(block_status$status == "complete")) {
+    "complete_approximate"
+  } else if (all(block_status$status == "unavailable")) {
+    "unavailable"
+  } else {
+    "partial_approximate"
+  }
   if (is.null(vcov_out$smooth_inference_contract)) {
     vcov_out$smooth_inference_contract <- .gl_inference_contract(
       "smooth_penalized_conditional",
       coefficient_names = .gl_smooth_coefficient_names(object),
-      validity_status = if (length(.gl_smooth_coefficient_names(object))) "approximate" else "not_applicable"
+      validity_status = smooth_status
     )
   }
+  vcov_out$smooth_inference_contract$validity_status <- smooth_status
+  vcov_out$smooth_inference_contract$coefficient_names <-
+    .gl_smooth_coefficient_names(object)
+  vcov_out$smooth_inference_contract$observed_failures <- if (smooth_status == "unavailable") {
+    "all_smooth_covariance_blocks_unavailable"
+  } else if (smooth_status == "partial_approximate") {
+    "one_or_more_smooth_covariance_blocks_partial_or_unavailable"
+  } else character()
+  vcov_out$smooth_inference_contract$block_status <- block_status
   if (is.matrix(vcov_out$vcov$overall)) {
     attr(vcov_out$vcov$overall, "inference_contract") <- vcov_out$inference_contract
   }
@@ -263,9 +317,15 @@ inference_contracts <- function() {
         parameter, ":", term, "[",
         seq_along(object$par_s[[parameter]][[term]] %||% numeric()), "]"
       )
+      block_row <- block_status[
+        block_status$parameter == parameter & block_status$term == term, , drop = FALSE
+      ]
       block_contract <- .gl_inference_contract(
         "smooth_penalized_conditional", coefficient_names = block_names,
-        validity_status = "approximate"
+        validity_status = if (nrow(block_row)) block_row$status[[1L]] else "unavailable",
+        failure_states = if (nrow(block_row) && block_row$status[[1L]] == "unavailable") {
+          block_row$reason[[1L]]
+        } else character()
       )
       attr(vcov_out$vcov$smooth_vcov[[parameter]][[term]], "inference_contract") <- block_contract
       if (!is.null(vcov_out$vcov$smooth_se[[parameter]][[term]])) {

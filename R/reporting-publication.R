@@ -23,7 +23,10 @@
 #' @param level Confidence level for prediction intervals.
 #' @param ... Additional arguments passed to downstream methods.
 #'
-#' @return A data frame.
+#' @return A data frame. Inferential outputs carry an `inference_contract`
+#'   attribute inherited from the fitted covariance result, including method,
+#'   target coefficient blocks, conditioning, fallback, diagnostics, and
+#'   validity status.
 #' @name gamlss_longitudinal_table_methods
 NULL
 
@@ -227,7 +230,10 @@ augment.gamlss.longitudinal <- function(
 #' @param ... Additional arguments passed to the underlying table builder.
 #'
 #' @return A formatted data frame, LaTeX `knitr_kable`, `knitr_kable`,
-#'   `gt_tbl`, or `flextable` object depending on `output`.
+#'   `gt_tbl`, or `flextable` object depending on `output`. Coefficient and
+#'   prediction tables carry an `inference_contract` attribute describing the
+#'   estimand, covariance method (when applicable), conditioning, omitted
+#'   uncertainty, diagnostics, fallback, and validity status.
 #' @export
 publication_table <- function(
     object,

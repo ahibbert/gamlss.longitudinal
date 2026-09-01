@@ -121,7 +121,9 @@
 #'
 
 #' @return An object of class `gamlss_longitudinal_bootstrap` with an exact
-#'   fixed-coefficient target and failure policy in `inference_contract`.
+#'   fixed-coefficient target, replicate failures, successful counts, and
+#'   adequacy status in `inference_contract`. Two successful replicates are a
+#'   computational minimum only, not evidence of inferential adequacy.
 
 #' @export
 
@@ -267,6 +269,7 @@ print.gamlss_longitudinal_bootstrap <- function(x, digits = max(3, getOption("di
 
   cat("Target: selected fixed coefficients:", paste(x$inference_contract$coefficient_names, collapse = ", "), "\n")
   cat("Validity:", x$inference_contract$validity_status, "\n")
+  cat("Adequacy:", x$inference_contract$inferential_adequacy, "\n")
   cat("Model-selection uncertainty is not included.\n\n")
 
   print(x$summary, digits = digits, row.names = FALSE)
