@@ -2,7 +2,7 @@
 % Please edit documentation in R/model-effects.R
 \name{marginal_effects}
 \alias{marginal_effects}
-\title{Counterfactual marginal effects from fitted distributional parameters}
+\title{Marginal effects from fitted distributional parameters}
 \usage{
 marginal_effects(
   object,
@@ -33,7 +33,9 @@ numeric variables.}
 \item{reference}{Optional reference value. Defaults to the first value.}
 
 \item{se.fit}{Logical; when \code{TRUE} and \code{parameter = "mu"}, attach
-approximate delta-method standard errors for response-scale averages.}
+exploratory delta-method standard errors for response-scale averages.
+They use only the fixed \code{mu} coefficient block and omit cross-row,
+smooth, fixed-smooth, and smoothing-parameter uncertainty.}
 
 \item{level}{Confidence level used when \code{se.fit = TRUE}.}
 
@@ -43,7 +45,9 @@ approximate delta-method standard errors for response-scale averages.}
 }
 \value{
 A data frame with average fitted parameter values and contrasts.
+When \code{se.fit = TRUE}, an \code{inference_contract} attribute records the exact
+conditional approximation and omitted uncertainty.
 }
 \description{
-Counterfactual marginal effects from fitted distributional parameters
+Marginal effects from fitted distributional parameters
 }

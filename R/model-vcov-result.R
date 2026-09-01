@@ -8,7 +8,7 @@
   smooth_vcov_list <- smooth_vcov_out$smooth_vcov
   smooth_se_list <- smooth_vcov_out$smooth_se
 
-  list(
+  out <- list(
     vcov = list(
       overall = vcov_final,
       smooth_vcov = smooth_vcov_list,
@@ -22,4 +22,5 @@
     method_requested = method_requested,
     hessian_diagnostics = hessian_diagnostics %||% NULL
   )
+  .gl_enrich_vcov_contract(out, object)
 }

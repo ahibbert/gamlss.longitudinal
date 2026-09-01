@@ -17,22 +17,32 @@
 }
 
 .plot_smooth_terms_fit_se <- function(B, smooth_vcov = NULL, smooth_se = NULL) {
-  if (!is.null(smooth_vcov) && all(dim(smooth_vcov) == c(ncol(B), ncol(B)))) {
-    return(.gl_sqrt_derived_variance(
+  if (!is.null(smooth_vcov) && all(dim(smooth_vcov) == c(ncol(B), ncol(B))) &&
+      all(is.finite(smooth_vcov))) {
+    out <- .gl_sqrt_derived_variance(
       diag(B %*% smooth_vcov %*% t(B)),
       "smooth-term covariance", allow_zero = TRUE
-    ))
+    )
+    attr(out, "band_status") <- "complete"
+    attr(out, "covariance_source") <- "full_smooth_covariance"
+    return(out)
   }
 
-  if (!is.null(smooth_se) && length(smooth_se) == ncol(B)) {
+  if (!is.null(smooth_se) && length(smooth_se) == ncol(B) && all(is.finite(smooth_se))) {
     beta_var_diag <- as.numeric(smooth_se)^2
-    return(.gl_sqrt_derived_variance(
+    out <- .gl_sqrt_derived_variance(
       rowSums((B^2) * rep(beta_var_diag, each = nrow(B))),
       "smooth-term diagonal covariance", allow_zero = TRUE
-    ))
+    )
+    attr(out, "band_status") <- "partial"
+    attr(out, "covariance_source") <- "diagonal_smooth_covariance_only"
+    return(out)
   }
 
-  rep(NA_real_, nrow(B))
+  out <- rep(NA_real_, nrow(B))
+  attr(out, "band_status") <- "unavailable"
+  attr(out, "covariance_source") <- "smooth_covariance_missing_or_invalid"
+  out
 }
 
 .plot_smooth_terms_plot_df <- function(x,

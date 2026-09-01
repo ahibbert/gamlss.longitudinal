@@ -87,18 +87,42 @@
                                  level,
                                  fits = NULL,
                                  simulation_type = "copula") {
+  successful <- sum(stats::complete.cases(boot_coef))
+  contract_id <- if (identical(simulation_type, "cluster")) {
+    "bootstrap_cluster_fixed"
+  } else {
+    "bootstrap_parametric_fixed"
+  }
+  min_reps <- if ("reps" %in% names(summary) && nrow(summary) > 0L) min(summary$reps) else 0L
+  contract <- .gl_inference_contract(
+    contract_id,
+    coefficient_names = colnames(boot_coef),
+    method = simulation_type,
+    validity_status = if (min_reps >= 2L) "available_with_reported_failures" else "insufficient_successful_replicates",
+    failure_states = unique(stats::na.omit(errors))
+  )
+  contract$computational_minimum <- 2L
+  contract$inferential_adequacy <- "not_assessed_from_replicate_count"
+  contract$adequacy_note <- paste0(
+    "Two successful replicates are the computational minimum for a finite ",
+    "standard deviation, not evidence of adequate bootstrap inference."
+  )
   out <- list(
     summary = summary,
     replicates = as.data.frame(boot_coef, stringsAsFactors = FALSE),
     errors = errors,
     R = R,
-    successful_replicates = sum(stats::complete.cases(boot_coef)),
-    failed_replicates = sum(!is.na(errors)),
+    successful_replicates = successful,
+    failed_replicates = R - successful,
     level = level,
     simulation_type = simulation_type,
-    fits = fits
+    fits = fits,
+    inference_contract = contract
   )
 
   class(out) <- "gamlss_longitudinal_bootstrap"
+  attr(out$summary, "inference_contract") <- contract
+  attr(out$replicates, "inference_contract") <- contract
+  attr(out, "inference_contract") <- contract
   out
 }

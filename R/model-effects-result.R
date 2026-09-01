@@ -7,6 +7,7 @@
 #' @return Data frame with reference, contrast, and optional confidence limits.
 #' @noRd
 .gl_finalize_marginal_effects <- function(rows, reference, se.fit, level) {
+  prediction_contracts <- lapply(rows, attr, which = "prediction_inference_contract")
   out <- do.call(rbind, rows)
 
   ref_idx <- match(as.character(reference), out$value)
@@ -30,6 +31,8 @@
   }
 
   rownames(out) <- NULL
+
+  attr(out, "prediction_inference_contracts") <- prediction_contracts
 
   out
 }

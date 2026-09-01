@@ -26,7 +26,9 @@
 #' @param show_legend Logical; if TRUE, draw a small legend in each panel.
 #'
 #' @return Invisibly returns a nested list with x, fitted values, standard
-#' errors, and confidence limits for each smooth term.
+#' errors, and approximate conditional pointwise confidence limits for each
+#' smooth term. The bands omit fixed-smooth, between-smooth, and
+#' smoothing-parameter uncertainty; the returned object records this contract.
 #' @export
 plot_smooth_terms <- function(
     object,
@@ -69,12 +71,20 @@ plot_smooth_terms <- function(
   if (n_plots == 0) {
     warning("No smooth terms found to plot.")
 
-    return(invisible(list()))
+    return(invisible(.gl_attach_inference_contract(
+      list(),
+      .gl_inference_contract(
+        "smooth_term_pointwise", coefficient_names = character(),
+        validity_status = "not_applicable"
+      )
+    )))
   }
 
   out <- list()
 
   plot_objects <- list()
+
+  band_status <- character()
 
   for (i in seq_len(n_plots)) {
     par_name <- smooth_index[[i]]$par_name
@@ -111,6 +121,11 @@ plot_smooth_terms <- function(
     }
 
     smooth_fit_se <- .plot_smooth_terms_fit_se(B, smooth_vcov, smooth_se)
+
+    term_band_status <- attr(smooth_fit_se, "band_status") %||% "unavailable"
+    covariance_source <- attr(smooth_fit_se, "covariance_source") %||%
+      "smooth_covariance_missing_or_invalid"
+    band_status <- c(band_status, term_band_status)
 
     ci_lower <- fitted_smooth - z * smooth_fit_se
 
@@ -151,7 +166,7 @@ plot_smooth_terms <- function(
 
     if (is.null(out[[par_name]])) out[[par_name]] <- list()
 
-    out[[par_name]][[s_name]] <- list(
+    term_out <- list(
       x = x,
       fitted = fitted_smooth,
       se = smooth_fit_se,
@@ -159,6 +174,18 @@ plot_smooth_terms <- function(
       ci_upper = ci_upper,
       plot = p
     )
+    term_contract <- .gl_inference_contract(
+      "smooth_term_pointwise",
+      coefficient_names = paste0(
+        par_name, ":", s_name, "[", seq_along(beta_s), "]"
+      ),
+      validity_status = term_band_status,
+      failure_states = if (identical(term_band_status, "unavailable")) covariance_source else character()
+    )
+    term_contract$covariance_source <- covariance_source
+    term_contract$covariance_contract <- attr(smooth_vcov, "inference_contract") %||%
+      attr(smooth_se, "inference_contract") %||% vcov_obj$smooth_inference_contract
+    out[[par_name]][[s_name]] <- .gl_attach_inference_contract(term_out, term_contract)
   }
 
   if (length(plot_objects) > 0) {
@@ -191,5 +218,29 @@ plot_smooth_terms <- function(
     out$dashboard <- dashboard
   }
 
-  invisible(out)
+  overall_status <- if (all(band_status == "complete")) {
+    "complete_approximate"
+  } else if (all(band_status == "unavailable")) {
+    "unavailable"
+  } else {
+    "partial_approximate"
+  }
+  contract <- .gl_inference_contract(
+    "smooth_term_pointwise",
+    coefficient_names = .gl_smooth_coefficient_names(object),
+    validity_status = overall_status,
+    failure_states = if (identical(overall_status, "unavailable")) {
+      "all_smooth_covariance_blocks_unavailable"
+    } else if (identical(overall_status, "partial_approximate")) {
+      "one_or_more_smooth_bands_partial_or_unavailable"
+    } else character()
+  )
+  contract$term_status <- data.frame(
+    parameter = vapply(smooth_index, `[[`, character(1), "par_name"),
+    term = vapply(smooth_index, `[[`, character(1), "s_name"),
+    status = band_status,
+    stringsAsFactors = FALSE
+  )
+  contract$covariance_contract <- vcov_obj$smooth_inference_contract
+  invisible(.gl_attach_inference_contract(out, contract))
 }

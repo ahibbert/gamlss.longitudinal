@@ -181,6 +181,12 @@ test_that("publication_table formats coefficient and model summaries", {
   expect_equal(coefs$Estimate[1], "1.00")
   expect_match(coefs$`90% CI`[1], "[0.51, 1.49]", fixed = TRUE)
   expect_equal(coefs$Component, c("Margin", "Margin", "Copula"))
+  coefficient_contract <- attr(coefs, "inference_contract")
+  expect_identical(coefficient_contract$contract_id, "publication_coefficients")
+  expect_identical(
+    coefficient_contract$covariance_contract$contract_id,
+    "fixed_hessian_analytical"
+  )
 
   expect_s3_class(model, "gamlss_longitudinal_publication_table")
   expect_equal(model$Value[model$Statistic == "Observed rows"], "2")

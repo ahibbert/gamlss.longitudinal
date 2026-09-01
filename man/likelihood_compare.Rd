@@ -4,21 +4,24 @@
 \alias{likelihood_compare}
 \title{Compare fitted models with likelihood-ratio summaries}
 \usage{
-likelihood_compare(..., sort = TRUE)
+likelihood_compare(..., sort = FALSE)
 }
 \arguments{
 \item{...}{Fitted \code{gamlss.longitudinal} objects, or a single list of fitted
 objects.}
 
-\item{sort}{Logical; order models by AIC, lowest first, before
-computing sequential comparisons.}
+\item{sort}{Deprecated logical. Must be \code{FALSE}; models retain the supplied
+reduced-to-full order. Use the AIC column separately for non-nested model
+selection.}
 }
 \value{
-An object of class \code{gamlss_longitudinal_likelihood_compare}.
+An object of class \code{gamlss_longitudinal_likelihood_compare} with an
+\code{inference_contract} attribute recording the nested-model assumptions and
+failure states of the chi-square reference approximation.
 }
 \description{
 \code{likelihood_compare()} gives a compact sequential likelihood comparison for
-nested or approximately nested \code{gamlss.longitudinal} models. It reports joint
+nested \code{gamlss.longitudinal} models. It reports joint
 log-likelihood, effective degrees of freedom, AIC, BIC, likelihood-ratio
 increments, and chi-square reference p-values.
 }

@@ -59,11 +59,16 @@ use optional reporting packages.}
 }
 \value{
 A formatted data frame, LaTeX \code{knitr_kable}, \code{knitr_kable},
-\code{gt_tbl}, or \code{flextable} object depending on \code{output}.
+\code{gt_tbl}, or \code{flextable} object depending on \code{output}. Coefficient and
+prediction tables carry an \code{inference_contract} attribute describing the
+estimand, covariance method (when applicable), conditioning, omitted
+uncertainty, diagnostics, fallback, and validity status.
 }
 \description{
 \code{publication_table()} formats the model summaries most often needed in
 papers and reports. Use \code{tidy()}, \code{glance()}, or \code{reporting_table()} when you
 need numeric columns for further calculation; use \code{publication_table()} when
-the next step is rendering.
+the next step is rendering. Coefficient tables inherit conditional fixed
+inference metadata; prediction tables are plug-in point summaries. See
+\code{\link[=inference_contracts]{inference_contracts()}}.
 }

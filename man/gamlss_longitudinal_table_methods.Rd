@@ -65,7 +65,10 @@ added if a response column is present.}
 \item{level}{Confidence level for prediction intervals.}
 }
 \value{
-A data frame.
+A data frame. Inferential outputs carry an \code{inference_contract}
+attribute inherited from the fitted covariance result, including method,
+target coefficient blocks, conditioning, fallback, diagnostics, and
+validity status.
 }
 \description{
 These methods expose fitted \code{gamlss.longitudinal} objects in the table shapes

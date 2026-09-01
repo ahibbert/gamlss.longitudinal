@@ -9,7 +9,10 @@
 .gl_prediction_quantile_frame <- function(pred, params, family, probs) {
   q_df <- .gl_quantile_columns(params, family, probs)
 
-  cbind(pred[c("subject", "time", "response")], q_df)
+  .gl_attach_inference_contract(
+    cbind(pred[c("subject", "time", "response")], q_df),
+    .gl_inference_contract("fitted_distribution_plugin", validity_status = "point_estimates_only")
+  )
 }
 
 #' Build fitted marginal CDF prediction frame
@@ -27,7 +30,10 @@
 
   pred$cdf <- .gl_call_family_fun("p", diag_data$family, q_use, diag_data$params)
 
-  pred[c("subject", "time", "response", "q", "cdf")]
+  .gl_attach_inference_contract(
+    pred[c("subject", "time", "response", "q", "cdf")],
+    .gl_inference_contract("fitted_distribution_plugin", validity_status = "point_estimates_only")
+  )
 }
 
 #' Build fitted marginal threshold-probability prediction frame
@@ -54,7 +60,10 @@
 
   pred$probability <- if (direction == "below") cdf else 1 - cdf
 
-  pred[c("subject", "time", "response", "q", "direction", "probability")]
+  .gl_attach_inference_contract(
+    pred[c("subject", "time", "response", "q", "direction", "probability")],
+    .gl_inference_contract("fitted_distribution_plugin", validity_status = "point_estimates_only")
+  )
 }
 
 #' Build fitted marginal density prediction frame
@@ -72,5 +81,8 @@
 
   pred$density <- .gl_call_family_fun("d", diag_data$family, y_use, diag_data$params)
 
-  pred[c("subject", "time", "response", "y", "density")]
+  .gl_attach_inference_contract(
+    pred[c("subject", "time", "response", "y", "density")],
+    .gl_inference_contract("fitted_distribution_plugin", validity_status = "point_estimates_only")
+  )
 }

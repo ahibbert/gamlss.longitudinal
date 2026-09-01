@@ -168,9 +168,14 @@ plot.terms <- function(x, ...) {
 
   dashboard <- .plot_terms_render_dashboard(plot_objects, ncol = ncol, paginate = paginate)
 
-  invisible(list(
+  out <- list(
     smooth_terms = smooth_results,
     fixed_terms = fixed_results,
     dashboard = dashboard
-  ))
+  )
+  attr(out, "inference_contract") <- list(
+    fixed = attr(fixed_results, "inference_contract"),
+    smooth = attr(smooth_results, "inference_contract")
+  )
+  invisible(out)
 }

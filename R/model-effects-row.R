@@ -47,17 +47,22 @@
       ...
     )
 
+    prediction_contract <- attr(pred, "inference_contract")
+
     pred <- pred[seq_len(baseline_n), , drop = FALSE]
 
     estimate <- mean(pred$fit, na.rm = TRUE)
 
     n_finite <- sum(is.finite(pred$se.fit))
 
-    std_error <- if (n_finite > 0L) {
-      sqrt(sum(pred$se.fit^2, na.rm = TRUE)) / n_finite
-    } else {
-      NA_real_
+    if (n_finite == 0L) {
+      stop(.gl_inference_unavailable(list(
+        status = "unavailable",
+        failure_codes = "marginal_effect_standard_errors_nonfinite",
+        message = "Marginal-effect inference is unavailable because no finite rowwise prediction standard errors were produced."
+      )))
     }
+    std_error <- sqrt(sum(pred$se.fit^2, na.rm = TRUE)) / n_finite
   } else {
     pred <- predict_fn(object, newdata = nd_pred, type = "parameters", ...)
 
@@ -72,7 +77,7 @@
     std_error <- NA_real_
   }
 
-  data.frame(
+  out <- data.frame(
     variable = variable,
     value = as.character(value),
     parameter = parameter,
@@ -80,4 +85,8 @@
     std_error = std_error,
     stringsAsFactors = FALSE
   )
+  if (isTRUE(se.fit) && identical(parameter, "mu")) {
+    attr(out, "prediction_inference_contract") <- prediction_contract
+  }
+  out
 }
