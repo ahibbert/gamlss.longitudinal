@@ -11,10 +11,10 @@
 #' The sigma, nu, tau, theta, and zeta formulas may be specified with a left-hand side of `~` to indicate no response variable.
 #' e.g. `mu.formula = response ~ x1 + s(x2)`, `sigma.formula = ~ x3`, `theta.formula = ~ time`.
 #' 
-#' The marginal distribution is specified by a gamlss family object, e.g. GA(), NO(), PO(), NBI(), etc.,
-#' while the copula distribution is specified by a character code for one of the implemented
-#' copula families: Gaussian ("N"), Clayton ("C"), Frank ("F"), Gumbel ("G"), Joe ("J"),
-#' or Student's t ("t"). The copula dependence structure is first-order, with
+#' The marginal distribution is specified by a registered `gamlss.dist` family
+#' object and the copula by a registered character code. Use
+#' [longitudinal_capabilities()] to inspect the tested family/copula routes and
+#' their response-domain requirements. The copula dependence structure is first-order, with
 #' adjacent copula pairs linking the margins at each time point. The copula parameters
 #' are shared across all adjacent pairs but may vary with covariates including time.
 #' 
@@ -34,9 +34,10 @@
 #'
 #' @param dataset Long-format data frame containing the response, subject, time,
 #'   and covariate columns.
-#' @param margin_dist Marginal distribution specified as a gamlss family object,
-#' e.g. GA(), NO(), PO(), NBI(), etc.
-#' @param copula_dist Copula distribution code, one of "N", "C", "F", "G", "J", or "t".
+#' @param margin_dist One registered `gamlss.dist` family object. A fit uses one
+#'   homogeneous margin family; see [longitudinal_capabilities()].
+#' @param copula_dist Copula distribution code for a registered route; see
+#'   [longitudinal_capabilities()].
 #' @param time_var Name of the time variable in `dataset`.
 #' @param subject_var Name of the subject identifier in `dataset`.
 #' @param mu.formula Formula for the mu parameter of the marginal distribution
