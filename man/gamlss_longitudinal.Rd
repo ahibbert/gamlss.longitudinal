@@ -30,6 +30,7 @@ gamlss_longitudinal(
   plot_results = FALSE,
   true_val = NA,
   method = "RS",
+  optimizer_control = NULL,
   max_outer_iter = 100,
   max_inner_iter = 100,
   max_negative_outer_streak = 10,
@@ -100,14 +101,18 @@ diagnostic for the margin score contribution when \code{include_dlcopdpar = TRUE
 \code{NULL}, an automatic data-adaptive value is used. This is based on change in log
 likelihood in each iteration so \code{0.1} results in algorithm stopping in the inner loop
 if likelihood changes by less than 0.1 in that iteration.
-Setting this to \code{0} forces the inner loop to run for the full \code{max_inner_iter} iterations.
+Use \code{optimizer_control}; this flat argument is retained for one release.
+Tolerances must be positive. To run to the iteration limit, set
+\code{stop_on_convergence = FALSE} in \code{\link[=gamlss_longitudinal_control]{gamlss_longitudinal_control()}}.
 Note inner iterations are only relevant for the RS algorithm as CG does not have an inner loop.}
 
 \item{outer_stop_crit}{Stopping criterion for the outer loop. If \code{NA} or
 \code{NULL}, an automatic data-adaptive value is used. This is based on change
 in log likelihood in each iteration so \code{0.1} results in algorithm stopping
 if likelihood changes by less than 0.1 in that outer iteration.
-Setting this to \code{0} forces the outer loop to run for the full \code{max_outer_iter} iterations.}
+Use \code{optimizer_control}; this flat argument is retained for one release.
+Tolerances must be positive. To run to the iteration limit, set
+\code{stop_on_convergence = FALSE} in \code{\link[=gamlss_longitudinal_control]{gamlss_longitudinal_control()}}.}
 
 \item{start_step_size}{Initial step size for the backfitting algorithm}
 
@@ -131,6 +136,9 @@ used for the default joint warm start.}
 \item{true_val}{True values for the parameters if known for plotting (depreciated)}
 
 \item{method}{Optimisation method to use, 'RS' for Rigby and Stasinopoulis backfitting (default) or 'CG' for Cole and Green.}
+
+\item{optimizer_control}{Optimizer settings created by
+\code{\link[=gamlss_longitudinal_control]{gamlss_longitudinal_control()}}. \code{method} remains a top-level choice.}
 
 \item{max_outer_iter}{Maximum number of outer iterations for the optimisation algorithm (both RS and CG).}
 
@@ -240,6 +248,10 @@ covariates can be included in the model formulas for either the margin parameter
 or the copula parameters theta (up to two depending on the copula, theta, zeta).
 }
 \details{
+Flat optimizer arguments are soft-deprecated for one release. New code
+should supply a single \code{optimizer_control} object. If a flat argument and
+the control object specify the same setting, fitting stops with an error.
+
 Formulas are specified as for standard gamlss models, with the response variable on the left-hand side
 of the formula for the mu parameter and the right-hand side specifying the predictors for each parameter.
 The sigma, nu, tau, theta, and zeta formulas may be specified with a left-hand side of \code{~} to indicate no response variable.
