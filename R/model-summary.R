@@ -16,6 +16,9 @@
 #'   point estimates and convergence diagnostics, while AIC and BIC are marked
 #'   provisional and must not be used for model selection. Requesting vcov or
 #'   other inference remains an error under the central convergence gate.
+#'   `fit$inference_contract`, `fit$smooth_inference_contract`, and the object
+#'   `inference_contract` attribute record methods, coefficient blocks,
+#'   conditioning, omitted uncertainty, diagnostics, fallback, and validity.
 #' @export
 
 summary.gamlss.longitudinal <- function(

@@ -36,7 +36,7 @@
 
 #' `likelihood_compare()` gives a compact sequential likelihood comparison for
 
-#' nested or approximately nested `gamlss.longitudinal` models. It reports joint
+#' nested `gamlss.longitudinal` models. It reports joint
 
 #' log-likelihood, effective degrees of freedom, AIC, BIC, likelihood-ratio
 
@@ -48,17 +48,21 @@
 
 #'   objects.
 
-#' @param sort Logical; order models by AIC, lowest first, before
+#' @param sort Deprecated logical. Must be `FALSE`; models retain the supplied
 
-#'   computing sequential comparisons.
+#'   reduced-to-full order. Use the AIC column separately for non-nested model
+
+#'   selection.
 
 #'
 
-#' @return An object of class `gamlss_longitudinal_likelihood_compare`.
+#' @return An object of class `gamlss_longitudinal_likelihood_compare` with an
+#'   `inference_contract` attribute recording the nested-model assumptions and
+#'   failure states of the chi-square reference approximation.
 
 #' @export
 
-likelihood_compare <- function(..., sort = TRUE) {
+likelihood_compare <- function(..., sort = FALSE) {
   labels <- .gl_likelihood_compare_call_labels(substitute(list(...)))
 
   models <- .gl_likelihood_compare_models(list(...), labels = labels)
@@ -75,6 +79,9 @@ print.gamlss_longitudinal_likelihood_compare <- function(x, digits = max(3, getO
   cat("--------------------------------------------\n")
 
   cat("Sequential LR rows compare each model with the previous row.\n\n")
+
+  cat("Reference scope: asymptotic chi-square only for correctly ordered, nested models\n")
+  cat("fit to the same observations, away from parameter boundaries.\n\n")
 
   print.data.frame(x, digits = digits, row.names = FALSE, ...)
 
