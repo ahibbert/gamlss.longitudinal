@@ -51,8 +51,8 @@ test_that("srr input policy distinguishes response and predictor missingness", {
   dat_resp_inf$y[1] <- Inf
   expect_error(
     fit_fixture_model(dat_resp_inf),
-    "response variable contains NaN or Inf",
-    fixed = TRUE
+    "requires finite real values",
+    class = "gamlss_longitudinal_response_domain_error"
   )
 
   dat_resp_nan <- dat

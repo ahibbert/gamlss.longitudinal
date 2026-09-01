@@ -48,14 +48,14 @@
 }
 
 .gl_normalize_cg_line_search_evals <- function(cg_max_line_search_evals) {
-  if (!is.numeric(cg_max_line_search_evals) ||
-      length(cg_max_line_search_evals) != 1 || is.null(cg_max_line_search_evals)) {
+  if (length(cg_max_line_search_evals) != 1 || is.null(cg_max_line_search_evals)) {
     stop("ERROR: cg_max_line_search_evals must be a single non-negative integer or NA.")
   }
   if (is.na(cg_max_line_search_evals)) {
     cg_max_line_search_evals <- Inf
   } else {
-    if (!is.finite(cg_max_line_search_evals) || cg_max_line_search_evals < 0 ||
+    if (!is.numeric(cg_max_line_search_evals) ||
+        !is.finite(cg_max_line_search_evals) || cg_max_line_search_evals < 0 ||
         cg_max_line_search_evals != as.integer(cg_max_line_search_evals)) {
       stop("ERROR: cg_max_line_search_evals must be a single non-negative integer or NA.")
     }
