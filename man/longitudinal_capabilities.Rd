@@ -32,6 +32,12 @@ routes are rejected before optimization.
 The public paper routes are BCPE margins with a Student-t copula and NBI
 margins with a Clayton copula. The \code{limitations} and diagnostic columns
 qualify the support available for other registered routes.
+
+The \code{hessian_path} column records an implemented analytical/numerical
+computation path. It is not a guarantee of valid inference: the fitted Hessian
+must pass the package's fit-level curvature validation. Evidence identifiers in
+the route table name the tests that exercise each allowlisted route and the
+generic diagnostic and Hessian machinery.
 }
 \examples{
 longitudinal_capabilities("routes")

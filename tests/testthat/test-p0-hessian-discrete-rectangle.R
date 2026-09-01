@@ -176,16 +176,15 @@ test_that("fit-time analytical discrete vcov is cached and reused", {
   dat <- expand.grid(id = seq_len(12L), time = seq_len(2L), KEEP.OUT.ATTRS = FALSE)
   dat <- dat[order(dat$id, dat$time), ]
   dat$x <- stats::rnorm(nrow(dat))
-  dat$y <- gamlss.dist::rNBI(nrow(dat), mu = exp(1 + 0.1 * dat$x), sigma = 0.7)
+  dat$y <- stats::rpois(nrow(dat), lambda = exp(1 + 0.1 * dat$x))
 
   fit <- suppressWarnings(gamlss.longitudinal::gamlss_longitudinal(
     dataset = dat,
-    margin_dist = gamlss.dist::NBI(),
+    margin_dist = gamlss.dist::PO(),
     copula_dist = "N",
     time_var = "time",
     subject_var = "id",
     mu.formula = "y ~ x",
-    sigma.formula = "~ 1",
     theta.formula = "~ 1",
     zeta.formula = "~ 1",
     include_dlcopdpar = TRUE,

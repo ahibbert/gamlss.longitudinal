@@ -12,18 +12,30 @@ test_that("capability registry is versioned, complete, and documentation-ready",
   expect_named(margins, c(
     "registry_version", "family", "status", "family_type", "response_domain",
     "response_requirement", "parameters", "default_links", "inverse_links",
-    "likelihood_route", "compatible_copulas", "hessian", "randomized_pit",
+    "likelihood_route", "compatible_copulas", "hessian_path", "hessian_validity_guaranteed",
+    "curvature_validation", "hessian_evidence", "randomized_pit",
     "diagnostics", "paper_route", "limitations"
   ))
   expect_named(copulas, c(
     "registry_version", "copula", "status", "parameters", "links",
     "inverse_links", "parameter_domain", "limitations"
   ))
-  expect_true(all(c("NO", "GA", "GG", "BCPE", "LOGNO", "PO", "NBI", "DEL", "ZIP", "ZAP", "ZINBI") %in% margins$family))
+  expect_equal(
+    margins$family[margins$status == "supported"],
+    c("NO", "GA", "GG", "BCPE", "LOGNO", "PO", "NBI", "DEL", "ZIP", "ZAP", "ZINBI")
+  )
+  expect_equal(nrow(routes), 19L)
   expect_equal(copulas$copula, c("N", "C", "F", "G", "J", "t"))
   expect_true(all(nzchar(margins$response_requirement)))
   expect_true(all(nzchar(margins$limitations)))
   expect_true(all(nzchar(copulas$parameter_domain)))
+  expect_true(all(routes$curvature_validation == "required_per_fit_jss002"))
+  expect_false(any(routes$hessian_validity_guaranteed))
+  expect_true(all(nzchar(routes$route_evidence)))
+  expect_true(all(nzchar(routes$hessian_evidence)))
+  expect_true(all(nzchar(routes$diagnostics)))
+  expect_true(all(nzchar(routes$diagnostic_evidence)))
+  expect_true(all(grepl("not guaranteed valid inference", routes$limitations, fixed = TRUE)))
 })
 
 test_that("registry identifies both mandatory public paper routes", {
@@ -95,6 +107,17 @@ test_that("unsupported, mixed, and invalid-domain inputs fail with named conditi
     gamlss.longitudinal:::.gl_validate_capability_route(gamlss.dist::NBI(), "C", response = c(0, 1.5)),
     "non-negative integers", class = "gamlss_longitudinal_response_domain_error"
   )
+  expect_error(
+    gamlss.longitudinal:::.gl_validate_capability_route(gamlss.dist::NO(), "N", response = c(1, Inf)),
+    "Inf", class = "gamlss_longitudinal_response_domain_error"
+  )
+  expect_error(
+    gamlss.longitudinal:::.gl_validate_capability_route(gamlss.dist::NO(), "N", response = c(-Inf, NA)),
+    "Inf", class = "gamlss_longitudinal_response_domain_error"
+  )
+  expect_invisible(
+    gamlss.longitudinal:::.gl_validate_capability_route(gamlss.dist::NO(), "N", response = c(NA, NA))
+  )
 })
 
 test_that("fit preflight rejects unsupported margins before the workflow", {
@@ -106,6 +129,12 @@ test_that("fit preflight rejects unsupported margins before the workflow", {
       dat, gamlss.dist::BI(), "N", y ~ 1
     ),
     class = "gamlss_longitudinal_unsupported_margin_error"
+  )
+  expect_error(
+    gamlss.longitudinal:::.gl_preflight_fit_capabilities(
+      transform(dat, y = c(1, Inf)), gamlss.dist::NO(), "N", y ~ 1
+    ),
+    "Inf", class = "gamlss_longitudinal_response_domain_error"
   )
 })
 
