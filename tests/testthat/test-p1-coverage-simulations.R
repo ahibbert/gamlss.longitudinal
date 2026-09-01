@@ -529,7 +529,7 @@ test_that("coverage summary report is generated from multi-copula result rows", 
   expect_true(file.exists(out_tex))
   expect_false(report$compiled)
   txt <- readLines(out_tex, warn = FALSE)
-  expect_true(any(grepl("Fit success by copula and method", txt, fixed = TRUE)))
+  expect_true(any(grepl("Execution completion by copula and method", txt, fixed = TRUE)))
   expect_true(any(grepl("N", txt, fixed = TRUE)))
   expect_true(any(grepl("C", txt, fixed = TRUE)))
   expect_true(any(grepl("Eta-scale absolute error summary", txt, fixed = TRUE)))

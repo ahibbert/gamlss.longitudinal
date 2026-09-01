@@ -63,7 +63,7 @@ jobs:
           priority <- rownames(installed.packages(
             priority = c("base", "recommended")
           ))
-          packages <- setdiff(packages, c(priority, "renv", "gamlss2"))
+          packages <- setdiff(packages, c(priority, "renv", "jsonlite", "gamlss2"))
           install.packages(packages, Ncpus = 2L)
           install.packages("gamlss2", Ncpus = 2L)
 
@@ -89,7 +89,7 @@ jobs:
             --profile "${{ matrix.profile }}" \
             --workers 2 \
             "${restore[@]}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: replication-${{ matrix.os }}-r-${{ matrix.r }}-${{ matrix.profile }}
           path: results/jss-replication/
