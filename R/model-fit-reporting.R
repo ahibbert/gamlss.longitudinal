@@ -33,8 +33,21 @@
   return_list$vcov_meta <- list(
     precomputed = FALSE,
     numderiv = isTRUE(vcov_numderiv),
-    method = vcov_method
+    method = vcov_method,
+    cache_version = .gl_vcov_cache_version()
   )
+
+  objective <- return_list$likelihood_contract$objective %||% "ordinary"
+  if (identical(objective, "segmented") &&
+      !identical(vcov_method, "sandwich")) {
+    return_list$vcov_meta$inference_status <- "unavailable_for_segmented_objective"
+    return_list$vcov_meta$hessian_diagnostics <- list(
+      status = "unavailable",
+      reason = "segmented_objective",
+      recommendation = "Use cluster-sandwich or bootstrap sensitivity analysis."
+    )
+    return(return_list)
+  }
 
   if (isTRUE(compute_vcov)) {
     if (verbose > 0) {
@@ -49,6 +62,7 @@
           return_list,
           numderiv = isTRUE(vcov_numderiv),
           method = vcov_method,
+          details = TRUE,
           progress = isTRUE(verbose > 0)
         )
       },

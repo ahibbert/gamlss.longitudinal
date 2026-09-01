@@ -42,6 +42,8 @@ calc_likelihood_minimal <- function(eta_inv, mm, margin_dist, copula_dist, calc_
   margin_deriv <- margin_eval$margin_deriv
   margin_p <- margin_eval$margin_p
   margin_p_lower <- margin_eval$margin_p_lower
+  margin_log_survival <- margin_eval$margin_log_survival
+  margin_log_survival_lower <- margin_eval$margin_log_survival_lower
   margin_d <- margin_eval$margin_d
   margin_log_d <- margin_eval$margin_log_d
   likelihood_type <- margin_eval$likelihood_type
@@ -56,7 +58,9 @@ calc_likelihood_minimal <- function(eta_inv, mm, margin_dist, copula_dist, calc_
     margin_d = margin_d,
     likelihood_type = likelihood_type,
     margin_log_d = margin_log_d,
-    margin_p_lower = margin_p_lower
+    margin_p_lower = margin_p_lower,
+    margin_log_survival = margin_log_survival,
+    margin_log_survival_lower = margin_log_survival_lower
   )
   row_id1 <- copula_eval$row_id1
   row_id2 <- copula_eval$row_id2
@@ -113,6 +117,8 @@ calc_likelihood_minimal <- function(eta_inv, mm, margin_dist, copula_dist, calc_
     pair_contribution_valid = combined$pair_contribution_valid,
     valid = combined$valid,
     failure = combined$failure,
-    contribution_counts = combined$contribution_counts
+    contribution_counts = combined$contribution_counts,
+    margin_log_survival = margin_log_survival,
+    margin_log_survival_lower = margin_log_survival_lower
   )
 }

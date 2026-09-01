@@ -10,6 +10,8 @@
     likelihood_type,
     margin_log_d = NULL,
     margin_p_lower = NULL,
+    margin_log_survival = NULL,
+    margin_log_survival_lower = NULL,
     Fx_1_2 = NULL,
     Fx_1_2_lower = NULL) {
   row_id1 <- pair_cache$row_id1
@@ -96,13 +98,58 @@
     Fx_lower_eval[!is.finite(Fx_lower_eval)] <- 0.5
     Fx_lower_eval[Fx_lower_eval > 1] <- 1
     Fx_lower_eval[Fx_lower_eval < 0] <- 0
-    copula_rect_prob <- .copula_rectangle_prob(
-      Fx_eval[, 1], Fx_eval[, 2], Fx_lower_eval[, 1], Fx_lower_eval[, 2],
-      family = copula_dist, par = par1_eval, par2 = par2_eval,
-      floor_probability = FALSE
-    )
-    copula_log_d <- log(copula_rect_prob) -
-      margin_log_d[row_id1] - margin_log_d[row_id2]
+    gaussian_independence <- identical(.copula_family_code(copula_dist), "N") &
+      abs(.copula_gaussian_rho(par1_eval)) <= 1e-12
+    copula_rect_prob <- rep(NA_real_, length(par1_eval))
+
+    # Under Gaussian independence the rectangle mass is exactly the product
+    # of the two marginal masses. Work on the log scale so valid extreme
+    # counts are not rejected when both CDF endpoints round to one.
+    if (any(gaussian_independence)) {
+      independent_log_mass <- margin_log_d[row_id1[gaussian_independence]] +
+        margin_log_d[row_id2[gaussian_independence]]
+      copula_log_d[gaussian_independence] <- 0
+      copula_rect_prob[gaussian_independence] <- exp(independent_log_mass)
+    }
+
+    dependent <- !gaussian_independence
+    if (any(dependent)) {
+      copula_rect_prob[dependent] <- .copula_rectangle_prob(
+        Fx_eval[dependent, 1], Fx_eval[dependent, 2],
+        Fx_lower_eval[dependent, 1], Fx_lower_eval[dependent, 2],
+        family = copula_dist, par = par1_eval[dependent], par2 = par2_eval[dependent],
+        floor_probability = FALSE
+      )
+      copula_log_d[dependent] <- log(copula_rect_prob[dependent]) -
+        margin_log_d[row_id1[dependent]] - margin_log_d[row_id2[dependent]]
+
+      unstable <- dependent & (
+        !is.finite(copula_log_d) |
+          (Fx_eval[, 1] - Fx_lower_eval[, 1]) <= 1e-10 |
+          (Fx_eval[, 2] - Fx_lower_eval[, 2]) <= 1e-10
+      )
+      if (any(unstable)) {
+        stable_log_ratio <- .gl_discrete_copula_log_ratio_quadrature(
+          family = copula_dist,
+          par = par1_eval[unstable],
+          par2 = par2_eval[unstable],
+          upper = Fx_eval[unstable, , drop = FALSE],
+          lower = Fx_lower_eval[unstable, , drop = FALSE],
+          margin_log_d1 = margin_log_d[row_id1[unstable]],
+          margin_log_d2 = margin_log_d[row_id2[unstable]],
+          log_survival1 = if (is.null(margin_log_survival)) NULL else margin_log_survival[row_id1[unstable]],
+          log_survival2 = if (is.null(margin_log_survival)) NULL else margin_log_survival[row_id2[unstable]]
+        )
+        usable_stable <- is.finite(stable_log_ratio)
+        unstable_rows <- which(unstable)
+        copula_log_d[unstable_rows[usable_stable]] <- stable_log_ratio[usable_stable]
+        copula_rect_prob[unstable_rows[usable_stable]] <- exp(
+          stable_log_ratio[usable_stable] +
+            margin_log_d[row_id1[unstable_rows[usable_stable]]] +
+            margin_log_d[row_id2[unstable_rows[usable_stable]]]
+        )
+      }
+    }
     copula_d <- exp(copula_log_d)
   } else {
     copula_d <- .copula_pdf(

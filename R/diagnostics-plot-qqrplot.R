@@ -1,6 +1,6 @@
 #' @export
-qqrplot.gamlss.longitudinal <- function(object, randomize = FALSE, plot = TRUE, by_time = FALSE, by = NULL, data = NULL, ...) {
-  pit_out <- .gl_pit(object, randomize = randomize)
+qqrplot.gamlss.longitudinal <- function(object, randomize = NULL, seed = 1L, plot = TRUE, by_time = FALSE, by = NULL, data = NULL, ...) {
+  pit_out <- .gl_pit(object, randomize = randomize, seed = seed)
 
   z <- stats::qnorm(pmin(pmax(pit_out$pit, .Machine$double.eps), 1 - .Machine$double.eps))
 

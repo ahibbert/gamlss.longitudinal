@@ -10,6 +10,8 @@
     likelihood_type = base_lik$likelihood_type,
     margin_log_d = base_lik$margin_log_d %||% log(base_lik$margin_d),
     margin_p_lower = base_lik$margin_p_lower,
+    margin_log_survival = base_lik$margin_log_survival,
+    margin_log_survival_lower = base_lik$margin_log_survival_lower,
     Fx_1_2 = base_lik$Fx_1_2,
     Fx_1_2_lower = base_lik$Fx_1_2_lower
   )

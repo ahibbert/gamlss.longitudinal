@@ -17,6 +17,7 @@
   sandwich_adjust = TRUE,
   sandwich_bread_method = c("analytical", "numderiv", "analytical_only"),
   inference = inference_control("standard"),
+  details = FALSE,
   ...
 )
 }
@@ -58,11 +59,16 @@ bread.}
 \item{inference}{Inference validation policy created by
 \code{\link[=inference_control]{inference_control()}}. This is separate from model optimizer controls.}
 
+\item{details}{Logical; return the package's detailed covariance bundle
+instead of the standard coefficient covariance matrix. Intended for
+advanced diagnostics and package internals.}
+
 \item{...}{Additional arguments, currently unused.}
 }
 \value{
-A list containing variance-covariance matrices and standard errors.
-\code{vcov$overall} covers fixed coefficients conditional on fitted smooths;
+By default, a named covariance matrix aligned with \code{coef(object)}.
+With \code{details = TRUE}, a list containing variance-covariance matrices and
+standard errors is returned. \code{vcov$overall} covers fixed coefficients conditional on fitted smooths;
 \code{vcov$smooth_vcov} is a separate penalized approximation. Fixed-smooth
 covariance and smoothing-parameter uncertainty are excluded. See
 \code{\link[=inference_contracts]{inference_contracts()}}.

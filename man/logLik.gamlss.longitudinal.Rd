@@ -12,7 +12,9 @@
 \item{...}{Additional arguments, currently unused.}
 }
 \value{
-Named log-likelihood components.
+A scalar object of class \code{logLik} for the fitted joint likelihood.
+Its \code{df} attribute is the joint effective degrees of freedom and its
+\code{nobs} attribute is the total number of observed responses.
 }
 \description{
 Log-likelihood for a fitted longitudinal GAMLSS-copula model

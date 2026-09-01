@@ -66,7 +66,7 @@ test_that("information criteria partition marginal and copula effective degrees 
     zeta = list()
   )
   calc_lik <- list(log_lik = c(marginal = -10, copula = -5, joint = -15))
-  dataset <- data.frame(response = c(1, 2, 3, 4), time = c(1, 1, 2, 2), subject = c(1, 2, 1, 2))
+  dataset <- data.frame(response = c(1, 2, 3, NA), time = c(1, 1, 2, 2), subject = c(1, 2, 1, 2))
 
   aics <- gamlss.longitudinal:::.gl_fit_information_criteria(
     par_cov = par_cov,
@@ -79,6 +79,7 @@ test_that("information criteria partition marginal and copula effective degrees 
   expect_identical(rownames(aics), c("LogLik", "AIC", "BIC", "EDF"))
   expect_equal(unname(aics["LogLik", ]), c(-10, -5, -15))
   expect_equal(unname(aics["AIC", ]), c(25, 15, 40))
+  expect_equal(unname(aics["BIC", ]), c(20, 10, 30) + log(3) * c(2.5, 2.5, 5))
   expect_equal(unname(aics["EDF", ]), c(2.5, 2.5, 5))
 })
 

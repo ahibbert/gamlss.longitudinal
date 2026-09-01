@@ -11,7 +11,10 @@ make_adversarial_contract_fit <- function() {
       se = list(overall = stats::setNames(sqrt(diag(V)), names(p))),
       hessian_diagnostics = list(status = "available", failure_codes = character())
     ),
-    vcov_meta = list(numderiv = FALSE, method = "analytical", inference_status = "available")
+    vcov_meta = list(
+      numderiv = FALSE, method = "analytical", inference_status = "available",
+      cache_version = gamlss.longitudinal:::.gl_vcov_cache_version()
+    )
   ), class = "gamlss.longitudinal")
 }
 
@@ -126,7 +129,11 @@ test_that("prediction metadata propagates analytical-to-numerical fallback", {
     vcov = list(overall = V),
     hessian_diagnostics = list(status = "available", failure_codes = character())
   )
-  unmatched$vcov_meta <- list(numderiv = FALSE, method = "analytical")
+  unmatched$vcov_meta <- list(
+    numderiv = FALSE,
+    method = "analytical",
+    cache_version = gamlss.longitudinal:::.gl_vcov_cache_version()
+  )
   expect_error(
     gamlss.longitudinal:::.gl_predict_response_se(unmatched),
     class = "gamlss_longitudinal_inference_unavailable"

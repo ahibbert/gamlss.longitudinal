@@ -1,6 +1,6 @@
 #' @export
-wormplot.gamlss.longitudinal <- function(object, randomize = FALSE, plot = TRUE, smooth = TRUE, by_time = FALSE, by = NULL, data = NULL, ...) {
-  pit_out <- .gl_pit(object, randomize = randomize)
+wormplot.gamlss.longitudinal <- function(object, randomize = NULL, seed = 1L, plot = TRUE, smooth = TRUE, by_time = FALSE, by = NULL, data = NULL, ...) {
+  pit_out <- .gl_pit(object, randomize = randomize, seed = seed)
 
   split_info <- .gl_diag_split_info(by_time, by, pit_out$diag, data = data, plot_name = "wormplot")
 

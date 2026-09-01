@@ -149,7 +149,7 @@
     )
     if (any(!is.finite(eigen_information))) {
       add_failure("information_eigen_failure")
-    } else if (any(eigen_information <= 0)) {
+    } else if (any(eigen_information <= control$information_eigenvalue_min)) {
       add_failure("information_not_positive_definite")
     }
     info_diag <- diag(info)
@@ -168,7 +168,9 @@
   }
 
   gradient_scaled_max <- if (is.null(gradient)) NA_real_ else gradient$scaled_max
-  if (!is.null(gradient) &&
+  if (is.null(gradient)) {
+    add_failure("fitted_gradient_not_checked")
+  } else if (
       (!is.finite(gradient_scaled_max) || gradient_scaled_max > control$gradient_tol)) {
     add_failure("fitted_gradient_too_large")
   }
@@ -208,7 +210,7 @@
     validation_profile = control$profile,
     validation_defaults_version = control$defaults_version,
     effective_thresholds = unclass(control[c(
-      "symmetry_tol", "rank_tol", "condition_max", "gradient_tol",
+      "information_eigenvalue_min", "symmetry_tol", "rank_tol", "condition_max", "gradient_tol",
       "agreement_tol", "gradient_step", "check_agreement"
     )]),
     expert_override = control$expert_override,

@@ -150,6 +150,8 @@
   margin_p[!is.finite(margin_p)] <- NA
 
   margin_p_lower <- NULL
+  margin_log_survival <- NULL
+  margin_log_survival_lower <- NULL
   likelihood_type <- "continuous_density"
   if (discrete_margin) {
     margin_deriv_input_lower <- margin_deriv_input
@@ -179,6 +181,33 @@
     }
     margin_p_lower[!obs_response] <- NA
     margin_p_lower[!is.finite(margin_p_lower)] <- NA
+
+    if (all(c("lower.tail", "log.p") %in% margin_eval_cache$margin_p_args)) {
+      survival_input <- margin_deriv_input
+      survival_input$lower.tail <- FALSE
+      survival_input$log.p <- TRUE
+      margin_log_survival <- .call_margin_family_cached(
+        margin_eval_cache$margin_pFUN,
+        survival_input,
+        names(survival_input)[names(survival_input) %in% margin_eval_cache$margin_p_args],
+        cacheable = FALSE,
+        cache_env = margin_eval_cache$family_call_cache,
+        cache_prefix = paste0(margin_dist$family[1], ":log-survival:upper")
+      )
+      lower_survival_input <- margin_deriv_input_lower
+      lower_survival_input$lower.tail <- FALSE
+      lower_survival_input$log.p <- TRUE
+      margin_log_survival_lower <- .call_margin_family_cached(
+        margin_eval_cache$margin_pFUN,
+        lower_survival_input,
+        names(lower_survival_input)[names(lower_survival_input) %in% margin_eval_cache$margin_p_args],
+        cacheable = FALSE,
+        cache_env = margin_eval_cache$family_call_cache,
+        cache_prefix = paste0(margin_dist$family[1], ":log-survival:lower")
+      )
+      margin_log_survival[!obs_response] <- NA_real_
+      margin_log_survival_lower[!obs_response] <- NA_real_
+    }
     likelihood_type <- "discrete_rectangle"
   }
 
@@ -209,6 +238,8 @@
     margin_log_d = margin_log_d,
     margin_p = margin_p,
     margin_p_lower = margin_p_lower,
+    margin_log_survival = margin_log_survival,
+    margin_log_survival_lower = margin_log_survival_lower,
     margin_deriv = margin_deriv,
     likelihood_type = likelihood_type
   )

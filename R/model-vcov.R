@@ -25,10 +25,14 @@
 #'   bread.
 #' @param inference Inference validation policy created by
 #'   [inference_control()]. This is separate from model optimizer controls.
+#' @param details Logical; return the package's detailed covariance bundle
+#'   instead of the standard coefficient covariance matrix. Intended for
+#'   advanced diagnostics and package internals.
 #' @param ... Additional arguments, currently unused.
 #'
-#' @return A list containing variance-covariance matrices and standard errors.
-#'   `vcov$overall` covers fixed coefficients conditional on fitted smooths;
+#' @return By default, a named covariance matrix aligned with `coef(object)`.
+#'   With `details = TRUE`, a list containing variance-covariance matrices and
+#'   standard errors is returned. `vcov$overall` covers fixed coefficients conditional on fitted smooths;
 #'   `vcov$smooth_vcov` is a separate penalized approximation. Fixed-smooth
 #'   covariance and smoothing-parameter uncertainty are excluded. See
 #'   [inference_contracts()].
@@ -41,9 +45,13 @@ vcov.gamlss.longitudinal <- function(object, par = NA, sep_d2 = TRUE, numderiv =
                                      sandwich_adjust = TRUE,
                                      sandwich_bread_method = c("analytical", "numderiv", "analytical_only"),
                                      inference = inference_control("standard"),
+                                     details = FALSE,
                                      ...) {
   # object=fit; par=NA; numderiv=TRUE; sep_d2=TRUE
   .gl_require_converged_fit(object, "variance-covariance inference")
+
+  method <- match.arg(method)
+  .gl_require_supported_missingness_inference(object, method)
 
   inference <- .gl_normalize_inference_control(inference)
   vcov_setup <- .gl_prepare_vcov_evaluation(
@@ -93,7 +101,7 @@ vcov.gamlss.longitudinal <- function(object, par = NA, sep_d2 = TRUE, numderiv =
       progress = progress
     )
 
-    return(.gl_vcov_build_result(
+    return(.gl_vcov_format_result(.gl_vcov_build_result(
       object = object,
       eta_inv = eta_inv,
       response = response,
@@ -102,7 +110,7 @@ vcov.gamlss.longitudinal <- function(object, par = NA, sep_d2 = TRUE, numderiv =
       method_used = sandwich_path$method_used,
       method_requested = method_requested,
       hessian_diagnostics = sandwich_path$hessian_diagnostics
-    ))
+    ), return_details = details))
   }
 
   method_info <- .gl_vcov_apply_margin_preflight(method, method_used, margin_dist, eta_inv)
@@ -191,7 +199,7 @@ vcov.gamlss.longitudinal <- function(object, par = NA, sep_d2 = TRUE, numderiv =
     gradient = gradient
   )
 
-  return(.gl_vcov_build_result(
+  return(.gl_vcov_format_result(.gl_vcov_build_result(
     object = object,
     eta_inv = eta_inv,
     response = response,
@@ -200,5 +208,5 @@ vcov.gamlss.longitudinal <- function(object, par = NA, sep_d2 = TRUE, numderiv =
     method_used = method_used,
     method_requested = method_requested,
     hessian_diagnostics = vcov_solved$hessian_diagnostics
-  ))
+  ), return_details = details))
 }

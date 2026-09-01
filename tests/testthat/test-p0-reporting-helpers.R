@@ -119,7 +119,11 @@ make_publication_helper_object <- function() {
     method = "analytical",
     method_requested = "analytical"
   )
-  object$vcov_meta <- list(numderiv = FALSE, method = "analytical")
+  object$vcov_meta <- list(
+    numderiv = FALSE,
+    method = "analytical",
+    cache_version = gamlss.longitudinal:::.gl_vcov_cache_version()
+  )
   object$convergence <- list(converged = TRUE, outer_iterations = 2L)
   object
 }

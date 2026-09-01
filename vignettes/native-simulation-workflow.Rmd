@@ -614,23 +614,17 @@ So the final selected model has smooth effects for age for `mu`, `sigma` and `th
 
 ## Review the fit
 
-We provide a brief automated model assessment using `check_model()` and return a compact set of basic check statuses. Check model is reasonably minimal and should be used alongside other diagnostics; the checks that flag are:
+We provide a brief descriptive diagnostic summary using `check_model()`. It should be used alongside graphical diagnostics and subject-matter review; calibration statistics are not package pass/fail verdicts.
 
-| Area | Quantity checked | Threshold / condition | Overall result |
+| Area | Quantity reported | Default interpretation | Status |
 |---|---|---|---|
-| Convergence | Model convergence based on `fit$convergence$converged` | Not `TRUE`| `basic_checks=FAIL` |
-| Marginal fit | PIT Kolmogorov-Smirnov p-value vs Uniform(0, 1) | `ks_p_value < 0.05` | `basic_checks=FAIL`|
-| Tail fit | Maximum of lower/upper PIT tail ratios across thresholds `0.05` and `0.10` | `max(lower_ratio, upper_ratio) > 2` | `basic_checks=FAIL` |
-| Copula fit | Absolute lag-1 Rosenblatt normal-score residual correlation after fitted copula | `abs(lag1_cor) > 0.25` | `basic_checks=FAIL` |
-| Variance calculation | Variance-covariance method from summary | `vcov_method == "numderiv"` | `basic_checks=REVIEW` |
+| Convergence | Fitted-object convergence contract | Required before inference | `converged` or `not_converged` |
+| Marginal fit | PIT KS summary | Descriptive; review marginal plots | `descriptive` |
+| Tail fit | PIT tail ratios | Descriptive; interpret in context | `descriptive` |
+| Copula fit | Rosenblatt residual correlation by lag | Descriptive unless the user supplies a threshold | `descriptive` or user-defined flag |
+| Variance calculation | Covariance-method provenance | Report the inference contract | provenance/review status |
 
-Check model will return check_model$basic_checks as:
-
-- "failed" if any `FAIL`;
-- "review" if no `FAIL` but at least one `REVIEW`;
-- "passed" if all rows are `PASS`.
-
-Note that a `PASS` result from `check_model` doesn't indicate a good model fit, just that there aren't any major, easy-to-test-numerically issues with the overall shape of the model fit for the margin or the dependence.
+For discrete margins the PIT is randomized reproducibly using the recorded `pit_seed`, without changing the caller's random-number state. Requested higher lags that cannot be assessed remain in the result with an explicit unavailable scope status.
 
 ```{r fit-review-check}
 fit <- fit_thetalineartime_notrt
@@ -659,7 +653,7 @@ We will briefly comment on each of the marginal diagnostics and expected shape, 
 
 Marginal diagnostics:
 
-- PIT appears reasonably close to uniform, with small deviation in the lower tail, PIT KS passes in numerical checks
+- PIT appears reasonably close to uniform, with small deviation in the lower tail; the PIT KS value is treated as a descriptive summary
 - QQ plot is very close to diagonal except in very low tail, though deviation is small
 - Worm plot should be close to centre line without deviation, but we do see some deviation in the lower tail more clearly than we could see in the QQ plot
 - Rootogram seems generally centred around zero with no major trends or deviation spikes
@@ -688,7 +682,7 @@ Overall this appears to provide a reasonable fit to the joint distribution, with
 
 ### Standard functions for inference: confidence intervals, wald test, bootstrap 
 
-It's straightforward to generate standard outputs for regression models such as confidence intervals and wald tests for coefficients of all parameters.
+The package can generate conditional Wald outputs for fixed coefficients when the fit-level inference checks succeed. These results condition on the fitted smooth structure and omit fixed-smooth covariance and smoothing-parameter uncertainty; they are not a blanket validation of inference for every parameter or model configuration.
 
 ```{r inference}
 confint(fit)
@@ -718,15 +712,15 @@ The main idea of `benchmark_standard_models` is to provide a sense of the sensit
 
 We provide a bunch of metrics so that the user can decide the metrics of most importance to them. We initially present just a quick summary of the 'best model' by each dimension, then provide details of the metric values for each model fit as well as a detailed comparison of coefficients.
 
-In general, we would expect that the mean-only models of GEEs and GLMMs will perform well when all three of these hold true: the primary question of interest is the value of the mean intercept, the marginal distribution is supported by the given models (generally exponential family), and the correlation structure is reasonably standard and does not rely on covariates strongly. If the question of interest relies on accurate confidence intervals or quantiles for parameters or predictions, and the distribution is non-exponential family, then the gamlss.longitudinal model is likely to perform better on metrics measuring those dimensions.
+Mean-only GEEs and GLMMs target different estimands and can be useful comparators when the primary question concerns the mean and their distributional and correlation assumptions are suitable. The example below compares selected predictive and distributional metrics for this one design; it does not establish general confidence-interval validity or superiority for other families, dependence structures, or sample sizes.
 
 We group the benchmarking results into two groups: 'Distributional' which refers to metrics which measure the shape of the overall distribution where `gamlss.longitudinal` often performs better, e.g. log score, interval coverage, tail error / fit, and `Mean fit` which measures mean response, which benchmarked standard models are optimised against.
 
 We see in both benchmark comparisons here that:
 
-- `gamlss.longitudinal` generally appears to provide the best fit by distributional fit including interval coverage, tail error and log score
+- In this illustrative design, `gamlss.longitudinal` has the strongest values for several reported distributional metrics, including interval coverage, tail error, and log score
 - `glmer` and `gamm` provide the best fits for MAE and RMSE against the observed response
-- Coefficients are broadly in the same ballpark between models, though there are significant differences, and, importantly, note the substantial differences in standard errors and therefore upper and lower 95% confidence intervals for parameters which are much tighter for the `gamlss.longitudinal` model due to the additional modelling of coefficients for both variance through `sigma` and `nu` and correlation through `theta`. Given coverage is more accurate for the `gamlss.longitudinal` model we could consider that these ranges may be more accurate, but much broader analysis is needed to confirm this (this work is in progress).
+- Coefficients are broadly in the same range in this example, but standard errors and 95% intervals differ materially because the models target different likelihoods and parameterizations. These differences should be interpreted as design-specific evidence; broader conditional-coverage work is required before making general inferential claims.
 
 <details>
 The selected final model does not include `time` on `mu`, while the benchmark mean model below does include a linear `time` term. To keep the selected final model unchanged while making the benchmark comparison like-for-like on the mean formula, we fit an additional comparison-only GAMLSS longitudinal model that adds `time` to `mu` and leaves the other final-model components unchanged.

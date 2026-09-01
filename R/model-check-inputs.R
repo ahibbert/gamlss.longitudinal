@@ -1,9 +1,10 @@
 #' Validate residual-dependence cutoff for model checks
 #'
 #' @param dependence_cor_cutoff Absolute correlation threshold.
-#' @return Numeric scalar cutoff.
+#' @return Numeric scalar cutoff or `NULL`.
 #' @noRd
 .gl_validate_dependence_cor_cutoff <- function(dependence_cor_cutoff) {
+  if (is.null(dependence_cor_cutoff)) return(NULL)
   dependence_cor_cutoff <- as.numeric(dependence_cor_cutoff)
 
   if (length(dependence_cor_cutoff) != 1L || !is.finite(dependence_cor_cutoff) ||

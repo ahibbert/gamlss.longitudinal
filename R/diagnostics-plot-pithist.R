@@ -1,6 +1,6 @@
 #' @export
-pithist.gamlss.longitudinal <- function(object, bins = 20, randomize = FALSE, plot = TRUE, by_time = FALSE, by = NULL, data = NULL, ...) {
-  pit_out <- .gl_pit(object, randomize = randomize)
+pithist.gamlss.longitudinal <- function(object, bins = 20, randomize = NULL, seed = 1L, plot = TRUE, by_time = FALSE, by = NULL, data = NULL, ...) {
+  pit_out <- .gl_pit(object, randomize = randomize, seed = seed)
 
   pit <- pit_out$pit
 

@@ -82,7 +82,8 @@ make_contract_fit <- function() {
       hessian_diagnostics = list(status = "available", failure_codes = character())
     ),
     vcov_meta = list(
-      numderiv = FALSE, method = "analytical", inference_status = "available"
+      numderiv = FALSE, method = "analytical", inference_status = "available",
+      cache_version = gamlss.longitudinal:::.gl_vcov_cache_version()
     )
   ), class = "gamlss.longitudinal")
 }
