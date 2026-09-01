@@ -1,0 +1,11 @@
+claim_id,tex_anchor,study_id,scenario_id,claim_type,metric,lhs_method,rhs_method,expected_direction,attempt_artifact_id,effect_artifact_id,source_row_key,wording_strength,expected_value
+p2-recovery-planned-cells,sec:sim_recovery,main-recovery,all,design_count,planned_method_replicate_cells,,,no_direction,p2_recovery_attempts,p2_recovery_attempts,all,exact,400
+p2-optimizer-scenario-cells,sec:sim_jvs,optimizer-benchmark,all,design_count,registered_scenario_cells,,,no_direction,p2_optimizer_attempts,p2_optimizer_attempts,all,exact,4
+p2-optimizer-method-cells,sec:sim_jvs,optimizer-benchmark,all,design_count,registered_method_cells,,,no_direction,p2_optimizer_attempts,p2_optimizer_attempts,all,exact,8
+p2-optimizer-initial-pairs,sec:sim_jvs,optimizer-benchmark,all,design_count,planned_initial_pairs,,,no_direction,p2_optimizer_attempts,p2_optimizer_attempts,all,exact,388
+p2-optimizer-actual-attempt-rows,sec:sim_jvs,optimizer-benchmark,all,evidence_count,actual_attempt_rows,,,no_direction,p2_optimizer_attempts,p2_optimizer_attempts,all,dynamic,
+p2-optimizer-achieved-retained-pairs,sec:sim_jvs,optimizer-benchmark,all,evidence_count,achieved_min_retained_pairs,,,no_direction,p2_optimizer_attempts,p2_optimizer_attempts,all,dynamic,
+p2-missingness-attempt-rows,sec:sim_sensitivity_missingness,missingness,all,design_count,attempt_rows,,,no_direction,p2_missing_attempts,p2_missing_attempts,all,exact,480
+p2-copula-selection-attempts,sec:sim_sensitivity_copula,copula-misspecification,all,design_count,fit_attempt_rows,,,no_direction,p2_copula_results,p2_copula_results,all,exact,21600
+p2-multivariate-status-rows,sec:sim_sensitivity_benchmark,multivariate-benchmark,all,design_count,fit_status_rows,,,no_direction,p2_mvt_fit_status,p2_mvt_fit_status,all,exact,14400
+p2-scaling-cells,sec:discussion,fit-scaling,all,design_count,scenario_cells,,,no_direction,p2_scaling_attempts,p2_scaling_attempts,all,exact,8

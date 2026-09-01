@@ -1,9 +1,12 @@
 study,base_seed,replicate_rule,notes
 smoke-coverage,20260528,package coverage grid derivation,Fresh public smoke simulations
 software-workflow,20260529,base_seed plus producer offset,Introductory and diagnostics figures
-bcpe-t,20260513,100000 plus replicate id,Public BCPE/t Monte Carlo runner
-nbi-clayton,20260529,base seed plus replicate derivation,Public NBI/Clayton Monte Carlo runner
-missingness,20260513,100000 plus replicate id plus mechanism/rate offset,Public missingness simulation
-copula-misspecification,20360528,deterministic family/tau/n/rep formula,settings seed plus 700000
-joint-vs-separate,20260528,deterministic case/rep formula,Fixed case registry
-correlation-misspecification,20260619,deterministic scenario/rep formula,Standard-model benchmark registry
+main-recovery-bcpe-t,20260513,100000 + 10000*scenario_id + 100*rep with registered stream offsets,"Offsets +11/+12/+13 for data streams; +50/+100/+200 plus method index for fit/diagnostic/predictive streams"
+main-recovery-nbi-clayton,20260529,base_seed + 1000*rep with registered stream offsets,"Offsets +11/+12/+13 for data streams and +100/+200 plus engine index for fit/diagnostic streams"
+main-recovery-summary-bootstrap,20260901,metric-keyed deterministic bootstrap stream,2000 resamples per registered summary
+optimizer-benchmark,20260528,base_seed + 3000 + 100*rep,"Paired optimizer seed; covariates +17; test response +500000; variogram 900000 + 10*rep"
+missingness-data,100000,base_seed + rep,Shared complete-data simulation stream
+missingness-mechanism,100000,data seed plus registered mechanism and rate offsets,Separate streams for subject-level monotone dropout and time-dependent intermittent MAR
+copula-misspecification,20960528,settings seed 20260528 + 700000 followed by deterministic family/tau/n/rep offsets,Immutable full R=100 copula-selection grid; public use requires an independently approved exact bundle
+multivariate-benchmark,20260818,deterministic family/dependence/time/rep formula,Exact T20 x four-family x four-dependence x R=100 grid (1600 unique cases); each case seed is shared across exactly nine registered methods and public use requires an independently approved snapshot
+fit-scaling,20260528,scenario-key-v1 keyed by scenario/attempt/stream,Separate fit warmup order precision and contrast streams

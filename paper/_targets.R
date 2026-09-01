@@ -1,12 +1,18 @@
 library(targets)
 
 source(file.path("paper", "R", "replication-helpers.R"))
+source(file.path("paper", "R", "phase2-evidence-contracts.R"))
+source(file.path("paper", "R", "main-recovery-evidence.R"))
 source(file.path("paper", "R", "01-simulation-bcpe-t.R"))
 source(file.path("paper", "R", "02-simulation-delaporte-clayton.R"))
 source(file.path("paper", "R", "03-joint-vs-separate-optimization.R"))
+source(file.path("paper", "R", "missingness-study-helpers.R"))
 source(file.path("paper", "R", "04-missingness-dropout-sensitivity.R"))
 source(file.path("paper", "R", "07-gamma-copula-misspecification.R"))
-source(file.path("paper", "R", "08-simulation-sensitivity-correlation-misspecification.R"))
+source(file.path("paper", "R", "09-simulation-multivariate-longitudinal", "00-multivariate-setup.R"))
+source(file.path("paper", "R", "10-fit-scaling.R"))
+source(file.path("paper", "R", "phase2-central-integration.R"))
+source(file.path("paper", "R", "phase2-paper-evidence.R"))
 source(file.path("paper", "R", "public-paper-producers.R"))
 
 tar_option_set(packages = c("gamlss.longitudinal", "gamlss.dist", "ggplot2"), format = "rds")
@@ -14,7 +20,11 @@ profile <- Sys.getenv("GAMLSS_LONGITUDINAL_JSS_PROFILE", "smoke")
 if (identical(profile, "expanded")) profile <- "paper"
 
 common <- list(
-  tar_target(settings, jss_settings(), cue = tar_cue(mode = "always")),
+  tar_target(settings, {
+    value <- jss_settings()
+    value$target_integrated <- TRUE
+    value
+  }, cue = tar_cue(mode = "always")),
   tar_target(public_workflow_figures, jss_run_public_workflow_figures(settings)),
   tar_target(
     session_info,
@@ -40,24 +50,43 @@ modules <- if (identical(profile, "smoke")) {
   )
 } else {
   list(
-    tar_target(module_01_bcpe_t, { public_input_files; jss_run_01_bcpe_t(settings) }),
-    tar_target(module_02_nbi_clayton, { public_input_files; jss_run_02_delaporte_clayton(settings) }),
-    tar_target(module_03_joint_vs_separate, { public_input_files; jss_run_03_joint_vs_separate(settings) }),
+    tar_target(module_phase2_main_recovery, { public_input_files; jss_run_phase2_main_recovery(settings) }),
+    tar_target(module_03_joint_vs_separate, { public_input_files; jss_run_phase2_optimizer(settings) }),
     tar_target(module_04_missingness, { public_input_files; jss_run_04_missingness_dropout(settings) }),
     tar_target(module_07_copula_misspecification, {
       public_input_files
-      if (identical(settings$profile, "full")) jss_run_07_gamma_copula_misspecification(settings, stage = "full") else jss_run_07_from_public_results(settings)
+      jss_run_07_from_public_results(settings)
     }),
-    tar_target(module_08_correlation_misspecification, { public_input_files; jss_run_08_public(settings) })
+    tar_target(module_09_multivariate_benchmark, { public_input_files; jss_run_phase2_multivariate_benchmark(settings) }),
+    tar_target(module_10_fit_scaling, { public_input_files; jss_run_10_fit_scaling(settings) }),
+    tar_target(phase2_production_modules, {
+      registered <- list(
+        main_recovery = module_phase2_main_recovery,
+        optimizer = module_03_joint_vs_separate,
+        missingness = module_04_missingness,
+        copula_selection = module_07_copula_misspecification,
+        multivariate_benchmark = module_09_multivariate_benchmark,
+        fit_scaling = module_10_fit_scaling
+      )
+      jss_phase2_validate_production_modules(settings, registered)
+      registered
+    }),
+    tar_target(phase2_claim_evidence, {
+      phase2_production_modules
+      jss_write_phase2_claim_evidence(settings)
+    }, format = "file"),
+    tar_target(phase2_gate_audit, jss_write_phase2_gate_audit(
+      settings, phase2_production_modules, phase2_claim_evidence
+    ), format = "file")
   )
 }
 
 output_target <- if (identical(profile, "smoke")) {
   tar_target(public_outputs, list(public_workflow_figures, coverage_summary_csv, convergence_summary_csv, fit_events))
 } else {
-  tar_target(public_outputs, list(public_workflow_figures, module_01_bcpe_t, module_02_nbi_clayton,
-    module_03_joint_vs_separate, module_04_missingness,
-    module_07_copula_misspecification, module_08_correlation_misspecification))
+  tar_target(public_outputs, list(public_workflow_figures, module_phase2_main_recovery, module_03_joint_vs_separate, module_04_missingness,
+    module_07_copula_misspecification, module_09_multivariate_benchmark,
+    module_10_fit_scaling, phase2_claim_evidence, phase2_gate_audit))
 }
 
 tolerance_target <- if (identical(profile, "full")) {
