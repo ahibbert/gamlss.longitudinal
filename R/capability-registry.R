@@ -12,6 +12,10 @@
 #'
 #' @return A documentation-ready data frame. Every row contains the registry
 #'   version so exported tables retain their provenance.
+#' @details Hessian metadata records an implemented computation path, not a
+#'   guarantee of valid inference. Every fit still requires the JSS-002
+#'   fit-level curvature checks. Route evidence identifiers name the generated
+#'   test that fits every allowlisted family/copula combination.
 #' @export
 longitudinal_capabilities <- function(component = c("routes", "margins", "copulas")) {
   component <- match.arg(component)
@@ -22,7 +26,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
   )
 }
 
-.gl_capability_registry_version <- function() "2026.1"
+.gl_capability_registry_version <- function() "2026.2"
 
 .gl_capability_all_copulas <- function() c("N", "C", "F", "G", "J", "t")
 
@@ -37,39 +41,39 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
       status = "supported", family_type = "continuous", response_domain = "real",
       response_requirement = "finite real values", parameters = c("mu", "sigma"),
       likelihood_route = "continuous_density", compatible_copulas = all_copulas,
-      hessian = "analytical_and_numerical", randomized_pit = FALSE,
+      hessian_path = "analytical_and_numerical_implemented", randomized_pit = FALSE,
       diagnostics = "continuous_pit_and_pair_diagnostics",
       limitations = "One homogeneous marginal family per fit.", paper_route = FALSE
     ),
     GA = list(
       status = "supported", family_type = "continuous", response_domain = "positive_real",
       response_requirement = "finite values strictly greater than zero", parameters = c("mu", "sigma"),
-      likelihood_route = "continuous_density", compatible_copulas = all_copulas,
-      hessian = "analytical_and_numerical", randomized_pit = FALSE,
+      likelihood_route = "continuous_density", compatible_copulas = c("N", "C"),
+      hessian_path = "analytical_and_numerical_implemented", randomized_pit = FALSE,
       diagnostics = "continuous_pit_and_pair_diagnostics",
       limitations = "One homogeneous positive continuous family per fit.", paper_route = FALSE
     ),
     GG = list(
       status = "supported", family_type = "continuous", response_domain = "positive_real",
       response_requirement = "finite values strictly greater than zero", parameters = c("mu", "sigma", "nu"),
-      likelihood_route = "continuous_density", compatible_copulas = c("N", "C"),
-      hessian = "analytical_and_numerical", randomized_pit = FALSE,
+      likelihood_route = "continuous_density", compatible_copulas = "N",
+      hessian_path = "analytical_and_numerical_implemented", randomized_pit = FALSE,
       diagnostics = "continuous_pit_and_pair_diagnostics",
-      limitations = "Validated with Gaussian and Clayton copulas only.", paper_route = FALSE
+      limitations = "Validated with the Gaussian copula only.", paper_route = FALSE
     ),
     BCPE = list(
       status = "supported", family_type = "continuous", response_domain = "positive_real",
       response_requirement = "finite values strictly greater than zero", parameters = c("mu", "sigma", "nu", "tau"),
-      likelihood_route = "continuous_density", compatible_copulas = c("N", "t"),
-      hessian = "analytical_and_numerical", randomized_pit = FALSE,
+      likelihood_route = "continuous_density", compatible_copulas = "t",
+      hessian_path = "analytical_and_numerical_implemented", randomized_pit = FALSE,
       diagnostics = "continuous_pit_and_pair_diagnostics",
-      limitations = "Validated with Gaussian and Student-t copulas; BCPE/t is the public paper route.", paper_route = TRUE
+      limitations = "BCPE/t is the validated public paper route.", paper_route = TRUE
     ),
     LOGNO = list(
       status = "supported", family_type = "continuous", response_domain = "positive_real",
       response_requirement = "finite values strictly greater than zero", parameters = c("mu", "sigma"),
       likelihood_route = "continuous_density", compatible_copulas = "N",
-      hessian = "analytical_and_numerical", randomized_pit = FALSE,
+      hessian_path = "analytical_and_numerical_implemented", randomized_pit = FALSE,
       diagnostics = "continuous_pit_and_pair_diagnostics",
       limitations = "Validated with the Gaussian copula only.", paper_route = FALSE
     ),
@@ -77,15 +81,15 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
       status = "supported", family_type = "discrete", response_domain = "count",
       response_requirement = "finite non-negative integers", parameters = "mu",
       likelihood_route = "exact_discrete_rectangle", compatible_copulas = c("N", "C"),
-      hessian = "analytical_and_numerical", randomized_pit = TRUE,
+      hessian_path = "analytical_and_numerical_implemented", randomized_pit = TRUE,
       diagnostics = "randomized_pit_opt_in_and_descriptive_pair_diagnostics",
       limitations = count_note, paper_route = FALSE
     ),
     NBI = list(
       status = "supported", family_type = "discrete", response_domain = "count",
       response_requirement = "finite non-negative integers", parameters = c("mu", "sigma"),
-      likelihood_route = "exact_discrete_rectangle", compatible_copulas = c("N", "C"),
-      hessian = "analytical_and_numerical", randomized_pit = TRUE,
+      likelihood_route = "exact_discrete_rectangle", compatible_copulas = "C",
+      hessian_path = "analytical_and_numerical_implemented", randomized_pit = TRUE,
       diagnostics = "randomized_pit_opt_in_and_descriptive_pair_diagnostics",
       limitations = paste(count_note, "NBI/Clayton is the public paper route."), paper_route = TRUE
     ),
@@ -93,7 +97,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
       status = "supported", family_type = "discrete", response_domain = "count",
       response_requirement = "finite non-negative integers", parameters = c("mu", "sigma", "nu"),
       likelihood_route = "exact_discrete_rectangle", compatible_copulas = c("N", "C"),
-      hessian = "analytical_and_numerical", randomized_pit = TRUE,
+      hessian_path = "analytical_and_numerical_implemented", randomized_pit = TRUE,
       diagnostics = "randomized_pit_opt_in_and_descriptive_pair_diagnostics",
       limitations = count_note, paper_route = FALSE
     ),
@@ -101,7 +105,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
       status = "supported", family_type = "discrete", response_domain = "count",
       response_requirement = "finite non-negative integers", parameters = c("mu", "sigma"),
       likelihood_route = "exact_discrete_rectangle", compatible_copulas = "N",
-      hessian = "analytical_and_numerical", randomized_pit = TRUE,
+      hessian_path = "analytical_and_numerical_implemented", randomized_pit = TRUE,
       diagnostics = "randomized_pit_opt_in_and_descriptive_pair_diagnostics",
       limitations = paste(count_note, "Validated with the Gaussian copula only."), paper_route = FALSE
     ),
@@ -109,7 +113,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
       status = "supported", family_type = "discrete", response_domain = "count",
       response_requirement = "finite non-negative integers", parameters = c("mu", "sigma"),
       likelihood_route = "exact_discrete_rectangle", compatible_copulas = "N",
-      hessian = "analytical_and_numerical", randomized_pit = TRUE,
+      hessian_path = "analytical_and_numerical_implemented", randomized_pit = TRUE,
       diagnostics = "randomized_pit_opt_in_and_descriptive_pair_diagnostics",
       limitations = paste(count_note, "Validated with the Gaussian copula only."), paper_route = FALSE
     ),
@@ -117,7 +121,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
       status = "supported", family_type = "discrete", response_domain = "count",
       response_requirement = "finite non-negative integers", parameters = c("mu", "sigma", "nu"),
       likelihood_route = "exact_discrete_rectangle", compatible_copulas = "N",
-      hessian = "analytical_and_numerical", randomized_pit = TRUE,
+      hessian_path = "analytical_and_numerical_implemented", randomized_pit = TRUE,
       diagnostics = "randomized_pit_opt_in_and_descriptive_pair_diagnostics",
       limitations = paste(count_note, "Validated with the Gaussian copula only."), paper_route = FALSE
     )
@@ -134,7 +138,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
     list(
       status = "unsupported", family_type = "bounded_binomial", response_domain = "bounded_count",
       response_requirement = "response plus an explicit denominator", parameters = character(),
-      likelihood_route = "unsupported", compatible_copulas = character(), hessian = "not_available",
+      likelihood_route = "unsupported", compatible_copulas = character(), hessian_path = "not_available",
       randomized_pit = FALSE, diagnostics = "not_available", limitations = binomial_reason,
       paper_route = FALSE
     )
@@ -144,7 +148,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
     list(
       status = "unsupported", family_type = "ordinal_multinomial", response_domain = "category",
       response_requirement = "family-specific categorical response", parameters = character(),
-      likelihood_route = "unsupported", compatible_copulas = character(), hessian = "not_available",
+      likelihood_route = "unsupported", compatible_copulas = character(), hessian_path = "not_available",
       randomized_pit = FALSE, diagnostics = "not_available", limitations = multinomial_reason,
       paper_route = FALSE
     )
@@ -154,7 +158,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
     status = "unsupported", family_type = "discrete", response_domain = "count",
     response_requirement = "finite positive integers with family-specific initialization",
     parameters = "mu", likelihood_route = "unsupported", compatible_copulas = character(),
-    hessian = "not_available", randomized_pit = FALSE, diagnostics = "not_available",
+    hessian_path = "not_available", randomized_pit = FALSE, diagnostics = "not_available",
     limitations = "The logarithmic-series family needs family-specific starting and support handling before longitudinal fitting.",
     paper_route = FALSE
   ))
@@ -285,7 +289,14 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
       inverse_links = link_meta$inverse_links,
       likelihood_route = spec$likelihood_route,
       compatible_copulas = paste(spec$compatible_copulas, collapse = ","),
-      hessian = spec$hessian,
+      hessian_path = spec$hessian_path,
+      hessian_validity_guaranteed = FALSE,
+      curvature_validation = if (identical(spec$status, "supported")) "required_per_fit_jss002" else "not_applicable",
+      hessian_evidence = if (identical(spec$status, "supported")) {
+        "test-p0-hessian-analytical.R;test-p0-model-vcov.R"
+      } else {
+        ""
+      },
       randomized_pit = isTRUE(spec$randomized_pit),
       diagnostics = spec$diagnostics,
       paper_route = isTRUE(spec$paper_route),
@@ -335,12 +346,20 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
         likelihood_route = margin$likelihood_route,
         copula = copula,
         copula_parameters = paste(copula_spec$parameters, collapse = ","),
-        hessian = margin$hessian,
+        hessian_path = margin$hessian_path,
+        hessian_validity_guaranteed = FALSE,
+        curvature_validation = "required_per_fit_jss002",
+        hessian_evidence = "test-p0-hessian-analytical.R;test-p0-model-vcov.R",
         randomized_pit = isTRUE(margin$randomized_pit),
         diagnostics = margin$diagnostics,
         paper_route = (identical(family, "BCPE") && identical(copula, "t")) ||
           (identical(family, "NBI") && identical(copula, "C")),
-        limitations = margin$limitations,
+        route_evidence = "test-p1-coverage-simulations.R::coverage harness fits every registered route",
+        diagnostic_evidence = "test-p0-model-check-thresholds.R;test-p1-adoption-workflow.R",
+        limitations = paste(
+          margin$limitations,
+          "Hessian metadata denotes an implemented computation path, not guaranteed valid inference; fit-level curvature validation is required."
+        ),
         stringsAsFactors = FALSE
       )
     }
@@ -365,7 +384,18 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
 
 .gl_validate_capability_response <- function(response, family, spec) {
   observed <- response[!is.na(response)]
-  if (length(observed) == 0L || any(!is.finite(observed))) return(invisible(TRUE))
+  if (length(observed) == 0L) return(invisible(TRUE))
+  if (any(!is.finite(observed))) {
+    .gl_capability_stop(
+      "gamlss_longitudinal_response_domain_error",
+      paste0(
+        "Margin family '", family, "' requires ", spec$response_requirement,
+        ". Observed responses must not contain Inf or -Inf."
+      ),
+      margin_family = family,
+      response_domain = spec$response_domain
+    )
+  }
   valid <- .gl_capability_response_matches(response, spec)
   if (!isTRUE(valid)) {
     .gl_capability_stop(
