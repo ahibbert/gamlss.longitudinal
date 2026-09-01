@@ -21,6 +21,7 @@ test_that("inference control exposes stable profiles and records overrides", {
   expect_lt(strict$symmetry_tol, standard$symmetry_tol)
   expect_equal(overridden$condition_max, 123)
   expect_equal(overridden$expert_override, list(condition_max = 123))
+  expect_identical(standard$defaults_version, "0.1.0-provisional")
   expect_error(inference_control("standard", rank_tol = 0), "positive finite")
 })
 
@@ -143,6 +144,71 @@ test_that("summary refuses nonpositive covariance rather than masking it", {
     gamlss.longitudinal:::.gl_summary_coefficient_table(object, bad_vcov),
     "derived_variance_nonpositive"
   )
+})
+
+test_that("classed inference failure propagates through all inference consumers", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 8L)
+  fit <- fit_fixture_model(
+    dat,
+    include_dlcopdpar = TRUE,
+    mu_formula = "y ~ age",
+    sigma_formula = "~ 1",
+    theta_formula = "~ 1",
+    max_outer_iter = 2L,
+    max_inner_iter = 2L,
+    compute_vcov = FALSE
+  )
+  unavailable <- list(
+    status = "unavailable",
+    failure_codes = "information_not_positive_definite",
+    validation_profile = "standard",
+    validation_defaults_version = "0.1.0-provisional"
+  )
+  fit$vcov <- NULL
+  fit$vcov_meta <- list(
+    precomputed = FALSE,
+    method = "analytical",
+    inference_status = "unavailable",
+    hessian_diagnostics = unavailable
+  )
+
+  consumers <- list(
+    confint = function() confint(fit),
+    wald_test = function() wald_test(fit, terms = names(fit$par)[1]),
+    prediction_se = function() predict(fit, type = "mu", se.fit = TRUE),
+    prediction_interval = function() predict(
+      fit, type = "mu", interval = "confidence"
+    ),
+    summary = function() summary(fit, include_vcov = TRUE),
+    publication_table = function() publication_table(
+      fit, table = "coefficients", output = "data.frame"
+    ),
+    term_plot = function() plot_terms(fit, data = dat),
+    marginal_effects = function() marginal_effects(
+      fit,
+      newdata = dat,
+      variable = "age",
+      values = stats::quantile(dat$age, c(0.25, 0.75)),
+      se.fit = TRUE
+    )
+  )
+
+  for (consumer_name in names(consumers)) {
+    err <- tryCatch(
+      suppressMessages(suppressWarnings(
+        invisible(utils::capture.output(consumers[[consumer_name]]()))
+      )),
+      error = identity
+    )
+    expect_s3_class(
+      err,
+      "gamlss_longitudinal_inference_unavailable"
+    )
+    expect_identical(
+      err$diagnostics$failure_codes,
+      "information_not_positive_definite"
+    )
+  }
 })
 
 test_that("representative BCPE/t and NBI/Clayton paths pass standard validation", {

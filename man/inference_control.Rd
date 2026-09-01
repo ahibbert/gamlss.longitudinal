@@ -41,3 +41,10 @@ errors, Wald tests, or confidence intervals are made available. It is
 deliberately separate from optimizer controls: changing these thresholds
 cannot change the fitted coefficients.
 }
+\details{
+The standard and strict thresholds are versioned provisional defaults
+(\code{0.1.0-provisional}) pending Phase-gate simulation calibration; they are
+not claimed to be empirically calibrated. \code{gradient_tol} checks a post-fit
+score standardized by observed curvature. It is unrelated to the CG optimizer
+stopping tolerance commonly called \code{cg_grad_tol}.
+}
