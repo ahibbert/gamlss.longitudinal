@@ -9,6 +9,14 @@ calc_likelihood_minimal <- function(eta_inv, mm, margin_dist, copula_dist, calc_
   if (is.null(pair_cache)) {
     pair_cache <- build_copula_pair_cache(response, response_margin, response_subject)
   }
+  response_inclusion <- !is.na(response)
+  if (!is.null(pair_cache$observed_margin_base) &&
+      !identical(as.logical(pair_cache$observed_margin_base), response_inclusion)) {
+    stop(
+      "'pair_cache' was built for a different response missingness pattern.",
+      call. = FALSE
+    )
+  }
   if (is.null(margin_eval_cache) || !identical(margin_eval_cache$calc_d2, calc_d2)) {
     margin_eval_cache <- .build_margin_eval_cache(margin_dist, calc_d2 = calc_d2)
   }
@@ -35,6 +43,7 @@ calc_likelihood_minimal <- function(eta_inv, mm, margin_dist, copula_dist, calc_
   margin_p <- margin_eval$margin_p
   margin_p_lower <- margin_eval$margin_p_lower
   margin_d <- margin_eval$margin_d
+  margin_log_d <- margin_eval$margin_log_d
   likelihood_type <- margin_eval$likelihood_type
 
   ################ COPULA DERIVATIVES
@@ -46,6 +55,7 @@ calc_likelihood_minimal <- function(eta_inv, mm, margin_dist, copula_dist, calc_
     margin_p = margin_p,
     margin_d = margin_d,
     likelihood_type = likelihood_type,
+    margin_log_d = margin_log_d,
     margin_p_lower = margin_p_lower
   )
   row_id1 <- copula_eval$row_id1
@@ -57,21 +67,52 @@ calc_likelihood_minimal <- function(eta_inv, mm, margin_dist, copula_dist, calc_
   par1 <- copula_eval$par1
   par2 <- copula_eval$par2
   copula_d <- copula_eval$copula_d
+  copula_log_d <- copula_eval$copula_log_d
   copula_rect_prob <- copula_eval$copula_rect_prob
 
   ######## COMBINE MARGINS AND COPULA DERVIATIVES
 
-  margin_loglik_terms <- log(margin_d[!is.na(margin_d)])
-  margin_loglik_terms <- margin_loglik_terms[is.finite(margin_loglik_terms)]
-  copula_loglik_terms <- log(copula_d[pair_complete])
-  copula_loglik_terms <- copula_loglik_terms[is.finite(copula_loglik_terms)]
-
-  log_lik <- c(sum(margin_loglik_terms), sum(copula_loglik_terms), sum(margin_loglik_terms) + sum(copula_loglik_terms))
-  names(log_lik) <- c("marginal", "copula", "joint")
+  margin_included <- pair_cache$observed_margin_base
+  if (is.null(margin_included)) margin_included <- response_inclusion
+  combined <- .gl_likelihood_combine_components(
+    margin_log_d = margin_log_d,
+    margin_included = margin_included,
+    copula_log_d = copula_log_d,
+    pair_included = pair_complete,
+    pair_input_valid = copula_eval$pair_input_valid
+  )
 
   copula_p <- rep(NA_real_, length(copula_d))
 
-  return_list <- list(log_lik, margin_d, copula_d, margin_p, copula_p, Fx_1_2, order_copula, margin_deriv, pair_complete, par1, par2, row_id1, row_id2, pair_cache$theta_index_map, likelihood_type, margin_p_lower, Fx_1_2_lower, copula_rect_prob)
-  names(return_list) <- c("log_lik", "margin_d", "copula_d", "margin_p", "copula_p", "Fx_1_2", "order_copula", "margin_deriv", "pair_complete", "copula_par1", "copula_par2", "copula_row_id1", "copula_row_id2", "copula_theta_index_map", "likelihood_type", "margin_p_lower", "Fx_1_2_lower", "copula_rect_prob")
-  return(return_list)
+  list(
+    log_lik = combined$log_lik,
+    margin_d = margin_d,
+    copula_d = copula_d,
+    margin_p = margin_p,
+    copula_p = copula_p,
+    Fx_1_2 = Fx_1_2,
+    order_copula = order_copula,
+    margin_deriv = margin_deriv,
+    pair_complete = pair_complete,
+    copula_par1 = par1,
+    copula_par2 = par2,
+    copula_row_id1 = row_id1,
+    copula_row_id2 = row_id2,
+    copula_theta_index_map = pair_cache$theta_index_map,
+    likelihood_type = likelihood_type,
+    margin_p_lower = margin_p_lower,
+    Fx_1_2_lower = Fx_1_2_lower,
+    copula_rect_prob = copula_rect_prob,
+    # Keep all legacy fields above in their historical positional order.
+    margin_log_d = margin_log_d,
+    copula_log_d = copula_log_d,
+    margin_included = combined$margin_included,
+    pair_included = combined$pair_included,
+    margin_contribution_valid = combined$margin_contribution_valid,
+    pair_input_valid = combined$pair_input_valid,
+    pair_contribution_valid = combined$pair_contribution_valid,
+    valid = combined$valid,
+    failure = combined$failure,
+    contribution_counts = combined$contribution_counts
+  )
 }

@@ -124,8 +124,8 @@
   if (is.null(x) || is.null(mu)) {
     return(NULL)
   }
-  if (identical(prefix, "d")) {
-    return(stats::dpois(x, lambda = mu))
+  if (prefix %in% c("d", "logd")) {
+    return(stats::dpois(x, lambda = mu, log = identical(prefix, "logd")))
   }
   if (identical(prefix, "p")) {
     return(stats::ppois(x, lambda = mu))
