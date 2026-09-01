@@ -23,7 +23,7 @@
     optimizer_control_effective = NULL,
     cg_grad_tol = NA_real_,
     cg_step_tol = NA_real_) {
-  objective_ok <- is.finite(objective)
+  objective_ok <- length(objective) == 1L && (is.na(objective) || is.finite(objective))
   objective_contract <- is.finite(outer_log_lik_change) &&
     is.finite(outer_stop_crit) && abs(outer_log_lik_change) <= outer_stop_crit
   converged <- objective_ok && objective_contract
