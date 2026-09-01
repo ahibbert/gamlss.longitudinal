@@ -27,8 +27,12 @@
     cg_gradient_method,
     cg_zeta_hessian,
     cg_hessian_method,
+    optimizer_control_requested = NULL,
+    optimizer_control_effective = NULL,
     convergence_fn = .gl_build_convergence_info,
     finalize_fn = .gl_finalize_fit_object) {
+  elapsed_sec <- as.numeric(difftime(Sys.time(), fit_start_time, units = "secs"))
+  objective <- as.numeric(optimizer_state$calc_lik_out_end$log_lik["joint"])
   convergence_info <- convergence_fn(
     method = method,
     outer_log_lik_change = optimizer_state$outer_log_lik_change,
@@ -44,7 +48,13 @@
     cg_raw_loglik_drop_tol = cg_raw_loglik_drop_tol,
     cg_gradient_method = cg_gradient_method,
     cg_zeta_hessian = cg_zeta_hessian,
-    cg_hessian_method = cg_hessian_method
+    cg_hessian_method = cg_hessian_method,
+    objective = objective,
+    elapsed_sec = elapsed_sec,
+    optimizer_control_requested = optimizer_control_requested,
+    optimizer_control_effective = optimizer_control_effective,
+    cg_grad_tol = optimizer_state$cg_grad_tol_eff,
+    cg_step_tol = optimizer_state$cg_step_tol_eff
   )
 
   finalize_fn(
@@ -74,6 +84,8 @@
     cg_lambda_trace = optimizer_state$cg_lambda_trace,
     cg_step_trace = optimizer_state$cg_step_trace,
     convergence_info = convergence_info,
+    optimizer_control_requested = optimizer_control_requested,
+    optimizer_control_effective = optimizer_control_effective,
     fit_start_time = fit_start_time,
     compute_vcov = compute_vcov,
     vcov_numderiv = vcov_numderiv,

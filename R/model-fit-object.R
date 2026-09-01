@@ -32,13 +32,10 @@
     compute_vcov,
     vcov_numderiv,
     vcov_method,
-    verbose) {
-  if (isTRUE(convergence_info$hit_outer_limit)) {
-    warning(
-      "Model stopped at max_outer_iter before satisfying outer_stop_crit; treat fit as not converged.",
-      call. = FALSE
-    )
-  }
+    verbose,
+    optimizer_control_requested = NULL,
+    optimizer_control_effective = NULL) {
+  if (!isTRUE(convergence_info$converged)) .gl_warn_nonconverged_fit(convergence_info)
 
   total_fit_time <- as.numeric(difftime(Sys.time(), fit_start_time, units = "secs"))
   aics <- .gl_fit_information_criteria(
@@ -83,7 +80,9 @@
     weights_final = weights_final,
     method = method,
     warm_start_info = warm_start_info,
-    convergence_info = convergence_info
+    convergence_info = convergence_info,
+    optimizer_control_requested = optimizer_control_requested,
+    optimizer_control_effective = optimizer_control_effective
   )
 
   return_list <- .gl_attach_fit_optimizer_traces(
@@ -96,7 +95,7 @@
 
   return_list <- .gl_attach_fit_vcov(
     return_list = return_list,
-    compute_vcov = compute_vcov,
+    compute_vcov = isTRUE(compute_vcov) && isTRUE(convergence_info$converged),
     vcov_numderiv = vcov_numderiv,
     vcov_method = vcov_method,
     verbose = verbose

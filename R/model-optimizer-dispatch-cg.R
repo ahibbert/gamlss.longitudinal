@@ -28,6 +28,7 @@
     cg_zeta_hessian,
     cg_max_stall,
     cg_raw_loglik_drop_tol,
+    stop_on_convergence,
     cg_runner_fn = .gl_run_cg_optimizer) {
   optimizer_state <- cg_runner_fn(
     par_cov = optimizer_context$par_cov,
@@ -75,7 +76,8 @@
     cg_last_grad_inf = optimizer_context$cg_last_grad_inf,
     cg_last_step_l2 = optimizer_context$cg_last_step_l2,
     cg_raw_loglik_drop_from_best = optimizer_context$cg_raw_loglik_drop_from_best,
-    weights_final = optimizer_context$weights_final
+    weights_final = optimizer_context$weights_final,
+    stop_on_convergence = stop_on_convergence
   )
   optimizer_state$rs_block_trace <- optimizer_context$rs_block_trace
   optimizer_state$outer_stop_crit <- optimizer_context$outer_stop_crit

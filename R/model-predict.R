@@ -117,6 +117,12 @@ predict.gamlss.longitudinal <- function(
     stop("'object' must be a fitted 'gamlss.longitudinal' object.", call. = FALSE)
   }
 
+  if (isTRUE(se.fit) || !identical(interval, "none")) {
+    .gl_require_converged_fit(object, "prediction uncertainty intervals")
+  } else {
+    .gl_warn_nonconverged_prediction(object)
+  }
+
   require_response <- (type == "cdf" && is.null(q)) || (type == "density" && is.null(y))
 
   diag_data <- .gl_fitted_distribution(object, newdata = newdata, require_response = require_response)
