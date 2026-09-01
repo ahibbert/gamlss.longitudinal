@@ -13,7 +13,7 @@
     fit_start_time,
     compute_vcov,
     verbose,
-    max_outer_iter,
+    max_outer_iter = NULL,
     finalize_fn = .gl_finalize_fit_workflow) {
   fit_controls <- fit_workflow$controls
 
@@ -34,10 +34,12 @@
     vcov_numderiv = fit_controls$vcov_numderiv,
     vcov_method = fit_controls$vcov_method,
     verbose = verbose,
-    max_outer_iter = max_outer_iter,
+    max_outer_iter = fit_workflow$optimizer_control_effective$shared$max_outer_iter,
     cg_raw_loglik_drop_tol = fit_controls$cg_raw_loglik_drop_tol,
     cg_gradient_method = fit_controls$cg_gradient_method,
     cg_zeta_hessian = fit_controls$cg_zeta_hessian,
-    cg_hessian_method = fit_controls$cg_hessian_method
+    cg_hessian_method = fit_controls$cg_hessian_method,
+    optimizer_control_requested = fit_workflow$optimizer_control_requested,
+    optimizer_control_effective = fit_workflow$optimizer_control_effective
   )
 }

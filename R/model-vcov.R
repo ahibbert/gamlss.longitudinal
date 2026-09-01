@@ -39,6 +39,7 @@ vcov.gamlss.longitudinal <- function(object, par = NA, sep_d2 = TRUE, numderiv =
                                      inference = inference_control("standard"),
                                      ...) {
   # object=fit; par=NA; numderiv=TRUE; sep_d2=TRUE
+  .gl_require_converged_fit(object, "variance-covariance inference")
 
   inference <- .gl_normalize_inference_control(inference)
   vcov_setup <- .gl_prepare_vcov_evaluation(

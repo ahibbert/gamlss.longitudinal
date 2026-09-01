@@ -46,8 +46,9 @@
     outer_log_lik_change,
     outer_stop_crit,
     outer_only_run_counter,
-    max_outer_iter) {
-  (isTRUE(first_outer_run) || abs(outer_log_lik_change) > outer_stop_crit) &&
+    max_outer_iter,
+    stop_on_convergence = TRUE) {
+  (!isTRUE(stop_on_convergence) || isTRUE(first_outer_run) || abs(outer_log_lik_change) > outer_stop_crit) &&
     outer_only_run_counter < max_outer_iter
 }
 

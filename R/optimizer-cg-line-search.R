@@ -130,6 +130,7 @@
     lambda_changed,
     outer_stop_crit,
     grad_tol,
+    stop_on_convergence = TRUE,
     assess_step_fn = .gl_assess_cg_step_acceptance,
     apply_step_fn = .gl_apply_cg_step_acceptance,
     diagnostics_fn = .gl_update_cg_iteration_diagnostics,
@@ -183,7 +184,8 @@
     outer_stop_crit = outer_stop_crit,
     grad_tol = grad_tol,
     step_tol = step_tol,
-    verbose = verbose
+    verbose = verbose,
+    stop_on_convergence = stop_on_convergence
   )
 
   state_builder_fn(

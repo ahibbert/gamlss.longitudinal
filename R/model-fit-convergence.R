@@ -16,21 +16,79 @@
     cg_raw_loglik_drop_tol,
     cg_gradient_method,
     cg_zeta_hessian,
-    cg_hessian_method) {
-  converged <- is.finite(outer_log_lik_change) && abs(outer_log_lik_change) <= outer_stop_crit
+    cg_hessian_method,
+    objective = NA_real_,
+    elapsed_sec = NA_real_,
+    optimizer_control_requested = NULL,
+    optimizer_control_effective = NULL,
+    cg_grad_tol = NA_real_,
+    cg_step_tol = NA_real_) {
+  objective_ok <- is.finite(objective)
+  objective_contract <- is.finite(outer_log_lik_change) &&
+    is.finite(outer_stop_crit) && abs(outer_log_lik_change) <= outer_stop_crit
+  converged <- objective_ok && objective_contract
 
   if (identical(method, "CG")) {
-    converged <- identical(cg_stop_reason, "tolerance")
+    gradient_contract <- is.finite(cg_last_grad_inf) && is.finite(cg_grad_tol) && cg_last_grad_inf <= cg_grad_tol
+    step_contract <- is.finite(cg_last_step_l2) && is.finite(cg_step_tol) && cg_last_step_l2 <= cg_step_tol
+    converged <- objective_ok && objective_contract && gradient_contract && step_contract &&
+      !cg_stop_reason %in% c("max_stall", "raw_loglik_deterioration")
+  } else {
+    gradient_contract <- NA
+    step_contract <- NA
   }
 
   hit_outer_limit <- outer_only_run_counter >= max_outer_iter && !isTRUE(converged)
+  safeguard_reason <- if (identical(cg_stop_reason, "max_stall")) {
+    "max_stall"
+  } else if (identical(cg_stop_reason, "raw_loglik_deterioration")) {
+    "objective_deterioration"
+  } else {
+    NA_character_
+  }
+  termination_reason <- if (!objective_ok) {
+    "invalid_likelihood"
+  } else if (!is.na(safeguard_reason)) {
+    safeguard_reason
+  } else if (isTRUE(converged)) {
+    "converged"
+  } else if (outer_only_run_counter >= max_outer_iter) {
+    "max_iterations"
+  } else {
+    "numerical_failure"
+  }
+  events <- data.frame(
+    level = character(), code = character(), message = character(),
+    iteration = integer(), stringsAsFactors = FALSE
+  )
+  if (!isTRUE(converged)) {
+    events <- rbind(events, data.frame(
+      level = "warning",
+      code = termination_reason,
+      message = paste0("Optimizer returned without satisfying the ", method, " convergence contract."),
+      iteration = max(0L, outer_only_run_counter - 1L),
+      stringsAsFactors = FALSE
+    ))
+  }
 
   list(
     converged = isTRUE(converged),
     hit_outer_limit = isTRUE(hit_outer_limit),
     hit_max_stall = isTRUE(identical(cg_stop_reason, "max_stall")),
     hit_raw_loglik_deterioration = isTRUE(identical(cg_stop_reason, "raw_loglik_deterioration")),
-    stop_reason = if (identical(method, "CG")) cg_stop_reason else if (isTRUE(converged)) "tolerance" else NA_character_,
+    stop_reason = termination_reason,
+    termination_reason = termination_reason,
+    objective = as.numeric(objective),
+    logLik = as.numeric(objective),
+    objective_change = as.numeric(outer_log_lik_change),
+    objective_tolerance = as.numeric(outer_stop_crit),
+    objective_criterion_met = isTRUE(objective_contract),
+    gradient_norm = if (identical(method, "CG")) as.numeric(cg_last_grad_inf) else NA_real_,
+    gradient_tolerance = if (identical(method, "CG")) as.numeric(cg_grad_tol) else NA_real_,
+    gradient_criterion_met = if (identical(method, "CG")) isTRUE(gradient_contract) else NA,
+    step_norm = if (identical(method, "CG")) as.numeric(cg_last_step_l2) else NA_real_,
+    step_tolerance = if (identical(method, "CG")) as.numeric(cg_step_tol) else NA_real_,
+    step_criterion_met = if (identical(method, "CG")) isTRUE(step_contract) else NA,
     grad_inf = as.numeric(cg_last_grad_inf),
     step_l2 = as.numeric(cg_last_step_l2),
     best_raw_loglik = as.numeric(cg_best_raw_loglik),
@@ -41,6 +99,11 @@
     max_outer_iter = max_outer_iter,
     outer_log_lik_change = as.numeric(outer_log_lik_change),
     outer_stop_crit = outer_stop_crit,
+    elapsed_sec = as.numeric(elapsed_sec),
+    requested_controls = optimizer_control_requested,
+    effective_controls = optimizer_control_effective,
+    events = events,
+    warnings = events[events$level == "warning", , drop = FALSE],
     method = method,
     cg_gradient_method = if (identical(method, "CG")) cg_gradient_method else NA_character_,
     cg_zeta_hessian = if (identical(method, "CG")) cg_zeta_hessian else NA_character_,
