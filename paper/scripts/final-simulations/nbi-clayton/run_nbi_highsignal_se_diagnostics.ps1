@@ -4,6 +4,7 @@ param(
   [string]$OutDir = "results\jss-exploratory\02-discrete-delaporte-clayton\nbi_highsignal_n500_rep100_se_diagnostics",
   [int]$PredictiveNSim = 100,
   [string]$VariogramPValues = "0.5|2",
+  [int]$MaxAttemptsPerFit = 1,
   [switch]$SaveFits
 )
 
@@ -29,10 +30,11 @@ $env:NBI_COMPARE_VCOV_METHOD = "analytical"
 $env:NBI_COMPARE_COMPUTE_PREDICTIVE = "TRUE"
 $env:NBI_COMPARE_PREDICTIVE_NSIM = [string]$PredictiveNSim
 $env:NBI_COMPARE_VARIOGRAM_P_VALUES = $VariogramPValues
+$env:NBI_COMPARE_MAX_ATTEMPTS_PER_FIT = [string]$MaxAttemptsPerFit
 $env:NBI_COMPARE_SAVE_FITS = if ($SaveFits) { "TRUE" } else { "FALSE" }
 $env:NBI_PAPER_COMPARISON_DIR = $resolvedOutDir
 
-"[$(Get-Date -Format o)] Starting NBI SE/diagnostics run: reps=$Reps resume=$($Resume.IsPresent) p=$VariogramPValues save_fits=$($SaveFits.IsPresent) out=$resolvedOutDir" |
+"[$(Get-Date -Format o)] Starting NBI SE/diagnostics run: reps=$Reps resume=$($Resume.IsPresent) attempts=$MaxAttemptsPerFit p=$VariogramPValues save_fits=$($SaveFits.IsPresent) out=$resolvedOutDir" |
   Tee-Object -FilePath $logFile
 
 $ErrorActionPreference = "Continue"

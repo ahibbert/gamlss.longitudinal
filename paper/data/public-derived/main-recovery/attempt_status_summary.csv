@@ -1,0 +1,5 @@
+"study_id","scenario_id","method","attempted","successful","converged","convergence_not_reported","retained"
+"bcpe_t_legacy_reconciliation","n500_d4","gamlss.longitudinal",100,100,100,0,100
+"bcpe_t_legacy_reconciliation","n500_d4","gamlss2",100,100,0,100,100
+"nbi_gaussian_legacy_reconciliation","n500_d4_nbi_signal2","gamlss",100,100,100,0,100
+"nbi_gaussian_legacy_reconciliation","n500_d4_nbi_signal2","ours_rs_joint",100,100,100,0,100

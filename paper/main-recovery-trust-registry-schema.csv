@@ -1,0 +1,2 @@
+migration_status,retired_on,replacement,notes
+retired_no_publication_authority,2026-09-02,checkout_external_ed25519_attestation,Historical schema retired; this file has no validation or approval authority.

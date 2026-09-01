@@ -12,20 +12,40 @@ suppressPackageStartupMessages({
   library(ggplot2)
 })
 
-suppressPackageStartupMessages(library(gamlss.longitudinal))
+project_root <- normalizePath(Sys.getenv("GAMLSS_LONGITUDINAL_SOURCE_ROOT", unset = getwd()), winslash = "/", mustWork = TRUE)
+package_source_path <- project_root
+package_source_identity <- "."
+package_source_files <- c(file.path(project_root, "DESCRIPTION"), file.path(project_root, "NAMESPACE"), sort(list.files(file.path(project_root, "R"), pattern = "[.]R$", full.names = TRUE)))
+if (!all(file.exists(package_source_files)) || !requireNamespace("pkgload", quietly = TRUE) || !requireNamespace("digest", quietly = TRUE)) {
+  stop("The checked-out package source, pkgload, and digest are required for authoritative recovery runs.", call. = FALSE)
+}
+source_file_hashes <- unname(vapply(package_source_files, digest::digest, character(1), file = TRUE, algo = "sha256", serialize = FALSE))
+source_relative <- substring(normalizePath(package_source_files, winslash = "/", mustWork = TRUE), nchar(project_root) + 2L)
+package_source_sha256 <- digest::digest(paste(source_relative, source_file_hashes, sep = "\t", collapse = "\n"), algo = "sha256", serialize = FALSE)
+if ("package:gamlss.longitudinal" %in% search()) try(detach("package:gamlss.longitudinal", unload = TRUE, character.only = TRUE), silent = TRUE)
+if ("gamlss.longitudinal" %in% loadedNamespaces()) try(unloadNamespace("gamlss.longitudinal"), silent = TRUE)
+suppressPackageStartupMessages(pkgload::load_all(package_source_path, export_all = TRUE, helpers = FALSE, quiet = TRUE))
 list2env(as.list(getNamespace("gamlss.longitudinal"), all.names = TRUE), envir = .GlobalEnv)
 
 set.seed(20260513)
+runner_contract_version <- "bcpe-t-main-recovery-2026-09-02.7"
+phase1_contract_version <- "likelihood-jss001-2026-09-01|inference-2026.1|capability-2026.2"
+runner_git_sha <- tryCatch(system2("git", c("rev-parse", "HEAD"), stdout = TRUE, stderr = FALSE)[[1]], error = function(e) NA_character_)
+runner_git_state <- tryCatch(if (length(system2("git", c("status", "--porcelain"), stdout = TRUE, stderr = FALSE))) "dirty" else "clean", error = function(e) "unknown")
+runner_package_version <- as.character(read.dcf(file.path(package_source_path, "DESCRIPTION"))[1, "Version"])
+runner_script_path <- normalizePath(file.path(project_root, "paper", "scripts", "final-simulations", "bcpe-t", "simulation_bcpe_t_gamlss_comparison.R"), winslash = "/", mustWork = TRUE)
+runner_sha256 <- unname(digest::digest(runner_script_path, file = TRUE, algo = "sha256", serialize = FALSE))
 
 out_dir <- Sys.getenv("OUT_DIR", unset = file.path("results", "bcpe_t_gamlss_comparison"))
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
-project_root <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
-task_result_dir <- file.path(out_dir, "rep_results")
+task_result_dir <- file.path(out_dir, "attempt_checkpoints")
 worker_log_dir <- file.path(out_dir, "worker_logs")
 dir.create(task_result_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(worker_log_dir, recursive = TRUE, showWarnings = FALSE)
 
 n_fits <- as.integer(Sys.getenv("N_FITS", unset = "1"))
+max_attempts_per_fit <- as.integer(Sys.getenv("BCPE_MAX_ATTEMPTS_PER_FIT", unset = "3"))
+if (!is.finite(max_attempts_per_fit) || max_attempts_per_fit < 1L) stop("BCPE_MAX_ATTEMPTS_PER_FIT must be a positive integer.", call. = FALSE)
 rep_ids_env <- Sys.getenv("REP_IDS", unset = "")
 rep_ids <- if (nzchar(rep_ids_env)) {
   as.integer(strsplit(rep_ids_env, ",", fixed = TRUE)[[1]])
@@ -41,10 +61,15 @@ smooth_k <- as.integer(Sys.getenv("SMOOTH_K", unset = "10"))
 verbose_level <- as.integer(Sys.getenv("VERBOSE_FITS", unset = "0"))
 verbose <- verbose_level > 0
 parallel_setup_only <- as.logical(as.integer(Sys.getenv("PARALLEL_SETUP_ONLY", unset = "0")))
+rscript_bin <- normalizePath(Sys.getenv("R_SCRIPT", unset = file.path(R.home("bin"),
+  if (.Platform$OS.type == "windows") "Rscript.exe" else "Rscript")), winslash = "/", mustWork = TRUE)
+rscript_sha256 <- unname(digest::digest(rscript_bin, file = TRUE, algo = "sha256", serialize = FALSE))
+runtime_thread_env <- vapply(c("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "BLIS_NUM_THREADS"),
+  function(name) Sys.getenv(name, unset = "<unset>"), character(1))
 
 scenarios <- data.frame(
-  n = c(500),
-  d = c(4),
+  n = as.integer(Sys.getenv("BCPE_N", unset = "500")),
+  d = as.integer(Sys.getenv("BCPE_T", unset = "4")),
   stringsAsFactors = FALSE
 )
 
@@ -179,6 +204,57 @@ smooth_truth <- list(
   theta = function(s1) 2 * (0.25 * sin(pi * s1 + 0.40) + 0.12 * (s1 - 0.50))
 )
 
+bcpe_config_value <- function(x) {
+  if (!length(x) || all(is.na(x))) return("<NA>")
+  paste(vapply(x, function(value) {
+    if (is.na(value)) "<NA>" else if (is.logical(value)) if (value) "TRUE" else "FALSE" else if (is.numeric(value)) format(value, digits = 17, scientific = FALSE, trim = TRUE) else as.character(value)
+  }, character(1)), collapse = ",")
+}
+bcpe_config <- data.frame(
+  runner_contract_version = runner_contract_version, phase1_contract_version = phase1_contract_version,
+  n_fits = bcpe_config_value(n_fits), rep_ids = bcpe_config_value(rep_ids), max_attempts_per_fit = bcpe_config_value(max_attempts_per_fit),
+  n_cores = bcpe_config_value(n_cores), verbose_fits = bcpe_config_value(verbose_level),
+  rscript_path = rscript_bin, rscript_sha256 = rscript_sha256, rscript_version = R.version.string,
+  parallel_backend = "PSOCK", parallel_scheduler = "parLapplyLB", psock_setup_strategy = "parallel",
+  worker_count_rule = "min(n_cores,pending_attempts)", rscript_args = "--vanilla",
+  omp_num_threads = runtime_thread_env[["OMP_NUM_THREADS"]], openblas_num_threads = runtime_thread_env[["OPENBLAS_NUM_THREADS"]],
+  mkl_num_threads = runtime_thread_env[["MKL_NUM_THREADS"]], veclib_maximum_threads = runtime_thread_env[["VECLIB_MAXIMUM_THREADS"]],
+  blis_num_threads = runtime_thread_env[["BLIS_NUM_THREADS"]],
+  n_subject = bcpe_config_value(scenarios$n), n_time = bcpe_config_value(scenarios$d), smooth_k = bcpe_config_value(smooth_k),
+  theta_effect_mode = theta_effect_mode, theta_binary_effect = bcpe_config_value(theta_binary_effect), theta_binary_prob = bcpe_config_value(theta_binary_prob),
+  compute_se = bcpe_config_value(compute_se), save_fits = bcpe_config_value(save_fits), vcov_method_longitudinal = vcov_method_longitudinal,
+  include_dlcopdpar = bcpe_config_value(include_dlcopdpar), optim_method = optim_method,
+  max_outer_iter = bcpe_config_value(max_outer_iter), max_inner_iter = bcpe_config_value(max_inner_iter), max_elapsed_sec = bcpe_config_value(max_elapsed_sec),
+  outer_stop_crit = bcpe_config_value(outer_stop_crit), inner_stop_crit = bcpe_config_value(inner_stop_crit),
+  use_backtracking = bcpe_config_value(use_backtracking), backtracking_max_halves = bcpe_config_value(backtracking_max_halves),
+  start_step_size = bcpe_config_value(start_step_size), step_adjustment = bcpe_config_value(step_adjustment), max_steps = bcpe_config_value(max_steps),
+  lambda_start = bcpe_config_value(lambda_start), warm_start_joint = bcpe_config_value(warm_start_joint),
+  cg_max_delta = bcpe_config_value(cg_max_delta), cg_armijo_c1 = bcpe_config_value(cg_armijo_c1), cg_max_stall = bcpe_config_value(cg_max_stall),
+  cg_update_lambda = bcpe_config_value(cg_update_lambda), cg_line_search = cg_line_search, cg_max_line_search_evals = bcpe_config_value(cg_max_line_search_evals),
+  cg_gradient_method = cg_gradient_method, cg_zeta_hessian = cg_zeta_hessian, cg_lambda_update_every = bcpe_config_value(cg_lambda_update_every),
+  cg_max_lambda_updates = bcpe_config_value(cg_max_lambda_updates), cg_raw_loglik_drop_tol = bcpe_config_value(cg_raw_loglik_drop_tol),
+  compute_predictive_scores = bcpe_config_value(compute_predictive_scores), predictive_nsim = bcpe_config_value(predictive_nsim),
+  variogram_p_values = bcpe_config_value(variogram_p_values),
+  dgp_global_seed = "20260513", dgp_seed_registry = "origin=100000+10000*scenario_id+100*rep;covariate=+11;response=+12;test=+13;fit=+50+method;diagnostic=+100+method;predictive=+200+method",
+  dgp_covariates = "x1~N(0,1);x2~Bernoulli(0.5);s1~Uniform(0,1);t=(time_index-1)/(T-1)",
+  dgp_dependence = "first_order_Student_t_conditional_chain", dgp_uniform_clip = "0.00000001", smooth_grid_points = "101",
+  dgp_true_beta_mu = bcpe_config_value(true_beta$mu), dgp_true_beta_sigma = bcpe_config_value(true_beta$sigma),
+  dgp_true_beta_nu = bcpe_config_value(true_beta$nu), dgp_true_beta_tau = bcpe_config_value(true_beta$tau),
+  dgp_true_beta_theta = bcpe_config_value(true_beta$theta), dgp_true_beta_zeta = bcpe_config_value(true_beta$zeta),
+  dgp_smooth_mu = "0.55*sin(2*pi*s1)", dgp_smooth_sigma = "0.30*cos(2*pi*s1)-0.10*(s1-0.50)^2",
+  dgp_smooth_theta = "2*(0.25*sin(pi*s1+0.40)+0.12*(s1-0.50))", stringsAsFactors = FALSE, check.names = FALSE
+)
+runner_settings_signature <- paste(names(bcpe_config), unlist(bcpe_config[1, ], use.names = FALSE), sep = "=", collapse = "\n")
+runner_settings_sha256 <- digest::digest(runner_settings_signature, algo = "sha256", serialize = FALSE)
+if (identical(Sys.getenv("BCPE_SOURCE_IDENTITY_AUDIT_ONLY", unset = "0"), "1")) {
+  write.csv(data.frame(package_source_path = package_source_identity, package_version = runner_package_version,
+    package_source_sha256 = package_source_sha256, runner_sha256 = runner_sha256,
+    runner_settings_signature = runner_settings_signature, runner_settings_sha256 = runner_settings_sha256,
+    loaded_namespace_path = normalizePath(getNamespaceInfo(asNamespace("gamlss.longitudinal"), "path"), winslash = "/", mustWork = TRUE)),
+    file.path(out_dir, "source_identity_audit.csv"), row.names = FALSE)
+  quit(save = "no", status = 0)
+}
+
 linpred <- function(beta, x1, x2, t) {
   beta[["intercept"]] + beta[["x1"]] * x1 + beta[["x2"]] * x2 + beta[["t"]] * t
 }
@@ -297,6 +373,56 @@ extract_convergence_info <- function(fit_obj) {
   )
 }
 
+extract_gamlss2_convergence <- function(fit_obj) {
+  # Registered rule for the actual gamlss2::gamlss2()/RS result API.  That API
+  # exposes iterations, control, objective, coefficients and fitted values but
+  # no convergence flag or final tolerance.  We therefore require a completely
+  # finite fit and conservatively reject an outer-iteration-cap hit.
+  flatten_numeric <- function(x) suppressWarnings(as.numeric(unlist(x, recursive = TRUE, use.names = FALSE)))
+  iterations <- suppressWarnings(as.integer(fit_obj$iterations)[1L])
+  maxit <- suppressWarnings(as.integer(fit_obj$control$maxit)[1L])
+  if (!length(maxit) || !is.finite(maxit) || maxit < 1L) maxit <- 20L
+  objective <- suppressWarnings(c(as.numeric(fit_obj$logLik)[1L], as.numeric(fit_obj$deviance)[1L]))
+  coefficients <- flatten_numeric(fit_obj$coefficients)
+  fitted <- flatten_numeric(fit_obj$fitted.values)
+  objective_finite <- length(objective) == 2L && all(is.finite(objective))
+  coefficients_finite <- length(coefficients) > 0L && all(is.finite(coefficients))
+  fitted_finite <- length(fitted) > 0L && all(is.finite(fitted))
+  iteration_valid <- length(iterations) == 1L && is.finite(iterations) && iterations >= 1L
+  below_cap <- iteration_valid && iterations < maxit
+  converged <- objective_finite && coefficients_finite && fitted_finite && below_cap
+  status <- if (!objective_finite) "nonfinite_objective" else if (!coefficients_finite) "nonfinite_coefficients" else if (!fitted_finite) "nonfinite_fitted_values" else if (!iteration_valid) "missing_or_invalid_iterations" else if (!below_cap) "outer_iteration_cap_reached_or_unverified" else "finite_fit_below_outer_iteration_cap"
+  list(
+    converged = converged, status = status,
+    basis = "registered_gamlss2_rs_v1:finite_logLik_and_deviance+finite_coefficients+finite_fitted_values+iterations_below_control_maxit",
+    iterations = iterations, max_iterations = maxit, objective_finite = objective_finite,
+    coefficients_finite = coefficients_finite, fitted_values_finite = fitted_finite,
+    loglik = objective[[1L]], deviance = objective[[2L]], coefficient_count = length(coefficients),
+    coefficient_nonfinite_count = sum(!is.finite(coefficients)), fitted_count = length(fitted),
+    fitted_nonfinite_count = sum(!is.finite(fitted))
+  )
+}
+
+extract_explicit_raw_convergence <- function(fit_obj, conv, iteration_cap) {
+  flatten <- function(x) suppressWarnings(as.numeric(unlist(x, recursive = TRUE, use.names = FALSE)))
+  coefficients <- tryCatch(flatten(stats::coef(fit_obj)), error = function(e) numeric())
+  if (!length(coefficients)) coefficients <- flatten(fit_obj$par)
+  fitted <- tryCatch(flatten(stats::fitted(fit_obj)), error = function(e) numeric())
+  if (!length(fitted)) fitted <- flatten(fit_obj$fitted.values)
+  loglik <- extract_fit_metric(fit_obj, "logLik")
+  deviance <- suppressWarnings(as.numeric(fit_obj$deviance)[1L]); if (!is.finite(deviance) && is.finite(loglik)) deviance <- -2 * loglik
+  iterations <- suppressWarnings(as.integer(conv$outer_iterations)[1L])
+  indicator <- if (length(conv$converged) == 1L) isTRUE(conv$converged) else NA
+  finite_payload <- is.finite(loglik) && is.finite(deviance) && length(coefficients) > 0L && all(is.finite(coefficients)) && length(fitted) > 0L && all(is.finite(fitted))
+  status <- if (!is.finite(loglik) || !is.finite(deviance)) "nonfinite_objective" else if (!length(coefficients) || any(!is.finite(coefficients))) "nonfinite_or_missing_coefficients" else if (!length(fitted) || any(!is.finite(fitted))) "nonfinite_or_missing_fitted_values" else if (!is.finite(iterations) || iterations < 1L || !is.finite(iteration_cap) || iteration_cap < 1L) "missing_or_invalid_iterations" else if (isTRUE(conv$hit_outer_limit) || iterations >= iteration_cap) "outer_iteration_cap_reached" else if (isTRUE(conv$hit_max_stall)) "maximum_stall_reached" else if (isTRUE(conv$hit_raw_loglik_deterioration)) "raw_loglik_deterioration" else if (is.na(indicator)) "missing_explicit_convergence_indicator" else if (!indicator) "explicit_optimizer_nonconvergence" else "explicit_optimizer_convergence"
+  list(status = status, indicator = indicator, loglik = loglik, deviance = deviance,
+    coefficient_count = length(coefficients), coefficient_nonfinite_count = sum(!is.finite(coefficients)),
+    fitted_count = length(fitted), fitted_nonfinite_count = sum(!is.finite(fitted)), iterations = iterations,
+    cap = as.integer(iteration_cap), hit_outer = isTRUE(conv$hit_outer_limit), hit_stall = isTRUE(conv$hit_max_stall),
+    hit_drop = isTRUE(conv$hit_raw_loglik_deterioration), converged = finite_payload && isTRUE(indicator) &&
+      !isTRUE(conv$hit_outer_limit) && !isTRUE(conv$hit_max_stall) && !isTRUE(conv$hit_raw_loglik_deterioration) && iterations < iteration_cap)
+}
+
 bind_non_null <- function(x) {
   keep <- x[!vapply(x, is.null, logical(1))]
   if (length(keep) == 0) {
@@ -305,11 +431,97 @@ bind_non_null <- function(x) {
   do.call(rbind, keep)
 }
 
+with_preserved_seed <- function(seed, code) {
+  had_seed <- exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+  old_seed <- if (had_seed) get(".Random.seed", envir = .GlobalEnv, inherits = FALSE) else NULL
+  on.exit({
+    if (had_seed) assign(".Random.seed", old_seed, envir = .GlobalEnv)
+    else if (exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)) rm(".Random.seed", envir = .GlobalEnv)
+  }, add = TRUE)
+  set.seed(as.integer(seed))
+  force(code)
+}
+
+bcpe_seed_registry <- function(task, method = NULL) {
+  method_offset <- if (is.null(method)) 0L else c("gamlss.longitudinal" = 1L, "gamlss2" = 2L)[[method]]
+  origin <- 100000L + 10000L * as.integer(task$scenario_id) + 100L * as.integer(task$rep)
+  list(
+    training_covariate_seed = origin + 11L,
+    training_response_seed = origin + 12L,
+    test_response_seed = origin + 13L,
+    fit_seed = origin + 50L + method_offset,
+    diagnostic_seed = origin + 100L + method_offset,
+    predictive_seed = origin + 200L + method_offset
+  )
+}
+
 task_result_path <- function(task) {
   file.path(
     task_result_dir,
-    sprintf("scenario%d_n%d_d%d_rep%d.rds", task$scenario_id, task$n, task$d, task$rep)
+    sprintf("scenario%d_n%d_d%d_rep%d_%s_try%03d.rds", task$scenario_id, task$n, task$d, task$rep,
+      gsub("[^A-Za-z0-9]+", "-", task$method), as.integer(task$retry_index))
   )
+}
+
+checkpoint_result_issues <- function(result, task) {
+  if (!is.list(result) || !is.list(result$checkpoint_metadata)) return("checkpoint_metadata")
+  meta <- result$checkpoint_metadata
+  expected_identity <- c(scenario_id = as.integer(task$scenario_id), n = as.integer(task$n), d = as.integer(task$d), rep = as.integer(task$rep), retry_index = as.integer(task$retry_index))
+  if (!identical(as.integer(unlist(meta$task_identity[names(expected_identity)])), unname(expected_identity)) || !identical(as.character(meta$task_identity$method), as.character(task$method))) return("task_identity")
+  expected_meta <- c(
+    evidence_status = "post_phase1_production", copula_code = "t",
+    runner_contract_version = runner_contract_version, phase1_contract_version = phase1_contract_version,
+    runner_settings_signature = runner_settings_signature, runner_settings_sha256 = runner_settings_sha256,
+    runner_sha256 = runner_sha256, package_source_path = package_source_identity,
+    package_version = runner_package_version, package_source_sha256 = package_source_sha256
+  )
+  if (!all(vapply(names(expected_meta), function(name) identical(as.character(meta[[name]]), expected_meta[[name]]), logical(1)))) return("contract_metadata")
+  if (!is.data.frame(meta$canonical_settings) || !identical(names(meta$canonical_settings), names(bcpe_config)) ||
+      !identical(as.character(unlist(meta$canonical_settings[1, ], use.names = FALSE)), as.character(unlist(bcpe_config[1, ], use.names = FALSE)))) return("canonical_settings")
+  if (!is.data.frame(result$runs) || nrow(result$runs) != 1L || !identical(as.character(result$runs$model), as.character(task$method)) || result$runs$retry_index != task$retry_index) return("run_rows")
+  identity_ok <- with(result$runs, scenario == sprintf("n%d_d%d", task$n, task$d) & n == task$n & d == task$d & rep == task$rep)
+  metadata_ok <- result$runs$evidence_status == "post_phase1_production" & result$runs$copula_code == "t" &
+    result$runs$runner_contract_version == runner_contract_version &
+    result$runs$phase1_contract_version == phase1_contract_version &
+    result$runs$runner_settings_signature == runner_settings_signature &
+    result$runs$runner_settings_sha256 == runner_settings_sha256 &
+    result$runs$runner_sha256 == runner_sha256 &
+    result$runs$package_source_sha256 == package_source_sha256
+  seed_columns <- c("training_covariate_seed", "training_response_seed", "test_response_seed", "fit_seed", "diagnostic_seed", "predictive_seed")
+  if (!all(identity_ok) || !all(metadata_ok) || !all(seed_columns %in% names(result$runs)) || any(!is.finite(as.matrix(result$runs[seed_columns])))) return("run_metadata")
+  payload <- function(name) if (is.data.frame(result[[name]])) result[[name]] else data.frame()
+  method_payload <- function(x, method) if ("model" %in% names(x)) x[x$model == method, , drop = FALSE] else x
+  fixed <- payload("fixed"); smooth <- payload("smooth"); joint <- payload("joint"); predictive <- payload("predictive")
+  for (method in as.character(task$method)) {
+    success <- isTRUE(result$runs$success[result$runs$model == method])
+    fixed_m <- method_payload(fixed, method)
+    smooth_m <- method_payload(smooth, method)
+    joint_m <- method_payload(joint, method)
+    predictive_m <- method_payload(predictive, method)
+    if (!success) next
+    expected_smooth <- if (method == "gamlss.longitudinal") smooth_params_longitudinal else smooth_params_gamlss
+    expected_fixed_params <- if (method == "gamlss.longitudinal") params_all else params_margin
+    fixed_ok <- nrow(fixed_m) == length(expected_fixed_params) * length(fixed_terms) && setequal(paste(fixed_m$parameter, fixed_m$term), as.vector(outer(expected_fixed_params, fixed_terms, paste)))
+    smooth_ok <- nrow(smooth_m) == length(expected_smooth) * 101L && setequal(unique(smooth_m$parameter), expected_smooth)
+    diagnostic_ok <- nrow(joint_m) == 1L
+    expected_predictive <- if (isTRUE(compute_predictive_scores)) length(variogram_p_values) else 0L
+    predictive_ok <- nrow(predictive_m) == expected_predictive && (!expected_predictive || setequal(predictive_m$variogram_p, variogram_p_values))
+    substantive_ok <- (!nrow(fixed_m) || (all(is.finite(fixed_m$estimate)) && all(is.finite(fixed_m$true_value)) && !any(is.finite(fixed_m$std_error) & fixed_m$std_error < 0))) &&
+      (!nrow(smooth_m) || (all(is.finite(smooth_m$smooth_hat)) && all(is.finite(smooth_m$smooth_true)))) &&
+      (!nrow(joint_m) || all(vapply(c("logLik", "rosenblatt_ks", "rosenblatt_cvm", "abs_rosenblatt_lag1_cor", "abs_rosenblatt_normal_lag1_cor", "rosenblatt_mean_abs_time_mean", "rosenblatt_normal_mean_abs_time_mean"), function(name) name %in% names(joint_m) && all(is.finite(joint_m[[name]])), logical(1)))) &&
+      (!nrow(predictive_m) || all(vapply(c("test_log_score_joint", "test_log_score_marginal", "test_log_score_copula", "test_log_score_per_obs", "variogram_score", "predictive_nsim"), function(name) name %in% names(predictive_m) && all(is.finite(predictive_m[[name]])), logical(1))))
+    declared <- isTRUE(result$runs$descriptive_outputs_complete[result$runs$model == method])
+    if (declared && !all(fixed_ok, smooth_ok, diagnostic_ok, predictive_ok, substantive_ok)) return(paste0(method, "_declared_complete_but_incomplete"))
+  }
+  character()
+}
+
+read_task_checkpoint <- function(path, task) {
+  if (!file.exists(path)) return(NULL)
+  tryCatch({
+    result <- readRDS(path)
+    if (length(checkpoint_result_issues(result, task))) NULL else result
+  }, error = function(e) NULL)
 }
 
 run_one_rep_and_save <- function(task) {
@@ -319,10 +531,24 @@ run_one_rep_and_save <- function(task) {
   ))
   flush.console()
   result <- run_one_rep(task)
+  method <- as.character(task$method)
+  filter_method <- function(x) {
+    if (!is.data.frame(x) || !nrow(x) || !"model" %in% names(x)) return(x)
+    x <- x[x$model == method, , drop = FALSE]
+    if (nrow(x)) x$retry_index <- as.integer(task$retry_index)
+    x
+  }
+  for (name in c("fixed", "smooth", "joint", "predictive", "runs")) result[[name]] <- filter_method(result[[name]])
+  result$runs$retry_index <- as.integer(task$retry_index)
+  result$checkpoint_metadata$task_identity$method <- method
+  result$checkpoint_metadata$task_identity$retry_index <- as.integer(task$retry_index)
+  issues <- checkpoint_result_issues(result, task)
+  if (length(issues)) stop("Refusing incomplete BCPE/t checkpoint: ", paste(issues, collapse = "|"), call. = FALSE)
   final_path <- task_result_path(task)
   temporary_path <- paste0(final_path, ".", Sys.getpid(), ".tmp")
+  on.exit(if (file.exists(temporary_path)) unlink(temporary_path), add = TRUE)
   saveRDS(result, temporary_path)
-  if (file.exists(final_path)) file.remove(final_path)
+  if (file.exists(final_path)) stop("Append-only checkpoint already exists: ", final_path, call. = FALSE)
   if (!file.rename(temporary_path, final_path)) stop("Could not atomically install checkpoint: ", final_path)
   cat(sprintf(
     "[pid %s] finished scenario %d n=%d d=%d rep=%d -> %s\n",
@@ -344,34 +570,28 @@ calc_smooth_mean <- function(data_used, parameter) {
   mean(smooth_truth[[parameter]](data_sub$s1), na.rm = TRUE)
 }
 
-simulate_dataset <- function(n, d, seed) {
-  set.seed(seed)
-
-  subjects <- data.frame(
-    id = seq_len(n),
-    x1 = rnorm(n),
-    x2 = rbinom(n, size = 1, prob = 0.5),
-    s1 = runif(n, min = 0, max = 1),
-    stringsAsFactors = FALSE
-  )
-  if (theta_effect_mode == "binary") {
-    subjects$theta_group <- factor(
-      ifelse(runif(n) < theta_binary_prob, "high", "low"),
-      levels = c("low", "high")
+simulate_dataset <- function(n, d, covariate_seed, response_seed) {
+  subjects <- with_preserved_seed(covariate_seed, {
+    out <- data.frame(
+      id = seq_len(n), x1 = rnorm(n), x2 = rbinom(n, size = 1, prob = 0.5),
+      s1 = runif(n, min = 0, max = 1), stringsAsFactors = FALSE
     )
-  }
+    if (theta_effect_mode == "binary") {
+      out$theta_group <- factor(ifelse(runif(n) < theta_binary_prob, "high", "low"), levels = c("low", "high"))
+    }
+    out
+  })
 
   dat <- merge(subjects, data.frame(time_index = seq_len(d)), by = NULL, all = TRUE)
   dat <- dat[order(dat$id, dat$time_index), ]
   dat$t <- if (d > 1) (dat$time_index - 1) / (d - 1) else 0
   dat$time <- dat$time_index
 
-  simulate_response_given_covariates(dat, seed = seed)
+  simulate_response_given_covariates(dat, seed = response_seed)
 }
 
 simulate_response_given_covariates <- function(dat, seed) {
-  set.seed(seed)
-
+  with_preserved_seed(seed, {
   dat <- dat[order(dat$id, dat$time), , drop = FALSE]
   if (!"time_index" %in% names(dat)) {
     dat$time_index <- as.integer(factor(dat$time, levels = sort(unique(dat$time))))
@@ -428,6 +648,7 @@ simulate_response_given_covariates <- function(dat, seed) {
     keep_cols <- c(keep_cols, "theta_group")
   }
   dat[, keep_cols]
+  })
 }
 
 fit_longitudinal_model <- function(dat) {
@@ -636,30 +857,22 @@ extract_fixed_estimates_gamlss2 <- function(fit_obj, data_used) {
     }
   }
 
-  for (p in params_all) {
+  for (p in params_margin) {
     smooth_mean <- if (p %in% smooth_params_gamlss) calc_smooth_mean(data_used, p) else 0
     for (tm in fixed_terms) {
       true_value <- true_beta[[p]][[tm]]
       if (tm == "intercept") {
         true_value <- true_value + smooth_mean
       }
-      estimate <- if (p %in% params_margin) {
-        extract_one_gamlss_term(coef_by_param[[p]], tm)
-      } else {
-        NA_real_
-      }
-      std_error <- if (p %in% params_margin) {
-        extract_one_gamlss_term(se_by_param[[p]], tm)
-      } else {
-        NA_real_
-      }
+      estimate <- extract_one_gamlss_term(coef_by_param[[p]], tm)
+      std_error <- extract_one_gamlss_term(se_by_param[[p]], tm)
       rows[[length(rows) + 1]] <- data.frame(
         model = "gamlss2",
         parameter = p,
         term = tm,
         estimate = estimate,
         std_error = std_error,
-        true_value = if (p %in% params_margin) true_value else NA_real_,
+        true_value = true_value,
         intercept_includes_fitted_smooth_mean = FALSE,
         stringsAsFactors = FALSE
       )
@@ -872,19 +1085,19 @@ variogram_score <- function(observed_mat, simulated_array, p = 0.5) {
   mean(scores, na.rm = TRUE)
 }
 
-simulate_predictive_longitudinal <- function(fit_obj, dat, nsim) {
+simulate_predictive_longitudinal <- function(fit_obj, dat, nsim, seed) {
   dat <- dat[order(dat$id, dat$time), , drop = FALSE]
-  sim_df <- stats::simulate(fit_obj, nsim = nsim, newdata = dat)
+  sim_df <- with_preserved_seed(seed, stats::simulate(fit_obj, nsim = nsim, newdata = dat))
   simulate_array_from_columns(sim_df, dat, subject_col = "id")
 }
 
-simulate_predictive_gamlss2 <- function(fit_obj, dat, nsim) {
+simulate_predictive_gamlss2 <- function(fit_obj, dat, nsim, seed) {
   dat <- dat[order(dat$id, dat$time), , drop = FALSE]
   pred <- stats::predict(fit_obj, newdata = dat, type = "link")
   n <- length(unique(dat$id))
   d <- length(unique(dat$time))
   out <- array(NA_real_, dim = c(nsim, n, d))
-  for (s in seq_len(nsim)) {
+  with_preserved_seed(seed, for (s in seq_len(nsim)) {
     y <- gamlss.dist::qBCPE(
       stats::runif(nrow(dat)),
       mu = margin_family$mu.linkinv(pred[, "mu"]),
@@ -893,11 +1106,11 @@ simulate_predictive_gamlss2 <- function(fit_obj, dat, nsim) {
       tau = margin_family$tau.linkinv(pred[, "tau"])
     )
     out[s, , ] <- matrix(y, nrow = n, ncol = d, byrow = TRUE)
-  }
+  })
   out
 }
 
-predictive_scores_longitudinal <- function(fit_obj, test_dat, scenario_label, n_val, d_val, rep_id, nsim = predictive_nsim) {
+predictive_scores_longitudinal <- function(fit_obj, test_dat, scenario_label, n_val, d_val, rep_id, predictive_seed, nsim = predictive_nsim) {
   copula_link_fit <- get_copula_dist(fit_obj$copula_dist)$copula_link
   eta_out <- calc_eta(fit_obj$par, fit_obj$model_matrix, fit_obj$margin_dist, copula_link_fit, fit_obj$par_s)
   lik <- calc_likelihood_minimal(
@@ -910,7 +1123,7 @@ predictive_scores_longitudinal <- function(fit_obj, test_dat, scenario_label, n_
     response_margin = test_dat$time,
     response_subject = test_dat$id
   )
-  sim_array <- simulate_predictive_longitudinal(fit_obj, test_dat, nsim = nsim)
+  sim_array <- simulate_predictive_longitudinal(fit_obj, test_dat, nsim = nsim, seed = predictive_seed)
   y_obs <- response_matrix(test_dat)
   base <- data.frame(
     scenario = scenario_label,
@@ -934,7 +1147,7 @@ predictive_scores_longitudinal <- function(fit_obj, test_dat, scenario_label, n_
   }))
 }
 
-predictive_scores_gamlss2 <- function(fit_obj, test_dat, scenario_label, n_val, d_val, rep_id, nsim = predictive_nsim) {
+predictive_scores_gamlss2 <- function(fit_obj, test_dat, scenario_label, n_val, d_val, rep_id, predictive_seed, nsim = predictive_nsim) {
   test_dat <- test_dat[order(test_dat$id, test_dat$time), , drop = FALSE]
   pred <- stats::predict(fit_obj, newdata = test_dat, type = "link")
   log_d <- gamlss.dist::dBCPE(
@@ -946,7 +1159,7 @@ predictive_scores_gamlss2 <- function(fit_obj, test_dat, scenario_label, n_val, 
     log = TRUE
   )
   joint_log_score <- sum(log_d, na.rm = TRUE)
-  sim_array <- simulate_predictive_gamlss2(fit_obj, test_dat, nsim = nsim)
+  sim_array <- simulate_predictive_gamlss2(fit_obj, test_dat, nsim = nsim, seed = predictive_seed)
   y_obs <- response_matrix(test_dat)
   base <- data.frame(
     scenario = scenario_label,
@@ -1029,11 +1242,15 @@ run_one_rep <- function(task) {
   n_val <- task$n
   d_val <- task$d
   rep_id <- task$rep
+  attempt_retry <- if (!is.null(task$retry_index)) as.integer(task$retry_index) else 1L
+  methods_requested <- if (!is.null(task$method)) as.character(task$method) else c("gamlss.longitudinal", "gamlss2")
   scenario_label <- sprintf("n%d_d%d", n_val, d_val)
-  seed <- 100000 + 10000 * task$scenario_id + rep_id
+  data_seeds <- bcpe_seed_registry(task)
+  long_seeds <- bcpe_seed_registry(task, "gamlss.longitudinal")
+  gamlss2_seeds <- bcpe_seed_registry(task, "gamlss2")
   s1_grid <- seq(0, 1, length.out = 101)
 
-  dat <- simulate_dataset(n = n_val, d = d_val, seed = seed)
+  dat <- simulate_dataset(n = n_val, d = d_val, covariate_seed = data_seeds$training_covariate_seed, response_seed = data_seeds$training_response_seed)
 
   run_rows <- list()
   fixed_rows <- list()
@@ -1043,38 +1260,71 @@ run_one_rep <- function(task) {
 
   t0 <- Sys.time()
   err_long <- NA_character_
-  fit_long <- tryCatch(
-    fit_longitudinal_model(dat),
+  fit_long <- if ("gamlss.longitudinal" %in% methods_requested) tryCatch(
+    with_preserved_seed(long_seeds$fit_seed, fit_longitudinal_model(dat)),
     error = function(e) {
       err_long <<- conditionMessage(e)
       NULL
     }
-  )
+  ) else NULL
   elapsed_long <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
 
   t0 <- Sys.time()
   err_gamlss2 <- NA_character_
-  fit_gamlss2 <- tryCatch(
-    fit_gamlss2_model(dat),
+  fit_gamlss2 <- if ("gamlss2" %in% methods_requested) tryCatch(
+    with_preserved_seed(gamlss2_seeds$fit_seed, fit_gamlss2_model(dat)),
     error = function(e) {
       err_gamlss2 <<- conditionMessage(e)
       NULL
     }
-  )
+  ) else NULL
   elapsed_gamlss2 <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
 
   conv_long <- if (!is.null(fit_long)) extract_convergence_info(fit_long) else extract_convergence_info(NULL)
+  raw_long <- if (!is.null(fit_long)) extract_explicit_raw_convergence(fit_long, conv_long, max_outer_iter) else list(
+    status = "fit_execution_failed", indicator = NA, loglik = NA_real_, deviance = NA_real_, coefficient_count = 0L,
+    coefficient_nonfinite_count = 0L, fitted_count = 0L, fitted_nonfinite_count = 0L, iterations = NA_integer_,
+    cap = max_outer_iter, hit_outer = FALSE, hit_stall = FALSE, hit_drop = FALSE, converged = FALSE)
+  conv_gamlss2 <- if (!is.null(fit_gamlss2)) extract_gamlss2_convergence(fit_gamlss2) else list(
+    converged = FALSE, status = "fit_execution_failed", basis = "registered_gamlss2_rs_v1:not_evaluable",
+    iterations = NA_integer_, max_iterations = NA_integer_, objective_finite = FALSE,
+    coefficients_finite = FALSE, fitted_values_finite = FALSE, loglik = NA_real_, deviance = NA_real_,
+    coefficient_count = 0L, coefficient_nonfinite_count = 0L, fitted_count = 0L, fitted_nonfinite_count = 0L
+  )
 
   run_rows[[1]] <- data.frame(
+    evidence_status = "post_phase1_production", study_id = "bcpe_t_main_recovery",
+    margin_family = "BCPE", copula_family = "t", copula_code = "t", runner_contract_version = runner_contract_version,
+    phase1_contract_version = phase1_contract_version,
+    runner_settings_signature = runner_settings_signature,
+    runner_settings_sha256 = runner_settings_sha256, runner_sha256 = runner_sha256,
+    package_source_path = package_source_identity, package_version = runner_package_version, package_source_sha256 = package_source_sha256,
+    runtime_n_cores = n_cores, runtime_backend = "PSOCK/parLapplyLB", runtime_rscript_sha256 = rscript_sha256,
     scenario = scenario_label, n = n_val, d = d_val, rep = rep_id,
-    model = "gamlss.longitudinal", success = !is.null(fit_long),
+    target_replicates = n_fits, seed = data_seeds$training_response_seed, seed_source = "runner_metadata",
+    training_covariate_seed = data_seeds$training_covariate_seed, training_response_seed = data_seeds$training_response_seed,
+    test_response_seed = data_seeds$test_response_seed, fit_seed = long_seeds$fit_seed,
+    diagnostic_seed = long_seeds$diagnostic_seed, predictive_seed = long_seeds$predictive_seed,
+    attempted = TRUE, retry_index = attempt_retry,
+    model = "gamlss.longitudinal", success = !is.null(fit_long), execution_success = !is.null(fit_long),
+    descriptive_outputs_complete = FALSE, output_failure_reason = NA_character_,
     logLik = if (!is.null(fit_long)) extract_fit_metric(fit_long, "logLik") else NA_real_,
     df = if (!is.null(fit_long)) extract_fit_metric(fit_long, "df") else NA_real_,
-    converged = conv_long$converged,
+    converged = raw_long$converged,
+    raw_convergence_schema = "raw-convergence-2026-09-01.1", raw_convergence_api = "gamlss.longitudinal::fit_convergence",
+    raw_convergence_basis = "gamlss.longitudinal_explicit_convergence_v1", raw_convergence_status = raw_long$status,
+    raw_convergence_indicator_name = "fit$convergence$converged", raw_convergence_indicator_value = raw_long$indicator,
+    raw_convergence_loglik = raw_long$loglik, raw_convergence_deviance = raw_long$deviance,
+    raw_convergence_coefficient_count = raw_long$coefficient_count, raw_convergence_coefficient_nonfinite_count = raw_long$coefficient_nonfinite_count,
+    raw_convergence_fitted_count = raw_long$fitted_count, raw_convergence_fitted_nonfinite_count = raw_long$fitted_nonfinite_count,
+    raw_convergence_iteration_count = raw_long$iterations, raw_convergence_iteration_cap = raw_long$cap,
+    raw_convergence_hit_outer_limit = raw_long$hit_outer, raw_convergence_hit_max_stall = raw_long$hit_stall,
+    raw_convergence_hit_raw_loglik_deterioration = raw_long$hit_drop,
     hit_outer_limit = conv_long$hit_outer_limit,
     hit_max_stall = conv_long$hit_max_stall,
     hit_raw_loglik_deterioration = conv_long$hit_raw_loglik_deterioration,
     stop_reason = conv_long$stop_reason,
+    convergence_basis = "gamlss.longitudinal_explicit_convergence_object",
     grad_inf = conv_long$grad_inf,
     step_l2 = conv_long$step_l2,
     best_raw_loglik = conv_long$best_raw_loglik,
@@ -1088,22 +1338,45 @@ run_one_rep <- function(task) {
     stringsAsFactors = FALSE
   )
   run_rows[[2]] <- data.frame(
+    evidence_status = "post_phase1_production", study_id = "bcpe_t_main_recovery",
+    margin_family = "BCPE", copula_family = "t", copula_code = "t", runner_contract_version = runner_contract_version,
+    phase1_contract_version = phase1_contract_version,
+    runner_settings_signature = runner_settings_signature,
+    runner_settings_sha256 = runner_settings_sha256, runner_sha256 = runner_sha256,
+    package_source_path = package_source_identity, package_version = runner_package_version, package_source_sha256 = package_source_sha256,
+    runtime_n_cores = n_cores, runtime_backend = "PSOCK/parLapplyLB", runtime_rscript_sha256 = rscript_sha256,
     scenario = scenario_label, n = n_val, d = d_val, rep = rep_id,
-    model = "gamlss2", success = !is.null(fit_gamlss2),
+    target_replicates = n_fits, seed = data_seeds$training_response_seed, seed_source = "runner_metadata",
+    training_covariate_seed = data_seeds$training_covariate_seed, training_response_seed = data_seeds$training_response_seed,
+    test_response_seed = data_seeds$test_response_seed, fit_seed = gamlss2_seeds$fit_seed,
+    diagnostic_seed = gamlss2_seeds$diagnostic_seed, predictive_seed = gamlss2_seeds$predictive_seed,
+    attempted = TRUE, retry_index = attempt_retry,
+    model = "gamlss2", success = !is.null(fit_gamlss2), execution_success = !is.null(fit_gamlss2),
+    descriptive_outputs_complete = FALSE, output_failure_reason = NA_character_,
     logLik = if (!is.null(fit_gamlss2)) extract_fit_metric(fit_gamlss2, "logLik") else NA_real_,
     df = if (!is.null(fit_gamlss2)) extract_fit_metric(fit_gamlss2, "df") else NA_real_,
-    converged = NA,
-    hit_outer_limit = NA,
+    converged = conv_gamlss2$converged,
+    raw_convergence_schema = "raw-convergence-2026-09-01.1", raw_convergence_api = "gamlss2::RS_result",
+    raw_convergence_basis = conv_gamlss2$basis, raw_convergence_status = conv_gamlss2$status,
+    raw_convergence_indicator_name = "not_exposed_by_gamlss2", raw_convergence_indicator_value = NA,
+    raw_convergence_loglik = conv_gamlss2$loglik, raw_convergence_deviance = conv_gamlss2$deviance,
+    raw_convergence_coefficient_count = conv_gamlss2$coefficient_count, raw_convergence_coefficient_nonfinite_count = conv_gamlss2$coefficient_nonfinite_count,
+    raw_convergence_fitted_count = conv_gamlss2$fitted_count, raw_convergence_fitted_nonfinite_count = conv_gamlss2$fitted_nonfinite_count,
+    raw_convergence_iteration_count = conv_gamlss2$iterations, raw_convergence_iteration_cap = conv_gamlss2$max_iterations,
+    raw_convergence_hit_outer_limit = identical(conv_gamlss2$status, "outer_iteration_cap_reached_or_unverified"),
+    raw_convergence_hit_max_stall = FALSE, raw_convergence_hit_raw_loglik_deterioration = FALSE,
+    hit_outer_limit = identical(conv_gamlss2$status, "outer_iteration_cap_reached_or_unverified"),
     hit_max_stall = NA,
     hit_raw_loglik_deterioration = NA,
-    stop_reason = NA_character_,
+    stop_reason = conv_gamlss2$status,
+    convergence_basis = conv_gamlss2$basis,
     grad_inf = NA_real_,
     step_l2 = NA_real_,
     best_raw_loglik = NA_real_,
     best_raw_loglik_iteration = NA_integer_,
     raw_loglik_drop_from_best = NA_real_,
     raw_loglik_drop_tol = NA_real_,
-    outer_iterations = NA_integer_,
+    outer_iterations = conv_gamlss2$iterations,
     outer_log_lik_change = NA_real_,
     outer_stop_crit = NA_real_,
     elapsed_sec = elapsed_gamlss2, error = if (is.null(fit_gamlss2)) err_gamlss2 else NA_character_,
@@ -1130,14 +1403,14 @@ run_one_rep <- function(task) {
     }
 
     joint_rows[[length(joint_rows) + 1]] <- tryCatch(
-      joint_metrics_longitudinal(fit_long, dat, scenario_label, n_val, d_val, rep_id),
+      with_preserved_seed(long_seeds$diagnostic_seed, joint_metrics_longitudinal(fit_long, dat, scenario_label, n_val, d_val, rep_id)),
       error = function(e) NULL
     )
 
     if (isTRUE(compute_predictive_scores)) {
-      test_dat <- simulate_response_given_covariates(dat, seed = seed + 500000)
+      test_dat <- simulate_response_given_covariates(dat, seed = data_seeds$test_response_seed)
       predictive_rows[[length(predictive_rows) + 1]] <- tryCatch(
-        predictive_scores_longitudinal(fit_long, test_dat, scenario_label, n_val, d_val, rep_id),
+        predictive_scores_longitudinal(fit_long, test_dat, scenario_label, n_val, d_val, rep_id, long_seeds$predictive_seed),
         error = function(e) NULL
       )
     }
@@ -1163,26 +1436,74 @@ run_one_rep <- function(task) {
     }
 
     joint_rows[[length(joint_rows) + 1]] <- tryCatch(
-      joint_metrics_gamlss2(fit_gamlss2, dat, scenario_label, n_val, d_val, rep_id),
+      with_preserved_seed(gamlss2_seeds$diagnostic_seed, joint_metrics_gamlss2(fit_gamlss2, dat, scenario_label, n_val, d_val, rep_id)),
       error = function(e) NULL
     )
 
     if (isTRUE(compute_predictive_scores)) {
       if (!exists("test_dat", inherits = FALSE)) {
-        test_dat <- simulate_response_given_covariates(dat, seed = seed + 500000)
+        test_dat <- simulate_response_given_covariates(dat, seed = data_seeds$test_response_seed)
       }
       predictive_rows[[length(predictive_rows) + 1]] <- tryCatch(
-        predictive_scores_gamlss2(fit_gamlss2, test_dat, scenario_label, n_val, d_val, rep_id),
+        predictive_scores_gamlss2(fit_gamlss2, test_dat, scenario_label, n_val, d_val, rep_id, gamlss2_seeds$predictive_seed),
         error = function(e) NULL
       )
     }
   }
 
+  fixed_payload <- bind_non_null(fixed_rows)
+  smooth_payload <- bind_non_null(smooth_rows)
+  joint_payload <- bind_non_null(joint_rows)
+  predictive_payload <- bind_non_null(predictive_rows)
+  if (is.data.frame(fixed_payload) && nrow(fixed_payload)) {
+    fixed_payload$inference_status <- ifelse(is.finite(fixed_payload$std_error), "available",
+      if (isTRUE(compute_se)) "unavailable_computation_failed" else "not_requested_registered")
+    fixed_payload$inference_denominator <- as.integer(is.finite(fixed_payload$std_error))
+  }
+  add_retry <- function(x) {
+    if (is.data.frame(x) && nrow(x) && !"retry_index" %in% names(x)) x$retry_index <- attempt_retry
+    x
+  }
+  fixed_payload <- add_retry(fixed_payload); smooth_payload <- add_retry(smooth_payload)
+  joint_payload <- add_retry(joint_payload); predictive_payload <- add_retry(predictive_payload)
+  for (method in c("gamlss.longitudinal", "gamlss2")) {
+    index <- which(vapply(run_rows, function(row) identical(as.character(row$model), method), logical(1)))
+    payload_for <- function(x) if (is.data.frame(x) && nrow(x) && "model" %in% names(x)) x[x$model == method, , drop = FALSE] else data.frame()
+    fixed_m <- payload_for(fixed_payload); smooth_m <- payload_for(smooth_payload)
+    joint_m <- payload_for(joint_payload); predictive_m <- payload_for(predictive_payload)
+    expected_smooth <- if (method == "gamlss.longitudinal") smooth_params_longitudinal else smooth_params_gamlss
+    expected_fixed_params <- if (method == "gamlss.longitudinal") params_all else params_margin
+    failures <- c(
+      if (nrow(fixed_m) != length(expected_fixed_params) * length(fixed_terms) || !setequal(paste(fixed_m$parameter, fixed_m$term), as.vector(outer(expected_fixed_params, fixed_terms, paste)))) "fixed" else NULL,
+      if (nrow(smooth_m) != length(expected_smooth) * 101L || !setequal(unique(smooth_m$parameter), expected_smooth)) "smooth" else NULL,
+      if (nrow(joint_m) != 1L) "diagnostic" else NULL,
+      if (isTRUE(compute_predictive_scores) && (nrow(predictive_m) != length(variogram_p_values) || !setequal(predictive_m$variogram_p, variogram_p_values))) "predictive" else NULL,
+      if (nrow(fixed_m) && (!all(is.finite(fixed_m$estimate)) || !all(is.finite(fixed_m$true_value)) || any(is.finite(fixed_m$std_error) & fixed_m$std_error < 0))) "fixed_substantive_values" else NULL,
+      if (nrow(smooth_m) && (!all(is.finite(smooth_m$smooth_hat)) || !all(is.finite(smooth_m$smooth_true)))) "smooth_substantive_values" else NULL,
+      if (nrow(joint_m) && !all(vapply(c("logLik", "rosenblatt_ks", "rosenblatt_cvm", "abs_rosenblatt_lag1_cor", "abs_rosenblatt_normal_lag1_cor", "rosenblatt_mean_abs_time_mean", "rosenblatt_normal_mean_abs_time_mean"), function(name) name %in% names(joint_m) && all(is.finite(joint_m[[name]])), logical(1)))) "diagnostic_substantive_values" else NULL,
+      if (nrow(predictive_m) && !all(vapply(c("test_log_score_joint", "test_log_score_marginal", "test_log_score_copula", "test_log_score_per_obs", "variogram_score", "predictive_nsim"), function(name) name %in% names(predictive_m) && all(is.finite(predictive_m[[name]])), logical(1)))) "predictive_substantive_values" else NULL
+    )
+    complete <- isTRUE(run_rows[[index]]$execution_success) && !length(failures)
+    run_rows[[index]]$descriptive_outputs_complete <- complete
+    run_rows[[index]]$output_failure_reason <- if (complete) NA_character_ else if (!isTRUE(run_rows[[index]]$execution_success)) "fit_execution_failed" else paste(failures, collapse = "|")
+    run_rows[[index]]$publication_candidate <- complete && isTRUE(run_rows[[index]]$converged)
+    run_rows[[index]]$execution_completed_at_utc <- format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+  }
+
   out <- list(
-    fixed = bind_non_null(fixed_rows),
-    smooth = bind_non_null(smooth_rows),
-    joint = bind_non_null(joint_rows),
-    predictive = bind_non_null(predictive_rows),
+    checkpoint_metadata = list(
+      task_identity = list(scenario_id = as.integer(task$scenario_id), n = as.integer(n_val), d = as.integer(d_val), rep = as.integer(rep_id)),
+      evidence_status = "post_phase1_production", copula_code = "t",
+      runner_contract_version = runner_contract_version, phase1_contract_version = phase1_contract_version,
+      runner_settings_signature = runner_settings_signature, runner_settings_sha256 = runner_settings_sha256,
+      runner_sha256 = runner_sha256, package_source_path = package_source_identity,
+      package_version = runner_package_version, package_source_sha256 = package_source_sha256,
+      canonical_settings = bcpe_config
+    ),
+    fixed = fixed_payload,
+    smooth = smooth_payload,
+    joint = joint_payload,
+    predictive = predictive_payload,
     runs = do.call(rbind, run_rows)
   )
   if (isTRUE(save_fits)) {
@@ -1191,6 +1512,64 @@ run_one_rep <- function(task) {
     out$data <- dat
   }
   out
+}
+
+if (identical(Sys.getenv("BCPE_SEED_AUDIT_ONLY", unset = "0"), "1")) {
+  audit_rows <- list()
+  for (rep_id in rep_ids) {
+    task <- data.frame(scenario_id = 1L, n = scenarios$n[[1]], d = scenarios$d[[1]], rep = rep_id)
+    data_seeds <- bcpe_seed_registry(task)
+    dat <- simulate_dataset(task$n, task$d, data_seeds$training_covariate_seed, data_seeds$training_response_seed)
+    test_dat <- simulate_response_given_covariates(dat, data_seeds$test_response_seed)
+    for (method in c("gamlss.longitudinal", "gamlss2")) {
+      method_seeds <- bcpe_seed_registry(task, method)
+      audit_rows[[length(audit_rows) + 1L]] <- data.frame(
+        rep = rep_id, method = method,
+        training_covariate_seed = data_seeds$training_covariate_seed,
+        training_response_seed = data_seeds$training_response_seed,
+        test_response_seed = data_seeds$test_response_seed,
+        fit_seed = method_seeds$fit_seed, diagnostic_seed = method_seeds$diagnostic_seed, predictive_seed = method_seeds$predictive_seed,
+        covariate_checksum = sum(dat$x1 * seq_along(dat$x1)) + sum(dat$x2) + sum(dat$s1),
+        training_response_checksum = sum(dat$response * seq_along(dat$response)),
+        test_response_checksum = sum(test_dat$response * seq_along(test_dat$response)),
+        diagnostic_stream = paste(signif(with_preserved_seed(method_seeds$diagnostic_seed, runif(5)), 16), collapse = "|"),
+        predictive_stream = paste(signif(with_preserved_seed(method_seeds$predictive_seed, runif(5)), 16), collapse = "|"),
+        stringsAsFactors = FALSE
+      )
+    }
+  }
+  audit <- do.call(rbind, audit_rows)
+  audit <- audit[order(audit$rep, audit$method), ]
+  write.csv(audit, file.path(out_dir, "seed_audit.csv"), row.names = FALSE)
+  quit(save = "no", status = 0)
+}
+
+if (identical(Sys.getenv("BCPE_GAMLSS2_APPLICABILITY_AUDIT_ONLY", unset = "0"), "1")) {
+  task <- data.frame(scenario_id = 1L, n = scenarios$n[[1]], d = scenarios$d[[1]], rep = rep_ids[[1]])
+  seeds <- bcpe_seed_registry(task)
+  dat <- simulate_dataset(task$n, task$d, seeds$training_covariate_seed, seeds$training_response_seed)
+  fit <- with_preserved_seed(bcpe_seed_registry(task, "gamlss2")$fit_seed, fit_gamlss2_model(dat))
+  valid_convergence <- extract_gamlss2_convergence(fit)
+  nonfinite_fit <- fit; nonfinite_fit$logLik <- Inf
+  cap_fit <- fit; cap_fit$iterations <- suppressWarnings(as.integer(cap_fit$control$maxit)[1L])
+  convergence_audit <- rbind(
+    data.frame(case = "actual_complete_fit", as.data.frame(valid_convergence, stringsAsFactors = FALSE), publication_candidate = isTRUE(valid_convergence$converged)),
+    data.frame(case = "nonfinite_objective", as.data.frame(extract_gamlss2_convergence(nonfinite_fit), stringsAsFactors = FALSE), publication_candidate = FALSE),
+    data.frame(case = "iteration_cap", as.data.frame(extract_gamlss2_convergence(cap_fit), stringsAsFactors = FALSE), publication_candidate = FALSE)
+  )
+  if (!isTRUE(valid_convergence$converged) || valid_convergence$status != "finite_fit_below_outer_iteration_cap" ||
+      any(convergence_audit$converged[convergence_audit$case != "actual_complete_fit"])) {
+    stop("Registered gamlss2 convergence rule rejected a valid fit or accepted an invalid fit.", call. = FALSE)
+  }
+  fixed <- extract_fixed_estimates_gamlss2(fit, dat)
+  expected <- as.vector(outer(params_margin, fixed_terms, paste, sep = "\r"))
+  actual <- paste(fixed$parameter, fixed$term, sep = "\r")
+  if (nrow(fixed) != length(expected) || !setequal(actual, expected) || any(fixed$parameter %in% params_copula)) {
+    stop("Actual gamlss2 output violated the marginal-only applicability contract.", call. = FALSE)
+  }
+  write.csv(fixed, file.path(out_dir, "gamlss2_applicability_audit.csv"), row.names = FALSE)
+  write.csv(convergence_audit, file.path(out_dir, "gamlss2_convergence_audit.csv"), row.names = FALSE)
+  quit(save = "no", status = 0)
 }
 
 tasks <- do.call(
@@ -1205,19 +1584,35 @@ tasks <- do.call(
     )
   })
 )
-tasks <- split(tasks, seq_len(nrow(tasks)))
-checkpoint_results <- lapply(tasks, function(task) {
-  path <- task_result_path(task)
-  if (!file.exists(path)) return(NULL)
-  tryCatch(readRDS(path), error = function(e) NULL)
+cells <- merge(tasks, data.frame(method = c("gamlss.longitudinal", "gamlss2"), stringsAsFactors = FALSE), all = TRUE)
+checkpoint_paths <- list.files(task_result_dir, pattern = "[.]rds$", full.names = TRUE)
+checkpoint_results <- lapply(checkpoint_paths, function(path) tryCatch(readRDS(path), error = function(e) NULL))
+checkpoint_results <- Filter(function(x) {
+  if (!is.list(x) || !is.data.frame(x$runs) || nrow(x$runs) != 1L) return(FALSE)
+  row <- x$runs[1, ]
+  task <- data.frame(scenario_id = x$checkpoint_metadata$task_identity$scenario_id, n = row$n, d = row$d,
+    rep = row$rep, method = row$model, retry_index = row$retry_index, stringsAsFactors = FALSE)
+  !length(checkpoint_result_issues(x, task))
+}, checkpoint_results)
+attempt_log <- bind_non_null(lapply(checkpoint_results, `[[`, "runs"))
+pending <- lapply(seq_len(nrow(cells)), function(i) {
+  cell <- cells[i, , drop = FALSE]
+  prior <- if (is.data.frame(attempt_log) && nrow(attempt_log)) attempt_log[attempt_log$scenario == sprintf("n%d_d%d", cell$n, cell$d) & attempt_log$rep == cell$rep & attempt_log$model == cell$method, , drop = FALSE] else data.frame()
+  if (nrow(prior) && any(prior$publication_candidate %in% TRUE)) return(NULL)
+  if (nrow(prior) >= max_attempts_per_fit) return(NULL)
+  cell$retry_index <- nrow(prior) + 1L
+  cell
 })
-completed <- !vapply(checkpoint_results, is.null, logical(1))
-results <- checkpoint_results[completed]
-tasks <- tasks[!completed]
+tasks <- Filter(Negate(is.null), pending)
+if (identical(Sys.getenv("BCPE_CHECKPOINT_SCAN_ONLY", unset = "0"), "1")) {
+  cat(sprintf("BCPE checkpoint audit: files=%d valid_attempts=%d rejected=%d pending=%d cap=%d\n", length(checkpoint_paths), length(checkpoint_results), length(checkpoint_paths) - length(checkpoint_results), length(tasks), max_attempts_per_fit))
+  quit(save = "no", status = 0)
+}
+results <- checkpoint_results
 
 cat(sprintf(
   "Running %d fit replicate(s) across %d scenario(s): %d checkpoint(s) complete, %d pending, using up to %d core(s).\n",
-  length(rep_ids), nrow(scenarios), sum(completed), length(tasks), min(n_cores, max(1L, length(tasks)))
+  length(rep_ids), nrow(scenarios), length(results), length(tasks), min(n_cores, max(1L, length(tasks)))
 ))
 
 if (length(tasks) == 0L) {
@@ -1225,10 +1620,6 @@ if (length(tasks) == 0L) {
 } else if (length(tasks) == 1 || n_cores <= 1) {
   new_results <- lapply(tasks, run_one_rep_and_save)
 } else {
-  rscript_bin <- Sys.getenv(
-    "R_SCRIPT",
-    unset = file.path(R.home("bin"), if (.Platform$OS.type == "windows") "Rscript.exe" else "Rscript")
-  )
   n_workers <- min(n_cores, length(tasks))
   worker_log <- file.path(worker_log_dir, "psock-workers.log")
   cat(sprintf(
@@ -1245,7 +1636,7 @@ if (length(tasks) == 0L) {
 
   on.exit(parallel::stopCluster(cl), add = TRUE)
   parallel::clusterCall(cl, setwd, project_root)
-  worker_status <- parallel::clusterEvalQ(cl, {
+  worker_status <- parallel::clusterCall(cl, function(source_path, expected_source_sha) {
     suppressPackageStartupMessages({
       library(VineCopula)
       library(gamlss)
@@ -1253,18 +1644,28 @@ if (length(tasks) == 0L) {
       library(gamlss.dist)
       library(ggplot2)
     })
-    suppressPackageStartupMessages(library(gamlss.longitudinal))
+    if ("package:gamlss.longitudinal" %in% search()) try(detach("package:gamlss.longitudinal", unload = TRUE, character.only = TRUE), silent = TRUE)
+    if ("gamlss.longitudinal" %in% loadedNamespaces()) try(unloadNamespace("gamlss.longitudinal"), silent = TRUE)
+    suppressPackageStartupMessages(pkgload::load_all(source_path, export_all = TRUE, helpers = FALSE, quiet = TRUE))
     list2env(as.list(getNamespace("gamlss.longitudinal"), all.names = TRUE), envir = .GlobalEnv)
-    list(pid = Sys.getpid(), wd = getwd())
-  })
+    files <- c(file.path(source_path, "DESCRIPTION"), file.path(source_path, "NAMESPACE"), sort(list.files(file.path(source_path, "R"), pattern = "[.]R$", full.names = TRUE)))
+    hashes <- unname(vapply(files, digest::digest, character(1), file = TRUE, algo = "sha256", serialize = FALSE))
+    relative <- substring(normalizePath(files, winslash = "/", mustWork = TRUE), nchar(normalizePath(source_path, winslash = "/", mustWork = TRUE)) + 2L)
+    actual <- digest::digest(paste(relative, hashes, sep = "\t", collapse = "\n"), algo = "sha256", serialize = FALSE)
+    if (!identical(actual, expected_source_sha)) stop("PSOCK worker package source identity mismatch.", call. = FALSE)
+    list(pid = Sys.getpid(), wd = getwd(), package_source_path = normalizePath(source_path, winslash = "/", mustWork = TRUE), package_source_sha256 = actual)
+  }, package_source_path, package_source_sha256)
   cat("Worker setup complete:\n")
   print(worker_status)
+  worker_identity <- do.call(rbind, lapply(worker_status, function(x) as.data.frame(x, stringsAsFactors = FALSE)))
+  write.csv(worker_identity, file.path(out_dir, "worker_source_identity_audit.csv"), row.names = FALSE)
 
+  runner_environment <- environment()
   export_names <- setdiff(
-    ls(envir = .GlobalEnv),
-    c("cl", "results", "fixed_all", "smooth_all", "joint_all", "runs_all")
+    ls(envir = runner_environment, all.names = TRUE),
+    c("cl", "runner_environment", "results", "fixed_all", "smooth_all", "joint_all", "runs_all")
   )
-  parallel::clusterExport(cl, varlist = export_names, envir = .GlobalEnv)
+  parallel::clusterExport(cl, varlist = export_names, envir = runner_environment)
 
   if (isTRUE(parallel_setup_only)) {
     task_test <- parallel::parLapplyLB(cl, seq_len(n_workers), function(i) {
@@ -1302,6 +1703,17 @@ saveRDS(
   file.path(out_dir, "all_results.rds")
 )
 write.csv(runs_all, file.path(out_dir, "fit_run_log.csv"), row.names = FALSE)
+write.csv(cbind(bcpe_config, data.frame(
+  runner_settings_signature = runner_settings_signature,
+  runner_settings_sha256 = runner_settings_sha256, runner_sha256 = runner_sha256,
+  package_source_path = package_source_identity, package_version = runner_package_version, package_source_sha256 = package_source_sha256,
+  evidence_status = "post_phase1_production",
+  margin_family = "BCPE", copula_family = "t", copula_code = "t",
+  git_sha = runner_git_sha, git_state = runner_git_state,
+  r_version = R.version.string, platform = R.version$platform,
+  os = paste(Sys.info()[c("sysname", "release", "machine")], collapse = "|"),
+  stringsAsFactors = FALSE
+)), file.path(out_dir, "simulation_settings.csv"), row.names = FALSE)
 if (!is.null(fixed_all) && nrow(fixed_all) > 0) {
   write.csv(fixed_all, file.path(out_dir, "fixed_effects_by_rep.csv"), row.names = FALSE)
 }

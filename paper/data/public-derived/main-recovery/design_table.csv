@@ -1,0 +1,3 @@
+"schema_version","evidence_status","study_id","scenario_id","margin_family","copula_family","copula_code","n_subjects","n_time","target_replicates","attempted_replicates","replicate_min","replicate_max","data_seed_min","data_seed_max","seed_source","methods","attempted_method_fits"
+"2026-09-01.3","legacy_pre_phase1_reconciliation","bcpe_t_legacy_reconciliation","n500_d4","BCPE","t","t",500,4,100,100,1,100,110001,110100,"reconstructed_runner_rule_110000_plus_rep","gamlss.longitudinal|gamlss2",200
+"2026-09-01.3","legacy_pre_phase1_reconciliation","nbi_gaussian_legacy_reconciliation","n500_d4_nbi_signal2","NBI","Gaussian","N",500,4,100,100,1,100,20260530,20260629,"reconstructed_runner_rule_20260529_plus_rep","gamlss|ours_rs_joint",200

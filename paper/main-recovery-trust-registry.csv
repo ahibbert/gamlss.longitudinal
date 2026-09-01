@@ -1,0 +1,2 @@
+migration_status,retired_on,replacement,notes
+retired_no_publication_authority,2026-09-02,checkout_external_ed25519_attestation,This CSV is retained only to document migration; validators and publication gates ignore it completely.
