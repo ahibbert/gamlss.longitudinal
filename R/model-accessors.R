@@ -3,10 +3,55 @@
 #' @param object A fitted `gamlss.longitudinal` object.
 #' @param ... Additional arguments, currently unused.
 #'
-#' @return Named log-likelihood components.
+#' @return A scalar object of class `logLik` for the fitted joint likelihood.
+#'   Its `df` attribute is the joint effective degrees of freedom and its
+#'   `nobs` attribute is the total number of observed responses.
 #' @export
 logLik.gamlss.longitudinal <- function(object, ...) {
-  return(object$calc_lik_out$log_lik)
+  value <- .gl_joint_loglik(object)
+  if (!is.finite(value)) {
+    stop("The fitted object does not contain a finite joint log-likelihood.", call. = FALSE)
+  }
+  structure(
+    value,
+    class = "logLik",
+    df = .gl_model_edf(object),
+    nobs = stats::nobs(object),
+    likelihood_contract = object$likelihood_contract %||% list(objective = "ordinary")
+  )
+}
+
+#' Information criteria for fitted longitudinal GAMLSS-copula models
+#'
+#' AIC and BIC use the fitted joint likelihood, joint effective degrees of
+#' freedom, and the total number of observed responses. For
+#' `missingness = "segment"`, they describe the explicit segmented likelihood
+#' in which observations separated by gaps are independent.
+#'
+#' @param object A fitted `gamlss.longitudinal` object.
+#' @param ... Additional fitted models for `AIC()`; passed to [stats::AIC()].
+#' @param k Penalty multiplier.
+#' @return A numeric criterion, or the standard comparison table when multiple
+#'   models are supplied to `AIC()`.
+#' @export
+AIC.gamlss.longitudinal <- function(object, ..., k = 2) {
+  .gl_require_converged_fit(object, "AIC model comparison")
+  others <- list(...)
+  if (length(others)) {
+    invisible(lapply(others, .gl_require_converged_fit, operation = "AIC model comparison"))
+  }
+  NextMethod("AIC")
+}
+
+#' @rdname AIC.gamlss.longitudinal
+#' @export
+BIC.gamlss.longitudinal <- function(object, ...) {
+  .gl_require_converged_fit(object, "BIC model comparison")
+  others <- list(...)
+  if (length(others)) {
+    invisible(lapply(others, .gl_require_converged_fit, operation = "BIC model comparison"))
+  }
+  NextMethod("BIC")
 }
 
 #' Coefficients for a fitted longitudinal GAMLSS-copula model

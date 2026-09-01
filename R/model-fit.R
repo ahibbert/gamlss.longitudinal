@@ -40,14 +40,20 @@
 #'   [longitudinal_capabilities()].
 #' @param time_var Name of the time variable in `dataset`.
 #' @param subject_var Name of the subject identifier in `dataset`.
-#' @param missingness Handling of intermittent response gaps. The default,
-#'   `"error"`, stops when a subject has an unobserved scheduled visit between
-#'   observed visits and directs the user to opt in explicitly. With
+#' @param missingness Handling of unsupported response patterns. The default,
+#'   `"error"`, stops when a subject has an unobserved scheduled visit before
+#'   their first observation or between observed visits and directs the user to
+#'   opt in explicitly. The ordinary likelihood supports complete panels and
+#'   observed prefixes ending in terminal dropout. With
 #'   `"segment"`, the likelihood is evaluated within contiguous observed
-#'   segments and different segments are treated as independent. Terminal
-#'   dropout and leading unobserved visits do not require segmentation. AIC and
+#'   segments and different segments are treated as independent. The first
+#'   observed visit after leading missing visits explicitly starts a segment.
+#'   Terminal dropout does not require segmentation. AIC and
 #'   BIC remain available for segmented fits under the stated independence
-#'   assumption; numerical integration across gaps is not yet implemented.
+#'   assumption; ordinary model-Hessian inference is unavailable for this
+#'   composite objective, so use cluster-sandwich or bootstrap sensitivity
+#'   analysis. Numerical integration across gaps and a distinct delayed-entry
+#'   likelihood are not yet implemented.
 #' @param mu.formula Formula for the mu parameter of the marginal distribution
 #' @param sigma.formula Formula for the sigma parameter of the marginal distribution
 #' @param nu.formula Formula for the nu parameter of the marginal distribution
@@ -166,6 +172,15 @@
 #' the RS weighted least-squares proposal. Use `Inf` to disable.
 #'
 #' @details
+#' The ordered unique values of `time_var` define the scheduled visit order.
+#' Adjacent copula pairs link globally adjacent scheduled visits, rather than
+#' the next observed record for a subject. Numeric spacing is not used as an
+#' elapsed-time distance, so irregularly spaced values affect ordering only.
+#' Duplicate subject-time rows are rejected. Pair-level dependence covariates
+#' and parameters are evaluated at the earlier (left) scheduled row. With
+#' `missingness = "segment"`, pairs crossing an intermittent gap are omitted
+#' and the resulting observed segments contribute independently.
+#'
 #' Flat optimizer arguments are soft-deprecated for one release. New code
 #' should supply a single `optimizer_control` object. If a flat argument and
 #' the control object specify the same setting, fitting stops with an error.

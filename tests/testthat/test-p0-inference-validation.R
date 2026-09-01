@@ -17,6 +17,7 @@ test_that("inference control exposes stable profiles and records overrides", {
 
   expect_s3_class(standard, "gamlss_longitudinal_inference_control")
   expect_false(standard$check_agreement)
+  expect_identical(standard$information_eigenvalue_min, 0)
   expect_true(strict$check_agreement)
   expect_lt(strict$symmetry_tol, standard$symmetry_tol)
   expect_equal(overridden$condition_max, 123)
@@ -84,6 +85,36 @@ test_that("hard curvature boundaries are classed inference failures", {
   )
 })
 
+test_that("signed information eigenvalue threshold is registered and strict", {
+  control <- inference_control("standard")
+  expect_identical(control$information_eigenvalue_min, 0)
+
+  H_positive <- matrix(-.Machine$double.eps, 1L, 1L,
+                       dimnames = list("mu.x", "mu.x"))
+  available <- gamlss.longitudinal:::.gl_validate_hessian_inference(
+    H_positive,
+    parameter_names = "mu.x",
+    control = control,
+    gradient = list(gradient = c("mu.x" = 0), steps = 1e-4, scaled_max = 0)
+  )
+  expect_identical(available$hessian_diagnostics$status, "available")
+  expect_identical(
+    available$hessian_diagnostics$effective_thresholds$information_eigenvalue_min,
+    0
+  )
+
+  H_boundary <- matrix(0, 1L, 1L, dimnames = list("mu.x", "mu.x"))
+  expect_inference_failure(
+    gamlss.longitudinal:::.gl_validate_hessian_inference(
+      H_boundary,
+      parameter_names = "mu.x",
+      control = control,
+      gradient = list(gradient = c("mu.x" = 0), steps = 1e-4, scaled_max = 0)
+    ),
+    "information_not_positive_definite"
+  )
+})
+
 test_that("scaled conditioning and fitted-score checks are invariant to units", {
   H1 <- named_hessian(-matrix(c(4, 1, 1, 9), 2))
   D <- diag(c(100, 0.01))
@@ -125,6 +156,128 @@ test_that("high fitted score and Hessian disagreement are explicit failures", {
     gamlss.longitudinal:::.gl_validate_hessian_inference(
       H, parameter_names = colnames(H), control = strict,
       source = "analytical", reference_hessian = H * 2
+    ),
+    "hessian_method_disagreement"
+  )
+})
+
+test_that("inference validation has tested inclusive threshold boundaries", {
+  H <- named_hessian(-diag(2))
+  ctl <- inference_control("standard", condition_max = 1, gradient_tol = 0.25)
+  at_boundary <- gamlss.longitudinal:::.gl_validate_hessian_inference(
+    H,
+    parameter_names = colnames(H),
+    control = ctl,
+    gradient = list(
+      gradient = c(0.25, 0),
+      steps = c(1e-4, 1e-4),
+      scaled_max = 0.25
+    )
+  )
+  expect_identical(at_boundary$hessian_diagnostics$status, "available")
+  expect_equal(at_boundary$hessian_diagnostics$scaled_condition_number, 1)
+
+  H_condition <- named_hessian(-matrix(c(1, 0.5, 0.5, 1), 2))
+  condition_boundary <- kappa(-H_condition, exact = TRUE)
+  at_condition <- gamlss.longitudinal:::.gl_validate_hessian_inference(
+    H_condition,
+    parameter_names = colnames(H_condition),
+    control = inference_control("standard", condition_max = condition_boundary),
+    gradient = list(
+      gradient = c(0, 0), steps = c(1e-4, 1e-4), scaled_max = 0
+    )
+  )
+  expect_equal(
+    at_condition$hessian_diagnostics$scaled_condition_number,
+    condition_boundary
+  )
+  expect_inference_failure(
+    gamlss.longitudinal:::.gl_validate_hessian_inference(
+      H_condition,
+      parameter_names = colnames(H_condition),
+      control = inference_control(
+        "standard", condition_max = condition_boundary - 1e-10
+      ),
+      gradient = list(
+        gradient = c(0, 0), steps = c(1e-4, 1e-4), scaled_max = 0
+      )
+    ),
+    "information_ill_conditioned"
+  )
+
+  expect_inference_failure(
+    gamlss.longitudinal:::.gl_validate_hessian_inference(
+      H,
+      parameter_names = colnames(H),
+      control = ctl,
+      gradient = list(
+        gradient = c(0.250001, 0),
+        steps = c(1e-4, 1e-4),
+        scaled_max = 0.250001
+      )
+    ),
+    "fitted_gradient_too_large"
+  )
+  expect_inference_failure(
+    gamlss.longitudinal:::.gl_validate_hessian_inference(
+      H,
+      parameter_names = colnames(H),
+      control = ctl,
+      gradient = NULL
+    ),
+    "fitted_gradient_not_checked"
+  )
+})
+
+test_that("symmetry, rank, and Hessian-agreement boundaries are inclusive", {
+  gradient <- list(gradient = c(0, 0), steps = c(1e-4, 1e-4), scaled_max = 0)
+
+  symmetry_tol <- 0.01
+  H_at_symmetry <- named_hessian(matrix(c(-1, 0, symmetry_tol, -1), 2))
+  at_symmetry <- gamlss.longitudinal:::.gl_validate_hessian_inference(
+    H_at_symmetry, parameter_names = colnames(H_at_symmetry), gradient = gradient,
+    control = inference_control("standard", symmetry_tol = symmetry_tol)
+  )
+  expect_equal(at_symmetry$hessian_diagnostics$relative_symmetry_error, symmetry_tol)
+  expect_inference_failure(
+    gamlss.longitudinal:::.gl_validate_hessian_inference(
+      named_hessian(matrix(c(-1, 0, symmetry_tol + 1e-6, -1), 2)),
+      parameter_names = colnames(H_at_symmetry), gradient = gradient,
+      control = inference_control("standard", symmetry_tol = symmetry_tol)
+    ),
+    "hessian_asymmetric"
+  )
+
+  H_rank <- named_hessian(-matrix(c(1, 0.5, 0.5, 1), 2))
+  at_rank <- gamlss.longitudinal:::.gl_validate_hessian_inference(
+    H_rank, parameter_names = colnames(H_rank), gradient = gradient,
+    control = inference_control("standard", rank_tol = 0.6, condition_max = 10)
+  )
+  expect_identical(at_rank$hessian_diagnostics$numerical_rank, 2L)
+  expect_inference_failure(
+    gamlss.longitudinal:::.gl_validate_hessian_inference(
+      H_rank, parameter_names = colnames(H_rank), gradient = gradient,
+      control = inference_control("standard", rank_tol = 0.600001, condition_max = 10)
+    ),
+    "information_rank_deficient"
+  )
+
+  agreement_tol <- 0.25
+  H <- named_hessian(-diag(2))
+  at_agreement <- gamlss.longitudinal:::.gl_validate_hessian_inference(
+    H, parameter_names = colnames(H), gradient = gradient,
+    source = "analytical", reference_hessian = H * (1 + agreement_tol),
+    control = inference_control("strict", agreement_tol = agreement_tol)
+  )
+  expect_equal(
+    at_agreement$hessian_diagnostics$hessian_agreement_relative,
+    agreement_tol
+  )
+  expect_inference_failure(
+    gamlss.longitudinal:::.gl_validate_hessian_inference(
+      H, parameter_names = colnames(H), gradient = gradient,
+      source = "analytical", reference_hessian = H * (1 + agreement_tol + 1e-6),
+      control = inference_control("strict", agreement_tol = agreement_tol)
     ),
     "hessian_method_disagreement"
   )

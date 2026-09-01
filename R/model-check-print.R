@@ -31,9 +31,9 @@ print.gamlss_longitudinal_check <- function(x, digits = max(3, getOption("digits
 
     print(basic_display, row.names = FALSE, right = FALSE)
 
-    cat("\nResult: ", toupper(x$basic_checks_result), "\n", sep = "")
+    cat("\nSummary: ", x$diagnostic_summary, "\n", sep = "")
 
-    cat("Note: these are basic automated checks; broader model diagnostics should also be reviewed.\n")
+    cat("Note: calibration and dependence rows are descriptive; they are not package pass/fail verdicts.\n")
   }
 
   section("Scores")
@@ -54,7 +54,7 @@ print.gamlss_longitudinal_check <- function(x, digits = max(3, getOption("digits
 
   print(x$residual_dependence, digits = digits, row.names = FALSE)
 
-  cat("\nUse check$checks for thresholds and check$warnings for failed-check details.\n")
+  cat("\nUse check$checks for interpretation and check$flags for convergence or user-threshold review items.\n")
 
   invisible(x)
 }

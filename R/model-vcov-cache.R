@@ -1,6 +1,9 @@
 #' Check whether a fitted object can reuse its stored vcov output
 #'
 #' @noRd
+.gl_vcov_cache_version <- function() 1L
+
+#' @noRd
 .can_use_cached_vcov <- function(object, numderiv = FALSE, method = NULL, extra_args = list()) {
   if (!inherits(object, "gamlss.longitudinal")) {
     return(FALSE)
@@ -15,6 +18,10 @@
   }
 
   if (is.null(object$vcov) || !is.list(object$vcov)) {
+    return(FALSE)
+  }
+
+  if (!identical(object$vcov_meta$cache_version, .gl_vcov_cache_version())) {
     return(FALSE)
   }
 
@@ -65,6 +72,6 @@
 
   do.call(
     vcov.gamlss.longitudinal,
-    c(list(object = object, numderiv = numderiv), extra_args)
+    c(list(object = object, numderiv = numderiv, details = TRUE), extra_args)
   )
 }

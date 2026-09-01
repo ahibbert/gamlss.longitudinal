@@ -21,7 +21,7 @@ We provide an example review of key diagnostics for an example dataset as a part
 
 In general we suggest the following checks for any model:
 
-- `check_model(fit)` provides a basic set of numerical checks on the marginal and dependence fit with a simple pass/fail output and is a good starting point for review
+- `check_model(fit)` provides descriptive numerical summaries of the marginal and dependence fit and is a good starting point for review
 - `summary(fit)` naturally is an important starting point for reviewing fit likelihood, coefficients and their significance to them model
 - `plot_terms(fit)` provides a visual assessment of the fitted model coefficients and their confidence intervals
 - `plot(fit)` provides a faceted plot of visual marginal fit diagnostics
@@ -30,23 +30,17 @@ In general we suggest the following checks for any model:
 
 ## Basic checks
 
-We provide a brief automated model assessment using `check_model()` and return a compact set of basic check statuses. Check model is reasonably minimal and should be used alongside other diagnostics; the checks that flag are:
+We provide a brief diagnostic summary using `check_model()`. It is deliberately descriptive and should be used alongside graphical diagnostics and subject-matter review. The package does not convert PIT or tail summaries into pass/fail decisions.
 
-| Area | Quantity checked | Threshold / condition | Overall result |
+| Area | Quantity reported | Default interpretation | Status |
 |---|---|---|---|
-| Convergence | Model convergence based on `fit$convergence$converged` | Not `TRUE`| `basic_checks=FAIL` |
-| Marginal fit | PIT Kolmogorov-Smirnov p-value vs Uniform(0, 1) | `ks_p_value < 0.05` | `basic_checks=FAIL`|
-| Tail fit | Maximum of lower/upper PIT tail ratios across thresholds `0.05` and `0.10` | `max(lower_ratio, upper_ratio) > 2` | `basic_checks=FAIL` |
-| Copula fit | Absolute lag-1 Rosenblatt normal-score residual correlation after fitted copula | `abs(lag1_cor) > 0.25` | `basic_checks=FAIL` |
-| Variance calculation | Variance-covariance method from summary | `vcov_method == "numderiv"` | `basic_checks=REVIEW` |
+| Convergence | Fitted-object convergence contract | Required before inference | `converged` or `not_converged` |
+| Marginal fit | PIT KS summary | Descriptive; inspect PIT/QQ/worm/rootogram plots | `descriptive` |
+| Tail fit | Lower/upper PIT tail ratios | Descriptive; interpret in context | `descriptive` |
+| Copula fit | Rosenblatt residual correlation by requested lag | Descriptive by default | `descriptive` |
+| Variance calculation | Variance-covariance method provenance | Report the inference contract | `recorded`, `review`, or `not_computed` |
 
-Check model will return check_model$basic_checks as:
-
-- "failed" if any `FAIL`;
-- "review" if no `FAIL` but at least one `REVIEW`;
-- "passed" if all rows are `PASS`.
-
-Note that a `PASS` result from `check_model` doesn't indicate a good model fit, just that there aren't any major, easy-to-test-numerically issues with the overall shape of the model fit for the margin or the dependence.
+For discrete margins, `check_model()` uses randomized PIT values with a recorded seed and preserves the caller's random-number state. Dependence lags without usable pairs are retained with an explicit `scope_status`. A user may supply `dependence_cor_cutoff`, but any resulting `flagged` status is a user-defined review flag, not a formal test or a package verdict.
 
 ```{r check}
 check <- check_model(fit)
@@ -54,8 +48,8 @@ check <- check_model(fit)
 check
 check$basic_checks
 check$checks
-check$basic_checks_result
-check$warnings
+check$diagnostic_summary
+check$flags
 ```
 
 ## Marginal distribution checks

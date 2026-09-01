@@ -85,6 +85,79 @@ test_that("DEL Clayton likelihood uses exact rectangle probabilities", {
   expect_equal(as.numeric(lik$log_lik["joint"]), sum(log(pmax(rect, 1e-300))), tolerance = 1e-8)
 })
 
+test_that("Gaussian independence keeps extreme discrete likelihoods finite", {
+  skip_if_not_installed("gamlss.dist")
+  suppressPackageStartupMessages(library(gamlss.dist))
+
+  response <- c(50, 50)
+  time <- 1:2
+  subject <- c(1, 1)
+  mm <- list(
+    mu = data.frame(intercept = c(1, 1)),
+    theta = data.frame(intercept = 1)
+  )
+  pair_cache <- gamlss.longitudinal:::build_copula_pair_cache(response, time, subject)
+
+  lik <- gamlss.longitudinal:::calc_likelihood_minimal(
+    eta_inv = list(mu = c(1, 1), theta = 0),
+    mm = mm,
+    margin_dist = gamlss.dist::PO(),
+    copula_dist = "N",
+    response = response,
+    response_margin = time,
+    response_subject = subject,
+    pair_cache = pair_cache
+  )
+
+  oracle <- sum(stats::dpois(response, lambda = 1, log = TRUE))
+  expect_true(is.finite(lik$log_lik[["joint"]]))
+  expect_equal(unname(lik$log_lik[["joint"]]), oracle, tolerance = 1e-12)
+  expect_equal(lik$copula_log_d, 0)
+  expect_equal(lik$copula_d, 1)
+  expect_identical(unname(lik$contribution_counts[["marginal_included"]]), 2L)
+  expect_identical(unname(lik$contribution_counts[["pair_included"]]), 1L)
+  expect_true(lik$valid)
+})
+
+test_that("dependent Gaussian tail rectangles match a direct bivariate-normal oracle", {
+  skip_if_not_installed("gamlss.dist")
+  skip_if_not_installed("mvtnorm")
+  suppressPackageStartupMessages(library(gamlss.dist))
+
+  response <- c(15, 15)
+  rho <- 0.4
+  pair_cache <- gamlss.longitudinal:::build_copula_pair_cache(
+    response, 1:2, c(1, 1)
+  )
+  lik <- gamlss.longitudinal:::calc_likelihood_minimal(
+    eta_inv = list(mu = c(1, 1), theta = rho),
+    mm = list(
+      mu = data.frame(intercept = c(1, 1)),
+      theta = data.frame(intercept = 1)
+    ),
+    margin_dist = gamlss.dist::PO(),
+    copula_dist = "N",
+    response = response,
+    response_margin = 1:2,
+    response_subject = c(1, 1),
+    pair_cache = pair_cache
+  )
+
+  log_survival_upper <- stats::ppois(15, 1, lower.tail = FALSE, log.p = TRUE)
+  log_survival_lower <- stats::ppois(14, 1, lower.tail = FALSE, log.p = TRUE)
+  z_upper <- stats::qnorm(log_survival_upper, lower.tail = FALSE, log.p = TRUE)
+  z_lower <- stats::qnorm(log_survival_lower, lower.tail = FALSE, log.p = TRUE)
+  oracle_mass <- as.numeric(mvtnorm::pmvnorm(
+    lower = c(z_lower, z_lower),
+    upper = c(z_upper, z_upper),
+    corr = matrix(c(1, rho, rho, 1), 2, 2)
+  ))
+
+  expect_true(is.finite(lik$log_lik[["joint"]]))
+  expect_equal(unname(lik$log_lik[["joint"]]), log(oracle_mass), tolerance = 1e-5)
+  expect_true(lik$valid)
+})
+
 test_that("discrete rectangle analytical scores match finite differences", {
   skip_if_not_installed("gamlss.dist")
   suppressPackageStartupMessages(library(gamlss.dist))

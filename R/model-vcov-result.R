@@ -24,3 +24,32 @@
   )
   .gl_enrich_vcov_contract(out, object)
 }
+
+#' Format detailed covariance output for the standard `vcov()` interface
+#'
+#' @noRd
+.gl_vcov_format_result <- function(details, return_details = FALSE) {
+  if (isTRUE(return_details)) {
+    return(details)
+  }
+  out <- details$vcov$overall
+  attr(out, "gamlss_longitudinal_details") <- details
+  attr(out, "method") <- details$method %||% NA_character_
+  attr(out, "method_requested") <- details$method_requested %||% NA_character_
+  attr(out, "hessian_diagnostics") <- details$hessian_diagnostics %||% NULL
+  attr(out, "inference_contract") <- details$inference_contract %||%
+    attr(details$vcov$overall, "inference_contract")
+  class(out) <- unique(c("gamlss_longitudinal_vcov", class(out)))
+  out
+}
+
+#' Backward-compatible access to detailed covariance components
+#'
+#' @param x A matrix returned by `vcov.gamlss.longitudinal()`.
+#' @param name Detailed component name.
+#' @return The requested detailed component.
+#' @export
+`$.gamlss_longitudinal_vcov` <- function(x, name) {
+  details <- attr(x, "gamlss_longitudinal_details", exact = TRUE)
+  details[[name]]
+}
