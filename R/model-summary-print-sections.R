@@ -28,7 +28,12 @@
 #' @return Invisibly returns `fit`.
 #' @noRd
 .gl_print_summary_model_selection <- function(fit, digits) {
-  cat("\nModel Selection Criteria:\n")
+  heading <- if (identical(fit$criteria_status, "provisional_nonconverged")) {
+    "Model Selection Criteria (PROVISIONAL; nonconverged fit):"
+  } else {
+    "Model Selection Criteria:"
+  }
+  cat("\n", heading, "\n", sep = "")
   cat("--------------------\n")
   if (!is.null(fit$model_selection)) {
     print(round(fit$model_selection, digits))

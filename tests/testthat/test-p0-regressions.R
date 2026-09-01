@@ -122,9 +122,13 @@ test_that("T004b warm-start convergence warnings do not escape final converged f
   })
 
   expect_true(isTRUE(fit$convergence$converged))
-  expect_false(any(grepl("Model stopped at max_outer_iter", escaped_warnings, fixed = TRUE)))
+  expect_false(any(grepl(
+    "Model returned without satisfying the optimizer convergence contract",
+    escaped_warnings,
+    fixed = TRUE
+  )))
   expect_true(any(grepl(
-    "Model stopped at max_outer_iter",
+    "stop reason: max_iterations",
     fit$warm_start_joint$captured_warnings,
     fixed = TRUE
   )))
@@ -145,25 +149,25 @@ test_that("T005 baseline fit fingerprint stays stable with use_backtracking FALS
   )
 
   expected_par <- c(
-    "theta.intercept" = 1.54578346770453,
-    "theta.time_covariatet2" = 0.0197054581248683,
-    "sigma.intercept" = -1.75640640984722,
-    "sigma.time_covariatet2" = 0.0480181791101031,
-    "sigma.time_covariatet3" = -0.129516565774706,
-    "sigma.genderM" = -0.0395172530114576,
-    "mu.intercept" = 2.07667100817415,
-    "mu.time_covariatet2" = 0.0677478953258934,
-    "mu.time_covariatet3" = 0.402764578386612,
-    "mu.genderM" = 0.666986768172987,
-    "mu.age" = 0.00474355030623712,
-    "mu.time_covariatet2:genderM" = 0.353837664435666,
-    "mu.time_covariatet3:genderM" = 0.510347291657982
+    "theta.intercept" = 1.52432081401975,
+    "theta.time_covariatet2" = -0.137026522361319,
+    "sigma.intercept" = -2.0701396400213,
+    "sigma.time_covariatet2" = -0.0395820535922465,
+    "sigma.time_covariatet3" = 0.0339199214749465,
+    "sigma.genderM" = 0.197718129854906,
+    "mu.intercept" = 1.76625280226093,
+    "mu.time_covariatet2" = 0.264278685913664,
+    "mu.time_covariatet3" = 0.501336192479701,
+    "mu.genderM" = 0.713406173253638,
+    "mu.age" = 0.00989723440416187,
+    "mu.time_covariatet2:genderM" = 0.181226838909403,
+    "mu.time_covariatet3:genderM" = 0.597042016726706
   )
 
   expected_loglik <- c(
-    "marginal" = 18.9898656945639,
-    "copula" = -210.533686658939,
-    "joint" = -191.543820964375
+    "marginal" = 40.7567885070402,
+    "copula" = -193.140969909835,
+    "joint" = -152.384181402795
   )
 
   expect_identical(names(fit$par), names(expected_par))
@@ -188,25 +192,25 @@ test_that("T006 baseline fit fingerprint stays stable with use_backtracking TRUE
   )
 
   expected_par <- c(
-    "theta.intercept" = 1.31117942359909,
-    "theta.time_covariatet2" = -0.121173989509146,
-    "sigma.intercept" = -0.585801217424111,
-    "sigma.time_covariatet2" = -0.147767622745633,
-    "sigma.time_covariatet3" = 0.218013053439918,
-    "sigma.genderM" = 0.147337617843285,
-    "mu.intercept" = 2.93636674301033,
-    "mu.time_covariatet2" = -4.97969501316779e-17,
-    "mu.time_covariatet3" = -6.51741497346979e-16,
-    "mu.genderM" = 6.55850753674967e-16,
-    "mu.age" = -3.89801216142305e-18,
-    "mu.time_covariatet2:genderM" = 2.76394519732804e-16,
-    "mu.time_covariatet3:genderM" = 8.20947302630695e-16
+    "theta.intercept" = 0.779286043708592,
+    "theta.time_covariatet2" = 0.141012935738407,
+    "sigma.intercept" = -1.16217675162619,
+    "sigma.time_covariatet2" = -0.150525886015387,
+    "sigma.time_covariatet3" = 0.224941716928655,
+    "sigma.genderM" = 0.141584174367881,
+    "mu.intercept" = 2.26606264132697,
+    "mu.time_covariatet2" = 0.109926147535223,
+    "mu.time_covariatet3" = 0.427381728677277,
+    "mu.genderM" = 0.819973822728021,
+    "mu.age" = 0.00244574299863918,
+    "mu.time_covariatet2:genderM" = 0.118681177183672,
+    "mu.time_covariatet3:genderM" = 0.182488704562899
   )
 
   expected_loglik <- c(
-    "marginal" = -66.4886588595176,
-    "copula" = 16.0021762532036,
-    "joint" = -50.486482606314
+    "marginal" = -5.2728691724679,
+    "copula" = 3.79673322608529,
+    "joint" = -1.47613594638261
   )
 
   expect_identical(names(fit$par), names(expected_par))

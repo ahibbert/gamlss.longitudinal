@@ -58,17 +58,19 @@ test_that("outer negative streak helper increments and resets", {
   )
 })
 
-test_that("outer negative streak helper preserves threshold warning and stop", {
-  expect_warning(
-    expect_error(
-      gamlss.longitudinal:::.gl_update_outer_negative_streak(
-        outer_log_lik_change = -0.1,
-        outer_negative_streak = 2L,
-        max_negative_outer_streak = 3L
-      ),
-      "Optimization stopped after 3 consecutive negative outer log-likelihood changes",
-      fixed = TRUE
+test_that("outer negative streak helper returns a stable classed failure", {
+  err <- tryCatch(
+    gamlss.longitudinal:::.gl_update_outer_negative_streak(
+      outer_log_lik_change = -0.1,
+      outer_negative_streak = 2L,
+      max_negative_outer_streak = 3L
     ),
+    error = identity
+  )
+  expect_s3_class(err, "gamlss.longitudinal_objective_deterioration_error")
+  expect_identical(err$stop_reason, "objective_deterioration")
+  expect_match(
+    conditionMessage(err),
     "Optimization stopped after 3 consecutive negative outer log-likelihood changes",
     fixed = TRUE
   )
@@ -172,7 +174,7 @@ test_that("RS inner-loop continuation helper preserves first-run and tolerance l
     first_inner_run = TRUE,
     change_log_lik = 1,
     inner_stop_crit = 0.1,
-    inner_run_counter = 5L,
+    inner_run_counter = 6L,
     max_inner_iter = 5L
   ))
 })
@@ -206,7 +208,7 @@ test_that("RS outer-loop continuation helper preserves first-run and tolerance l
     first_outer_run = TRUE,
     outer_log_lik_change = 1,
     outer_stop_crit = 0.1,
-    outer_only_run_counter = 5L,
+    outer_only_run_counter = 6L,
     max_outer_iter = 5L
   ))
 })

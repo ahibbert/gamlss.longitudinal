@@ -17,30 +17,18 @@ make_warm_start_args <- function(...) {
     tau.formula = ~ 1,
     theta.formula = ~ 1,
     zeta.formula = ~ 1,
-    inner_stop_crit = 1e-6,
-    outer_stop_crit = 1e-6,
-    start_step_size = 0.5,
-    step_adjustment = 1,
-    max_steps = 5L,
+    optimizer_control = gamlss_longitudinal_control(
+      outer_tol = 1e-6,
+      rs = list(
+        inner_tol = 1e-6,
+        start_step_size = 0.5,
+        step_adjustment = 1,
+        max_steps = 5L,
+        max_inner_iter = 3L,
+        max_negative_outer_streak = 10L
+      )
+    ),
     true_val = NA,
-    max_inner_iter = 3L,
-    max_negative_outer_streak = 10L,
-    max_elapsed_sec = Inf,
-    use_backtracking = TRUE,
-    backtracking_max_halves = 50L,
-    cg_max_stall = 5L,
-    cg_max_delta = 0.5,
-    cg_armijo_c1 = 1e-4,
-    cg_grad_tol = NA,
-    cg_step_tol = NA,
-    cg_update_lambda = TRUE,
-    cg_lambda_update_every = 10L,
-    cg_line_search = "best",
-    cg_max_line_search_evals = Inf,
-    cg_gradient_method = "forward",
-    discrete_score_method = "analytical",
-    cg_zeta_hessian = "analytical",
-    cg_hessian_method = "analytical",
     vcov_method = "analytical",
     vcov_numderiv = FALSE,
     use_Rcpp = FALSE,
@@ -128,9 +116,9 @@ test_that("warm-start helper captures fit output warnings and starts", {
 
   expect_false(fit_args$include_dlcopdpar)
   expect_false(fit_args$check_dlcopdpar_gradient)
-  expect_false(fit_args$warm_start_joint)
-  expect_equal(fit_args$warm_start_joint_iter, 0L)
-  expect_equal(fit_args$max_outer_iter, 2L)
+  expect_false(fit_args$optimizer_control$rs$warm_start_joint)
+  expect_equal(fit_args$optimizer_control$rs$warm_start_joint_iter, 0L)
+  expect_equal(fit_args$optimizer_control$shared$max_outer_iter, 2L)
   expect_false(fit_args$compute_vcov)
 })
 
@@ -182,9 +170,9 @@ test_that("warm-start fit-call helper captures output warnings and cold-start ar
   expect_null(out$error)
   expect_false(fit_args$include_dlcopdpar)
   expect_false(fit_args$check_dlcopdpar_gradient)
-  expect_false(fit_args$warm_start_joint)
-  expect_equal(fit_args$warm_start_joint_iter, 0L)
-  expect_equal(fit_args$max_outer_iter, 2L)
+  expect_false(fit_args$optimizer_control$rs$warm_start_joint)
+  expect_equal(fit_args$optimizer_control$rs$warm_start_joint_iter, 0L)
+  expect_equal(fit_args$optimizer_control$shared$max_outer_iter, 2L)
   expect_false(fit_args$compute_vcov)
 })
 

@@ -30,6 +30,15 @@ test_that("fit entrypoint sequences public fit phases and preserves original fit
   fit_workflow <- list(workflow = TRUE)
   optimizer_state <- list(optimizer = TRUE)
   final_fit <- list(class = "gamlss.longitudinal", result = TRUE)
+  optimizer_control <- gamlss_longitudinal_control(
+    max_outer_iter = 10L,
+    max_elapsed_sec = 30,
+    rs = list(
+      max_inner_iter = 20L,
+      max_negative_outer_streak = 3L,
+      backtracking_max_halves = 7L
+    )
+  )
 
   out <- gamlss.longitudinal:::.gl_run_gamlss_longitudinal_entrypoint(
     dataset = data.frame(y = 1, id = 1, t = 1),
@@ -45,47 +54,18 @@ test_that("fit entrypoint sequences public fit phases and preserves original fit
     zeta.formula = ~ 1,
     include_dlcopdpar = TRUE,
     check_dlcopdpar_gradient = FALSE,
-    inner_stop_crit = NA,
-    outer_stop_crit = NA,
-    start_step_size = 0.5,
-    step_adjustment = NA,
-    max_steps = 5L,
     start_from = NA,
-    warm_start_joint = TRUE,
-    warm_start_joint_iter = 5L,
     verbose = 0,
     plot_results = FALSE,
     true_val = NA,
     method = "RS",
-    max_outer_iter = 10L,
-    max_inner_iter = 20L,
-    max_negative_outer_streak = 3L,
-    max_elapsed_sec = 30,
-    use_backtracking = TRUE,
-    backtracking_max_halves = 7L,
-    cg_max_stall = 5L,
-    cg_max_delta = 0.25,
-    cg_armijo_c1 = 1e-4,
-    cg_grad_tol = NA,
-    cg_step_tol = NA,
-    cg_update_lambda = TRUE,
-    cg_lambda_update_every = 4L,
-    cg_max_lambda_updates = 2L,
-    cg_raw_loglik_drop_tol = 10,
-    cg_line_search = "best",
-    cg_max_line_search_evals = 6L,
-    cg_gradient_method = "forward",
-    discrete_score_method = "analytical",
-    cg_zeta_hessian = "analytical",
-    cg_hessian_method = "analytical",
+    optimizer_control = optimizer_control,
     compute_vcov = TRUE,
     vcov_method = "analytical",
     vcov_numderiv = FALSE,
     use_Rcpp = FALSE,
     lambda_start = NA,
     lambda_penalty_K = 2,
-    rs_update_lambda = TRUE,
-    rs_smooth_trust_radius = Inf,
     time_fn = function() {
       record("time")
       fit_time
@@ -95,6 +75,7 @@ test_that("fit entrypoint sequences public fit phases and preserves original fit
       captured$margin_input <<- margin_dist
       "NO-normalized"
     },
+    capability_preflight_fn = function(...) NULL,
     budget_checker_fn = function(fit_start_time, max_elapsed_sec) {
       record("budget")
       captured$budget <<- list(
@@ -125,12 +106,12 @@ test_that("fit entrypoint sequences public fit phases and preserves original fit
   expect_equal(captured$budget$fit_start_time, fit_time)
   expect_equal(captured$budget$max_elapsed_sec, 30)
   expect_equal(captured$workflow$margin_dist, "NO-normalized")
-  expect_equal(captured$workflow$max_inner_iter, 20L)
-  expect_equal(captured$workflow$cg_line_search, "best")
+  expect_identical(captured$workflow$optimizer_control, optimizer_control)
+  expect_equal(captured$workflow$optimizer_control$rs$max_inner_iter, 20L)
+  expect_equal(captured$workflow$optimizer_control$cg$line_search, "best")
   expect_equal(captured$optimizer$fit_workflow, fit_workflow)
   expect_equal(captured$optimizer$check_elapsed_budget, budget_checker)
-  expect_equal(captured$optimizer$max_outer_iter, 10L)
-  expect_equal(captured$optimizer$rs_update_lambda, TRUE)
+  expect_false("max_outer_iter" %in% names(captured$optimizer))
   expect_equal(captured$finalize$optimizer_state, optimizer_state)
   expect_equal(captured$finalize$fit_start_time, fit_time)
   expect_equal(captured$finalize$original_formulas$mu, y ~ x)

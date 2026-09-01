@@ -295,6 +295,37 @@ test_that("joint distribution finalizer ranks successes and preserves fit orderi
   expect_equal(attr(out, "fits"), list("fit-N", "fit-C", "fit-t"))
 })
 
+test_that("joint distribution finalizer retains but never selects nonconverged candidates", {
+  margin_selection <- data.frame(family = "NO", stringsAsFactors = FALSE)
+  rows <- list(
+    data.frame(
+      margin_family = "NO", copula_family = "C", logLik = -8, AIC = 20,
+      BIC = 25, EDF = 2, converged = FALSE, stop_reason = "max_iterations",
+      hit_outer_limit = TRUE, elapsed_sec = 1, warnings = "", error = NA_character_
+    ),
+    data.frame(
+      margin_family = "NO", copula_family = "N", logLik = -10, AIC = 24,
+      BIC = 29, EDF = 2, converged = TRUE, stop_reason = "converged",
+      hit_outer_limit = FALSE, elapsed_sec = 1, warnings = "", error = NA_character_
+    )
+  )
+  out <- gamlss.longitudinal:::.joint_selection_finalize_result(
+    rows = rows, fit_store = list("nonconverged", "converged"), n_pairs = 8L,
+    criterion = "AIC", margin_selection = margin_selection,
+    time_intercepts = FALSE, time_var = "time", copula_time_intercepts = FALSE,
+    keep_fits = TRUE
+  )
+
+  expect_equal(out$copula_family, c("N", "C"))
+  expect_equal(out$rank, c(1L, NA_integer_))
+  expect_equal(out$selection_eligible, c(TRUE, FALSE))
+  expect_equal(out$stop_reason, c("converged", "max_iterations"))
+  expect_equal(out$delta_AIC, c(0, NA_real_))
+  expect_equal(attr(out, "selected"), "NO+N")
+  expect_equal(best_fit(out)$copula_family, "N")
+  expect_equal(attr(out, "fits"), list("converged", "nonconverged"))
+})
+
 test_that("select_joint_distribution retains failures and includes t candidates", {
   skip_if_not_installed("gamlss")
 

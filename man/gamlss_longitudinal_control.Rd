@@ -19,8 +19,10 @@ data-adaptive default.}
 
 \item{max_outer_iter}{Maximum number of outer optimizer iterations.}
 
-\item{max_elapsed_sec}{Maximum elapsed fitting time in seconds; \code{Inf} means
-no time limit.}
+\item{max_elapsed_sec}{Positive optimizer time budget in seconds; \code{Inf} means
+no time limit. The budget is checked at RS or CG iteration boundaries and
+aborts with a classed error when exceeded. It is not a deadline for
+post-optimizer finalization, and no partial fitted object is returned.}
 
 \item{stop_on_convergence}{If \code{TRUE}, stop as soon as the method's convergence
 contract is satisfied. If \code{FALSE}, continue to a safeguard or iteration
@@ -51,6 +53,46 @@ CG controls are \code{max_stall}, \code{max_delta}, \code{armijo_c1}, \code{grad
 \code{backtracking_max_halves}. \code{grad_tol} is an optimizer stopping tolerance and
 is distinct from \code{inference_control(gradient_tol = ...)}, which validates
 post-fit curvature.
+
+Shared defaults are \code{outer_tol = NA} (data-adaptive),
+\code{max_outer_iter = 100}, \code{max_elapsed_sec = Inf}, and
+\code{stop_on_convergence = TRUE}. Tolerances must be positive finite numbers or
+\code{NA} where an automatic value is documented; iteration counts are positive
+integers. The elapsed budget must be positive or \code{Inf}.
+
+RS defaults are \code{inner_tol = NA}, \code{max_inner_iter = 100},
+\code{max_negative_outer_streak = 10}, \code{start_step_size = 0.5},
+\code{step_adjustment = NA}, \code{max_steps = 5}, \code{warm_start_joint = TRUE},
+\code{warm_start_joint_iter = 5}, \code{use_backtracking = TRUE},
+\code{backtracking_max_halves = 50}, \code{update_lambda = TRUE},
+\code{smooth_trust_radius = Inf}, and \code{discrete_score_method = "analytical"}.
+Counts are non-negative except \code{max_inner_iter} and
+\code{max_negative_outer_streak}, which are positive; the latter may be \code{Inf}.
+Step sizes are positive, and \code{discrete_score_method} is \code{"analytical"} or
+\code{"finite"}.
+
+CG defaults are \code{max_stall = 5}, \code{max_delta = 0.5}, \code{armijo_c1 = 1e-4},
+\code{grad_tol = NA}, \code{step_tol = NA}, \code{update_lambda = TRUE},
+\code{lambda_update_every = 10}, \code{max_lambda_updates = NA} (unlimited),
+\code{raw_loglik_drop_tol = 10}, \code{line_search = "best"},
+\code{max_line_search_evals = 60} (\code{NA} is unlimited), \code{gradient_method = "forward"},
+\code{zeta_hessian = "analytical"}, \code{hessian_method = "analytical"},
+\code{use_backtracking = TRUE}, and \code{backtracking_max_halves = 50}.
+Positive counts and tolerances are validated where required; update counts,
+backtracking halves, and line-search evaluations may be zero, and \code{NA} means
+unlimited only where stated above. Enumerated values are validated exactly.
+
+Returned fits use method-neutral stop reasons: \code{converged},
+\code{max_iterations}, \code{max_stall}, \code{objective_deterioration},
+\code{invalid_likelihood}, and \code{numerical_failure}. A budget overrun aborts with
+stop reason \code{time_limit}; RS objective deterioration also aborts rather than
+returning a partial fit. A returned nonconverged fit emits
+\code{gamlss.longitudinal_nonconvergence_warning}. Inference, covariance,
+uncertainty intervals, and model comparison then error with
+\code{gamlss.longitudinal_nonconvergence_error}; point predictions remain
+available with \code{gamlss.longitudinal_nonconverged_prediction_warning}.
+\code{summary(..., include_vcov = FALSE)} remains available, labels convergence
+prominently, and marks likelihood criteria as provisional.
 }
 \examples{
 rs_control <- gamlss_longitudinal_control(

@@ -36,9 +36,31 @@ make_optimizer_context <- function() {
 make_dispatch_args <- function(method, optimizer_context, cg_runner_fn, rs_runner_fn) {
   mm <- list(x = list(mu = matrix(1, nrow = 2, ncol = 1)), s = list(mu = list()))
   dataset <- data.frame(response = c(1, 2), time = c(1, 2), subject = c(1, 1))
+  optimizer_control <- gamlss_longitudinal_control(
+    max_outer_iter = 10L,
+    stop_on_convergence = TRUE,
+    rs = list(
+      max_inner_iter = 10L,
+      max_negative_outer_streak = 5L,
+      step_adjustment = 0.5,
+      max_steps = 5L,
+      start_step_size = 1,
+      update_lambda = FALSE
+    ),
+    cg = list(
+      max_delta = 1,
+      update_lambda = FALSE,
+      max_lambda_updates = 0L,
+      lambda_update_every = 1L,
+      max_line_search_evals = 5L,
+      use_backtracking = FALSE,
+      backtracking_max_halves = 0L
+    )
+  )
 
   list(
     method = method,
+    optimizer_control = optimizer_control,
     optimizer_context = optimizer_context,
     mm = mm,
     margin_dist = "NO",
@@ -51,27 +73,10 @@ make_dispatch_args <- function(method, optimizer_context, cg_runner_fn, rs_runne
     cg_gradient_method = "forward",
     cg_hessian_method = "analytical",
     verbose = 0,
-    cg_max_delta = 1,
-    max_outer_iter = 10L,
     check_elapsed_budget = function(stage) NULL,
-    cg_update_lambda = FALSE,
-    cg_max_lambda_updates = 0L,
-    cg_lambda_update_every = 1L,
     lambda_penalty_K = 2,
-    cg_armijo_c1 = 1e-4,
-    cg_line_search = "best",
-    cg_max_line_search_evals = 5L,
-    use_backtracking = FALSE,
-    backtracking_max_halves = 0L,
-    cg_zeta_hessian = "analytical",
-    cg_max_stall = 5L,
-    cg_raw_loglik_drop_tol = 10,
-    rs_smooth_trust_radius = Inf,
-    rs_update_lambda = FALSE,
     plot_results = FALSE,
     true_val = NULL,
-    max_inner_iter = 10L,
-    max_negative_outer_streak = 5L,
     step_adjustment = 0.5,
     max_steps = 5L,
     start_step_size = 1,
@@ -122,6 +127,7 @@ test_that("fit optimizer dispatch routes CG state through the CG runner", {
   expect_identical(captured$cg$pair_cache, context$pair_cache)
   expect_equal(captured$cg$outer_stop_crit, context$outer_stop_crit)
   expect_equal(captured$cg$cg_grad_tol_eff, context$cg_grad_tol_eff)
+  expect_true(captured$cg$stop_on_convergence)
   expect_equal(out$par_cov, cg_state$par_cov)
   expect_equal(out$cg_stop_reason, "tolerance")
   expect_equal(out$rs_block_trace, context$rs_block_trace)
@@ -207,6 +213,28 @@ test_that("prepared fit optimizer argument builder unpacks normalized workflow s
     ),
     optimizer_context = context
   )
+  fit_workflow$optimizer_control_effective <- gamlss_longitudinal_control(
+    max_outer_iter = 12L,
+    rs = list(
+      max_inner_iter = 13L,
+      max_negative_outer_streak = 14L,
+      smooth_trust_radius = 9,
+      update_lambda = FALSE
+    ),
+    cg = list(
+      armijo_c1 = 1e-5,
+      update_lambda = TRUE,
+      max_delta = 0.25,
+      max_lambda_updates = 3L,
+      lambda_update_every = 4L,
+      line_search = "first",
+      max_line_search_evals = 5L,
+      backtracking_max_halves = 6L,
+      zeta_hessian = "finite",
+      max_stall = 7L,
+      raw_loglik_drop_tol = 8
+    )
+  )
 
   args <- gamlss.longitudinal:::.gl_prepared_fit_optimizer_args(
     fit_workflow = fit_workflow,
@@ -215,16 +243,9 @@ test_that("prepared fit optimizer argument builder unpacks normalized workflow s
     include_dlcopdpar = TRUE,
     check_dlcopdpar_gradient = TRUE,
     verbose = 2,
-    cg_armijo_c1 = 1e-5,
-    cg_update_lambda = TRUE,
     lambda_penalty_K = 3,
-    rs_update_lambda = FALSE,
     plot_results = TRUE,
     true_val = c(mu = 1),
-    max_outer_iter = 12L,
-    max_inner_iter = 13L,
-    max_negative_outer_streak = 14L,
-    use_backtracking = TRUE,
     check_elapsed_budget = check_elapsed_budget
   )
 
@@ -235,16 +256,17 @@ test_that("prepared fit optimizer argument builder unpacks normalized workflow s
   expect_equal(args$discrete_score_method, "finite")
   expect_equal(args$cg_gradient_method, "central")
   expect_equal(args$cg_hessian_method, "auto")
-  expect_equal(args$cg_max_delta, 0.25)
-  expect_equal(args$cg_max_lambda_updates, 3L)
-  expect_equal(args$cg_lambda_update_every, 4L)
-  expect_equal(args$cg_line_search, "first")
-  expect_equal(args$cg_max_line_search_evals, 5L)
-  expect_equal(args$backtracking_max_halves, 6L)
-  expect_equal(args$cg_zeta_hessian, "finite")
-  expect_equal(args$cg_max_stall, 7L)
-  expect_equal(args$cg_raw_loglik_drop_tol, 8)
-  expect_equal(args$rs_smooth_trust_radius, 9)
+  expect_identical(args$optimizer_control, fit_workflow$optimizer_control_effective)
+  expect_equal(args$optimizer_control$cg$max_delta, 0.25)
+  expect_equal(args$optimizer_control$cg$max_lambda_updates, 3L)
+  expect_equal(args$optimizer_control$cg$lambda_update_every, 4L)
+  expect_equal(args$optimizer_control$cg$line_search, "first")
+  expect_equal(args$optimizer_control$cg$max_line_search_evals, 5L)
+  expect_equal(args$optimizer_control$cg$backtracking_max_halves, 6L)
+  expect_equal(args$optimizer_control$cg$zeta_hessian, "finite")
+  expect_equal(args$optimizer_control$cg$max_stall, 7L)
+  expect_equal(args$optimizer_control$cg$raw_loglik_drop_tol, 8)
+  expect_equal(args$optimizer_control$rs$smooth_trust_radius, 9)
   expect_equal(args$start_step_size, 0.5)
   expect_equal(args$max_steps, 11L)
   expect_equal(args$step_adjustment, 0.25)
@@ -283,6 +305,28 @@ test_that("prepared fit optimizer bridge forwards normalized workflow state", {
     ),
     optimizer_context = context
   )
+  fit_workflow$optimizer_control_effective <- gamlss_longitudinal_control(
+    max_outer_iter = 12L,
+    rs = list(
+      max_inner_iter = 13L,
+      max_negative_outer_streak = 14L,
+      smooth_trust_radius = 9,
+      update_lambda = FALSE
+    ),
+    cg = list(
+      armijo_c1 = 1e-5,
+      update_lambda = TRUE,
+      max_delta = 0.25,
+      max_lambda_updates = 3L,
+      lambda_update_every = 4L,
+      line_search = "first",
+      max_line_search_evals = 5L,
+      backtracking_max_halves = 6L,
+      zeta_hessian = "finite",
+      max_stall = 7L,
+      raw_loglik_drop_tol = 8
+    )
+  )
 
   captured <- list()
   out <- gamlss.longitudinal:::.gl_run_prepared_fit_optimizer(
@@ -292,16 +336,9 @@ test_that("prepared fit optimizer bridge forwards normalized workflow state", {
     include_dlcopdpar = TRUE,
     check_dlcopdpar_gradient = TRUE,
     verbose = 2,
-    cg_armijo_c1 = 1e-5,
-    cg_update_lambda = TRUE,
     lambda_penalty_K = 3,
-    rs_update_lambda = FALSE,
     plot_results = TRUE,
     true_val = c(mu = 1),
-    max_outer_iter = 12L,
-    max_inner_iter = 13L,
-    max_negative_outer_streak = 14L,
-    use_backtracking = TRUE,
     check_elapsed_budget = check_elapsed_budget,
     optimizer_fn = function(...) {
       captured$args <<- list(...)
@@ -317,16 +354,17 @@ test_that("prepared fit optimizer bridge forwards normalized workflow state", {
   expect_equal(captured$args$discrete_score_method, "finite")
   expect_equal(captured$args$cg_gradient_method, "central")
   expect_equal(captured$args$cg_hessian_method, "auto")
-  expect_equal(captured$args$cg_max_delta, 0.25)
-  expect_equal(captured$args$cg_max_lambda_updates, 3L)
-  expect_equal(captured$args$cg_lambda_update_every, 4L)
-  expect_equal(captured$args$cg_line_search, "first")
-  expect_equal(captured$args$cg_max_line_search_evals, 5L)
-  expect_equal(captured$args$backtracking_max_halves, 6L)
-  expect_equal(captured$args$cg_zeta_hessian, "finite")
-  expect_equal(captured$args$cg_max_stall, 7L)
-  expect_equal(captured$args$cg_raw_loglik_drop_tol, 8)
-  expect_equal(captured$args$rs_smooth_trust_radius, 9)
+  expect_identical(captured$args$optimizer_control, fit_workflow$optimizer_control_effective)
+  expect_equal(captured$args$optimizer_control$cg$max_delta, 0.25)
+  expect_equal(captured$args$optimizer_control$cg$max_lambda_updates, 3L)
+  expect_equal(captured$args$optimizer_control$cg$lambda_update_every, 4L)
+  expect_equal(captured$args$optimizer_control$cg$line_search, "first")
+  expect_equal(captured$args$optimizer_control$cg$max_line_search_evals, 5L)
+  expect_equal(captured$args$optimizer_control$cg$backtracking_max_halves, 6L)
+  expect_equal(captured$args$optimizer_control$cg$zeta_hessian, "finite")
+  expect_equal(captured$args$optimizer_control$cg$max_stall, 7L)
+  expect_equal(captured$args$optimizer_control$cg$raw_loglik_drop_tol, 8)
+  expect_equal(captured$args$optimizer_control$rs$smooth_trust_radius, 9)
   expect_equal(captured$args$start_step_size, 0.5)
   expect_equal(captured$args$max_steps, 11L)
   expect_equal(captured$args$step_adjustment, 0.25)

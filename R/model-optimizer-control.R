@@ -7,8 +7,10 @@
 #' @param outer_tol Positive outer objective-change tolerance, or `NA` for the
 #'   data-adaptive default.
 #' @param max_outer_iter Maximum number of outer optimizer iterations.
-#' @param max_elapsed_sec Maximum elapsed fitting time in seconds; `Inf` means
-#'   no time limit.
+#' @param max_elapsed_sec Positive optimizer time budget in seconds; `Inf` means
+#'   no time limit. The budget is checked at RS or CG iteration boundaries and
+#'   aborts with a classed error when exceeded. It is not a deadline for
+#'   post-optimizer finalization, and no partial fitted object is returned.
 #' @param stop_on_convergence If `TRUE`, stop as soon as the method's convergence
 #'   contract is satisfied. If `FALSE`, continue to a safeguard or iteration
 #'   limit while still reporting whether the final state satisfies the contract.
@@ -28,6 +30,46 @@
 #' `backtracking_max_halves`. `grad_tol` is an optimizer stopping tolerance and
 #' is distinct from `inference_control(gradient_tol = ...)`, which validates
 #' post-fit curvature.
+#'
+#' Shared defaults are `outer_tol = NA` (data-adaptive),
+#' `max_outer_iter = 100`, `max_elapsed_sec = Inf`, and
+#' `stop_on_convergence = TRUE`. Tolerances must be positive finite numbers or
+#' `NA` where an automatic value is documented; iteration counts are positive
+#' integers. The elapsed budget must be positive or `Inf`.
+#'
+#' RS defaults are `inner_tol = NA`, `max_inner_iter = 100`,
+#' `max_negative_outer_streak = 10`, `start_step_size = 0.5`,
+#' `step_adjustment = NA`, `max_steps = 5`, `warm_start_joint = TRUE`,
+#' `warm_start_joint_iter = 5`, `use_backtracking = TRUE`,
+#' `backtracking_max_halves = 50`, `update_lambda = TRUE`,
+#' `smooth_trust_radius = Inf`, and `discrete_score_method = "analytical"`.
+#' Counts are non-negative except `max_inner_iter` and
+#' `max_negative_outer_streak`, which are positive; the latter may be `Inf`.
+#' Step sizes are positive, and `discrete_score_method` is `"analytical"` or
+#' `"finite"`.
+#'
+#' CG defaults are `max_stall = 5`, `max_delta = 0.5`, `armijo_c1 = 1e-4`,
+#' `grad_tol = NA`, `step_tol = NA`, `update_lambda = TRUE`,
+#' `lambda_update_every = 10`, `max_lambda_updates = NA` (unlimited),
+#' `raw_loglik_drop_tol = 10`, `line_search = "best"`,
+#' `max_line_search_evals = 60` (`NA` is unlimited), `gradient_method = "forward"`,
+#' `zeta_hessian = "analytical"`, `hessian_method = "analytical"`,
+#' `use_backtracking = TRUE`, and `backtracking_max_halves = 50`.
+#' Positive counts and tolerances are validated where required; update counts,
+#' backtracking halves, and line-search evaluations may be zero, and `NA` means
+#' unlimited only where stated above. Enumerated values are validated exactly.
+#'
+#' Returned fits use method-neutral stop reasons: `converged`,
+#' `max_iterations`, `max_stall`, `objective_deterioration`,
+#' `invalid_likelihood`, and `numerical_failure`. A budget overrun aborts with
+#' stop reason `time_limit`; RS objective deterioration also aborts rather than
+#' returning a partial fit. A returned nonconverged fit emits
+#' `gamlss.longitudinal_nonconvergence_warning`. Inference, covariance,
+#' uncertainty intervals, and model comparison then error with
+#' `gamlss.longitudinal_nonconvergence_error`; point predictions remain
+#' available with `gamlss.longitudinal_nonconverged_prediction_warning`.
+#' `summary(..., include_vcov = FALSE)` remains available, labels convergence
+#' prominently, and marks likelihood criteria as provisional.
 #'
 #' @return A `gamlss.longitudinal.control` object.
 #' @examples
@@ -68,11 +110,17 @@ gamlss_longitudinal_control <- function(
   )
   shared <- .gl_validate_shared_optimizer_controls(shared)
 
-  structure(
+  out <- structure(
     list(shared = shared, rs = rs_values, cg = cg_values),
     specified = specified,
     class = c("gamlss.longitudinal.control", "list")
   )
+
+  # Validate both method sections at construction time. Method resolution below
+  # separately enforces that an explicitly supplied inactive section is an error.
+  invisible(.gl_validate_selected_optimizer_controls(out, "RS", enforce_inactive = FALSE))
+  invisible(.gl_validate_selected_optimizer_controls(out, "CG", enforce_inactive = FALSE))
+  out
 }
 
 .gl_rs_control_defaults <- function() {
@@ -161,10 +209,13 @@ gamlss_longitudinal_control <- function(
   x
 }
 
-.gl_validate_selected_optimizer_controls <- function(control, method) {
+.gl_validate_selected_optimizer_controls <- function(
+    control,
+    method,
+    enforce_inactive = TRUE) {
   specified <- attr(control, "specified")
   inactive <- if (identical(method, "RS")) "cg" else "rs"
-  if (length(specified[[inactive]])) {
+  if (isTRUE(enforce_inactive) && length(specified[[inactive]])) {
     stop("Controls for `", inactive, "` were supplied, but method = \"", method,
       "\". Remove the wrong-method controls or change `method`.", call. = FALSE)
   }
@@ -300,6 +351,9 @@ gamlss_longitudinal_control <- function(
     bits <- strsplit(target, ".", fixed = TRUE)[[1L]]
     section <- bits[1L]
     key <- bits[2L]
+    if (section %in% c("rs", "cg") && !identical(section, tolower(method))) {
+      next
+    }
     new_has_key <- if (identical(section, "shared")) isTRUE(specified$shared[[key]]) else key %in% specified[[section]]
     if (supplied_new && new_has_key) {
       stop("Both legacy `", old, "` and optimizer_control's `", target,
