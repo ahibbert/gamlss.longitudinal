@@ -2,7 +2,7 @@
 % Please edit documentation in R/model-confint.R
 \name{confint.gamlss.longitudinal}
 \alias{confint.gamlss.longitudinal}
-\title{Confidence intervals for fixed coefficients}
+\title{Conditional Wald confidence intervals for fixed coefficients}
 \usage{
 \method{confint}{gamlss.longitudinal}(object, parm = NULL, level = 0.95, method = "analytical", ...)
 }
@@ -18,8 +18,10 @@
 \item{...}{Additional arguments passed to \code{\link[=vcov.gamlss.longitudinal]{vcov.gamlss.longitudinal()}}.}
 }
 \value{
-A matrix with lower and upper confidence limits.
+A matrix with lower and upper confidence limits and an
+\code{inference_contract} attribute. Fixed-smooth covariance and
+smoothing-parameter uncertainty are excluded.
 }
 \description{
-Confidence intervals for fixed coefficients
+Conditional Wald confidence intervals for fixed coefficients
 }

@@ -46,7 +46,9 @@ responses when available.}
 \item{se.fit}{Logical; for \code{type = "response"}, \code{"mu"}, or \code{"mean"}, return
 approximate delta-method standard errors for the fitted \code{mu} linear
 predictor contribution. For non-\code{mu} response means this is a first-order
-approximation and should be treated as exploratory.}
+approximation and should be treated as exploratory. These standard errors
+use only the fixed \code{mu} coefficient block, conditional on fitted smooths
+and all other parameters.}
 
 \item{interval}{Interval type. \code{"confidence"} adds response-scale confidence
 limits when \code{type = "response"}, \code{"mu"}, or \code{"mean"}.}
@@ -71,7 +73,11 @@ requested row. The fitted copula/dependence structure is not used to
 condition a row's prediction on that subject's other observed responses.
 Instead, dependence affects prediction indirectly through the coefficients
 estimated by the joint copula likelihood, and through \code{se.fit}/confidence
-intervals when the covariance matrix is computed from the joint model. Use
+intervals when the fixed-coefficient covariance is computed from the joint
+model. The intervals omit non-\code{mu}, smooth, fixed-smooth, and
+smoothing-parameter uncertainty and are not future-observation prediction
+intervals. Quantiles and other distributional outputs are plug-in fitted
+distribution summaries without parameter-uncertainty intervals. Use
 \code{\link[=simulate.gamlss.longitudinal]{simulate.gamlss.longitudinal()}} for fitted-data trajectory simulation that
 preserves the fitted copula dependence structure. With \code{newdata},
 simulation is unconditional and uses the model-implied dependence evaluated
