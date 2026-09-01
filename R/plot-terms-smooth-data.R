@@ -18,12 +18,18 @@
 
 .plot_smooth_terms_fit_se <- function(B, smooth_vcov = NULL, smooth_se = NULL) {
   if (!is.null(smooth_vcov) && all(dim(smooth_vcov) == c(ncol(B), ncol(B)))) {
-    return(sqrt(pmax(0, diag(B %*% smooth_vcov %*% t(B)))))
+    return(.gl_sqrt_derived_variance(
+      diag(B %*% smooth_vcov %*% t(B)),
+      "smooth-term covariance", allow_zero = TRUE
+    ))
   }
 
   if (!is.null(smooth_se) && length(smooth_se) == ncol(B)) {
     beta_var_diag <- as.numeric(smooth_se)^2
-    return(sqrt(pmax(0, rowSums((B^2) * rep(beta_var_diag, each = nrow(B))))))
+    return(.gl_sqrt_derived_variance(
+      rowSums((B^2) * rep(beta_var_diag, each = nrow(B))),
+      "smooth-term diagonal covariance", allow_zero = TRUE
+    ))
   }
 
   rep(NA_real_, nrow(B))

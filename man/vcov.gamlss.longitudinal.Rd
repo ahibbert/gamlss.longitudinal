@@ -16,6 +16,7 @@
   sandwich_h = 1e-05,
   sandwich_adjust = TRUE,
   sandwich_bread_method = c("analytical", "numderiv", "analytical_only"),
+  inference = inference_control("standard"),
   ...
 )
 }
@@ -53,6 +54,9 @@ sandwich covariance estimates.}
 
 \item{sandwich_bread_method}{Character; Hessian method used for the sandwich
 bread.}
+
+\item{inference}{Inference validation policy created by
+\code{\link[=inference_control]{inference_control()}}. This is separate from model optimizer controls.}
 
 \item{...}{Additional arguments, currently unused.}
 }
