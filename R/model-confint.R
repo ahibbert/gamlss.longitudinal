@@ -33,6 +33,7 @@ confint.gamlss.longitudinal <- function(
   estimates <- stats::coef(object)
 
   vc <- .resolve_vcov(object, extra_args = list(method = method, ...))
+  .gl_require_available_inference(vc)
 
   se <- vc$se$overall
 

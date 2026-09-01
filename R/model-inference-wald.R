@@ -59,6 +59,7 @@ wald_test <- function(
   }
 
   vc <- .resolve_vcov(object, extra_args = list(method = method, ...))
+  .gl_require_available_inference(vc)
 
   V <- vc$vcov$overall
 
@@ -116,7 +117,9 @@ wald_test <- function(
       stringsAsFactors = FALSE
     )
   } else {
-    se <- sqrt(pmax(0, diag(LVL)))
+    se <- .gl_sqrt_derived_variance(
+      diag(LVL), "Wald contrast covariance", allow_zero = FALSE
+    )
 
     z <- diff / se
 

@@ -18,6 +18,10 @@
     return(FALSE)
   }
 
+  if (identical(object$vcov$hessian_diagnostics$status, "unavailable")) {
+    return(FALSE)
+  }
+
   if (is.null(object$vcov$vcov) || is.null(object$vcov$vcov$overall)) {
     return(FALSE)
   }

@@ -97,10 +97,17 @@ test_that("T009 analytical Hessian warns for near-boundary GG and tracks numeric
     inner_stop_crit = 0.5
   ))
 
-  vc_num <- suppressWarnings(vcov(fit, method = "numderiv", progress = FALSE))
+  comparison_control <- inference_control("standard", gradient_tol = 1e6)
+  vc_num <- suppressWarnings(vcov(
+    fit, method = "numderiv", progress = FALSE,
+    inference = comparison_control
+  ))
   vc_ana <- NULL
   expect_warning(
-    vc_ana <- vcov(fit, method = "analytical", progress = FALSE),
+    vc_ana <- vcov(
+      fit, method = "analytical", progress = FALSE,
+      inference = comparison_control
+    ),
     "GG may be numerically unstable because fitted nu is close to 0"
   )
 
