@@ -64,7 +64,11 @@
 
 #' @return Invisibly returns a nested list with x, fitted values, standard
 
-#' errors, and confidence limits for each fixed term.
+#' errors, and conditional pointwise confidence limits for each fixed term.
+
+#' The bands use one fixed coefficient at a time and omit fixed-smooth and
+
+#' smoothing-parameter uncertainty; the returned object records this contract.
 
 #' @export
 
@@ -127,7 +131,13 @@ plot_fixed_terms <- function(
   if (n_plots == 0) {
     warning("No fixed terms found to plot with matching vcov entries.")
 
-    return(invisible(list()))
+    return(invisible(.gl_attach_inference_contract(
+      list(),
+      .gl_inference_contract(
+        "fixed_term_pointwise", coefficient_names = character(),
+        validity_status = "not_applicable"
+      )
+    )))
   }
 
   render_result <- .plot_fixed_terms_render_specs(
@@ -174,5 +184,29 @@ plot_fixed_terms <- function(
     out$dashboard <- dashboard
   }
 
-  invisible(out)
+  plotted_coefficients <- unique(unlist(lapply(plot_specs, function(spec) {
+    columns <- if (identical(spec$type, "factor")) {
+      unname(unlist(spec$group$level_col_map, use.names = FALSE))
+    } else if (identical(spec$type, "interaction_factor_factor")) {
+      unname(unlist(spec$group$interaction_col_map, use.names = FALSE))
+    } else {
+      spec$coef_name
+    }
+    if (identical(spec$type, "factor") || identical(spec$type, "interaction_factor_factor")) {
+      paste(spec$par_name, columns, sep = ".")
+    } else {
+      columns
+    }
+  }), use.names = FALSE))
+  plotted_coefficients <- intersect(plotted_coefficients, intersect(names(object$par), rownames(V)))
+
+  contract <- .gl_inference_contract(
+    "fixed_term_pointwise",
+    coefficient_names = plotted_coefficients,
+    method = vcov_obj$method %||% "analytical",
+    validity_status = vcov_obj$hessian_diagnostics$status %||% "not_recorded"
+  )
+  contract$covariance_contract <- vcov_obj$inference_contract %||%
+    .gl_fixed_inference_contract(vcov_obj, coefficient_names = names(object$par))
+  invisible(.gl_attach_inference_contract(out, contract))
 }
