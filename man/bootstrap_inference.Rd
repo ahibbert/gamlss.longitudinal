@@ -40,13 +40,16 @@ while \code{"cluster"} resamples subjects with replacement.}
 \item{...}{Additional arguments passed to \code{\link[=simulate.gamlss.longitudinal]{simulate.gamlss.longitudinal()}}.}
 }
 \value{
-An object of class \code{gamlss_longitudinal_bootstrap}.
+An object of class \code{gamlss_longitudinal_bootstrap} with an exact
+fixed-coefficient target and failure policy in \code{inference_contract}.
 }
 \description{
 \code{bootstrap_inference()} either simulates responses from a fitted
 \code{gamlss.longitudinal} model, or resamples subjects with replacement,
 refits the same model to each bootstrap dataset,
 and summarizes the bootstrap distribution of selected fixed coefficients.
+Errors, explicit nonconvergence, and missing/non-finite target coefficients
+are failed replicates; per-coefficient successful counts are reported.
 It is intended for opt-in applied uncertainty checks and should be run with
 enough replicates outside CRAN-time tests for final reporting.
 }

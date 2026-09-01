@@ -62,6 +62,10 @@ bread.}
 }
 \value{
 A list containing variance-covariance matrices and standard errors.
+\code{vcov$overall} covers fixed coefficients conditional on fitted smooths;
+\code{vcov$smooth_vcov} is a separate penalized approximation. Fixed-smooth
+covariance and smoothing-parameter uncertainty are excluded. See
+\code{\link[=inference_contracts]{inference_contracts()}}.
 }
 \description{
 Variance-covariance matrix for a fitted longitudinal GAMLSS-copula model
