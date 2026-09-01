@@ -56,7 +56,7 @@
   }
 
   if (.can_use_cached_vcov(object, numderiv = numderiv, method = vcov_method, extra_args = extra_args)) {
-    return(object$vcov)
+    return(.gl_enrich_vcov_contract(object$vcov, object))
   }
 
   if (is.null(extra_args$method)) {

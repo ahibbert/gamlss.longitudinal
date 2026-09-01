@@ -28,6 +28,10 @@
 #' @param ... Additional arguments, currently unused.
 #'
 #' @return A list containing variance-covariance matrices and standard errors.
+#'   `vcov$overall` covers fixed coefficients conditional on fitted smooths;
+#'   `vcov$smooth_vcov` is a separate penalized approximation. Fixed-smooth
+#'   covariance and smoothing-parameter uncertainty are excluded. See
+#'   [inference_contracts()].
 #' @export
 vcov.gamlss.longitudinal <- function(object, par = NA, sep_d2 = TRUE, numderiv = FALSE,
                                      method = c("analytical", "numderiv", "analytical_only", "sandwich"),

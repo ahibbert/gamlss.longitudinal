@@ -83,6 +83,8 @@
       if (!is.null(vcov_cached$method_requested)) {
         return_list$vcov_meta$method <- vcov_cached$method_requested
       }
+      return_list$vcov_meta$inference_contract <- vcov_cached$inference_contract
+      return_list$vcov_meta$smooth_inference_contract <- vcov_cached$smooth_inference_contract
     } else if (!is.null(inference_failure)) {
       return_list$vcov_meta$inference_status <- "unavailable"
       return_list$vcov_meta$hessian_diagnostics <- inference_failure
