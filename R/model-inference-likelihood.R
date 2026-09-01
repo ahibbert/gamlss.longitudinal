@@ -54,7 +54,9 @@
 
 #'
 
-#' @return An object of class `gamlss_longitudinal_likelihood_compare`.
+#' @return An object of class `gamlss_longitudinal_likelihood_compare` with an
+#'   `inference_contract` attribute recording the nested-model assumptions and
+#'   failure states of the chi-square reference approximation.
 
 #' @export
 
@@ -74,6 +76,9 @@ print.gamlss_longitudinal_likelihood_compare <- function(x, digits = max(3, getO
   cat("--------------------------------------------\n")
 
   cat("Sequential LR rows compare each model with the previous row.\n\n")
+
+  cat("Reference scope: asymptotic chi-square only for correctly ordered, nested models\n")
+  cat("fit to the same observations, away from parameter boundaries.\n\n")
 
   print.data.frame(x, digits = digits, row.names = FALSE, ...)
 

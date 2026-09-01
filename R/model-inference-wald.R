@@ -141,6 +141,17 @@ wald_test <- function(
 
   attr(out, "vcov_method") <- vc$method %||% method
 
+  touched <- colnames(L)[colSums(abs(L), na.rm = TRUE) > 0]
+  contract <- .gl_inference_contract(
+    "wald_fixed",
+    coefficient_names = touched,
+    method = vc$method %||% method,
+    validity_status = vc$hessian_diagnostics$status %||% "not_recorded"
+  )
+  contract$covariance_contract <- vc$inference_contract %||%
+    .gl_fixed_inference_contract(vc, coefficient_names = names(estimates))
+  attr(out, "inference_contract") <- contract
+
   class(out) <- c("gamlss_longitudinal_wald_test", "data.frame")
 
   out
@@ -156,6 +167,9 @@ print.gamlss_longitudinal_wald_test <- function(x, digits = max(3, getOption("di
   cat("Test type:", if (isTRUE(attr(x, "joint"))) "joint" else "individual", "\n")
 
   cat("VCOV method:", attr(x, "vcov_method") %||% "unknown", "\n\n")
+
+  cat("Scope: selected fixed-coefficient contrasts, conditional on fitted smooth structure.\n")
+  cat("Excluded: fixed-smooth covariance and smoothing-parameter uncertainty.\n\n")
 
   print.data.frame(x, digits = digits, row.names = FALSE, ...)
 

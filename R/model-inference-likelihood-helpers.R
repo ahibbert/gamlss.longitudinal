@@ -137,5 +137,10 @@
 
   class(out) <- c("gamlss_longitudinal_likelihood_compare", "data.frame")
 
+  attr(out, "inference_contract") <- .gl_inference_contract(
+    "likelihood_ratio_nested",
+    validity_status = if (all(valid[-1L])) "reference_available" else "partly_or_wholly_unavailable"
+  )
+
   out
 }
