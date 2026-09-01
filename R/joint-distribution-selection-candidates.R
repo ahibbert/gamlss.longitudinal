@@ -30,7 +30,12 @@
       type = type,
       stringsAsFactors = FALSE
     )
-    out$supported_by_longitudinal <- vapply(out$family, .joint_selection_margin_supported, logical(1))
+    out$supported_by_longitudinal <- vapply(
+      out$family,
+      .joint_selection_margin_supported,
+      logical(1),
+      response = data[[response_var]]
+    )
     out$rank <- seq_len(nrow(out))
     out$delta_AIC <- NA_real_
     attr(out, "selected") <- if (nrow(out) > 0L) out$family[[1L]] else NA_character_
@@ -68,15 +73,14 @@
   }
 }
 
-.joint_selection_margin_supported <- function(family) {
-  !is.null(.margin_family_object(family)) &&
-    all(vapply(
-      paste0(c("d", "p", "q"), family),
-      exists,
-      logical(1),
-      envir = asNamespace("gamlss.dist"),
-      inherits = FALSE
-    ))
+.joint_selection_margin_supported <- function(family, response = NULL) {
+  spec <- .gl_capability_margin_spec(family)
+  supported <- !is.null(spec) && identical(spec$status, "supported") &&
+    !is.null(.margin_family_object(family))
+  if (supported && !is.null(response)) {
+    supported <- .gl_capability_response_matches(response, spec)
+  }
+  supported
 }
 
 .joint_selection_check_column <- function(data, column, arg) {

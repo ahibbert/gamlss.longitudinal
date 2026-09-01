@@ -62,12 +62,20 @@
     rs_update_lambda,
     rs_smooth_trust_radius,
     time_fn = Sys.time,
+    capability_preflight_fn = .gl_preflight_fit_capabilities,
     margin_normalizer_fn = .normalise_margin_dist_links,
     budget_checker_fn = .gl_build_elapsed_budget_checker,
     workflow_fn = .gl_prepare_fit_workflow,
     optimizer_fn = .gl_run_prepared_fit_optimizer,
     finalize_fn = .gl_finalize_prepared_fit) {
   fit_start_time <- time_fn()
+
+  capability_preflight_fn(
+    dataset = dataset,
+    margin_dist = margin_dist,
+    copula_dist = copula_dist,
+    mu.formula = mu.formula
+  )
 
   margin_dist <- margin_normalizer_fn(margin_dist)
 
