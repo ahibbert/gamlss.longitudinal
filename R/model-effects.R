@@ -20,7 +20,11 @@
 
 #' @param se.fit Logical; when `TRUE` and `parameter = "mu"`, attach
 
-#'   approximate delta-method standard errors for response-scale averages.
+#'   exploratory delta-method standard errors for response-scale averages.
+
+#'   They use only the fixed `mu` coefficient block and omit cross-row,
+
+#'   smooth, fixed-smooth, and smoothing-parameter uncertainty.
 
 #' @param level Confidence level used when `se.fit = TRUE`.
 
@@ -31,6 +35,10 @@
 #'
 
 #' @return A data frame with average fitted parameter values and contrasts.
+
+#'   When `se.fit = TRUE`, an `inference_contract` attribute records the exact
+
+#'   conditional approximation and omitted uncertainty.
 
 #' @importFrom stats predict
 
@@ -88,10 +96,22 @@ marginal_effects <- function(
     )
   })
 
-  .gl_finalize_marginal_effects(
+  out <- .gl_finalize_marginal_effects(
     rows = rows,
     reference = reference,
     se.fit = se.fit,
     level = level
   )
+  if (isTRUE(se.fit)) {
+    out <- .gl_attach_inference_contract(
+      out,
+      .gl_inference_contract(
+        "marginal_effect_mu_delta",
+        coefficient_names = names(object$par)[startsWith(names(object$par), "mu.")],
+        method = vcov_method,
+        validity_status = "propagated_from_prediction_covariance"
+      )
+    )
+  }
+  out
 }
