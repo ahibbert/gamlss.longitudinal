@@ -295,8 +295,8 @@ gamlss_longitudinal_control <- function(
   if (length(legacy_names)) .gl_warn_legacy_optimizer_controls()
   specified <- attr(optimizer_control, "specified")
   for (old in legacy_names) {
-    target <- unname(map[[old]])
-    if (is.null(target)) next
+    target <- unname(map[old])
+    if (!length(target) || is.na(target)) next
     bits <- strsplit(target, ".", fixed = TRUE)[[1L]]
     section <- bits[1L]
     key <- bits[2L]

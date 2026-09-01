@@ -41,13 +41,17 @@
       include_dlcopdpar = FALSE,
       method = "RS",
       start_from = NA,
-      warm_start_joint = FALSE,
-      warm_start_joint_iter = 0L,
-      max_outer_iter = max_outer_iter,
-      max_inner_iter = max_inner_iter,
-      outer_stop_crit = 1e-4,
-      inner_stop_crit = 1e-4,
-      max_elapsed_sec = max_elapsed_sec,
+      optimizer_control = gamlss_longitudinal_control(
+        outer_tol = 1e-4,
+        max_outer_iter = max_outer_iter,
+        max_elapsed_sec = max_elapsed_sec,
+        rs = list(
+          inner_tol = 1e-4,
+          max_inner_iter = max_inner_iter,
+          warm_start_joint = FALSE,
+          warm_start_joint_iter = 0L
+        )
+      ),
       compute_vcov = FALSE,
       verbose = 0
     )
@@ -87,6 +91,27 @@
   fit_method <- if (identical(method, "cg")) "CG" else "RS"
 
   include_dlcopdpar <- identical(method, "rs_joint") || identical(method, "cg")
+  optimizer_control <- if (identical(fit_method, "CG")) {
+    gamlss_longitudinal_control(
+      outer_tol = 1e-4,
+      max_outer_iter = max_outer_iter,
+      max_elapsed_sec = max_elapsed_sec,
+      cg = list(max_delta = cg_max_delta)
+    )
+  } else {
+    gamlss_longitudinal_control(
+      outer_tol = 1e-4,
+      max_outer_iter = max_outer_iter,
+      max_elapsed_sec = max_elapsed_sec,
+      rs = list(
+        inner_tol = 1e-4,
+        max_inner_iter = max_inner_iter,
+        warm_start_joint = isTRUE(warm_start_joint) && isTRUE(include_dlcopdpar) && all(is.na(start_from)),
+        warm_start_joint_iter = min(5L, max_outer_iter),
+        start_step_size = start_step_size
+      )
+    )
+  }
 
   start <- Sys.time()
 
@@ -109,15 +134,7 @@
         include_dlcopdpar = include_dlcopdpar,
         method = fit_method,
         start_from = start_from,
-        warm_start_joint = isTRUE(warm_start_joint) && isTRUE(include_dlcopdpar) && all(is.na(start_from)),
-        warm_start_joint_iter = min(5L, max_outer_iter),
-        start_step_size = start_step_size,
-        cg_max_delta = cg_max_delta,
-        max_outer_iter = max_outer_iter,
-        max_inner_iter = max_inner_iter,
-        outer_stop_crit = 1e-4,
-        inner_stop_crit = 1e-4,
-        max_elapsed_sec = max_elapsed_sec,
+        optimizer_control = optimizer_control,
         compute_vcov = FALSE,
         verbose = 0
       )
