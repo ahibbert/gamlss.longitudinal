@@ -14,12 +14,13 @@ test_that("convergence metadata preserves RS and CG stopping semantics", {
     cg_raw_loglik_drop_tol = NA_real_,
     cg_gradient_method = "forward",
     cg_zeta_hessian = "analytical",
-    cg_hessian_method = "analytical"
+    cg_hessian_method = "analytical",
+    objective = -10
   )
 
   expect_true(rs_info$converged)
   expect_false(rs_info$hit_outer_limit)
-  expect_identical(rs_info$stop_reason, "tolerance")
+  expect_identical(rs_info$stop_reason, "converged")
   expect_identical(rs_info$method, "RS")
   expect_true(is.na(rs_info$cg_gradient_method))
 
@@ -38,7 +39,10 @@ test_that("convergence metadata preserves RS and CG stopping semantics", {
     cg_raw_loglik_drop_tol = 10,
     cg_gradient_method = "central",
     cg_zeta_hessian = "finite",
-    cg_hessian_method = "auto"
+    cg_hessian_method = "auto",
+    objective = -10,
+    cg_grad_tol = 0.1,
+    cg_step_tol = 0.001
   )
 
   expect_false(cg_info$converged)
