@@ -17,6 +17,12 @@
 #' @param gradient_step Relative step used for the fitted-score check.
 #'
 #' @return An object of class `gamlss_longitudinal_inference_control`.
+#'
+#' @details The standard and strict thresholds are versioned provisional
+#'   defaults (`0.1.0-provisional`) pending Phase-gate simulation calibration;
+#'   they are not claimed to be empirically calibrated. `gradient_tol` checks a
+#'   post-fit score standardized by observed curvature. It is unrelated to the
+#'   CG optimizer stopping tolerance commonly called `cg_grad_tol`.
 #' @export
 inference_control <- function(
     profile = c("standard", "strict"),
@@ -71,7 +77,10 @@ inference_control <- function(
   }
 
   structure(
-    c(list(profile = profile), values, list(expert_override = override)),
+    c(list(
+      profile = profile,
+      defaults_version = "0.1.0-provisional"
+    ), values, list(expert_override = override)),
     class = "gamlss_longitudinal_inference_control"
   )
 }
