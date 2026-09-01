@@ -86,7 +86,7 @@
 #' Gaussian CDF evaluations.
 #'
 #' @noRd
-.copula_gaussian_rectangle_prob_cached <- function(u1, u2, l1, l2, par) {
+.copula_gaussian_rectangle_prob_cached <- function(u1, u2, l1, l2, par, floor_probability = TRUE) {
   vals <- .copula_recycle(as.numeric(u1), as.numeric(u2), as.numeric(l1), as.numeric(l2), .copula_gaussian_rho(par))
   n <- length(vals[[1]])
   if (n == 0L) {
@@ -101,7 +101,8 @@
     cdf[n + seq_len(n)] -
     cdf[2L * n + seq_len(n)] +
     cdf[3L * n + seq_len(n)]
-  pmax(as.numeric(rect), 1e-300)
+  rect <- as.numeric(rect)
+  if (isTRUE(floor_probability)) pmax(rect, 1e-300) else rect
 }
 
 #' Copula rectangle probability
@@ -111,14 +112,18 @@
 #' for other copulas.
 #'
 #' @noRd
-.copula_rectangle_prob <- function(u1, u2, l1, l2, family, par, par2 = 0) {
+.copula_rectangle_prob <- function(u1, u2, l1, l2, family, par, par2 = 0,
+                                   floor_probability = TRUE) {
   family <- .copula_family_code(family)
   if (identical(family, "N")) {
-    return(.copula_gaussian_rectangle_prob_cached(u1, u2, l1, l2, par))
+    return(.copula_gaussian_rectangle_prob_cached(
+      u1, u2, l1, l2, par, floor_probability = floor_probability
+    ))
   }
   rect <- .copula_cdf(u1, u2, family = family, par = par, par2 = par2) -
     .copula_cdf(l1, u2, family = family, par = par, par2 = par2) -
     .copula_cdf(u1, l2, family = family, par = par, par2 = par2) +
     .copula_cdf(l1, l2, family = family, par = par, par2 = par2)
-  pmax(as.numeric(rect), 1e-300)
+  rect <- as.numeric(rect)
+  if (isTRUE(floor_probability)) pmax(rect, 1e-300) else rect
 }
