@@ -34,6 +34,7 @@ URL: https://gamlsslongitudinal.aydins-workbench.com/,
     https://github.com/ahibbert/gamlss.longitudinal
 BugReports: https://github.com/ahibbert/gamlss.longitudinal/issues
 Suggests:
+    digest,
     flextable,
     gt,
     knitr,
@@ -46,6 +47,8 @@ Suggests:
     geepack,
     lme4,
     mvtnorm,
+    pkgload,
+    sodium,
     tinytex
 Enhances:
     gamlss2
