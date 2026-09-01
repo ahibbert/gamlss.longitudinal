@@ -132,6 +132,7 @@ bootstrap_inference <- function(
     keep_fits = FALSE,
     type = c("parametric", "cluster"),
     ...) {
+  .gl_require_converged_fit(object, "bootstrap inference")
   validated <- .gl_validate_bootstrap_args(object, R, fit_args)
 
   R <- validated$R

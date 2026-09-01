@@ -62,6 +62,7 @@
     start_step_size,
     max_negative_outer_streak,
     weights_final,
+    stop_on_convergence = TRUE,
     outer_continue_fn = .gl_should_continue_rs_outer_loop,
     inner_continue_fn = .gl_should_continue_rs_inner_loop,
     initialize_parameter_state_fn = .gl_initialize_rs_parameter_state,
@@ -80,7 +81,8 @@
     outer_log_lik_change = outer_log_lik_change,
     outer_stop_crit = outer_stop_crit,
     outer_only_run_counter = outer_only_run_counter,
-    max_outer_iter = max_outer_iter
+    max_outer_iter = max_outer_iter,
+    stop_on_convergence = stop_on_convergence
   )) {
     # Check optional elapsed time budget (often used for debugging / stopping long runs proactively) 
     check_elapsed_budget("RS outer iteration")

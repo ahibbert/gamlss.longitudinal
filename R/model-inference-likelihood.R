@@ -62,6 +62,7 @@ likelihood_compare <- function(..., sort = TRUE) {
   labels <- .gl_likelihood_compare_call_labels(substitute(list(...)))
 
   models <- .gl_likelihood_compare_models(list(...), labels = labels)
+  invisible(lapply(models, .gl_require_converged_fit, operation = "likelihood model comparison"))
 
   .gl_likelihood_compare_table(models, sort = sort)
 }

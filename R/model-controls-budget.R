@@ -10,15 +10,19 @@
     elapsed <- as.numeric(difftime(now, fit_start_time, units = "secs"))
 
     if (elapsed > max_elapsed_sec) {
-      stop(
-        sprintf(
+      stop(structure(list(
+        message = sprintf(
           "Model exceeded max_elapsed_sec during %s (elapsed %.1f sec > %.1f sec).",
           stage,
           elapsed,
           max_elapsed_sec
         ),
-        call. = FALSE
-      )
+        call = NULL,
+        stop_reason = "time_limit",
+        elapsed_sec = elapsed,
+        max_elapsed_sec = max_elapsed_sec,
+        stage = stage
+      ), class = c("gamlss.longitudinal_time_limit_error", "error", "condition")))
     }
   }
 

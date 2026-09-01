@@ -24,7 +24,9 @@
     weights_final,
     method,
     warm_start_info,
-    convergence_info) {
+    convergence_info,
+    optimizer_control_requested = NULL,
+    optimizer_control_effective = NULL) {
   return_list <- list(
     par_cov,
     log_lik_history,
@@ -82,6 +84,8 @@
   )
   return_list$warm_start_joint <- warm_start_info
   return_list$convergence <- convergence_info
+  return_list$optimizer_control_requested <- optimizer_control_requested
+  return_list$optimizer_control_effective <- optimizer_control_effective
 
   return_list
 }

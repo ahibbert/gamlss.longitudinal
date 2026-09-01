@@ -27,6 +27,7 @@
     step_adjustment,
     max_steps,
     start_step_size,
+    stop_on_convergence,
     rs_runner_fn = .gl_run_rs_optimizer) {
   optimizer_state <- rs_runner_fn(
     first_outer_run = optimizer_context$first_outer_run,
@@ -72,7 +73,8 @@
     max_steps = max_steps,
     start_step_size = start_step_size,
     max_negative_outer_streak = max_negative_outer_streak,
-    weights_final = optimizer_context$weights_final
+    weights_final = optimizer_context$weights_final,
+    stop_on_convergence = stop_on_convergence
   )
   optimizer_state$cg_stop_reason <- optimizer_context$cg_stop_reason
   optimizer_state$cg_last_grad_inf <- optimizer_context$cg_last_grad_inf

@@ -57,13 +57,17 @@
 #' `NULL`, an automatic data-adaptive value is used. This is based on change in log
 #' likelihood in each iteration so `0.1` results in algorithm stopping in the inner loop
 #' if likelihood changes by less than 0.1 in that iteration. 
-#' Setting this to `0` forces the inner loop to run for the full `max_inner_iter` iterations.
+#' Use `optimizer_control`; this flat argument is retained for one release.
+#' Tolerances must be positive. To run to the iteration limit, set
+#' `stop_on_convergence = FALSE` in [gamlss_longitudinal_control()].
 #' Note inner iterations are only relevant for the RS algorithm as CG does not have an inner loop.
 #' @param outer_stop_crit Stopping criterion for the outer loop. If `NA` or
 #' `NULL`, an automatic data-adaptive value is used. This is based on change 
 #' in log likelihood in each iteration so `0.1` results in algorithm stopping 
 #' if likelihood changes by less than 0.1 in that outer iteration. 
-#' Setting this to `0` forces the outer loop to run for the full `max_outer_iter` iterations.
+#' Use `optimizer_control`; this flat argument is retained for one release.
+#' Tolerances must be positive. To run to the iteration limit, set
+#' `stop_on_convergence = FALSE` in [gamlss_longitudinal_control()].
 #' @param start_step_size Initial step size for the backfitting algorithm
 #' @param step_adjustment Step size adjustment factor
 #' @param max_steps Maximum number of times for reducing the step size
@@ -77,6 +81,8 @@
 #' @param plot_results Plot the results of the optimisation (depreciated) 
 #' @param true_val True values for the parameters if known for plotting (depreciated)
 #' @param method Optimisation method to use, 'RS' for Rigby and Stasinopoulis backfitting (default) or 'CG' for Cole and Green.
+#' @param optimizer_control Optimizer settings created by
+#'   [gamlss_longitudinal_control()]. `method` remains a top-level choice.
 #' @param max_outer_iter Maximum number of outer iterations for the optimisation algorithm (both RS and CG).
 #' @param max_inner_iter Maximum number of inner iterations for the RS backfitting algorithm. 
 #' Not relevant for CG which does not have an inner loop.
@@ -149,6 +155,11 @@
 #' L2 trust radius applied separately to each smooth coefficient block after
 #' the RS weighted least-squares proposal. Use `Inf` to disable.
 #'
+#' @details
+#' Flat optimizer arguments are soft-deprecated for one release. New code
+#' should supply a single `optimizer_control` object. If a flat argument and
+#' the control object specify the same setting, fitting stops with an error.
+#'
 #' @export
 gamlss_longitudinal <- function(dataset,
                                 margin_dist,
@@ -175,6 +186,7 @@ gamlss_longitudinal <- function(dataset,
                                 plot_results = FALSE,
                                 true_val = NA,
                                 method = "RS",
+                                optimizer_control = NULL,
                                 max_outer_iter = 100,
                                 max_inner_iter = 100,
                                 max_negative_outer_streak = 10,
@@ -204,6 +216,50 @@ gamlss_longitudinal <- function(dataset,
                                 lambda_penalty_K = 2,
                                 rs_update_lambda = TRUE,
                                 rs_smooth_trust_radius = Inf) {
+  legacy_values <- list(
+    inner_stop_crit = inner_stop_crit, outer_stop_crit = outer_stop_crit,
+    start_step_size = start_step_size, step_adjustment = step_adjustment,
+    max_steps = max_steps, warm_start_joint = warm_start_joint,
+    warm_start_joint_iter = warm_start_joint_iter, max_outer_iter = max_outer_iter,
+    max_inner_iter = max_inner_iter, max_negative_outer_streak = max_negative_outer_streak,
+    max_elapsed_sec = max_elapsed_sec, use_backtracking = use_backtracking,
+    backtracking_max_halves = backtracking_max_halves, cg_max_stall = cg_max_stall,
+    cg_max_delta = cg_max_delta, cg_armijo_c1 = cg_armijo_c1,
+    cg_grad_tol = cg_grad_tol, cg_step_tol = cg_step_tol,
+    cg_update_lambda = cg_update_lambda, cg_lambda_update_every = cg_lambda_update_every,
+    cg_max_lambda_updates = cg_max_lambda_updates,
+    cg_raw_loglik_drop_tol = cg_raw_loglik_drop_tol, cg_line_search = cg_line_search,
+    cg_max_line_search_evals = cg_max_line_search_evals,
+    cg_gradient_method = cg_gradient_method, discrete_score_method = discrete_score_method,
+    cg_zeta_hessian = cg_zeta_hessian, cg_hessian_method = cg_hessian_method,
+    rs_update_lambda = rs_update_lambda, rs_smooth_trust_radius = rs_smooth_trust_radius
+  )
+  legacy_supplied <- c(
+    inner_stop_crit = !missing(inner_stop_crit), outer_stop_crit = !missing(outer_stop_crit),
+    start_step_size = !missing(start_step_size), step_adjustment = !missing(step_adjustment),
+    max_steps = !missing(max_steps), warm_start_joint = !missing(warm_start_joint),
+    warm_start_joint_iter = !missing(warm_start_joint_iter), max_outer_iter = !missing(max_outer_iter),
+    max_inner_iter = !missing(max_inner_iter), max_negative_outer_streak = !missing(max_negative_outer_streak),
+    max_elapsed_sec = !missing(max_elapsed_sec), use_backtracking = !missing(use_backtracking),
+    backtracking_max_halves = !missing(backtracking_max_halves), cg_max_stall = !missing(cg_max_stall),
+    cg_max_delta = !missing(cg_max_delta), cg_armijo_c1 = !missing(cg_armijo_c1),
+    cg_grad_tol = !missing(cg_grad_tol), cg_step_tol = !missing(cg_step_tol),
+    cg_update_lambda = !missing(cg_update_lambda), cg_lambda_update_every = !missing(cg_lambda_update_every),
+    cg_max_lambda_updates = !missing(cg_max_lambda_updates),
+    cg_raw_loglik_drop_tol = !missing(cg_raw_loglik_drop_tol), cg_line_search = !missing(cg_line_search),
+    cg_max_line_search_evals = !missing(cg_max_line_search_evals),
+    cg_gradient_method = !missing(cg_gradient_method), discrete_score_method = !missing(discrete_score_method),
+    cg_zeta_hessian = !missing(cg_zeta_hessian), cg_hessian_method = !missing(cg_hessian_method),
+    rs_update_lambda = !missing(rs_update_lambda), rs_smooth_trust_radius = !missing(rs_smooth_trust_radius)
+  )
+  optimizer_control <- .gl_resolve_optimizer_control(
+    method = method,
+    optimizer_control = optimizer_control,
+    legacy_values = legacy_values,
+    legacy_supplied = legacy_supplied
+  )
+  method <- attr(optimizer_control, "method")
+
   .gl_run_gamlss_longitudinal_entrypoint(
     dataset = dataset,
     margin_dist = margin_dist,
@@ -218,47 +274,18 @@ gamlss_longitudinal <- function(dataset,
     zeta.formula = zeta.formula,
     include_dlcopdpar = include_dlcopdpar,
     check_dlcopdpar_gradient = check_dlcopdpar_gradient,
-    inner_stop_crit = inner_stop_crit,
-    outer_stop_crit = outer_stop_crit,
-    start_step_size = start_step_size,
-    step_adjustment = step_adjustment,
-    max_steps = max_steps,
     start_from = start_from,
-    warm_start_joint = warm_start_joint,
-    warm_start_joint_iter = warm_start_joint_iter,
     verbose = verbose,
     plot_results = plot_results,
     true_val = true_val,
     method = method,
-    max_outer_iter = max_outer_iter,
-    max_inner_iter = max_inner_iter,
-    max_negative_outer_streak = max_negative_outer_streak,
-    max_elapsed_sec = max_elapsed_sec,
-    use_backtracking = use_backtracking,
-    backtracking_max_halves = backtracking_max_halves,
-    cg_max_stall = cg_max_stall,
-    cg_max_delta = cg_max_delta,
-    cg_armijo_c1 = cg_armijo_c1,
-    cg_grad_tol = cg_grad_tol,
-    cg_step_tol = cg_step_tol,
-    cg_update_lambda = cg_update_lambda,
-    cg_lambda_update_every = cg_lambda_update_every,
-    cg_max_lambda_updates = cg_max_lambda_updates,
-    cg_raw_loglik_drop_tol = cg_raw_loglik_drop_tol,
-    cg_line_search = cg_line_search,
-    cg_max_line_search_evals = cg_max_line_search_evals,
-    cg_gradient_method = cg_gradient_method,
-    discrete_score_method = discrete_score_method,
-    cg_zeta_hessian = cg_zeta_hessian,
-    cg_hessian_method = cg_hessian_method,
+    optimizer_control = optimizer_control,
     compute_vcov = compute_vcov,
     vcov_method = vcov_method,
     vcov_numderiv = vcov_numderiv,
     use_Rcpp = use_Rcpp,
     lambda_start = lambda_start,
-    lambda_penalty_K = lambda_penalty_K,
-    rs_update_lambda = rs_update_lambda,
-    rs_smooth_trust_radius = rs_smooth_trust_radius
+    lambda_penalty_K = lambda_penalty_K
   )
 }
 gamlss.longitudinal <- gamlss_longitudinal

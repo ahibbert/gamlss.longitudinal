@@ -25,7 +25,8 @@
     outer_stop_crit,
     grad_tol,
     step_tol,
-    verbose) {
+    verbose,
+    stop_on_convergence = TRUE) {
   outer_log_lik_change <- outer_end_log_lik - outer_start_log_lik
 
   best_state <- .gl_update_cg_best_loglik(
@@ -66,7 +67,8 @@
     prevented_deterioration = prevented_deterioration,
     outer_stop_crit = outer_stop_crit,
     grad_tol = grad_tol,
-    step_tol = step_tol
+    step_tol = step_tol,
+    stop_on_convergence = stop_on_convergence
   )
 
   trace_row <- .gl_build_cg_step_trace_row(
