@@ -57,13 +57,9 @@ test_that("srr newdata policy rejects unseen factor levels and supports future p
   skip_if_not_installed("gamlss")
   skip_if_not_installed("gamlss.dist")
 
-  dat <- make_fixture_factor_time_interaction(n_subject = 10L)
-  fit <- fit_fixture_model(
-    dat,
-    include_dlcopdpar = FALSE,
-    max_outer_iter = 2,
-    theta_formula = "~ 1"
-  )
+  fixture <- get_valid_inference_fixture()
+  dat <- fixture$data
+  fit <- fixture$fit
 
   nd_bad <- dat[seq_len(3), , drop = FALSE]
   nd_bad$gender <- factor("X", levels = c(levels(dat$gender), "X"))

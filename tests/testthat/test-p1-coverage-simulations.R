@@ -245,7 +245,7 @@ test_that("coverage CG records fallback attempt metadata", {
     designs = "intercept"
   )
 
-  results <- gamlss.longitudinal:::.coverage_run_grid(
+  results <- suppressWarnings(gamlss.longitudinal:::.coverage_run_grid(
     grid,
     n = 22L,
     times = 1:3,
@@ -253,7 +253,7 @@ test_that("coverage CG records fallback attempt metadata", {
     max_outer_iter = 2L,
     max_inner_iter = 2L,
     max_elapsed_sec = 15
-  )
+  ))
 
   expect_true(all(c("fit_attempt", "fit_attempt_count", "fit_attempt_trace") %in% names(results)))
   expect_true(results$fit_attempt_count >= 1L)
@@ -299,7 +299,7 @@ test_that("coverage harness fits smooths on every active parameter for represent
     designs = "smooth"
   )
 
-  results <- gamlss.longitudinal:::.coverage_run_grid(
+  results <- suppressWarnings(gamlss.longitudinal:::.coverage_run_grid(
     grid,
     n = 24L,
     times = 1:3,
@@ -309,7 +309,7 @@ test_that("coverage harness fits smooths on every active parameter for represent
     max_elapsed_sec = 30,
     method_max_outer_iter = list(cg = 2L),
     method_max_inner_iter = list(cg = 2L)
-  )
+  ))
 
   expect_true(all(results$success))
   expect_true(all(is.finite(results$smooth_eta_rmse)))

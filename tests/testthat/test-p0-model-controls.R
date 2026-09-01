@@ -81,7 +81,11 @@ test_that("fit control normalization preserves existing validation messages", {
 })
 
 test_that("fit-control scalar normalizers preserve validation contracts", {
-  expect_equal(gamlss.longitudinal:::.gl_normalize_backtracking_halves(2.9), 2L)
+  expect_error(
+    gamlss.longitudinal:::.gl_normalize_backtracking_halves(2.9),
+    "backtracking_max_halves must be a single non-negative integer",
+    fixed = TRUE
+  )
   expect_error(
     gamlss.longitudinal:::.gl_normalize_backtracking_halves(NA_real_),
     "backtracking_max_halves must be a single non-negative integer",
@@ -106,15 +110,28 @@ test_that("fit-control scalar normalizers preserve validation contracts", {
 
 test_that("CG fit-control normalizers preserve NA-as-Inf and fallback policies", {
   expect_equal(gamlss.longitudinal:::.gl_normalize_cg_line_search_evals(NA), Inf)
-  expect_equal(gamlss.longitudinal:::.gl_normalize_cg_line_search_evals(4.9), 4L)
+  expect_error(
+    gamlss.longitudinal:::.gl_normalize_cg_line_search_evals(4.9),
+    "cg_max_line_search_evals must be a single non-negative integer or NA",
+    fixed = TRUE
+  )
   expect_error(
     gamlss.longitudinal:::.gl_normalize_cg_line_search_evals(-1),
     "cg_max_line_search_evals must be a single non-negative integer or NA",
     fixed = TRUE
   )
 
+  expect_error(
+    gamlss.longitudinal:::.gl_normalize_cg_lambda_controls(
+      cg_lambda_update_every = 2.8,
+      cg_max_lambda_updates = NA,
+      cg_raw_loglik_drop_tol = NA
+    ),
+    "cg_lambda_update_every must be a positive integer",
+    fixed = TRUE
+  )
   lambda <- gamlss.longitudinal:::.gl_normalize_cg_lambda_controls(
-    cg_lambda_update_every = 2.8,
+    cg_lambda_update_every = 2L,
     cg_max_lambda_updates = NA,
     cg_raw_loglik_drop_tol = NA
   )

@@ -45,9 +45,9 @@ test_that("T151c summary includes EDF for smooth terms", {
 })
 
 test_that("T152 plot_terms interaction rendering metadata includes factor levels", {
-  dat <- make_fixture_factor_time_interaction(n_subject = 16L)
-  dat$time_raw <- factor(as.character(dat$time_raw), levels = levels(dat$time_raw), ordered = FALSE)
-  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+  fixture <- get_valid_plot_fixture(ordered = FALSE)
+  dat <- fixture$data
+  fit <- fixture$fit
 
   suppressPackageStartupMessages(library(grid))
 
@@ -66,8 +66,9 @@ test_that("T152 plot_terms interaction rendering metadata includes factor levels
 })
 
 test_that("T153 plot methods smoke test return dashboard structures", {
-  dat <- make_fixture_factor_time_interaction(n_subject = 14L)
-  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+  fixture <- get_valid_plot_fixture()
+  dat <- fixture$data
+  fit <- fixture$fit
 
   suppressPackageStartupMessages(library(grid))
 
@@ -134,9 +135,9 @@ test_that("T154 plot_terms handles no-data fixed-term plots with many time level
   set.seed(42)
 
   subject_tbl <- data.frame(
-    id = seq_len(18L),
-    gender = factor(sample(c("F", "M"), 18L, replace = TRUE)),
-    age = round(runif(18L, min = 20, max = 70), 1),
+    id = seq_len(30L),
+    gender = factor(sample(c("F", "M"), 30L, replace = TRUE)),
+    age = round(runif(30L, min = 20, max = 70), 1),
     stringsAsFactors = FALSE
   )
   time_levels <- paste0("t", seq_len(8L))
@@ -160,8 +161,10 @@ test_that("T154 plot_terms handles no-data fixed-term plots with many time level
     mu_formula = "y ~ time_raw * gender + age",
     sigma_formula = "~ time_raw + gender",
     theta_formula = "~ time_raw",
-    max_outer_iter = 2,
-    max_inner_iter = 2,
+    max_outer_iter = 100L,
+    max_inner_iter = 50L,
+    outer_stop_crit = 1e-4,
+    inner_stop_crit = 1e-5,
     use_backtracking = TRUE
   )
 
@@ -173,9 +176,9 @@ test_that("T154 plot_terms handles no-data fixed-term plots with many time level
 })
 
 test_that("T155 ordered factor time is handled like nominal factor in grouped plots", {
-  dat <- make_fixture_factor_time_interaction(n_subject = 16L)
-  dat$time_raw <- factor(as.character(dat$time_raw), levels = levels(dat$time_raw), ordered = TRUE)
-  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+  fixture <- get_valid_plot_fixture(ordered = TRUE)
+  dat <- fixture$data
+  fit <- fixture$fit
 
   pt <- suppressWarnings(plot_terms(fit, data = dat, plot_interactions = TRUE))
   mu_entries <- pt$fixed_terms$mu
@@ -188,12 +191,9 @@ test_that("T155 ordered factor time is handled like nominal factor in grouped pl
 })
 
 test_that("T156 transformed smooth covariates keep their x-axis scale", {
-  dat <- make_fixture_factor_time_interaction(n_subject = 16L)
-  fit <- fit_fixture_model(
-    dat,
-    include_dlcopdpar = TRUE,
-    mu_formula = "y ~ time_raw * gender + s(log(age), bs = 'ps')"
-  )
+  fixture <- get_valid_smooth_plot_fixture()
+  dat <- fixture$data
+  fit <- fixture$fit
 
   pt <- suppressWarnings(plot_terms(fit))
   smooth_entries <- pt$smooth_terms$mu
@@ -229,14 +229,18 @@ test_that("T156b smooth plotting tolerates unavailable interval values", {
 })
 
 test_that("T156c transformed factor time is grouped into point interval plots", {
-  dat <- make_fixture_factor_time_interaction(n_subject = 16L)
+  dat <- make_fixture_factor_time_interaction(n_subject = 100L)
   dat$time_raw <- factor(as.character(dat$time_raw), levels = levels(dat$time_raw), ordered = FALSE)
   fit <- fit_fixture_model(
     dat,
     include_dlcopdpar = TRUE,
     mu_formula = "y ~ as.factor(time_raw) + gender + age",
     sigma_formula = "~ as.factor(time_raw) + gender",
-    theta_formula = "~ as.factor(time_raw)"
+    theta_formula = "~ as.factor(time_raw)",
+    max_outer_iter = 100L,
+    max_inner_iter = 50L,
+    outer_stop_crit = 1e-4,
+    inner_stop_crit = 1e-5
   )
 
   pt <- suppressWarnings(plot_terms(fit, data = dat))
@@ -279,8 +283,9 @@ test_that("T157 copula plot wrappers remain available after install", {
 })
 
 test_that("T158 old plotting entry points delegate with lifecycle warnings", {
-  dat <- make_fixture_factor_time_interaction(n_subject = 14L)
-  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+  fixture <- get_valid_plot_fixture()
+  dat <- fixture$data
+  fit <- fixture$fit
 
   expect_warning(
     old_terms <- plot.terms(fit, data = dat),

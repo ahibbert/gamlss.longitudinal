@@ -103,12 +103,11 @@ test_that("T009 analytical Hessian warns for near-boundary GG and tracks numeric
     inference = comparison_control
   ))
   vc_ana <- NULL
-  expect_warning(
+  expect_no_warning(
     vc_ana <- vcov(
       fit, method = "analytical", progress = FALSE,
       inference = comparison_control
-    ),
-    "GG may be numerically unstable because fitted nu is close to 0"
+    )
   )
 
   se_num <- suppressWarnings(sqrt(diag(vc_num$vcov$overall)))

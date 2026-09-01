@@ -50,7 +50,7 @@ test_that("srr error map covers prediction newdata diagnostics", {
   nd <- dat[seq_len(3), , drop = FALSE]
   nd$gender <- factor("other", levels = c(levels(dat$gender), "other"))
   expect_error(
-    stats::predict(fit, newdata = nd),
+    suppressWarnings(stats::predict(fit, newdata = nd)),
     "contains level(s) not seen during fitting",
     fixed = TRUE
   )

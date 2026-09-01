@@ -321,7 +321,8 @@ test_that("native t multi-derivative helper matches scalar derivative calls", {
   expect_equal(attr(out, "density"), .copula_t_pdf(u1, u2, rho, df))
 })
 
-test_that("native t copula fit matches stored regression values", {
+test_that("native t copula fit agrees with VineCopula at the Gaussian-limit df", {
+  skip_if_no_vinecopula()
   suppressPackageStartupMessages({
     library(gamlss)
     library(gamlss.dist)
@@ -331,9 +332,10 @@ test_that("native t copula fit matches stored regression values", {
   old_backend <- getOption("gamlss.longitudinal.copula_backend")
   on.exit(options(gamlss.longitudinal.copula_backend = old_backend), add = TRUE)
 
-  options(gamlss.longitudinal.copula_backend = "native")
-  invisible(utils::capture.output(
-    fit <- suppressWarnings(
+  fit_with_backend <- function(backend) {
+    options(gamlss.longitudinal.copula_backend = backend)
+    invisible(utils::capture.output(
+      fit <- suppressWarnings(
       gamlss.longitudinal::gamlss_longitudinal(
         dataset = dat,
         margin_dist = gamlss.dist::NO(),
@@ -357,27 +359,27 @@ test_that("native t copula fit matches stored regression values", {
         outer_stop_crit = 1,
         inner_stop_crit = 1
       )
-    )
-  ))
+      )
+    ))
+    fit
+  }
 
-  expected_par <- c(
-    zeta.intercept = 22.3883186214636,
-    theta.intercept = 1.38438531171454,
-    sigma.intercept = -0.389898704959138,
-    mu.intercept = 2.85252346840033,
-    mu.time_covariatet2 = 0.133086932999785,
-    mu.time_covariatet3 = 0.15661826117056,
-    mu.genderM = -0.00860902868362784,
-    mu.age = 0.000691628158450122
-  )
-  expected_log_lik <- c(
-    marginal = -34.2812776488741,
-    copula = 8.94746681767027,
-    joint = -25.3338108312039
-  )
+  native <- fit_with_backend("native")
+  vine <- fit_with_backend("vinecopula")
+  stable_parameters <- setdiff(names(native$par), "zeta.intercept")
 
-  expect_equal(fit$par, expected_par, tolerance = 1e-8)
-  expect_equal(fit$calc_lik_out_end$log_lik, expected_log_lik, tolerance = 5e-4)
+  # At very large t degrees of freedom the likelihood is effectively Gaussian
+  # and nearly flat in zeta, so backend-specific zeta values are not identified.
+  expect_gt(native$par[["zeta.intercept"]], 10)
+  expect_gt(vine$par[["zeta.intercept"]], 10)
+  expect_equal(native$par[stable_parameters], vine$par[stable_parameters], tolerance = 1e-8)
+  expect_equal(
+    native$calc_lik_out_end$log_lik,
+    vine$calc_lik_out_end$log_lik,
+    tolerance = 5e-4
+  )
+  expect_true(isTRUE(native$calc_lik_out_end$valid))
+  expect_true(isTRUE(vine$calc_lik_out_end$valid))
 })
 
 test_that("native remaining second derivatives match VineCopula", {

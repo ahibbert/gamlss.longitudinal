@@ -1,6 +1,7 @@
 test_that("T201 predict method returns standard fitted outputs", {
-  dat <- make_fixture_factor_time_interaction(n_subject = 14L)
-  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+  fixture <- get_valid_inference_fixture()
+  dat <- fixture$data
+  fit <- fixture$fit
 
   p_response <- predict(fit, type = "response")
   expect_type(p_response, "double")
@@ -306,8 +307,9 @@ test_that("T203 check_model returns basic-check diagnostic object", {
 })
 
 test_that("T203a check_model warns only for failed basic checks", {
-  dat <- make_fixture_factor_time_interaction(n_subject = 10L)
-  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+  fixture <- get_valid_inference_fixture()
+  dat <- fixture$data
+  fit <- fixture$fit
 
   fit_failed <- fit
   fit_failed$convergence$converged <- FALSE
@@ -371,8 +373,9 @@ test_that("T203b check_missingness screens response missingness against observed
 })
 
 test_that("T204 marginal_effects summarizes counterfactual parameter contrasts", {
-  dat <- make_fixture_factor_time_interaction(n_subject = 14L)
-  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+  fixture <- get_valid_inference_fixture()
+  dat <- fixture$data
+  fit <- fixture$fit
 
   eff <- marginal_effects(
     fit,
@@ -487,8 +490,8 @@ test_that("T206 gamlss_longitudinal is the single public fitter", {
 })
 
 test_that("T207 confint returns coefficient intervals users can cite", {
-  dat <- make_fixture_factor_time_interaction(n_subject = 10L)
-  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+  fixture <- get_valid_inference_fixture()
+  fit <- fixture$fit
 
   ci <- confint(fit, parm = names(fit$par)[seq_len(2L)], method = "numderiv", progress = FALSE)
 
@@ -498,8 +501,8 @@ test_that("T207 confint returns coefficient intervals users can cite", {
 })
 
 test_that("T208 wald_test returns individual and joint hypothesis tests", {
-  dat <- make_fixture_factor_time_interaction(n_subject = 10L)
-  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+  fixture <- get_valid_inference_fixture()
+  fit <- fixture$fit
   terms <- names(fit$par)[seq_len(2L)]
 
   wt <- wald_test(fit, terms = terms, method = "numderiv", progress = FALSE)
@@ -524,8 +527,8 @@ test_that("T208 wald_test returns individual and joint hypothesis tests", {
 })
 
 test_that("T208b wald_test accepts coefficient-name prefixes", {
-  dat <- make_fixture_factor_time_interaction(n_subject = 10L)
-  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+  fixture <- get_valid_inference_fixture()
+  fit <- fixture$fit
   prefixed_terms <- names(fit$par)[startsWith(names(fit$par), "mu.gender")]
 
   expect_gt(length(prefixed_terms), 0L)
@@ -543,15 +546,20 @@ test_that("T208b wald_test accepts coefficient-name prefixes", {
 })
 
 test_that("T208c wald_test resolves factor formula terms to all level coefficients", {
-  dat <- make_fixture_factor_time_interaction(n_subject = 12L)
+  dat <- make_fixture_factor_time_interaction(n_subject = 60L)
   treatments <- c("active", "control", "placebo")
   dat$treatment <- factor(treatments[(dat$id %% length(treatments)) + 1L], levels = treatments)
   dat$treatmentcontrol_score <- as.numeric(dat$id) / max(dat$id)
   fit <- fit_fixture_model(
     dat,
-    include_dlcopdpar = TRUE,
+    include_dlcopdpar = FALSE,
     mu_formula = "y ~ time_raw + treatment + treatmentcontrol_score",
-    sigma_formula = "~ time_raw + treatment"
+    sigma_formula = "~ 1",
+    theta_formula = "~ 1",
+    max_outer_iter = 50L,
+    max_inner_iter = 25L,
+    outer_stop_crit = 1e-5,
+    inner_stop_crit = 1e-5
   )
 
   expected_terms <- paste(
@@ -570,24 +578,25 @@ test_that("T208c wald_test resolves factor formula terms to all level coefficien
 })
 
 test_that("T209 likelihood_compare returns sequential LR summaries", {
-  dat <- make_fixture_factor_time_interaction(n_subject = 10L)
-  reduced <- suppressWarnings(gamlss_longitudinal(
+  dat <- make_fixture_factor_time_interaction(n_subject = 50L)
+  fit_args <- list(
     dataset = dat,
-    margin_dist = NO(),
-    time_var = "time_raw",
-    subject_var = "id",
-    mu.formula = y ~ time_raw + gender + age,
-    sigma.formula = ~1,
-    theta.formula = ~1,
-    copula_dist = "N",
-    compute_vcov = FALSE,
-    max_outer_iter = 2,
-    max_inner_iter = 2,
-    outer_stop_crit = 1,
-    inner_stop_crit = 1,
-    verbose = 0
-  ))
-  full <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+    include_dlcopdpar = FALSE,
+    sigma_formula = "~ 1",
+    theta_formula = "~ 1",
+    max_outer_iter = 25L,
+    max_inner_iter = 25L,
+    outer_stop_crit = 1e-5,
+    inner_stop_crit = 1e-5
+  )
+  reduced <- do.call(
+    fit_fixture_model,
+    c(fit_args, list(mu_formula = "y ~ time_raw + age"))
+  )
+  full <- do.call(
+    fit_fixture_model,
+    c(fit_args, list(mu_formula = "y ~ time_raw + gender + age"))
+  )
 
   cmp <- likelihood_compare(reduced = reduced, full = full)
 
@@ -599,8 +608,8 @@ test_that("T209 likelihood_compare returns sequential LR summaries", {
 })
 
 test_that("T210 bootstrap_inference refits simulated responses", {
-  dat <- make_fixture_factor_time_interaction(n_subject = 8L)
-  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+  fixture <- get_valid_inference_fixture()
+  fit <- fixture$fit
   terms <- names(fit$par)[seq_len(2L)]
 
   boot <- bootstrap_inference(
@@ -609,11 +618,10 @@ test_that("T210 bootstrap_inference refits simulated responses", {
     terms = terms,
     seed = 123,
     fit_args = list(
-      max_outer_iter = 1,
-      max_inner_iter = 1,
-      outer_stop_crit = 1,
-      inner_stop_crit = 1,
-      use_backtracking = FALSE
+      max_outer_iter = 25L,
+      max_inner_iter = 25L,
+      outer_stop_crit = 1e-5,
+      inner_stop_crit = 1e-5
     )
   )
 
@@ -631,11 +639,10 @@ test_that("T210 bootstrap_inference refits simulated responses", {
     terms = "mu.gender",
     seed = 124,
     fit_args = list(
-      max_outer_iter = 1,
-      max_inner_iter = 1,
-      outer_stop_crit = 1,
-      inner_stop_crit = 1,
-      use_backtracking = FALSE
+      max_outer_iter = 25L,
+      max_inner_iter = 25L,
+      outer_stop_crit = 1e-5,
+      inner_stop_crit = 1e-5
     )
   )
   expect_equal(boot_prefix$summary$term, prefix_terms)
@@ -647,11 +654,10 @@ test_that("T210 bootstrap_inference refits simulated responses", {
     seed = 125,
     type = "cluster",
     fit_args = list(
-      max_outer_iter = 1,
-      max_inner_iter = 1,
-      outer_stop_crit = 1,
-      inner_stop_crit = 1,
-      use_backtracking = FALSE
+      max_outer_iter = 25L,
+      max_inner_iter = 25L,
+      outer_stop_crit = 1e-5,
+      inner_stop_crit = 1e-5
     )
   )
   expect_s3_class(boot_cluster, "gamlss_longitudinal_bootstrap")
