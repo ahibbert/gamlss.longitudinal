@@ -250,7 +250,8 @@ test_that("CG optimizer runner wires helper sequence and returns updated state",
       lambda_update_count,
       lambda_changed,
       outer_stop_crit,
-      grad_tol
+      grad_tol,
+      stop_on_convergence
     ) {
       record("line-search-diagnostics")
       list(
