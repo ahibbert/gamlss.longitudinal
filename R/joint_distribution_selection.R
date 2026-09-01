@@ -32,12 +32,14 @@
 #'   with elapsed time and an estimated remaining runtime.
 #' @param fit_args Optional named list of arguments overriding the default
 #'   [gamlss_longitudinal()] screening fit settings.
-#' @param keep_fits Logical; if `TRUE`, attach successful fitted models in the
+#' @param keep_fits Logical; if `TRUE`, attach retained fitted models in the
 #'   `"fits"` attribute.
 #'
 #' @return A data frame with one row per margin-copula combination and class
 #'   `joint_distribution_selection`. Failed fits are retained with an `error`
-#'   message and missing fit metrics.
+#'   message and missing fit metrics. Nonconverged fits retain their provisional
+#'   metrics and stop reason for audit, but have `selection_eligible = FALSE`,
+#'   receive no rank, and can never be returned by [best_fit()].
 #' @export
 select_joint_distribution <- function(
     data,

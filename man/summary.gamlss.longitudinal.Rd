@@ -32,6 +32,10 @@ variance-covariance output.}
 \value{
 A \code{summary.gamlss.longitudinal} object with model metadata,
 coefficient summaries, smooth-term summaries, and optional vcov output.
+For a returned nonconverged fit, \code{include_vcov = FALSE} still provides
+point estimates and convergence diagnostics, while AIC and BIC are marked
+provisional and must not be used for model selection. Requesting vcov or
+other inference remains an error under the central convergence gate.
 }
 \description{
 Summarise a fitted longitudinal GAMLSS-copula model

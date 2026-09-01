@@ -1,6 +1,12 @@
 #' @export
 best_fit.joint_distribution_selection <- function(x, ...) {
-  if (nrow(x) == 0L || !is.na(x$error[[1L]]) || !is.finite(x$AIC[[1L]])) {
+  eligible <- which(
+      x$rank == 1L &
+      x$selection_eligible &
+      x$converged %in% TRUE &
+      is.na(x$error)
+  )
+  if (!length(eligible)) {
     return(list(
       margin_family_name = NA_character_,
       margin_family = NULL,
@@ -8,7 +14,7 @@ best_fit.joint_distribution_selection <- function(x, ...) {
       criterion = attr(x, "criterion")
     ))
   }
-  row <- as.list(as.data.frame(x)[1L, , drop = FALSE])
+  row <- as.list(as.data.frame(x)[eligible[[1L]], , drop = FALSE])
   margin_family_name <- row$margin_family
   copula_family <- row$copula_family
   row$margin_family <- NULL
@@ -55,7 +61,7 @@ print.joint_distribution_selection <- function(x, ..., n = 10L) {
   cols <- intersect(
     c(
       "rank", "margin_family", "copula_family", "logLik", "AIC", "BIC",
-      "EDF", "converged", "elapsed_sec", "error"
+      "EDF", "converged", "stop_reason", "selection_eligible", "elapsed_sec", "error"
     ),
     names(x)
   )

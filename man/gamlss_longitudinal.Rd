@@ -149,8 +149,10 @@ Not relevant for CG which does not have an inner loop.}
 log-likelihood changes allowed before stopping.
 (This is a safeguard against very badly formed likelihood steps which can cause the algorithm to diverge and produce NaNs. Setting this to \code{Inf} disables this stopping criterion.)}
 
-\item{max_elapsed_sec}{Optional maximum elapsed fitting time in seconds.
-If finite, the optimiser stops with an error once this budget is exceeded.}
+\item{max_elapsed_sec}{Optional positive optimizer time budget in seconds.
+If finite, it is checked at RS or CG iteration boundaries and aborts with a
+classed error once exceeded. It is not a deadline for post-optimizer
+finalization, and no partial fitted object is returned.}
 
 \item{use_backtracking}{Logical; if \code{TRUE} (default), apply step-halving
 backtracking to reject downhill inner updates.}
@@ -251,6 +253,10 @@ or the copula parameters theta (up to two depending on the copula, theta, zeta).
 Flat optimizer arguments are soft-deprecated for one release. New code
 should supply a single \code{optimizer_control} object. If a flat argument and
 the control object specify the same setting, fitting stops with an error.
+During this transition, a legacy flat control for the inactive optimizer is
+deprecated and ignored. In contrast, an explicitly supplied inactive \code{rs}
+or \code{cg} section in a new control object is an error, preventing accidental
+cross-method configuration.
 
 Formulas are specified as for standard gamlss models, with the response variable on the left-hand side
 of the formula for the mu parameter and the right-hand side specifying the predictors for each parameter.

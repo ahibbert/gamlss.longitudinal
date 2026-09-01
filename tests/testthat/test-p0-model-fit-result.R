@@ -120,7 +120,8 @@ test_that("core fit object fields are assembled with stable names", {
     "response", "response_margin", "response_subject", "par_s",
     "lambda_s", "df_s", "weights", "dataset", "dataset_original",
     "response_var", "time_var", "subject_var", "formulas", "formulas_int",
-    "var_map", "optim_method", "warm_start_joint", "convergence"
+    "var_map", "optim_method", "capability_registry_version",
+    "capability_route", "warm_start_joint", "convergence"
   ))
   expect_equal(out$par, c(`mu.(Intercept)` = 1))
   expect_identical(out$response, dataset$response)

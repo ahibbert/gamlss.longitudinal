@@ -89,8 +89,10 @@
 #' @param max_negative_outer_streak Maximum number of consecutive negative outer
 #' log-likelihood changes allowed before stopping. 
 #' (This is a safeguard against very badly formed likelihood steps which can cause the algorithm to diverge and produce NaNs. Setting this to `Inf` disables this stopping criterion.)
-#' @param max_elapsed_sec Optional maximum elapsed fitting time in seconds.
-#' If finite, the optimiser stops with an error once this budget is exceeded.
+#' @param max_elapsed_sec Optional positive optimizer time budget in seconds.
+#' If finite, it is checked at RS or CG iteration boundaries and aborts with a
+#' classed error once exceeded. It is not a deadline for post-optimizer
+#' finalization, and no partial fitted object is returned.
 #' @param use_backtracking Logical; if `TRUE` (default), apply step-halving
 #' backtracking to reject downhill inner updates.
 #' @param backtracking_max_halves Integer; maximum number of consecutive
@@ -159,6 +161,10 @@
 #' Flat optimizer arguments are soft-deprecated for one release. New code
 #' should supply a single `optimizer_control` object. If a flat argument and
 #' the control object specify the same setting, fitting stops with an error.
+#' During this transition, a legacy flat control for the inactive optimizer is
+#' deprecated and ignored. In contrast, an explicitly supplied inactive `rs`
+#' or `cg` section in a new control object is an error, preventing accidental
+#' cross-method configuration.
 #'
 #' @export
 gamlss_longitudinal <- function(dataset,

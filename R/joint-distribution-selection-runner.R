@@ -93,18 +93,26 @@
   out <- do.call(rbind, rows)
   out$n_pairs <- n_pairs
   out$rank <- NA_integer_
-  success <- is.na(out$error) & is.finite(out[[criterion]])
-  ord_success <- order(out[success, criterion], decreasing = identical(criterion, "logLik"))
-  success_idx <- which(success)[ord_success]
-  failed_idx <- which(!success)
-  out <- out[c(success_idx, failed_idx), , drop = FALSE]
-  if (any(success)) {
-    out$rank[seq_along(success_idx)] <- seq_along(success_idx)
+  out$selection_eligible <- is.na(out$error) & out$converged %in% TRUE &
+    is.finite(out[[criterion]])
+  ord_eligible <- order(
+    out[out$selection_eligible, criterion],
+    decreasing = identical(criterion, "logLik")
+  )
+  eligible_idx <- which(out$selection_eligible)[ord_eligible]
+  retained_idx <- which(!out$selection_eligible)
+  out <- out[c(eligible_idx, retained_idx), , drop = FALSE]
+  if (length(eligible_idx)) {
+    out$rank[seq_along(eligible_idx)] <- seq_along(eligible_idx)
   }
-  out$delta_AIC <- if (any(is.finite(out$AIC))) out$AIC - min(out$AIC, na.rm = TRUE) else NA_real_
+  out$delta_AIC <- NA_real_
+  eligible_aic <- out$selection_eligible & is.finite(out$AIC)
+  if (any(eligible_aic)) {
+    out$delta_AIC[eligible_aic] <- out$AIC[eligible_aic] - min(out$AIC[eligible_aic])
+  }
   rownames(out) <- NULL
 
-  attr(out, "selected") <- if (length(success_idx) > 0L) {
+  attr(out, "selected") <- if (length(eligible_idx) > 0L) {
     paste(out$margin_family[[1L]], out$copula_family[[1L]], sep = "+")
   } else {
     NA_character_
@@ -117,7 +125,7 @@
   attr(out, "copula_time_intercepts") <- isTRUE(copula_time_intercepts)
   attr(out, "copula_time_var") <- if (isTRUE(copula_time_intercepts)) time_var else NULL
   if (isTRUE(keep_fits)) {
-    fit_store <- fit_store[c(success_idx, failed_idx)]
+    fit_store <- fit_store[c(eligible_idx, retained_idx)]
     attr(out, "fits") <- fit_store
   }
   class(out) <- c("joint_distribution_selection", "data.frame")

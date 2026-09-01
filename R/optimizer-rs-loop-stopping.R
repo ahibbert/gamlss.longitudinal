@@ -16,8 +16,20 @@
       "Alternatively, you can increase the max_negative_outer_streak parameter to allow more negative changes before stopping, but we recommend investigating the cause of the consecutive negative changes in likelihood."
     )
 
-    warning(msg, call. = FALSE)
-    stop(msg, call. = FALSE)
+    stop(structure(
+      list(
+        message = msg,
+        call = NULL,
+        stop_reason = "objective_deterioration",
+        outer_negative_streak = outer_negative_streak,
+        max_negative_outer_streak = max_negative_outer_streak
+      ),
+      class = c(
+        "gamlss.longitudinal_objective_deterioration_error",
+        "error",
+        "condition"
+      )
+    ))
   }
 
   outer_negative_streak
@@ -34,7 +46,7 @@
     inner_run_counter,
     max_inner_iter) {
   (isTRUE(first_inner_run) || abs(change_log_lik) > inner_stop_crit) &&
-    inner_run_counter < max_inner_iter
+    inner_run_counter <= max_inner_iter
 }
 
 #' Determine whether the RS outer loop should continue
@@ -49,7 +61,7 @@
     max_outer_iter,
     stop_on_convergence = TRUE) {
   (!isTRUE(stop_on_convergence) || isTRUE(first_outer_run) || abs(outer_log_lik_change) > outer_stop_crit) &&
-    outer_only_run_counter < max_outer_iter
+    outer_only_run_counter <= max_outer_iter
 }
 
 .gl_update_rs_outer_iteration_state <- function(

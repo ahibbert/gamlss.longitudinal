@@ -13,6 +13,7 @@
     ci_level) {
   out <- list(
     model = model_info,
+    convergence = object$convergence,
     fit = list(
       logLik = fit_criteria$loglik_joint,
       AIC = as.numeric(fit_criteria$aic_vec["joint"]),
@@ -23,6 +24,12 @@
       vcov_method = vcov_out$method %||% object$vcov_meta$method_used %||% object$vcov_meta$method %||% NA_character_,
       vcov_method_requested = vcov_out$method_requested %||% object$vcov_meta$method %||% NA_character_,
       hessian_diagnostics = vcov_out$hessian_diagnostics %||% NULL,
+      criteria_status = if (identical(object$convergence$converged, FALSE)) {
+        "provisional_nonconverged"
+      } else {
+        "available"
+      },
+      stop_reason = object$convergence$stop_reason %||% NA_character_,
       model_selection = fit_criteria$model_selection
     ),
     smooth_terms = smooth_terms,

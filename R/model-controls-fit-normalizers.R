@@ -1,11 +1,11 @@
 .gl_normalize_backtracking_halves <- function(backtracking_max_halves) {
-  if (!is.numeric(backtracking_max_halves) || length(backtracking_max_halves) != 1 || is.na(backtracking_max_halves)) {
+  if (!is.numeric(backtracking_max_halves) || length(backtracking_max_halves) != 1 ||
+      is.na(backtracking_max_halves) || !is.finite(backtracking_max_halves) ||
+      backtracking_max_halves < 0 ||
+      backtracking_max_halves != as.integer(backtracking_max_halves)) {
     stop("ERROR: backtracking_max_halves must be a single non-negative integer.")
   }
   backtracking_max_halves <- as.integer(backtracking_max_halves)
-  if (backtracking_max_halves < 0) {
-    stop("ERROR: backtracking_max_halves must be a single non-negative integer.")
-  }
 
   backtracking_max_halves
 }
@@ -48,16 +48,18 @@
 }
 
 .gl_normalize_cg_line_search_evals <- function(cg_max_line_search_evals) {
-  if (length(cg_max_line_search_evals) != 1 || is.null(cg_max_line_search_evals)) {
+  if (!is.numeric(cg_max_line_search_evals) ||
+      length(cg_max_line_search_evals) != 1 || is.null(cg_max_line_search_evals)) {
     stop("ERROR: cg_max_line_search_evals must be a single non-negative integer or NA.")
   }
   if (is.na(cg_max_line_search_evals)) {
     cg_max_line_search_evals <- Inf
   } else {
-    cg_max_line_search_evals <- as.integer(cg_max_line_search_evals)
-    if (!is.finite(cg_max_line_search_evals) || cg_max_line_search_evals < 0) {
+    if (!is.finite(cg_max_line_search_evals) || cg_max_line_search_evals < 0 ||
+        cg_max_line_search_evals != as.integer(cg_max_line_search_evals)) {
       stop("ERROR: cg_max_line_search_evals must be a single non-negative integer or NA.")
     }
+    cg_max_line_search_evals <- as.integer(cg_max_line_search_evals)
   }
 
   cg_max_line_search_evals
@@ -67,10 +69,13 @@
     cg_lambda_update_every,
     cg_max_lambda_updates,
     cg_raw_loglik_drop_tol) {
-  cg_lambda_update_every <- as.integer(cg_lambda_update_every)
-  if (!is.finite(cg_lambda_update_every) || cg_lambda_update_every < 1L) {
+  if (!is.numeric(cg_lambda_update_every) || length(cg_lambda_update_every) != 1L ||
+      is.na(cg_lambda_update_every) || !is.finite(cg_lambda_update_every) ||
+      cg_lambda_update_every < 1L ||
+      cg_lambda_update_every != as.integer(cg_lambda_update_every)) {
     stop("cg_lambda_update_every must be a positive integer.")
   }
+  cg_lambda_update_every <- as.integer(cg_lambda_update_every)
 
   if (length(cg_max_lambda_updates) != 1 || is.null(cg_max_lambda_updates)) {
     stop("cg_max_lambda_updates must be a single non-negative integer or NA.")
@@ -78,10 +83,12 @@
   if (is.na(cg_max_lambda_updates)) {
     cg_max_lambda_updates <- Inf
   } else {
-    cg_max_lambda_updates <- as.integer(cg_max_lambda_updates)
-    if (!is.finite(cg_max_lambda_updates) || cg_max_lambda_updates < 0L) {
+    if (!is.numeric(cg_max_lambda_updates) || !is.finite(cg_max_lambda_updates) ||
+        cg_max_lambda_updates < 0L ||
+        cg_max_lambda_updates != as.integer(cg_max_lambda_updates)) {
       stop("cg_max_lambda_updates must be a single non-negative integer or NA.")
     }
+    cg_max_lambda_updates <- as.integer(cg_max_lambda_updates)
   }
 
   if (length(cg_raw_loglik_drop_tol) != 1 || is.null(cg_raw_loglik_drop_tol)) {
