@@ -1,25 +1,18 @@
 #' Solve a Hessian into covariance output and diagnostics
 #'
 #' @noRd
-.gl_solve_hessian_vcov <- function(H) {
-  vc <- -solve(H)
-
-  se <- sqrt(abs(diag(solve(H))))
-
-  if (!is.matrix(vc) || any(!is.finite(vc)) || any(!is.finite(se))) {
-    stop("Hessian inversion produced non-finite variance-covariance values.", call. = FALSE)
-  }
-
-  eig <- tryCatch(eigen((H + t(H)) / 2, symmetric = TRUE, only.values = TRUE)$values, error = function(e) NA_real_)
-
-  list(
-    vcov = vc,
-    se = se,
-    hessian_diagnostics = list(
-      condition_number = tryCatch(kappa(H), error = function(e) NA_real_),
-      min_abs_eigen = if (any(is.finite(eig))) min(abs(eig[is.finite(eig)])) else NA_real_,
-      max_abs_eigen = if (any(is.finite(eig))) max(abs(eig[is.finite(eig)])) else NA_real_
-    )
+.gl_solve_hessian_vcov <- function(H, parameter_names = colnames(H),
+                                   inference = inference_control("standard"),
+                                   source = "unknown", fallback = NULL,
+                                   gradient = NULL, reference_hessian = NULL) {
+  .gl_validate_hessian_inference(
+    H = H,
+    parameter_names = parameter_names,
+    control = inference,
+    source = source,
+    fallback = fallback,
+    gradient = gradient,
+    reference_hessian = reference_hessian
   )
 }
 
