@@ -47,6 +47,14 @@
 .resolve_vcov <- function(object, numderiv = FALSE, extra_args = list()) {
   vcov_method <- extra_args$method %||% if (isTRUE(numderiv)) "numderiv" else "analytical"
 
+  stored_unavailable <- identical(object$vcov_meta$inference_status, "unavailable")
+  stored_method <- object$vcov_meta$method %||% "analytical"
+  explicit_revalidation <- !is.null(extra_args$inference) ||
+    !identical(as.character(vcov_method)[1], as.character(stored_method)[1])
+  if (stored_unavailable && !explicit_revalidation) {
+    stop(.gl_inference_unavailable(object$vcov_meta$hessian_diagnostics))
+  }
+
   if (.can_use_cached_vcov(object, numderiv = numderiv, method = vcov_method, extra_args = extra_args)) {
     return(object$vcov)
   }

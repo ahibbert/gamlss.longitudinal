@@ -206,6 +206,7 @@
     status = if (length(failures)) "unavailable" else "available",
     failure_codes = failures,
     validation_profile = control$profile,
+    validation_defaults_version = control$defaults_version,
     effective_thresholds = unclass(control[c(
       "symmetry_tol", "rank_tol", "condition_max", "gradient_tol",
       "agreement_tol", "gradient_step", "check_agreement"
