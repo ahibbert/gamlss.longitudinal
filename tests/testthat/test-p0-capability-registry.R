@@ -52,3 +52,71 @@ test_that("capability tables are direct projections of the registry specs", {
   expect_true(any(grepl("NBI", rd, fixed = TRUE)))
   expect_true(any(grepl("one homogeneous marginal family", tolower(rd), fixed = TRUE)))
 })
+
+test_that("registered routes and likelihood routing agree", {
+  skip_if_not_installed("gamlss.dist")
+
+  expect_invisible(gamlss.longitudinal:::.gl_validate_capability_route(
+    gamlss.dist::BCPE(), "t", response = c(1, 2)
+  ))
+  expect_invisible(gamlss.longitudinal:::.gl_validate_capability_route(
+    gamlss.dist::NBI(), "C", response = c(0, 2)
+  ))
+  expect_identical(
+    gamlss.longitudinal:::.gl_capability_likelihood_route(gamlss.dist::BCPE()),
+    "continuous_density"
+  )
+  expect_identical(
+    gamlss.longitudinal:::.gl_capability_likelihood_route(gamlss.dist::NBI()),
+    "exact_discrete_rectangle"
+  )
+})
+
+test_that("unsupported, mixed, and invalid-domain inputs fail with named conditions", {
+  skip_if_not_installed("gamlss.dist")
+
+  expect_error(
+    gamlss.longitudinal:::.gl_validate_capability_route(gamlss.dist::BI(), "N"),
+    "denominator", class = "gamlss_longitudinal_unsupported_margin_error"
+  )
+  expect_error(
+    gamlss.longitudinal:::.gl_validate_capability_route(gamlss.dist::BCPE(), "C"),
+    "tested allowlist", class = "gamlss_longitudinal_unsupported_route_error"
+  )
+  expect_error(
+    gamlss.longitudinal:::.gl_validate_capability_route(list(gamlss.dist::NO(), gamlss.dist::PO()), "N"),
+    "one homogeneous", class = "gamlss_longitudinal_mixed_margin_error"
+  )
+  expect_error(
+    gamlss.longitudinal:::.gl_validate_capability_route(gamlss.dist::GA(), "N", response = c(0, 1)),
+    "strictly greater", class = "gamlss_longitudinal_response_domain_error"
+  )
+  expect_error(
+    gamlss.longitudinal:::.gl_validate_capability_route(gamlss.dist::NBI(), "C", response = c(0, 1.5)),
+    "non-negative integers", class = "gamlss_longitudinal_response_domain_error"
+  )
+})
+
+test_that("fit preflight rejects unsupported margins before the workflow", {
+  skip_if_not_installed("gamlss.dist")
+
+  dat <- data.frame(id = c(1, 1), time = c(1, 2), y = c(0, 1))
+  expect_error(
+    gamlss.longitudinal:::.gl_preflight_fit_capabilities(
+      dat, gamlss.dist::BI(), "N", y ~ 1
+    ),
+    class = "gamlss_longitudinal_unsupported_margin_error"
+  )
+})
+
+test_that("coverage catalog is audit evidence constrained by the registry", {
+  skip_if_not_installed("gamlss.dist")
+
+  catalog <- gamlss.longitudinal:::.coverage_family_catalog()
+  supported <- sort(catalog$family[catalog$supported])
+  registered <- sort(longitudinal_capabilities("margins")$family[
+    longitudinal_capabilities("margins")$status == "supported"
+  ])
+  expect_true(all(supported %in% registered))
+  expect_false(catalog$supported[match("BI", catalog$family)])
+})
