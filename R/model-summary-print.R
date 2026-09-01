@@ -63,6 +63,19 @@ print.summary.gamlss.longitudinal <- function(x, digits = max(3, getOption("digi
     " | Subjects:", x$model$n_subjects,
     " | Time points:", x$model$n_timepoints, "\n"
   )
+  if (identical(x$fit$likelihood_contract$objective, "segmented")) {
+    cat(
+      "Missingness: SEGMENTED LIKELIHOOD (",
+      x$fit$missingness$n_subjects_with_gaps %||% NA_integer_,
+      " subject(s) with intermittent gaps; ",
+      x$fit$missingness$n_segments %||% NA_integer_,
+      " contiguous segments)\n",
+      sep = ""
+    )
+    cat("Between-gap assumption: different observed segments are treated as independent.\n")
+    cat("AIC and BIC are available under this explicit segmented-independence assumption.\n")
+    cat("Numerical integration of dependence across gaps is not currently implemented.\n")
+  }
   cat(
     "Fixed coefficients:", x$model$n_fixed,
     " | Smooth terms:", x$model$n_smooth_terms,

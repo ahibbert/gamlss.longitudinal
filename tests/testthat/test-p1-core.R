@@ -40,6 +40,7 @@ test_that("T103 full-grid expansion restores structural missing rows", {
 
   fit <- fit_fixture_model(
     dat,
+    missingness = "segment",
     include_dlcopdpar = TRUE,
     start_from = fit_full$par
   )

@@ -11,6 +11,7 @@
     copula_dist,
     time_var,
     subject_var,
+    missingness,
     mu.formula,
     sigma.formula,
     nu.formula,
@@ -69,6 +70,7 @@
     tau.formula = tau.formula,
     theta.formula = theta.formula,
     zeta.formula = zeta.formula,
+    missingness = missingness,
     verbose = verbose
   )
 
@@ -91,6 +93,7 @@
     copula_dist = copula_dist,
     time_var = time_var,
     subject_var = subject_var,
+    missingness = missingness,
     mu.formula = mu.formula,
     sigma.formula = sigma.formula,
     nu.formula = nu.formula,

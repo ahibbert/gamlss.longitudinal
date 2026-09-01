@@ -11,6 +11,7 @@ make_warm_start_args <- function(...) {
     copula_dist = "N",
     time_var = "time",
     subject_var = "subject",
+    missingness = "error",
     mu.formula = response ~ 1,
     sigma.formula = ~ 1,
     nu.formula = ~ 1,
