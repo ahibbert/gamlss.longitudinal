@@ -191,7 +191,7 @@ jss_run_03_full_bundle <- function(settings, bundle, reps = NULL) {
   )
 }
 
-jss_run_03_joint_vs_separate_full <- function(settings) {
+jss_legacy_run_03_joint_vs_separate_full <- function(settings) {
   specs <- jss_jvs_full_bundle_specs()
   runs <- lapply(specs$bundle, function(bundle) jss_run_03_full_bundle(settings, bundle))
   list(
@@ -201,8 +201,8 @@ jss_run_03_joint_vs_separate_full <- function(settings) {
   )
 }
 
-jss_run_03_joint_vs_separate <- function(settings) {
-  if (identical(settings$profile, "full")) return(jss_run_03_joint_vs_separate_full(settings))
+jss_legacy_run_03_joint_vs_separate <- function(settings) {
+  if (identical(settings$profile, "full")) return(jss_legacy_run_03_joint_vs_separate_full(settings))
   src <- file.path(settings$public_data_dir, "joint-vs-separate")
   names <- c("normal-joint-vs-separate-six-case-median-iqr-table.tex", "gamma-joint-vs-separate-six-case-median-iqr-table.tex", "negative-binomial-joint-vs-separate-six-case-median-iqr-table.tex")
   out <- file.path(settings$tables_dir, names)
@@ -222,27 +222,89 @@ jss_run_03_joint_vs_separate <- function(settings) {
 
 jss_run_07_from_public_results <- function(settings) {
   paths <- jss_misspec_paths(settings)
-  results <- utils::read.csv(file.path(settings$public_data_dir, "copula-misspecification", "results.csv"), stringsAsFactors = FALSE)
+  config <- jss_misspec_config(settings, stage = "full")
+  grid <- jss_misspec_grid(config)
+  public_results <- file.path(settings$public_data_dir, "copula-misspecification", "results.csv")
+  approval <- jss_misspec_validate_approved_public_bundle(public_results, grid, config)
+  results <- approval$results
+  approval$results <- NULL
+  jss_misspec_validate_public_full_bundle(results, grid, config)
   results <- jss_misspec_add_deltas(results)
   summary <- jss_misspec_summary(results)
+  selection_attempts <- jss_misspec_selection_attempts(results)
   selection <- jss_misspec_selection(results)
-  utils::write.csv(results, paths$results, row.names = FALSE)
-  utils::write.csv(summary, paths$summary, row.names = FALSE)
-  utils::write.csv(selection, paths$selection, row.names = FALSE)
+  selection_confusion <- jss_misspec_selection_confusion(selection_attempts, criterion = "aic")
+  selection_failures <- jss_misspec_selection_failures(selection_attempts)
+  jss_misspec_write_csv_atomic(grid, paths$grid)
+  jss_misspec_write_csv_atomic(results, paths$results)
+  jss_misspec_write_csv_atomic(summary, paths$summary)
+  jss_misspec_write_csv_atomic(selection, paths$selection)
+  jss_misspec_write_csv_atomic(selection_attempts, paths$selection_attempts)
+  jss_misspec_write_csv_atomic(selection_confusion, paths$selection_confusion)
+  jss_misspec_write_csv_atomic(selection_failures, paths$selection_failures)
   jss_misspec_write_paper_summary_heatmap(summary, paths$paper_summary_heatmap)
-  list(module_id = "07-gamma-copula-misspecification", status = "regenerated", data = paths$results,
-    tables = c(paths$summary, paths$selection), figures = paths$paper_summary_heatmap)
+  installed_results <- utils::read.csv(paths$results, stringsAsFactors = FALSE, check.names = FALSE)
+  review <- jss_misspec_binding_review_gate(
+    installed_results, grid = grid, paths = paths,
+    context = "paper-public-derived", config = config
+  )
+  jss_misspec_write_csv_atomic(review[c("check", "status", "detail")], paths$review)
+  jss_misspec_revalidate_approved_source(public_results, approval, config)
+  list(module_id = "07-gamma-copula-misspecification", status = "regenerated",
+    data = c(paths$grid, paths$results, paths$selection_attempts),
+    tables = c(paths$summary, paths$selection, paths$selection_confusion, paths$selection_failures, paths$review),
+    figures = paths$paper_summary_heatmap, approved_identity = approval)
 }
 
-jss_run_08_public <- function(settings) {
-  if (identical(settings$profile, "full")) return(jss_run_08_full(settings))
+jss_run_phase2_multivariate_benchmark <- function(settings) {
+  configured <- Sys.getenv("GAMLSS_LONGITUDINAL_MVT_APPROVED_RUN_DIR", unset = "")
+  source <- if (nzchar(configured)) configured else
+    file.path(settings$public_data_dir, "multivariate-benchmark")
+  if (!dir.exists(source)) {
+    stop("Approved Module 09 snapshot bundle is missing: ", source, call. = FALSE)
+  }
+  attestation <- if (!is.null(settings$multivariate_benchmark_attestation)) {
+    settings$multivariate_benchmark_attestation
+  } else {
+    mvt_phase2_snapshot_attestation_path()
+  }
+  signature <- if (!is.null(settings$multivariate_benchmark_signature)) {
+    settings$multivariate_benchmark_signature
+  } else mvt_phase2_snapshot_signature_path()
+  source_identity <- mvt_validate_phase2_claim_evidence(source, attestation, signature)
+  destination <- file.path(settings$data_dir, "multivariate-benchmark")
+  if (dir.exists(destination)) {
+    installed_identity <- mvt_validate_phase2_claim_evidence(destination, attestation, signature)
+    if (!identical(source_identity, installed_identity)) {
+      stop("Existing Module 09 public integration does not match the approved source snapshot.", call. = FALSE)
+    }
+    integration <- c(installed_identity, list(integration_dir = destination))
+  } else {
+    integration <- mvt_integrate_approved_phase2_snapshot(source, destination, attestation, signature)
+  }
+  allowlist <- mvt_phase2_public_output_allowlist()
+  attempt <- file.path(destination, allowlist$attempt_artifacts)
+  evidence <- file.path(destination, allowlist$evidence_artifacts)
+  if (!all(file.exists(c(attempt, evidence)))) {
+    stop("Approved Module 09 integration is missing an exact allowlisted artifact.", call. = FALSE)
+  }
+  list(
+    module_id = "09-simulation-multivariate-longitudinal", status = "current",
+    data = attempt, tables = evidence, figures = character(),
+    approved_identity = integration,
+    notes = "Exact approved t20 x four-family x four-dependence x R=100 benchmark snapshot."
+  )
+}
+
+jss_legacy_run_08_public <- function(settings) {
+  if (identical(settings$profile, "full")) return(jss_legacy_run_08_full(settings))
   old <- Sys.getenv("GAMLSS_LONGITUDINAL_JSS_CORR_MISSPEC_RUN_DIR", unset = NA_character_)
   on.exit(if (is.na(old)) Sys.unsetenv("GAMLSS_LONGITUDINAL_JSS_CORR_MISSPEC_RUN_DIR") else Sys.setenv(GAMLSS_LONGITUDINAL_JSS_CORR_MISSPEC_RUN_DIR = old), add = TRUE)
   Sys.setenv(GAMLSS_LONGITUDINAL_JSS_CORR_MISSPEC_RUN_DIR = file.path(settings$public_data_dir, "correlation-misspecification"))
   jss_run_08_simulation_sensitivity_correlation_misspecification(settings)
 }
 
-jss_run_08_full <- function(settings) {
+jss_legacy_run_08_full <- function(settings) {
   scripts <- file.path(settings$root, "paper", "R", "08-simulation-sensitivity-correlation-misspecification", "standard-model-benchmarking")
   output_root <- file.path(settings$data_dir, "correlation-misspecification-full")
   base_env <- c(
