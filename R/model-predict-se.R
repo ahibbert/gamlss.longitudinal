@@ -42,6 +42,7 @@
   beta_names <- ifelse(startsWith(beta_names, "mu."), beta_names, paste0("mu.", beta_names))
 
   vc <- .resolve_vcov(object, extra_args = list(method = method, ...))
+  .gl_require_available_inference(vc)
 
   V <- vc$vcov$overall
 
@@ -55,7 +56,9 @@
 
   V_mu <- V[idx, idx, drop = FALSE]
 
-  se_eta <- sqrt(pmax(0, rowSums((X %*% V_mu) * X)))
+  se_eta <- .gl_sqrt_derived_variance(
+    rowSums((X %*% V_mu) * X), "prediction covariance", allow_zero = TRUE
+  )
 
   copula_link <- get_copula_dist(object$copula_dist)$copula_link
 

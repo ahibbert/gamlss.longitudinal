@@ -11,7 +11,9 @@
   }
 
   fitted_term <- x_levels * coef_info$estimate
-  term_se <- abs(x_levels) * sqrt(pmax(0, coef_info$variance))
+  term_se <- abs(x_levels) * .gl_sqrt_derived_variance(
+    coef_info$variance, "fixed-term covariance", allow_zero = FALSE
+  )
   ci_lower <- fitted_term - z * term_se
   ci_upper <- fitted_term + z * term_se
   x_labels <- as.character(signif(x_levels, 6))
@@ -52,7 +54,11 @@
   coef_info <- .plot_fixed_terms_coef_info(coef_name, object, V)
 
   fitted_term <- x_raw * coef_info$estimate
-  term_se <- sqrt(pmax(0, (x_raw^2) * coef_info$variance))
+  term_se <- .gl_sqrt_derived_variance(
+    (x_raw^2) * coef_info$variance,
+    "fixed-term prediction covariance",
+    allow_zero = TRUE
+  )
   ci_lower <- fitted_term - z * term_se
   ci_upper <- fitted_term + z * term_se
 

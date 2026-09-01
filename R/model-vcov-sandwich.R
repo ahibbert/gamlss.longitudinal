@@ -170,6 +170,7 @@
                                       bread_h = 1e-4,
                                       adjust = TRUE,
                                       bread_method = c("analytical", "numderiv", "analytical_only"),
+                                      inference = inference_control("standard"),
                                       progress = interactive()) {
   bread_method <- match.arg(bread_method)
 
@@ -215,7 +216,8 @@
     response_subject = response_subject,
     method = bread_method,
     progress = progress,
-    h = bread_h
+    h = bread_h,
+    inference = inference
   )
 
   H <- bread_path$hessian_nd
@@ -235,7 +237,19 @@
     H <- H[colnames(scores), colnames(scores), drop = FALSE]
   }
 
-  bread_inv <- solve(-H)
+  gradient <- .gl_vcov_fitted_gradient(
+    object_eval, par_cov, H, inference$gradient_step
+  )
+  bread_valid <- .gl_solve_hessian_vcov(
+    H,
+    parameter_names = names(par_cov),
+    inference = inference,
+    source = paste0("sandwich_bread:", bread_path$method_used),
+    fallback = bread_path$hessian_fallback %||% NULL,
+    gradient = gradient,
+    reference_hessian = bread_path$reference_hessian %||% NULL
+  )
+  bread_inv <- bread_valid$vcov
   correction <- .gl_sandwich_correction(
     n_obs = length(response),
     n_clusters = nrow(scores),
@@ -245,25 +259,32 @@
   meat <- crossprod(scores) * correction
   vc <- bread_inv %*% meat %*% bread_inv
   rownames(vc) <- colnames(vc) <- colnames(scores)
-  se <- sqrt(pmax(0, diag(vc)))
+  covariance_diagonal <- diag(vc)
+  if (any(!is.finite(vc)) || any(!is.finite(covariance_diagonal)) ||
+      any(covariance_diagonal <= 0)) {
+    diagnostics <- bread_valid$hessian_diagnostics
+    diagnostics$status <- "unavailable"
+    diagnostics$failure_codes <- unique(c(
+      diagnostics$failure_codes, "sandwich_covariance_diagonal_nonpositive"
+    ))
+    diagnostics$covariance_diagonal <- covariance_diagonal
+    stop(.gl_inference_unavailable(diagnostics))
+  }
+  se <- sqrt(covariance_diagonal)
   names(se) <- colnames(scores)
 
-  eig <- tryCatch(eigen((H + t(H)) / 2, symmetric = TRUE, only.values = TRUE)$values, error = function(e) NA_real_)
-  diagnostics <- list(
-    condition_number = tryCatch(kappa(H), error = function(e) NA_real_),
-    min_abs_eigen = if (any(is.finite(eig))) min(abs(eig[is.finite(eig)])) else NA_real_,
-    max_abs_eigen = if (any(is.finite(eig))) max(abs(eig[is.finite(eig)])) else NA_real_,
-    bread_method = bread_path$method_used,
-    n_clusters = nrow(scores),
-    n_observations = length(response),
-    n_parameters = ncol(scores),
-    score_step = score_h,
-    bread_step = bread_h,
-    small_sample_correction = correction,
-    max_abs_cluster_score_sum = max(abs(colSums(scores)), na.rm = TRUE),
-    joint_loglik_from_clusters = sum(attr(scores, "base_contributions")),
-    joint_loglik = attr(scores, "joint_loglik")
-  )
+  diagnostics <- bread_valid$hessian_diagnostics
+  diagnostics$bread_method <- bread_path$method_used
+  diagnostics$n_clusters <- nrow(scores)
+  diagnostics$n_observations <- length(response)
+  diagnostics$n_parameters <- ncol(scores)
+  diagnostics$score_step <- score_h
+  diagnostics$bread_step <- bread_h
+  diagnostics$small_sample_correction <- correction
+  diagnostics$max_abs_cluster_score_sum <- max(abs(colSums(scores)), na.rm = TRUE)
+  diagnostics$joint_loglik_from_clusters <- sum(attr(scores, "base_contributions"))
+  diagnostics$joint_loglik <- attr(scores, "joint_loglik")
+  diagnostics$covariance_diagonal <- covariance_diagonal
 
   list(
     vcov_final = vc,

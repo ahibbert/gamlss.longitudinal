@@ -19,13 +19,16 @@
   coef_tbl$.param_rank[is.na(coef_tbl$.param_rank)] <- length(param_order) + 1L
 
   if (!is.null(vcov_out) && !is.null(vcov_out$vcov) && !is.null(vcov_out$vcov$overall)) {
+    .gl_require_available_inference(vcov_out)
     V <- vcov_out$vcov$overall
     se <- NULL
     if (!is.null(vcov_out$se) && !is.null(vcov_out$se$overall)) {
       se <- as.numeric(vcov_out$se$overall)
       se_names <- names(vcov_out$se$overall)
     } else {
-      se <- sqrt(pmax(0, diag(V)))
+      se <- .gl_sqrt_derived_variance(
+        diag(V), "summary coefficient covariance", allow_zero = FALSE
+      )
       se_names <- names(diag(V))
     }
 

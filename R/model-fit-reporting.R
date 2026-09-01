@@ -42,6 +42,7 @@
     }
 
     vcov_cached <- NULL
+    inference_failure <- NULL
     vcov_cached <- tryCatch(
       {
         vcov.gamlss.longitudinal(
@@ -52,11 +53,21 @@
         )
       },
       error = function(e) {
-        warning(
-          "Could not precompute variance-covariance matrix at fit completion: ",
-          conditionMessage(e),
-          call. = FALSE
-        )
+        if (inherits(e, "gamlss_longitudinal_inference_unavailable")) {
+          inference_failure <<- e$diagnostics
+          warning(structure(
+            list(message = conditionMessage(e), call = NULL,
+                 diagnostics = e$diagnostics),
+            class = c("gamlss_longitudinal_inference_unavailable",
+                      "warning", "condition")
+          ))
+        } else {
+          warning(
+            "Could not precompute variance-covariance matrix at fit completion: ",
+            conditionMessage(e),
+            call. = FALSE
+          )
+        }
         NULL
       }
     )
@@ -72,6 +83,9 @@
       if (!is.null(vcov_cached$method_requested)) {
         return_list$vcov_meta$method <- vcov_cached$method_requested
       }
+    } else if (!is.null(inference_failure)) {
+      return_list$vcov_meta$inference_status <- "unavailable"
+      return_list$vcov_meta$hessian_diagnostics <- inference_failure
     }
   }
 
