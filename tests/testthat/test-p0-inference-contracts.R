@@ -174,6 +174,15 @@ test_that("likelihood comparison records conditional reference assumptions", {
   make_model <- function(ll, npar) structure(list(
     par = setNames(seq_len(npar), paste0("b", seq_len(npar))),
     df_s = list(), response = 1:20,
+    response_subject = rep(1:10, each = 2), response_margin = 1:20,
+    margin_dist = list(family = "NO"), copula_dist = "N",
+    model_matrix = list(
+      x = list(joint = matrix(
+        1, nrow = 20, ncol = npar,
+        dimnames = list(NULL, paste0("b", seq_len(npar)))
+      )),
+      s = list()
+    ),
     calc_lik_out_end = list(log_lik = c(joint = ll))
   ), class = "gamlss.longitudinal")
 

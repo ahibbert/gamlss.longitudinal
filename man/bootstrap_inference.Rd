@@ -41,7 +41,9 @@ while \code{"cluster"} resamples subjects with replacement.}
 }
 \value{
 An object of class \code{gamlss_longitudinal_bootstrap} with an exact
-fixed-coefficient target and failure policy in \code{inference_contract}.
+fixed-coefficient target, replicate failures, successful counts, and
+adequacy status in \code{inference_contract}. Two successful replicates are a
+computational minimum only, not evidence of inferential adequacy.
 }
 \description{
 \code{bootstrap_inference()} either simulates responses from a fitted
