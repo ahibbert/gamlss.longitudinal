@@ -137,7 +137,7 @@ test_that("coverage gamlss2 baseline records fallback method when needed", {
   skip_if_not_installed("gamlss.dist")
 
   grid <- gamlss.longitudinal:::.coverage_make_case_grid(
-    families = "PIG2",
+    families = "NBI",
     copulas = "N",
     methods = "gamlss2",
     designs = "intercept"
@@ -167,7 +167,7 @@ test_that("coverage starts include exactly each margin parameter plus copula the
   skip_if_not_installed("gamlss")
   skip_if_not_installed("gamlss.dist")
 
-  for (family in c("LNO", "NET")) {
+  for (family in c("BCPE", "DEL")) {
     sim <- gamlss.longitudinal:::.coverage_simulate_case(
       family = family,
       copula = "N",
@@ -212,13 +212,12 @@ test_that("coverage domain-sensitive defaults generate finite q, p, and d values
 test_that("discrete lower-bound CDFs short-circuit below support", {
   skip_if_not_installed("gamlss.dist")
 
-  margin_dist <- gamlss.dist::ZINBF()
+  margin_dist <- gamlss.dist::ZINBI()
   response <- c(-1, 0, 2)
   eta_inv <- list(
     mu = rep(4, 3),
     sigma = rep(0.5, 3),
-    nu = rep(2, 3),
-    tau = rep(0.2, 3)
+    nu = rep(0.2, 3)
   )
   mm <- eta_inv
 
