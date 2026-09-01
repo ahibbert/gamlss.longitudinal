@@ -1,4 +1,4 @@
-#' Confidence intervals for fixed coefficients
+#' Conditional Wald confidence intervals for fixed coefficients
 
 #'
 
@@ -14,7 +14,9 @@
 
 #'
 
-#' @return A matrix with lower and upper confidence limits.
+#' @return A matrix with lower and upper confidence limits and an
+#'   `inference_contract` attribute. Fixed-smooth covariance and
+#'   smoothing-parameter uncertainty are excluded.
 
 #' @importFrom stats confint
 
@@ -71,5 +73,13 @@ confint.gamlss.longitudinal <- function(
 
   rownames(out) <- names(est)
 
-  out
+  contract <- .gl_inference_contract(
+    "confint_fixed",
+    coefficient_names = names(est),
+    method = vc$method %||% method,
+    validity_status = vc$hessian_diagnostics$status %||% "not_recorded"
+  )
+  contract$covariance_contract <- vc$inference_contract %||%
+    .gl_fixed_inference_contract(vc, coefficient_names = names(estimates))
+  .gl_attach_inference_contract(out, contract)
 }

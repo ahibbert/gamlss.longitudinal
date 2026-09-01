@@ -13,7 +13,7 @@
       smooth_disp$edf <- round(smooth_disp$edf, digits)
     }
     print(smooth_disp, row.names = FALSE)
-    cat("Use plot(object) to visualize smooth and fixed terms with confidence bands.\n")
+    cat("Use plot(object) to visualize conditional fixed-term and approximate smooth-term bands.\n")
   } else {
     cat("None\n")
   }
