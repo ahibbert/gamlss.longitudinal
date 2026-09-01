@@ -31,7 +31,11 @@ test_that("T000 underscore constructor preserves dotted S3 surface", {
   s <- summary(fit, include_vcov = FALSE)
   expect_s3_class(s, "summary.gamlss.longitudinal")
 
-  pred <- stats::predict(fit)
+  expect_warning(
+    pred <- stats::predict(fit),
+    "Point prediction from a nonconverged model",
+    class = "gamlss.longitudinal_nonconverged_prediction_warning"
+  )
   expect_type(pred, "double")
   expect_equal(length(pred), length(fit$response))
 })

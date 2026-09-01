@@ -1877,9 +1877,10 @@ test_that("CG line-search diagnostics helper sequences acceptance apply and diag
                               line_eval_count, lambda_update_count,
                               lambda_changed, stall_count,
                               prevented_deterioration,
-                              prevented_raw_loglik_drop, max_stall,
-                              raw_loglik_drop_tol, outer_stop_crit,
-                              grad_tol, step_tol, verbose) {
+                               prevented_raw_loglik_drop, max_stall,
+                               raw_loglik_drop_tol, outer_stop_crit,
+                               grad_tol, step_tol, verbose,
+                               stop_on_convergence) {
       calls <<- c(calls, "diagnostics")
       captured$diagnostics_best <<- best
       captured$diagnostics_outer_end <<- outer_end_log_lik
@@ -1891,6 +1892,7 @@ test_that("CG line-search diagnostics helper sequences acceptance apply and diag
       captured$diagnostics_prevented <<- prevented_deterioration
       captured$diagnostics_grad_tol <<- grad_tol
       captured$diagnostics_step_tol <<- step_tol
+      captured$diagnostics_stop_on_convergence <<- stop_on_convergence
       diagnostics
     },
     state_builder_fn = function(...) {
@@ -1913,6 +1915,7 @@ test_that("CG line-search diagnostics helper sequences acceptance apply and diag
   expect_equal(captured$diagnostics_accepted_improvement, 1.25)
   expect_equal(captured$diagnostics_trust_radius_end, 0.75)
   expect_true(captured$diagnostics_lambda_changed)
+  expect_true(captured$diagnostics_stop_on_convergence)
   expect_equal(captured$diagnostics_grad_tol, 0.2)
   expect_equal(captured$diagnostics_step_tol, 0.01)
   expect_identical(out$step_acceptance, step_acceptance)
