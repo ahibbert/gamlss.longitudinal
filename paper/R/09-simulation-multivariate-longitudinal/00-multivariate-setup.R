@@ -70,12 +70,12 @@ mvt_default_comparators <- function() {
     "gee_unstructured",
     "gamlss.longitudinal",
     "gamCopula_markov",
-    "gamCopula_vine"
+    "gamCopula_vine_simplified"
   )
 }
 
 mvt_allowed_comparators <- function() {
-  c(mvt_default_comparators(), "gamCopula", "glmm_slope")
+  c(mvt_default_comparators(), "gamCopula", "gamCopula_vine", "glmm_slope")
 }
 
 mvt_active_comparators <- function() {
@@ -200,6 +200,7 @@ mvt_study_protocol_tables <- function() {
     role = c(
       rep("main", length(mvt_default_comparators())),
       "legacy_alias",
+      "targeted_sensitivity",
       "appendix_sensitivity"
     ),
     stringsAsFactors = FALSE
@@ -213,8 +214,9 @@ mvt_study_protocol_tables <- function() {
     "GEE unstructured working correlation with timeout",
     "Joint GAMLSS-copula longitudinal model",
     "Two-stage gamCopula adjacent Markov comparator",
-    "Two-stage gamCopula full-vine comparator",
+    "Two-stage gamCopula simplified-vine comparator",
     "Legacy shortcut for gamCopula_markov",
+    "Two-stage gamCopula full-vine comparator for covariate-dependent dependence sensitivity",
     "Random-intercept plus random-time-slope GLMM sensitivity"
   )
 
@@ -275,7 +277,7 @@ mvt_study_protocol_tables <- function() {
       "Native gamlss.longitudinal simulator track",
       "Dependence scenarios cover exchangeable, AR(1), time-varying, and covariate-dependent structures",
       "Standard GLM/GEE/GLMM comparators",
-      "gamCopula Markov and full-vine comparators",
+      "gamCopula Markov, simplified-vine, and targeted full-vine comparators",
       "gamlss.longitudinal comparator",
       "GJRM excluded from high-dimensional comparator grid",
       "Primary coefficient, prediction, calibration, dependence, variogram, and runtime metrics",
@@ -311,7 +313,7 @@ mvt_study_protocol_tables <- function() {
       "scenario_grid.csv generator/dependence rows; truth columns in by-rep outputs",
       "scenario_grid.csv; dependence_recovery_by_rep.csv",
       "fit_status_by_rep.csv; benchmark_results_by_rep.csv; coefficient_results_by_rep.csv",
-      "fit_status_by_rep.csv rows for gamCopula_markov and gamCopula_vine; dependence_recovery_by_rep.csv; variogram_scores_by_rep.csv",
+      "fit_status_by_rep.csv rows for gamCopula_markov and gamCopula_vine_simplified; dependence_recovery_by_rep.csv; variogram_scores_by_rep.csv; targeted full-vine sensitivity for covariate-dependent dependence",
       "fit_status_by_rep.csv rows for gamlss.longitudinal; dependence_recovery_by_rep.csv; variogram_scores_by_rep.csv",
       "comparators.csv; fit_status_by_rep.csv contains no GJRM method",
       "benchmark_results_by_rep.csv; coefficient_results_by_rep.csv; dependence_recovery_by_rep.csv; variogram_scores_by_rep.csv; runtime_by_rep.csv",
@@ -2020,7 +2022,7 @@ mvt_fit_gamcopula_for_case <- function(dat, row) {
   mvt_fit_gamcopula(dat, parts$spec, parts$dep)
 }
 
-mvt_fit_gamcopula_vine <- function(dat, spec, dep) {
+mvt_fit_gamcopula_vine <- function(dat, spec, dep, simplified = FALSE) {
   if (!requireNamespace("gamCopula", quietly = TRUE)) {
     stop("Package 'gamCopula' is required for the multivariate simulation module.", call. = FALSE)
   }
@@ -2050,12 +2052,12 @@ mvt_fit_gamcopula_vine <- function(dat, spec, dep) {
   }))
   colnames(udata) <- paste0("t", time_values)
   if (any(!is.finite(udata))) {
-    stop("gamCopula full-vine pseudo-observations contain non-finite values.", call. = FALSE)
+    stop("gamCopula vine pseudo-observations contain non-finite values.", call. = FALSE)
   }
   vine_fit <- tryCatch(
     gamCopula::gamVineStructureSelect(
       udata = udata,
-      simplified = FALSE,
+      simplified = isTRUE(simplified),
       familyset = c(1, 2, 5),
       rotations = TRUE,
       verbose = FALSE
@@ -2065,7 +2067,7 @@ mvt_fit_gamcopula_vine <- function(dat, spec, dep) {
   vine_engine <- "gamCopula"
   if (inherits(vine_fit, "error")) {
     if (!requireNamespace("VineCopula", quietly = TRUE)) {
-      stop("gamCopula full-vine fit failed and VineCopula fallback is unavailable: ", conditionMessage(vine_fit), call. = FALSE)
+      stop("gamCopula vine fit failed and VineCopula fallback is unavailable: ", conditionMessage(vine_fit), call. = FALSE)
     }
     vine_fit <- VineCopula::RVineStructureSelect(
       udata,
@@ -2075,11 +2077,17 @@ mvt_fit_gamcopula_vine <- function(dat, spec, dep) {
     )
     vine_engine <- "VineCopula"
   }
+  vine_simplified <- isTRUE(simplified)
+  if (identical(vine_engine, "VineCopula")) {
+    vine_simplified <- TRUE
+  }
   structure(
     list(
       margin_fit = margin_fit,
       vine_fit = vine_fit,
       vine_engine = vine_engine,
+      vine_simplified = vine_simplified,
+      vine_simplified_requested = isTRUE(simplified),
       udata = udata,
       udata_names = colnames(udata),
       spec = spec,
@@ -2091,7 +2099,12 @@ mvt_fit_gamcopula_vine <- function(dat, spec, dep) {
 
 mvt_fit_gamcopula_vine_for_case <- function(dat, row) {
   parts <- mvt_case_spec_dep(row)
-  mvt_fit_gamcopula_vine(dat, parts$spec, parts$dep)
+  mvt_fit_gamcopula_vine(dat, parts$spec, parts$dep, simplified = FALSE)
+}
+
+mvt_fit_gamcopula_vine_simplified_for_case <- function(dat, row) {
+  parts <- mvt_case_spec_dep(row)
+  mvt_fit_gamcopula_vine(dat, parts$spec, parts$dep, simplified = TRUE)
 }
 
 mvt_predict_gamcopula_mean <- function(fit, data) {
@@ -2521,7 +2534,7 @@ mvt_simulate_gamcopula_uniforms <- function(fit, data, nsim = 50L, seed = NULL) 
       }
       sim <- as.matrix(sim)
       if (ncol(sim) != n_time) {
-        stop("gamCopula full-vine simulation dimension did not match the number of time points.", call. = FALSE)
+        stop("gamCopula vine simulation dimension did not match the number of time points.", call. = FALSE)
       }
       for (subject_pos in seq_along(subjects)) {
         idx <- row_map[[as.character(subjects[[subject_pos]])]]
@@ -2963,10 +2976,11 @@ mvt_run_case <- function(row, seed_base = 20260818L, require_gamcopula = TRUE) {
 
   gamcopula_specs <- list(
     gamCopula_markov = "mvt_fit_gamcopula_for_case",
+    gamCopula_vine_simplified = "mvt_fit_gamcopula_vine_simplified_for_case",
     gamCopula_vine = "mvt_fit_gamcopula_vine_for_case"
   )
   for (gc_method in intersect(names(gamcopula_specs), active_comparators)) {
-    timeout_name <- if (identical(gc_method, "gamCopula_vine")) {
+    timeout_name <- if (gc_method %in% c("gamCopula_vine", "gamCopula_vine_simplified")) {
       "GAMLSS_LONGITUDINAL_MVT_GAMCOPULA_VINE_TIMEOUT_SEC"
     } else {
       "GAMLSS_LONGITUDINAL_MVT_GAMCOPULA_MARKOV_TIMEOUT_SEC"
@@ -2995,6 +3009,7 @@ mvt_run_case <- function(row, seed_base = 20260818L, require_gamcopula = TRUE) {
       extra_gc$AIC <- mvt_aic_gamcopula(gc_fit$value)
       extra_gc$BIC <- mvt_bic_gamcopula(gc_fit$value)
       extra_gc$copula_engine <- gc_fit$value$vine_engine %||% "gamCopula"
+      extra_gc$copula_simplified <- gc_fit$value$vine_simplified %||% NA
     }
     gc_row <- mvt_method_result_row(row, spec, gc_method, gc_fit, pred = pred_gc, extra = extra_gc)
     result_rows[[length(result_rows) + 1L]] <- gc_row
@@ -3005,7 +3020,7 @@ mvt_run_case <- function(row, seed_base = 20260818L, require_gamcopula = TRUE) {
       vario_rows[[length(vario_rows) + 1L]] <- mvt_variogram_score(
         model_dat, gc_fit$value, gc_method, row, spec,
         nsim = mvt_env_int("GAMLSS_LONGITUDINAL_MVT_VARIOGRAM_NSIM", 20L),
-        seed = seed + if (identical(gc_method, "gamCopula_vine")) 9700L else 9500L
+        seed = seed + if (identical(gc_method, "gamCopula_vine")) 9700L else if (identical(gc_method, "gamCopula_vine_simplified")) 9650L else 9500L
       )
     }
   }
@@ -3784,8 +3799,8 @@ mvt_audit_run_dir <- function(run_dir = mvt_read_run_dir()) {
   }
   active_methods <- strsplit(metadata_value("active_comparators", paste(mvt_default_comparators(), collapse = ",")), ",", fixed = TRUE)[[1L]]
   active_methods <- trimws(active_methods[nzchar(active_methods)])
-  primary_methods <- intersect(c("glm", "gamCopula_markov", "gamCopula_vine", "gamlss.longitudinal"), active_methods)
-  copula_methods <- intersect(c("gamCopula_markov", "gamCopula_vine", "gamlss.longitudinal"), active_methods)
+  primary_methods <- intersect(c("glm", "gamCopula_markov", "gamCopula_vine_simplified", "gamCopula_vine", "gamlss.longitudinal"), active_methods)
+  copula_methods <- intersect(c("gamCopula_markov", "gamCopula_vine_simplified", "gamCopula_vine", "gamlss.longitudinal"), active_methods)
   successful_methods <- if (nrow(status) > 0L && all(c("method", "success") %in% names(status))) {
     unique(status$method[mvt_status_success(status$success)])
   } else {
@@ -3986,9 +4001,9 @@ mvt_publication_readiness_spec <- function() {
       "exchangeable,ar1,time_varying_adjacent,covariate_dependent_adjacent"
     ),
     required_method = c(
-      "glm,glmm,gee_independence,gee_exchangeable,gee_ar1,gee_unstructured,gamCopula_markov,gamCopula_vine,gamlss.longitudinal",
-      "glm,glmm,gee_independence,gee_exchangeable,gee_ar1,gee_unstructured,gamCopula_markov,gamCopula_vine,gamlss.longitudinal",
-      "glm,glmm,gee_independence,gee_exchangeable,gee_ar1,gee_unstructured,gamCopula_markov,gamCopula_vine,gamlss.longitudinal"
+      "glm,glmm,gee_independence,gee_exchangeable,gee_ar1,gee_unstructured,gamCopula_markov,gamCopula_vine_simplified,gamlss.longitudinal",
+      "glm,glmm,gee_independence,gee_exchangeable,gee_ar1,gee_unstructured,gamCopula_markov,gamCopula_vine_simplified,gamlss.longitudinal",
+      "glm,glmm,gee_independence,gee_exchangeable,gee_ar1,gee_unstructured,gamCopula_markov,gamCopula_vine_simplified,gamlss.longitudinal"
     ),
     stringsAsFactors = FALSE
   )
@@ -4126,7 +4141,7 @@ mvt_publication_readiness_one <- function(spec_row) {
     mvt_readiness_check(
       role,
       "dependence_recovery_for_copulas",
-      if (nrow(dep) > 0L && "method" %in% names(dep) && all(c("gamCopula_markov", "gamCopula_vine", "gamlss.longitudinal") %in% unique(dep$method))) "pass" else "fail",
+      if (nrow(dep) > 0L && "method" %in% names(dep) && all(intersect(c("gamCopula_markov", "gamCopula_vine_simplified", "gamCopula_vine", "gamlss.longitudinal"), required_method) %in% unique(dep$method))) "pass" else "fail",
       paste("methods", if ("method" %in% names(dep)) paste(sort(unique(dep$method)), collapse = ",") else ""),
       if ("method" %in% names(dep)) length(unique(dep$method)) else 0L,
       run_dir
@@ -4150,17 +4165,17 @@ mvt_publication_readiness_one <- function(spec_row) {
       mvt_copula_variogram_coverage(
         status,
         vario,
-        intersect(c("gamCopula_markov", "gamCopula_vine", "gamlss.longitudinal"), required_method)
+        intersect(c("gamCopula_markov", "gamCopula_vine_simplified", "gamCopula_vine", "gamlss.longitudinal"), required_method)
       )$status,
       mvt_copula_variogram_coverage(
         status,
         vario,
-        intersect(c("gamCopula_markov", "gamCopula_vine", "gamlss.longitudinal"), required_method)
+        intersect(c("gamCopula_markov", "gamCopula_vine_simplified", "gamCopula_vine", "gamlss.longitudinal"), required_method)
       )$detail,
       mvt_copula_variogram_coverage(
         status,
         vario,
-        intersect(c("gamCopula_markov", "gamCopula_vine", "gamlss.longitudinal"), required_method)
+        intersect(c("gamCopula_markov", "gamCopula_vine_simplified", "gamCopula_vine", "gamlss.longitudinal"), required_method)
       )$n,
       run_dir
     )
