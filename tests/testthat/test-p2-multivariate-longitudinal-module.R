@@ -257,7 +257,7 @@ test_that("review audit writes machine and markdown reports", {
   dir.create(run_dir, recursive = TRUE)
 
   grid <- data.frame(case_id = "case-a", stringsAsFactors = FALSE)
-  audit_methods <- c("glm", "gamCopula_markov", "gamCopula_vine", "gamlss.longitudinal")
+  audit_methods <- c("glm", "gamCopula_markov", "gamCopula_vine_simplified", "gamlss.longitudinal")
   status <- data.frame(
     case_id = "case-a",
     method = audit_methods,
@@ -278,14 +278,14 @@ test_that("review audit writes machine and markdown reports", {
   )
   dep <- data.frame(
     case_id = "case-a",
-    method = c("gamCopula_markov", "gamCopula_vine", "gamlss.longitudinal"),
+    method = c("gamCopula_markov", "gamCopula_vine_simplified", "gamlss.longitudinal"),
     theta_mae = c(0.1, 0.1, 0.1),
     tau_mae = c(0.1, 0.1, 0.1),
     stringsAsFactors = FALSE
   )
   vario <- data.frame(
     case_id = "case-a",
-    method = c("glm", "gamCopula_markov", "gamCopula_vine", "gamlss.longitudinal"),
+    method = c("glm", "gamCopula_markov", "gamCopula_vine_simplified", "gamlss.longitudinal"),
     variogram_score_p05 = c(NA, 1, 1, 1),
     stringsAsFactors = FALSE
   )
@@ -669,9 +669,9 @@ test_that("study protocol generator writes design and evidence tables", {
 
   expect_true(50L %in% time_design$n_time)
   expect_true("gg_continuous" %in% family_design$family_name)
-  expect_true(all(c("gamCopula_markov", "gamCopula_vine", "gamCopula") %in% comparators$method))
+  expect_true(all(c("gamCopula_markov", "gamCopula_vine_simplified", "gamCopula_vine", "gamCopula") %in% comparators$method))
   expect_true(all(c("pilot", "main_core", "appendix") %in% readiness$role))
-  expect_true(any(readiness$required_method[readiness$role == "main_core"] == "glm,glmm,gee_independence,gee_exchangeable,gee_ar1,gee_unstructured,gamCopula_markov,gamCopula_vine,gamlss.longitudinal"))
+  expect_true(any(readiness$required_method[readiness$role == "main_core"] == "glm,glmm,gee_independence,gee_exchangeable,gee_ar1,gee_unstructured,gamCopula_markov,gamCopula_vine_simplified,gamlss.longitudinal"))
   expect_true(any(grepl("GJRM excluded", checklist$requirement, fixed = TRUE)))
   expect_true(any(grepl("No missingness/dropout", checklist$requirement, fixed = TRUE)))
   expect_true(all(c("implementation_evidence", "proof_after_run") %in% names(checklist)))

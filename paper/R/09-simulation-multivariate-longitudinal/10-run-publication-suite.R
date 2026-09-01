@@ -143,7 +143,7 @@ mvt_suite_role_specs <- function(suite_dir) {
         GAMLSS_LONGITUDINAL_MVT_FAMILIES = "gaussian,poisson,gamma,binomial",
         GAMLSS_LONGITUDINAL_MVT_DEPENDENCE = "external_exchangeable,external_ar1,native_time_varying_adjacent,native_covariate_dependent_adjacent",
         GAMLSS_LONGITUDINAL_MVT_REPS = mvt_suite_env_default("glmm_sensitivity", "REPS", "100"),
-        GAMLSS_LONGITUDINAL_MVT_COMPARATORS = "glm,glmm,glmm_slope,gamCopula_markov,gamCopula_vine,gamlss.longitudinal",
+        GAMLSS_LONGITUDINAL_MVT_COMPARATORS = "glm,glmm,glmm_slope,gamCopula_markov,gamCopula_vine_simplified,gamlss.longitudinal",
         GAMLSS_LONGITUDINAL_MVT_INCLUDE_SPECIAL = "false",
         GAMLSS_LONGITUDINAL_MVT_N_SUBJECT = "",
         GAMLSS_LONGITUDINAL_MVT_CHECKPOINT_EVERY = "10"
