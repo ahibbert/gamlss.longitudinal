@@ -69,6 +69,17 @@
   return_list$formulas_int <- formulas_int
   return_list$var_map <- var_map
   return_list$optim_method <- method
+  family <- .gl_capability_margin_code(margin_dist)
+  capability <- .gl_capability_margin_spec(family)
+  return_list$capability_registry_version <- .gl_capability_registry_version()
+  return_list$capability_route <- list(
+    registry_version = .gl_capability_registry_version(),
+    margin_family = family,
+    copula = copula_dist,
+    family_type = capability$family_type %||% NA_character_,
+    likelihood_route = capability$likelihood_route %||% NA_character_,
+    diagnostics = capability$diagnostics %||% NA_character_
+  )
   return_list$warm_start_joint <- warm_start_info
   return_list$convergence <- convergence_info
 

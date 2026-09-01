@@ -129,7 +129,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
     "Bounded/binomial responses require an explicit denominator contract;",
     "the longitudinal likelihood must not assume Bernoulli denominators."
   )
-  multinomial_reason <- "Ordinal and multinomial outcomes require a family-specific response and likelihood route."
+  multinomial_reason <- "ordinal and multinomial outcomes require a family-specific response and likelihood route."
   specs <- lapply(c("BI", "BB", "DBI", "ZABB", "ZABI", "ZIBB", "ZIBI"), function(family) {
     list(
       status = "unsupported", family_type = "bounded_binomial", response_domain = "bounded_count",
@@ -150,7 +150,15 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
     )
   })
   names(ordinal) <- c("MN3", "MN4", "MN5")
-  c(specs, ordinal)
+  logarithmic <- list(LG = list(
+    status = "unsupported", family_type = "discrete", response_domain = "count",
+    response_requirement = "finite positive integers with family-specific initialization",
+    parameters = "mu", likelihood_route = "unsupported", compatible_copulas = character(),
+    hessian = "not_available", randomized_pit = FALSE, diagnostics = "not_available",
+    limitations = "The logarithmic-series family needs family-specific starting and support handling before longitudinal fitting.",
+    paper_route = FALSE
+  ))
+  c(specs, ordinal, logarithmic)
 }
 
 .gl_capability_copula_specs <- function() {
@@ -358,12 +366,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
 .gl_validate_capability_response <- function(response, family, spec) {
   observed <- response[!is.na(response)]
   if (length(observed) == 0L || any(!is.finite(observed))) return(invisible(TRUE))
-  valid <- switch(spec$response_domain,
-    real = TRUE,
-    positive_real = all(observed > 0),
-    count = all(observed >= 0) && all(abs(observed - round(observed)) <= sqrt(.Machine$double.eps)),
-    FALSE
-  )
+  valid <- .gl_capability_response_matches(response, spec)
   if (!isTRUE(valid)) {
     .gl_capability_stop(
       "gamlss_longitudinal_response_domain_error",
@@ -376,6 +379,17 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
     )
   }
   invisible(TRUE)
+}
+
+.gl_capability_response_matches <- function(response, spec) {
+  observed <- response[!is.na(response)]
+  if (length(observed) == 0L || any(!is.finite(observed))) return(FALSE)
+  switch(spec$response_domain,
+    real = TRUE,
+    positive_real = all(observed > 0),
+    count = all(observed >= 0) && all(abs(observed - round(observed)) <= sqrt(.Machine$double.eps)),
+    FALSE
+  )
 }
 
 .gl_validate_capability_route <- function(margin_dist, copula_dist, response = NULL, context = "fit") {
@@ -510,4 +524,10 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
 .gl_capability_route_supported <- function(family, copula) {
   spec <- .gl_capability_margin_spec(family)
   !is.null(spec) && identical(spec$status, "supported") && copula %in% spec$compatible_copulas
+}
+
+.gl_capability_margin_supported_for_response <- function(family, response) {
+  spec <- .gl_capability_margin_spec(family)
+  !is.null(spec) && identical(spec$status, "supported") &&
+    .gl_capability_response_matches(response, spec)
 }

@@ -65,10 +65,11 @@ gamlss_longitudinal(
 \item{dataset}{Long-format data frame containing the response, subject, time,
 and covariate columns.}
 
-\item{margin_dist}{Marginal distribution specified as a gamlss family object,
-e.g. GA(), NO(), PO(), NBI(), etc.}
+\item{margin_dist}{One registered \code{gamlss.dist} family object. A fit uses one
+homogeneous margin family; see \code{\link{longitudinal_capabilities}}.}
 
-\item{copula_dist}{Copula distribution code, one of "N", "C", "F", "G", "J", or "t".}
+\item{copula_dist}{Copula distribution code for a registered route; see
+\code{\link{longitudinal_capabilities}}.}
 
 \item{time_var}{Name of the time variable in \code{dataset}.}
 

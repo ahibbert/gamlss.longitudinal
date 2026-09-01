@@ -171,18 +171,22 @@ select_margin <- function(
 
   out$delta_AIC <- if (nrow(out) > 0L) out$AIC - min(out$AIC, na.rm = TRUE) else numeric(0)
 
-  out$supported_by_longitudinal <- vapply(out$family, function(family) {
-    all(vapply(
+  out$supported_by_longitudinal <- vapply(
+    out$family,
+    .gl_capability_margin_supported_for_response,
+    logical(1),
+    response = response
+  )
 
-      paste0(c("d", "p", "q"), family),
-      exists,
-      logical(1),
-      envir = asNamespace("gamlss.dist"),
-      inherits = FALSE
-    ))
-  }, logical(1), USE.NAMES = FALSE)
+  excluded <- out[!out$supported_by_longitudinal, , drop = FALSE]
+  out <- out[out$supported_by_longitudinal, , drop = FALSE]
+  rownames(out) <- NULL
+  out$rank <- seq_len(nrow(out))
+  out$delta_AIC <- if (nrow(out) > 0L) out$AIC - min(out$AIC, na.rm = TRUE) else numeric(0)
 
   attr(out, "selected") <- if (nrow(out) > 0L) out$family[[1L]] else NA_character_
+
+  attr(out, "excluded_by_capability_registry") <- excluded
 
   attr(out, "response_type") <- type
 

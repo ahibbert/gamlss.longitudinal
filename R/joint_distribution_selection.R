@@ -121,6 +121,20 @@ select_joint_distribution <- function(
     copula_family = copula_families,
     stringsAsFactors = FALSE
   )
+  route_supported <- mapply(
+    .gl_capability_route_supported,
+    combinations$margin_family,
+    combinations$copula_family,
+    USE.NAMES = FALSE
+  )
+  excluded_routes <- combinations[!route_supported, , drop = FALSE]
+  combinations <- combinations[route_supported, , drop = FALSE]
+  if (nrow(combinations) < 1L) {
+    .gl_capability_stop(
+      "gamlss_longitudinal_unsupported_route_error",
+      "No requested margin-copula combinations are present in the tested capability registry."
+    )
+  }
 
   candidate_fits <- .joint_selection_fit_candidates(
     combinations = combinations,
@@ -136,7 +150,7 @@ select_joint_distribution <- function(
     keep_fits = keep_fits
   )
 
-  .joint_selection_finalize_result(
+  out <- .joint_selection_finalize_result(
     rows = candidate_fits$rows,
     fit_store = candidate_fits$fit_store,
     n_pairs = n_pairs,
@@ -147,4 +161,6 @@ select_joint_distribution <- function(
     copula_time_intercepts = copula_time_intercepts,
     keep_fits = keep_fits
   )
+  attr(out, "excluded_by_capability_registry") <- excluded_routes
+  out
 }

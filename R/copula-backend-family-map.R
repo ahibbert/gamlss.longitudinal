@@ -3,13 +3,19 @@
 #' @noRd
 .copula_family_code <- function(family) {
   if (!is.character(family) || length(family) != 1L || is.na(family)) {
-    stop("Copula family must be a single character code.", call. = FALSE)
+    .gl_capability_stop(
+      "gamlss_longitudinal_unsupported_copula_error",
+      "Copula family must be a single character code."
+    )
   }
-  if (!family %in% c("N", "C", "F", "G", "J", "t")) {
-    stop(
-      "Unsupported copula family code '", family,
-      "'. Use one of: N, C, F, G, J, t.",
-      call. = FALSE
+  if (is.null(.gl_capability_copula_spec(family))) {
+    .gl_capability_stop(
+      "gamlss_longitudinal_unsupported_copula_error",
+      paste0(
+        "Unsupported copula family code '", family,
+        "'. Use one of: ", paste(.gl_capability_all_copulas(), collapse = ", "), "."
+      ),
+      copula = family
     )
   }
   family
