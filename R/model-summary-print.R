@@ -43,6 +43,15 @@ print.summary.gamlss.longitudinal <- function(x, digits = max(3, getOption("digi
   cat("--------------------------------\n")
   cat("Margin distribution:", x$model$margin_dist, "\n")
   cat("Copula distribution:", x$model$copula_dist, "\n")
+  if (identical(x$convergence$converged, FALSE)) {
+    cat(
+      "Convergence: NOT CONVERGED (stop reason:",
+      x$convergence$stop_reason %||% "unknown", ")\n"
+    )
+    cat("Inference is disabled; likelihood criteria below are provisional and must not be used for model selection.\n")
+  } else {
+    cat("Convergence: CONVERGED\n")
+  }
 
   copula_warning <- .copula_v2_gaussian_limit_warning(x)
   if (!is.null(copula_warning)) {

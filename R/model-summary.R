@@ -12,6 +12,10 @@
 #'
 #' @return A `summary.gamlss.longitudinal` object with model metadata,
 #'   coefficient summaries, smooth-term summaries, and optional vcov output.
+#'   For a returned nonconverged fit, `include_vcov = FALSE` still provides
+#'   point estimates and convergence diagnostics, while AIC and BIC are marked
+#'   provisional and must not be used for model selection. Requesting vcov or
+#'   other inference remains an error under the central convergence gate.
 #' @export
 
 summary.gamlss.longitudinal <- function(

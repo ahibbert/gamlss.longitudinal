@@ -58,7 +58,7 @@
     curvature_line_search_fn,
     line_search_diagnostics_fn,
     stop_request_state_fn) {
-  while (!cg_converged && outer_only_run_counter < max_outer_iter) {
+  while (!cg_converged && outer_only_run_counter <= max_outer_iter) {
     check_elapsed_budget("CG outer iteration")
 
     if (verbose > 0) cat(paste("\nOUTER ITERATION:", outer_only_run_counter))

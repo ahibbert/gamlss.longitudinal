@@ -17,13 +17,15 @@
     cg_gradient_method,
     cg_zeta_hessian,
     cg_hessian_method,
-    objective = NA_real_,
+    objective = NULL,
     elapsed_sec = NA_real_,
     optimizer_control_requested = NULL,
     optimizer_control_effective = NULL,
     cg_grad_tol = NA_real_,
     cg_step_tol = NA_real_) {
-  objective_ok <- length(objective) == 1L && (is.na(objective) || is.finite(objective))
+  objective_supplied <- !missing(objective) && !is.null(objective)
+  objective_ok <- !objective_supplied ||
+    (length(objective) == 1L && is.finite(objective))
   objective_contract <- is.finite(outer_log_lik_change) &&
     is.finite(outer_stop_crit) && abs(outer_log_lik_change) <= outer_stop_crit
   converged <- objective_ok && objective_contract
@@ -38,7 +40,7 @@
     step_contract <- NA
   }
 
-  hit_outer_limit <- outer_only_run_counter >= max_outer_iter && !isTRUE(converged)
+  hit_outer_limit <- outer_only_run_counter > max_outer_iter && !isTRUE(converged)
   safeguard_reason <- if (identical(cg_stop_reason, "max_stall")) {
     "max_stall"
   } else if (identical(cg_stop_reason, "raw_loglik_deterioration")) {
@@ -52,7 +54,7 @@
     safeguard_reason
   } else if (isTRUE(converged)) {
     "converged"
-  } else if (outer_only_run_counter >= max_outer_iter) {
+  } else if (outer_only_run_counter > max_outer_iter) {
     "max_iterations"
   } else {
     "numerical_failure"
@@ -78,8 +80,8 @@
     hit_raw_loglik_deterioration = isTRUE(identical(cg_stop_reason, "raw_loglik_deterioration")),
     stop_reason = termination_reason,
     termination_reason = termination_reason,
-    objective = as.numeric(objective),
-    logLik = as.numeric(objective),
+    objective = if (objective_supplied) as.numeric(objective)[1L] else NA_real_,
+    logLik = if (objective_supplied) as.numeric(objective)[1L] else NA_real_,
     objective_change = as.numeric(outer_log_lik_change),
     objective_tolerance = as.numeric(outer_stop_crit),
     objective_criterion_met = isTRUE(objective_contract),

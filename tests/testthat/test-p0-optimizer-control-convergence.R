@@ -12,6 +12,8 @@ test_that("optimizer control constructor is strict and method aware", {
   expect_error(gamlss_longitudinal_control(rs = list(1)), "must be named")
   expect_error(gamlss_longitudinal_control(rs = list(foo = 1)), "Unknown")
   expect_error(gamlss_longitudinal_control(rs = structure(list(1, 2), names = c("max_steps", "max_steps"))), "Duplicate")
+  expect_error(gamlss_longitudinal_control(rs = list(max_inner_iter = 0)), "positive integer")
+  expect_error(gamlss_longitudinal_control(cg = list(max_stall = 0)), "positive integer")
 
   expect_error(
     gamlss.longitudinal:::.gl_resolve_optimizer_control(
@@ -20,6 +22,32 @@ test_that("optimizer control constructor is strict and method aware", {
     ),
     "wrong-method|method ="
   )
+})
+
+test_that("legacy inactive-method controls deprecate and are ignored for one release", {
+  gamlss.longitudinal:::.gl_reset_optimizer_control_deprecation()
+  seen <- NULL
+  cg <- withCallingHandlers(
+    gamlss.longitudinal:::.gl_resolve_optimizer_control(
+      "CG", NULL,
+      legacy_values = list(max_inner_iter = 0),
+      legacy_supplied = c(max_inner_iter = TRUE)
+    ),
+    warning = function(w) {
+      seen <<- w
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_s3_class(seen, "gamlss.longitudinal_deprecated_optimizer_control")
+  expect_identical(cg$rs$max_inner_iter, 100L)
+
+  gamlss.longitudinal:::.gl_reset_optimizer_control_deprecation()
+  rs <- suppressWarnings(gamlss.longitudinal:::.gl_resolve_optimizer_control(
+    "RS", NULL,
+    legacy_values = list(cg_max_stall = 0),
+    legacy_supplied = c(cg_max_stall = TRUE)
+  ))
+  expect_identical(rs$cg$max_stall, 5L)
 })
 
 test_that("legacy optimizer controls deprecate once and conflicts error", {
@@ -113,7 +141,7 @@ test_that("method-neutral convergence contract uses stable stop reasons", {
   expect_identical(rs$stop_reason, "converged")
 
   base$outer_log_lik_change <- 1
-  base$outer_only_run_counter <- 10L
+  base$outer_only_run_counter <- 11L
   limited <- do.call(gamlss.longitudinal:::.gl_build_convergence_info, base)
   expect_false(limited$converged)
   expect_identical(limited$stop_reason, "max_iterations")
@@ -127,6 +155,19 @@ test_that("method-neutral convergence contract uses stable stop reasons", {
   base$cg_step_tol <- 0.1
   deteriorated <- do.call(gamlss.longitudinal:::.gl_build_convergence_info, base)
   expect_identical(deteriorated$stop_reason, "objective_deterioration")
+
+  base$method <- "RS"
+  base$cg_stop_reason <- NA_character_
+  base$outer_only_run_counter <- 2L
+  base$outer_log_lik_change <- 0.01
+  base$objective <- NA_real_
+  invalid <- do.call(gamlss.longitudinal:::.gl_build_convergence_info, base)
+  expect_false(invalid$converged)
+  expect_identical(invalid$stop_reason, "invalid_likelihood")
+
+  base$objective <- NULL
+  omitted <- do.call(gamlss.longitudinal:::.gl_build_convergence_info, base)
+  expect_true(omitted$converged)
 })
 
 test_that("nonconvergence conditions gate uncertainty but allow warned points", {
@@ -177,6 +218,80 @@ test_that("elapsed budget failures carry the time-limit stop vocabulary", {
   )
   expect_s3_class(err, "gamlss.longitudinal_time_limit_error")
   expect_identical(err$stop_reason, "time_limit")
+})
+
+test_that("public RS and CG limits execute exactly one outer iteration", {
+  dat <- make_fixture_factor_time_interaction(8L)
+  common <- list(
+    dataset = dat, margin_dist = gamlss.dist::NO(), copula_dist = "N",
+    time_var = "time_raw", subject_var = "id", mu.formula = y ~ time_raw,
+    sigma.formula = ~1, theta.formula = ~1, include_dlcopdpar = FALSE,
+    compute_vcov = FALSE, verbose = 0
+  )
+  quiet_fit <- function(method, control) {
+    withCallingHandlers(
+      do.call(gamlss_longitudinal, c(common, list(
+        method = method,
+        optimizer_control = control
+      ))),
+      warning = function(w) invokeRestart("muffleWarning")
+    )
+  }
+
+  rs <- quiet_fit("RS", gamlss_longitudinal_control(
+    outer_tol = 1e-12,
+    max_outer_iter = 1L,
+    rs = list(
+      inner_tol = 1e-12,
+      max_inner_iter = 1L,
+      warm_start_joint = FALSE
+    )
+  ))
+  expect_equal(rs$convergence$outer_iterations, 1L)
+  expect_true(nrow(rs$rs_block_trace) > 0L)
+  expect_identical(unique(rs$rs_block_trace$inner_iteration), 1L)
+  rs_summary <- summary(rs, include_vcov = FALSE)
+  expect_false(rs_summary$convergence$converged)
+  expect_identical(rs_summary$fit$criteria_status, "provisional_nonconverged")
+  printed <- capture.output(print(rs_summary))
+  expect_true(any(grepl("Convergence: NOT CONVERGED", printed, fixed = TRUE)))
+  expect_true(any(grepl("PROVISIONAL; nonconverged fit", printed, fixed = TRUE)))
+
+  cg <- quiet_fit("CG", gamlss_longitudinal_control(
+    outer_tol = 1e-12,
+    max_outer_iter = 1L,
+    cg = list(grad_tol = 1e-12, step_tol = 1e-12, update_lambda = FALSE)
+  ))
+  expect_equal(cg$convergence$outer_iterations, 1L)
+})
+
+test_that("public RS and CG time budgets abort with classed errors", {
+  dat <- make_fixture_factor_time_interaction(8L)
+  common <- list(
+    dataset = dat, margin_dist = gamlss.dist::NO(), copula_dist = "N",
+    time_var = "time_raw", subject_var = "id", mu.formula = y ~ time_raw,
+    sigma.formula = ~1, theta.formula = ~1, include_dlcopdpar = FALSE,
+    compute_vcov = FALSE, verbose = 0
+  )
+  for (method in c("RS", "CG")) {
+    control <- if (identical(method, "RS")) {
+      gamlss_longitudinal_control(
+        max_elapsed_sec = .Machine$double.eps,
+        rs = list(warm_start_joint = FALSE)
+      )
+    } else {
+      gamlss_longitudinal_control(max_elapsed_sec = .Machine$double.eps)
+    }
+    err <- tryCatch(
+      do.call(gamlss_longitudinal, c(common, list(
+        method = method,
+        optimizer_control = control
+      ))),
+      error = identity
+    )
+    expect_s3_class(err, "gamlss.longitudinal_time_limit_error")
+    expect_identical(err$stop_reason, "time_limit")
+  }
 })
 
 test_that("legacy and control-object routes are numerically equivalent for RS and CG", {
