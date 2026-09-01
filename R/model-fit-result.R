@@ -71,6 +71,7 @@
     response_var = fit_data$response_var,
     time_var = time_var,
     subject_var = subject_var,
+    missingness_contract = fit_data$missingness_contract,
     formulas = original_formulas,
     formulas_int = fit_data$formulas_int,
     var_map = fit_data$var_map,

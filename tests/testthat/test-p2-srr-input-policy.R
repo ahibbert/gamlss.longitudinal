@@ -82,6 +82,7 @@ test_that("srr input policy distinguishes response and predictor missingness", {
   structural <- make_fixture_with_structural_missing_rows()
   fit <- fit_fixture_model(
     structural,
+    missingness = "segment",
     include_dlcopdpar = FALSE,
     max_outer_iter = 2,
     theta_formula = "~ 1"

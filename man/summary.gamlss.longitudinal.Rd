@@ -36,6 +36,9 @@ For a returned nonconverged fit, \code{include_vcov = FALSE} still provides
 point estimates and convergence diagnostics, while AIC and BIC are marked
 provisional and must not be used for model selection. Requesting vcov or
 other inference remains an error under the central convergence gate.
+For a fit created with \code{missingness = "segment"}, the summary records the
+number of gaps and segments and labels AIC and BIC as available under the
+explicit assumption that different observed segments are independent.
 \code{fit$inference_contract}, \code{fit$smooth_inference_contract}, and the object
 \code{inference_contract} attribute record methods, coefficient blocks,
 conditioning, omitted uncertainty, diagnostics, fallback, and validity.

@@ -27,8 +27,10 @@
       criteria_status = if (identical(object$convergence$converged, FALSE)) {
         "provisional_nonconverged"
       } else {
-        "available"
+        object$likelihood_contract$criteria_status %||% "available"
       },
+      missingness = object$missingness,
+      likelihood_contract = object$likelihood_contract,
       stop_reason = object$convergence$stop_reason %||% NA_character_,
       inference_contract = vcov_out$inference_contract %||%
         if (isTRUE(include_vcov) && !is.null(vcov_out)) {
