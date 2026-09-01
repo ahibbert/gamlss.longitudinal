@@ -22,7 +22,9 @@ The quick reference is:
 - (ideally) use `check_model()` first to make sure there aren't any major errors flagged in the fitted model that may effect inference
 - use `summary()` and `confint()` for fixed-coefficient estimates and conditional standard errors and intervals
 - use `wald_test()` for coefficient hypotheses
-- use `likelihood_compare()` for likelihood ratio comparisons for models (ideally nested)
+- use `likelihood_compare()` for ordered, nested likelihood-ratio comparisons;
+  the chi-square reference is withheld unless sample, objective, and nesting
+  checks pass
 - use `bootstrap_inference()` for bootstrap standard errors and confidence intervals for coefficients
 - use `predict(..., se.fit = TRUE, interval = "confidence")` for conditional,
   fixed-`mu` confidence limits, and use fitted quantiles for plug-in descriptions
@@ -107,13 +109,25 @@ likelihood_compare(
 )
 ```
 
-For the likelihood ratio to follow the theoretical Chi-squared distribution, the models should be nested, i.e. the parameters of one model are a subset of the compared model. If the models are not nested the result should be considered as approximate.
+For the likelihood ratio to use the asymptotic Chi-squared reference, models
+must be supplied in reduced-to-full order, be nested, use the same likelihood
+objective and identical observed sample, and avoid boundary null hypotheses.
+The function checks the observed sample, family/copula objective, and stored
+design matrices conservatively. If it cannot establish those conditions it
+returns the likelihood criteria but marks the reference as unverified or
+unavailable and leaves the p-value missing. AIC sorting is deliberately not
+used as a surrogate for nesting order.
 
 The comparison reports likelihood and likelihood ratio test results alongside other helpful details such as the change in degrees of freedom and other likelihood criteria that take into account effective degrees of freedom: AIC and BIC.
 
 ## Parametric bootstrap
 
 We provide a built-in helper for bootstrap simulations from fitted `gamlss.longitudinal` objects which can give an idea of sensitivity of the Hessian-based intervals. The parametric method simulates from the fitted model and refits the same specification; the cluster method resamples whole subjects. Both target only the selected fixed coefficients. Refit errors, explicit nonconvergence, and missing or nonfinite target coefficients count as failed replicates. Results report overall and per-term successful counts, and model-selection uncertainty is not included.
+
+Two successful replicates are only the computational minimum needed to compute
+a finite sample standard deviation. They are not evidence that a bootstrap
+interval is inferentially adequate; reporting analyses need a substantively
+chosen larger replicate count and must report failures.
 
 ```{r bootstrap-inference}
 boot <- bootstrap_inference(

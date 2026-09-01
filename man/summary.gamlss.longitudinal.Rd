@@ -32,6 +32,9 @@ variance-covariance output.}
 \value{
 A \code{summary.gamlss.longitudinal} object with model metadata,
 coefficient summaries, smooth-term summaries, and optional vcov output.
+\code{fit$inference_contract}, \code{fit$smooth_inference_contract}, and the object
+\code{inference_contract} attribute record methods, coefficient blocks,
+conditioning, omitted uncertainty, diagnostics, fallback, and validity.
 }
 \description{
 Summarise a fitted longitudinal GAMLSS-copula model

@@ -2,8 +2,17 @@ make_likelihood_compare_fit <- function(loglik, n = 4L, par = c(mu = 1), df_s = 
   structure(
     list(
       response = seq_len(n),
+      response_subject = rep(seq_len(ceiling(n / 2)), each = 2, length.out = n),
+      response_margin = seq_len(n),
       par = par,
       df_s = df_s,
+      margin_dist = list(family = "NO"),
+      copula_dist = "N",
+      model_matrix = list(
+        x = list(joint = matrix(1, nrow = n, ncol = length(par),
+                                dimnames = list(NULL, names(par)))),
+        s = list()
+      ),
       calc_lik_out_end = list(log_lik = c(joint = loglik))
     ),
     class = "gamlss.longitudinal"
@@ -52,35 +61,29 @@ test_that("likelihood comparison captures call labels", {
   expect_equal(inline_list_labels, c("fit_zeta", "fit_full"))
 })
 
-test_that("likelihood comparison table sorts by AIC by default", {
+test_that("likelihood comparison refuses AIC sorting of sequential LR rows", {
   reduced <- make_likelihood_compare_fit(-10, par = c(mu = 1))
   full <- make_likelihood_compare_fit(-6, par = c(mu = 1, sigma = 2))
   models <- list(full = full, reduced = reduced)
 
-  out <- gamlss.longitudinal:::.gl_likelihood_compare_table(models, sort = TRUE)
-
-  expect_s3_class(out, "gamlss_longitudinal_likelihood_compare")
-  expect_equal(out$model, c("full", "reduced"))
-  expect_equal(out$df, c(2, 1))
-  expect_equal(out$logLik, c(-6, -10))
-  expect_equal(out$AIC, c(16, 22))
-  expect_equal(out$delta_df, c(NA_real_, -1))
-  expect_equal(out$LR_statistic, c(NA_real_, -8))
-  expect_true(is.na(out$p_value[2]))
+  expect_error(
+    gamlss.longitudinal:::.gl_likelihood_compare_table(models, sort = TRUE),
+    "not supported"
+  )
 })
 
-test_that("likelihood comparison table can preserve input order and warns for n mismatch", {
+test_that("likelihood comparison preserves order and withholds reference for sample mismatch", {
   a <- make_likelihood_compare_fit(-10, n = 4L, par = c(mu = 1))
   b <- make_likelihood_compare_fit(-6, n = 5L, par = c(mu = 1, sigma = 2))
-  models <- list(b = b, a = a)
+  models <- list(a = a, b = b)
 
-  expect_warning(
-    out <- gamlss.longitudinal:::.gl_likelihood_compare_table(models, sort = FALSE),
-    "different observation counts"
-  )
+  out <- gamlss.longitudinal:::.gl_likelihood_compare_table(models, sort = FALSE)
 
-  expect_equal(out$model, c("b", "a"))
-  expect_equal(out$n_obs, c(5L, 4L))
+  expect_equal(out$model, c("a", "b"))
+  expect_equal(out$n_obs, c(4L, 5L))
+  expect_identical(out$reference_status[[2L]], "unavailable")
+  expect_match(out$reference_failure[[2L]], "observed_sample_mismatch")
+  expect_true(is.na(out$p_value[[2L]]))
 })
 
 test_that("likelihood_compare delegates to helper output", {
@@ -90,6 +93,8 @@ test_that("likelihood_compare delegates to helper output", {
   out <- likelihood_compare(fit_reduced, fit_full)
 
   expect_s3_class(out, "gamlss_longitudinal_likelihood_compare")
-  expect_equal(out$model, c("fit_full", "fit_reduced"))
-  expect_equal(out$AIC, c(16, 22))
+  expect_equal(out$model, c("fit_reduced", "fit_full"))
+  expect_equal(out$AIC, c(22, 16))
+  expect_identical(out$reference_status[[2L]], "reference_available")
+  expect_true(is.finite(out$p_value[[2L]]))
 })

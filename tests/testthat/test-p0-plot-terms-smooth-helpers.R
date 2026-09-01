@@ -67,8 +67,11 @@ test_that("smooth-term fit SE uses covariance matrix coefficient SEs and missing
   from_se <- .plot_smooth_terms_fit_se(B, smooth_se = smooth_se)
   missing <- .plot_smooth_terms_fit_se(B)
 
-  expect_equal(from_vcov, c(0.2, sqrt(0.13)))
-  expect_equal(from_se, c(0.2, sqrt(0.13)))
+  expect_equal(as.numeric(from_vcov), c(0.2, sqrt(0.13)))
+  expect_equal(as.numeric(from_se), c(0.2, sqrt(0.13)))
+  expect_identical(attr(from_vcov, "band_status"), "complete")
+  expect_identical(attr(from_se, "band_status"), "partial")
+  expect_identical(attr(missing, "band_status"), "unavailable")
   expect_true(all(is.na(missing)))
 })
 
