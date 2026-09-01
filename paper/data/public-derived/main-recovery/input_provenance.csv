@@ -1,0 +1,16 @@
+"schema_version","producer_md5","analysis_config","input_id","path","md5","bytes"
+"2026-09-01.3","ae3a11e1ee9eb919c645a8465971b0f8","conf.level=0.94999999999999996","bcpe_log","paper/data/public-derived/bcpe-t/fit_run_log.csv","02081026bff53f093f3a317d7f7a5f70",30625
+"2026-09-01.3","ae3a11e1ee9eb919c645a8465971b0f8","conf.level=0.94999999999999996","bcpe_fixed","paper/data/public-derived/bcpe-t/fixed_effects_by_rep.csv","20e088c4d4f07b0cecc0e049d7f38e82",443161
+"2026-09-01.3","ae3a11e1ee9eb919c645a8465971b0f8","conf.level=0.94999999999999996","bcpe_smooth","paper/data/public-derived/bcpe-t/smooth_integrated_metrics.csv","fbfd9601965a6549184b418a13857515",54205
+"2026-09-01.3","ae3a11e1ee9eb919c645a8465971b0f8","conf.level=0.94999999999999996","bcpe_predictive","paper/data/public-derived/bcpe-t/predictive_scores_by_rep.csv","9d63b8989479abb539b13f94f32f2a87",49649
+"2026-09-01.3","ae3a11e1ee9eb919c645a8465971b0f8","conf.level=0.94999999999999996","bcpe_diagnostic","paper/data/public-derived/bcpe-t/joint_distribution_metrics_by_rep.csv","b0ed88e5ae8ccc3316f2d2610894a723",43340
+"2026-09-01.3","ae3a11e1ee9eb919c645a8465971b0f8","conf.level=0.94999999999999996","nbi_log","paper/data/public-derived/nbi-clayton/nbi_sigma_compare_logs.csv","cbdde4d2b3f0f3a61caab80cc07c7218",24959
+"2026-09-01.3","ae3a11e1ee9eb919c645a8465971b0f8","conf.level=0.94999999999999996","nbi_fixed","paper/data/public-derived/nbi-clayton/fixed_effects_by_rep.csv","ad55416a5463fe1078e3d997e1461f80",120265
+"2026-09-01.3","ae3a11e1ee9eb919c645a8465971b0f8","conf.level=0.94999999999999996","nbi_smooth","paper/data/public-derived/nbi-clayton/smooth_integrated_metrics.csv","6220703820697d28572c6611a24b4756",44590
+"2026-09-01.3","ae3a11e1ee9eb919c645a8465971b0f8","conf.level=0.94999999999999996","nbi_predictive","paper/data/public-derived/nbi-clayton/predictive_scores_by_rep.csv","9e27cb5fbd52f4e6ace3b93379e70649",51994
+"2026-09-01.3","ae3a11e1ee9eb919c645a8465971b0f8","conf.level=0.94999999999999996","nbi_diagnostic","paper/data/public-derived/nbi-clayton/joint_distribution_metrics_by_rep.csv","870f9dbb7c2e96541723fbca33caa3be",44025
+"2026-09-01.3","ae3a11e1ee9eb919c645a8465971b0f8","conf.level=0.94999999999999996","producer","paper/R/main-recovery-evidence.R","33857e69328c2213809fa67065d51817",61880
+"2026-09-01.3","ae3a11e1ee9eb919c645a8465971b0f8","conf.level=0.94999999999999996","evidence_runner","paper/scripts/final-simulations/main-recovery/run_main_recovery_evidence.R","a5e7e8a7882732f3fe08c7a51c722fc4",1238
+"2026-09-01.3","ae3a11e1ee9eb919c645a8465971b0f8","conf.level=0.94999999999999996","bcpe_runner","paper/scripts/final-simulations/bcpe-t/simulation_bcpe_t_gamlss_comparison.R","a610ba1b16b2e068c370aa7d7634b65d",66404
+"2026-09-01.3","ae3a11e1ee9eb919c645a8465971b0f8","conf.level=0.94999999999999996","nbi_runner","paper/scripts/final-simulations/nbi-clayton/compare_gamlss_ours_nbi_sigma_smooth.R","eb9e20502f89583c95c8c073c8e667a2",46410
+"2026-09-01.3","ae3a11e1ee9eb919c645a8465971b0f8","conf.level=0.94999999999999996","package_description","DESCRIPTION","f7d01b0813b6d954760d0c1d77dabda9",1465

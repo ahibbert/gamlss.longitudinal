@@ -7,7 +7,17 @@ library(gamlss.dist)
 library(ggplot2)
 })
 
-suppressPackageStartupMessages(library(gamlss.longitudinal))
+project_root <- normalizePath(Sys.getenv("GAMLSS_LONGITUDINAL_SOURCE_ROOT", unset = getwd()), winslash = "/", mustWork = TRUE)
+package_source_path <- project_root
+package_source_identity <- "."
+package_source_files <- c(file.path(project_root, "DESCRIPTION"), file.path(project_root, "NAMESPACE"), sort(list.files(file.path(project_root, "R"), pattern = "[.]R$", full.names = TRUE)))
+if (!all(file.exists(package_source_files)) || !requireNamespace("pkgload", quietly = TRUE) || !requireNamespace("digest", quietly = TRUE)) stop("The checked-out package source, pkgload, and digest are required for authoritative recovery runs.", call. = FALSE)
+source_file_hashes <- unname(vapply(package_source_files, digest::digest, character(1), file = TRUE, algo = "sha256", serialize = FALSE))
+source_relative <- substring(normalizePath(package_source_files, winslash = "/", mustWork = TRUE), nchar(project_root) + 2L)
+package_source_sha256 <- digest::digest(paste(source_relative, source_file_hashes, sep = "\t", collapse = "\n"), algo = "sha256", serialize = FALSE)
+if ("package:gamlss.longitudinal" %in% search()) try(detach("package:gamlss.longitudinal", unload = TRUE, character.only = TRUE), silent = TRUE)
+if ("gamlss.longitudinal" %in% loadedNamespaces()) try(unloadNamespace("gamlss.longitudinal"), silent = TRUE)
+suppressPackageStartupMessages(pkgload::load_all(package_source_path, export_all = TRUE, helpers = FALSE, quiet = TRUE))
 list2env(as.list(getNamespace("gamlss.longitudinal"), all.names = TRUE), envir = .GlobalEnv)
 
 `%||%` <- function(x, y) if (is.null(x)) y else x
@@ -15,6 +25,10 @@ list2env(as.list(getNamespace("gamlss.longitudinal"), all.names = TRUE), envir =
 n_subject <- as.integer(Sys.getenv("NBI_COMPARE_N", unset = "500"))
 reps <- as.integer(Sys.getenv("NBI_COMPARE_REPS", unset = "1"))
 base_seed <- as.integer(Sys.getenv("NBI_COMPARE_SEED", unset = "20260529"))
+runner_contract_version <- "nbi-clayton-main-recovery-2026-09-02.5"
+phase1_contract_version <- "likelihood-jss001-2026-09-01|inference-2026.1|capability-2026.2"
+nbi_copula_code <- "C"
+nbi_copula_label <- "Clayton"
 times <- seq(0, 1, length.out = 4)
 sigma_signal_multiplier <- as.numeric(Sys.getenv("NBI_COMPARE_SIGMA_SIGNAL_MULTIPLIER", unset = "2"))
 max_elapsed_sec <- as.numeric(Sys.getenv("NBI_COMPARE_MAX_ELAPSED", unset = "1800"))
@@ -30,6 +44,10 @@ engine_env <- Sys.getenv("NBI_COMPARE_ENGINES", unset = "gamlss|ours_rs_separate
 engines <- trimws(strsplit(engine_env, "\\|")[[1]])
 engines <- engines[nzchar(engines)]
 resume <- as.logical(Sys.getenv("NBI_COMPARE_RESUME", unset = "TRUE"))
+max_attempts_per_fit <- as.integer(Sys.getenv("NBI_COMPARE_MAX_ATTEMPTS_PER_FIT", unset = "1"))
+if (!is.finite(max_attempts_per_fit) || max_attempts_per_fit < 1L) {
+  stop("NBI_COMPARE_MAX_ATTEMPTS_PER_FIT must be a positive integer.", call. = FALSE)
+}
 compute_se <- as.logical(Sys.getenv("NBI_COMPARE_COMPUTE_SE", unset = "TRUE"))
 vcov_method_longitudinal <- Sys.getenv("NBI_COMPARE_VCOV_METHOD", unset = "analytical")
 compute_predictive_scores <- as.logical(Sys.getenv("NBI_COMPARE_COMPUTE_PREDICTIVE", unset = "TRUE"))
@@ -48,6 +66,23 @@ if (length(variogram_p_values) == 0L) {
 save_fits <- as.logical(Sys.getenv("NBI_COMPARE_SAVE_FITS", unset = "FALSE"))
 theta_intercept <- as.numeric(Sys.getenv("NBI_COMPARE_THETA_INTERCEPT", unset = "0.70"))
 theta_time_coef <- as.numeric(Sys.getenv("NBI_COMPARE_THETA_TIME_COEF", unset = "0.20"))
+runner_git_sha <- tryCatch(system2("git", c("rev-parse", "HEAD"), stdout = TRUE, stderr = FALSE)[[1]], error = function(e) NA_character_)
+runner_git_state <- tryCatch(if (length(system2("git", c("status", "--porcelain"), stdout = TRUE, stderr = FALSE))) "dirty" else "clean", error = function(e) "unknown")
+runner_package_version <- as.character(read.dcf(file.path(package_source_path, "DESCRIPTION"))[1, "Version"])
+runner_script_path <- normalizePath(file.path(project_root, "paper", "scripts", "final-simulations", "nbi-clayton", "compare_gamlss_ours_nbi_sigma_smooth.R"), winslash = "/", mustWork = TRUE)
+runner_sha256 <- unname(digest::digest(runner_script_path, file = TRUE, algo = "sha256", serialize = FALSE))
+nbi_rscript_path <- normalizePath(file.path(R.home("bin"), if (.Platform$OS.type == "windows") "Rscript.exe" else "Rscript"), winslash = "/", mustWork = TRUE)
+nbi_rscript_sha256 <- unname(digest::digest(nbi_rscript_path, file = TRUE, algo = "sha256", serialize = FALSE))
+runner_settings_signature <- paste(
+  runner_contract_version, phase1_contract_version, n_subject, paste(times, collapse = ","), reps, base_seed,
+  sigma_signal_multiplier, paste(engines, collapse = ","), max_elapsed_sec, max_outer_iter, max_inner_iter,
+  start_step_size, step_adjustment_env, lambda_start, rs_update_lambda, warm_start_joint_iter,
+  compute_se, vcov_method_longitudinal, compute_predictive_scores, predictive_nsim,
+  paste(variogram_p_values, collapse = ","), theta_intercept, theta_time_coef,
+  max_attempts_per_fit, 1L, "sequential", nbi_rscript_path, nbi_rscript_sha256, R.version.string,
+  sep = "|"
+)
+runner_settings_sha256 <- digest::digest(runner_settings_signature, algo = "sha256", serialize = FALSE)
 
 out_dir <- Sys.getenv(
   "NBI_COMPARE_OUT_DIR",
@@ -62,6 +97,14 @@ out_dir <- Sys.getenv(
   )
 )
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+if (identical(Sys.getenv("NBI_SOURCE_IDENTITY_AUDIT_ONLY", unset = "0"), "1")) {
+  write.csv(data.frame(package_source_path = package_source_identity, package_version = runner_package_version,
+    package_source_sha256 = package_source_sha256, runner_sha256 = runner_sha256,
+    runner_settings_signature = runner_settings_signature, runner_settings_sha256 = runner_settings_sha256,
+    loaded_namespace_path = normalizePath(getNamespaceInfo(asNamespace("gamlss.longitudinal"), "path"), winslash = "/", mustWork = TRUE)),
+    file.path(out_dir, "source_identity_audit.csv"), row.names = FALSE)
+  quit(save = "no", status = 0)
+}
 fit_dir <- file.path(out_dir, "fits")
 if (isTRUE(save_fits)) {
   dir.create(fit_dir, recursive = TRUE, showWarnings = FALSE)
@@ -72,33 +115,70 @@ save_fit_object <- function(fit, rep_id, engine) {
     return(invisible(NULL))
   }
   file <- file.path(fit_dir, sprintf("fit_rep%03d_%s.rds", rep_id, engine))
-  saveRDS(fit, file = file, compress = "gzip")
+  temporary <- paste0(file, ".tmp-", Sys.getpid())
+  saveRDS(fit, file = temporary, compress = "gzip")
+  if (file.exists(file) && !file.remove(file)) stop("Could not replace fit checkpoint: ", file, call. = FALSE)
+  if (!file.rename(temporary, file)) stop("Could not atomically install fit checkpoint: ", file, call. = FALSE)
   invisible(file)
+}
+
+write_checkpoint_csv <- function(x, path) {
+  temporary <- paste0(path, ".tmp-", Sys.getpid())
+  write.csv(x, temporary, row.names = FALSE)
+  if (file.exists(path) && !file.remove(path)) stop("Could not replace checkpoint: ", path, call. = FALSE)
+  if (!file.rename(temporary, path)) stop("Could not atomically install checkpoint: ", path, call. = FALSE)
+  invisible(path)
 }
 
 smooth_mu <- function(x) 0.55 * sin(2 * pi * x)
 smooth_sigma <- function(x) (0.70 * sigma_signal_multiplier) * (2 * (x - 0.5)^2 - 1 / 6)
 smooth_theta <- function(x) 0.22 * sin(pi * x) - 0.10
 
-make_dat <- function(rep_id, response_seed_offset = 0L, covariates = NULL) {
+nbi_seed_registry <- function(rep_id, engine = NULL) {
+  engine_offset <- if (is.null(engine)) 0L else match(engine, engines, nomatch = length(engines) + 1L)
+  origin <- base_seed + 1000L * as.integer(rep_id)
+  list(
+    training_covariate_seed = origin + 11L,
+    training_response_seed = origin + 12L,
+    test_response_seed = origin + 13L,
+    diagnostic_seed = origin + 100L + engine_offset,
+    predictive_seed = origin + 200L + engine_offset
+  )
+}
+
+with_preserved_seed <- function(seed, code) {
+  had_seed <- exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+  old_seed <- if (had_seed) get(".Random.seed", envir = .GlobalEnv, inherits = FALSE) else NULL
+  on.exit({
+    if (had_seed) assign(".Random.seed", old_seed, envir = .GlobalEnv)
+    else if (exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)) rm(".Random.seed", envir = .GlobalEnv)
+  }, add = TRUE)
+  set.seed(as.integer(seed))
+  force(code)
+}
+
+make_covariates <- function(seed) {
+  with_preserved_seed(seed, {
+    subject_x1 <- stats::rnorm(n_subject)
+    subject_x2 <- stats::rbinom(n_subject, 1, 0.5)
+    subject_s1 <- stats::runif(n_subject)
+    data.frame(
+      x1 = rep(subject_x1, each = length(times)),
+      x2 = rep(subject_x2, each = length(times)),
+      s1 = rep(subject_s1, each = length(times)),
+      time_scaled = rep(sim_rescale01(times), times = n_subject),
+      stringsAsFactors = FALSE
+    )
+  })
+}
+
+make_dat <- function(response_seed, covariates) {
   simulate_longitudinal_dataset(
     n = n_subject,
     times = times,
     margin_dist = gamlss.dist::NBI(),
-    copula_dist = "N",
-    covariates = covariates %||% function(base) {
-      simulate_longitudinal_covariates(
-        base,
-        subject = list(
-          x1 = function(d) stats::rnorm(nrow(d)),
-          x2 = function(d) stats::rbinom(nrow(d), 1, 0.5),
-          s1 = function(d) stats::runif(nrow(d))
-        ),
-        observation = list(
-          time_scaled = function(d) sim_rescale01(d$time)
-        )
-      )
-    },
+    copula_dist = nbi_copula_code,
+    covariates = covariates[, c("x1", "x2", "s1", "time_scaled"), drop = FALSE],
     margin_params = list(
       mu = function(d) exp(1.10 + 0.18 * d$x1 - 0.12 * d$x2 + 0.10 * d$time_scaled + smooth_mu(d$s1)),
       sigma = function(d) exp(-0.45 + 0.10 * d$x1 + 0.08 * d$time_scaled + smooth_sigma(d$s1))
@@ -106,10 +186,10 @@ make_dat <- function(rep_id, response_seed_offset = 0L, covariates = NULL) {
     copula_params = list(
       theta = function(e) {
         time_left_scaled <- sim_rescale01(e$time_left)
-        tanh(theta_intercept + theta_time_coef * time_left_scaled + smooth_theta(e$s1))
+        exp(theta_intercept + theta_time_coef * time_left_scaled + smooth_theta(e$s1))
       }
     ),
-    seed = base_seed + rep_id + response_seed_offset
+    seed = response_seed
   )
 }
 
@@ -169,7 +249,7 @@ fit_ours <- function(dat, engine) {
   gamlss.longitudinal::gamlss_longitudinal(
     dataset = dat,
     margin_dist = gamlss.dist::NBI(),
-    copula_dist = "N",
+    copula_dist = nbi_copula_code,
     time_var = "time",
     subject_var = "subject",
     mu.formula = "response ~ x1 + x2 + time_scaled + s(s1, bs = 'ps', k = 8)",
@@ -208,31 +288,96 @@ curve_path <- file.path(out_dir, "nbi_sigma_compare_curves.csv")
 fixed_path <- file.path(out_dir, "fixed_effects_by_rep.csv")
 joint_path <- file.path(out_dir, "joint_distribution_metrics_by_rep.csv")
 predictive_path <- file.path(out_dir, "predictive_scores_by_rep.csv")
-if (isTRUE(resume) && file.exists(log_path)) {
-  old_logs <- read.csv(log_path, stringsAsFactors = FALSE)
-  rows <- split(old_logs, seq_len(nrow(old_logs)))
+attempt_checkpoint_dir <- file.path(out_dir, "attempt_checkpoints")
+dir.create(attempt_checkpoint_dir, recursive = TRUE, showWarnings = FALSE)
+
+attempt_checkpoint_path <- function(rep_id, engine, retry_index) {
+  file.path(attempt_checkpoint_dir, sprintf("rep%03d_%s_try%02d.rds", rep_id, engine, retry_index))
 }
-if (isTRUE(resume) && file.exists(curve_path)) {
-  old_curves <- read.csv(curve_path, stringsAsFactors = FALSE)
-  curves <- split(old_curves, seq_len(nrow(old_curves)))
+
+attempt_checkpoint_issues <- function(x) {
+  issues <- character()
+  if (!is.list(x) || !identical(x$runner_contract_version, runner_contract_version)) return("runner_contract")
+  if (!identical(x$phase1_contract_version, phase1_contract_version)) return("phase1_contract")
+  if (!identical(x$runner_settings_signature, runner_settings_signature)) return("runner_settings")
+  if (!identical(x$runner_settings_sha256, runner_settings_sha256) || !identical(x$runner_sha256, runner_sha256) ||
+      !identical(x$package_source_path, package_source_identity) || !identical(x$package_version, runner_package_version) ||
+      !identical(x$package_source_sha256, package_source_sha256)) return("source_identity")
+  if (!is.data.frame(x$log) || nrow(x$log) != 1L) return("log_row")
+  log <- x$log
+  if (!identical(as.character(log$margin_family), "NBI") || !identical(as.character(log$copula_family), nbi_copula_label) ||
+      !identical(as.character(log$copula_code), nbi_copula_code)) issues <- c(issues, "family_metadata")
+  seed_columns <- c("training_covariate_seed", "training_response_seed", "test_response_seed", "diagnostic_seed", "predictive_seed")
+  if (!all(seed_columns %in% names(log)) || any(!is.finite(as.numeric(log[1, intersect(seed_columns, names(log)), drop = TRUE])))) issues <- c(issues, "seed_registry")
+  if (!isTRUE(log$success)) {
+    empty_outputs <- all(vapply(c("curves", "fixed", "joint", "predictive"), function(name) is.data.frame(x[[name]]) && !nrow(x[[name]]), logical(1)))
+    if (!empty_outputs) issues <- c(issues, "failed_attempt_has_outputs")
+    return(unique(issues))
+  }
+  expected_parameters <- if (identical(as.character(log$engine), "gamlss")) c("mu", "sigma") else c("mu", "sigma", "theta")
+  expected_fixed <- if (identical(as.character(log$engine), "gamlss")) 7L else 9L
+  expected_curve_points <- if (identical(as.character(log$engine), "gamlss")) length(grid) else min(n_subject, length(grid))
+  curve_ok <- is.data.frame(x$curves) && "parameter" %in% names(x$curves) &&
+    setequal(unique(x$curves$parameter), expected_parameters) && all(table(x$curves$parameter) >= expected_curve_points)
+  completeness_issues <- character()
+  if (!curve_ok) completeness_issues <- c(completeness_issues, "curves")
+  if (!is.data.frame(x$fixed) || nrow(x$fixed) != expected_fixed) completeness_issues <- c(completeness_issues, "fixed")
+  if (!is.data.frame(x$joint) || nrow(x$joint) != 1L) completeness_issues <- c(completeness_issues, "diagnostic")
+  predictive_ok <- is.data.frame(x$predictive) &&
+    ((!isTRUE(compute_predictive_scores) && nrow(x$predictive) == 0L) ||
+      (isTRUE(compute_predictive_scores) && nrow(x$predictive) == length(variogram_p_values) && "variogram_p" %in% names(x$predictive) &&
+        setequal(as.numeric(x$predictive$variogram_p), as.numeric(variogram_p_values))))
+  if (!predictive_ok) completeness_issues <- c(completeness_issues, "predictive")
+  if (is.data.frame(x$fixed) && nrow(x$fixed) && (!all(is.finite(x$fixed$estimate)) || !all(is.finite(x$fixed$true_value)) || any(is.finite(x$fixed$std_error) & x$fixed$std_error < 0))) completeness_issues <- c(completeness_issues, "fixed_substantive_values")
+  if (is.data.frame(x$curves) && nrow(x$curves) && (!all(is.finite(x$curves$fitted)) || !all(is.finite(x$curves$truth)))) completeness_issues <- c(completeness_issues, "smooth_substantive_values")
+  if (is.data.frame(x$joint) && nrow(x$joint) && !all(vapply(c("logLik", "rosenblatt_ks", "rosenblatt_cvm", "abs_rosenblatt_lag1_cor", "abs_rosenblatt_normal_lag1_cor", "rosenblatt_mean_abs_time_mean", "rosenblatt_normal_mean_abs_time_mean"), function(name) name %in% names(x$joint) && all(is.finite(x$joint[[name]])), logical(1)))) completeness_issues <- c(completeness_issues, "diagnostic_substantive_values")
+  if (is.data.frame(x$predictive) && nrow(x$predictive) && !all(vapply(c("test_log_score_joint", "test_log_score_marginal", "test_log_score_copula", "test_log_score_per_obs", "variogram_score", "predictive_nsim"), function(name) name %in% names(x$predictive) && all(is.finite(x$predictive[[name]])), logical(1)))) completeness_issues <- c(completeness_issues, "predictive_substantive_values")
+  if (isTRUE(log$descriptive_outputs_complete) && length(completeness_issues)) issues <- c(issues, "declared_complete_but_incomplete", completeness_issues)
+  if (!isTRUE(log$descriptive_outputs_complete) && !length(completeness_issues)) issues <- c(issues, "declared_incomplete_but_complete")
+  unique(issues)
 }
-if (isTRUE(resume) && file.exists(fixed_path)) {
-  old_fixed <- read.csv(fixed_path, stringsAsFactors = FALSE)
-  fixed_rows <- split(old_fixed, seq_len(nrow(old_fixed)))
+
+valid_attempt_checkpoint <- function(x) {
+  length(attempt_checkpoint_issues(x)) == 0L
 }
-if (isTRUE(resume) && file.exists(joint_path)) {
-  old_joint <- read.csv(joint_path, stringsAsFactors = FALSE)
-  joint_rows <- split(old_joint, seq_len(nrow(old_joint)))
+
+read_attempt_checkpoint <- function(path) {
+  tryCatch({
+    x <- readRDS(path)
+    if (valid_attempt_checkpoint(x)) x else NULL
+  }, error = function(e) NULL)
 }
-if (isTRUE(resume) && file.exists(predictive_path)) {
-  old_predictive <- read.csv(predictive_path, stringsAsFactors = FALSE)
-  predictive_rows <- split(old_predictive, seq_len(nrow(old_predictive)))
+
+write_attempt_checkpoint <- function(x, path) {
+  if (!valid_attempt_checkpoint(x)) stop("Refusing to write an incomplete NBI/Clayton attempt checkpoint.", call. = FALSE)
+  temporary <- paste0(path, ".tmp-", Sys.getpid())
+  saveRDS(x, temporary, compress = "gzip")
+  if (file.exists(path) && !file.remove(path)) stop("Could not replace attempt checkpoint: ", path, call. = FALSE)
+  if (!file.rename(temporary, path)) stop("Could not atomically install attempt checkpoint: ", path, call. = FALSE)
+  invisible(path)
+}
+
+checkpoints <- if (isTRUE(resume)) lapply(list.files(attempt_checkpoint_dir, pattern = "[.]rds$", full.names = TRUE), read_attempt_checkpoint) else list()
+checkpoints <- checkpoints[!vapply(checkpoints, is.null, logical(1))]
+if (length(checkpoints)) {
+  rows <- lapply(checkpoints, `[[`, "log")
+  curves <- lapply(checkpoints, `[[`, "curves"); curves <- curves[vapply(curves, nrow, integer(1)) > 0L]
+  fixed_rows <- lapply(checkpoints, `[[`, "fixed"); fixed_rows <- fixed_rows[vapply(fixed_rows, nrow, integer(1)) > 0L]
+  joint_rows <- lapply(checkpoints, `[[`, "joint"); joint_rows <- joint_rows[vapply(joint_rows, nrow, integer(1)) > 0L]
+  predictive_rows <- lapply(checkpoints, `[[`, "predictive"); predictive_rows <- predictive_rows[vapply(predictive_rows, nrow, integer(1)) > 0L]
+}
+
+prior_attempt_count <- function(rep_id, engine) {
+  if (!length(rows)) return(0L)
+  log_df <- do.call(rbind, rows)
+  sum(log_df$rep == rep_id & log_df$engine == engine)
 }
 
 already_done <- function(rep_id, engine) {
-  if (!isTRUE(resume) || length(rows) == 0L) return(FALSE)
+  if (!isTRUE(resume) || !length(rows)) return(FALSE)
   log_df <- do.call(rbind, rows)
-  any(log_df$rep == rep_id & log_df$engine == engine & log_df$success)
+  prior <- log_df$rep == rep_id & log_df$engine == engine
+  any(prior & log_df$publication_candidate %in% TRUE) || sum(prior) >= max_attempts_per_fit
 }
 
 fixed_from_gamlss <- function(fit, rep_id) {
@@ -351,6 +496,36 @@ scalar_logical <- function(x) {
   isTRUE(x[[1L]])
 }
 
+raw_convergence_evidence <- function(fit, engine, ok) {
+  api <- if (engine == "gamlss") "gamlss::gamlss_result" else "gamlss.longitudinal::fit_convergence"
+  basis <- if (engine == "gamlss") "gamlss_explicit_converged_v1" else "gamlss.longitudinal_explicit_convergence_v1"
+  indicator_name <- if (engine == "gamlss") "fit$converged" else "fit$convergence$converged"
+  if (!ok) return(list(api = api, basis = basis, indicator_name = indicator_name, status = "fit_execution_failed",
+    indicator = NA, loglik = NA_real_, deviance = NA_real_, coefficient_count = 0L, coefficient_bad = 0L,
+    fitted_count = 0L, fitted_bad = 0L, iterations = NA_integer_, cap = if (engine == "gamlss") 20L else max_outer_iter,
+    hit_outer = FALSE, hit_stall = FALSE, hit_drop = FALSE, converged = FALSE))
+  flatten <- function(x) suppressWarnings(as.numeric(unlist(x, recursive = TRUE, use.names = FALSE)))
+  coefficients <- tryCatch(flatten(stats::coef(fit)), error = function(e) numeric())
+  if (!length(coefficients)) coefficients <- flatten(fit$par)
+  fitted <- tryCatch(flatten(stats::fitted(fit)), error = function(e) numeric())
+  if (!length(fitted)) fitted <- flatten(fit$fitted.values)
+  loglik <- extract_fit_metric(fit, "logLik")
+  deviance <- suppressWarnings(as.numeric(fit$deviance)[1L]); if (!is.finite(deviance) && is.finite(loglik)) deviance <- -2 * loglik
+  indicator <- if (engine == "gamlss") isTRUE(fit$converged) else scalar_logical(fit$convergence$converged)
+  iterations <- if (engine == "gamlss") scalar_integer(fit$iter) else scalar_integer(fit$convergence$outer_iterations)
+  cap <- if (engine == "gamlss") suppressWarnings(as.integer(fit$control$n.cyc)[1L]) else max_outer_iter
+  if (!is.finite(cap) || cap < 1L) cap <- if (engine == "gamlss") 20L else max_outer_iter
+  hit_outer <- if (engine == "gamlss") iterations >= cap else isTRUE(fit$convergence$hit_outer_limit)
+  hit_stall <- engine != "gamlss" && isTRUE(fit$convergence$hit_max_stall)
+  hit_drop <- engine != "gamlss" && isTRUE(fit$convergence$hit_raw_loglik_deterioration)
+  status <- if (!is.finite(loglik) || !is.finite(deviance)) "nonfinite_objective" else if (!length(coefficients) || any(!is.finite(coefficients))) "nonfinite_or_missing_coefficients" else if (!length(fitted) || any(!is.finite(fitted))) "nonfinite_or_missing_fitted_values" else if (!is.finite(iterations) || iterations < 1L || !is.finite(cap) || cap < 1L) "missing_or_invalid_iterations" else if (hit_outer || iterations >= cap) "outer_iteration_cap_reached" else if (hit_stall) "maximum_stall_reached" else if (hit_drop) "raw_loglik_deterioration" else if (is.na(indicator)) "missing_explicit_convergence_indicator" else if (!indicator) "explicit_optimizer_nonconvergence" else "explicit_optimizer_convergence"
+  list(api = api, basis = basis, indicator_name = indicator_name, status = status, indicator = indicator,
+    loglik = loglik, deviance = deviance, coefficient_count = length(coefficients), coefficient_bad = sum(!is.finite(coefficients)),
+    fitted_count = length(fitted), fitted_bad = sum(!is.finite(fitted)), iterations = iterations, cap = cap,
+    hit_outer = hit_outer, hit_stall = hit_stall, hit_drop = hit_drop,
+    converged = status == "explicit_optimizer_convergence")
+}
+
 extract_fit_metric <- function(fit, metric) {
   log_lik <- tryCatch(stats::logLik(fit), error = function(e) NA_real_)
   out <- scalar_numeric(log_lik, "joint")
@@ -439,22 +614,29 @@ joint_metrics_from_rosenblatt <- function(model_name, rep_id, r, dat, logLik, df
   )
 }
 
-joint_metrics_gamlss <- function(fit, dat, rep_id) {
+randomized_nbi_pit <- function(response, mu, sigma, seed) {
+  upper <- gamlss.dist::pNBI(response, mu = mu, sigma = sigma)
+  lower <- gamlss.dist::pNBI(response - 1, mu = mu, sigma = sigma)
+  lower <- pmin(pmax(as.numeric(lower), 0), 1)
+  upper <- pmin(pmax(as.numeric(upper), 0), 1)
+  with_preserved_seed(seed, lower + stats::runif(length(upper)) * pmax(upper - lower, 0))
+}
+
+joint_metrics_gamlss <- function(fit, dat, rep_id, diagnostic_seed) {
   pred_data <- gamlss_prediction_data(dat)
   pred_mu <- as.numeric(predict(fit, what = "mu", type = "link", newdata = pred_data))
   pred_sigma <- as.numeric(predict(fit, what = "sigma", type = "link", newdata = pred_data))
-  u <- gamlss.dist::pNBI(
-    dat$response,
-    mu = gamlss.dist::NBI()$mu.linkinv(pred_mu),
-    sigma = gamlss.dist::NBI()$sigma.linkinv(pred_sigma)
+  u <- randomized_nbi_pit(
+    dat$response, gamlss.dist::NBI()$mu.linkinv(pred_mu),
+    gamlss.dist::NBI()$sigma.linkinv(pred_sigma), diagnostic_seed
   )
   joint_metrics_from_rosenblatt("gamlss", rep_id, clip_u(u), dat, extract_fit_metric(fit, "logLik"), extract_fit_metric(fit, "df"))
 }
 
-joint_metrics_ours <- function(fit, rep_id, engine) {
+joint_metrics_ours <- function(fit, rep_id, engine, diagnostic_seed) {
   copula_link_fit <- gamlss.longitudinal:::get_copula_dist(fit$copula_dist)$copula_link
   eta_inv <- gamlss.longitudinal:::calc_eta(fit$par, fit$model_matrix, fit$margin_dist, copula_link_fit, fit$par_s)$eta_inv
-  u <- gamlss.dist::pNBI(fit$response, mu = eta_inv$mu, sigma = eta_inv$sigma)
+  u <- randomized_nbi_pit(fit$response, eta_inv$mu, eta_inv$sigma, diagnostic_seed)
   u <- clip_u(u)
   dat <- data.frame(subject = fit$response_subject, time = fit$response_margin)
   pairs <- adjacent_pair_rows(dat)
@@ -463,7 +645,8 @@ joint_metrics_ours <- function(fit, rep_id, engine) {
   theta_lookup[theta_rows] <- seq_along(theta_rows)
   theta_idx <- theta_lookup[pairs$row1]
   theta <- as.numeric(eta_inv$theta[theta_idx])
-  fam_num <- as.numeric(VineCopula::BiCopName(fit$copula_dist))
+  if (!identical(fit$copula_dist, nbi_copula_code)) stop("NBI recovery fit used the wrong copula family.", call. = FALSE)
+  fam_num <- gamlss.longitudinal:::.copula_family_number(fit$copula_dist)
   conditional_rosenblatt <- tryCatch(
     VineCopula::BiCopHfunc1(u[pairs$row1], u[pairs$row2], family = fam_num, par = theta, par2 = 0),
     error = function(e) rep(NA_real_, nrow(pairs))
@@ -522,7 +705,7 @@ variogram_score <- function(observed_mat, simulated_array, p = 0.5) {
   mean(scores, na.rm = TRUE)
 }
 
-simulate_predictive_gamlss <- function(fit, dat, nsim) {
+simulate_predictive_gamlss <- function(fit, dat, nsim, seed) {
   dat <- dat[order(dat$subject, dat$time), , drop = FALSE]
   pred_data <- gamlss_prediction_data(dat)
   pred_mu <- as.numeric(predict(fit, what = "mu", type = "link", newdata = pred_data))
@@ -530,24 +713,25 @@ simulate_predictive_gamlss <- function(fit, dat, nsim) {
   n <- length(unique(dat$subject))
   d <- length(unique(dat$time))
   out <- array(NA_real_, dim = c(nsim, n, d))
-  for (s in seq_len(nsim)) {
+  draws <- with_preserved_seed(seed, lapply(seq_len(nsim), function(s) {
     y <- gamlss.dist::qNBI(
       stats::runif(nrow(dat)),
       mu = gamlss.dist::NBI()$mu.linkinv(pred_mu),
       sigma = gamlss.dist::NBI()$sigma.linkinv(pred_sigma)
     )
-    out[s, , ] <- matrix(y, nrow = n, ncol = d, byrow = TRUE)
-  }
+    matrix(y, nrow = n, ncol = d, byrow = TRUE)
+  }))
+  for (s in seq_len(nsim)) out[s, , ] <- draws[[s]]
   out
 }
 
-simulate_predictive_ours <- function(fit, dat, nsim) {
+simulate_predictive_ours <- function(fit, dat, nsim, seed) {
   dat <- dat[order(dat$subject, dat$time), , drop = FALSE]
-  sim_df <- stats::simulate(fit, nsim = nsim, newdata = dat)
+  sim_df <- with_preserved_seed(seed, stats::simulate(fit, nsim = nsim, newdata = dat))
   simulate_array_from_columns(sim_df, dat, subject_col = "subject")
 }
 
-predictive_scores_gamlss <- function(fit, test_dat, rep_id, nsim = predictive_nsim) {
+predictive_scores_gamlss <- function(fit, test_dat, rep_id, predictive_seed, nsim = predictive_nsim) {
   test_dat <- test_dat[order(test_dat$subject, test_dat$time), , drop = FALSE]
   pred_data <- gamlss_prediction_data(test_dat)
   pred_mu <- as.numeric(predict(fit, what = "mu", type = "link", newdata = pred_data))
@@ -559,7 +743,7 @@ predictive_scores_gamlss <- function(fit, test_dat, rep_id, nsim = predictive_ns
     log = TRUE
   )
   joint_log_score <- sum(log_d, na.rm = TRUE)
-  sim_array <- simulate_predictive_gamlss(fit, test_dat, nsim)
+  sim_array <- simulate_predictive_gamlss(fit, test_dat, nsim, predictive_seed)
   y_obs <- response_matrix(test_dat)
   base <- data.frame(
     scenario = sprintf("n%d_d%d_nbi_signal%s", n_subject, length(times), sigma_signal_multiplier),
@@ -583,7 +767,7 @@ predictive_scores_gamlss <- function(fit, test_dat, rep_id, nsim = predictive_ns
   }))
 }
 
-predictive_scores_ours <- function(fit, test_dat, rep_id, engine, nsim = predictive_nsim) {
+predictive_scores_ours <- function(fit, test_dat, rep_id, engine, predictive_seed, nsim = predictive_nsim) {
   copula_link_fit <- gamlss.longitudinal:::get_copula_dist(fit$copula_dist)$copula_link
   eta_inv <- gamlss.longitudinal:::calc_eta(fit$par, fit$model_matrix, fit$margin_dist, copula_link_fit, fit$par_s)$eta_inv
   lik <- gamlss.longitudinal:::calc_likelihood_minimal(
@@ -596,7 +780,7 @@ predictive_scores_ours <- function(fit, test_dat, rep_id, engine, nsim = predict
     response_margin = test_dat$time,
     response_subject = test_dat$subject
   )
-  sim_array <- simulate_predictive_ours(fit, test_dat, nsim)
+  sim_array <- simulate_predictive_ours(fit, test_dat, nsim, predictive_seed)
   y_obs <- response_matrix(test_dat)
   base <- data.frame(
     scenario = sprintf("n%d_d%d_nbi_signal%s", n_subject, length(times), sigma_signal_multiplier),
@@ -621,9 +805,10 @@ predictive_scores_ours <- function(fit, test_dat, rep_id, engine, nsim = predict
 }
 
 for (rep_id in seq_len(reps)) {
-  dat <- make_dat(rep_id)
-  fixed_covariates <- dat[, c("x1", "x2", "s1", "time_scaled"), drop = FALSE]
-  test_dat <- make_dat(rep_id, response_seed_offset = 500000L, covariates = fixed_covariates)
+  data_seeds <- nbi_seed_registry(rep_id)
+  fixed_covariates <- make_covariates(data_seeds$training_covariate_seed)
+  dat <- make_dat(data_seeds$training_response_seed, fixed_covariates)
+  test_dat <- make_dat(data_seeds$test_response_seed, fixed_covariates)
 
   for (engine in engines) {
     if (already_done(rep_id, engine)) {
@@ -631,6 +816,7 @@ for (rep_id in seq_len(reps)) {
       next
     }
     cat(sprintf("rep %d/%d | %s\n", rep_id, reps, engine))
+    attempt_seeds <- nbi_seed_registry(rep_id, engine)
     start <- Sys.time()
     fit <- tryCatch(
       if (engine == "gamlss") fit_gamlss(dat) else fit_ours(dat, engine),
@@ -642,6 +828,9 @@ for (rep_id in seq_len(reps)) {
       save_fit_object(fit, rep_id, engine)
     }
     curve <- NULL
+    fixed_piece <- data.frame()
+    joint_piece <- data.frame()
+    predictive_piece <- data.frame()
     if (ok) {
       curve <- if (engine == "gamlss") {
         rbind(
@@ -657,50 +846,147 @@ for (rep_id in seq_len(reps)) {
       }
       curve$rep <- rep_id
       curve$engine <- engine
-      curves[[length(curves) + 1L]] <- curve
-      fixed_rows[[length(fixed_rows) + 1L]] <- if (engine == "gamlss") {
+      fixed_piece <- if (engine == "gamlss") {
         fixed_from_gamlss(fit, rep_id)
       } else {
         fixed_from_ours(fit, rep_id, engine)
       }
-      joint_rows[[length(joint_rows) + 1L]] <- tryCatch(
-        if (engine == "gamlss") joint_metrics_gamlss(fit, dat, rep_id) else joint_metrics_ours(fit, rep_id, engine),
-        error = function(e) NULL
+      joint_piece <- tryCatch(
+        if (engine == "gamlss") joint_metrics_gamlss(fit, dat, rep_id, attempt_seeds$diagnostic_seed) else joint_metrics_ours(fit, rep_id, engine, attempt_seeds$diagnostic_seed),
+        error = function(e) data.frame()
       )
       if (isTRUE(compute_predictive_scores)) {
-        predictive_rows[[length(predictive_rows) + 1L]] <- tryCatch(
-          if (engine == "gamlss") predictive_scores_gamlss(fit, test_dat, rep_id) else predictive_scores_ours(fit, test_dat, rep_id, engine),
-          error = function(e) NULL
+        predictive_piece <- tryCatch(
+          if (engine == "gamlss") predictive_scores_gamlss(fit, test_dat, rep_id, attempt_seeds$predictive_seed) else predictive_scores_ours(fit, test_dat, rep_id, engine, attempt_seeds$predictive_seed),
+          error = function(e) data.frame()
         )
       }
     }
-    rows[[length(rows) + 1L]] <- data.frame(
+    retry_index <- prior_attempt_count(rep_id, engine) + 1L
+    if (is.null(curve)) curve <- data.frame()
+    add_retry <- function(x) {
+      if (is.data.frame(x) && nrow(x)) x$retry_index <- retry_index
+      x
+    }
+    curve <- add_retry(curve); fixed_piece <- add_retry(fixed_piece)
+    joint_piece <- add_retry(joint_piece); predictive_piece <- add_retry(predictive_piece)
+    if (nrow(fixed_piece)) {
+      fixed_piece$inference_status <- ifelse(is.finite(fixed_piece$std_error), "available",
+        if (isTRUE(compute_se)) "unavailable_computation_failed" else "not_requested_registered")
+      fixed_piece$inference_denominator <- as.integer(is.finite(fixed_piece$std_error))
+    }
+    expected_fixed <- if (engine == "gamlss") 7L else 9L
+    expected_parameters <- if (engine == "gamlss") c("mu", "sigma") else c("mu", "sigma", "theta")
+    expected_curve_points <- if (engine == "gamlss") length(grid) else min(n_subject, length(grid))
+    output_issues <- c(
+      if (!nrow(curve) || !"parameter" %in% names(curve) || !setequal(unique(curve$parameter), expected_parameters) || any(table(curve$parameter) < expected_curve_points)) "curves" else NULL,
+      if (nrow(fixed_piece) != expected_fixed) "fixed" else NULL,
+      if (nrow(joint_piece) != 1L) "diagnostic" else NULL,
+      if (isTRUE(compute_predictive_scores) && nrow(predictive_piece) != length(variogram_p_values)) "predictive" else NULL,
+      if (nrow(fixed_piece) && (!all(is.finite(fixed_piece$estimate)) || !all(is.finite(fixed_piece$true_value)) || any(is.finite(fixed_piece$std_error) & fixed_piece$std_error < 0))) "fixed_substantive_values" else NULL,
+      if (nrow(curve) && (!all(is.finite(curve$fitted)) || !all(is.finite(curve$truth)))) "smooth_substantive_values" else NULL,
+      if (nrow(joint_piece) && !all(vapply(c("logLik", "rosenblatt_ks", "rosenblatt_cvm", "abs_rosenblatt_lag1_cor", "abs_rosenblatt_normal_lag1_cor", "rosenblatt_mean_abs_time_mean", "rosenblatt_normal_mean_abs_time_mean"), function(name) name %in% names(joint_piece) && all(is.finite(joint_piece[[name]])), logical(1)))) "diagnostic_substantive_values" else NULL,
+      if (nrow(predictive_piece) && !all(vapply(c("test_log_score_joint", "test_log_score_marginal", "test_log_score_copula", "test_log_score_per_obs", "variogram_score", "predictive_nsim"), function(name) name %in% names(predictive_piece) && all(is.finite(predictive_piece[[name]])), logical(1)))) "predictive_substantive_values" else NULL
+    )
+    descriptive_outputs_complete <- ok && !length(output_issues)
+    raw_convergence <- raw_convergence_evidence(fit, engine, ok)
+    converged_value <- raw_convergence$converged
+    log_piece <- data.frame(
+      evidence_status = "post_phase1_production",
+      study_id = "nbi_clayton_main_recovery",
+      margin_family = "NBI",
+      copula_family = nbi_copula_label,
+      copula_code = nbi_copula_code,
+      runner_contract_version = runner_contract_version,
+      phase1_contract_version = phase1_contract_version,
+      runner_settings_signature = runner_settings_signature,
+      runner_settings_sha256 = runner_settings_sha256,
+      runner_sha256 = runner_sha256,
+      package_source_path = package_source_identity,
+      package_version = runner_package_version,
+      package_source_sha256 = package_source_sha256,
+      scenario = sprintf("n%d_d%d_nbi_signal%s", n_subject, length(times), sigma_signal_multiplier),
+      n = n_subject,
+      d = length(times),
+      target_replicates = reps,
       rep = rep_id,
+      seed = data_seeds$training_response_seed,
+      seed_source = "runner_metadata",
+      training_covariate_seed = data_seeds$training_covariate_seed,
+      training_response_seed = data_seeds$training_response_seed,
+      test_response_seed = data_seeds$test_response_seed,
+      diagnostic_seed = attempt_seeds$diagnostic_seed,
+      predictive_seed = attempt_seeds$predictive_seed,
+      attempted = TRUE,
+      retry_index = retry_index,
       engine = engine,
       success = ok,
+      execution_success = ok,
+      descriptive_outputs_complete = descriptive_outputs_complete,
+      output_failure_reason = if (descriptive_outputs_complete) NA_character_ else if (!ok) "fit_execution_failed" else paste(output_issues, collapse = "|"),
+      runtime_n_cores = 1L, runtime_backend = "sequential", runtime_rscript_sha256 = nbi_rscript_sha256,
+      publication_candidate = isTRUE(converged_value) && descriptive_outputs_complete,
       logLik = if (ok) extract_fit_metric(fit, "logLik") else NA_real_,
       df = if (ok) extract_fit_metric(fit, "df") else NA_real_,
-      converged = if (ok && engine == "gamlss") isTRUE(fit$converged) else if (ok) scalar_logical(fit$convergence$converged) else NA,
+      converged = converged_value,
+      raw_convergence_schema = "raw-convergence-2026-09-01.1", raw_convergence_api = raw_convergence$api,
+      raw_convergence_basis = raw_convergence$basis, raw_convergence_status = raw_convergence$status,
+      raw_convergence_indicator_name = raw_convergence$indicator_name, raw_convergence_indicator_value = raw_convergence$indicator,
+      raw_convergence_loglik = raw_convergence$loglik, raw_convergence_deviance = raw_convergence$deviance,
+      raw_convergence_coefficient_count = raw_convergence$coefficient_count,
+      raw_convergence_coefficient_nonfinite_count = raw_convergence$coefficient_bad,
+      raw_convergence_fitted_count = raw_convergence$fitted_count, raw_convergence_fitted_nonfinite_count = raw_convergence$fitted_bad,
+      raw_convergence_iteration_count = raw_convergence$iterations, raw_convergence_iteration_cap = raw_convergence$cap,
+      raw_convergence_hit_outer_limit = raw_convergence$hit_outer, raw_convergence_hit_max_stall = raw_convergence$hit_stall,
+      raw_convergence_hit_raw_loglik_deterioration = raw_convergence$hit_drop,
+      stop_reason = if (ok && engine != "gamlss") as.character(fit$convergence$stop_reason %||% NA_character_) else if (ok && !isTRUE(fit$converged)) "optimizer_nonconvergence" else NA_character_,
       iter = if (ok && engine == "gamlss") scalar_integer(fit$iter) else if (ok) scalar_integer(fit$convergence$outer_iterations) else NA_integer_,
       mu_irmse = if (ok && any(curve$parameter == "mu")) sqrt(mean(curve$error[curve$parameter == "mu"]^2, na.rm = TRUE)) else NA_real_,
       sigma_irmse = if (ok && any(curve$parameter == "sigma")) sqrt(mean(curve$error[curve$parameter == "sigma"]^2, na.rm = TRUE)) else NA_real_,
       theta_irmse = if (ok && any(curve$parameter == "theta")) sqrt(mean(curve$error[curve$parameter == "theta"]^2, na.rm = TRUE)) else NA_real_,
       elapsed_sec = elapsed,
+      execution_completed_at_utc = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
       error = if (ok) NA_character_ else conditionMessage(fit),
       stringsAsFactors = FALSE
     )
-    write.csv(do.call(rbind, rows), file.path(out_dir, "nbi_sigma_compare_logs.csv"), row.names = FALSE)
+    checkpoint <- list(
+      runner_contract_version = runner_contract_version,
+      phase1_contract_version = phase1_contract_version,
+      runner_settings_signature = runner_settings_signature,
+      runner_settings_sha256 = runner_settings_sha256,
+      runner_sha256 = runner_sha256,
+      package_source_path = package_source_identity,
+      package_version = runner_package_version,
+      package_source_sha256 = package_source_sha256,
+      log = log_piece,
+      curves = curve,
+      fixed = fixed_piece,
+      joint = joint_piece,
+      predictive = predictive_piece
+    )
+    if (ok && !valid_attempt_checkpoint(checkpoint)) {
+      incomplete_issues <- attempt_checkpoint_issues(checkpoint)
+      stop("Refusing structurally invalid NBI/Clayton checkpoint: ", paste(incomplete_issues, collapse = "|"), call. = FALSE)
+    }
+    checkpoint_path <- attempt_checkpoint_path(rep_id, engine, retry_index)
+    write_attempt_checkpoint(checkpoint, checkpoint_path)
+    rows[[length(rows) + 1L]] <- checkpoint$log
+    if (nrow(checkpoint$curves)) curves[[length(curves) + 1L]] <- checkpoint$curves
+    if (nrow(checkpoint$fixed)) fixed_rows[[length(fixed_rows) + 1L]] <- checkpoint$fixed
+    if (nrow(checkpoint$joint)) joint_rows[[length(joint_rows) + 1L]] <- checkpoint$joint
+    if (nrow(checkpoint$predictive)) predictive_rows[[length(predictive_rows) + 1L]] <- checkpoint$predictive
+    write_checkpoint_csv(do.call(rbind, rows), file.path(out_dir, "nbi_sigma_compare_logs.csv"))
     if (length(curves) > 0L) {
-      write.csv(do.call(rbind, curves), curve_path, row.names = FALSE)
+      write_checkpoint_csv(do.call(rbind, curves), curve_path)
     }
     if (length(fixed_rows) > 0L) {
-      write.csv(do.call(rbind, fixed_rows), fixed_path, row.names = FALSE)
+      write_checkpoint_csv(do.call(rbind, fixed_rows), fixed_path)
     }
     if (length(joint_rows) > 0L) {
-      write.csv(do.call(rbind, joint_rows), joint_path, row.names = FALSE)
+      write_checkpoint_csv(do.call(rbind, joint_rows), joint_path)
     }
     if (length(predictive_rows) > 0L) {
-      write.csv(do.call(rbind, predictive_rows), predictive_path, row.names = FALSE)
+      write_checkpoint_csv(do.call(rbind, predictive_rows), predictive_path)
     }
   }
 }
@@ -710,10 +996,28 @@ curve_df <- if (length(curves) > 0L) do.call(rbind, curves) else data.frame()
 fixed_df <- if (length(fixed_rows) > 0L) do.call(rbind, fixed_rows) else data.frame()
 joint_df <- if (length(joint_rows) > 0L) do.call(rbind, joint_rows) else data.frame()
 predictive_df <- if (length(predictive_rows) > 0L) do.call(rbind, predictive_rows) else data.frame()
-write.csv(
+write_checkpoint_csv(log_df, log_path)
+if (nrow(curve_df)) write_checkpoint_csv(curve_df, curve_path)
+if (nrow(fixed_df)) write_checkpoint_csv(fixed_df, fixed_path)
+if (nrow(joint_df)) write_checkpoint_csv(joint_df, joint_path)
+if (nrow(predictive_df)) write_checkpoint_csv(predictive_df, predictive_path)
+write_checkpoint_csv(
   data.frame(
+    runner_contract_version = runner_contract_version,
+    phase1_contract_version = phase1_contract_version,
+    runner_settings_signature = runner_settings_signature,
+    runner_settings_sha256 = runner_settings_sha256,
+    runner_sha256 = runner_sha256,
+    package_source_path = package_source_identity,
+    package_source_sha256 = package_source_sha256,
+    evidence_status = "post_phase1_production",
+    margin_family = "NBI",
+    copula_family = nbi_copula_label,
+    copula_code = nbi_copula_code,
     n_subject = n_subject,
+    times = paste(times, collapse = "|"),
     reps = reps,
+    base_seed = base_seed,
     sigma_signal_multiplier = sigma_signal_multiplier,
     engines = paste(engines, collapse = "|"),
     max_elapsed_sec = max_elapsed_sec,
@@ -721,9 +1025,16 @@ write.csv(
     max_inner_iter = max_inner_iter,
     start_step_size = start_step_size,
     step_adjustment = if (is.na(step_adjustment)) NA_real_ else step_adjustment,
+    step_adjustment_env = step_adjustment_env,
     lambda_start = lambda_start,
     rs_update_lambda = rs_update_lambda,
     warm_start_joint_iter = warm_start_joint_iter,
+    max_attempts_per_fit = max_attempts_per_fit,
+    runtime_n_cores = 1L,
+    runtime_backend = "sequential",
+    rscript_path = nbi_rscript_path,
+    rscript_sha256 = nbi_rscript_sha256,
+    rscript_version = R.version.string,
     compute_se = compute_se,
     vcov_method_longitudinal = vcov_method_longitudinal,
     compute_predictive_scores = compute_predictive_scores,
@@ -732,10 +1043,18 @@ write.csv(
     variogram_p_values = paste(variogram_p_values, collapse = "|"),
     save_fits = save_fits,
     theta_intercept = theta_intercept,
-    theta_time_coef = theta_time_coef
+    theta_time_coef = theta_time_coef,
+    theta_link = "log",
+    theta_inverse_link = "exp",
+    seed_rule = "base_seed + 1000*rep + offsets: covariate=11,response=12,test=13,diagnostic=100+engine,predictive=200+engine",
+    package_version = runner_package_version,
+    git_sha = runner_git_sha,
+    git_state = runner_git_state,
+    r_version = R.version.string,
+    platform = R.version$platform,
+    os = paste(Sys.info()[c("sysname", "release", "machine")], collapse = "|")
   ),
-  file.path(out_dir, "nbi_sigma_compare_settings.csv"),
-  row.names = FALSE
+  file.path(out_dir, "nbi_sigma_compare_settings.csv")
 )
 summary_df <- aggregate(
   cbind(success = success, converged = converged, mu_irmse = mu_irmse, sigma_irmse = sigma_irmse, theta_irmse = theta_irmse, elapsed_sec = elapsed_sec) ~ engine,
@@ -745,31 +1064,32 @@ summary_df <- aggregate(
   },
   na.action = NULL
 )
-write.csv(summary_df, file.path(out_dir, "nbi_sigma_compare_summary.csv"), row.names = FALSE)
+write_checkpoint_csv(summary_df, file.path(out_dir, "nbi_sigma_compare_summary.csv"))
 
 if (nrow(curve_df) > 0L) {
   smooth_integrated <- aggregate(
-    error ~ engine + rep + parameter,
+    error ~ engine + rep + retry_index + parameter,
     curve_df,
     function(x) sqrt(mean(x^2, na.rm = TRUE))
   )
-  names(smooth_integrated) <- c("model", "rep", "parameter", "irmse")
+  names(smooth_integrated) <- c("model", "rep", "retry_index", "parameter", "irmse")
   smooth_integrated$scenario <- sprintf("n%d_d%d_nbi_signal%s", n_subject, length(times), sigma_signal_multiplier)
   smooth_integrated$n <- n_subject
   smooth_integrated$d <- length(times)
   smooth_integrated$bias_abs_integrated <- aggregate(
-    abs(error) ~ engine + rep + parameter,
+    abs(error) ~ engine + rep + retry_index + parameter,
     curve_df,
     mean
   )$`abs(error)`
-  smooth_integrated <- smooth_integrated[, c("scenario", "model", "n", "d", "parameter", "rep", "bias_abs_integrated", "irmse")]
-  write.csv(smooth_integrated, file.path(out_dir, "smooth_integrated_metrics.csv"), row.names = FALSE)
+  smooth_integrated <- smooth_integrated[, c("scenario", "model", "n", "d", "parameter", "rep", "retry_index", "bias_abs_integrated", "irmse")]
+  write_checkpoint_csv(smooth_integrated, file.path(out_dir, "smooth_integrated_metrics.csv"))
 
   smooth_estimates <- data.frame(
     scenario = sprintf("n%d_d%d_nbi_signal%s", n_subject, length(times), sigma_signal_multiplier),
     n = n_subject,
     d = length(times),
     rep = curve_df$rep,
+    retry_index = curve_df$retry_index,
     model = curve_df$engine,
     parameter = curve_df$parameter,
     s1 = curve_df$x,
@@ -777,7 +1097,7 @@ if (nrow(curve_df) > 0L) {
     smooth_true = curve_df$truth,
     stringsAsFactors = FALSE
   )
-  write.csv(smooth_estimates, file.path(out_dir, "smooth_estimates_by_rep.csv"), row.names = FALSE)
+  write_checkpoint_csv(smooth_estimates, file.path(out_dir, "smooth_estimates_by_rep.csv"))
 }
 
 if (nrow(fixed_df) > 0L) {
@@ -809,12 +1129,12 @@ if (nrow(fixed_df) > 0L) {
       )
     }
   ))
-  write.csv(fixed_summary, file.path(out_dir, "fixed_effects_bias_rmse_table.csv"), row.names = FALSE)
+  write_checkpoint_csv(fixed_summary, file.path(out_dir, "fixed_effects_bias_rmse_table.csv"))
   se_calibration <- fixed_summary[fixed_summary$term != "intercept", c(
     "model", "parameter", "term", "mean_std_error", "sd_estimate",
     "se_to_empirical_sd", "coverage_95", "n_se"
   )]
-  write.csv(se_calibration, file.path(out_dir, "fixed_effects_se_calibration.csv"), row.names = FALSE)
+  write_checkpoint_csv(se_calibration, file.path(out_dir, "fixed_effects_se_calibration.csv"))
 }
 
 if (nrow(joint_df) > 0L) {
@@ -833,7 +1153,7 @@ if (nrow(joint_df) > 0L) {
       )
     }
   ))
-  write.csv(joint_summary, file.path(out_dir, "joint_distribution_metrics_summary.csv"), row.names = FALSE)
+  write_checkpoint_csv(joint_summary, file.path(out_dir, "joint_distribution_metrics_summary.csv"))
 }
 
 if (nrow(predictive_df) > 0L) {
@@ -855,7 +1175,7 @@ if (nrow(predictive_df) > 0L) {
       )
     }
   ))
-  write.csv(predictive_summary, file.path(out_dir, "predictive_scores_summary.csv"), row.names = FALSE)
+  write_checkpoint_csv(predictive_summary, file.path(out_dir, "predictive_scores_summary.csv"))
 }
 
 if (length(curves) > 0L) {
@@ -875,7 +1195,7 @@ if (length(curves) > 0L) {
     truth = curve_summary$truth[, "mean"],
     stringsAsFactors = FALSE
   )
-  write.csv(curve_plot_df, file.path(out_dir, "smooth_pointwise_summary.csv"), row.names = FALSE)
+  write_checkpoint_csv(curve_plot_df, file.path(out_dir, "smooth_pointwise_summary.csv"))
 
   p <- ggplot(curve_plot_df, aes(x = x)) +
     geom_ribbon(aes(ymin = fitted_q25, ymax = fitted_q75), fill = "#56B4E9", alpha = 0.28, colour = NA) +

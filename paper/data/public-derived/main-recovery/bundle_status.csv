@@ -1,0 +1,2 @@
+"schema_version","status","publication_eligible","reason"
+"2026-09-01.3","legacy_reconciliation_not_authoritative",FALSE,"contains legacy pre-Phase1 or route-mismatched evidence; reconciliation only"
