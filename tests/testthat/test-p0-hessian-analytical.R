@@ -136,7 +136,7 @@ test_that("T009 analytical Hessian warns for near-boundary GG and tracks numeric
   expect_lte(max(block_err, na.rm = TRUE), 0.15)
 })
 
-test_that("T010 DEL analytical Hessian falls back under exact rectangle likelihood", {
+test_that("T010 DEL analytical Hessian supports exact rectangle likelihood", {
   skip_on_cran()
 
   suppressPackageStartupMessages({
@@ -167,11 +167,9 @@ test_that("T010 DEL analytical Hessian falls back under exact rectangle likeliho
     inner_stop_crit = 0.5
   )
 
-  vc_ana <- expect_warning(
-    vcov(fit, method = "analytical", progress = FALSE),
-    "exact discrete rectangle likelihoods"
-  )
+  vc_ana <- suppressWarnings(vcov(fit, method = "analytical", progress = FALSE))
 
+  expect_equal(vc_ana$method, "analytical")
   expect_true(all(is.finite(diag(vc_ana$vcov$overall))))
 })
 
@@ -205,8 +203,10 @@ test_that("T011 analytical Hessian warns for zero-heavy discrete margins", {
     inner_stop_crit = 0.5
   ))
 
+  vc_ana <- NULL
   expect_warning(
-    vcov(fit, method = "analytical", progress = FALSE),
+    vc_ana <- vcov(fit, method = "analytical", progress = FALSE),
     "zero-heavy discrete margins may be numerically delicate"
   )
+  expect_equal(vc_ana$method, "analytical")
 })

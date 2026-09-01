@@ -28,11 +28,12 @@
   backtracking_attempts_used <- 0L
   max_backtrack <- 0L
   backtracking_applied <- FALSE
+  proposed_invalid <- !is.finite(proposed_joint_loglik) ||
+    identical(proposed_results$calc_lik_out_end$valid, FALSE)
 
   if (isTRUE(use_backtracking) &&
     is.finite(start_joint_loglik) &&
-    is.finite(proposed_joint_loglik) &&
-    proposed_joint_loglik < start_joint_loglik) {
+    (isTRUE(proposed_invalid) || proposed_joint_loglik < start_joint_loglik)) {
     backtracking_applied <- TRUE
     max_backtrack <- as.integer(backtracking_max_halves)
     trial_step <- nominal_step_size
@@ -43,8 +44,10 @@
       trial_step <- trial_step / 2
       trial_results <- proposal_fn(trial_step)
       trial_joint_loglik <- as.numeric(trial_results$calc_lik_out_end$log_lik["joint"])
+      trial_valid <- !identical(trial_results$calc_lik_out_end$valid, FALSE)
 
-      if (is.finite(trial_joint_loglik) && trial_joint_loglik >= start_joint_loglik) {
+      if (isTRUE(trial_valid) && is.finite(trial_joint_loglik) &&
+          trial_joint_loglik >= start_joint_loglik) {
         accepted_results <- trial_results
         accepted_step_size <- trial_step
         accepted <- TRUE
@@ -57,6 +60,10 @@
       accepted_step_size <- 0
       step_rejected <- TRUE
     }
+  } else if (isTRUE(proposed_invalid)) {
+    accepted_results <- current_results
+    accepted_step_size <- 0
+    step_rejected <- TRUE
   }
 
   accepted_joint_loglik <- as.numeric(accepted_results$calc_lik_out_end$log_lik["joint"])
@@ -75,6 +82,7 @@
     backtracking_attempts = as.integer(backtracking_attempts_used),
     max_backtracking_attempts = as.integer(max_backtrack),
     rejected = isTRUE(step_rejected),
+    proposed_likelihood_valid = !isTRUE(proposed_invalid),
     elapsed_sec = as.numeric(elapsed_sec),
     stringsAsFactors = FALSE
   )

@@ -1,0 +1,145 @@
+\documentclass{jss}
+
+\author{
+  Aydin Sareff-Hibbert\\The University of Sydney
+  \And
+  Gillian Z. Heller\\The University of Sydney
+}
+
+\title{\pkg{gamlss.longitudinal}: Longitudinal GAMLSS Models With Copula Dependence in \proglang{R}}
+
+\Plainauthor{Aydin Sareff-Hibbert, Gillian Z. Heller}
+\Plaintitle{gamlss.longitudinal: Longitudinal GAMLSS Models With Copula Dependence in R}
+\Shorttitle{\pkg{gamlss.longitudinal}: Longitudinal GAMLSS Models}
+
+\Abstract{
+Longitudinal analyses often require flexible marginal distributions and
+interpretable within-subject dependence, especially when scale, skewness, tails,
+or association vary with time or covariates. The \proglang{R} package
+\pkg{gamlss.longitudinal} implements first-order copula dependence for GAMLSS
+margins in a formula-based workflow. Any supported marginal parameter and
+copula parameter can depend on fixed or smooth covariates, allowing users to
+model location, scale, shape, and adjacent-time dependence in one fitted object.
+The package provides model fitting, distribution and copula screening,
+inference, diagnostics, prediction, simulation, and reviewer-facing replication
+workflows. A reproducible worked example and targeted validation studies
+illustrate parameter recovery, diagnostic checks, optimizer tradeoffs, and the
+relationship to existing \proglang{R} tools for GAMLSS, GEE/GLMM, bivariate
+copula regression, and vine copulas.
+}
+
+\Keywords{GAMLSS, longitudinal data, copula, distributional regression, \proglang{R}}
+\Plainkeywords{GAMLSS, longitudinal data, copula, distributional regression, R}
+
+\Address{
+  Aydin Sareff-Hibbert\\
+  Faculty of Medicine and Health\\
+  The University of Sydney\\
+  NSW, Australia\\
+  E-mail: \email{aydin.hibbert@sydney.edu.au}
+}
+
+\begin{document}
+
+\section{Introduction}
+
+% Replace this section using paper/jss-manuscript-blueprint.md.
+% Center the software contribution and the gap relative to gamlss, gamlss2,
+% geepack, lme4, GJRM, VineCopula, and rvinecopulib.
+
+\section{Statistical model}
+
+\subsection{Longitudinal GAMLSS margins}
+
+% Define subject, time, response, marginal parameters, links, fixed terms, and
+% smooth terms.
+
+\subsection{First-order copula dependence}
+
+% Define adjacent-pair copula dependence and state the exact first-order model
+% assumptions. Be explicit about what is and is not implied for higher-order
+% dependence.
+
+\subsection{Discrete responses and incomplete panels}
+
+% Explain rectangle probabilities and missing-panel contribution rules.
+
+\subsection{Inference and uncertainty}
+
+% Summarize covariance, robust/simulation guidance, and validation evidence.
+% Move Hessian derivations to supplementary material.
+
+\section{Software design and user interface}
+
+\subsection{Package design}
+
+% Explain gamlss_longitudinal(), family/copula metadata, fitted-object class,
+% and stored model information.
+
+\subsection{Minimal fit}
+
+\begin{CodeChunk}
+\begin{CodeInput}
+R> fit <- gamlss_longitudinal(
++    mu.formula = response ~ time + group + s(baseline),
++    sigma.formula = ~ time + group,
++    theta.formula = ~ time + group,
++    dataset = dat,
++    time_var = "time",
++    subject_var = "id",
++    margin_dist = GA(),
++    copula_dist = "t"
++  )
+R> summary(fit)
+\end{CodeInput}
+\end{CodeChunk}
+
+\subsection{Selection helpers}
+
+% Demonstrate select_margin(), select_copula(), and
+% select_joint_distribution().
+
+\subsection{Standard methods}
+
+% Demonstrate summary(), coef(), vcov(), confint(), predict(), simulate(),
+% plot(), logLik(), formula(), terms(), nobs(), fitted(), residuals(), and
+% model.frame().
+
+\subsection{Diagnostics}
+
+% Show marginal diagnostics, copula diagnostics, Rosenblatt checks, tail checks,
+% residual lag dependence, and missingness diagnostics.
+
+\subsection{Optimizer controls}
+
+% State when to use separate RS, joint RS, and CG, and how convergence metadata
+% should be interpreted.
+
+\section{Reproducible worked workflow}
+
+% Use a public, package-shipped, or fully simulated primary example.
+% Required steps: load/generate data, screen margins, screen copulas, fit,
+% summarize, diagnose, predict, simulate, and interpret.
+
+\section{Relationship to existing R software}
+
+% Add the compact comparison table described in paper/jss-manuscript-blueprint.md.
+
+\section{Validation and performance}
+
+% Keep targeted validation only: continuous recovery, discrete recovery,
+% optimizer guidance, first-order misspecification, and copula misspecification.
+% Move large grids to supplementary material.
+
+\section{Reproducibility}
+
+% Document paper/replicate.R, smoke and expanded profiles, manifest, session
+% info, output hashes, and private-data policy.
+
+\section{Discussion}
+
+% State intended use, limitations, and future work.
+
+\bibliography{references}
+
+\end{document}

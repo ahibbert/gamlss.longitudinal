@@ -534,6 +534,12 @@ benchmark_standard_models <- function(
     NA_real_
   }
 
+  bic <- if (success && !identical(comparator, "gee")) {
+    as.numeric(tryCatch(stats::BIC(fit), error = function(e) NA_real_))
+  } else {
+    NA_real_
+  }
+
   list(
     fit = fit,
     row = data.frame(
@@ -548,6 +554,7 @@ benchmark_standard_models <- function(
       nobs = nrow(data),
       logLik = ll,
       AIC = aic,
+      BIC = bic,
       mae = unname(scores[["mae"]]),
       rmse = unname(scores[["rmse"]]),
       benchmark_mae = unname(scores[["mae"]]),
@@ -694,6 +701,8 @@ benchmark_standard_models <- function(
 
   aic <- if (success) .benchmark_supplied_fit_aic(fit) else NA_real_
 
+  bic <- if (success) .benchmark_scalar_fit_stat(stats::BIC(fit)) else NA_real_
+
   list(
     fit = fit,
     row = data.frame(
@@ -708,6 +717,7 @@ benchmark_standard_models <- function(
       nobs = nrow(data),
       logLik = ll,
       AIC = aic,
+      BIC = bic,
       mae = unname(scores[["mae"]]),
       rmse = unname(scores[["rmse"]]),
       benchmark_mae = unname(scores[["mae"]]),
@@ -1272,9 +1282,9 @@ benchmark_standard_models <- function(
 
     upper <- stats::qpois(1 - alpha, lambda = lambda)
 
-    pit <- stats::ppois(y, lambda = lambda)
-
     density <- stats::dpois(y, lambda = lambda)
+
+    pit <- stats::ppois(y, lambda = lambda) - 0.5 * density
   } else if (identical(family$family, "binomial")) {
     prob <- pmin(pmax(fitted, .Machine$double.eps), 1 - .Machine$double.eps)
 
@@ -1284,9 +1294,9 @@ benchmark_standard_models <- function(
 
     upper <- stats::qbinom(1 - alpha, size = 1, prob = prob)
 
-    pit <- stats::pbinom(y, size = 1, prob = prob)
-
     density <- stats::dbinom(y, size = 1, prob = prob)
+
+    pit <- stats::pbinom(y, size = 1, prob = prob) - 0.5 * density
   } else if (identical(family$family, "Gamma")) {
     dispersion <- .coverage_comparator_dispersion(y, fitted, family)
 
