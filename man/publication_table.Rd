@@ -65,5 +65,7 @@ A formatted data frame, LaTeX \code{knitr_kable}, \code{knitr_kable},
 \code{publication_table()} formats the model summaries most often needed in
 papers and reports. Use \code{tidy()}, \code{glance()}, or \code{reporting_table()} when you
 need numeric columns for further calculation; use \code{publication_table()} when
-the next step is rendering.
+the next step is rendering. Coefficient tables inherit conditional fixed
+inference metadata; prediction tables are plug-in point summaries. See
+\code{\link[=inference_contracts]{inference_contracts()}}.
 }

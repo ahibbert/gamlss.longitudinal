@@ -14,7 +14,9 @@ objects.}
 computing sequential comparisons.}
 }
 \value{
-An object of class \code{gamlss_longitudinal_likelihood_compare}.
+An object of class \code{gamlss_longitudinal_likelihood_compare} with an
+\code{inference_contract} attribute recording the nested-model assumptions and
+failure states of the chi-square reference approximation.
 }
 \description{
 \code{likelihood_compare()} gives a compact sequential likelihood comparison for

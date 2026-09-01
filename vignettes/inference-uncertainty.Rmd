@@ -20,18 +20,21 @@ This article gives an overview of the outputs that can be generated from a `gaml
 The quick reference is:
 
 - (ideally) use `check_model()` first to make sure there aren't any major errors flagged in the fitted model that may effect inference
-- use `summary()` and `confint()` for coefficient estimates, standard errors and intervals
+- use `summary()` and `confint()` for fixed-coefficient estimates and conditional standard errors and intervals
 - use `wald_test()` for coefficient hypotheses
 - use `likelihood_compare()` for likelihood ratio comparisons for models (ideally nested)
 - use `bootstrap_inference()` for bootstrap standard errors and confidence intervals for coefficients
-- use `predict(..., se.fit = TRUE, interval = "confidence")` for
-  response-mean intervals, and `predict()` more broadly for any row-level outputs like prediction intervals
+- use `predict(..., se.fit = TRUE, interval = "confidence")` for conditional,
+  fixed-`mu` confidence limits, and use fitted quantiles for plug-in descriptions
+  of response variation; these are different from future-observation prediction intervals
 - use `marginal_effects(..., se.fit = TRUE)` for averaged response against covariates
 - use `simulate()` for simulating replicates from the fitted model
 
 ## Variance-covariance and standard errors
 
-`summary(fit)` reports coefficient estimates with standard errors. The variance covariance can be requested directly using the standard call, `vcov(fit)`. By default these methods use the Hessian of the fitted model, calculated using primarily analytical methods (i.e. second derivatives of the known margin and copula distributions) with small exceptions where analytical methods are not available and numerical methods are required. 
+`summary(fit)` reports fixed-coefficient estimates with standard errors. The variance covariance can be requested directly using the standard call, `vcov(fit)`. By default these methods use the Hessian for all fixed margin and copula coefficients, calculated using primarily analytical methods (i.e. second derivatives of the known margin and copula distributions) with small exceptions where analytical methods are not available and numerical methods are required. This covariance is conditional on the fitted smooth coefficients, penalties, and smoothing parameters. Smooth covariance is calculated separately from penalized working weights as an approximate conditional quantity. Neither result includes fixed-smooth cross-covariance or smoothing-parameter uncertainty.
+
+The complete machine-readable inventory is available from `inference_contracts()`. Inference-producing objects carry an `inference_contract` attribute (or component for covariance and summary objects) recording the target coefficient names, conditioning, omissions, approximation, and fit-level validity status.
 
 ```{r summary}
 s <- summary(fit, include_vcov = TRUE)
@@ -54,7 +57,7 @@ vc_num <- vcov(fit, method = "numderiv")
 vc_num$method
 ```
 
-Since we are using the inverted Hessian directly, these intervals are large-sample approximations. A comparison of the intervals to the bootstrap intervals should give a good test for the sensitivity of this assumption.
+Since we are using the inverted Hessian directly, these intervals are conditional large-sample approximations. A comparison with bootstrap intervals can assess sensitivity to the local quadratic approximation, but does not add model-selection uncertainty or turn the result into unconditional all-parameter inference.
 
 ## Confidence intervals for coefficients
 
@@ -110,7 +113,7 @@ The comparison reports likelihood and likelihood ratio test results alongside ot
 
 ## Parametric bootstrap
 
-We provide a builtin helper for bootstrap simulations from fitted `gamlss.longitudinal` objects which can give an idea of sensitivity of the Hessian based intervals that are reported by default. The method essentially simulates from the fitted model then refits the same model to the simulated response. Summaries are then provided for the intervals of the fitted coefficients across replications for fixed coefficients.
+We provide a built-in helper for bootstrap simulations from fitted `gamlss.longitudinal` objects which can give an idea of sensitivity of the Hessian-based intervals. The parametric method simulates from the fitted model and refits the same specification; the cluster method resamples whole subjects. Both target only the selected fixed coefficients. Refit errors, explicit nonconvergence, and missing or nonfinite target coefficients count as failed replicates. Results report overall and per-term successful counts, and model-selection uncertainty is not included.
 
 ```{r bootstrap-inference}
 boot <- bootstrap_inference(
@@ -129,7 +132,7 @@ These fits are computationally expensive due to the refitting of the `gamlss.lon
 
 ## Prediction of response or coefficients
 
-The `predict` function provides a large range of functionality for row-level predictions of various quantities from the model. It's possible to provide response scale estimates with `predict(type = "mean")` for fitted response means or `predict(type = "mu")` for the pre-transform coefficient with confidence or prediction intervals. Review the full functionality with `help(predict.gamlss.longitudinal)` in `R`.
+The `predict` function provides row-level fitted marginal quantities. `predict(type = "mean")` returns fitted response means and `predict(type = "mu")` returns the fitted distribution parameter. With `se.fit = TRUE` or `interval = "confidence"`, the current delta method uses only fixed `mu` coefficients, conditional on all other parameters and fitted smooths. It omits non-`mu`, smooth, fixed-smooth, and smoothing-parameter uncertainty. These limits are confidence limits for the fitted quantity, not prediction intervals for a future response.
 
 ```{r predict-response}
 p <- predict(
@@ -143,14 +146,16 @@ p <- predict(
 head(p)
 ```
 
-Note that by default it is not possible for the prediction, if it's on new datasets, to preserve the structure of the correlation. Essentially `predict()` on a new dataset is providing a marginal fit and should not be relied on for correlation analysis of the predicted object, though the marginal confidence interval predictions will be taking into account the impact of the fitted correlation structure on the confidence intervals.
+`predict()` returns a marginal fit and does not condition on a subject's other responses or preserve a simulated trajectory. The fitted dependence model affects the estimated coefficients and their fixed-coefficient covariance, but the returned confidence limits do not represent trajectory dependence.
 
 If the quantity of interest is the dependence structure then simulation from the fitted object via `simulate(fit)` may provide the required functionality.
 
 ## Prediction of quantiles or tail probabilities
 
-More flexible distributional models such as gamlss provide the advantage of better overall fit to a marginal distribution, resulting in more accurate quantiles and probabilities beyond just the mean. `predict(type = "quantile")`,
+More flexible distributional models such as GAMLSS provide fitted marginal quantiles and probabilities beyond the mean. `predict(type = "quantile")`,
 `predict(type = "cdf")`, `predict(type = "density")`, and `predict(type = "probability")` can give a view of these quantities for analysis and reporting on a row level.
+
+These distributional predictions are plug-in point summaries: they hold every fitted parameter fixed and do not include parameter, smooth, or model-selection uncertainty. A pair of fitted quantiles describes model-implied response variation; it is not a confidence interval for an estimated quantile.
 
 ```{r predict-distribution}
 predict(fit, newdata = dat, type = "quantile", probs = c(0.1, 0.5, 0.9))
@@ -161,7 +166,7 @@ predict(fit, newdata = dat, type = "probability", q = 10, direction = "above")
 
 ## Averaged predictions (marginal effects)
 
-`marginal_effects()` is commonly used for reporting averaged response values for mixed models across covariates since the coefficient estimates are not immediately marginally interpretable from those models. While the `gamlss.longitudinal` model does not suffer from the same drawback, i.e. coefficients are directly interpretable for the margin once the link function is considered, we provide the same functionality as is used for mixed models for `gamlss.longitudinal` with `marginal_effects()`. This allows users to apply the standard analysis used in existing workflows to a `gamlss.longitudinal` model.
+`marginal_effects()` reports averaged fitted values across supplied counterfactual rows. With `se.fit = TRUE`, its uncertainty is an exploratory aggregation of rowwise fixed-`mu` delta-method standard errors. It omits cross-row covariance as well as non-`mu`, smooth, fixed-smooth, and smoothing-parameter uncertainty, so it should not be presented as unconditional all-parameter inference.
 
 ```{r marginal-effects}
 eff <- marginal_effects(
@@ -176,7 +181,7 @@ eff
 
 ## Dependence predictions
 
-As noted previously, the `predict()` function essentially provides a marginal fit estimate with confidence intervals adjusted to account for the dependence structure, but does not preserve dependence structure for predicted new datasets.
+As noted previously, `predict()` provides marginal fitted quantities; its conditional fixed-`mu` confidence limits do not preserve dependence for new trajectories.
 
 If the subject of interest is behaviour of dependence under new datasets or forecast trajectories into later timepoints, then a simulation-based approach may be more appropriate.
 

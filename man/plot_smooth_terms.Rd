@@ -60,7 +60,9 @@ this function. Set FALSE when caller configures layout.}
 }
 \value{
 Invisibly returns a nested list with x, fitted values, standard
-errors, and confidence limits for each smooth term.
+errors, and approximate conditional pointwise confidence limits for each
+smooth term. The bands omit fixed-smooth, between-smooth, and
+smoothing-parameter uncertainty; the returned object records this contract.
 }
 \description{
 This utility plots every smooth term in a fitted \code{gamlss.longitudinal} object
