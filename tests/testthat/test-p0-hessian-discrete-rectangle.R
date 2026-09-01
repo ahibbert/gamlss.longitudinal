@@ -112,7 +112,7 @@ test_that("discrete rectangle Hessian helper returns assembler-compatible shapes
   expect_true(all(is.finite(out$cop_d2l_theta)))
 })
 
-test_that("analytical discrete vcov succeeds for a registered DEL fixture and BI fails preflight", {
+test_that("short DEL inference is unavailable and BI fails capability preflight", {
   skip_on_cran()
   skip_if_not_installed("gamlss")
   skip_if_not_installed("gamlss.dist")
@@ -144,9 +144,10 @@ test_that("analytical discrete vcov succeeds for a registered DEL fixture and BI
     compute_vcov = FALSE,
     verbose = 0
   ))
-  vc_del <- vcov(fit_del, method = "analytical_only", progress = FALSE)
-  expect_equal(vc_del$method, "analytical")
-  expect_true(all(is.finite(vc_del$se$overall)))
+  expect_error(
+    vcov(fit_del, method = "analytical_only", progress = FALSE),
+    class = "gamlss_longitudinal_inference_unavailable"
+  )
 
   set.seed(7302)
   dat_bi <- expand.grid(id = seq_len(16L), time = seq_len(3L), KEEP.OUT.ATTRS = FALSE)
@@ -167,7 +168,7 @@ test_that("analytical discrete vcov succeeds for a registered DEL fixture and BI
   )
 })
 
-test_that("fit-time analytical discrete vcov is cached and reused", {
+test_that("fit-time PO analytical vcov is cached and reused", {
   skip_on_cran()
   skip_if_not_installed("gamlss")
   skip_if_not_installed("gamlss.dist")
@@ -201,6 +202,8 @@ test_that("fit-time analytical discrete vcov is cached and reused", {
 
   expect_true(fit$vcov_meta$precomputed)
   expect_equal(fit$vcov_meta$method_used, "analytical")
-  resolved <- gamlss.longitudinal:::.resolve_vcov(fit, extra_args = list(method = "analytical"))
+  resolved <- gamlss.longitudinal:::.resolve_vcov(
+    fit, extra_args = list(method = "analytical")
+  )
   expect_identical(resolved, fit$vcov)
 })
