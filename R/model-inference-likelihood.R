@@ -36,7 +36,7 @@
 
 #' `likelihood_compare()` gives a compact sequential likelihood comparison for
 
-#' nested or approximately nested `gamlss.longitudinal` models. It reports joint
+#' nested `gamlss.longitudinal` models. It reports joint
 
 #' log-likelihood, effective degrees of freedom, AIC, BIC, likelihood-ratio
 
@@ -48,9 +48,11 @@
 
 #'   objects.
 
-#' @param sort Logical; order models by AIC, lowest first, before
+#' @param sort Deprecated logical. Must be `FALSE`; models retain the supplied
 
-#'   computing sequential comparisons.
+#'   reduced-to-full order. Use the AIC column separately for non-nested model
+
+#'   selection.
 
 #'
 
@@ -60,7 +62,7 @@
 
 #' @export
 
-likelihood_compare <- function(..., sort = TRUE) {
+likelihood_compare <- function(..., sort = FALSE) {
   labels <- .gl_likelihood_compare_call_labels(substitute(list(...)))
 
   models <- .gl_likelihood_compare_models(list(...), labels = labels)
