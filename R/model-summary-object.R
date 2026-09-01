@@ -31,7 +31,14 @@
         .gl_inference_contract(
           "smooth_penalized_conditional",
           coefficient_names = .gl_smooth_coefficient_names(object),
-          validity_status = if (length(.gl_smooth_coefficient_names(object))) "approximate" else "not_applicable"
+          validity_status = if (length(.gl_smooth_coefficient_names(object))) {
+            "unavailable_not_computed"
+          } else {
+            "not_applicable"
+          },
+          failure_states = if (length(.gl_smooth_coefficient_names(object))) {
+            "smooth_covariance_not_computed"
+          } else character()
         ),
       model_selection = fit_criteria$model_selection
     ),

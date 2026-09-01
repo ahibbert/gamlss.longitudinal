@@ -12,6 +12,9 @@
 #'
 #' @return A `summary.gamlss.longitudinal` object with model metadata,
 #'   coefficient summaries, smooth-term summaries, and optional vcov output.
+#'   `fit$inference_contract`, `fit$smooth_inference_contract`, and the object
+#'   `inference_contract` attribute record methods, coefficient blocks,
+#'   conditioning, omitted uncertainty, diagnostics, fallback, and validity.
 #' @export
 
 summary.gamlss.longitudinal <- function(

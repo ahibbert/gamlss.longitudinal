@@ -103,15 +103,24 @@ marginal_effects <- function(
     level = level
   )
   if (isTRUE(se.fit)) {
-    out <- .gl_attach_inference_contract(
-      out,
-      .gl_inference_contract(
-        "marginal_effect_mu_delta",
-        coefficient_names = names(object$par)[startsWith(names(object$par), "mu.")],
-        method = vcov_method,
-        validity_status = "propagated_from_prediction_covariance"
-      )
+    prediction_contracts <- attr(out, "prediction_inference_contracts")
+    available_contracts <- Filter(Negate(is.null), prediction_contracts)
+    prediction_contract <- if (length(available_contracts)) available_contracts[[1L]] else NULL
+    covariance_contract <- prediction_contract$covariance_contract %||% NULL
+    contract <- .gl_inference_contract(
+      "marginal_effect_mu_delta",
+      coefficient_names = names(object$par)[startsWith(names(object$par), "mu.")],
+      method = prediction_contract$method_used %||% vcov_method,
+      validity_status = prediction_contract$validity_status %||% "unverified_prediction_covariance",
+      failure_states = prediction_contract$observed_failures %||% character()
     )
+    contract$prediction_contract <- prediction_contract
+    contract$covariance_contract <- covariance_contract
+    contract$method_requested <- prediction_contract$method_requested %||% vcov_method
+    contract$method_used <- prediction_contract$method_used %||% vcov_method
+    contract$fallback_used <- prediction_contract$fallback_used %||% FALSE
+    contract$diagnostics <- prediction_contract$diagnostics %||% NULL
+    out <- .gl_attach_inference_contract(out, contract)
   }
   out
 }
