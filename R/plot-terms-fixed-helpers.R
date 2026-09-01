@@ -40,7 +40,9 @@
   list(
     estimate = as.numeric(object$par[coef_name]),
     variance = variance,
-    se = sqrt(pmax(0, variance))
+    se = .gl_sqrt_derived_variance(
+      variance, "fixed-term covariance", allow_zero = FALSE
+    )
   )
 }
 

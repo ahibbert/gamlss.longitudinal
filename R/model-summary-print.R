@@ -66,8 +66,12 @@ print.summary.gamlss.longitudinal <- function(x, digits = max(3, getOption("digi
       "\n"
     )
     hd <- x$fit$hessian_diagnostics
-    if (!is.null(hd) && is.finite(hd$condition_number %||% NA_real_)) {
-      cat("Hessian condition number:", formatC(hd$condition_number, digits = digits, format = "fg"), "\n")
+    if (!is.null(hd) && is.finite(hd$scaled_condition_number %||% NA_real_)) {
+      cat(
+        "Scaled information condition number:",
+        formatC(hd$scaled_condition_number, digits = digits, format = "fg"),
+        " | Validation:", hd$validation_profile %||% "unknown", "\n"
+      )
     }
   }
 
