@@ -85,6 +85,8 @@
 #' refits the same model to each bootstrap dataset,
 
 #' and summarizes the bootstrap distribution of selected fixed coefficients.
+#' Errors, explicit nonconvergence, and missing/non-finite target coefficients
+#' are failed replicates; per-coefficient successful counts are reported.
 
 #' It is intended for opt-in applied uncertainty checks and should be run with
 
@@ -118,7 +120,8 @@
 
 #'
 
-#' @return An object of class `gamlss_longitudinal_bootstrap`.
+#' @return An object of class `gamlss_longitudinal_bootstrap` with an exact
+#'   fixed-coefficient target and failure policy in `inference_contract`.
 
 #' @export
 
@@ -205,7 +208,17 @@ bootstrap_inference <- function(
       next
     }
 
+    if (identical(fit_b$convergence$converged, FALSE)) {
+      errors[[b]] <- "Bootstrap refit did not satisfy the model convergence contract."
+      next
+    }
+
     coef_b <- stats::coef(fit_b)
+
+    if (!all(terms_use %in% names(coef_b)) || any(!is.finite(coef_b[terms_use]))) {
+      errors[[b]] <- "Bootstrap refit returned missing or non-finite target fixed coefficients."
+      next
+    }
 
     boot_coef[b, ] <- coef_b[terms_use]
 
@@ -251,6 +264,10 @@ print.gamlss_longitudinal_bootstrap <- function(x, digits = max(3, getOption("di
   cat("Simulation:", simulation_label, "\n")
 
   cat("Failed refits:", x$failed_replicates, "\n\n")
+
+  cat("Target: selected fixed coefficients:", paste(x$inference_contract$coefficient_names, collapse = ", "), "\n")
+  cat("Validity:", x$inference_contract$validity_status, "\n")
+  cat("Model-selection uncertainty is not included.\n\n")
 
   print(x$summary, digits = digits, row.names = FALSE)
 

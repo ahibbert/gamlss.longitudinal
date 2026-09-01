@@ -26,7 +26,9 @@
 #' @param show_legend Logical; if TRUE, draw a small legend in each panel.
 #'
 #' @return Invisibly returns a nested list with x, fitted values, standard
-#' errors, and confidence limits for each smooth term.
+#' errors, and approximate conditional pointwise confidence limits for each
+#' smooth term. The bands omit fixed-smooth, between-smooth, and
+#' smoothing-parameter uncertainty; the returned object records this contract.
 #' @export
 plot_smooth_terms <- function(
     object,
@@ -69,7 +71,13 @@ plot_smooth_terms <- function(
   if (n_plots == 0) {
     warning("No smooth terms found to plot.")
 
-    return(invisible(list()))
+    return(invisible(.gl_attach_inference_contract(
+      list(),
+      .gl_inference_contract(
+        "smooth_term_pointwise", coefficient_names = character(),
+        validity_status = "not_applicable"
+      )
+    )))
   }
 
   out <- list()
@@ -191,5 +199,12 @@ plot_smooth_terms <- function(
     out$dashboard <- dashboard
   }
 
-  invisible(out)
+  invisible(.gl_attach_inference_contract(
+    out,
+    .gl_inference_contract(
+      "smooth_term_pointwise",
+      coefficient_names = .gl_smooth_coefficient_names(object),
+      validity_status = "approximate"
+    )
+  ))
 }

@@ -37,5 +37,15 @@
     pred$conf.high <- pred$fit + z * pred$se.fit
   }
 
-  pred[c("subject", "time", "response", "fit", "se.fit", intersect(c("conf.low", "conf.high"), names(pred)))]
+  out <- pred[c("subject", "time", "response", "fit", "se.fit", intersect(c("conf.low", "conf.high"), names(pred)))]
+  mu_names <- names(object$par)[startsWith(names(object$par), "mu.")]
+  .gl_attach_inference_contract(
+    out,
+    .gl_inference_contract(
+      "prediction_mu_delta",
+      coefficient_names = mu_names,
+      method = vcov_method,
+      validity_status = "propagated_from_fixed_covariance"
+    )
+  )
 }
