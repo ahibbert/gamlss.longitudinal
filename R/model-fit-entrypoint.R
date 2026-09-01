@@ -12,6 +12,7 @@
     copula_dist,
     time_var,
     subject_var,
+    missingness,
     mu.formula,
     sigma.formula,
     nu.formula,
@@ -61,6 +62,7 @@
     copula_dist = copula_dist,
     time_var = time_var,
     subject_var = subject_var,
+    missingness = missingness,
     mu.formula = mu.formula,
     sigma.formula = sigma.formula,
     nu.formula = nu.formula,
@@ -79,6 +81,8 @@
     lambda_start = lambda_start,
     lambda_penalty_K = lambda_penalty_K
   )
+
+  .gl_warn_segmented_missingness(fit_workflow$fit_data$missingness_contract)
 
   optimizer_state <- optimizer_fn(
     fit_workflow = fit_workflow,

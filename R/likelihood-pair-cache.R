@@ -24,12 +24,18 @@ build_copula_pair_cache <- function(response, response_margin, response_subject)
   num_margins <- length(margin_names)
   n_obs <- length(response)
   obs_response <- !is.na(response)
+  segment_id <- .gl_observation_segments(
+    response = response,
+    time = response_margin,
+    subject = response_subject
+  )$segment_id
 
   base_df <- data.frame(
     row_id = seq_len(n_obs),
     time = response_margin,
     subject = response_subject,
     observed = obs_response,
+    segment_id = segment_id,
     stringsAsFactors = FALSE
   )
 
@@ -39,10 +45,10 @@ build_copula_pair_cache <- function(response, response_margin, response_subject)
       t1 <- margin_names[i]
       t2 <- margin_names[i + 1]
 
-      left <- base_df[base_df$time == t1, c("row_id", "subject", "time", "observed")]
-      right <- base_df[base_df$time == t2, c("row_id", "subject", "time", "observed")]
-      names(left) <- c("row_id1", "subject", "time1", "observed1")
-      names(right) <- c("row_id2", "subject", "time2", "observed2")
+      left <- base_df[base_df$time == t1, c("row_id", "subject", "time", "observed", "segment_id")]
+      right <- base_df[base_df$time == t2, c("row_id", "subject", "time", "observed", "segment_id")]
+      names(left) <- c("row_id1", "subject", "time1", "observed1", "segment1")
+      names(right) <- c("row_id2", "subject", "time2", "observed2", "segment2")
 
       pair_i <- merge(left, right, by = "subject", all = FALSE)
       if (nrow(pair_i) > 0) {
@@ -59,7 +65,9 @@ build_copula_pair_cache <- function(response, response_margin, response_subject)
       observed1 = logical(0),
       row_id2 = integer(0),
       time2 = response_margin[0],
-      observed2 = logical(0)
+      observed2 = logical(0),
+      segment1 = integer(0),
+      segment2 = integer(0)
     )
   } else {
     pair_df <- do.call(rbind, pair_df_all)
@@ -70,7 +78,8 @@ build_copula_pair_cache <- function(response, response_margin, response_subject)
 
   observed_pair_base <- rep(FALSE, nrow(pair_df))
   if (nrow(pair_df) > 0) {
-    observed_pair_base <- pair_df$observed1 & pair_df$observed2
+    observed_pair_base <- pair_df$observed1 & pair_df$observed2 &
+      !is.na(pair_df$segment1) & pair_df$segment1 == pair_df$segment2
   }
 
   Fx_1_2_template <- matrix(NA_real_, nrow = nrow(pair_df), ncol = 2)
@@ -87,6 +96,9 @@ build_copula_pair_cache <- function(response, response_margin, response_subject)
     Fx_1_2_template = Fx_1_2_template,
     order_copula = order_copula,
     observed_pair_base = observed_pair_base,
+    segment_id = segment_id,
+    pair_segment1 = pair_df$segment1,
+    pair_segment2 = pair_df$segment2,
     theta_index_map = theta_index_map,
     margin_names = margin_names,
     num_margins = num_margins,

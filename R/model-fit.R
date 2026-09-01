@@ -40,6 +40,14 @@
 #'   [longitudinal_capabilities()].
 #' @param time_var Name of the time variable in `dataset`.
 #' @param subject_var Name of the subject identifier in `dataset`.
+#' @param missingness Handling of intermittent response gaps. The default,
+#'   `"error"`, stops when a subject has an unobserved scheduled visit between
+#'   observed visits and directs the user to opt in explicitly. With
+#'   `"segment"`, the likelihood is evaluated within contiguous observed
+#'   segments and different segments are treated as independent. Terminal
+#'   dropout and leading unobserved visits do not require segmentation. AIC and
+#'   BIC remain available for segmented fits under the stated independence
+#'   assumption; numerical integration across gaps is not yet implemented.
 #' @param mu.formula Formula for the mu parameter of the marginal distribution
 #' @param sigma.formula Formula for the sigma parameter of the marginal distribution
 #' @param nu.formula Formula for the nu parameter of the marginal distribution
@@ -172,6 +180,7 @@ gamlss_longitudinal <- function(dataset,
                                 copula_dist,
                                 time_var = NA,
                                 subject_var = NA,
+                                missingness = c("error", "segment"),
                                 mu.formula = ("response ~ 1"),
                                 sigma.formula = ("~ 1"),
                                 nu.formula = ("~ 1"),
@@ -222,6 +231,7 @@ gamlss_longitudinal <- function(dataset,
                                 lambda_penalty_K = 2,
                                 rs_update_lambda = TRUE,
                                 rs_smooth_trust_radius = Inf) {
+  missingness <- match.arg(missingness)
   legacy_values <- list(
     inner_stop_crit = inner_stop_crit, outer_stop_crit = outer_stop_crit,
     start_step_size = start_step_size, step_adjustment = step_adjustment,
@@ -272,6 +282,7 @@ gamlss_longitudinal <- function(dataset,
     copula_dist = copula_dist,
     time_var = time_var,
     subject_var = subject_var,
+    missingness = missingness,
     mu.formula = mu.formula,
     sigma.formula = sigma.formula,
     nu.formula = nu.formula,

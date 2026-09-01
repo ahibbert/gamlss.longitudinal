@@ -15,7 +15,10 @@
     tau.formula,
     theta.formula,
     zeta.formula,
+    missingness = c("error", "segment"),
     verbose = 1) {
+
+  missingness <- match.arg(missingness)
 
   input_columns <- .gl_normalize_fit_input_columns(
     dataset = dataset,
@@ -93,10 +96,11 @@
   )
 
   dataset <- expanded_panel$dataset
-  missingness <- .gl_summarize_fit_missingness(dataset, verbose = verbose)
-  miss_by_time <- missingness$miss_by_time
-  pair_summary <- missingness$pair_summary
+  missingness_summary <- .gl_summarize_fit_missingness(dataset, verbose = verbose)
+  miss_by_time <- missingness_summary$miss_by_time
+  pair_summary <- missingness_summary$pair_summary
   .gl_validate_fit_missingness_support(miss_by_time, pair_summary)
+  missingness_contract <- .gl_missingness_contract(dataset, missingness = missingness)
 
   list(
     dataset_original = dataset_original,
@@ -112,6 +116,7 @@
       zeta = zeta.formula.int
     ),
     miss_by_time = miss_by_time,
-    pair_summary = pair_summary
+    pair_summary = pair_summary,
+    missingness_contract = missingness_contract
   )
 }

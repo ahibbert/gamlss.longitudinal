@@ -10,6 +10,7 @@ gamlss_longitudinal(
   copula_dist,
   time_var = NA,
   subject_var = NA,
+  missingness = c("error", "segment"),
   mu.formula = ("response ~ 1"),
   sigma.formula = ("~ 1"),
   nu.formula = ("~ 1"),
@@ -75,6 +76,15 @@ homogeneous margin family; see \code{\link{longitudinal_capabilities}}.}
 \item{time_var}{Name of the time variable in \code{dataset}.}
 
 \item{subject_var}{Name of the subject identifier in \code{dataset}.}
+
+\item{missingness}{Handling of intermittent response gaps. The default,
+\code{"error"}, stops when a subject has an unobserved scheduled visit between
+observed visits and directs the user to opt in explicitly. With
+\code{"segment"}, the likelihood is evaluated within contiguous observed
+segments and different segments are treated as independent. Terminal
+dropout and leading unobserved visits do not require segmentation. AIC and
+BIC remain available for segmented fits under the stated independence
+assumption; numerical integration across gaps is not yet implemented.}
 
 \item{mu.formula}{Formula for the mu parameter of the marginal distribution}
 

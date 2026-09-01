@@ -51,8 +51,10 @@ model_spec <- function(object) {
     missingness = list(
       n_rows = length(response),
       n_missing_response = sum(is.na(response)),
-      n_nonfinite_response = sum(!is.na(response) & !is.finite(response))
+      n_nonfinite_response = sum(!is.na(response) & !is.finite(response)),
+      contract = object$missingness
     ),
+    likelihood_contract = object$likelihood_contract,
     likelihood = model_selection,
     vcov = c(object$vcov_meta %||% list(precomputed = FALSE), list(
       hessian_diagnostics = object$vcov$hessian_diagnostics %||% NULL
@@ -71,6 +73,15 @@ print.gamlss_longitudinal_model_spec <- function(x, digits = max(3, getOption("d
   cat("Margin:", x$distributions$margin, " | Copula:", x$distributions$copula, "\n")
   cat("Optimisation:", x$optimisation$method, " | Converged:", if (isTRUE(x$optimisation$converged)) "yes" else "no", "\n")
   cat("Missing responses:", x$missingness$n_missing_response, "of", x$missingness$n_rows, "\n")
+  if (identical(x$likelihood_contract$objective, "segmented")) {
+    cat(
+      "Likelihood: segmented; ",
+      x$missingness$contract$n_subjects_with_gaps %||% NA_integer_,
+      " subject(s) have intermittent gaps\n",
+      sep = ""
+    )
+    cat("Between-gap assumption: observed segments are independent; AIC/BIC use this likelihood.\n")
+  }
   if (!is.null(x$vcov)) {
     cat("VCOV:", x$vcov$method_used %||% x$vcov$method %||% "not precomputed", "\n")
   }

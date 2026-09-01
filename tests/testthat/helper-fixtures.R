@@ -92,6 +92,8 @@ fit_fixture_model <- function(
   outer_stop_crit = 1,
   inner_stop_crit = 1,
   method = "RS",
+  missingness = "error",
+  muffle_segment_warning = TRUE,
   use_backtracking = TRUE,
   compute_vcov = FALSE,
   verbose = 0
@@ -108,6 +110,7 @@ fit_fixture_model <- function(
       copula_dist = "N",
       time_var = time_var,
       subject_var = subject_var,
+      missingness = missingness,
       mu.formula = mu_formula,
       sigma.formula = sigma_formula,
       nu.formula = nu_formula,
@@ -140,6 +143,7 @@ fit_fixture_model <- function(
     warning = function(w) {
       if (
         inherits(w, "gamlss.longitudinal_nonconvergence_warning") ||
+          (isTRUE(muffle_segment_warning) && inherits(w, "gamlss.longitudinal_segment_warning")) ||
           grepl("Model stopped at max_outer_iter", conditionMessage(w), fixed = TRUE)
       ) {
         invokeRestart("muffleWarning")

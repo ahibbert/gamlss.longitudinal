@@ -46,6 +46,7 @@ test_that("fit entrypoint sequences public fit phases and preserves original fit
     copula_dist = "N",
     time_var = "t",
     subject_var = "id",
+    missingness = "error",
     mu.formula = y ~ x,
     sigma.formula = ~ 1,
     nu.formula = ~ 1,

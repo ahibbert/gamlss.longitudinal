@@ -37,6 +37,7 @@ test_that("srr accessor contracts and row/case metadata are stable", {
   dat <- make_fixture_with_structural_missing_rows()
   fit <- fit_fixture_model(
     dat,
+    missingness = "segment",
     include_dlcopdpar = FALSE,
     max_outer_iter = 2,
     theta_formula = "~ 1"
