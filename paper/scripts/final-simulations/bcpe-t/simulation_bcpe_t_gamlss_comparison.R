@@ -161,6 +161,46 @@ lambda_start <- if (is.na(lambda_start_env) || !nzchar(lambda_start_env)) {
 } else {
   as.numeric(lambda_start_env)
 }
+optimizer_control <- if (identical(toupper(optim_method), "RS")) {
+  gamlss.longitudinal::gamlss_longitudinal_control(
+    outer_tol = outer_stop_crit,
+    max_outer_iter = max_outer_iter,
+    max_elapsed_sec = max_elapsed_sec,
+    rs = list(
+      inner_tol = inner_stop_crit,
+      max_inner_iter = max_inner_iter,
+      start_step_size = start_step_size,
+      step_adjustment = step_adjustment,
+      max_steps = max_steps,
+      warm_start_joint = warm_start_joint,
+      use_backtracking = use_backtracking,
+      backtracking_max_halves = backtracking_max_halves
+    )
+  )
+} else if (identical(toupper(optim_method), "CG")) {
+  gamlss.longitudinal::gamlss_longitudinal_control(
+    outer_tol = outer_stop_crit,
+    max_outer_iter = max_outer_iter,
+    max_elapsed_sec = max_elapsed_sec,
+    cg = list(
+      max_stall = cg_max_stall,
+      max_delta = cg_max_delta,
+      armijo_c1 = cg_armijo_c1,
+      update_lambda = cg_update_lambda,
+      lambda_update_every = cg_lambda_update_every,
+      max_lambda_updates = cg_max_lambda_updates,
+      raw_loglik_drop_tol = cg_raw_loglik_drop_tol,
+      line_search = cg_line_search,
+      max_line_search_evals = cg_max_line_search_evals,
+      gradient_method = cg_gradient_method,
+      zeta_hessian = cg_zeta_hessian,
+      use_backtracking = use_backtracking,
+      backtracking_max_halves = backtracking_max_halves
+    )
+  )
+} else {
+  stop("OPT_METHOD must be RS or CG.", call. = FALSE)
+}
 
 margin_family <- gamlss.dist::BCPE(mu.link = "log")
 copula_link <- get_copula_dist("t")$copula_link
@@ -674,29 +714,8 @@ fit_longitudinal_model <- function(dat) {
     compute_vcov = isTRUE(compute_se),
     vcov_method = vcov_method_longitudinal,
     include_dlcopdpar = include_dlcopdpar,
-    inner_stop_crit = inner_stop_crit,
-    outer_stop_crit = outer_stop_crit,
-    max_outer_iter = max_outer_iter,
-    max_inner_iter = max_inner_iter,
-    max_elapsed_sec = max_elapsed_sec,
-    start_step_size = start_step_size,
-    step_adjustment = step_adjustment,
-    max_steps = max_steps,
-    use_backtracking = use_backtracking,
-    backtracking_max_halves = backtracking_max_halves,
+    optimizer_control = optimizer_control,
     method = optim_method,
-    cg_max_delta = cg_max_delta,
-    cg_armijo_c1 = cg_armijo_c1,
-    cg_max_stall = cg_max_stall,
-    cg_update_lambda = cg_update_lambda,
-    cg_lambda_update_every = cg_lambda_update_every,
-    cg_max_lambda_updates = cg_max_lambda_updates,
-    cg_raw_loglik_drop_tol = cg_raw_loglik_drop_tol,
-    cg_line_search = cg_line_search,
-    cg_max_line_search_evals = cg_max_line_search_evals,
-    cg_gradient_method = cg_gradient_method,
-    cg_zeta_hessian = cg_zeta_hessian,
-    warm_start_joint = warm_start_joint,
     lambda_start = lambda_start
   )
 }
@@ -712,6 +731,41 @@ fit_gamlss2_model <- function(dat) {
     data = dat,
     trace = isTRUE(verbose)
   )
+}
+
+if (identical(Sys.getenv("BCPE_OPTIMIZER_CONTROL_AUDIT_ONLY", unset = "0"), "1")) {
+  task <- data.frame(scenario_id = 1L, n = scenarios$n[[1L]], d = scenarios$d[[1L]], rep = rep_ids[[1L]])
+  seeds <- bcpe_seed_registry(task)
+  dat <- simulate_dataset(task$n, task$d, seeds$training_covariate_seed, seeds$training_response_seed)
+  warning_messages <- character()
+  warning_classes <- character()
+  fit_error <- NA_character_
+  fit <- withCallingHandlers(
+    tryCatch(
+      with_preserved_seed(bcpe_seed_registry(task, "gamlss.longitudinal")$fit_seed,
+        fit_longitudinal_model(dat)),
+      error = function(e) {
+        fit_error <<- conditionMessage(e)
+        NULL
+      }
+    ),
+    warning = function(w) {
+      warning_messages <<- c(warning_messages, conditionMessage(w))
+      warning_classes <<- c(warning_classes, paste(class(w), collapse = "/"))
+      invokeRestart("muffleWarning")
+    }
+  )
+  deprecated <- grepl("deprecated_optimizer_control|Flat optimizer arguments are deprecated",
+    paste(warning_classes, warning_messages), ignore.case = TRUE)
+  write.csv(data.frame(
+    optimizer_control_class = paste(class(optimizer_control), collapse = "/"),
+    method = toupper(optim_method), fit_returned = !is.null(fit),
+    warning_events = length(warning_messages), deprecated_control_warning_events = sum(deprecated),
+    warning_messages = paste(warning_messages, collapse = " | "), error = fit_error,
+    stringsAsFactors = FALSE
+  ), file.path(out_dir, "optimizer_control_audit.csv"), row.names = FALSE)
+  if (any(deprecated)) stop("BCPE/t optimizer-control audit detected a deprecated flat-control warning.", call. = FALSE)
+  quit(save = "no", status = 0)
 }
 
 extract_one_longitudinal_term <- function(par_vec, parameter, term_name) {

@@ -246,6 +246,21 @@ gamlss_prediction_data <- function(dat) {
 
 fit_ours <- function(dat, engine) {
   is_joint <- identical(engine, "ours_rs_joint")
+  optimizer_control <- gamlss.longitudinal::gamlss_longitudinal_control(
+    outer_tol = 0.001,
+    max_outer_iter = max_outer_iter,
+    max_elapsed_sec = max_elapsed_sec,
+    rs = list(
+      inner_tol = 0.001,
+      max_inner_iter = max_inner_iter,
+      start_step_size = start_step_size,
+      step_adjustment = step_adjustment,
+      warm_start_joint = is_joint,
+      warm_start_joint_iter = warm_start_joint_iter,
+      update_lambda = rs_update_lambda,
+      discrete_score_method = "analytical"
+    )
+  )
   gamlss.longitudinal::gamlss_longitudinal(
     dataset = dat,
     margin_dist = gamlss.dist::NBI(),
@@ -258,22 +273,44 @@ fit_ours <- function(dat, engine) {
     zeta.formula = "~ 1",
     method = "RS",
     include_dlcopdpar = is_joint,
-    warm_start_joint = is_joint,
-    warm_start_joint_iter = warm_start_joint_iter,
-    max_outer_iter = max_outer_iter,
-    max_inner_iter = max_inner_iter,
-    max_elapsed_sec = max_elapsed_sec,
-    outer_stop_crit = 0.001,
-    inner_stop_crit = 0.001,
-    start_step_size = start_step_size,
-    step_adjustment = step_adjustment,
+    optimizer_control = optimizer_control,
     compute_vcov = FALSE,
     vcov_method = vcov_method_longitudinal,
     lambda_start = lambda_start,
-    rs_update_lambda = rs_update_lambda,
-    verbose = 0,
-    discrete_score_method = "analytical"
+    verbose = 0
   )
+}
+
+if (identical(Sys.getenv("NBI_OPTIMIZER_CONTROL_AUDIT_ONLY", unset = "0"), "1")) {
+  seeds <- nbi_seed_registry(1L, "ours_rs_joint")
+  dat <- make_dat(seeds$training_response_seed, make_covariates(seeds$training_covariate_seed))
+  warning_messages <- character()
+  warning_classes <- character()
+  fit_error <- NA_character_
+  fit <- withCallingHandlers(
+    tryCatch(
+      fit_ours(dat, "ours_rs_joint"),
+      error = function(e) {
+        fit_error <<- conditionMessage(e)
+        NULL
+      }
+    ),
+    warning = function(w) {
+      warning_messages <<- c(warning_messages, conditionMessage(w))
+      warning_classes <<- c(warning_classes, paste(class(w), collapse = "/"))
+      invokeRestart("muffleWarning")
+    }
+  )
+  deprecated <- grepl("deprecated_optimizer_control|Flat optimizer arguments are deprecated",
+    paste(warning_classes, warning_messages), ignore.case = TRUE)
+  write.csv(data.frame(
+    method = "RS", fit_returned = !is.null(fit), warning_events = length(warning_messages),
+    deprecated_control_warning_events = sum(deprecated),
+    warning_messages = paste(warning_messages, collapse = " | "), error = fit_error,
+    stringsAsFactors = FALSE
+  ), file.path(out_dir, "optimizer_control_audit.csv"), row.names = FALSE)
+  if (any(deprecated)) stop("NBI/Clayton optimizer-control audit detected a deprecated flat-control warning.", call. = FALSE)
+  quit(save = "no", status = 0)
 }
 
 rows <- list()
