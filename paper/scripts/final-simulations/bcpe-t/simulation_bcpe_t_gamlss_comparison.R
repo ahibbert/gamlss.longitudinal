@@ -765,6 +765,10 @@ if (identical(Sys.getenv("BCPE_OPTIMIZER_CONTROL_AUDIT_ONLY", unset = "0"), "1")
     stringsAsFactors = FALSE
   ), file.path(out_dir, "optimizer_control_audit.csv"), row.names = FALSE)
   if (any(deprecated)) stop("BCPE/t optimizer-control audit detected a deprecated flat-control warning.", call. = FALSE)
+  if (is.null(fit) || (!is.na(fit_error) && nzchar(fit_error))) {
+    detail <- if (!is.na(fit_error) && nzchar(fit_error)) paste0(": ", fit_error) else "."
+    stop("BCPE/t optimizer-control audit did not return a fit", detail, call. = FALSE)
+  }
   quit(save = "no", status = 0)
 }
 
