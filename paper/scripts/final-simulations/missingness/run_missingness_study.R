@@ -362,15 +362,17 @@ extract_convergence_info <- function(fit_obj) {
     hit_max_stall = if (!is.null(conv$hit_max_stall)) isTRUE(conv$hit_max_stall) else NA,
     hit_raw_loglik_deterioration = if (!is.null(conv$hit_raw_loglik_deterioration)) isTRUE(conv$hit_raw_loglik_deterioration) else NA,
     stop_reason = if (!is.null(conv$stop_reason)) as.character(conv$stop_reason) else NA_character_,
-    grad_inf = if (!is.null(conv$grad_inf)) as.numeric(conv$grad_inf) else NA_real_,
-    step_l2 = if (!is.null(conv$step_l2)) as.numeric(conv$step_l2) else NA_real_,
-    best_raw_loglik = if (!is.null(conv$best_raw_loglik)) as.numeric(conv$best_raw_loglik) else NA_real_,
-    best_raw_loglik_iteration = if (!is.null(conv$best_raw_loglik_iteration)) as.integer(conv$best_raw_loglik_iteration) else NA_integer_,
-    raw_loglik_drop_from_best = if (!is.null(conv$raw_loglik_drop_from_best)) as.numeric(conv$raw_loglik_drop_from_best) else NA_real_,
-    raw_loglik_drop_tol = if (!is.null(conv$raw_loglik_drop_tol)) as.numeric(conv$raw_loglik_drop_tol) else NA_real_,
-    outer_iterations = if (!is.null(conv$outer_iterations)) as.integer(conv$outer_iterations) else NA_integer_,
-    outer_log_lik_change = if (!is.null(conv$outer_log_lik_change)) as.numeric(conv$outer_log_lik_change) else NA_real_,
-    outer_stop_crit = if (!is.null(conv$outer_stop_crit)) as.numeric(conv$outer_stop_crit) else NA_real_
+    grad_inf = jss_missing_finite_scalar_or_na(conv$grad_inf),
+    step_l2 = jss_missing_finite_scalar_or_na(conv$step_l2),
+    best_raw_loglik = jss_missing_finite_scalar_or_na(conv$best_raw_loglik),
+    best_raw_loglik_iteration = jss_missing_finite_scalar_or_na(
+      conv$best_raw_loglik_iteration, integer = TRUE
+    ),
+    raw_loglik_drop_from_best = jss_missing_finite_scalar_or_na(conv$raw_loglik_drop_from_best),
+    raw_loglik_drop_tol = jss_missing_finite_scalar_or_na(conv$raw_loglik_drop_tol),
+    outer_iterations = jss_missing_finite_scalar_or_na(conv$outer_iterations, integer = TRUE),
+    outer_log_lik_change = jss_missing_finite_scalar_or_na(conv$outer_log_lik_change),
+    outer_stop_crit = jss_missing_finite_scalar_or_na(conv$outer_stop_crit)
   )
 }
 
