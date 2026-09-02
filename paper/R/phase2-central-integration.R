@@ -40,8 +40,8 @@ jss_phase2_artifact_contract <- function(root = getwd()) {
     "contract_version", "artifact_id", "artifact_type", "generated_path",
     "producer", "profiles", "input_bundle", "access", "publication_status", "verification"
   )
-  expected_sha256 <- "a62ffe55c5adcd0de164f4a89493d4b366ed21ca6995c1b2f9a2a98174a7cda6"
-  if (!identical(names(contract), required) || nrow(contract) != 104L ||
+  expected_sha256 <- "f7e7d31e73db4afe34f9472f868fec0b1e9e372dc97f3508b31c2a28b7c7e1e7"
+  if (!identical(names(contract), required) || nrow(contract) != 107L ||
       anyDuplicated(contract$artifact_id) || anyDuplicated(contract$generated_path) ||
       !all(contract$contract_version == "phase2-artifacts-2026-09-02.1") ||
       !identical(digest::digest(contract, algo = "sha256", serialize = TRUE), expected_sha256)) {

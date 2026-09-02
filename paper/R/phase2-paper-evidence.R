@@ -637,6 +637,10 @@ jss_phase2_claim_lifecycle <- function(x, study_id) {
   attempted <- choose(c("attempted", "execution_attempted"), rep(TRUE, nrow(x))) %in% TRUE
   converged <- choose(c("converged", "convergence_eligible", "fit_converged"), rep(FALSE, nrow(x))) %in% TRUE
   retained <- choose(c("retained", "publication_retained", "success"), converged) %in% TRUE
+  if (identical(study_id, "copula-misspecification") && "selection_eligible" %in% names(x)) {
+    converged <- x$selection_eligible %in% TRUE
+    retained <- converged
+  }
   retained <- retained & converged
   if (!all(attempted) || any(retained & !converged)) stop("Claim source lifecycle is contradictory: ", study_id, call. = FALSE)
   failed <- !retained
@@ -696,17 +700,30 @@ jss_build_phase2_claim_evidence <- function(settings) {
   if (length(missing_anchor)) stop("Claim register names missing TeX anchors: ", paste(unique(missing_anchor), collapse = ", "), call. = FALSE)
 
   manifest <- utils::read.csv(file.path(settings$root, "paper", "manifest.csv"), stringsAsFactors = FALSE)
-  if (any(!claims$attempt_artifact_id %in% manifest$artifact_id)) {
-    stop("Claim register references unregistered attempt artifacts.", call. = FALSE)
+  if (any(!claims$attempt_artifact_id %in% manifest$artifact_id) ||
+      any(!claims$effect_artifact_id %in% manifest$artifact_id)) {
+    stop("Claim register references unregistered attempt/effect artifacts.", call. = FALSE)
   }
-  sources <- jss_phase2_claim_source_paths(settings)
+  artifact_path <- function(artifact_id) {
+    row <- manifest[manifest$artifact_id == artifact_id, , drop = FALSE]
+    if (nrow(row) != 1L || !nzchar(row$generated_path[[1L]])) {
+      stop("Claim artifact does not resolve to one generated path: ", artifact_id, call. = FALSE)
+    }
+    file.path(settings$out_dir, row$generated_path[[1L]])
+  }
   rows <- lapply(seq_len(nrow(claims)), function(i) {
     claim <- claims[i, , drop = FALSE]
-    source <- unname(sources[[claim$study_id]])
+    source <- artifact_path(as.character(claim$attempt_artifact_id))
+    effect_source <- artifact_path(as.character(claim$effect_artifact_id))
     if (is.null(source) || !file.exists(source)) {
       stop("Claim source is missing for ", claim$claim_id, ": ", source, call. = FALSE)
     }
+    if (!file.exists(effect_source)) {
+      stop("Claim effect artifact is missing for ", claim$claim_id, ": ", effect_source, call. = FALSE)
+    }
     x <- utils::read.csv(source, stringsAsFactors = FALSE)
+    effect <- if (identical(normalizePath(source, winslash = "/"), normalizePath(effect_source, winslash = "/"))) x else
+      utils::read.csv(effect_source, stringsAsFactors = FALSE)
     scenario <- as.character(claim$scenario_id)
     if (!identical(scenario, "all")) {
       if (!"scenario_id" %in% names(x)) stop("Claim source lacks scenario_id: ", claim$claim_id, call. = FALSE)
@@ -717,15 +734,38 @@ jss_build_phase2_claim_evidence <- function(settings) {
       pieces <- strsplit(row_key, ";", fixed = TRUE)[[1L]]
       for (piece in pieces) {
         pair <- strsplit(piece, "=", fixed = TRUE)[[1L]]
-        if (length(pair) != 2L || !pair[[1L]] %in% names(x)) {
+        if (length(pair) != 2L || !pair[[1L]] %in% union(names(x), names(effect))) {
           stop("Claim source_row_key is not an exact registered field=value selector: ", claim$claim_id, call. = FALSE)
         }
-        x <- x[as.character(x[[pair[[1L]]]]) == pair[[2L]], , drop = FALSE]
+        if (pair[[1L]] %in% names(x)) x <- x[as.character(x[[pair[[1L]]]]) == pair[[2L]], , drop = FALSE]
+        if (pair[[1L]] %in% names(effect)) effect <- effect[as.character(effect[[pair[[1L]]]]) == pair[[2L]], , drop = FALSE]
       }
     }
     if (!nrow(x)) stop("Claim scenario/source_row_key selects no approved attempt rows: ", claim$claim_id, call. = FALSE)
+    if (!nrow(effect)) stop("Claim scenario/source_row_key selects no approved effect rows: ", claim$claim_id, call. = FALSE)
     lifecycle <- jss_phase2_claim_lifecycle(x, as.character(claim$study_id))
-    estimate <- if (identical(claim$study_id, "main-recovery")) {
+    effect_fields <- NULL
+    estimate <- if (identical(claim$study_id, "copula-misspecification") &&
+        identical(as.character(claim$claim_type), "paired_effect")) {
+      if (nrow(effect) != 1L || !all(c("estimate", "mcse", "ci_lower", "ci_upper", "n_attempted", "n_retained") %in% names(effect))) {
+        stop("Module 07 paired claim does not map to one complete effect row: ", claim$claim_id, call. = FALSE)
+      }
+      effect_fields <- c(estimate = effect$estimate, mcse = effect$mcse,
+        lower = effect$ci_lower, upper = effect$ci_upper,
+        denominator = effect$n_attempted, retained = effect$n_retained)
+      effect$estimate[[1L]]
+    } else if (identical(claim$study_id, "copula-misspecification") &&
+        identical(as.character(claim$claim_type), "selection_rate")) {
+      metric <- as.character(claim$metric)
+      fields <- c(metric, sub("_rate$", "_mcse", metric), sub("_rate$", "_ci_lower", metric), sub("_rate$", "_ci_upper", metric))
+      if (nrow(effect) != 1L || !all(fields %in% names(effect))) {
+        stop("Module 07 selection claim does not map to one complete effect row: ", claim$claim_id, call. = FALSE)
+      }
+      effect_fields <- c(estimate = effect[[fields[[1L]]]], mcse = effect[[fields[[2L]]]],
+        lower = effect[[fields[[3L]]]], upper = effect[[fields[[4L]]]],
+        denominator = effect$n_attempted, retained = effect$n_selection_eligible)
+      effect[[metric]][[1L]]
+    } else if (identical(claim$study_id, "main-recovery")) {
       groups <- unique(x[c("study_id", "scenario_id", "method", "target_replicates")])
       sum(as.integer(groups$target_replicates))
     } else if (identical(claim$study_id, "optimizer-benchmark")) {
@@ -758,21 +798,23 @@ jss_build_phase2_claim_evidence <- function(settings) {
       source_row_key = claim$source_row_key,
       source_file = substring(normalizePath(source, winslash = "/", mustWork = TRUE), nchar(normalizePath(settings$out_dir, winslash = "/", mustWork = TRUE)) + 2L),
       source_sha256 = jss_file_sha256(source),
-      effect_sha256 = jss_file_sha256(source),
+      effect_sha256 = jss_file_sha256(effect_source),
       estimate = as.numeric(estimate),
-      mcse = 0,
-      lower = as.numeric(estimate),
-      upper = as.numeric(estimate),
-      denominator = lifecycle$attempted,
-      attempted = lifecycle$attempted,
-      converged = lifecycle$converged,
-      retained = lifecycle$retained,
-      failed = lifecycle$failed,
-      failure_reasons = lifecycle$failure_reasons,
+      mcse = if (is.null(effect_fields)) 0 else as.numeric(effect_fields[["mcse"]]),
+      lower = if (is.null(effect_fields)) as.numeric(estimate) else as.numeric(effect_fields[["lower"]]),
+      upper = if (is.null(effect_fields)) as.numeric(estimate) else as.numeric(effect_fields[["upper"]]),
+      denominator = if (is.null(effect_fields)) lifecycle$attempted else as.integer(effect_fields[["denominator"]]),
+      attempted = if (is.null(effect_fields)) lifecycle$attempted else as.integer(effect_fields[["denominator"]]),
+      converged = if (is.null(effect_fields)) lifecycle$converged else as.integer(effect_fields[["retained"]]),
+      retained = if (is.null(effect_fields)) lifecycle$retained else as.integer(effect_fields[["retained"]]),
+      failed = if (is.null(effect_fields)) lifecycle$failed else as.integer(effect_fields[["denominator"]] - effect_fields[["retained"]]),
+      failure_reasons = if (!is.null(effect_fields) && effect_fields[["denominator"]] > effect_fields[["retained"]]) {
+        paste0("pair_or_selection_not_retained:", effect_fields[["denominator"]] - effect_fields[["retained"]])
+      } else if (!is.null(effect_fields)) "none" else lifecycle$failure_reasons,
       source_identity_sha256 = digest::digest(
         source_identities[[as.character(claim$study_id)]], algo = "sha256", serialize = TRUE
       ),
-      status = if (dynamic) "verified_exact_evidence_count" else "verified_exact_design_count",
+      status = if (!is.null(effect_fields)) "verified_directional_effect" else if (dynamic) "verified_exact_evidence_count" else "verified_exact_design_count",
       stringsAsFactors = FALSE
     )
   })
