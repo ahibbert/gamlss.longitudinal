@@ -85,12 +85,13 @@ jss_phase2_module_output_allowlist <- function(settings, modules, claim_evidence
       stop("Phase 2 module output differs from the fixed artifact contract: ", name, call. = FALSE)
     }
   }
-  expected_claim <- contract$generated_path[contract$artifact_id == "p2_claim_evidence"]
+  expected_claim <- contract$generated_path[contract$producer == "phase2_claim_evidence"]
   expected_gate <- contract$generated_path[contract$producer == "phase2_gate_audit"]
   actual_claim <- if (is.null(claim_evidence)) character() else
-    jss_phase2_normalize_output_path(claim_evidence, settings)
+    vapply(claim_evidence, jss_phase2_normalize_output_path, character(1L), settings = settings)
   actual_gate <- jss_phase2_normalize_output_path(gate_path, settings)
-  if (!identical(actual_claim, expected_claim) || !identical(actual_gate, expected_gate)) {
+  if (!setequal(actual_claim, expected_claim) || length(actual_claim) != length(expected_claim) ||
+      !identical(actual_gate, expected_gate)) {
     stop("Phase 2 claim/gate paths differ from the fixed artifact contract.", call. = FALSE)
   }
   contract$generated_path

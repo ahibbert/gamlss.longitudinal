@@ -44,8 +44,10 @@ if (!identical(profile, "smoke")) {
       phase2_evidence_registry_files,
       file.path(settings$root, "paper", c(
         "phase2-claims.csv", "phase2-design-contract.csv", "phase2-manuscript-scope.csv",
+        "phase2-pending-claims.csv", "phase2-design-joint-contract.csv", "phase2-prose-allowlist.csv",
         "phase2-manuscript-artifacts.csv", "canonical-phase2-manuscript-audit.csv",
-        "phase2-canonical-source.csv"
+        "phase2-canonical-source.csv", "phase2-artifact-contract.csv", "manifest.csv",
+        file.path("manuscript", "main.tex")
       )),
       format = "file"
     )
