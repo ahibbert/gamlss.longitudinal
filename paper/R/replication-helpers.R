@@ -1,3 +1,117 @@
+jss_phase2_public_approval_spec <- function() {
+  data.frame(
+    study = c(
+      "main-recovery", "optimizer-benchmark", "missingness",
+      "copula-misspecification", "multivariate-benchmark"
+    ),
+    attestation_file = paste0(c(
+      "main-recovery", "optimizer-benchmark", "missingness",
+      "copula-misspecification", "multivariate-benchmark"
+    ), ".attestation"),
+    signature_file = paste0(c(
+      "main-recovery", "optimizer-benchmark", "missingness",
+      "copula-misspecification", "multivariate-benchmark"
+    ), ".sig"),
+    attestation_env = c(
+      "GAMLSS_LONGITUDINAL_JSS_MAIN_RECOVERY_ATTESTATION",
+      "GAMLSS_LONGITUDINAL_JSS_OPTIMIZER_ATTESTATION",
+      "GAMLSS_LONGITUDINAL_JSS_MISSINGNESS_ATTESTATION",
+      "GAMLSS_LONGITUDINAL_JSS_COPULA_ATTESTATION",
+      "GAMLSS_LONGITUDINAL_MVT_ATTESTATION"
+    ),
+    signature_env = c(
+      "GAMLSS_LONGITUDINAL_JSS_MAIN_RECOVERY_ATTESTATION_SIGNATURE",
+      "GAMLSS_LONGITUDINAL_JSS_OPTIMIZER_ATTESTATION_SIGNATURE",
+      "GAMLSS_LONGITUDINAL_JSS_MISSINGNESS_ATTESTATION_SIGNATURE",
+      "GAMLSS_LONGITUDINAL_JSS_COPULA_ATTESTATION_SIGNATURE",
+      "GAMLSS_LONGITUDINAL_MVT_ATTESTATION_SIGNATURE"
+    ),
+    stringsAsFactors = FALSE
+  )
+}
+
+jss_phase2_materialize_public_approvals <- function(root, profile,
+    approval_dir = file.path(root, "paper", "approvals"),
+    external_dir = tempfile("gamlss-longitudinal-public-approvals-")) {
+  if (identical(profile, "smoke")) return(invisible(character()))
+  if (!profile %in% c("paper", "full")) stop("Unknown replication profile.", call. = FALSE)
+  if (!requireNamespace("digest", quietly = TRUE)) {
+    stop("Package 'digest' is required to verify public approval assets.", call. = FALSE)
+  }
+  spec <- jss_phase2_public_approval_spec()
+  configured <- Map(function(attestation_env, signature_env) {
+    c(Sys.getenv(attestation_env, unset = ""), Sys.getenv(signature_env, unset = ""))
+  }, spec$attestation_env, spec$signature_env)
+  partial <- vapply(configured, function(x) xor(nzchar(x[[1L]]), nzchar(x[[2L]])), logical(1L))
+  if (any(partial)) {
+    stop("Each external Phase 2 approval override requires both attestation and signature paths.", call. = FALSE)
+  }
+  supplied <- vapply(configured, function(x) all(nzchar(x)), logical(1L))
+  if (all(supplied)) return(invisible(unlist(configured, use.names = FALSE)))
+
+  manifest_path <- file.path(approval_dir, "manifest.csv")
+  if (!file.exists(manifest_path)) {
+    stop("Public Phase 2 approval manifest is missing; paper/full replication is not release-ready.", call. = FALSE)
+  }
+  manifest <- utils::read.csv(manifest_path, stringsAsFactors = FALSE, check.names = FALSE)
+  required <- c(
+    "study", "attestation_file", "attestation_sha256", "signature_file",
+    "signature_sha256", "public_key_sha256"
+  )
+  pinned_key_sha256 <- "cb73c05cede55bfd56357b1780b90c1bf254413d82765c7a682fc9db3a0d8587"
+  if (!identical(names(manifest), required) || nrow(manifest) != nrow(spec) ||
+      anyDuplicated(manifest$study) || !identical(manifest$study, spec$study) ||
+      !identical(manifest$attestation_file, spec$attestation_file) ||
+      !identical(manifest$signature_file, spec$signature_file) ||
+      any(manifest$public_key_sha256 != pinned_key_sha256)) {
+    stop("Public Phase 2 approval manifest is incomplete, reordered, or malformed.", call. = FALSE)
+  }
+  hex <- "^[0-9a-f]{64}$"
+  if (any(!grepl(hex, manifest$attestation_sha256)) ||
+      any(!grepl(hex, manifest$signature_sha256))) {
+    stop("Public Phase 2 approval manifest contains a noncanonical SHA-256 value.", call. = FALSE)
+  }
+  expected_files <- c("README.md", "manifest.csv", spec$attestation_file, spec$signature_file)
+  present_files <- sort(list.files(approval_dir, all.files = TRUE, no.. = TRUE))
+  if (!identical(present_files, sort(expected_files)) ||
+      any(grepl("private|secret|key$", present_files, ignore.case = TRUE))) {
+    stop("Public approval directory contains missing, unexpected, or private-key-like files.", call. = FALSE)
+  }
+  source_paths <- c(file.path(approval_dir, spec$attestation_file),
+    file.path(approval_dir, spec$signature_file))
+  expected_hashes <- c(manifest$attestation_sha256, manifest$signature_sha256)
+  actual_hashes <- vapply(source_paths, digest::digest, character(1L),
+    file = TRUE, algo = "sha256", serialize = FALSE)
+  if (!identical(unname(actual_hashes), unname(expected_hashes))) {
+    stop("A public Phase 2 approval asset does not match its registered SHA-256.", call. = FALSE)
+  }
+
+  root_prefix <- paste0(tolower(normalizePath(root, winslash = "/", mustWork = TRUE)), "/")
+  external_normalized <- normalizePath(external_dir, winslash = "/", mustWork = FALSE)
+  if (startsWith(tolower(paste0(external_normalized, "/")), root_prefix)) {
+    stop("Materialized approval copies must be outside the editable checkout.", call. = FALSE)
+  }
+  if (!dir.create(external_dir, recursive = TRUE, showWarnings = FALSE)) {
+    stop("Could not create the checkout-external public approval cache.", call. = FALSE)
+  }
+  destination_paths <- file.path(external_dir, basename(source_paths))
+  if (!all(file.copy(source_paths, destination_paths, overwrite = FALSE))) {
+    stop("Could not materialize the public approval bundle outside the checkout.", call. = FALSE)
+  }
+  copied_hashes <- vapply(destination_paths, digest::digest, character(1L),
+    file = TRUE, algo = "sha256", serialize = FALSE)
+  if (!identical(unname(copied_hashes), unname(expected_hashes))) {
+    stop("Materialized public approval copies failed their SHA-256 check.", call. = FALSE)
+  }
+  for (i in seq_len(nrow(spec))) {
+    if (!supplied[[i]]) {
+      do.call(Sys.setenv, stats::setNames(list(destination_paths[[i]]), spec$attestation_env[[i]]))
+      do.call(Sys.setenv, stats::setNames(list(destination_paths[[nrow(spec) + i]]), spec$signature_env[[i]]))
+    }
+  }
+  invisible(c(Sys.getenv(spec$attestation_env), Sys.getenv(spec$signature_env)))
+}
+
 jss_settings <- function(create = TRUE) {
   profile <- Sys.getenv("GAMLSS_LONGITUDINAL_JSS_PROFILE", unset = "smoke")
   if (identical(profile, "expanded")) profile <- "paper"

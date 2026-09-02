@@ -29,6 +29,8 @@ Sys.setenv(
   GAMLSS_LONGITUDINAL_JSS_ROOT = root,
   GAMLSS_LONGITUDINAL_JSS_WORKERS = workers
 )
+source(file.path("paper", "R", "replication-helpers.R"))
+approval_cache <- jss_phase2_materialize_public_approvals(root, profile)
 store <- file.path("paper", "_targets", profile)
 message("Running public JSS replication profile '", profile, "' with ", workers, " worker(s).")
 started <- Sys.time()
@@ -38,7 +40,6 @@ if (workers > 1L && "tar_make_future" %in% getNamespaceExports("targets")) {
   targets::tar_make(script = file.path("paper", "_targets.R"), store = store)
 }
 
-source(file.path("paper", "R", "replication-helpers.R"))
 settings <- jss_settings(create = TRUE)
 jss_write_run_metadata(settings, started, bootstrap, store)
 jss_check_target_warnings(store, strict = identical(tolower(Sys.getenv("GAMLSS_LONGITUDINAL_JSS_STRICT_WARNINGS")), "true"))
