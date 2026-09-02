@@ -236,3 +236,27 @@ test_that("effective approval-byte changes invalidate cached targets", {
   targets::tar_make(script = script, store = store, reporter = "silent")
   expect_identical(targets::tar_read(approval_identity, store = store), second_identity)
 })
+
+test_that("targets preflight recomputes approval identity and rejects tampering", {
+  skip_if_not_installed("digest")
+  setup <- local_public_approval_env()
+  spec <- setup$env$jss_phase2_public_approval_spec()
+  restore <- local_clear_public_approval_env(spec); on.exit(restore(), add = TRUE)
+  fixture_root <- tempfile("approval-checkout-"); dir.create(fixture_root)
+  approval_dir <- local_write_public_approval_fixture(setup$env, fixture_root)
+
+  Sys.setenv(GAMLSS_LONGITUDINAL_JSS_APPROVAL_BUNDLE_SHA256 = paste(rep("a", 64L), collapse = ""))
+  expect_error(setup$env$jss_phase2_verify_materialized_public_approvals(
+    fixture_root, "paper"), "require all Phase 2 approvals")
+
+  external <- tempfile("approval-external-")
+  paths <- setup$env$jss_phase2_materialize_public_approvals(
+    fixture_root, "paper", approval_dir = approval_dir, external_dir = external
+  )
+  expect_match(setup$env$jss_phase2_verify_materialized_public_approvals(
+    fixture_root, "paper"), "^[0-9a-f]{64}$")
+
+  writeBin(as.raw(c(255L, 1:8)), paths[[1L]])
+  expect_error(setup$env$jss_phase2_verify_materialized_public_approvals(
+    fixture_root, "paper"), "do not match their declared bundle identity")
+})
