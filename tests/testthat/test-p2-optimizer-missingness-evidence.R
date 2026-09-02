@@ -1581,6 +1581,29 @@ test_that("missingness producer writes public plot data and registered sensitivi
   )))
 })
 
+test_that("missingness producer uses only the structured optimizer-control interface", {
+  root <- local_phase2_repo_root()
+  path <- file.path(root, "paper", "scripts", "final-simulations", "missingness",
+    "run_missingness_study.R")
+  code <- paste(readLines(path, warn = FALSE), collapse = "\n")
+  fit_start <- regexpr("fit_longitudinal_model <- function", code, fixed = TRUE)[[1L]]
+  fit_end <- regexpr("fit_gamlss2_model <- function", code, fixed = TRUE)[[1L]]
+  expect_gt(fit_start, 0L); expect_gt(fit_end, fit_start)
+  fit_code <- substr(code, fit_start, fit_end - 1L)
+  legacy <- c(
+    "inner_stop_crit =", "outer_stop_crit =", "max_outer_iter =",
+    "max_inner_iter =", "max_elapsed_sec =", "start_step_size =",
+    "step_adjustment =", "max_steps =", "use_backtracking =",
+    "backtracking_max_halves =", "cg_max_delta =", "cg_armijo_c1 =",
+    "cg_max_stall =", "cg_update_lambda =", "cg_lambda_update_every =",
+    "cg_max_lambda_updates =", "cg_raw_loglik_drop_tol =",
+    "cg_line_search =", "cg_max_line_search_evals =",
+    "cg_gradient_method =", "cg_zeta_hessian =", "warm_start_joint ="
+  )
+  expect_true(grepl("optimizer_control = optimizer_control", fit_code, fixed = TRUE))
+  expect_false(any(vapply(legacy, grepl, logical(1), x = fit_code, fixed = TRUE)))
+})
+
 test_that("CG performance guidance is explicitly withdrawn", {
   root <- local_phase2_repo_root()
   checklist <- paste(readLines(

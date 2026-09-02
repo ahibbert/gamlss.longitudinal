@@ -172,6 +172,46 @@ lambda_start <- if (is.na(lambda_start_env) || !nzchar(lambda_start_env)) {
 } else {
   as.numeric(lambda_start_env)
 }
+optimizer_control <- if (identical(toupper(optim_method), "RS")) {
+  gamlss.longitudinal::gamlss_longitudinal_control(
+    outer_tol = outer_stop_crit,
+    max_outer_iter = max_outer_iter,
+    max_elapsed_sec = max_elapsed_sec,
+    rs = list(
+      inner_tol = inner_stop_crit,
+      max_inner_iter = max_inner_iter,
+      start_step_size = start_step_size,
+      step_adjustment = step_adjustment,
+      max_steps = max_steps,
+      warm_start_joint = warm_start_joint,
+      use_backtracking = use_backtracking,
+      backtracking_max_halves = backtracking_max_halves
+    )
+  )
+} else if (identical(toupper(optim_method), "CG")) {
+  gamlss.longitudinal::gamlss_longitudinal_control(
+    outer_tol = outer_stop_crit,
+    max_outer_iter = max_outer_iter,
+    max_elapsed_sec = max_elapsed_sec,
+    cg = list(
+      max_stall = cg_max_stall,
+      max_delta = cg_max_delta,
+      armijo_c1 = cg_armijo_c1,
+      update_lambda = cg_update_lambda,
+      lambda_update_every = cg_lambda_update_every,
+      max_lambda_updates = cg_max_lambda_updates,
+      raw_loglik_drop_tol = cg_raw_loglik_drop_tol,
+      line_search = cg_line_search,
+      max_line_search_evals = cg_max_line_search_evals,
+      gradient_method = cg_gradient_method,
+      zeta_hessian = cg_zeta_hessian,
+      use_backtracking = use_backtracking,
+      backtracking_max_halves = backtracking_max_halves
+    )
+  )
+} else {
+  stop("OPT_METHOD must be RS or CG.", call. = FALSE)
+}
 margin_family <- gamlss.dist::BCPE(mu.link = "log")
 copula_link <- get_copula_dist("t")$copula_link
 
@@ -246,6 +286,7 @@ checkpoint_configuration <- list(
     zeta_hessian = cg_zeta_hessian, lambda_update_every = cg_lambda_update_every,
     max_lambda_updates = cg_max_lambda_updates, raw_loglik_drop_tol = cg_raw_loglik_drop_tol
   ),
+  optimizer_control = optimizer_control,
   warm_start_joint = warm_start_joint,
   lambda_start = lambda_start,
   predictive = list(compute = compute_predictive_scores, nsim = predictive_nsim, variogram_p = variogram_p),
@@ -630,29 +671,8 @@ fit_longitudinal_model <- function(dat) {
     compute_vcov = isTRUE(compute_se) && !segmented,
     vcov_method = vcov_method_longitudinal,
     include_dlcopdpar = include_dlcopdpar,
-    inner_stop_crit = inner_stop_crit,
-    outer_stop_crit = outer_stop_crit,
-    max_outer_iter = max_outer_iter,
-    max_inner_iter = max_inner_iter,
-    max_elapsed_sec = max_elapsed_sec,
-    start_step_size = start_step_size,
-    step_adjustment = step_adjustment,
-    max_steps = max_steps,
-    use_backtracking = use_backtracking,
-    backtracking_max_halves = backtracking_max_halves,
+    optimizer_control = optimizer_control,
     method = optim_method,
-    cg_max_delta = cg_max_delta,
-    cg_armijo_c1 = cg_armijo_c1,
-    cg_max_stall = cg_max_stall,
-    cg_update_lambda = cg_update_lambda,
-    cg_lambda_update_every = cg_lambda_update_every,
-    cg_max_lambda_updates = cg_max_lambda_updates,
-    cg_raw_loglik_drop_tol = cg_raw_loglik_drop_tol,
-    cg_line_search = cg_line_search,
-    cg_max_line_search_evals = cg_max_line_search_evals,
-    cg_gradient_method = cg_gradient_method,
-    cg_zeta_hessian = cg_zeta_hessian,
-    warm_start_joint = warm_start_joint,
     lambda_start = lambda_start
   )
 }
