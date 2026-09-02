@@ -680,19 +680,314 @@ jss_phase2_optimizer_claim_estimates <- function(attempts, precision) {
   )
 }
 
-jss_build_phase2_claim_evidence <- function(settings) {
-  source_identities <- jss_phase2_validate_claim_sources(settings)
-  claims_path <- file.path(settings$root, "paper", "phase2-claims.csv")
-  claims <- utils::read.csv(claims_path, stringsAsFactors = FALSE, check.names = FALSE)
+jss_phase2_fixed_count <- function(text, pattern) {
+  if (!nzchar(pattern)) return(0L)
+  starts <- gregexpr(pattern, text, fixed = TRUE)[[1L]]
+  if (length(starts) == 1L && starts[[1L]] == -1L) 0L else length(starts)
+}
+
+jss_phase2_claim_register <- function(root) {
+  path <- file.path(root, "paper", "phase2-claims.csv")
+  claims <- utils::read.csv(path, stringsAsFactors = FALSE, check.names = FALSE)
   required <- c(
     "claim_id", "tex_anchor", "study_id", "scenario_id", "claim_type", "metric",
-    "expected_direction", "attempt_artifact_id", "effect_artifact_id",
-    "source_row_key", "wording_strength", "expected_value"
+    "lhs_method", "rhs_method", "expected_direction", "attempt_artifact_id", "effect_artifact_id",
+    "source_row_key", "wording_strength", "expected_value", "claim_marker",
+    "publication_scope", "render_kind", "manuscript_state", "format_spec"
   )
-  if (!all(required %in% names(claims)) || anyDuplicated(claims$claim_id)) {
-    stop("Phase 2 claim register is malformed or has duplicate IDs.", call. = FALSE)
+  if (!identical(names(claims), required) || !nrow(claims) ||
+      anyDuplicated(claims$claim_id) || anyDuplicated(claims$claim_marker) ||
+      any(!claims$expected_direction %in% c("negative", "positive", "no_direction")) ||
+      any(!claims$publication_scope %in% c("public_manuscript", "public_supplemental")) ||
+      any(!claims$render_kind %in% c("inline_value", "estimate_interval", "scenario_table")) ||
+      any(!claims$manuscript_state %in% c("pending_overleaf", "present", "supplemental_only")) ||
+      any(!claims$format_spec %in% c("integer", "number3", "percent1")) ||
+      any(claims$claim_marker != paste0("\\PhaseTwoClaim{", claims$claim_id, "}")) ||
+      any(claims$publication_scope == "public_manuscript" & claims$manuscript_state == "supplemental_only") ||
+      any(claims$publication_scope == "public_supplemental" & claims$manuscript_state != "supplemental_only")) {
+    stop("Phase 2 claim register schema, scope, marker, or publication state is malformed.", call. = FALSE)
   }
+  claims
+}
+
+jss_phase2_validate_claim_markers <- function(manuscript, claims, allow_pending = TRUE) {
+  text <- if (length(manuscript) == 1L && file.exists(manuscript)) {
+    paste(readLines(manuscript, warn = FALSE), collapse = "\n")
+  } else paste(as.character(manuscript), collapse = "\n")
+  registered_calls <- regmatches(text, gregexpr("\\\\PhaseTwoClaim\\{[^}]+\\}", text, perl = TRUE))[[1L]]
+  if (identical(registered_calls, character(0L))) registered_calls <- character()
+  unknown <- setdiff(unique(registered_calls), claims$claim_marker)
+  if (length(unknown)) {
+    stop("Manuscript contains unregistered PhaseTwoClaim markers: ", paste(unknown, collapse = ", "), call. = FALSE)
+  }
+  counts <- vapply(claims$claim_marker, jss_phase2_fixed_count, integer(1L), text = text)
+  required <- claims$manuscript_state == "present"
+  pending <- claims$manuscript_state == "pending_overleaf"
+  supplemental <- claims$manuscript_state == "supplemental_only"
+  if (any(counts[required] != 1L)) stop("Every present public claim marker must occur exactly once.", call. = FALSE)
+  if (any(counts[supplemental] != 0L)) stop("Supplemental-only claim marker leaked into the manuscript.", call. = FALSE)
+  if (any(counts[pending] > 1L)) stop("A pending public claim marker is duplicated.", call. = FALSE)
+  if (!allow_pending && (any(pending) || any(counts[pending] != 1L))) {
+    stop("Phase 2 manuscript still has pending Overleaf claim insertions.", call. = FALSE)
+  }
+  invisible(data.frame(claim_id = claims$claim_id, marker_count = counts,
+    manuscript_state = claims$manuscript_state, stringsAsFactors = FALSE))
+}
+
+jss_phase2_manifest_artifact_path <- function(settings, artifact_id, manifest = NULL) {
+  if (is.null(manifest)) manifest <- utils::read.csv(file.path(settings$root, "paper", "manifest.csv"), stringsAsFactors = FALSE)
+  row <- manifest[manifest$artifact_id == artifact_id, , drop = FALSE]
+  if (nrow(row) != 1L || !nzchar(row$generated_path[[1L]])) {
+    stop("Phase 2 artifact does not resolve to one generated path: ", artifact_id, call. = FALSE)
+  }
+  file.path(settings$out_dir, row$generated_path[[1L]])
+}
+
+jss_phase2_design_value <- function(x, field, check_type, expected) {
+  if (!field %in% names(x)) stop("Phase 2 design source lacks registered field: ", field, call. = FALSE)
+  value <- x[[field]]
+  value <- value[!is.na(value)]
+  if (!length(value)) stop("Phase 2 design source has no values for field: ", field, call. = FALSE)
+  normalize <- function(v) {
+    if (is.numeric(v)) format(as.numeric(v), scientific = FALSE, trim = TRUE, digits = 15) else trimws(as.character(v))
+  }
+  actual <- sort(unique(normalize(value)))
+  if (identical(check_type, "set")) {
+    target <- sort(strsplit(expected, "|", fixed = TRUE)[[1L]])
+    numeric_target <- suppressWarnings(as.numeric(target))
+    if (is.numeric(value) && !anyNA(numeric_target)) target <- sort(unique(normalize(numeric_target)))
+  } else if (identical(check_type, "integer_range")) {
+    ends <- as.integer(strsplit(expected, ":", fixed = TRUE)[[1L]])
+    if (length(ends) != 2L || anyNA(ends)) stop("Malformed integer_range design contract.", call. = FALSE)
+    target <- as.character(seq.int(ends[[1L]], ends[[2L]]))
+  } else if (identical(check_type, "unique_count")) {
+    target <- as.character(as.integer(expected))
+    actual <- as.character(length(actual))
+  } else stop("Unknown Phase 2 design check_type: ", check_type, call. = FALSE)
+  if (!identical(sort(actual), sort(target))) {
+    stop("Phase 2 design values disagree for ", field, ": expected ",
+      paste(target, collapse = "|"), "; observed ", paste(actual, collapse = "|"), call. = FALSE)
+  }
+  paste(actual, collapse = "|" )
+}
+
+jss_phase2_validate_design_contract <- function(settings) {
+  path <- file.path(settings$root, "paper", "phase2-design-contract.csv")
+  contract <- utils::read.csv(path, stringsAsFactors = FALSE, check.names = FALSE)
+  required <- c("design_id", "study_id", "tex_anchor", "source_artifact_id", "field",
+    "check_type", "expected_values", "display_label", "publication_scope")
+  if (!identical(names(contract), required) || !nrow(contract) || anyDuplicated(contract$design_id) ||
+      any(!contract$check_type %in% c("set", "integer_range", "unique_count")) ||
+      any(!contract$publication_scope %in% c("public_manuscript", "public_supplemental"))) {
+    stop("Phase 2 design contract is malformed.", call. = FALSE)
+  }
+  manifest <- utils::read.csv(file.path(settings$root, "paper", "manifest.csv"), stringsAsFactors = FALSE)
+  rows <- lapply(seq_len(nrow(contract)), function(i) {
+    row <- contract[i, , drop = FALSE]
+    source <- jss_phase2_manifest_artifact_path(settings, row$source_artifact_id, manifest)
+    if (!file.exists(source)) stop("Phase 2 design source is missing: ", source, call. = FALSE)
+    x <- utils::read.csv(source, stringsAsFactors = FALSE, check.names = FALSE)
+    row$observed_values <- jss_phase2_design_value(x, row$field, row$check_type, row$expected_values)
+    row$source_file <- substring(normalizePath(source, winslash = "/", mustWork = TRUE),
+      nchar(normalizePath(settings$out_dir, winslash = "/", mustWork = TRUE)) + 2L)
+    row$source_sha256 <- jss_file_sha256(source)
+    row
+  })
+  do.call(rbind, rows)
+}
+
+jss_phase2_tex_escape <- function(x) {
+  x <- gsub("\\\\", "\\\\textbackslash{}", as.character(x))
+  x <- gsub("([_%&#])", "\\\\\\1", x, perl = TRUE)
+  gsub("\\|", ", ", x)
+}
+
+jss_phase2_format_claim <- function(value, format_spec) {
+  if (identical(format_spec, "integer")) return(format(as.integer(round(value)), big.mark = ",", scientific = FALSE))
+  if (identical(format_spec, "percent1")) return(sprintf("%.1f\\\\%%", 100 * value))
+  sprintf("%.3f", value)
+}
+
+jss_write_phase2_claim_assets <- function(settings, evidence, claims = jss_phase2_claim_register(settings$root)) {
+  evidence <- evidence[match(claims$claim_id, evidence$claim_id), , drop = FALSE]
+  if (anyNA(evidence$claim_id)) stop("Cannot render incomplete Phase 2 claim evidence.", call. = FALSE)
+  macro_path <- file.path(settings$tables_dir, "phase2-claim-macros.tex")
+  scenario_path <- file.path(settings$tables_dir, "phase2-scenario-design.tex")
+  checklist_path <- file.path(settings$tables_dir, "phase2-manuscript-checklist.csv")
+  dir.create(settings$tables_dir, recursive = TRUE, showWarnings = FALSE)
+  lines <- c(
+    "% Generated from attempt-level Phase 2 evidence; do not edit by hand.",
+    "\\providecommand{\\PhaseTwoClaim}[1]{\\csname PhaseTwoClaim@#1\\endcsname}",
+    "\\providecommand{\\PhaseTwoClaimInterval}[1]{\\csname PhaseTwoClaimInterval@#1\\endcsname}"
+  )
+  for (i in seq_len(nrow(claims))) {
+    formatted <- jss_phase2_format_claim(evidence$estimate[[i]], claims$format_spec[[i]])
+    lines <- c(lines, paste0("\\expandafter\\def\\csname PhaseTwoClaim@", claims$claim_id[[i]], "\\endcsname{", formatted, "}"))
+    if (claims$render_kind[[i]] == "estimate_interval") {
+      interval <- paste0(jss_phase2_format_claim(evidence$estimate[[i]], claims$format_spec[[i]]),
+        " (95\\% CI ", jss_phase2_format_claim(evidence$lower[[i]], claims$format_spec[[i]]),
+        " to ", jss_phase2_format_claim(evidence$upper[[i]], claims$format_spec[[i]]),
+        "; attempted ", evidence$attempted[[i]], ", retained ", evidence$retained[[i]], ")")
+      lines <- c(lines, paste0("\\expandafter\\def\\csname PhaseTwoClaimInterval@", claims$claim_id[[i]], "\\endcsname{", interval, "}"))
+    }
+  }
+  writeLines(lines, macro_path, useBytes = TRUE)
+
+  design <- jss_phase2_validate_design_contract(settings)
+  table_lines <- c(
+    "% Generated from validated Phase 2 design inputs; do not edit by hand.",
+    "\\begin{table}[ht]", "\\centering", "\\caption{Registered Phase 2 simulation designs.}",
+    "\\label{tab:phase2-scenario-design}", "\\begin{tabular}{lll}", "\\hline",
+    "Study & Design item & Registered values \\\\", "\\hline"
+  )
+  for (i in seq_len(nrow(design))) {
+    table_lines <- c(table_lines, paste0(jss_phase2_tex_escape(design$study_id[[i]]), " & ",
+      jss_phase2_tex_escape(design$display_label[[i]]), " & ",
+      jss_phase2_tex_escape(design$observed_values[[i]]), " \\\\"))
+  }
+  table_lines <- c(table_lines, "\\hline", "\\end{tabular}", "\\end{table}")
+  writeLines(table_lines, scenario_path, useBytes = TRUE)
+
+  checklist <- data.frame(
+    item_type = "claim", item_id = claims$claim_id, tex_anchor = claims$tex_anchor,
+    publication_scope = claims$publication_scope, state = claims$manuscript_state,
+    manuscript_token = claims$claim_marker,
+    action = ifelse(claims$manuscript_state == "pending_overleaf",
+      "Insert generated macro call in the canonical manuscript and change registry state to present.",
+      "Supplemental evidence; do not insert in main prose."), stringsAsFactors = FALSE
+  )
+  assets <- utils::read.csv(file.path(settings$root, "paper", "phase2-manuscript-artifacts.csv"), stringsAsFactors = FALSE)
+  asset_checklist <- data.frame(item_type = "artifact", item_id = assets$artifact_id,
+    tex_anchor = assets$canonical_label, publication_scope = assets$publication_scope,
+    state = assets$canonical_state, manuscript_token = assets$canonical_path,
+    action = assets$manual_action, stringsAsFactors = FALSE)
+  canonical <- utils::read.csv(file.path(settings$root, "paper", "canonical-phase2-manuscript-audit.csv"), stringsAsFactors = FALSE)
+  canonical_checklist <- data.frame(item_type = "canonical_issue", item_id = canonical$issue_id,
+    tex_anchor = canonical$tex_anchor, publication_scope = canonical$evidence_scope,
+    state = canonical$status, manuscript_token = canonical$canonical_excerpt,
+    action = canonical$required_action, stringsAsFactors = FALSE)
+  utils::write.csv(rbind(checklist, asset_checklist, canonical_checklist), checklist_path, row.names = FALSE, na = "")
+  c(claim_evidence = file.path(settings$tables_dir, "phase2-claim-evidence.csv"),
+    claim_macros = macro_path, scenario_design = scenario_path, manuscript_checklist = checklist_path)
+}
+
+jss_phase2_validate_manuscript_assets <- function(root, manuscript, allow_pending = TRUE) {
+  text <- if (length(manuscript) == 1L && file.exists(manuscript))
+    paste(readLines(manuscript, warn = FALSE), collapse = "\n") else paste(manuscript, collapse = "\n")
+  assets <- utils::read.csv(file.path(root, "paper", "phase2-manuscript-artifacts.csv"), stringsAsFactors = FALSE, check.names = FALSE)
+  required <- c("artifact_id", "publication_scope", "usage_kind", "canonical_path",
+    "canonical_label", "canonical_state", "manual_action")
+  if (!identical(names(assets), required) || !nrow(assets) || anyDuplicated(assets$artifact_id) ||
+      any(!assets$publication_scope %in% c("public_manuscript", "public_supplemental", "private_static")) ||
+      any(!assets$usage_kind %in% c("includegraphics", "input")) ||
+      any(!assets$canonical_state %in% c("present", "pending"))) {
+    stop("Phase 2 manuscript artifact contract is malformed.", call. = FALSE)
+  }
+  manifest <- utils::read.csv(file.path(root, "paper", "manifest.csv"), stringsAsFactors = FALSE, check.names = FALSE)
+  rows <- lapply(seq_len(nrow(assets)), function(i) {
+    asset <- assets[i, , drop = FALSE]
+    registered <- manifest[manifest$artifact_id == asset$artifact_id, , drop = FALSE]
+    if (nrow(registered) != 1L) stop("Manuscript artifact is absent or duplicated in manifest: ", asset$artifact_id, call. = FALSE)
+    manifest_path <- gsub("\\\\", "/", registered$manuscript_path[[1L]])
+    canonical_path <- as.character(asset$canonical_path)
+    path_match <- identical(sub("[.]tex$", "", manifest_path), sub("[.]tex$", "", canonical_path))
+    label_match <- identical(as.character(registered$manuscript_label[[1L]]), as.character(asset$canonical_label))
+    token <- if (asset$usage_kind == "includegraphics") paste0("\\includegraphics", "[") else paste0("\\input{", canonical_path, "}")
+    path_present <- if (asset$usage_kind == "includegraphics") {
+      grepl(canonical_path, text, fixed = TRUE)
+    } else grepl(token, text, fixed = TRUE)
+    label_present <- grepl(paste0("\\label{", asset$canonical_label, "}"), text, fixed = TRUE) ||
+      grepl(paste0("\\ref{", asset$canonical_label, "}"), text, fixed = TRUE)
+    if (!path_match || !label_match) {
+      stop("Manifest path/label disagrees with canonical manuscript contract for ", asset$artifact_id, call. = FALSE)
+    }
+    if (asset$canonical_state == "present" && (!path_present || !label_present)) {
+      stop("Canonical manuscript is missing registered path/label for ", asset$artifact_id, call. = FALSE)
+    }
+    if (!allow_pending && asset$canonical_state == "pending") {
+      stop("Canonical manuscript still has pending Phase 2 artifact insertions.", call. = FALSE)
+    }
+    data.frame(artifact_id = asset$artifact_id, path_present = path_present,
+      label_present = label_present, canonical_state = asset$canonical_state,
+      stringsAsFactors = FALSE)
+  })
+  do.call(rbind, rows)
+}
+
+jss_phase2_validate_manuscript_artifact_registry <- function(root) {
+  assets <- utils::read.csv(file.path(root, "paper", "phase2-manuscript-artifacts.csv"), stringsAsFactors = FALSE, check.names = FALSE)
+  manifest <- utils::read.csv(file.path(root, "paper", "manifest.csv"), stringsAsFactors = FALSE, check.names = FALSE)
+  rows <- lapply(seq_len(nrow(assets)), function(i) {
+    asset <- assets[i, , drop = FALSE]
+    registered <- manifest[manifest$artifact_id == asset$artifact_id, , drop = FALSE]
+    if (nrow(registered) != 1L) stop("Manuscript artifact is absent or duplicated in manifest: ", asset$artifact_id, call. = FALSE)
+    manifest_path <- sub("[.]tex$", "", gsub("\\\\", "/", registered$manuscript_path[[1L]]))
+    canonical_path <- sub("[.]tex$", "", as.character(asset$canonical_path))
+    if (!identical(manifest_path, canonical_path) ||
+        !identical(as.character(registered$manuscript_label[[1L]]), as.character(asset$canonical_label))) {
+      stop("Manifest path/label disagrees with canonical manuscript contract for ", asset$artifact_id, call. = FALSE)
+    }
+    data.frame(artifact_id = asset$artifact_id, canonical_path = canonical_path,
+      canonical_label = asset$canonical_label, stringsAsFactors = FALSE)
+  })
+  do.call(rbind, rows)
+}
+
+jss_phase2_validate_manuscript_scope <- function(root, manuscript, allow_pending = TRUE) {
+  text <- if (length(manuscript) == 1L && file.exists(manuscript))
+    paste(readLines(manuscript, warn = FALSE), collapse = "\n") else paste(manuscript, collapse = "\n")
+  scope <- utils::read.csv(file.path(root, "paper", "phase2-manuscript-scope.csv"), stringsAsFactors = FALSE, check.names = FALSE)
+  required <- c("scope_id", "tex_anchor", "evidence_scope", "verification_policy", "publication_state", "manual_requirement")
+  if (!identical(names(scope), required) || !nrow(scope) || anyDuplicated(scope$scope_id) ||
+      any(!scope$evidence_scope %in% c("public_empirical", "public_supplemental", "private_static")) ||
+      any(!scope$publication_state %in% c("pending_overleaf", "present", "retained_exception"))) {
+    stop("Phase 2 manuscript scope registry is malformed.", call. = FALSE)
+  }
+  present <- vapply(scope$tex_anchor, function(anchor)
+    grepl(paste0("\\label{", anchor, "}"), text, fixed = TRUE), logical(1L))
+  required_now <- scope$publication_state %in% c("present", "retained_exception")
+  if (any(required_now & !present)) stop("Manuscript is missing a required scoped TeX anchor.", call. = FALSE)
+  if (!allow_pending && any(scope$publication_state == "pending_overleaf")) {
+    stop("Canonical manuscript scope still has pending Overleaf work.", call. = FALSE)
+  }
+  invisible(data.frame(scope_id = scope$scope_id, anchor_present = present,
+    publication_state = scope$publication_state, stringsAsFactors = FALSE))
+}
+
+jss_phase2_known_canonical_issues <- function(root, manuscript) {
+  text <- if (length(manuscript) == 1L && file.exists(manuscript))
+    paste(readLines(manuscript, warn = FALSE), collapse = "\n") else paste(manuscript, collapse = "\n")
+  audit <- utils::read.csv(file.path(root, "paper", "canonical-phase2-manuscript-audit.csv"), stringsAsFactors = FALSE)
+  hits <- vapply(audit$canonical_excerpt, function(excerpt) {
+    tokens <- trimws(strsplit(excerpt, ";", fixed = TRUE)[[1L]])
+    any(vapply(tokens, grepl, logical(1L), x = text, fixed = TRUE))
+  }, logical(1L))
+  data.frame(audit, excerpt_present = hits, stringsAsFactors = FALSE)
+}
+
+jss_phase2_validate_canonical_source <- function(root, paper_repo) {
+  registry <- utils::read.csv(file.path(root, "paper", "phase2-canonical-source.csv"), stringsAsFactors = FALSE)
+  if (nrow(registry) != 1L || !grepl("^[0-9a-f]{40}$", registry$commit_sha) ||
+      !grepl("^[0-9a-f]{64}$", registry$main_tex_sha256)) {
+    stop("Canonical manuscript source registry is malformed.", call. = FALSE)
+  }
+  head <- tryCatch(system2("git", c("-C", normalizePath(paper_repo, winslash = "/", mustWork = TRUE),
+    "rev-parse", "HEAD"), stdout = TRUE, stderr = TRUE), error = function(e) character())
+  head <- if (length(head)) trimws(head[[1L]]) else ""
+  main <- file.path(paper_repo, "main.tex")
+  raw_sha256 <- if (file.exists(main)) digest::digest(main, algo = "sha256", serialize = FALSE, file = TRUE) else ""
+  if (!identical(head, registry$commit_sha[[1L]]) || !file.exists(main) ||
+      !identical(raw_sha256, registry$main_tex_sha256[[1L]])) {
+    stop("Canonical manuscript checkout identity differs from the audited source registry.", call. = FALSE)
+  }
+  invisible(registry)
+}
+
+jss_build_phase2_claim_evidence <- function(settings) {
+  source_identities <- jss_phase2_validate_claim_sources(settings)
+  claims <- jss_phase2_claim_register(settings$root)
   manuscript <- paste(readLines(file.path(settings$root, "paper", "manuscript", "main.tex"), warn = FALSE), collapse = "\n")
+  jss_phase2_validate_claim_markers(manuscript, claims, allow_pending = TRUE)
   missing_anchor <- claims$tex_anchor[!vapply(
     claims$tex_anchor,
     function(anchor) grepl(paste0("\\label{", anchor, "}"), manuscript, fixed = TRUE),
@@ -794,6 +1089,11 @@ jss_build_phase2_claim_evidence <- function(settings) {
       metric = claim$metric,
       expected_direction = claim$expected_direction,
       wording_strength = claim$wording_strength,
+      claim_marker = claim$claim_marker,
+      publication_scope = claim$publication_scope,
+      render_kind = claim$render_kind,
+      manuscript_state = claim$manuscript_state,
+      format_spec = claim$format_spec,
       attempt_artifact_id = claim$attempt_artifact_id,
       effect_artifact_id = claim$effect_artifact_id,
       source_row_key = claim$source_row_key,
@@ -827,8 +1127,9 @@ jss_write_phase2_claim_evidence <- function(settings) {
   path <- file.path(settings$tables_dir, "phase2-claim-evidence.csv")
   utils::write.csv(evidence, path, row.names = FALSE)
   installed <- utils::read.csv(path, stringsAsFactors = FALSE, check.names = FALSE)
-  registered <- utils::read.csv(file.path(settings$root, "paper", "phase2-claims.csv"), stringsAsFactors = FALSE)
+  registered <- jss_phase2_claim_register(settings$root)
   jss_phase2_validate_claim_evidence_rows(installed, registered, settings = settings)
+  jss_write_phase2_claim_assets(settings, installed, registered)
   path
 }
 
@@ -859,11 +1160,10 @@ jss_write_phase2_gate_audit <- function(settings, modules, claim_evidence) {
     "paper/manifest.csv"
   )
   manuscript <- paste(readLines(file.path(settings$root, "paper", "manuscript", "main.tex"), warn = FALSE), collapse = " ")
-  stale <- c(
-    "run 1,000 simulations", "approximately 20x slower", "58/60 Clayton", "six example cases",
-    "will generally fit reasonably", "can be captured very accurately",
-    "tables/08-simulation-sensitivity-correlation-misspecification"
-  )
+  known_stale <- utils::read.csv(file.path(settings$root, "paper", "canonical-phase2-manuscript-audit.csv"), stringsAsFactors = FALSE)
+  stale <- unique(trimws(unlist(strsplit(known_stale$canonical_excerpt[known_stale$status == "fail"], ";", fixed = TRUE))))
+  stale <- c(stale, "run 1,000 simulations", "will generally fit reasonably",
+    "can be captured very accurately", "tables/08-simulation-sensitivity-correlation-misspecification")
   hits <- stale[vapply(stale, grepl, logical(1), x = manuscript, fixed = TRUE)]
   rows[[4L]] <- jss_phase2_gate_row(
     "no_registered_stale_claims", !length(hits),
@@ -882,10 +1182,44 @@ jss_write_phase2_gate_audit <- function(settings, modules, claim_evidence) {
     if (claim_ok) paste("verified_claims", nrow(claims), sep = "=") else claim_error,
     "paper/phase2-claims.csv"
   )
+  schema_error <- NULL
+  schema_ok <- tryCatch({
+    register <- jss_phase2_claim_register(settings$root)
+    jss_phase2_validate_claim_markers(manuscript, register, allow_pending = TRUE)
+    jss_phase2_validate_manuscript_scope(settings$root, manuscript, allow_pending = TRUE)
+    TRUE
+  }, error = function(e) { schema_error <<- conditionMessage(e); FALSE })
+  rows[[6L]] <- jss_phase2_gate_row(
+    "claim_schema_and_scope_registered", schema_ok,
+    if (schema_ok) "unique claim markers and explicit public/private/supplemental scopes verified" else schema_error,
+    "paper/phase2-claims.csv; paper/phase2-manuscript-scope.csv"
+  )
+  design_error <- NULL
+  design_ok <- tryCatch({
+    jss_phase2_validate_design_contract(settings)
+    required <- file.path(settings$tables_dir, c("phase2-claim-macros.tex", "phase2-scenario-design.tex", "phase2-manuscript-checklist.csv"))
+    if (any(!file.exists(required))) stop("Generated claim/scenario/checklist asset is missing.", call. = FALSE)
+    TRUE
+  }, error = function(e) { design_error <<- conditionMessage(e); FALSE })
+  rows[[7L]] <- jss_phase2_gate_row(
+    "design_contract_and_tex_assets_verified", design_ok,
+    if (design_ok) "exact design values reconstructed and TeX-ready assets generated" else design_error,
+    "paper/phase2-design-contract.csv"
+  )
+  artifact_error <- NULL
+  artifact_ok <- tryCatch({
+    jss_phase2_validate_manuscript_artifact_registry(settings$root)
+    TRUE
+  }, error = function(e) { artifact_error <<- conditionMessage(e); FALSE })
+  rows[[8L]] <- jss_phase2_gate_row(
+    "canonical_manuscript_artifacts_registered", artifact_ok,
+    if (artifact_ok) "manifest paths and labels match the canonical manuscript contract" else artifact_error,
+    "paper/phase2-manuscript-artifacts.csv"
+  )
   main_bundle <- file.path(settings$data_dir, "main-recovery")
   validation_path <- file.path(main_bundle, "evidence_validation.csv")
   validation <- if (file.exists(validation_path)) utils::read.csv(validation_path, stringsAsFactors = FALSE) else data.frame(pass = FALSE)
-  rows[[6L]] <- jss_phase2_gate_row(
+  rows[[9L]] <- jss_phase2_gate_row(
     "main_recovery_code_gate", nrow(validation) > 0L && all(as.logical(validation$pass)),
     "structural and recomputation contract checks; distinct from production completion", validation_path
   )
@@ -898,7 +1232,7 @@ jss_write_phase2_gate_audit <- function(settings, modules, claim_evidence) {
       attestation_path = recovery_attestation, signature_path = recovery_signature, require_attestation = TRUE)
     TRUE
   }, error = function(e) { trust_error <<- conditionMessage(e); FALSE })
-  rows[[7L]] <- jss_phase2_gate_row(
+  rows[[10L]] <- jss_phase2_gate_row(
     "main_recovery_production_evidence_gate", trust_ok,
     if (trust_ok) "checkout-external pinned-key detached attestation validates the immutable bundle" else paste("external attestation gate failed", trust_error, sep = ": "), recovery_attestation
   )

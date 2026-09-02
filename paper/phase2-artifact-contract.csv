@@ -108,3 +108,6 @@
 "phase2-artifacts-2026-09-03.1","p2_scaling_hardware","table","tables/10-fit-scaling-hardware.csv","module_10_fit_scaling","paper|full","fit-scaling","public","active","canonical_sha256"
 "phase2-artifacts-2026-09-03.1","p2_gate_audit","audit","tables/phase2-gate-audit.csv","phase2_gate_audit","paper|full","all-phase2-public","public","active","canonical_sha256"
 "phase2-artifacts-2026-09-03.1","p2_claim_evidence","audit","tables/phase2-claim-evidence.csv","phase2_claim_evidence","paper|full","all-phase2-public","public","active","canonical_sha256"
+"phase2-artifacts-2026-09-03.1","p2_claim_macros","table","tables/phase2-claim-macros.tex","phase2_claim_evidence","paper|full","all-phase2-public","public","active","canonical_sha256"
+"phase2-artifacts-2026-09-03.1","p2_scenario_design_tex","table","tables/phase2-scenario-design.tex","phase2_claim_evidence","paper|full","all-phase2-public","public","active","canonical_sha256"
+"phase2-artifacts-2026-09-03.1","p2_manuscript_checklist","audit","tables/phase2-manuscript-checklist.csv","phase2_claim_evidence","paper|full","all-phase2-public","public","active","canonical_sha256"

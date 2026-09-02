@@ -85,6 +85,135 @@ test_that("Phase 2 proportion uncertainty is explicit", {
   expect_true(all(interval$mcse > 0))
 })
 
+local_phase2_claim_env <- function() {
+  root <- normalizePath(file.path("..", ".."), winslash = "/", mustWork = TRUE)
+  env <- new.env(parent = globalenv())
+  source(file.path(root, "paper", "R", "replication-helpers.R"), local = env)
+  source(file.path(root, "paper", "R", "phase2-paper-evidence.R"), local = env)
+  env
+}
+
+local_phase2_design_fixture <- function(root, out) {
+  manifest <- utils::read.csv(file.path(root, "paper", "manifest.csv"), stringsAsFactors = FALSE)
+  write_artifact <- function(id, x) {
+    rel <- manifest$generated_path[manifest$artifact_id == id]
+    path <- file.path(out, rel)
+    dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+    utils::write.csv(x, path, row.names = FALSE, na = "")
+  }
+  write_artifact("p2_recovery_attempts", data.frame(
+    n_subjects = 500L, n_time = 4L, target_replicates = 100L,
+    margin_family = c("BCPE", "NBI"), copula_code = c("t", "C"),
+    method = c("gamlss.longitudinal", "gamlss2")))
+  write_artifact("p2_optimizer_design", data.frame(
+    case_id = sprintf("JVS%02d", 1:4),
+    contrast_factor = c("base", "theta_strength", "sigma_strength", "family")))
+  write_artifact("p2_optimizer_attempts", data.frame(method = c("rs_joint", "rs_separate")))
+  missing <- expand.grid(missing_mechanism = c("monotone_dropout", "time_dependent_intermittent_mar"),
+    target_missing_rate = seq(0, .5, .1), rep = 1:20, stringsAsFactors = FALSE)
+  missing$n <- 500L; missing$d <- 4L
+  write_artifact("p2_missing_attempts", missing)
+  copula <- expand.grid(generating_copula = c("C", "N"), fitted_copula = c("C", "N"),
+    tau_label = c("high", "moderate"), n_subject = c(50L, 150L, 500L), rep = 1:100,
+    stringsAsFactors = FALSE)
+  copula$n_time <- 4L
+  write_artifact("p2_copula_results", copula)
+  write_artifact("p2_mvt_scenario_grid", expand.grid(
+    family = c("binomial", "gamma", "gaussian", "poisson"),
+    dependence = c("external_ar1", "external_exchangeable",
+      "native_covariate_dependent_adjacent", "native_time_varying_adjacent"),
+    n_time = 20L, stringsAsFactors = FALSE))
+  write_artifact("p2_mvt_fit_status", data.frame(rep = 1:100))
+  write_artifact("p2_scaling_scenarios", expand.grid(model_class = c("continuous", "discrete"),
+    n_subjects = c(100L, 300L), n_visits = c(4L, 8L), smooth_k = c(5L, 10L),
+    stringsAsFactors = FALSE))
+}
+
+test_that("Phase 2 claim markers are unique, scoped, and mutation-sensitive", {
+  env <- local_phase2_claim_env()
+  root <- normalizePath(file.path("..", ".."), winslash = "/", mustWork = TRUE)
+  claims <- env$jss_phase2_claim_register(root)
+  expect_identical(anyDuplicated(claims$claim_marker), 0L)
+  expect_true(any(claims$expected_direction == "negative"))
+  expect_true(any(claims$expected_direction == "positive"))
+  expect_setequal(unique(claims$publication_scope), c("public_manuscript", "public_supplemental"))
+  expect_silent(env$jss_phase2_validate_claim_markers("", claims, allow_pending = TRUE))
+  expect_error(env$jss_phase2_validate_claim_markers("", claims, allow_pending = FALSE), "pending Overleaf")
+
+  present <- claims[1L, , drop = FALSE]
+  present$manuscript_state <- "present"
+  expect_silent(env$jss_phase2_validate_claim_markers(present$claim_marker, present, allow_pending = FALSE))
+  expect_error(env$jss_phase2_validate_claim_markers("", present, allow_pending = FALSE), "exactly once")
+  expect_error(env$jss_phase2_validate_claim_markers(paste(present$claim_marker, present$claim_marker), present), "exactly once")
+  expect_error(env$jss_phase2_validate_claim_markers("\\PhaseTwoClaim{unregistered}", claims), "unregistered")
+  supplemental <- claims[claims$publication_scope == "public_supplemental", , drop = FALSE][1L, ]
+  expect_error(env$jss_phase2_validate_claim_markers(supplemental$claim_marker, supplemental), "leaked")
+})
+
+test_that("Phase 2 exact design registry reconstructs inputs and renders TeX-ready assets", {
+  env <- local_phase2_claim_env()
+  root <- normalizePath(file.path("..", ".."), winslash = "/", mustWork = TRUE)
+  out <- tempfile("phase2-design-"); dir.create(out)
+  local_phase2_design_fixture(root, out)
+  settings <- list(root = root, out_dir = out, tables_dir = file.path(out, "tables"))
+  design <- env$jss_phase2_validate_design_contract(settings)
+  expect_equal(nrow(design), nrow(utils::read.csv(file.path(root, "paper", "phase2-design-contract.csv"))))
+  expect_true(all(grepl("^[0-9a-f]{64}$", design$source_sha256)))
+
+  claims <- env$jss_phase2_claim_register(root)
+  evidence <- data.frame(claim_id = claims$claim_id, estimate = seq_len(nrow(claims)),
+    lower = seq_len(nrow(claims)) - .1, upper = seq_len(nrow(claims)) + .1,
+    attempted = 100L, retained = 99L, stringsAsFactors = FALSE)
+  assets <- env$jss_write_phase2_claim_assets(settings, evidence, claims)
+  expect_true(all(file.exists(assets[-1L])))
+  macros <- paste(readLines(assets[["claim_macros"]], warn = FALSE), collapse = "\n")
+  expect_match(macros, "PhaseTwoClaim@p2-recovery-planned-cells", fixed = TRUE)
+  scenarios <- paste(readLines(assets[["scenario_design"]], warn = FALSE), collapse = "\n")
+  expect_match(scenarios, "monotone\\_dropout", fixed = TRUE)
+
+  manifest <- utils::read.csv(file.path(root, "paper", "manifest.csv"), stringsAsFactors = FALSE)
+  bad <- file.path(out, manifest$generated_path[manifest$artifact_id == "p2_scaling_scenarios"])
+  x <- utils::read.csv(bad, stringsAsFactors = FALSE); x$n_subjects <- 999L; utils::write.csv(x, bad, row.names = FALSE)
+  expect_error(env$jss_phase2_validate_design_contract(settings), "design values disagree")
+})
+
+test_that("canonical manuscript paths, labels, and private scope are explicit", {
+  env <- local_phase2_claim_env()
+  root <- normalizePath(file.path("..", ".."), winslash = "/", mustWork = TRUE)
+  expect_silent(env$jss_phase2_validate_manuscript_artifact_registry(root))
+  assets <- utils::read.csv(file.path(root, "paper", "phase2-manuscript-artifacts.csv"), stringsAsFactors = FALSE)
+  present <- assets$canonical_state == "present"
+  manuscript <- paste(c(
+    paste0("\\label{", utils::read.csv(file.path(root, "paper", "phase2-manuscript-scope.csv"), stringsAsFactors = FALSE)$tex_anchor, "}"),
+    unlist(lapply(which(present), function(i) if (assets$usage_kind[[i]] == "includegraphics")
+      c(assets$canonical_path[[i]], paste0("\\label{", assets$canonical_label[[i]], "}")) else
+      c(paste0("\\input{", assets$canonical_path[[i]], "}"), paste0("\\ref{", assets$canonical_label[[i]], "}"))))
+  ), collapse = "\n")
+  expect_silent(env$jss_phase2_validate_manuscript_assets(root, manuscript, allow_pending = TRUE))
+  expect_silent(env$jss_phase2_validate_manuscript_scope(root, manuscript, allow_pending = TRUE))
+  expect_error(env$jss_phase2_validate_manuscript_assets(root, manuscript, allow_pending = FALSE), "pending")
+  expect_error(env$jss_phase2_validate_manuscript_assets(root, sub(assets$canonical_path[[1L]], "wrong.png", manuscript, fixed = TRUE)),
+    "missing registered path")
+
+  tmp <- tempfile("phase2-root-"); dir.create(file.path(tmp, "paper"), recursive = TRUE)
+  file.copy(file.path(root, "paper", c("manifest.csv", "phase2-manuscript-artifacts.csv")), file.path(tmp, "paper"))
+  forged <- utils::read.csv(file.path(tmp, "paper", "manifest.csv"), stringsAsFactors = FALSE)
+  forged$manuscript_label[forged$artifact_id == "p2_copula_heatmap"] <- "fig:wrong"
+  utils::write.csv(forged, file.path(tmp, "paper", "manifest.csv"), row.names = FALSE, na = "")
+  expect_error(env$jss_phase2_validate_manuscript_artifact_registry(tmp), "path/label disagrees")
+})
+
+test_that("audited canonical manuscript exposes every registered stale Phase 2 block", {
+  canonical <- "C:/w/paper-canonical-audit"
+  skip_if_not(dir.exists(canonical))
+  env <- local_phase2_claim_env()
+  root <- normalizePath(file.path("..", ".."), winslash = "/", mustWork = TRUE)
+  expect_silent(env$jss_phase2_validate_canonical_source(root, canonical))
+  audit <- env$jss_phase2_known_canonical_issues(root, file.path(canonical, "main.tex"))
+  expect_true(all(audit$excerpt_present[audit$status == "fail"]))
+  expect_identical(sum(audit$status == "fail"), 8L)
+})
+
 test_that("Phase 2 central target and seed registrations are explicit", {
   root <- normalizePath(file.path("..", ".."), winslash = "/", mustWork = TRUE)
   target_code <- paste(readLines(file.path(root, "paper", "_targets.R"), warn = FALSE), collapse = "\n")

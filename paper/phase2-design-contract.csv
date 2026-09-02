@@ -1,0 +1,29 @@
+design_id,study_id,tex_anchor,source_artifact_id,field,check_type,expected_values,display_label,publication_scope
+recovery-subjects,main-recovery,sec:sim_recovery,p2_recovery_attempts,n_subjects,set,500,Subjects,public_manuscript
+recovery-visits,main-recovery,sec:sim_recovery,p2_recovery_attempts,n_time,set,4,Visits,public_manuscript
+recovery-replicates,main-recovery,sec:sim_recovery,p2_recovery_attempts,target_replicates,set,100,Replicates per design,public_manuscript
+recovery-margins,main-recovery,sec:sim_recovery,p2_recovery_attempts,margin_family,set,BCPE|NBI,Margin families,public_manuscript
+recovery-copulas,main-recovery,sec:sim_recovery,p2_recovery_attempts,copula_code,set,C|t,Copulas,public_manuscript
+recovery-methods,main-recovery,sec:sim_recovery,p2_recovery_attempts,method,unique_count,2,Fitted methods per design,public_manuscript
+optimizer-cases,optimizer-benchmark,sec:sim_jvs,p2_optimizer_design,case_id,set,JVS01|JVS02|JVS03|JVS04,Scenarios,public_manuscript
+optimizer-factors,optimizer-benchmark,sec:sim_jvs,p2_optimizer_design,contrast_factor,set,base|family|sigma_strength|theta_strength,One-factor contrasts,public_manuscript
+optimizer-methods,optimizer-benchmark,sec:sim_jvs,p2_optimizer_attempts,method,set,rs_joint|rs_separate,Optimizers,public_manuscript
+missingness-mechanisms,missingness,sec:sim_sensitivity_missingness,p2_missing_attempts,missing_mechanism,set,monotone_dropout|time_dependent_intermittent_mar,Missingness mechanisms,public_manuscript
+missingness-rates,missingness,sec:sim_sensitivity_missingness,p2_missing_attempts,target_missing_rate,set,0|0.1|0.2|0.3|0.4|0.5,Target missingness rates,public_manuscript
+missingness-subjects,missingness,sec:sim_sensitivity_missingness,p2_missing_attempts,n,set,500,Subjects,public_manuscript
+missingness-visits,missingness,sec:sim_sensitivity_missingness,p2_missing_attempts,d,set,4,Visits,public_manuscript
+missingness-replicates,missingness,sec:sim_sensitivity_missingness,p2_missing_attempts,rep,integer_range,1:20,Replicates per scenario,public_manuscript
+copula-generators,copula-misspecification,sec:sim_sensitivity_copula,p2_copula_results,generating_copula,set,C|N,Generating copulas,public_manuscript
+copula-fits,copula-misspecification,sec:sim_sensitivity_copula,p2_copula_results,fitted_copula,set,C|N,Fitted copulas,public_manuscript
+copula-tau-labels,copula-misspecification,sec:sim_sensitivity_copula,p2_copula_results,tau_label,set,high|moderate,Kendall tau levels,public_manuscript
+copula-subjects,copula-misspecification,sec:sim_sensitivity_copula,p2_copula_results,n_subject,set,50|150|500,Subjects,public_manuscript
+copula-visits,copula-misspecification,sec:sim_sensitivity_copula,p2_copula_results,n_time,set,4,Visits,public_manuscript
+copula-replicates,copula-misspecification,sec:sim_sensitivity_copula,p2_copula_results,rep,integer_range,1:100,Replicates per generating scenario,public_manuscript
+benchmark-families,multivariate-benchmark,sec:sim_sensitivity_benchmark,p2_mvt_scenario_grid,family,set,binomial|gamma|gaussian|poisson,Response families,public_manuscript
+benchmark-dependence,multivariate-benchmark,sec:sim_sensitivity_benchmark,p2_mvt_scenario_grid,dependence,set,external_ar1|external_exchangeable|native_covariate_dependent_adjacent|native_time_varying_adjacent,Dependence structures,public_manuscript
+benchmark-visits,multivariate-benchmark,sec:sim_sensitivity_benchmark,p2_mvt_scenario_grid,n_time,set,20,Visits,public_manuscript
+benchmark-replicates,multivariate-benchmark,sec:sim_sensitivity_benchmark,p2_mvt_fit_status,rep,integer_range,1:100,Replicates per case,public_manuscript
+scaling-subjects,fit-scaling,sec:discussion,p2_scaling_scenarios,n_subjects,set,100|300,Measured subject counts,public_supplemental
+scaling-visits,fit-scaling,sec:discussion,p2_scaling_scenarios,n_visits,set,4|8,Measured visit counts,public_supplemental
+scaling-basis,fit-scaling,sec:discussion,p2_scaling_scenarios,smooth_k,set,5|10,Measured smooth basis sizes,public_supplemental
+scaling-models,fit-scaling,sec:discussion,p2_scaling_scenarios,model_class,set,continuous|discrete,Representative models,public_supplemental
