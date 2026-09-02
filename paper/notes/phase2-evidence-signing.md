@@ -35,8 +35,11 @@ signs each production bundle.
    The exact prefixes are `GAMLSS_LONGITUDINAL_JSS_MAIN_RECOVERY`,
    `GAMLSS_LONGITUDINAL_JSS_OPTIMIZER`,
    `GAMLSS_LONGITUDINAL_JSS_MISSINGNESS`, `GAMLSS_LONGITUDINAL_JSS_COPULA`,
-   and `GAMLSS_LONGITUDINAL_MVT`. Module 07 has no resumable case checkpoint
-   ledger, so its signature instead binds the exact 21,600-row full-R100 CSV,
+   and `GAMLSS_LONGITUDINAL_MVT`. Module 07 validates resumable per-fit
+   checkpoints and records rejected checkpoints in a quarantine ledger; its
+   signature binds the resulting exact 2,400-row full-R100 CSV
+   (1,200 independently seeded generated datasets, each fitted twice)
+   for the Phase-1-supported Gamma/Gaussian and Gamma/Clayton routes,
    immutable configuration, checked-out package source, producer, and numerical
    runtime provenance. Main recovery binds the exact canonical bundle,
    output manifest/checkpoint, runner settings, control-source manifest,

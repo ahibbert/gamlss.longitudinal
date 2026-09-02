@@ -132,6 +132,11 @@ test_that("Phase 2 manifest retires superseded evidence and registers current ar
   claims <- utils::read.csv(file.path(root, "paper", "phase2-claims.csv"), stringsAsFactors = FALSE)
   expect_true(all(claims$attempt_artifact_id %in% active))
   expect_true(all(claims$effect_artifact_id %in% active))
+  copula_claim <- claims[claims$claim_id == "p2-copula-selection-attempts", , drop = FALSE]
+  expect_identical(nrow(copula_claim), 1L)
+  expect_identical(copula_claim$wording_strength, "exact")
+  expect_identical(copula_claim$expected_value, 2400L)
+  expect_false(any(claims$expected_value == 21600L, na.rm = TRUE))
 })
 
 test_that("Phase 2 manifest is an exact bidirectional module allowlist", {
@@ -262,6 +267,8 @@ test_that("protected manuscript contains no retired Phase 2 counts or table inpu
     "run 1,000 simulations", "N=1000", "N=5000", "approximately 20x slower",
     "58/60 Clayton", "Gaussian 1/10 simulations", "Clayton 3/10",
     "Frank 4/10", "Gumbel 2/10",
+    "simulate all available copulas", "fit with all available copulas",
+    "every available copula",
     "tables/normal-joint-vs-separate-six-case-median-iqr-table",
     "tables/gamma-joint-vs-separate-six-case-median-iqr-table",
     "tables/negative-binomial-joint-vs-separate-six-case-median-iqr-table",
@@ -273,6 +280,8 @@ test_that("protected manuscript contains no retired Phase 2 counts or table inpu
   expect_identical(hits, character())
   expect_match(manuscript, "subject-level monotone dropout", fixed = TRUE)
   expect_match(manuscript, "time-dependent intermittent MAR", fixed = TRUE)
+  expect_match(manuscript, "Gaussian and Clayton copulas", fixed = TRUE)
+  expect_match(manuscript, "100 replicates per generating scenario", fixed = TRUE)
 })
 
 test_that("replication output override is explicit and scoped", {
