@@ -1,5 +1,30 @@
 jss_misspec_copulas <- function() {
-  c("N", "C", "F", "G", "J", "t")
+  # Keep the evidence design inside the package's locked Phase 1 capability
+  # contract.  The Gamma margin is currently validated end to end with the
+  # Gaussian and Clayton copulas only; using the package-wide copula list here
+  # would turn unsupported preflight errors into purported selection evidence.
+  c("N", "C")
+}
+
+jss_misspec_capability_contract <- function(repo_root) {
+  registry_path <- file.path(repo_root, "R", "capability-registry.R")
+  if (!file.exists(registry_path)) {
+    stop("Module 07 cannot locate the checked-out Phase 1 capability registry.", call. = FALSE)
+  }
+  registry <- new.env(parent = baseenv())
+  sys.source(registry_path, envir = registry)
+  version <- registry$.gl_capability_registry_version()
+  gamma_copulas <- as.character(
+    registry$.gl_capability_margin_specs()$GA$compatible_copulas
+  )
+  if (!identical(version, "2026.2") ||
+      !identical(gamma_copulas, jss_misspec_copulas())) {
+    stop(
+      "Module 07's Gamma copula-selection design no longer matches the locked Phase 1 capability registry; review and version the evidence design before running.",
+      call. = FALSE
+    )
+  }
+  list(registry_version = version, copulas = gamma_copulas)
 }
 
 jss_misspec_tau_levels <- function() {
@@ -52,9 +77,16 @@ jss_misspec_config <- function(settings, stage = jss_misspec_stage(settings$prof
   timeout_default <- if (identical(stage, "smoke")) 20 else 600
   timeout <- if (nzchar(timeout_raw)) suppressWarnings(as.numeric(timeout_raw)) else timeout_default
   repo_root <- if (!is.null(settings$root) && nzchar(settings$root)) settings$root else jss_misspec_repo_root()
+  capability <- jss_misspec_capability_contract(repo_root)
+  source_path <- normalizePath(
+    file.path(repo_root, "paper", "R", "07-gamma-copula-misspecification.R"),
+    winslash = "/", mustWork = TRUE
+  )
   config <- list(
     stage = stage,
-    copulas = jss_misspec_copulas(),
+    margin_family = "GA",
+    copulas = capability$copulas,
+    capability_registry_version = capability$registry_version,
     tau_levels = if (identical(stage, "smoke")) {
       jss_misspec_tau_levels()[1L, , drop = FALSE]
     } else {
@@ -65,23 +97,33 @@ jss_misspec_config <- function(settings, stage = jss_misspec_stage(settings$prof
     reps = reps,
     margin_mu = 2,
     margin_sigma = 0.5,
-    t_zeta = 5,
     max_outer_iter = if (identical(stage, "smoke")) 3L else 100L,
     max_inner_iter = if (identical(stage, "smoke")) 3L else 100L,
     max_elapsed_sec = timeout,
     compute_vcov = !identical(stage, "smoke"),
     seed = settings$seed + 700000L,
     repo_root = normalizePath(repo_root, winslash = "/", mustWork = TRUE),
-    source_path = normalizePath(
-      file.path(repo_root, "paper", "R", "07-gamma-copula-misspecification.R"),
-      winslash = "/", mustWork = TRUE
-    )
+    source_path = source_path,
+    producer_sha256 = jss_misspec_sha256_file(source_path),
+    package_source_sha256 = jss_misspec_package_source_sha256(repo_root)
+  )
+  config$configuration_sha256 <- jss_misspec_sha256_object(
+    jss_misspec_registered_config_identity(config)
   )
   jss_misspec_validate_config(config, require_callr = !identical(stage, "smoke"))
   config
 }
 
-jss_misspec_validate_config <- function(config, require_callr = TRUE) {
+jss_misspec_validate_config <- function(config, require_callr = TRUE, verify_source = TRUE) {
+  capability <- jss_misspec_capability_contract(config$repo_root)
+  if (!identical(config$margin_family, "GA") ||
+      !identical(config$capability_registry_version, capability$registry_version) ||
+      !identical(as.character(config$copulas), capability$copulas)) {
+    stop(
+      "Module 07 configuration diverges from the locked Gamma capability contract.",
+      call. = FALSE
+    )
+  }
   if (identical(config$stage, "full") &&
       (length(config$reps) != 1L || !identical(as.integer(config$reps), 100L))) {
     stop("Module 07 full configuration is immutable and requires exactly 100 replicates.", call. = FALSE)
@@ -94,6 +136,25 @@ jss_misspec_validate_config <- function(config, require_callr = TRUE) {
   }
   if (!file.exists(config$source_path) || !file.exists(file.path(config$repo_root, "DESCRIPTION"))) {
     stop("Module 07 checked-out source/config paths are invalid.", call. = FALSE)
+  }
+  hashes <- c(
+    producer_sha256 = config$producer_sha256,
+    package_source_sha256 = config$package_source_sha256,
+    configuration_sha256 = config$configuration_sha256
+  )
+  if (!is.character(hashes) || length(hashes) != 3L ||
+      any(!grepl("^[0-9a-f]{64}$", hashes))) {
+    stop("Module 07 configuration lacks valid checked-out source identities.", call. = FALSE)
+  }
+  if (isTRUE(verify_source)) {
+    current_configuration <- jss_misspec_sha256_object(
+      jss_misspec_registered_config_identity(config)
+    )
+    if (!identical(config$producer_sha256, jss_misspec_sha256_file(config$source_path)) ||
+        !identical(config$package_source_sha256, jss_misspec_package_source_sha256(config$repo_root)) ||
+        !identical(config$configuration_sha256, current_configuration)) {
+      stop("Module 07 configuration is stale relative to the checked-out producer/package source.", call. = FALSE)
+    }
   }
   invisible(TRUE)
 }
@@ -135,7 +196,7 @@ jss_misspec_paths <- function(settings) {
     tau_error_heatmap = file.path(settings$figures_dir, paste0(module_id, "-tau-error-heatmap.png")),
     paper_summary_heatmap = file.path(settings$figures_dir, paste0(module_id, "-paper-summary-heatmap.png")),
     convergence = file.path(settings$figures_dir, paste0(module_id, "-convergence.png")),
-    checkpoints = file.path(settings$data_dir, paste0(module_id, "-checkpoints")),
+    checkpoints = file.path(settings$data_dir, paste0(module_id, "-checkpoints-ga-nc-v1")),
     smoke_checkpoints = file.path(settings$data_dir, paste0(module_id, "-smoke-checkpoints"))
   )
 }
@@ -151,6 +212,11 @@ jss_misspec_grid <- function(config) {
   )
   tau_map <- stats::setNames(config$tau_levels$target_tau, config$tau_levels$tau_label)
   base$target_tau <- unname(tau_map[base$tau_label])
+  base$margin_family <- config$margin_family
+  base$capability_registry_version <- config$capability_registry_version
+  base$producer_sha256 <- config$producer_sha256
+  base$package_source_sha256 <- config$package_source_sha256
+  base$configuration_sha256 <- config$configuration_sha256
   base$n_time <- length(config$times)
   base$seed <- mapply(
     jss_misspec_seed,
@@ -288,14 +354,18 @@ jss_misspec_sha256_object <- function(x) {
 
 jss_misspec_registered_config_identity <- function(config) {
   list(
-    stage = config$stage, copulas = as.character(config$copulas),
+    stage = config$stage, margin_family = config$margin_family,
+    copulas = as.character(config$copulas),
+    capability_registry_version = as.character(config$capability_registry_version),
     tau_levels = config$tau_levels, sample_sizes = as.integer(config$sample_sizes),
     times = as.integer(config$times), reps = as.integer(config$reps),
     margin_mu = config$margin_mu, margin_sigma = config$margin_sigma,
-    t_zeta = config$t_zeta, max_outer_iter = as.integer(config$max_outer_iter),
+    max_outer_iter = as.integer(config$max_outer_iter),
     max_inner_iter = as.integer(config$max_inner_iter),
     max_elapsed_sec = as.numeric(config$max_elapsed_sec),
-    compute_vcov = isTRUE(config$compute_vcov), seed = as.integer(config$seed)
+    compute_vcov = isTRUE(config$compute_vcov), seed = as.integer(config$seed),
+    producer_sha256 = config$producer_sha256,
+    package_source_sha256 = config$package_source_sha256
   )
 }
 
@@ -335,6 +405,24 @@ jss_misspec_package_source_sha256 <- function(root) {
     file = rel, sha256 = vapply(files, jss_misspec_sha256_file, character(1L)),
     stringsAsFactors = FALSE
   ))
+}
+
+jss_misspec_load_checkout <- function(repo_root, expected_package_source_sha256) {
+  if (!requireNamespace("pkgload", quietly = TRUE)) {
+    stop("pkgload is required for checked-out Module 07 execution.", call. = FALSE)
+  }
+  pkgload::load_all(repo_root, quiet = TRUE, export_all = TRUE, helpers = FALSE)
+  expected_root <- normalizePath(repo_root, winslash = "/", mustWork = TRUE)
+  namespace_path <- normalizePath(
+    getNamespaceInfo(asNamespace("gamlss.longitudinal"), "path"),
+    winslash = "/", mustWork = TRUE
+  )
+  actual_hash <- jss_misspec_package_source_sha256(repo_root)
+  if (!identical(namespace_path, expected_root) ||
+      !identical(actual_hash, expected_package_source_sha256)) {
+    stop("Module 07 execution did not load and attest the immutable checked-out package source.", call. = FALSE)
+  }
+  c(namespace_path = namespace_path, package_source_sha256 = actual_hash)
 }
 
 jss_misspec_candidate_identity <- function(results_path, config) {
@@ -388,7 +476,7 @@ jss_misspec_verify_signed_approval <- function(identity, config,
   if (!is.list(x) || !identical(names(x), expected) || !identical(x$schema_version, 2L) ||
       !identical(x$study, "copula-misspecification") ||
       !identical(x$results_sha256, identity$results_sha256[[1L]]) ||
-      !identical(as.integer(x$results_rows), 21600L) ||
+      !identical(as.integer(x$results_rows), as.integer(nrow(jss_misspec_grid(config)))) ||
       !identical(as.integer(x$results_rows), identity$results_rows[[1L]]) ||
       !identical(x$configuration_sha256, identity$configuration_sha256[[1L]]) ||
       !identical(x$producer_sha256, identity$producer_sha256[[1L]]) ||
@@ -484,7 +572,9 @@ jss_misspec_write_csv_atomic <- function(x, path) {
 
 jss_misspec_registered_grid_fields <- function() {
   c(
-    "fit_id", "generating_copula", "fitted_copula", "tau_label", "target_tau",
+    "fit_id", "margin_family", "capability_registry_version",
+    "producer_sha256", "package_source_sha256", "configuration_sha256",
+    "generating_copula", "fitted_copula", "tau_label", "target_tau",
     "n_subject", "n_time", "rep", "seed", "dataset_seed"
   )
 }
@@ -554,6 +644,20 @@ jss_misspec_result_contract_issues <- function(results, grid = NULL, config = NU
       any(!as.character(results$fitted_copula) %in% jss_misspec_copulas()) ||
       any(!as.character(results$tau_label) %in% jss_misspec_tau_levels()$tau_label)) {
     issues <- c(issues, "copula or tau-level value is outside the registered grid")
+  }
+  if (any(is.na(results$margin_family)) || any(as.character(results$margin_family) != "GA") ||
+      any(is.na(results$capability_registry_version)) ||
+      any(as.character(results$capability_registry_version) != "2026.2")) {
+    issues <- c(issues, "margin family or capability-registry version is outside the registered design")
+  }
+  if (!is.null(config) && (
+      any(is.na(results$producer_sha256)) ||
+      any(as.character(results$producer_sha256) != config$producer_sha256) ||
+      any(is.na(results$package_source_sha256)) ||
+      any(as.character(results$package_source_sha256) != config$package_source_sha256) ||
+      any(is.na(results$configuration_sha256)) ||
+      any(as.character(results$configuration_sha256) != config$configuration_sha256))) {
+    issues <- c(issues, "result/checkpoint source or configuration fingerprint is stale")
   }
   tau_map <- stats::setNames(jss_misspec_tau_levels()$target_tau, jss_misspec_tau_levels()$tau_label)
   expected_tau <- unname(tau_map[as.character(results$tau_label)])
@@ -684,11 +788,7 @@ jss_misspec_simulate <- function(generating_copula, target_tau, n_subject, confi
     margin_dist = gamlss.dist::GA(mu.link = "log", sigma.link = "log"),
     copula_dist = generating_copula,
     margin_params = list(mu = config$margin_mu, sigma = config$margin_sigma),
-    copula_params = if (identical(generating_copula, "t")) {
-      list(tau = target_tau, zeta = config$t_zeta)
-    } else {
-      list(tau = target_tau)
-    },
+    copula_params = list(tau = target_tau),
     seed = seed,
     include_truth = TRUE
   )
@@ -738,21 +838,16 @@ jss_misspec_fit_one_in_process <- function(dat, row, config) {
 }
 
 jss_misspec_killable_call <- function(fun_name, args, config) {
-  jss_misspec_validate_config(config, require_callr = TRUE)
+  jss_misspec_validate_config(config, require_callr = TRUE, verify_source = FALSE)
   tryCatch(
     callr::r(
       function(fun_name, args, config) {
         setwd(config$repo_root)
         source(config$source_path, local = .GlobalEnv)
-        if (!requireNamespace("pkgload", quietly = TRUE)) stop("pkgload is required for checked-out Module 07 execution.")
-        pkgload::load_all(config$repo_root, quiet = TRUE, export_all = TRUE, helpers = FALSE)
-        namespace_path <- normalizePath(
-          getNamespaceInfo(asNamespace("gamlss.longitudinal"), "path"),
-          winslash = "/", mustWork = TRUE
-        )
-        if (!identical(namespace_path, normalizePath(config$repo_root, winslash = "/", mustWork = TRUE))) {
-          stop("Module 07 killable subprocess loaded stale installed package source.")
+        if (!identical(jss_misspec_sha256_file(config$source_path), config$producer_sha256)) {
+          stop("Module 07 killable subprocess producer source changed after configuration.")
         }
+        jss_misspec_load_checkout(config$repo_root, config$package_source_sha256)
         do.call(get(fun_name, envir = .GlobalEnv), args)
       },
       args = list(fun_name = fun_name, args = args, config = config),
@@ -769,7 +864,7 @@ jss_misspec_timeout_probe <- function(seconds) {
 }
 
 jss_misspec_fit_one <- function(dat, row, config) {
-  jss_misspec_validate_config(config, require_callr = TRUE)
+  jss_misspec_validate_config(config, require_callr = TRUE, verify_source = FALSE)
   start <- proc.time()[["elapsed"]]
   child_config <- config
   child_config$max_elapsed_sec <- max(0.1, as.numeric(config$max_elapsed_sec) * 0.9)
@@ -836,6 +931,11 @@ jss_misspec_result_row <- function(fit, dat, row, config, elapsed, warnings) {
   }
   out <- data.frame(
     fit_id = row$fit_id,
+    margin_family = row$margin_family,
+    capability_registry_version = row$capability_registry_version,
+    producer_sha256 = row$producer_sha256,
+    package_source_sha256 = row$package_source_sha256,
+    configuration_sha256 = row$configuration_sha256,
     stage = config$stage,
     generating_copula = row$generating_copula,
     fitted_copula = row$fitted_copula,
@@ -947,6 +1047,33 @@ jss_misspec_run_scenario_checkpoints <- function(idx, pending, config) {
   length(idx)
 }
 
+jss_misspec_prepare_workers <- function(cl, config,
+    source_env = environment(jss_misspec_run_checkpoints)) {
+  functions <- ls(pattern = "^jss_misspec_", envir = source_env)
+  parallel::clusterExport(cl, functions, envir = source_env)
+  parallel::clusterEvalQ(cl, {
+    suppressPackageStartupMessages(library(gamlss.dist))
+    suppressPackageStartupMessages(library(VineCopula))
+    NULL
+  })
+  attestations <- parallel::clusterCall(
+    cl,
+    function(repo_root, expected_hash) {
+      jss_misspec_load_checkout(repo_root, expected_hash)
+    },
+    config$repo_root,
+    config$package_source_sha256
+  )
+  expected <- c(
+    namespace_path = normalizePath(config$repo_root, winslash = "/", mustWork = TRUE),
+    package_source_sha256 = config$package_source_sha256
+  )
+  if (!all(vapply(attestations, identical, logical(1L), y = expected))) {
+    stop("One or more Module 07 PSOCK workers failed checked-out source attestation.", call. = FALSE)
+  }
+  invisible(attestations)
+}
+
 jss_misspec_run_checkpoints <- function(grid, config, checkpoint_dir, workers = 1L) {
   dir.create(checkpoint_dir, recursive = TRUE, showWarnings = FALSE)
   pending <- jss_misspec_pending_grid(grid, checkpoint_dir, config = config)
@@ -964,18 +1091,26 @@ jss_misspec_run_checkpoints <- function(grid, config, checkpoint_dir, workers = 
   worker_log <- file.path(dirname(checkpoint_dir), paste0(basename(checkpoint_dir), "-workers.log"))
   cl <- parallel::makePSOCKcluster(workers, outfile = worker_log, setup_strategy = "parallel")
   on.exit(parallel::stopCluster(cl), add = TRUE)
-  parallel::clusterEvalQ(cl, {
-    suppressPackageStartupMessages(library(gamlss.longitudinal))
-    suppressPackageStartupMessages(library(gamlss.dist))
-    suppressPackageStartupMessages(library(VineCopula))
-    NULL
-  })
-  functions <- ls(pattern = "^jss_misspec_", envir = .GlobalEnv)
-  parallel::clusterExport(cl, functions, envir = .GlobalEnv)
+  jss_misspec_prepare_workers(cl, config)
   completed <- parallel::parLapplyLB(
     cl, groups, jss_misspec_run_scenario_checkpoints,
     pending = pending, config = config
   )
+  post_attestations <- parallel::clusterCall(
+    cl,
+    function(repo_root, expected_hash) {
+      jss_misspec_load_checkout(repo_root, expected_hash)
+    },
+    config$repo_root,
+    config$package_source_sha256
+  )
+  expected_attestation <- c(
+    namespace_path = normalizePath(config$repo_root, winslash = "/", mustWork = TRUE),
+    package_source_sha256 = config$package_source_sha256
+  )
+  if (!all(vapply(post_attestations, identical, logical(1L), y = expected_attestation))) {
+    stop("One or more Module 07 PSOCK workers failed post-task source attestation.", call. = FALSE)
+  }
   invisible(sum(unlist(completed, use.names = FALSE)))
 }
 
@@ -1290,10 +1425,9 @@ jss_misspec_review_gate <- function(results, grid, paths) {
   expected_combos <- unique(grid[combo_cols])
   actual_combos <- if (nrow(results)) unique(results[combo_cols]) else results[combo_cols]
 
-  high_hard <- results[
+  high_clayton <- results[
     results$tau_label == "high" &
-      results$generating_copula %in% c("C", "G", "J", "t") &
-      results$fitted_copula %in% c("C", "G", "J", "t"),
+      (results$generating_copula == "C" | results$fitted_copula == "C"),
     ,
     drop = FALSE
   ]
@@ -1306,7 +1440,7 @@ jss_misspec_review_gate <- function(results, grid, paths) {
     check = c(
       "row_count",
       "full_combination_coverage",
-      "hard_high_tau_convergence_recorded",
+      "high_tau_clayton_convergence_recorded",
       "finite_information_criteria",
       "correct_copula_not_systematically_worse",
       "selection_attempt_totals_reconcile",
@@ -1315,7 +1449,7 @@ jss_misspec_review_gate <- function(results, grid, paths) {
     status = c(
       if (actual == expected) "pass" else "review",
       if (nrow(actual_combos) == nrow(expected_combos)) "pass" else "review",
-      if (!nrow(high_hard) || any(!is.na(high_hard$converged))) "pass" else "review",
+      if (!nrow(high_clayton) || all(!is.na(high_clayton$converged))) "pass" else "review",
       if (!nrow(results) || mean(is.finite(results$aic_joint) & is.finite(results$bic_joint), na.rm = TRUE) > 0.5) "pass" else "review",
       if (is.na(correct_success) || is.na(wrong_success) || correct_success + 0.05 >= wrong_success) "pass" else "review",
       {
@@ -1332,7 +1466,7 @@ jss_misspec_review_gate <- function(results, grid, paths) {
     detail = c(
       paste(actual, "of", expected, "fit rows available"),
       paste(nrow(actual_combos), "of", nrow(expected_combos), "scenario combinations represented"),
-      paste(nrow(high_hard), "high-tau hard-family fit rows available"),
+      paste(nrow(high_clayton), "registered high-tau rows involving Clayton have convergence status"),
       paste("finite AIC/BIC rate:", round(mean(is.finite(results$aic_joint) & is.finite(results$bic_joint), na.rm = TRUE), 3)),
       paste("correct success:", round(correct_success, 3), "wrong success:", round(wrong_success, 3)),
       paste("fit rows:", actual, "selection attempts:", nrow(jss_misspec_selection_attempts(results))),
@@ -1487,6 +1621,7 @@ jss_run_07_gamma_copula_misspecification <- function(settings, stage = jss_missp
   }
   paths <- jss_misspec_paths(settings)
   config <- jss_misspec_config(settings, stage = stage)
+  jss_misspec_load_checkout(config$repo_root, config$package_source_sha256)
   checkpoint_dir <- jss_misspec_checkpoint_dir(paths, config$stage)
   grid <- jss_misspec_grid(config)
 
