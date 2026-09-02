@@ -340,11 +340,11 @@ extract_convergence_info <- function(fit_obj) {
   conv <- fit_obj$convergence
   if (is.null(conv)) {
     return(list(
-      converged = NA,
+      converged = FALSE,
       hit_outer_limit = NA,
       hit_max_stall = NA,
       hit_raw_loglik_deterioration = NA,
-      stop_reason = NA_character_,
+      stop_reason = "fit_error",
       grad_inf = NA_real_,
       step_l2 = NA_real_,
       best_raw_loglik = NA_real_,

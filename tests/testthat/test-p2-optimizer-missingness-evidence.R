@@ -825,6 +825,26 @@ test_that("missingness optional diagnostics normalize non-finite scalars to type
   expect_identical(env$jss_missing_finite_scalar_or_na(Inf, integer = TRUE), NA_integer_)
 })
 
+test_that("missingness producer encodes an unavailable fit as an explicit fit error", {
+  root <- local_phase2_repo_root()
+  producer <- parse(file.path(
+    root, "paper", "scripts", "final-simulations", "missingness",
+    "run_missingness_study.R"
+  ))
+  is_extractor <- vapply(producer, function(expr) {
+    is.call(expr) && identical(expr[[1L]], as.name("<-")) &&
+      identical(expr[[2L]], as.name("extract_convergence_info"))
+  }, logical(1))
+  expect_equal(sum(is_extractor), 1L)
+  env <- new.env(parent = globalenv())
+  eval(producer[[which(is_extractor)]], envir = env)
+
+  unavailable <- env$extract_convergence_info(NULL)
+  expect_identical(unavailable$converged, FALSE)
+  expect_identical(unavailable$stop_reason, "fit_error")
+  expect_identical(unavailable$outer_iterations, NA_integer_)
+})
+
 test_that("missingness registered Cartesian grid rejects deletion substitution and seed mutation", {
   root <- local_phase2_repo_root(); env <- new.env(parent = globalenv())
   source(file.path(root, "paper", "R", "missingness-study-helpers.R"), local = env)
@@ -919,6 +939,25 @@ test_that("missingness checkpoints reject stale task metadata", {
     env$jss_missing_checkpoint_content(result)
   )
   expect_true(env$jss_missing_checkpoint_valid(result, task, configuration))
+  failed_fit <- result
+  failed_row <- failed_fit$runs$model == "gamlss.longitudinal"
+  failed_fit$runs$success[failed_row] <- FALSE
+  failed_fit$runs$converged[failed_row] <- FALSE
+  failed_fit$runs$retained[failed_row] <- FALSE
+  failed_fit$runs$stop_reason[failed_row] <- "fit_error"
+  failed_fit$runs$failure_type[failed_row] <- "fit_error"
+  failed_fit$runs$logLik[failed_row] <- NA_real_
+  failed_fit$runs$df[failed_row] <- NA_real_
+  failed_fit$runs$error[failed_row] <- paste(
+    "Model exceeded max_elapsed_sec during RS outer iteration",
+    "(elapsed 183.5 sec > 180.0 sec)."
+  )
+  failed_fit["fixed"] <- list(NULL)
+  failed_fit$checkpoint_content_sha256 <- env$jss_missing_content_sha256(
+    env$jss_missing_checkpoint_content(failed_fit)
+  )
+  expect_true(env$jss_missing_checkpoint_valid(failed_fit, task, configuration))
+  expect_match(failed_fit$runs$error[failed_row], "max_elapsed_sec", fixed = TRUE)
   rs_sentinel <- result
   rs_sentinel$runs$best_raw_loglik <- c(-Inf, NA_real_)
   rs_sentinel$checkpoint_content_sha256 <- env$jss_missing_content_sha256(
