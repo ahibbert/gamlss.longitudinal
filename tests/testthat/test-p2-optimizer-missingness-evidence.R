@@ -811,6 +811,20 @@ test_that("monotone dropout has no observations after subject dropout", {
   expect_error(env$jss_missing_validate_mechanisms("time_mar"), "renamed")
 })
 
+test_that("missingness optional diagnostics normalize non-finite scalars to typed missing values", {
+  root <- local_phase2_repo_root()
+  env <- new.env(parent = globalenv())
+  source(file.path(root, "paper", "R", "missingness-study-helpers.R"), local = env)
+
+  expect_identical(env$jss_missing_finite_scalar_or_na(1.25), 1.25)
+  expect_identical(env$jss_missing_finite_scalar_or_na(-Inf), NA_real_)
+  expect_identical(env$jss_missing_finite_scalar_or_na(Inf), NA_real_)
+  expect_identical(env$jss_missing_finite_scalar_or_na(NaN), NA_real_)
+  expect_identical(env$jss_missing_finite_scalar_or_na(NA_real_), NA_real_)
+  expect_identical(env$jss_missing_finite_scalar_or_na(3, integer = TRUE), 3L)
+  expect_identical(env$jss_missing_finite_scalar_or_na(Inf, integer = TRUE), NA_integer_)
+})
+
 test_that("missingness registered Cartesian grid rejects deletion substitution and seed mutation", {
   root <- local_phase2_repo_root(); env <- new.env(parent = globalenv())
   source(file.path(root, "paper", "R", "missingness-study-helpers.R"), local = env)
@@ -905,6 +919,21 @@ test_that("missingness checkpoints reject stale task metadata", {
     env$jss_missing_checkpoint_content(result)
   )
   expect_true(env$jss_missing_checkpoint_valid(result, task, configuration))
+  rs_sentinel <- result
+  rs_sentinel$runs$best_raw_loglik <- c(-Inf, NA_real_)
+  rs_sentinel$checkpoint_content_sha256 <- env$jss_missing_content_sha256(
+    env$jss_missing_checkpoint_content(rs_sentinel)
+  )
+  expect_false(env$jss_missing_checkpoint_valid(rs_sentinel, task, configuration))
+  rs_sentinel$runs$best_raw_loglik <- vapply(
+    rs_sentinel$runs$best_raw_loglik,
+    env$jss_missing_finite_scalar_or_na,
+    numeric(1L)
+  )
+  rs_sentinel$checkpoint_content_sha256 <- env$jss_missing_content_sha256(
+    env$jss_missing_checkpoint_content(rs_sentinel)
+  )
+  expect_true(env$jss_missing_checkpoint_valid(rs_sentinel, task, configuration))
   durable_record <- env$jss_missing_checkpoint_archive_record(result)
   payload_mutation <- result
   payload_mutation$fixed$estimate <- payload_mutation$fixed$estimate + 0.25

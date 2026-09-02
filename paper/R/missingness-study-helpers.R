@@ -31,6 +31,22 @@ jss_missing_validate_mechanisms <- function(x) {
   x
 }
 
+jss_missing_finite_scalar_or_na <- function(x, integer = FALSE) {
+  if (!is.logical(integer) || length(integer) != 1L || is.na(integer)) {
+    stop("integer must be one non-missing logical value.", call. = FALSE)
+  }
+  missing_value <- if (isTRUE(integer)) NA_integer_ else NA_real_
+  if (length(x) != 1L || !(is.integer(x) || is.double(x)) || !is.finite(x[[1L]])) {
+    return(missing_value)
+  }
+  value <- as.numeric(x[[1L]])
+  if (!isTRUE(integer)) return(value)
+  if (value != floor(value) || abs(value) > .Machine$integer.max) {
+    return(NA_integer_)
+  }
+  as.integer(value)
+}
+
 jss_missing_calibrate_intercept <- function(mean_rate, target_rate) {
   if (target_rate <= 0) return(-Inf)
   stats::uniroot(
