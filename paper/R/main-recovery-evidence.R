@@ -3,7 +3,7 @@
 # This file is sourced by the production evidence runner and focused tests; it
 # is not package API. SHA-256 provenance requires the pinned digest package.
 
-jss_recovery_schema_version <- function() "2026-09-02.10"
+jss_recovery_schema_version <- function() "2026-09-02.11"
 
 jss_recovery_phase1_contract_version <- function() {
   "likelihood-jss001-2026-09-01|inference-2026.1|capability-2026.2"
@@ -56,8 +56,10 @@ jss_recovery_control_source_paths <- function(repo_root) {
     "paper/scripts/final-simulations/nbi-clayton/compare_gamlss_ours_nbi_sigma_smooth.R",
     "paper/scripts/final-simulations/main-recovery/run_main_recovery_evidence.R",
     "paper/scripts/final-simulations/main-recovery/README.md",
-    "paper/R/phase2-paper-evidence.R", "paper/R/phase2-central-integration.R",
+    "paper/R/phase2-paper-evidence.R", "paper/R/phase2-evidence-contracts.R",
+    "paper/R/phase2-central-integration.R", "paper/R/public-paper-producers.R",
     "paper/R/replication-helpers.R", "paper/_targets.R", "paper/manifest.csv",
+    "paper/phase2-artifact-contract.csv",
     "paper/phase2-claims.csv", "paper/scripts/phase2-evidence-approval.R",
     "paper/notes/phase2-evidence-signing.md"
   )
@@ -73,6 +75,57 @@ jss_recovery_control_source_identity <- function(repo_root) {
     sha256 = unname(jss_recovery_sha256(paths)), bytes = unname(file.info(paths)$size),
     stringsAsFactors = FALSE
   )
+}
+
+jss_recovery_source_tree_identity <- function(repo_root) {
+  paths <- unique(c(
+    jss_recovery_package_source_files(repo_root),
+    unname(jss_recovery_control_source_paths(repo_root))
+  ))
+  root <- normalizePath(repo_root, winslash = "/", mustWork = TRUE)
+  normalized <- normalizePath(paths, winslash = "/", mustWork = TRUE)
+  relative <- substring(normalized, nchar(root) + 2L)
+  ordering <- order(relative)
+  data.frame(
+    source_path = relative[ordering],
+    sha256 = unname(jss_recovery_sha256(normalized[ordering])),
+    bytes = unname(file.info(normalized[ordering])$size),
+    stringsAsFactors = FALSE
+  )
+}
+
+jss_recovery_source_tree_sha256 <- function(repo_root) {
+  identity <- jss_recovery_source_tree_identity(repo_root)
+  digest::digest(
+    paste(identity$source_path, identity$sha256, identity$bytes, sep = "\t", collapse = "\n"),
+    algo = "sha256", serialize = FALSE
+  )
+}
+
+jss_recovery_source_git_state <- function(repo_root) {
+  root <- normalizePath(repo_root, winslash = "/", mustWork = TRUE)
+  relative <- jss_recovery_source_tree_identity(repo_root)$source_path
+  output <- tryCatch(
+    suppressWarnings(system2(
+      "git",
+      c("-C", shQuote(root), "status", "--porcelain", "--untracked-files=all", "--",
+        vapply(relative, shQuote, character(1L))),
+      stdout = TRUE, stderr = FALSE
+    )),
+    error = function(e) NA_character_
+  )
+  if (length(output) == 1L && is.na(output)) return("unknown")
+  status <- attr(output, "status")
+  if (!is.null(status) && !identical(as.integer(status), 0L)) return("unknown")
+  if (length(output)) "dirty" else "clean"
+}
+
+jss_recovery_require_clean_source_checkout <- function(repo_root) {
+  state <- jss_recovery_source_git_state(repo_root)
+  if (!identical(state, "clean")) {
+    stop("Main-recovery validation requires an unchanged registered source tree; data-only evidence promotion is allowed.", call. = FALSE)
+  }
+  invisible(TRUE)
 }
 
 jss_recovery_producer_sha256 <- function(repo_root = normalizePath(".", winslash = "/", mustWork = TRUE)) {
@@ -164,6 +217,30 @@ jss_recovery_recompute_convergence <- function(ledger, reject_extra = TRUE) {
 
 jss_recovery_require_clean_checkout <- function(git_identity) {
   if (!identical(unname(git_identity[["git_state"]]), "clean")) stop("Publication production requires a clean checkout with no modified or untracked files.", call. = FALSE)
+  invisible(TRUE)
+}
+
+jss_recovery_recorded_git_is_ancestor <- function(recorded_sha, repo_root) {
+  if (!is.character(recorded_sha) || length(recorded_sha) != 1L ||
+      !grepl("^[0-9a-f]{40}$", recorded_sha)) return(FALSE)
+  output <- tryCatch(
+    suppressWarnings(system2(
+      "git",
+      c("-C", shQuote(repo_root), "merge-base", "--is-ancestor", recorded_sha, "HEAD"),
+      stdout = TRUE, stderr = TRUE
+    )),
+    error = function(e) structure(character(), status = 1L)
+  )
+  status <- attr(output, "status")
+  if (is.null(status)) status <- 0L
+  identical(as.integer(status), 0L)
+}
+
+jss_recovery_validate_recorded_git <- function(recorded_sha, recorded_state, repo_root, label) {
+  if (!identical(as.character(recorded_state), "clean") ||
+      !jss_recovery_recorded_git_is_ancestor(as.character(recorded_sha), repo_root)) {
+    stop(label, " Git provenance is not a clean ancestor of the current checkout.", call. = FALSE)
+  }
   invisible(TRUE)
 }
 
@@ -1471,10 +1548,10 @@ jss_recovery_production_provenance <- function(repo_root, ledger) {
   description <- read.dcf(file.path(repo_root, "DESCRIPTION"))
   git <- jss_recovery_git_identity(repo_root)
   data.frame(
-    key = c("schema_version", "producer_sha256", "bundle_status", "phase1_contract_version", "package_path", "package_version", "package_source_sha256", "git_sha", "git_state", "tracked_worktree_sha256", "r_version", "platform", "os"),
+    key = c("schema_version", "producer_sha256", "bundle_status", "phase1_contract_version", "package_path", "package_version", "package_source_sha256", "git_sha", "git_state", "source_tree_sha256", "r_version", "platform", "os"),
     value = c(jss_recovery_schema_version(), jss_recovery_producer_sha256(repo_root), jss_recovery_bundle_status(ledger), jss_recovery_phase1_contract_version(),
       ".", description[1, "Version"], jss_recovery_package_source_sha256(repo_root),
-      git[["git_sha"]], git[["git_state"]], git[["tracked_worktree_sha256"]], R.version.string, R.version$platform, paste(Sys.info()[c("sysname", "release", "machine")], collapse = "|")),
+      git[["git_sha"]], git[["git_state"]], jss_recovery_source_tree_sha256(repo_root), R.version.string, R.version$platform, paste(Sys.info()[c("sysname", "release", "machine")], collapse = "|")),
     stringsAsFactors = FALSE
   )
 }
@@ -1545,9 +1622,13 @@ jss_build_main_recovery_evidence <- function(input_root, output_dir, resume = TR
       canonical_signature <- tryCatch(jss_recovery_settings_signature(settings_row, margin), error = function(e) NA_character_)
       if (is.na(canonical_signature) || !identical(canonical_signature, as.character(settings_row$runner_settings_signature[[1]])) ||
           !identical(digest::digest(canonical_signature, algo = "sha256", serialize = FALSE), as.character(settings_row$runner_settings_sha256[[1]]))) stop("Canonical runner-settings signature mismatch for ", margin, ".", call. = FALSE)
-      git_identity <- jss_recovery_git_identity(repo_root)
-      if (!all(c("git_sha", "git_state") %in% names(settings_row)) || !identical(as.character(settings_row$git_sha[[1]]), unname(git_identity[["git_sha"]])) ||
-          !identical(as.character(settings_row$git_state[[1]]), unname(git_identity[["git_state"]]))) stop("Runner-settings Git provenance mismatch for ", margin, ".", call. = FALSE)
+      if (!all(c("git_sha", "git_state") %in% names(settings_row))) {
+        stop("Runner-settings Git provenance is incomplete for ", margin, ".", call. = FALSE)
+      }
+      jss_recovery_validate_recorded_git(
+        settings_row$git_sha[[1]], settings_row$git_state[[1]], repo_root,
+        paste0("Runner-settings ", margin)
+      )
       if (!identical(unique(as.character(ledger$runner_sha256[rows])), unname(jss_recovery_sha256(runner_path[[margin]])))) stop("Runner source SHA mismatch for ", margin, ".", call. = FALSE)
     }
     actual_package_version <- as.character(read.dcf(file.path(repo_root, "DESCRIPTION"))[1, "Version"])
@@ -1791,8 +1872,7 @@ jss_main_recovery_validate_public_bundle <- function(path, conf.level = 0.95,
   predictive <- read("predictive_by_attempt.csv"); diagnostic <- read("diagnostic_by_attempt.csv")
   settings_identity <- read("runner_settings_identity.csv")
   settings_payload <- list(BCPE = read("runner_settings_bcpe.csv"), NBI = read("runner_settings_nbi.csv"))
-  git_identity <- jss_recovery_git_identity(repo_root)
-  jss_recovery_require_clean_checkout(git_identity)
+  jss_recovery_require_clean_source_checkout(repo_root)
   identity_fields <- c("runner_settings_signature", "runner_settings_sha256", "runner_sha256", "package_source_path", "package_version", "package_source_sha256")
   if (nrow(settings_identity) != 2L || !all(c("margin_family", "study_id", identity_fields) %in% names(settings_identity))) stop("Main-recovery runner-settings identity artifact is malformed.", call. = FALSE)
   for (margin in c("BCPE", "NBI")) {
@@ -1805,8 +1885,13 @@ jss_main_recovery_validate_public_bundle <- function(path, conf.level = 0.95,
         !identical(digest::digest(signature, algo = "sha256", serialize = FALSE), as.character(setting$runner_settings_sha256[[1]]))) {
       stop("Main-recovery canonical settings payload mismatch for ", margin, ".", call. = FALSE)
     }
-    if (!all(c("git_sha", "git_state") %in% names(payload)) || !identical(as.character(payload$git_sha[[1]]), unname(git_identity[["git_sha"]])) ||
-        !identical(as.character(payload$git_state[[1]]), unname(git_identity[["git_state"]]))) stop("Main-recovery Git provenance mismatch for ", margin, ".", call. = FALSE)
+    if (!all(c("git_sha", "git_state") %in% names(payload))) {
+      stop("Main-recovery Git provenance is incomplete for ", margin, ".", call. = FALSE)
+    }
+    jss_recovery_validate_recorded_git(
+      payload$git_sha[[1]], payload$git_state[[1]], repo_root,
+      paste0("Main-recovery ", margin)
+    )
   }
   sha_fields <- c("runner_settings_sha256", "runner_sha256", "package_source_sha256")
   if (any(vapply(sha_fields, function(name) any(!grepl("^[0-9a-f]{64}$", as.character(ledger_input[[name]]))), logical(1)))) stop("Main-recovery source identity contains a noncanonical SHA-256 value.", call. = FALSE)
@@ -1858,12 +1943,14 @@ jss_main_recovery_validate_public_bundle <- function(path, conf.level = 0.95,
   if (length(recorded_source) != 1L || !identical(recorded_source, unique(ledger$package_source_sha256))) stop("Main-recovery package-source identity is inconsistent.", call. = FALSE)
   recorded_git_sha <- provenance$value[provenance$key == "git_sha"]
   recorded_git_state <- provenance$value[provenance$key == "git_state"]
-  recorded_worktree_sha <- provenance$value[provenance$key == "tracked_worktree_sha256"]
+  recorded_source_tree_sha <- provenance$value[provenance$key == "source_tree_sha256"]
   recorded_package_path <- provenance$value[provenance$key == "package_path"]
-  if (!identical(recorded_git_sha, unname(git_identity[["git_sha"]])) || !identical(recorded_git_state, unname(git_identity[["git_state"]])) ||
-      !identical(recorded_worktree_sha, unname(git_identity[["tracked_worktree_sha256"]])) ||
+  jss_recovery_validate_recorded_git(
+    recorded_git_sha, recorded_git_state, repo_root, "Main-recovery public bundle"
+  )
+  if (!identical(recorded_source_tree_sha, jss_recovery_source_tree_sha256(repo_root)) ||
       length(recorded_package_path) != 1L || is.na(jss_recovery_portable_source_identity(recorded_package_path))) {
-    stop("Main-recovery public Git/worktree or portable checkout provenance does not match the current checkout.", call. = FALSE)
+    stop("Main-recovery public source-tree or portable checkout provenance does not match the current registered sources.", call. = FALSE)
   }
   identity <- jss_recovery_bundle_identity(path)
   if (isTRUE(require_attestation)) jss_recovery_require_external_attestation(identity, repo_root, attestation_path, signature_path)
