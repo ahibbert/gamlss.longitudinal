@@ -99,7 +99,14 @@ test_that("Module 07 execution manifest binds generation-time source and artifac
 test_that("Module 07 claim mappings and visible figure metadata are explicit", {
   module <- local_module07_env(); env <- module$env
   claims <- env$jss_misspec_validate_claim_registry(module$root)
-  expect_gte(sum(claims$claim_type == "paired_effect"), 2L)
+  paired <- claims[claims$claim_type == "paired_effect", , drop = FALSE]
+  expect_equal(nrow(paired), 6L)
+  expect_setequal(paired$metric, c("joint_loglik", "margin_param_rmse", "tau_abs_error"))
+  paired_keys <- paste(paired$metric, grepl("generating_copula=N;fitted_copula=C", paired$source_row_key), sep = ":")
+  expect_setequal(paired_keys, as.vector(outer(
+    c("joint_loglik", "margin_param_rmse", "tau_abs_error"),
+    c(TRUE, FALSE), paste, sep = ":"
+  )))
   expect_gte(sum(claims$claim_type == "selection_rate"), 2L)
   expect_true(all(claims$effect_artifact_id[claims$claim_type == "paired_effect"] == "p2_copula_paired_effects"))
   metadata <- env$jss_misspec_figure_metadata(data.frame(
