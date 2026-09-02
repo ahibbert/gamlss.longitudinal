@@ -18,6 +18,10 @@ source(file.path("paper", "R", "public-paper-producers.R"))
 tar_option_set(packages = c("gamlss.longitudinal", "gamlss.dist", "ggplot2"), format = "rds")
 profile <- Sys.getenv("GAMLSS_LONGITUDINAL_JSS_PROFILE", "smoke")
 if (identical(profile, "expanded")) profile <- "paper"
+if (!identical(profile, "smoke") &&
+    !grepl("^[0-9a-f]{64}$", Sys.getenv("GAMLSS_LONGITUDINAL_JSS_APPROVAL_BUNDLE_SHA256", unset = ""))) {
+  stop("Paper/full targets require approvals materialized by paper/replicate.R.", call. = FALSE)
+}
 
 common <- list(
   tar_target(settings, {

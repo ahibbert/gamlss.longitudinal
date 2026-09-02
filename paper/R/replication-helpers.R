@@ -39,6 +39,18 @@ jss_phase2_materialize_public_approvals <- function(root, profile,
     stop("Package 'digest' is required to verify public approval assets.", call. = FALSE)
   }
   spec <- jss_phase2_public_approval_spec()
+  root_prefix <- paste0(tolower(normalizePath(root, winslash = "/", mustWork = TRUE)), "/")
+  normalize_external <- function(paths, label) {
+    if (any(!file.exists(paths)) || any(file.info(paths)$isdir %in% TRUE)) {
+      stop(label, " path does not exist or is not a regular file.", call. = FALSE)
+    }
+    normalized <- unname(vapply(paths, normalizePath, character(1L),
+      winslash = "/", mustWork = TRUE))
+    if (any(startsWith(tolower(paste0(normalized, "/")), root_prefix))) {
+      stop(label, " paths must be external to the editable checkout.", call. = FALSE)
+    }
+    normalized
+  }
   configured <- Map(function(attestation_env, signature_env) {
     c(Sys.getenv(attestation_env, unset = ""), Sys.getenv(signature_env, unset = ""))
   }, spec$attestation_env, spec$signature_env)
@@ -47,69 +59,97 @@ jss_phase2_materialize_public_approvals <- function(root, profile,
     stop("Each external Phase 2 approval override requires both attestation and signature paths.", call. = FALSE)
   }
   supplied <- vapply(configured, function(x) all(nzchar(x)), logical(1L))
-  if (all(supplied)) return(invisible(unlist(configured, use.names = FALSE)))
-
-  manifest_path <- file.path(approval_dir, "manifest.csv")
-  if (!file.exists(manifest_path)) {
-    stop("Public Phase 2 approval manifest is missing; paper/full replication is not release-ready.", call. = FALSE)
-  }
-  manifest <- utils::read.csv(manifest_path, stringsAsFactors = FALSE, check.names = FALSE)
-  required <- c(
-    "study", "attestation_file", "attestation_sha256", "signature_file",
-    "signature_sha256", "public_key_sha256"
-  )
-  pinned_key_sha256 <- "cb73c05cede55bfd56357b1780b90c1bf254413d82765c7a682fc9db3a0d8587"
-  if (!identical(names(manifest), required) || nrow(manifest) != nrow(spec) ||
-      anyDuplicated(manifest$study) || !identical(manifest$study, spec$study) ||
-      !identical(manifest$attestation_file, spec$attestation_file) ||
-      !identical(manifest$signature_file, spec$signature_file) ||
-      any(manifest$public_key_sha256 != pinned_key_sha256)) {
-    stop("Public Phase 2 approval manifest is incomplete, reordered, or malformed.", call. = FALSE)
-  }
-  hex <- "^[0-9a-f]{64}$"
-  if (any(!grepl(hex, manifest$attestation_sha256)) ||
-      any(!grepl(hex, manifest$signature_sha256))) {
-    stop("Public Phase 2 approval manifest contains a noncanonical SHA-256 value.", call. = FALSE)
-  }
-  expected_files <- c("README.md", "manifest.csv", spec$attestation_file, spec$signature_file)
-  present_files <- sort(list.files(approval_dir, all.files = TRUE, no.. = TRUE))
-  if (!identical(present_files, sort(expected_files)) ||
-      any(grepl("private|secret|key$", present_files, ignore.case = TRUE))) {
-    stop("Public approval directory contains missing, unexpected, or private-key-like files.", call. = FALSE)
-  }
-  source_paths <- c(file.path(approval_dir, spec$attestation_file),
-    file.path(approval_dir, spec$signature_file))
-  expected_hashes <- c(manifest$attestation_sha256, manifest$signature_sha256)
-  actual_hashes <- vapply(source_paths, digest::digest, character(1L),
-    file = TRUE, algo = "sha256", serialize = FALSE)
-  if (!identical(unname(actual_hashes), unname(expected_hashes))) {
-    stop("A public Phase 2 approval asset does not match its registered SHA-256.", call. = FALSE)
+  if (any(supplied)) {
+    configured[supplied] <- lapply(configured[supplied], normalize_external,
+      label = "External Phase 2 approval override")
   }
 
-  root_prefix <- paste0(tolower(normalizePath(root, winslash = "/", mustWork = TRUE)), "/")
-  external_normalized <- normalizePath(external_dir, winslash = "/", mustWork = FALSE)
-  if (startsWith(tolower(paste0(external_normalized, "/")), root_prefix)) {
-    stop("Materialized approval copies must be outside the editable checkout.", call. = FALSE)
-  }
-  if (!dir.create(external_dir, recursive = TRUE, showWarnings = FALSE)) {
-    stop("Could not create the checkout-external public approval cache.", call. = FALSE)
-  }
-  destination_paths <- file.path(external_dir, basename(source_paths))
-  if (!all(file.copy(source_paths, destination_paths, overwrite = FALSE))) {
-    stop("Could not materialize the public approval bundle outside the checkout.", call. = FALSE)
-  }
-  copied_hashes <- vapply(destination_paths, digest::digest, character(1L),
-    file = TRUE, algo = "sha256", serialize = FALSE)
-  if (!identical(unname(copied_hashes), unname(expected_hashes))) {
-    stop("Materialized public approval copies failed their SHA-256 check.", call. = FALSE)
-  }
-  for (i in seq_len(nrow(spec))) {
-    if (!supplied[[i]]) {
-      do.call(Sys.setenv, stats::setNames(list(destination_paths[[i]]), spec$attestation_env[[i]]))
-      do.call(Sys.setenv, stats::setNames(list(destination_paths[[nrow(spec) + i]]), spec$signature_env[[i]]))
+  if (!all(supplied)) {
+    manifest_path <- file.path(approval_dir, "manifest.csv")
+    if (!file.exists(manifest_path)) {
+      stop("Public Phase 2 approval manifest is missing; paper/full replication is not release-ready.", call. = FALSE)
+    }
+    manifest <- utils::read.csv(manifest_path, stringsAsFactors = FALSE, check.names = FALSE)
+    required <- c(
+      "study", "attestation_file", "attestation_sha256", "signature_file",
+      "signature_sha256", "public_key_sha256"
+    )
+    pinned_key_sha256 <- "cb73c05cede55bfd56357b1780b90c1bf254413d82765c7a682fc9db3a0d8587"
+    if (!identical(names(manifest), required) || nrow(manifest) != nrow(spec) ||
+        anyDuplicated(manifest$study) || !identical(manifest$study, spec$study) ||
+        !identical(manifest$attestation_file, spec$attestation_file) ||
+        !identical(manifest$signature_file, spec$signature_file) ||
+        any(manifest$public_key_sha256 != pinned_key_sha256)) {
+      stop("Public Phase 2 approval manifest is incomplete, reordered, or malformed.", call. = FALSE)
+    }
+    hex <- "^[0-9a-f]{64}$"
+    if (any(!grepl(hex, manifest$attestation_sha256)) ||
+        any(!grepl(hex, manifest$signature_sha256))) {
+      stop("Public Phase 2 approval manifest contains a noncanonical SHA-256 value.", call. = FALSE)
+    }
+    expected_files <- c("README.md", "manifest.csv", spec$attestation_file, spec$signature_file)
+    present_files <- sort(list.files(approval_dir, all.files = TRUE, no.. = TRUE))
+    if (!identical(present_files, sort(expected_files)) ||
+        any(grepl("private|secret|key$", present_files, ignore.case = TRUE))) {
+      stop("Public approval directory contains missing, unexpected, or private-key-like files.", call. = FALSE)
+    }
+    source_paths <- c(file.path(approval_dir, spec$attestation_file),
+      file.path(approval_dir, spec$signature_file))
+    expected_hashes <- c(manifest$attestation_sha256, manifest$signature_sha256)
+    actual_hashes <- vapply(source_paths, digest::digest, character(1L),
+      file = TRUE, algo = "sha256", serialize = FALSE)
+    if (!identical(unname(actual_hashes), unname(expected_hashes))) {
+      stop("A public Phase 2 approval asset does not match its registered SHA-256.", call. = FALSE)
+    }
+
+    external_normalized <- normalizePath(external_dir, winslash = "/", mustWork = FALSE)
+    if (startsWith(tolower(paste0(external_normalized, "/")), root_prefix)) {
+      stop("Materialized approval copies must be outside the editable checkout.", call. = FALSE)
+    }
+    if (!dir.exists(external_dir) &&
+        !dir.create(external_dir, recursive = TRUE, showWarnings = FALSE)) {
+      stop("Could not create the checkout-external public approval cache.", call. = FALSE)
+    }
+    external_normalized <- normalizePath(external_dir, winslash = "/", mustWork = TRUE)
+    if (startsWith(tolower(paste0(external_normalized, "/")), root_prefix)) {
+      stop("Materialized approval copies must be outside the editable checkout.", call. = FALSE)
+    }
+    destination_paths <- file.path(external_dir, basename(source_paths))
+    if (!all(file.copy(source_paths, destination_paths, overwrite = FALSE))) {
+      stop("Could not materialize the public approval bundle outside the checkout.", call. = FALSE)
+    }
+    copied_hashes <- vapply(destination_paths, digest::digest, character(1L),
+      file = TRUE, algo = "sha256", serialize = FALSE)
+    if (!identical(unname(copied_hashes), unname(expected_hashes))) {
+      stop("Materialized public approval copies failed their SHA-256 check.", call. = FALSE)
+    }
+    for (i in which(!supplied)) {
+      configured[[i]] <- c(destination_paths[[i]], destination_paths[[nrow(spec) + i]])
     }
   }
-  invisible(c(Sys.getenv(spec$attestation_env), Sys.getenv(spec$signature_env)))
+
+  effective_paths <- c(
+    vapply(configured, `[[`, character(1L), 1L),
+    vapply(configured, `[[`, character(1L), 2L)
+  )
+  effective_paths <- normalize_external(effective_paths, "Effective Phase 2 approval")
+  if (anyDuplicated(effective_paths)) {
+    stop("Effective Phase 2 approval paths must be distinct.", call. = FALSE)
+  }
+  for (i in seq_len(nrow(spec))) {
+    do.call(Sys.setenv, stats::setNames(list(effective_paths[[i]]), spec$attestation_env[[i]]))
+    do.call(Sys.setenv, stats::setNames(list(effective_paths[[nrow(spec) + i]]), spec$signature_env[[i]]))
+  }
+  effective_hashes <- vapply(effective_paths, digest::digest, character(1L),
+    file = TRUE, algo = "sha256", serialize = FALSE)
+  identity_rows <- c(
+    paste(spec$study, "attestation", effective_hashes[seq_len(nrow(spec))], sep = "\t"),
+    paste(spec$study, "signature", effective_hashes[nrow(spec) + seq_len(nrow(spec))], sep = "\t")
+  )
+  approval_identity <- digest::digest(paste(identity_rows, collapse = "\n"),
+    algo = "sha256", serialize = FALSE)
+  Sys.setenv(GAMLSS_LONGITUDINAL_JSS_APPROVAL_BUNDLE_SHA256 = approval_identity)
+  invisible(effective_paths)
 }
 
 jss_settings <- function(create = TRUE) {
@@ -136,6 +176,19 @@ jss_settings <- function(create = TRUE) {
     logs_dir = file.path(out_dir, "logs"),
     seed = 20260528L,
     workers = as.integer(Sys.getenv("GAMLSS_LONGITUDINAL_JSS_WORKERS", "1")),
+    approval_bundle_sha256 = if (identical(profile, "smoke")) {
+      NA_character_
+    } else {
+      value <- Sys.getenv("GAMLSS_LONGITUDINAL_JSS_APPROVAL_BUNDLE_SHA256", unset = "")
+      if (!nzchar(value)) {
+        NA_character_
+      } else {
+        if (!grepl("^[0-9a-f]{64}$", value)) {
+          stop("Phase 2 approval bundle identity is malformed.", call. = FALSE)
+        }
+        value
+      }
+    },
     public_data_dir = file.path(root, "paper", "data", "public-derived")
   )
 }
@@ -819,6 +872,7 @@ jss_write_run_metadata <- function(settings, started, bootstrap, store) {
     profile = settings$profile, started = format(started, "%Y-%m-%dT%H:%M:%S%z"), finished = format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z"),
     git_sha = jss_git_sha(settings$root), git_state = jss_git_dirty(settings$root), r_version = R.version.string,
     platform = R.version$platform, workers = settings$workers, seed = settings$seed,
+    approval_bundle_sha256 = settings$approval_bundle_sha256,
     library_id = paste(tail(strsplit(bootstrap$library, "/", fixed = TRUE)[[1L]], 2L), collapse = "/"),
     lockfile_sha256 = if (file.exists(lock)) jss_file_sha256(lock) else NA_character_,
     restored = bootstrap$restored, source_installed = bootstrap$source_installed, stringsAsFactors = FALSE
