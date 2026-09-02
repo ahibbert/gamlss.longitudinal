@@ -23,6 +23,8 @@ marker_audit <- jss_phase2_validate_claim_markers(main_tex, claims, allow_pendin
 scope_audit <- jss_phase2_validate_manuscript_scope(root, main_tex, allow_pending = TRUE)
 asset_audit <- jss_phase2_validate_manuscript_assets(root, main_tex, allow_pending = TRUE)
 known <- jss_phase2_known_canonical_issues(root, main_tex)
+prose_error <- tryCatch({ jss_phase2_lint_empirical_prose(root, main_tex, allow_pending = TRUE); "" },
+  error = function(e) conditionMessage(e))
 
 cat("Canonical Phase 2 manuscript audit\n")
 cat("  main.tex: ", normalizePath(main_tex, winslash = "/"), "\n", sep = "")
@@ -31,10 +33,11 @@ cat("  pending/missing scope anchors: ", sum(scope_audit$publication_state == "p
 cat("  pending artifacts: ", sum(asset_audit$canonical_state == "pending"), "\n", sep = "")
 active_failures <- known$status == "fail" & known$excerpt_present
 cat("  known stale empirical blocks present: ", sum(active_failures), "\n", sep = "")
+cat("  unregistered empirical prose: ", if (nzchar(prose_error)) "present" else "none", "\n", sep = "")
 if (any(active_failures)) {
   for (i in which(active_failures)) cat("    - ", known$issue_id[[i]], ": ", known$required_action[[i]], "\n", sep = "")
 }
-if (any(active_failures) || any(marker_audit$manuscript_state == "pending_overleaf") ||
+if (any(active_failures) || nzchar(prose_error) || any(marker_audit$manuscript_state %in% c("pending_overleaf", "pending_evidence")) ||
     any(scope_audit$publication_state == "pending_overleaf") || any(asset_audit$canonical_state == "pending")) {
   quit(save = "no", status = 1L)
 }

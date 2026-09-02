@@ -101,16 +101,23 @@ local_phase2_design_fixture <- function(root, out) {
     dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
     utils::write.csv(x, path, row.names = FALSE, na = "")
   }
-  write_artifact("p2_recovery_attempts", data.frame(
-    n_subjects = 500L, n_time = 4L, target_replicates = 100L,
-    margin_family = c("BCPE", "NBI"), copula_code = c("t", "C"),
-    method = c("gamlss.longitudinal", "gamlss2")))
+  recovery <- expand.grid(study_id = c("bcpe_t", "nbi_clayton"),
+    method = c("gamlss.longitudinal", "gamlss2"), replicate = 1:100,
+    stringsAsFactors = FALSE)
+  recovery$scenario_id <- ifelse(recovery$study_id == "bcpe_t", "bcpe", "nbi")
+  recovery$retry_index <- 1L; recovery$n_subjects <- 500L; recovery$n_time <- 4L
+  recovery$target_replicates <- 100L
+  recovery$margin_family <- ifelse(recovery$study_id == "bcpe_t", "BCPE", "NBI")
+  recovery$copula_code <- ifelse(recovery$study_id == "bcpe_t", "t", "C")
+  write_artifact("p2_recovery_attempts", recovery)
   write_artifact("p2_optimizer_design", data.frame(
     case_id = sprintf("JVS%02d", 1:4),
     contrast_factor = c("base", "theta_strength", "sigma_strength", "family")))
-  write_artifact("p2_optimizer_attempts", data.frame(method = c("rs_joint", "rs_separate")))
+  write_artifact("p2_optimizer_attempts", expand.grid(case_id = sprintf("JVS%02d", 1:4),
+    joint_review_rep = 1:3, method = c("rs_joint", "rs_separate"), stringsAsFactors = FALSE))
   missing <- expand.grid(missing_mechanism = c("monotone_dropout", "time_dependent_intermittent_mar"),
-    target_missing_rate = seq(0, .5, .1), rep = 1:20, stringsAsFactors = FALSE)
+    target_missing_rate = seq(0, .5, .1), rep = 1:20,
+    model = c("gamlss.longitudinal", "gamlss2"), stringsAsFactors = FALSE)
   missing$n <- 500L; missing$d <- 4L
   write_artifact("p2_missing_attempts", missing)
   copula <- expand.grid(generating_copula = c("C", "N"), fitted_copula = c("C", "N"),
@@ -118,15 +125,29 @@ local_phase2_design_fixture <- function(root, out) {
     stringsAsFactors = FALSE)
   copula$n_time <- 4L
   write_artifact("p2_copula_results", copula)
-  write_artifact("p2_mvt_scenario_grid", expand.grid(
-    family = c("binomial", "gamma", "gaussian", "poisson"),
-    dependence = c("external_ar1", "external_exchangeable",
+  benchmark_grid <- expand.grid(
+    family_name = c("binomial", "gamma", "gaussian", "poisson"),
+    dependence_name = c("external_ar1", "external_exchangeable",
       "native_covariate_dependent_adjacent", "native_time_varying_adjacent"),
-    n_time = 20L, stringsAsFactors = FALSE))
-  write_artifact("p2_mvt_fit_status", data.frame(rep = 1:100))
-  write_artifact("p2_scaling_scenarios", expand.grid(model_class = c("continuous", "discrete"),
-    n_subjects = c(100L, 300L), n_visits = c(4L, 8L), smooth_k = c(5L, 10L),
-    stringsAsFactors = FALSE))
+    rep = 1:100, n_time = 20L, stringsAsFactors = FALSE)
+  benchmark_grid$scenario <- paste0(benchmark_grid$dependence_name, "_t20")
+  benchmark_grid$case_id <- sprintf("MVT%04d", seq_len(nrow(benchmark_grid)))
+  write_artifact("p2_mvt_scenario_grid", benchmark_grid)
+  benchmark_status <- expand.grid(case_id = benchmark_grid$case_id,
+    method = c("glm", "glmm", "gee_independence", "gee_exchangeable", "gee_ar1",
+      "gee_unstructured", "gamlss.longitudinal", "gamCopula_markov", "gamCopula_vine_simplified"),
+    stringsAsFactors = FALSE)
+  benchmark_status$rep <- benchmark_grid$rep[match(benchmark_status$case_id, benchmark_grid$case_id)]
+  benchmark_status$scenario <- benchmark_grid$scenario[match(benchmark_status$case_id, benchmark_grid$case_id)]
+  benchmark_status$family <- benchmark_grid$family_name[match(benchmark_status$case_id, benchmark_grid$case_id)]
+  write_artifact("p2_mvt_fit_status", benchmark_status)
+  scaling <- data.frame(
+    scenario_id = c("continuous-base", "continuous-subjects", "continuous-visits", "continuous-smooth_basis",
+      "discrete-base", "discrete-subjects", "discrete-visits", "discrete-smooth_basis"),
+    model_class = rep(c("continuous", "discrete"), each = 4L),
+    n_subjects = rep(c(100L, 250L, 100L, 100L), 2L),
+    n_visits = rep(c(4L, 4L, 8L, 4L), 2L), smooth_k = rep(c(5L, 5L, 5L, 10L), 2L))
+  write_artifact("p2_scaling_scenarios", scaling)
 }
 
 test_that("Phase 2 claim markers are unique, scoped, and mutation-sensitive", {
@@ -148,6 +169,28 @@ test_that("Phase 2 claim markers are unique, scoped, and mutation-sensitive", {
   expect_error(env$jss_phase2_validate_claim_markers("\\PhaseTwoClaim{unregistered}", claims), "unregistered")
   supplemental <- claims[claims$publication_scope == "public_supplemental", , drop = FALSE][1L, ]
   expect_error(env$jss_phase2_validate_claim_markers(supplemental$claim_marker, supplemental), "leaked")
+  interval <- claims[claims$render_kind == "estimate_interval" & claims$evidence_state == "verified_source", , drop = FALSE][1L, ]
+  interval$manuscript_state <- "present"
+  bare <- sub("PhaseTwoClaimInterval", "PhaseTwoClaim", interval$claim_marker, fixed = TRUE)
+  expect_error(env$jss_phase2_validate_claim_markers(bare, interval, allow_pending = FALSE), "unregistered")
+  pending <- claims[claims$evidence_state == "pending_specification", , drop = FALSE]
+  expect_setequal(unique(pending$study_id), c("main-recovery", "optimizer-benchmark", "missingness",
+    "multivariate-benchmark", "fit-scaling"))
+  expect_true(all(nzchar(pending$pending_reason)))
+  expect_true(all(pending$manuscript_state == "pending_evidence"))
+})
+
+test_that("Phase 2 empirical prose lint rejects unregistered numbers and directions", {
+  env <- local_phase2_claim_env()
+  root <- normalizePath(file.path("..", ".."), winslash = "/", mustWork = TRUE)
+  manuscript <- paste(readLines(file.path(root, "paper", "manuscript", "main.tex"), warn = FALSE), collapse = "\n")
+  expect_silent(env$jss_phase2_lint_empirical_prose(root, manuscript, allow_pending = TRUE))
+  numeric_mutation <- sub("\\label{sec:sim_recovery}",
+    "\\label{sec:sim_recovery} The method had 77.7 percent success and 321 failures.", manuscript, fixed = TRUE)
+  expect_error(env$jss_phase2_lint_empirical_prose(root, numeric_mutation), "Unregistered empirical")
+  direction_mutation <- sub("\\label{sec:sim_recovery}",
+    "\\label{sec:sim_recovery} The method substantially outperforms its comparator.", manuscript, fixed = TRUE)
+  expect_error(env$jss_phase2_lint_empirical_prose(root, direction_mutation), "Unregistered empirical")
 })
 
 test_that("Phase 2 exact design registry reconstructs inputs and renders TeX-ready assets", {
@@ -159,10 +202,12 @@ test_that("Phase 2 exact design registry reconstructs inputs and renders TeX-rea
   design <- env$jss_phase2_validate_design_contract(settings)
   expect_equal(nrow(design), nrow(utils::read.csv(file.path(root, "paper", "phase2-design-contract.csv"))))
   expect_true(all(grepl("^[0-9a-f]{64}$", design$source_sha256)))
+  expect_equal(nrow(env$jss_phase2_validate_joint_design_contract(settings)), 6L)
 
   claims <- env$jss_phase2_claim_register(root)
-  evidence <- data.frame(claim_id = claims$claim_id, estimate = seq_len(nrow(claims)),
-    lower = seq_len(nrow(claims)) - .1, upper = seq_len(nrow(claims)) + .1,
+  verified <- claims[claims$evidence_state == "verified_source", , drop = FALSE]
+  evidence <- data.frame(claim_id = verified$claim_id, estimate = seq_len(nrow(verified)),
+    lower = seq_len(nrow(verified)) - .1, upper = seq_len(nrow(verified)) + .1,
     attempted = 100L, retained = 99L, stringsAsFactors = FALSE)
   assets <- env$jss_write_phase2_claim_assets(settings, evidence, claims)
   expect_true(all(file.exists(assets[-1L])))
@@ -170,11 +215,34 @@ test_that("Phase 2 exact design registry reconstructs inputs and renders TeX-rea
   expect_match(macros, "PhaseTwoClaim@p2-recovery-planned-cells", fixed = TRUE)
   scenarios <- paste(readLines(assets[["scenario_design"]], warn = FALSE), collapse = "\n")
   expect_match(scenarios, "monotone\\_dropout", fixed = TRUE)
+  expect_false(grepl("Measured subject counts", scenarios, fixed = TRUE))
 
   manifest <- utils::read.csv(file.path(root, "paper", "manifest.csv"), stringsAsFactors = FALSE)
   bad <- file.path(out, manifest$generated_path[manifest$artifact_id == "p2_scaling_scenarios"])
   x <- utils::read.csv(bad, stringsAsFactors = FALSE); x$n_subjects <- 999L; utils::write.csv(x, bad, row.names = FALSE)
   expect_error(env$jss_phase2_validate_design_contract(settings), "design values disagree")
+
+  local_phase2_design_fixture(root, out)
+  missing_path <- file.path(out, manifest$generated_path[manifest$artifact_id == "p2_missing_attempts"])
+  missing <- utils::read.csv(missing_path, stringsAsFactors = FALSE)
+  missing[1L, c("missing_mechanism", "target_missing_rate", "rep", "model")] <-
+    missing[2L, c("missing_mechanism", "target_missing_rate", "rep", "model")]
+  utils::write.csv(missing, missing_path, row.names = FALSE)
+  expect_error(env$jss_phase2_validate_joint_design_contract(settings), "duplicated or empty")
+
+  local_phase2_design_fixture(root, out)
+  status_path <- file.path(out, manifest$generated_path[manifest$artifact_id == "p2_mvt_fit_status"])
+  status <- utils::read.csv(status_path, stringsAsFactors = FALSE)
+  case_reps <- unique(status[c("case_id", "rep")])
+  cases <- c(case_reps$case_id[[1L]], case_reps$case_id[case_reps$rep != case_reps$rep[[1L]]][[1L]])
+  before <- sort(unique(status$rep))
+  first_rep <- unique(status$rep[status$case_id == cases[[1L]]])
+  second_rep <- unique(status$rep[status$case_id == cases[[2L]]])
+  status$rep[status$case_id == cases[[1L]]] <- second_rep
+  status$rep[status$case_id == cases[[2L]]] <- first_rep
+  expect_identical(sort(unique(status$rep)), before)
+  utils::write.csv(status, status_path, row.names = FALSE)
+  expect_error(env$jss_phase2_validate_joint_design_contract(settings), "do not match the registered scenario grid")
 })
 
 test_that("canonical manuscript paths, labels, and private scope are explicit", {
@@ -183,10 +251,10 @@ test_that("canonical manuscript paths, labels, and private scope are explicit", 
   expect_silent(env$jss_phase2_validate_manuscript_artifact_registry(root))
   assets <- utils::read.csv(file.path(root, "paper", "phase2-manuscript-artifacts.csv"), stringsAsFactors = FALSE)
   present <- assets$canonical_state == "present"
-  manuscript <- paste(c(
+  manuscript <- paste(c("data cannot be redistributed",
     paste0("\\label{", utils::read.csv(file.path(root, "paper", "phase2-manuscript-scope.csv"), stringsAsFactors = FALSE)$tex_anchor, "}"),
     unlist(lapply(which(present), function(i) if (assets$usage_kind[[i]] == "includegraphics")
-      c(assets$canonical_path[[i]], paste0("\\label{", assets$canonical_label[[i]], "}")) else
+      c("\\begin{figure}", assets$canonical_path[[i]], paste0("\\label{", assets$canonical_label[[i]], "}"), "\\end{figure}") else
       c(paste0("\\input{", assets$canonical_path[[i]], "}"), paste0("\\ref{", assets$canonical_label[[i]], "}"))))
   ), collapse = "\n")
   expect_silent(env$jss_phase2_validate_manuscript_assets(root, manuscript, allow_pending = TRUE))
@@ -194,6 +262,12 @@ test_that("canonical manuscript paths, labels, and private scope are explicit", 
   expect_error(env$jss_phase2_validate_manuscript_assets(root, manuscript, allow_pending = FALSE), "pending")
   expect_error(env$jss_phase2_validate_manuscript_assets(root, sub(assets$canonical_path[[1L]], "wrong.png", manuscript, fixed = TRUE)),
     "missing registered path")
+  scrambled <- sub(paste0("\\label{", assets$canonical_label[[1L]], "}"), "\\label{temporary-swap}", manuscript, fixed = TRUE)
+  scrambled <- sub(paste0("\\label{", assets$canonical_label[[2L]], "}"), paste0("\\label{", assets$canonical_label[[1L]], "}"), scrambled, fixed = TRUE)
+  scrambled <- sub("\\label{temporary-swap}", paste0("\\label{", assets$canonical_label[[2L]], "}"), scrambled, fixed = TRUE)
+  expect_error(env$jss_phase2_validate_manuscript_assets(root, scrambled), "missing registered path/label")
+  expect_error(env$jss_phase2_validate_manuscript_scope(root,
+    sub("data cannot be redistributed", "private data are discussed", manuscript, fixed = TRUE)), "positive nonredistribution")
 
   tmp <- tempfile("phase2-root-"); dir.create(file.path(tmp, "paper"), recursive = TRUE)
   file.copy(file.path(root, "paper", c("manifest.csv", "phase2-manuscript-artifacts.csv")), file.path(tmp, "paper"))
@@ -260,8 +334,11 @@ test_that("Phase 2 manifest retires superseded evidence and registers current ar
     "p2_scaling_attempts", "p2_scaling_hardware"
   ) %in% active))
   claims <- utils::read.csv(file.path(root, "paper", "phase2-claims.csv"), stringsAsFactors = FALSE)
+  pending_claims <- utils::read.csv(file.path(root, "paper", "phase2-pending-claims.csv"), stringsAsFactors = FALSE)
   expect_true(all(claims$attempt_artifact_id %in% active))
   expect_true(all(claims$effect_artifact_id %in% active))
+  expect_true(all(pending_claims$attempt_artifact_id %in% active))
+  expect_true(all(pending_claims$effect_artifact_id %in% active))
   copula_claim <- claims[claims$claim_id == "p2-copula-selection-attempts", , drop = FALSE]
   expect_identical(nrow(copula_claim), 1L)
   expect_identical(copula_claim$wording_strength, "exact")
@@ -289,7 +366,7 @@ test_that("Phase 2 manifest is an exact bidirectional module allowlist", {
     paths <- file.path(out, paths)
     list(module_id = producer, status = "current", data = paths, tables = character(), figures = character())
   })
-  claim <- file.path(out, p2$generated_path[p2$artifact_id == "p2_claim_evidence"])
+  claim <- file.path(out, p2$generated_path[p2$producer == "phase2_claim_evidence"])
   expect_silent(env$jss_phase2_validate_manifest_allowlist(settings, modules, claim, manifest_path))
 
   missing_manifest <- tempfile(fileext = ".csv")
