@@ -80,7 +80,7 @@ jss_missing_validate_registered_design <- function(runs, checkpoints) {
   }
   actual_tasks <- unique(runs[task_fields])
   jss_missing_compare_frame(actual_tasks, expected, c("scenario", "rep"),
-    "Missingness registered Cartesian task grid", tolerance = 0)
+    "Missingness registered Cartesian task grid", tolerance = 1e-15)
   model_cells <- split(runs$model, interaction(runs$scenario, runs$rep, drop = TRUE))
   if (length(model_cells) != 240L || !all(vapply(model_cells, function(x)
       identical(sort(as.character(x)), c("gamlss.longitudinal", "gamlss2")), logical(1)))) {

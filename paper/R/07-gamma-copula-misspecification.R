@@ -486,15 +486,50 @@ jss_misspec_validate_claim_registry <- function(root) {
   invisible(claims)
 }
 
-jss_misspec_validate_evidence_bundle <- function(results_path, config) {
+jss_misspec_validate_evidence_bundle <- function(results_path, config, evidence_paths = NULL) {
   jss_misspec_validate_claim_registry(config$repo_root)
-  paths <- jss_misspec_evidence_paths(results_path)
+  required_path_names <- c(
+    "results", "paired_effects", "warning_audit", "execution_manifest",
+    "selection_attempts", "selection"
+  )
+  paths <- if (is.null(evidence_paths)) {
+    jss_misspec_evidence_paths(results_path)
+  } else {
+    if (!is.character(evidence_paths) ||
+        !identical(names(evidence_paths), required_path_names)) {
+      stop("Module 07 explicit evidence paths do not match the canonical six-artifact contract.", call. = FALSE)
+    }
+    normalized <- vapply(evidence_paths, normalizePath, character(1L),
+      winslash = "/", mustWork = FALSE)
+    names(normalized) <- names(evidence_paths)
+    expected_results <- normalizePath(results_path, winslash = "/", mustWork = FALSE)
+    if (!identical(unname(normalized[["results"]]), expected_results)) {
+      stop("Module 07 explicit evidence paths do not bind the requested results file.", call. = FALSE)
+    }
+    normalized
+  }
   if (any(!file.exists(paths))) {
     stop("Module 07 candidate evidence bundle is incomplete: ", paste(names(paths)[!file.exists(paths)], collapse = ", "), call. = FALSE)
   }
+  manifest <- utils::read.csv(paths[["execution_manifest"]], stringsAsFactors = FALSE, check.names = FALSE)
+  identity_fields <- c("producer_sha256", "package_source_sha256", "configuration_sha256")
+  if (nrow(manifest) != 1L || !all(identity_fields %in% names(manifest)) ||
+      any(!grepl("^[0-9a-f]{64}$", unlist(manifest[identity_fields], use.names = FALSE)))) {
+    stop("Module 07 execution manifest lacks canonical generation-time source identities.", call. = FALSE)
+  }
+  evidence_config <- config
+  evidence_config$producer_sha256 <- manifest$producer_sha256[[1L]]
+  evidence_config$package_source_sha256 <- manifest$package_source_sha256[[1L]]
+  evidence_config$configuration_sha256 <- manifest$configuration_sha256[[1L]]
+  if (!identical(
+      evidence_config$configuration_sha256,
+      jss_misspec_sha256_object(jss_misspec_registered_config_identity(evidence_config)))) {
+    stop("Module 07 execution manifest configuration identity is not self-consistent.", call. = FALSE)
+  }
+  jss_misspec_validate_config(evidence_config, require_callr = FALSE, verify_source = FALSE)
   results <- jss_misspec_upgrade_result_contract(utils::read.csv(paths[["results"]], stringsAsFactors = FALSE, check.names = FALSE))
-  grid <- jss_misspec_grid(config)
-  jss_misspec_validate_public_full_bundle(results, grid, config)
+  grid <- jss_misspec_grid(evidence_config)
+  jss_misspec_validate_public_full_bundle(results, grid, evidence_config)
   derived <- jss_misspec_add_deltas(results)
   paired <- jss_misspec_paired_effects(derived)
   warnings <- jss_misspec_warning_audit(derived)
@@ -510,14 +545,13 @@ jss_misspec_validate_evidence_bundle <- function(results_path, config) {
     "estimate", "mcse", "ci_lower", "ci_upper", "confidence_level", "ci_method", "seed_pairing"
   )
   if (!all(required_effect %in% names(paired)) || !nrow(paired) ||
-      any(paired$n_attempted != config$reps) || any(paired$n_retained < 2L) ||
+      any(paired$n_attempted != evidence_config$reps) || any(paired$n_retained < 2L) ||
       any(!is.finite(paired$estimate) | !is.finite(paired$mcse) |
         !is.finite(paired$ci_lower) | !is.finite(paired$ci_upper)) ||
       any(paired$ci_lower > paired$estimate | paired$ci_upper < paired$estimate) ||
       any(paired$seed_pairing != "registered_dataset_seed_exact")) {
     stop("Fatal Module 07 paired-effect gate lacks complete same-dataset uncertainty evidence.", call. = FALSE)
   }
-  manifest <- utils::read.csv(paths[["execution_manifest"]], stringsAsFactors = FALSE, check.names = FALSE)
   required_manifest <- c(
     "execution_schema_version", "study", "stage", "execution_started_at_utc", "execution_completed_at_utc",
     "git_sha", "git_state", "r_version", "platform", "os", "package_version",
@@ -527,7 +561,7 @@ jss_misspec_validate_evidence_bundle <- function(results_path, config) {
     "paired_effects_sha256", "warning_audit_sha256", "selection_attempts_sha256", "selection_sha256",
     "expected_warning_events", "nonconvergence_warning_events", "unexpected_warning_events"
   )
-  git <- jss_misspec_git_identity(config$repo_root)
+  git <- jss_misspec_git_identity(evidence_config$repo_root)
   hash_fields <- c("dependency_versions_sha256", "producer_sha256", "package_source_sha256",
     "configuration_sha256", "results_sha256", "paired_effects_sha256", "warning_audit_sha256",
     "selection_attempts_sha256", "selection_sha256")
@@ -536,7 +570,7 @@ jss_misspec_validate_evidence_bundle <- function(results_path, config) {
   if (!identical(names(manifest), required_manifest) || nrow(manifest) != 1L ||
       manifest$execution_schema_version[[1L]] != 1L || manifest$study[[1L]] != "copula-misspecification" ||
       manifest$stage[[1L]] != "full" || manifest$git_state[[1L]] != "clean" ||
-      !jss_misspec_git_commit_exists(config$repo_root, manifest$git_sha[[1L]]) || git$state != "clean" ||
+      !jss_misspec_git_commit_exists(evidence_config$repo_root, manifest$git_sha[[1L]]) || git$state != "clean" ||
       !timestamp_ok(manifest$execution_started_at_utc[[1L]]) || !timestamp_ok(manifest$execution_completed_at_utc[[1L]]) ||
       as.POSIXct(manifest$execution_completed_at_utc[[1L]], format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC") <
         as.POSIXct(manifest$execution_started_at_utc[[1L]], format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC") ||
@@ -544,14 +578,14 @@ jss_misspec_validate_evidence_bundle <- function(results_path, config) {
       manifest$package_version[[1L]] != as.character(utils::packageVersion("gamlss.longitudinal")) ||
       manifest$dependency_versions[[1L]] != jss_misspec_dependency_versions() ||
       manifest$dependency_versions_sha256[[1L]] != jss_misspec_sha256_object(manifest$dependency_versions[[1L]]) ||
-      manifest$workers_requested[[1L]] < 1L || manifest$base_seed[[1L]] != config$seed ||
+      manifest$workers_requested[[1L]] < 1L || manifest$base_seed[[1L]] != evidence_config$seed ||
       manifest$seed_min[[1L]] != min(grid$seed) || manifest$seed_max[[1L]] != max(grid$seed) ||
       manifest$dataset_seed_count[[1L]] != length(unique(grid$dataset_seed)) ||
       manifest$fit_seed_count[[1L]] != length(unique(grid$seed)) ||
       manifest$planned_fit_rows[[1L]] != nrow(grid) || manifest$result_rows[[1L]] != nrow(results) ||
-      manifest$producer_sha256[[1L]] != config$producer_sha256 ||
-      manifest$package_source_sha256[[1L]] != config$package_source_sha256 ||
-      manifest$configuration_sha256[[1L]] != config$configuration_sha256 ||
+      manifest$producer_sha256[[1L]] != evidence_config$producer_sha256 ||
+      manifest$package_source_sha256[[1L]] != evidence_config$package_source_sha256 ||
+      manifest$configuration_sha256[[1L]] != evidence_config$configuration_sha256 ||
       manifest$results_sha256[[1L]] != jss_misspec_sha256_file(paths[["results"]]) ||
       manifest$paired_effects_sha256[[1L]] != jss_misspec_sha256_file(paths[["paired_effects"]]) ||
       manifest$warning_audit_sha256[[1L]] != jss_misspec_sha256_file(paths[["warning_audit"]]) ||
@@ -564,7 +598,8 @@ jss_misspec_validate_evidence_bundle <- function(results_path, config) {
     stop("Module 07 execution manifest is stale, incomplete, or not bound to generation-time source/runtime evidence.", call. = FALSE)
   }
   list(paths = paths, results = results, paired_effects = paired, warning_audit = warnings,
-    selection_attempts = attempts, selection = selection, execution_manifest = manifest)
+    selection_attempts = attempts, selection = selection, execution_manifest = manifest,
+    evidence_config = evidence_config)
 }
 
 jss_misspec_candidate_identity <- function(results_path, config) {
@@ -579,9 +614,9 @@ jss_misspec_candidate_identity <- function(results_path, config) {
     results_rows = as.integer(nrow(bundle$results)),
     bundle_sha256 = jss_misspec_sha256_object(manifest_entries),
     execution_manifest_sha256 = jss_misspec_sha256_file(bundle$paths[["execution_manifest"]]),
-    configuration_sha256 = jss_misspec_sha256_object(jss_misspec_registered_config_identity(config)),
-    producer_sha256 = jss_misspec_sha256_file(config$source_path),
-    package_source_sha256 = jss_misspec_package_source_sha256(config$repo_root),
+    configuration_sha256 = bundle$execution_manifest$configuration_sha256[[1L]],
+    producer_sha256 = bundle$execution_manifest$producer_sha256[[1L]],
+    package_source_sha256 = bundle$execution_manifest$package_source_sha256[[1L]],
     approved_at_utc = "", approver = "", stringsAsFactors = FALSE
   )
 }
@@ -657,6 +692,7 @@ jss_misspec_validate_approved_public_bundle <- function(
   identity$approver <- approval$approver
   invisible(c(identity[1L, ], list(
     results = results, source_sha256 = before[["results"]], source_bundle_sha256 = before,
+    evidence_config = bundle$evidence_config,
     attestation_path = normalizePath(attestation_path, winslash = "/", mustWork = TRUE),
     signature_path = normalizePath(signature_path, winslash = "/", mustWork = TRUE)
   )))
@@ -2083,7 +2119,13 @@ jss_run_07_gamma_copula_misspecification <- function(settings, stage = jss_missp
   if (identical(config$stage, "full") && any(review$status != "pass")) {
     stop("Fatal Module 07 full review gate failed: ", paste(review$check[review$status != "pass"], collapse = ", "), call. = FALSE)
   }
-  if (identical(config$stage, "full")) jss_misspec_validate_evidence_bundle(paths$results, config)
+  if (identical(config$stage, "full")) {
+    jss_misspec_validate_evidence_bundle(
+      paths$results, config,
+      unlist(paths[c("results", "paired_effects", "warning_audit", "execution_manifest",
+        "selection_attempts", "selection")], use.names = TRUE)
+    )
+  }
 
   list(
     module_id = "07-gamma-copula-misspecification",

@@ -764,7 +764,7 @@ extract_fixed_estimates_longitudinal <- function(fit_obj, data_used) {
         std_error = if (population_intercept) NA_real_ else
           extract_one_longitudinal_term(se_vec, p, tm),
         true_value = true_value,
-        intercept_includes_fitted_smooth_mean = tm == "intercept",
+        intercept_includes_fitted_smooth_mean = population_intercept,
         inference_status = if (population_intercept) {
           "not_available_without_joint_fixed_smooth_covariance"
         } else {
