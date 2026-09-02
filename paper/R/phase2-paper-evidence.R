@@ -299,7 +299,8 @@ jss_phase2_optimizer_validate_candidate <- function(data_dir, tables_dir, figure
       any(checkpoints$actual_attempts_in_cell != attempts_per_cell[cbind(checkpoints$case_id, rep("rs_joint", nrow(checkpoints)))]) ||
       any(vapply(checkpoints[portable_path_fields], function(x)
         any(grepl("^([A-Za-z]:[/\\\\]|/)", as.character(x))), logical(1))) ||
-      !all(provenance_fields %in% names(checkpoints)) || any(checkpoints$checkpoint_schema_version != 6L) ||
+      !all(provenance_fields %in% names(checkpoints)) ||
+      any(checkpoints$checkpoint_schema_version != jss_joint_checkpoint_schema_version()) ||
       any(!as.logical(checkpoints$package_identity_verified)) ||
       any(!grepl(hex, checkpoints$result_content_sha256)) ||
       any(!grepl(hex, checkpoints$result_portable_sha256)) ||
@@ -325,7 +326,7 @@ jss_phase2_optimizer_validate_candidate <- function(data_dir, tables_dir, figure
   }
   timestamp_ok <- grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
     checkpoints$checkpoint_timestamp_utc)
-  checkpoint_name_ok <- grepl("checkpoints/03-joint-vs-separate-optimization/paired-one-factor-v6/.+/JVS[0-9]{2}-rep-[0-9]+[.]rds$",
+  checkpoint_name_ok <- grepl("checkpoints/03-joint-vs-separate-optimization/paired-one-factor-v7/.+/JVS[0-9]{2}-rep-[0-9]+[.]rds$",
     gsub("\\\\", "/", checkpoints$checkpoint))
   checkpoint_embedded_key_ok <- endsWith(gsub("\\\\", "/", checkpoints$checkpoint),
     sprintf("/%s-rep-%d.rds", checkpoints$case_id, checkpoints$joint_review_rep))

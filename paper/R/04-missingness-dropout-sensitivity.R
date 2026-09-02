@@ -46,6 +46,7 @@ jss_missingness_public_artifacts <- function() {
     "missingness_sensitivity_registry.csv", "missingness_checkpoint_status.csv",
     "missingness_checkpoint_payloads.rds", "missingness_checkpoint_content_manifest.csv",
     "fit_run_log.csv", "attempt_failure_summary.csv", "failure_reason_summary.csv",
+    "missingness_warning_events.csv", "missingness_warning_audit.csv",
     "missingness_by_rep.csv", "missingness_pattern_by_subject_visit.csv", "fixed_effects_by_rep.csv",
     "smooth_estimates_by_rep.csv", "missingness_headline_summary.csv",
     "fixed_term_summary_by_missingness.csv", "smooth_irmse_summary.csv",
@@ -216,6 +217,12 @@ jss_missingness_validate_candidate_bundle <- function(input, root = getwd(),
   runs <- read("fit_run_log.csv")
   attempts <- read("attempt_failure_summary.csv")
   failures <- read("failure_reason_summary.csv")
+  warning_events <- read("missingness_warning_events.csv")
+  warning_audit <- read("missingness_warning_audit.csv")
+  if (!nrow(warning_events)) {
+    warning_events <- jss_missing_empty_warning_events()
+    warning_events$public_payload_sha256 <- character()
+  }
   missing_by_rep <- read("missingness_by_rep.csv")
   missingness_pattern <- read("missingness_pattern_by_subject_visit.csv")
   fixed_raw <- read("fixed_effects_by_rep.csv")
@@ -252,6 +259,10 @@ jss_missingness_validate_candidate_bundle <- function(input, root = getwd(),
     "public_payload_sha256")
   pattern_schema <- c("scenario", "n", "d", "rep", "missing_mechanism", "id", "time",
     "response_observed", "public_payload_sha256")
+  warning_schema <- c(names(jss_missing_empty_warning_events()), "public_payload_sha256")
+  warning_audit_schema <- c("audit_type", "classification", "policy_action", "expected",
+    "events", "affected_fits", "attempted_fits", "omitted_rows", "reconciliation_status",
+    "uncertainty")
   checkpoint_schema <- c("checkpoint_schema_version", "scenario", "rep", "checkpoint_content_sha256",
     "checkpoint", "public_payload_sha256", "package_source_sha256", "package_version", "package_fingerprint_scope",
     "package_source_file_count", "producer_sha256", "package_identity_verified", "timestamp_utc",
@@ -262,6 +273,8 @@ jss_missingness_validate_candidate_bundle <- function(input, root = getwd(),
   exact_schema(smooth_raw, smooth_schema, "Missingness smooth raw payload")
   exact_schema(missing_by_rep, missing_schema, "Missingness replicate summary")
   exact_schema(missingness_pattern, pattern_schema, "Missingness subject-visit pattern")
+  exact_schema(warning_events, warning_schema, "Missingness warning events")
+  exact_schema(warning_audit, warning_audit_schema, "Missingness warning audit")
   exact_schema(checkpoints, checkpoint_schema, "Missingness checkpoint status")
   manifest_schema <- c("scenario", "rep", "checkpoint", "checkpoint_content_sha256",
     "public_payload_sha256")
@@ -335,9 +348,15 @@ jss_missingness_validate_candidate_bundle <- function(input, root = getwd(),
     c("target_missing_rate", "observed_missing_rate", "complete_adjacent_pair_rate", "logLik", "df",
       "grad_inf", "step_l2", "best_raw_loglik", "raw_loglik_drop_from_best",
       "raw_loglik_drop_tol", "outer_log_lik_change", "outer_stop_crit", "elapsed_sec"))
+  warning_events <- normalize_declared_numeric(warning_events, "target_missing_rate")
   if (!all(vapply(checkpoints[c("checkpoint_schema_version", "rep", "package_source_file_count",
       "worker_pid")], is.integer, logical(1))) || !is.logical(checkpoints$package_identity_verified)) {
     stop("Missingness checkpoint status violates exact integer/logical types.", call. = FALSE)
+  }
+  if (!all(vapply(warning_events[c("n", "d", "rep", "warning_index")], is.integer, logical(1))) ||
+      !is.numeric(warning_events$target_missing_rate) || !is.logical(warning_events$expected) ||
+      anyDuplicated(warning_events[c("scenario", "rep", "model", "warning_index")])) {
+    stop("Missingness warning events violate exact declared types or unique event keys.", call. = FALSE)
   }
   if (is.logical(runs$error) && all(is.na(runs$error))) runs$error <- rep(NA_character_, nrow(runs))
   if (!is.character(runs$error) || !all(vapply(runs[c("success", "converged", "retained")],
@@ -404,17 +423,33 @@ jss_missingness_validate_candidate_bundle <- function(input, root = getwd(),
     "objective_deterioration", "invalid_likelihood", "numerical_failure", "time_limit",
     "outer_iteration_limit_or_invalid_loglik", "fit_error")
   expected_failure_type <- ifelse(eligible, "none", ifelse(runs$success %in% TRUE,
-    paste0("optimizer_nonconvergence:", runs$stop_reason), "fit_error"))
+    paste0("optimizer_nonconvergence:", runs$stop_reason),
+    ifelse(runs$stop_reason == "fit_error", "fit_error", paste0("fit_error:", runs$stop_reason))))
   if (anyNA(runs[c("success", "converged", "retained")]) ||
       any(!runs$stop_reason %in% allowed_stops) ||
       any(as.character(runs$failure_type) != expected_failure_type) ||
-      any(!runs$success & runs$converged) || any(!runs$success & runs$stop_reason != "fit_error") ||
+      any(!runs$success & runs$converged) ||
+      any(!runs$success & !runs$stop_reason %in% c("fit_error", "time_limit")) ||
       any(!runs$success & (!is.na(runs$logLik) | !is.na(runs$df))) ||
       any(!runs$success & (is.na(runs$error) | !nzchar(runs$error))) ||
       any(runs$success & !is.na(runs$error) & nzchar(runs$error)) ||
       any(eligible & !runs$stop_reason %in% c("converged", "relative_deviance_tolerance"))) {
     stop("Missingness fit log violates the registered status/failure truth table.", call. = FALSE)
   }
+  if (nrow(warning_events)) {
+    classified <- lapply(warning_events$warning_message, jss_missing_classify_warning)
+    classification_valid <- vapply(seq_len(nrow(warning_events)), function(i) {
+      expected <- classified[[i]]
+      identical(warning_events$normalized_message[[i]], expected$normalized_message) &&
+        identical(warning_events$classification[[i]], expected$classification) &&
+        identical(warning_events$policy_action[[i]], expected$policy_action) &&
+        identical(warning_events$expected[[i]], expected$expected)
+    }, logical(1))
+    if (!all(classification_valid)) {
+      stop("Missingness warning classifications disagree with the registered policy.", call. = FALSE)
+    }
+  }
+  jss_missing_assert_warning_policy(warning_events)
   numeric_columns <- names(runs)[vapply(runs, is.numeric, logical(1))]
   if (any(vapply(runs[numeric_columns], function(x)
       any(!is.na(x) & (!is.finite(x) | abs(x) > 1e12)), logical(1)))) {
@@ -470,7 +505,7 @@ jss_missingness_validate_candidate_bundle <- function(input, root = getwd(),
     }
   }
   expected_reason <- ifelse(eligible, "retained", ifelse(!runs$success,
-    ifelse(is.na(runs$error) | !nzchar(runs$error), "fit_error_unspecified", runs$error),
+    runs$stop_reason,
     ifelse(runs$converged %in% FALSE, paste0("nonconverged: ", runs$stop_reason), "not_retained")))
   expected_failures <- stats::aggregate(rep(1L, nrow(runs)),
     by = data.frame(scenario = runs$scenario, model = runs$model,
@@ -770,7 +805,7 @@ jss_missingness_validate_candidate_bundle <- function(input, root = getwd(),
       "public_payload_sha256", "producer_sha256", "package_identity_verified", "timestamp_utc", "worker_pid", "host", "os", "platform", "r_version",
       "rng_kind", "blas", "lapack", "rlibs_user_sha256", "libpaths_sha256",
       "package_version", "package_fingerprint_scope",
-      "package_source_file_count") %in% names(checkpoints)) || any(checkpoints$checkpoint_schema_version != 4L) ||
+      "package_source_file_count") %in% names(checkpoints)) || any(checkpoints$checkpoint_schema_version != 5L) ||
       any(!as.logical(checkpoints$package_identity_verified)) ||
       any(!grepl(hex, checkpoints$checkpoint_content_sha256)) || any(!grepl(hex, checkpoints$package_source_sha256)) ||
       any(!grepl(hex, checkpoints$producer_sha256)) || any(!grepl(hex, checkpoints$public_payload_sha256)) ||
@@ -808,15 +843,21 @@ jss_missingness_validate_candidate_bundle <- function(input, root = getwd(),
     scenario <- checkpoints$scenario[[i]]; rep_id <- checkpoints$rep[[i]]
     select <- function(x) x[x$scenario == scenario & x$rep == rep_id, , drop = FALSE]
     actual <- jss_missing_portable_task_sha256(select(runs), select(fixed_raw), select(smooth_raw),
-      select(missing_by_rep), select(missingness_pattern))
+      select(missing_by_rep), select(missingness_pattern), select(warning_events))
     recorded <- checkpoints$public_payload_sha256[[i]]
     raw_recorded <- unique(c(select(runs)$public_payload_sha256, select(fixed_raw)$public_payload_sha256,
       select(smooth_raw)$public_payload_sha256, select(missing_by_rep)$public_payload_sha256,
-      select(missingness_pattern)$public_payload_sha256))
+      select(missingness_pattern)$public_payload_sha256,
+      select(warning_events)$public_payload_sha256))
     if (!identical(actual, recorded) || length(raw_recorded) != 1L || !identical(as.character(raw_recorded), recorded)) {
       stop("Missingness raw public rows do not validate against checkpoint payload hashes.", call. = FALSE)
     }
   }
+  coverage_payload <- jss_missing_coverage_plot_payload(fixed_reported,
+    c("mu", "sigma", "nu", "tau"))
+  expected_warning_audit <- jss_missing_warning_audit(warning_events, runs, coverage_payload)
+  jss_missing_compare_frame(warning_audit, expected_warning_audit,
+    c("audit_type", "classification"), "Missingness warning/plot omission audit", tolerance = 0)
   if (isTRUE(require_promotion)) {
     jss_missing_require_external_attestation(bundle_sha256, expected_package$source_sha256,
       expected_producer, checkpoints, root, attestation_path, signature_path)
@@ -837,7 +878,8 @@ jss_missingness_validate_candidate_bundle <- function(input, root = getwd(),
   }
   list(registry = registry, estimands = estimands, runs = runs, attempts = attempts,
     missingness = missing_by_rep, missingness_pattern = missingness_pattern,
-    fixed = fixed_raw, smooth = smooth_raw, headline = headline)
+    fixed = fixed_raw, smooth = smooth_raw, headline = headline,
+    warning_events = warning_events, warning_audit = warning_audit)
 }
 
 jss_missingness_validate_public_bundle <- function(input, root = getwd(),

@@ -126,6 +126,7 @@ test_that("Phase 2 manifest retires superseded evidence and registers current ar
     "p2_missing_attempts", "p2_copula_selection_attempts",
     "p2_optimizer_checkpoint_archive", "p2_optimizer_checkpoint_manifest",
     "p2_missing_checkpoint_archive", "p2_missing_checkpoint_manifest",
+    "p2_missing_warning_events", "p2_missing_warning_audit",
     "p2_mvt_fit_status", "p2_mvt_benchmark_results", "p2_mvt_audit_csv",
     "p2_scaling_attempts", "p2_scaling_hardware"
   ) %in% active))
