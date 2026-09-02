@@ -27,6 +27,9 @@ jss_phase2_central_gate_registry <- function() {
     "phase2_manifest_exact_bidirectional",
     "no_registered_stale_claims",
     "all_registered_claims_verified",
+    "claim_schema_and_scope_registered",
+    "design_contract_and_tex_assets_verified",
+    "canonical_manuscript_artifacts_registered",
     "main_recovery_code_gate",
     "main_recovery_production_evidence_gate"
   )
@@ -40,8 +43,8 @@ jss_phase2_artifact_contract <- function(root = getwd()) {
     "contract_version", "artifact_id", "artifact_type", "generated_path",
     "producer", "profiles", "input_bundle", "access", "publication_status", "verification"
   )
-  expected_sha256 <- "e9598543941bce00d3698fea949f6def6373f94615c2a1975748546b2bcde349"
-  if (!identical(names(contract), required) || nrow(contract) != 109L ||
+  expected_sha256 <- "964e117a7342ebbd13561e4e0d9a3baf0e0969c85c9f4071e2ae21b8f59a016a"
+  if (!identical(names(contract), required) || nrow(contract) != 112L ||
       anyDuplicated(contract$artifact_id) || anyDuplicated(contract$generated_path) ||
       !all(contract$contract_version == "phase2-artifacts-2026-09-03.1") ||
       !identical(digest::digest(contract, algo = "sha256", serialize = TRUE), expected_sha256)) {
@@ -82,7 +85,7 @@ jss_phase2_module_output_allowlist <- function(settings, modules, claim_evidence
       stop("Phase 2 module output differs from the fixed artifact contract: ", name, call. = FALSE)
     }
   }
-  expected_claim <- contract$generated_path[contract$producer == "phase2_claim_evidence"]
+  expected_claim <- contract$generated_path[contract$artifact_id == "p2_claim_evidence"]
   expected_gate <- contract$generated_path[contract$producer == "phase2_gate_audit"]
   actual_claim <- if (is.null(claim_evidence)) character() else
     jss_phase2_normalize_output_path(claim_evidence, settings)

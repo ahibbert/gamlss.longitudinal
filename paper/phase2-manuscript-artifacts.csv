@@ -1,0 +1,14 @@
+artifact_id,publication_scope,usage_kind,canonical_path,canonical_label,canonical_state,manual_action
+p2_recovery_bcpe_fixed_figure,public_manuscript,includegraphics,charts/paper_simulation_bcpe_t_fixed_effect_recovery.png,fig:sim_fixed_recovery,present,Keep path and label.
+p2_recovery_bcpe_smooth_figure,public_manuscript,includegraphics,charts/paper_simulation_bcpe_t_smooth_effect_recovery.png,fig:sim_smooth_recovery,present,Keep path and label.
+p2_recovery_bcpe_fit_table,public_manuscript,input,tables/paper_simulation_bcpe_t_fit_characteristics,tab:fit-characteristics,present,Keep input and reference label.
+p2_recovery_bcpe_parameter_table,public_manuscript,input,tables/paper_simulation_bcpe_t_fixed_parameter_bias_rmse,tab:parameter-recovery,present,Keep input and reference label.
+p2_recovery_nbi_fixed_figure,public_supplemental,includegraphics,charts/paper_simulation_nbi_clayton_highsignal_fixed_effect_recovery.png,fig:sim_fixed_recovery_nb,present,Keep path and label in the appendix.
+p2_recovery_nbi_smooth_figure,public_supplemental,includegraphics,charts/paper_simulation_nbi_clayton_highsignal_smooth_effect_recovery.png,fig:sim_smooth_recovery_nb,present,Keep path and label in the appendix.
+p2_missing_fixed_figure,public_supplemental,includegraphics,charts/fixed_margin_rmse_by_missingness.png,fig:sim_sensitivity_mar_fixed,present,Replace caption wording after the corrected bundle is approved.
+p2_missing_smooth_figure,public_supplemental,includegraphics,charts/smooth_selected_recovery_curves.png,fig:sim_sensitivity_mar_smooth,present,Replace caption wording after the corrected bundle is approved.
+p2_copula_heatmap,public_manuscript,includegraphics,charts/07-gamma-copula-misspecification-paper-summary-heatmap.png,fig:sim_sensitivity_copmisspesification,present,Replace caption with the registered two-copula design and generated denominators.
+p2_optimizer_deltas,public_supplemental,includegraphics,charts/phase2-optimizer-deltas.png,fig:phase2-optimizer-deltas,pending,Insert only if retained after review.
+p2_optimizer_dashboard,public_supplemental,includegraphics,charts/phase2-optimizer-dashboard.png,fig:phase2-optimizer-dashboard,pending,Insert only if retained after review.
+p2_claim_macros,public_manuscript,input,tables/phase2-claim-macros,phase2:claim-macros,pending,Input once before the first Phase 2 claim and replace numeric prose with PhaseTwoClaim calls.
+p2_scenario_design_tex,public_manuscript,input,tables/phase2-scenario-design,tab:phase2-scenario-design,pending,Replace obsolete inline scenario tables with this generated table.

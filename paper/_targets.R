@@ -34,11 +34,22 @@ common <- list(
   )
 )
 if (!identical(profile, "smoke")) {
-  common <- c(common, list(tar_target(
-    public_input_files,
-    list.files(settings$public_data_dir, full.names = TRUE, recursive = TRUE, pattern = "[.](csv|tex|md)$"),
-    format = "file"
-  )))
+  common <- c(common, list(
+    tar_target(
+      public_input_files,
+      list.files(settings$public_data_dir, full.names = TRUE, recursive = TRUE, pattern = "[.](csv|tex|md)$"),
+      format = "file"
+    ),
+    tar_target(
+      phase2_evidence_registry_files,
+      file.path(settings$root, "paper", c(
+        "phase2-claims.csv", "phase2-design-contract.csv", "phase2-manuscript-scope.csv",
+        "phase2-manuscript-artifacts.csv", "canonical-phase2-manuscript-audit.csv",
+        "phase2-canonical-source.csv"
+      )),
+      format = "file"
+    )
+  ))
 }
 
 modules <- if (identical(profile, "smoke")) {
@@ -73,6 +84,7 @@ modules <- if (identical(profile, "smoke")) {
     }),
     tar_target(phase2_claim_evidence, {
       phase2_production_modules
+      phase2_evidence_registry_files
       jss_write_phase2_claim_evidence(settings)
     }, format = "file"),
     tar_target(phase2_gate_audit, jss_write_phase2_gate_audit(
