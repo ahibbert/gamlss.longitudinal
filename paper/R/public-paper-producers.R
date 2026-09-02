@@ -235,6 +235,8 @@ jss_run_07_from_public_results <- function(settings) {
   selection <- jss_misspec_selection(results)
   selection_confusion <- jss_misspec_selection_confusion(selection_attempts, criterion = "aic")
   selection_failures <- jss_misspec_selection_failures(selection_attempts)
+  paired_effects <- jss_misspec_paired_effects(results)
+  warning_audit <- jss_misspec_warning_audit(results)
   jss_misspec_write_csv_atomic(grid, paths$grid)
   jss_misspec_write_csv_atomic(results, paths$results)
   jss_misspec_write_csv_atomic(summary, paths$summary)
@@ -242,7 +244,13 @@ jss_run_07_from_public_results <- function(settings) {
   jss_misspec_write_csv_atomic(selection_attempts, paths$selection_attempts)
   jss_misspec_write_csv_atomic(selection_confusion, paths$selection_confusion)
   jss_misspec_write_csv_atomic(selection_failures, paths$selection_failures)
+  jss_misspec_write_csv_atomic(paired_effects, paths$paired_effects)
+  jss_misspec_write_csv_atomic(warning_audit, paths$warning_audit)
+  source_manifest <- jss_misspec_evidence_paths(public_results)[["execution_manifest"]]
+  manifest <- utils::read.csv(source_manifest, stringsAsFactors = FALSE, check.names = FALSE)
+  jss_misspec_write_csv_atomic(manifest, paths$execution_manifest)
   jss_misspec_write_paper_summary_heatmap(summary, paths$paper_summary_heatmap)
+  jss_misspec_validate_evidence_bundle(paths$results, config)
   installed_results <- utils::read.csv(paths$results, stringsAsFactors = FALSE, check.names = FALSE)
   review <- jss_misspec_binding_review_gate(
     installed_results, grid = grid, paths = paths,
@@ -251,8 +259,9 @@ jss_run_07_from_public_results <- function(settings) {
   jss_misspec_write_csv_atomic(review[c("check", "status", "detail")], paths$review)
   jss_misspec_revalidate_approved_source(public_results, approval, config)
   list(module_id = "07-gamma-copula-misspecification", status = "regenerated",
-    data = c(paths$grid, paths$results, paths$selection_attempts),
-    tables = c(paths$summary, paths$selection, paths$selection_confusion, paths$selection_failures, paths$review),
+    data = c(paths$grid, paths$results, paths$selection_attempts, paths$execution_manifest),
+    tables = c(paths$summary, paths$selection, paths$selection_confusion, paths$selection_failures,
+      paths$paired_effects, paths$warning_audit, paths$review),
     figures = paths$paper_summary_heatmap, approved_identity = approval)
 }
 

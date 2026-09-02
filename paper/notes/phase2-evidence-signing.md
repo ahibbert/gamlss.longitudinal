@@ -36,12 +36,16 @@ signs each production bundle.
    `GAMLSS_LONGITUDINAL_JSS_OPTIMIZER`,
    `GAMLSS_LONGITUDINAL_JSS_MISSINGNESS`, `GAMLSS_LONGITUDINAL_JSS_COPULA`,
    and `GAMLSS_LONGITUDINAL_MVT`. Module 07 validates resumable per-fit
-   checkpoints and records rejected checkpoints in a quarantine ledger; its
-   signature binds the resulting exact 2,400-row full-R100 CSV
+   checkpoints in the registered `ga-nc-v2` namespace and records rejected
+   checkpoints in a quarantine ledger; its signature binds the resulting exact
+   six-file evidence bundle: the 2,400-row full-R100 attempt CSV, paired-effect
+   and selection artifacts, structured warning audit, and immutable
+   generation-time execution manifest
    (1,200 independently seeded generated datasets, each fitted twice)
    for the Phase-1-supported Gamma/Gaussian and Gamma/Clayton routes,
-   immutable configuration, checked-out package source, producer, and numerical
-   runtime provenance. Main recovery binds the exact canonical bundle,
+   immutable configuration, checked-out package source, producer, clean Git
+   state, dependency versions, registered seeds, workers, timestamps, and
+   warning totals. Main recovery binds the exact canonical bundle,
    output manifest/checkpoint, runner settings, control-source manifest,
    package/producer identities, n=500/T=4/R=100 configuration, and every
    execution completion instant. Module 09 binds the immutable root snapshot plus its

@@ -104,31 +104,34 @@ phase2_sign <- function(study, bundle_dir, root, approver, private_path,
   if (identical(study, "copula-misspecification")) {
     source(file.path(root, "paper", "R", "07-gamma-copula-misspecification.R"), local = .GlobalEnv)
     results_path <- file.path(bundle_dir, "results.csv")
-    before <- jss_misspec_sha256_file(results_path)
-    snapshot <- tempfile("copula-approval-snapshot-", fileext = ".csv")
-    on.exit(unlink(snapshot, force = TRUE), add = TRUE)
-    if (!file.copy(results_path, snapshot, overwrite = FALSE) ||
-        !identical(before, jss_misspec_sha256_file(results_path)) ||
-        !identical(before, jss_misspec_sha256_file(snapshot))) {
+    source_paths <- jss_misspec_evidence_paths(results_path)
+    if (any(!file.exists(source_paths))) stop("Module 07 bundle is incomplete.", call. = FALSE)
+    before <- vapply(source_paths, jss_misspec_sha256_file, character(1L))
+    snapshot_dir <- tempfile("copula-approval-snapshot-"); dir.create(snapshot_dir)
+    on.exit(unlink(snapshot_dir, recursive = TRUE, force = TRUE), add = TRUE)
+    snapshot_paths <- file.path(snapshot_dir, basename(source_paths)); names(snapshot_paths) <- names(source_paths)
+    if (!all(file.copy(source_paths, snapshot_paths, overwrite = FALSE)) ||
+        !identical(before, vapply(source_paths, jss_misspec_sha256_file, character(1L))) ||
+        !identical(before, vapply(snapshot_paths, jss_misspec_sha256_file, character(1L)))) {
       stop("Module 07 bundle changed while creating the approval snapshot.", call. = FALSE)
     }
+    snapshot <- snapshot_paths[["results"]]
     config <- jss_misspec_config(list(root = root, profile = "full", seed = 20260528L), stage = "full")
-    grid <- jss_misspec_grid(config)
-    results <- jss_misspec_upgrade_result_contract(utils::read.csv(snapshot, stringsAsFactors = FALSE, check.names = FALSE))
-    jss_misspec_validate_public_full_bundle(results, grid, config)
     identity <- jss_misspec_candidate_identity(snapshot, config)
     approved_at <- format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
     attestation <- list(
-      schema_version = 2L, study = study,
+      schema_version = 3L, study = study,
       results_sha256 = identity$results_sha256[[1L]], results_rows = identity$results_rows[[1L]],
+      bundle_sha256 = identity$bundle_sha256[[1L]],
+      execution_manifest_sha256 = identity$execution_manifest_sha256[[1L]],
       configuration_sha256 = identity$configuration_sha256[[1L]],
       producer_sha256 = identity$producer_sha256[[1L]],
       package_source_sha256 = identity$package_source_sha256[[1L]],
-      provenance_sha256 = identity$provenance_sha256[[1L]],
       approved_at_utc = approved_at, approver = approver
     )
-    if (!identical(before, jss_misspec_sha256_file(results_path)) ||
-        !identical(before, jss_misspec_sha256_file(snapshot))) {
+    if (!identical(before, vapply(source_paths, jss_misspec_sha256_file, character(1L))) ||
+        !identical(before, vapply(snapshot_paths, jss_misspec_sha256_file, character(1L))) ||
+        !identical(identity, jss_misspec_candidate_identity(snapshot, config))) {
       stop("Module 07 bundle changed during independent approval.", call. = FALSE)
     }
     return(phase2_write_signed_attestation(attestation, private_key, public_key,
