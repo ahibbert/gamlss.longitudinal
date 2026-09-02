@@ -228,7 +228,9 @@ jss_run_07_from_public_results <- function(settings) {
   approval <- jss_misspec_validate_approved_public_bundle(public_results, grid, config)
   results <- approval$results
   approval$results <- NULL
-  jss_misspec_validate_public_full_bundle(results, grid, config)
+  evidence_config <- approval$evidence_config
+  evidence_grid <- jss_misspec_grid(evidence_config)
+  jss_misspec_validate_public_full_bundle(results, evidence_grid, evidence_config)
   results <- jss_misspec_add_deltas(results)
   summary <- jss_misspec_summary(results)
   selection_attempts <- jss_misspec_selection_attempts(results)
@@ -237,7 +239,7 @@ jss_run_07_from_public_results <- function(settings) {
   selection_failures <- jss_misspec_selection_failures(selection_attempts)
   paired_effects <- jss_misspec_paired_effects(results)
   warning_audit <- jss_misspec_warning_audit(results)
-  jss_misspec_write_csv_atomic(grid, paths$grid)
+  jss_misspec_write_csv_atomic(evidence_grid, paths$grid)
   jss_misspec_write_csv_atomic(results, paths$results)
   jss_misspec_write_csv_atomic(summary, paths$summary)
   jss_misspec_write_csv_atomic(selection, paths$selection)
@@ -250,11 +252,15 @@ jss_run_07_from_public_results <- function(settings) {
   manifest <- utils::read.csv(source_manifest, stringsAsFactors = FALSE, check.names = FALSE)
   jss_misspec_write_csv_atomic(manifest, paths$execution_manifest)
   jss_misspec_write_paper_summary_heatmap(summary, paths$paper_summary_heatmap)
-  jss_misspec_validate_evidence_bundle(paths$results, config)
+  jss_misspec_validate_evidence_bundle(
+    paths$results, config,
+    unlist(paths[c("results", "paired_effects", "warning_audit", "execution_manifest",
+      "selection_attempts", "selection")], use.names = TRUE)
+  )
   installed_results <- utils::read.csv(paths$results, stringsAsFactors = FALSE, check.names = FALSE)
   review <- jss_misspec_binding_review_gate(
-    installed_results, grid = grid, paths = paths,
-    context = "paper-public-derived", config = config
+    installed_results, grid = evidence_grid, paths = paths,
+    context = "paper-public-derived", config = evidence_config
   )
   jss_misspec_write_csv_atomic(review[c("check", "status", "detail")], paths$review)
   jss_misspec_revalidate_approved_source(public_results, approval, config)

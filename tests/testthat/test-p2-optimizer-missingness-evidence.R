@@ -854,11 +854,22 @@ test_that("missingness registered Cartesian grid rejects deletion substitution a
   runs$model <- rep(c("gamlss.longitudinal", "gamlss2"), nrow(grid))
   checkpoints <- grid[c("scenario", "rep")]
   expect_silent(env$jss_missing_validate_registered_design(runs, checkpoints))
+  csv_roundtrip <- runs
+  csv_roundtrip$target_missing_rate[
+    abs(csv_roundtrip$target_missing_rate - 0.3) < 1e-12
+  ] <- as.numeric("0.3")
+  expect_silent(env$jss_missing_validate_registered_design(csv_roundtrip, checkpoints))
   expect_error(env$jss_missing_validate_registered_design(runs[-1L, ], checkpoints),
     "240-task/480-model")
   substituted <- runs
   substituted$target_missing_rate[1:2] <- .25
   expect_error(env$jss_missing_validate_registered_design(substituted, checkpoints),
+    "Cartesian task grid")
+  meaningful_drift <- csv_roundtrip
+  affected <- which(abs(meaningful_drift$target_missing_rate - 0.3) < 1e-12)[1:2]
+  meaningful_drift$target_missing_rate[affected] <-
+    meaningful_drift$target_missing_rate[affected] + 1e-8
+  expect_error(env$jss_missing_validate_registered_design(meaningful_drift, checkpoints),
     "Cartesian task grid")
   mutated_seed <- runs
   mutated_seed$missingness_seed[[1L]] <- mutated_seed$missingness_seed[[1L]] + 1L
@@ -1067,6 +1078,51 @@ test_that("missingness estimands use a fixed population centering target", {
   expect_true(grepl("smooth_truth[[p]](s1_grid) - jss_missing_population_smooth_mean", producer, fixed = TRUE))
   expect_true(grepl("not_available_without_joint_fixed_smooth_covariance", producer, fixed = TRUE))
   expect_true(grepl("if (population_intercept) NA_real_", producer, fixed = TRUE))
+})
+
+test_that("missingness longitudinal intercept metadata identifies only smoothed parameters", {
+  root <- local_phase2_repo_root()
+  producer <- parse(file.path(
+    root, "paper", "scripts", "final-simulations", "missingness",
+    "run_missingness_study.R"
+  ))
+  is_extractor <- vapply(producer, function(expr) {
+    is.call(expr) && identical(expr[[1L]], as.name("<-")) &&
+      identical(expr[[2L]], as.name("extract_fixed_estimates_longitudinal"))
+  }, logical(1))
+  expect_equal(sum(is_extractor), 1L)
+
+  env <- new.env(parent = globalenv())
+  env$compute_se <- FALSE
+  env$params_all <- c("mu", "sigma", "nu", "tau", "theta", "zeta")
+  env$fixed_terms <- "intercept"
+  env$smooth_truth <- list(
+    mu = identity,
+    sigma = identity,
+    theta = identity
+  )
+  env$true_beta <- setNames(
+    lapply(env$params_all, function(parameter) c(intercept = 0)),
+    env$params_all
+  )
+  env$calc_smooth_mean <- function(data_used, parameter) 0
+  env$extract_one_longitudinal_term <- function(par_vec, parameter, term) 0
+  eval(producer[[which(is_extractor)]], envir = env)
+
+  extracted <- env$extract_fixed_estimates_longitudinal(
+    list(par = numeric(), model_matrix = list(s = list()), par_s = list()),
+    data.frame(s1 = 0.5)
+  )
+  smooth_intercepts <- extracted$parameter %in% c("mu", "sigma", "theta")
+  expect_identical(extracted$intercept_includes_fitted_smooth_mean, smooth_intercepts)
+  expect_identical(
+    extracted$inference_status[smooth_intercepts],
+    rep("not_available_without_joint_fixed_smooth_covariance", 3L)
+  )
+  expect_identical(
+    extracted$inference_status[!smooth_intercepts],
+    rep("coefficient_covariance_available_when_finite", 3L)
+  )
 })
 
 test_that("missingness package source mutation changes the checkpoint contract", {
