@@ -326,9 +326,59 @@ test_that("tracked fit-scaling evidence reconciles with its attempts", {
   )$publication_eligible)
   expect_true(all(c("cpu_model", "dependency_versions", "checkpoint_schema_version", "seed_scheme_version", "execution_context") %in% names(hardware)))
   provenance <- env$jss_scaling_provenance_status(hardware, attempts)
-  expect_false(provenance$production_eligible)
-  expect_match(provenance$reasons, "worktree_not_clean")
-  expect_match(provenance$reasons, "not_target_integrated")
+  expect_true(provenance$production_eligible)
+  expect_identical(provenance$reasons, "none")
+  expect_silent(env$jss_scaling_assert_production_provenance(hardware, attempts))
+
+  manifest <- utils::read.csv(file.path(root, "paper", "manifest.csv"), stringsAsFactors = FALSE)
+  manifest <- manifest[grepl("^p2_scaling_", manifest$artifact_id), , drop = FALSE]
+  source_paths <- c(
+    p2_scaling_scenarios = file.path(bundle, "scenarios.csv"),
+    p2_scaling_attempts = file.path(bundle, "attempts.csv"),
+    p2_scaling_summary = file.path(bundle, "summary.csv"),
+    p2_scaling_contrasts = file.path(bundle, "contrasts.csv"),
+    p2_scaling_hardware = file.path(bundle, "hardware.csv")
+  )
+  canonical_sha256 <- function(path) {
+    text <- paste(readLines(path, warn = FALSE, encoding = "UTF-8"), collapse = "\n")
+    text <- sub("^\ufeff", "", text)
+    digest::digest(charToRaw(text), algo = "sha256", serialize = FALSE)
+  }
+  expect_setequal(manifest$artifact_id, names(source_paths))
+  manifest <- manifest[match(names(source_paths), manifest$artifact_id), , drop = FALSE]
+  expect_identical(manifest$verification, rep("canonical_sha256", length(source_paths)))
+  expect_identical(manifest$approved_sha256, unname(vapply(source_paths, canonical_sha256, character(1))))
+})
+
+test_that("paper profile stages the approved fit-scaling bundle as current", {
+  env <- local_phase2_scaling_env()
+  root <- normalizePath(file.path("..", ".."), winslash = "/", mustWork = TRUE)
+  out <- tempfile("fit-scaling-paper-")
+  settings <- list(
+    root = root,
+    profile = "paper",
+    out_dir = out,
+    data_dir = file.path(out, "data"),
+    tables_dir = file.path(out, "tables"),
+    figures_dir = file.path(out, "figures"),
+    public_data_dir = file.path(root, "paper", "data", "public-derived"),
+    workers = 1L,
+    seed = 20260528L,
+    target_integrated = TRUE
+  )
+  module <- env$jss_run_10_fit_scaling(settings)
+  expect_identical(module$status, "current")
+  expect_true(all(file.exists(c(module$data, module$tables))))
+  staged <- c(
+    scenarios = module$data[[1L]], attempts = module$data[[2L]],
+    summary = module$tables[[1L]], contrasts = module$tables[[2L]],
+    hardware = module$tables[[3L]]
+  )
+  source <- file.path(settings$public_data_dir, "fit-scaling", paste0(names(staged), ".csv"))
+  expect_identical(
+    unname(vapply(staged, function(path) paste(readLines(path, warn = FALSE), collapse = "\n"), character(1))),
+    unname(vapply(source, function(path) paste(readLines(path, warn = FALSE), collapse = "\n"), character(1)))
+  )
 })
 
 test_that("publication gate recomputes every reported statistic from exact attempts", {
@@ -383,7 +433,7 @@ test_that("publication gate recomputes every reported statistic from exact attem
   expect_match(status$reasons, "checkpoint_contract_invalid")
 })
 
-test_that("clean target hardware cannot relabel dirty standalone attempts", {
+test_that("clean target hardware cannot relabel internally consistent dirty standalone attempts", {
   env <- local_phase2_scaling_env()
   root <- normalizePath(file.path("..", ".."), winslash = "/", mustWork = TRUE)
   bundle <- file.path(root, "paper", "data", "public-derived", "fit-scaling")
@@ -392,16 +442,37 @@ test_that("clean target hardware cannot relabel dirty standalone attempts", {
   summary <- utils::read.csv(file.path(bundle, "summary.csv"), stringsAsFactors = FALSE)
   contrasts <- utils::read.csv(file.path(bundle, "contrasts.csv"), stringsAsFactors = FALSE)
   hardware <- utils::read.csv(file.path(bundle, "hardware.csv"), stringsAsFactors = FALSE)
-  substituted <- hardware
-  substituted$git_dirty <- "clean"
-  substituted$execution_context <- "targets"
+  dirty_attempts <- attempts
+  dirty_attempts$timing_git_dirty <- "dirty"
+  dirty_attempts$timing_execution_context <- "standalone_or_unverified"
+  timing_fields <- c(
+    "timing_git_sha", "timing_git_dirty", "timing_r_version", "timing_platform",
+    "timing_os", "timing_cpu_model", "timing_execution_context",
+    "timing_dependency_versions"
+  )
+  dirty_environment <- stats::setNames(
+    lapply(timing_fields, function(field) unique(as.character(dirty_attempts[[field]]))),
+    timing_fields
+  )
+  dirty_attempts$timing_environment_fingerprint <- env$jss_scaling_hash(dirty_environment)
+  dirty_attempts$checkpoint_fingerprint <- env$jss_scaling_hash(list(
+    schema = env$jss_scaling_schema_version(),
+    design = env$jss_scaling_normalize_design(design),
+    configuration = env$jss_scaling_configuration("full"),
+    code = env$jss_scaling_code_fingerprint(),
+    packages = env$jss_scaling_package_versions(),
+    timing_environment = dirty_environment,
+    seed_scheme = env$jss_scaling_seed_scheme_version(),
+    base_seed = unique(as.integer(dirty_attempts$base_seed))
+  ))
+  expect_true(env$jss_scaling_recorded_contract_valid(dirty_attempts, design))
   status <- env$jss_scaling_publication_status(
-    design, attempts, summary, contrasts, env$jss_scaling_precision_rule("full"),
-    hardware = substituted
+    design, dirty_attempts, summary, contrasts, env$jss_scaling_precision_rule("full"),
+    hardware = hardware
   )
   expect_false(status$publication_eligible)
   expect_match(status$reasons, "timing_provenance_reconciliation_failed")
-  provenance <- env$jss_scaling_provenance_status(substituted, attempts)
+  provenance <- env$jss_scaling_provenance_status(hardware, dirty_attempts)
   expect_false(provenance$production_eligible)
   expect_match(provenance$reasons, "attempt_hardware_provenance_mismatch")
   expect_match(provenance$reasons, "attempt_worktree_not_clean")
