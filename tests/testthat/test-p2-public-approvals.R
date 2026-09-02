@@ -6,7 +6,8 @@ local_public_approval_env <- function() {
 }
 
 local_clear_public_approval_env <- function(spec) {
-  vars <- c(spec$attestation_env, spec$signature_env)
+  vars <- c(spec$attestation_env, spec$signature_env,
+    "GAMLSS_LONGITUDINAL_JSS_APPROVAL_BUNDLE_SHA256")
   old <- Sys.getenv(vars, unset = NA_character_)
   Sys.unsetenv(vars)
   function() {
@@ -76,6 +77,15 @@ test_that("public approvals are hash checked and materialized outside checkout",
     unname(normalizePath(paths[seq_len(nrow(spec))], winslash = "/")))
   expect_identical(unname(normalizePath(Sys.getenv(spec$signature_env), winslash = "/")),
     unname(normalizePath(paths[nrow(spec) + seq_len(nrow(spec))], winslash = "/")))
+  first_identity <- Sys.getenv("GAMLSS_LONGITUDINAL_JSS_APPROVAL_BUNDLE_SHA256")
+  Sys.unsetenv(c(spec$attestation_env, spec$signature_env,
+    "GAMLSS_LONGITUDINAL_JSS_APPROVAL_BUNDLE_SHA256"))
+  setup$env$jss_phase2_materialize_public_approvals(
+    fixture_root, "paper", approval_dir = approval_dir,
+    external_dir = tempfile("approval-external-")
+  )
+  expect_identical(Sys.getenv("GAMLSS_LONGITUDINAL_JSS_APPROVAL_BUNDLE_SHA256"),
+    first_identity)
 
   writeBin(as.raw(0:10), file.path(approval_dir, spec$signature_file[[1L]]))
   Sys.unsetenv(c(spec$attestation_env, spec$signature_env))
@@ -123,4 +133,106 @@ test_that("complete per-study external overrides remain supported", {
     normalizePath(override[[1L]], winslash = "/"))
   expect_identical(normalizePath(paths[[nrow(spec) + 1L]], winslash = "/"),
     normalizePath(override[[2L]], winslash = "/"))
+  expect_match(Sys.getenv("GAMLSS_LONGITUDINAL_JSS_APPROVAL_BUNDLE_SHA256"),
+    "^[0-9a-f]{64}$")
+})
+
+test_that("external overrides are preflighted before targets run", {
+  skip_if_not_installed("digest")
+  setup <- local_public_approval_env()
+  spec <- setup$env$jss_phase2_public_approval_spec()
+  restore <- local_clear_public_approval_env(spec); on.exit(restore(), add = TRUE)
+  fixture_root <- tempfile("approval-checkout-"); dir.create(fixture_root)
+  approval_dir <- local_write_public_approval_fixture(setup$env, fixture_root)
+
+  inside <- file.path(fixture_root, "inside.attestation")
+  writeBin(as.raw(1:8), inside)
+  outside <- tempfile("outside-signature-"); writeBin(as.raw(9:16), outside)
+  do.call(Sys.setenv, stats::setNames(as.list(c(inside, outside)),
+    c(spec$attestation_env[[1L]], spec$signature_env[[1L]])))
+  expect_error(setup$env$jss_phase2_materialize_public_approvals(
+    fixture_root, "paper", approval_dir = approval_dir,
+    external_dir = tempfile("approval-external-")), "external to the editable checkout")
+
+  Sys.unsetenv(c(spec$attestation_env, spec$signature_env))
+  complete <- vapply(seq_len(10L), function(i) {
+    path <- tempfile("complete-override-"); writeBin(as.raw(i), path); path
+  }, character(1L))
+  unlink(complete[[10L]])
+  do.call(Sys.setenv, stats::setNames(as.list(complete[seq_len(5L)]), spec$attestation_env))
+  do.call(Sys.setenv, stats::setNames(as.list(complete[5L + seq_len(5L)]), spec$signature_env))
+  expect_error(setup$env$jss_phase2_materialize_public_approvals(
+    fixture_root, "full"), "does not exist or is not a regular file")
+})
+
+test_that("a complete external override set needs no bundled manifest", {
+  skip_if_not_installed("digest")
+  setup <- local_public_approval_env()
+  spec <- setup$env$jss_phase2_public_approval_spec()
+  restore <- local_clear_public_approval_env(spec); on.exit(restore(), add = TRUE)
+  fixture_root <- tempfile("approval-checkout-"); dir.create(fixture_root)
+  complete <- vapply(seq_len(10L), function(i) {
+    path <- tempfile("complete-override-"); writeBin(as.raw(i), path); path
+  }, character(1L))
+  do.call(Sys.setenv, stats::setNames(as.list(complete[seq_len(5L)]), spec$attestation_env))
+  do.call(Sys.setenv, stats::setNames(as.list(complete[5L + seq_len(5L)]), spec$signature_env))
+  paths <- setup$env$jss_phase2_materialize_public_approvals(fixture_root, "paper")
+  expect_identical(unname(normalizePath(paths, winslash = "/")),
+    unname(normalizePath(complete, winslash = "/")))
+  expect_match(Sys.getenv("GAMLSS_LONGITUDINAL_JSS_APPROVAL_BUNDLE_SHA256"),
+    "^[0-9a-f]{64}$")
+})
+
+test_that("effective approval-byte changes invalidate cached targets", {
+  skip_if_not_installed("digest")
+  skip_if_not_installed("targets")
+  skip_if_not_installed("callr")
+  setup <- local_public_approval_env()
+  spec <- setup$env$jss_phase2_public_approval_spec()
+  restore <- local_clear_public_approval_env(spec); on.exit(restore(), add = TRUE)
+  fixture_root <- tempfile("approval-checkout-"); dir.create(fixture_root)
+  approval_dir <- local_write_public_approval_fixture(setup$env, fixture_root)
+  work <- tempfile("approval-target-cache-"); dir.create(work)
+  script <- file.path(work, "_targets.R")
+  store <- file.path(work, "_targets")
+  helper <- normalizePath(file.path(setup$root, "paper", "R", "replication-helpers.R"),
+    winslash = "/", mustWork = TRUE)
+  writeLines(c(
+    "library(targets)",
+    paste0("source(", dQuote(helper), ")"),
+    "list(",
+    "  tar_target(settings, jss_settings(create = FALSE), cue = tar_cue(mode = 'always')),",
+    "  tar_target(approval_identity, settings$approval_bundle_sha256)",
+    ")"
+  ), script)
+  old <- Sys.getenv(c("GAMLSS_LONGITUDINAL_JSS_PROFILE", "GAMLSS_LONGITUDINAL_JSS_ROOT"),
+    unset = NA_character_)
+  on.exit({
+    Sys.unsetenv(c("GAMLSS_LONGITUDINAL_JSS_PROFILE", "GAMLSS_LONGITUDINAL_JSS_ROOT"))
+    present <- !is.na(old)
+    if (any(present)) do.call(Sys.setenv, as.list(stats::setNames(old[present], names(old)[present])))
+  }, add = TRUE)
+  Sys.setenv(GAMLSS_LONGITUDINAL_JSS_PROFILE = "paper",
+    GAMLSS_LONGITUDINAL_JSS_ROOT = fixture_root)
+
+  setup$env$jss_phase2_materialize_public_approvals(fixture_root, "paper",
+    approval_dir = approval_dir, external_dir = tempfile("approval-external-"))
+  first_identity <- Sys.getenv("GAMLSS_LONGITUDINAL_JSS_APPROVAL_BUNDLE_SHA256")
+  targets::tar_make(script = script, store = store, reporter = "silent")
+  expect_identical(targets::tar_read(approval_identity, store = store), first_identity)
+
+  writeBin(as.raw(c(255L, 1:16)), file.path(approval_dir, spec$attestation_file[[1L]]))
+  manifest <- utils::read.csv(file.path(approval_dir, "manifest.csv"), stringsAsFactors = FALSE)
+  manifest$attestation_sha256[[1L]] <- digest::digest(
+    file.path(approval_dir, spec$attestation_file[[1L]]), file = TRUE,
+    algo = "sha256", serialize = FALSE)
+  utils::write.csv(manifest, file.path(approval_dir, "manifest.csv"), row.names = FALSE, na = "")
+  Sys.unsetenv(c(spec$attestation_env, spec$signature_env,
+    "GAMLSS_LONGITUDINAL_JSS_APPROVAL_BUNDLE_SHA256"))
+  setup$env$jss_phase2_materialize_public_approvals(fixture_root, "paper",
+    approval_dir = approval_dir, external_dir = tempfile("approval-external-"))
+  second_identity <- Sys.getenv("GAMLSS_LONGITUDINAL_JSS_APPROVAL_BUNDLE_SHA256")
+  expect_false(identical(second_identity, first_identity))
+  targets::tar_make(script = script, store = store, reporter = "silent")
+  expect_identical(targets::tar_read(approval_identity, store = store), second_identity)
 })
