@@ -314,6 +314,49 @@ test_that("Phase 2 central target and seed registrations are explicit", {
   expect_match(seeds$replicate_rule[seeds$study == "optimizer-benchmark"], "3000 + 100*rep", fixed = TRUE)
 })
 
+test_that("central gate preserves manuscript scope and fails closed on pending evidence", {
+  env <- local_phase2_claim_env()
+  root <- normalizePath(file.path("..", ".."), winslash = "/", mustWork = TRUE)
+  source(file.path(root, "paper", "R", "phase2-central-integration.R"), local = env)
+  out <- tempfile("phase2-central-gate-")
+  settings <- list(root = root, out_dir = out, data_dir = file.path(out, "data"),
+    tables_dir = file.path(out, "tables"), public_data_dir = file.path(out, "public"))
+  dir.create(settings$data_dir, recursive = TRUE)
+  dir.create(settings$tables_dir, recursive = TRUE)
+  dir.create(settings$public_data_dir, recursive = TRUE)
+
+  ledger <- env$jss_phase2_claim_register(root)
+  verified <- ledger[ledger$evidence_state == "verified_source", , drop = FALSE]
+  claim_path <- file.path(settings$tables_dir, "phase2-claim-evidence.csv")
+  utils::write.csv(data.frame(claim_id = verified$claim_id), claim_path, row.names = FALSE)
+  for (name in c("phase2-claim-macros.tex", "phase2-scenario-design.tex", "phase2-manuscript-checklist.csv"))
+    writeLines("fixture", file.path(settings$tables_dir, name))
+  recovery <- file.path(settings$data_dir, "main-recovery")
+  dir.create(recovery)
+  utils::write.csv(data.frame(pass = TRUE), file.path(recovery, "evidence_validation.csv"), row.names = FALSE)
+
+  env$jss_phase2_validate_production_modules <- function(...) TRUE
+  env$jss_phase2_validate_manifest_allowlist <- function(...) TRUE
+  env$jss_phase2_module_output_allowlist <- function(...) "fixture"
+  env$jss_phase2_validate_claim_evidence_rows <- function(...) TRUE
+  env$jss_phase2_validate_design_contract <- function(...) data.frame()
+  env$jss_phase2_validate_joint_design_contract <- function(...) data.frame()
+  env$jss_phase2_validate_manuscript_artifact_registry <- function(...) TRUE
+  env$jss_main_recovery_validate_public_bundle <- function(...) TRUE
+  modules <- stats::setNames(rep(list(list(status = "current")), 6L),
+    c("main_recovery", "optimizer", "missingness", "copula_selection", "multivariate_benchmark", "fit_scaling"))
+
+  expect_error(env$jss_write_phase2_gate_audit(settings, modules, claim_path),
+    "all_registered_claims_verified")
+  audit <- utils::read.csv(file.path(settings$tables_dir, "phase2-gate-audit.csv"), stringsAsFactors = FALSE)
+  value <- function(id) audit$pass[audit$check_id == id]
+  expect_true(value("no_registered_stale_claims"))
+  expect_true(value("claim_schema_and_scope_registered"))
+  expect_false(value("all_registered_claims_verified"))
+  expect_identical(audit$detail[audit$check_id == "all_registered_claims_verified"], "pending_evidence=27")
+  expect_false(all(audit$pass))
+})
+
 test_that("Phase 2 manifest retires superseded evidence and registers current artifacts", {
   root <- normalizePath(file.path("..", ".."), winslash = "/", mustWork = TRUE)
   manifest <- utils::read.csv(file.path(root, "paper", "manifest.csv"), stringsAsFactors = FALSE)
