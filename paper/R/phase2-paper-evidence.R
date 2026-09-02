@@ -1180,10 +1180,12 @@ jss_phase2_known_canonical_issues <- function(root, manuscript) {
   text <- if (length(manuscript) == 1L && file.exists(manuscript))
     paste(readLines(manuscript, warn = FALSE), collapse = "\n") else paste(manuscript, collapse = "\n")
   audit <- utils::read.csv(file.path(root, "paper", "canonical-phase2-manuscript-audit.csv"), stringsAsFactors = FALSE)
-  hits <- vapply(audit$canonical_excerpt, function(excerpt) {
-    tokens <- trimws(strsplit(excerpt, ";", fixed = TRUE)[[1L]])
-    any(vapply(tokens, grepl, logical(1L), x = text, fixed = TRUE))
-  }, logical(1L))
+  required <- c("issue_id", "tex_anchor", "evidence_scope", "status", "canonical_excerpt",
+    "canonical_signature", "required_action", "replacement_asset")
+  if (!identical(names(audit), required) || any(!nzchar(trimws(audit$canonical_signature)))) {
+    stop("Canonical Phase 2 manuscript audit signatures are malformed.", call. = FALSE)
+  }
+  hits <- vapply(audit$canonical_signature, grepl, logical(1L), x = text, fixed = TRUE)
   data.frame(audit, excerpt_present = hits, stringsAsFactors = FALSE)
 }
 
@@ -1395,12 +1397,10 @@ jss_write_phase2_gate_audit <- function(settings, modules, claim_evidence) {
     if (manifest_ok) paste("exact_paths", length(jss_phase2_module_output_allowlist(settings, modules, claim_evidence)), sep = "=") else manifest_error,
     "paper/manifest.csv"
   )
-  manuscript <- paste(readLines(file.path(settings$root, "paper", "manuscript", "main.tex"), warn = FALSE), collapse = " ")
-  known_stale <- utils::read.csv(file.path(settings$root, "paper", "canonical-phase2-manuscript-audit.csv"), stringsAsFactors = FALSE)
-  stale <- unique(trimws(unlist(strsplit(known_stale$canonical_excerpt[known_stale$status == "fail"], ";", fixed = TRUE))))
-  stale <- c(stale, "run 1,000 simulations", "will generally fit reasonably",
-    "can be captured very accurately", "tables/08-simulation-sensitivity-correlation-misspecification")
-  hits <- stale[vapply(stale, grepl, logical(1), x = manuscript, fixed = TRUE)]
+  manuscript_path <- file.path(settings$root, "paper", "manuscript", "main.tex")
+  manuscript <- paste(readLines(manuscript_path, warn = FALSE), collapse = "\n")
+  known <- jss_phase2_known_canonical_issues(settings$root, manuscript_path)
+  hits <- known$issue_id[known$status == "fail" & known$excerpt_present]
   rows[[4L]] <- jss_phase2_gate_row(
     "no_registered_stale_claims", !length(hits),
     if (length(hits)) paste(hits, collapse = ";") else "no stale registered phrases", "paper/manuscript/main.tex"
@@ -1408,23 +1408,26 @@ jss_write_phase2_gate_audit <- function(settings, modules, claim_evidence) {
   claims <- utils::read.csv(claim_evidence_csv, stringsAsFactors = FALSE)
   claim_ledger <- jss_phase2_claim_register(settings$root)
   registered_claims <- claim_ledger[claim_ledger$evidence_state == "verified_source", , drop = FALSE]
+  pending_claims <- claim_ledger$evidence_state == "pending_specification" |
+    claim_ledger$manuscript_state == "pending_evidence"
   claim_error <- NULL
   claim_ok <- tryCatch({
     jss_phase2_validate_claim_evidence_rows(claims, registered_claims, settings = settings)
     TRUE
   }, error = function(e) { claim_error <<- conditionMessage(e); FALSE })
   rows[[5L]] <- jss_phase2_gate_row(
-    "all_registered_claims_verified", nrow(claims) == nrow(registered_claims) && setequal(claims$claim_id, registered_claims$claim_id) &&
-      claim_ok,
-    if (claim_ok) paste("verified_claims", nrow(claims), sep = "=") else claim_error,
-    "paper/phase2-claims.csv"
+    "all_registered_claims_verified", !any(pending_claims) && nrow(claims) == nrow(registered_claims) &&
+      setequal(claims$claim_id, registered_claims$claim_id) && claim_ok,
+    if (any(pending_claims)) paste("pending_evidence", sum(pending_claims), sep = "=") else
+      if (claim_ok) paste("verified_claims", nrow(claims), sep = "=") else claim_error,
+    "paper/phase2-claims.csv; paper/phase2-pending-claims.csv"
   )
   schema_error <- NULL
   schema_ok <- tryCatch({
     register <- jss_phase2_claim_register(settings$root)
     jss_phase2_validate_claim_markers(manuscript, register, allow_pending = TRUE)
     jss_phase2_validate_manuscript_scope(settings$root, manuscript, allow_pending = TRUE)
-    jss_phase2_lint_empirical_prose(settings$root, manuscript, allow_pending = TRUE)
+    jss_phase2_lint_empirical_prose(settings$root, manuscript_path, allow_pending = TRUE)
     TRUE
   }, error = function(e) { schema_error <<- conditionMessage(e); FALSE })
   rows[[6L]] <- jss_phase2_gate_row(
