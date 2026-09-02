@@ -152,6 +152,51 @@ jss_phase2_materialize_public_approvals <- function(root, profile,
   invisible(effective_paths)
 }
 
+jss_phase2_verify_materialized_public_approvals <- function(root, profile) {
+  if (identical(profile, "smoke")) return(NA_character_)
+  if (!profile %in% c("paper", "full")) stop("Unknown replication profile.", call. = FALSE)
+  if (!requireNamespace("digest", quietly = TRUE)) {
+    stop("Package 'digest' is required to verify public approval assets.", call. = FALSE)
+  }
+  spec <- jss_phase2_public_approval_spec()
+  paths <- c(
+    Sys.getenv(spec$attestation_env, unset = ""),
+    Sys.getenv(spec$signature_env, unset = "")
+  )
+  if (any(!nzchar(paths))) {
+    stop("Paper/full targets require all Phase 2 approvals materialized by paper/replicate.R.",
+      call. = FALSE)
+  }
+  if (any(!file.exists(paths)) || any(file.info(paths)$isdir %in% TRUE)) {
+    stop("A materialized Phase 2 approval does not exist or is not a regular file.",
+      call. = FALSE)
+  }
+  normalized <- unname(vapply(paths, normalizePath, character(1L),
+    winslash = "/", mustWork = TRUE))
+  root_prefix <- paste0(tolower(normalizePath(root, winslash = "/", mustWork = TRUE)), "/")
+  if (any(startsWith(tolower(paste0(normalized, "/")), root_prefix))) {
+    stop("Materialized Phase 2 approvals must be external to the editable checkout.",
+      call. = FALSE)
+  }
+  if (anyDuplicated(normalized)) {
+    stop("Materialized Phase 2 approval paths must be distinct.", call. = FALSE)
+  }
+  hashes <- vapply(normalized, digest::digest, character(1L),
+    file = TRUE, algo = "sha256", serialize = FALSE)
+  identity_rows <- c(
+    paste(spec$study, "attestation", hashes[seq_len(nrow(spec))], sep = "\t"),
+    paste(spec$study, "signature", hashes[nrow(spec) + seq_len(nrow(spec))], sep = "\t")
+  )
+  actual <- digest::digest(paste(identity_rows, collapse = "\n"),
+    algo = "sha256", serialize = FALSE)
+  declared <- Sys.getenv("GAMLSS_LONGITUDINAL_JSS_APPROVAL_BUNDLE_SHA256", unset = "")
+  if (!grepl("^[0-9a-f]{64}$", declared) || !identical(declared, actual)) {
+    stop("Materialized Phase 2 approval bytes do not match their declared bundle identity.",
+      call. = FALSE)
+  }
+  actual
+}
+
 jss_settings <- function(create = TRUE) {
   profile <- Sys.getenv("GAMLSS_LONGITUDINAL_JSS_PROFILE", unset = "smoke")
   if (identical(profile, "expanded")) profile <- "paper"
