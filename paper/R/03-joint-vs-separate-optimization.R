@@ -2,6 +2,14 @@ jss_joint_module_id <- function() {
   "03-joint-vs-separate-optimization"
 }
 
+jss_joint_checkpoint_schema_version <- function() {
+  7L
+}
+
+jss_joint_checkpoint_namespace <- function() {
+  "paired-one-factor-v7"
+}
+
 jss_joint_or <- function(x, y) {
   if (is.null(x) || length(x) == 0L || is.na(x[[1L]])) y else x[[1L]]
 }
@@ -405,6 +413,25 @@ jss_joint_candidate_selection <- function(settings) {
   selected
 }
 
+jss_joint_family_truth_registry <- function() {
+  data.frame(
+    family = c("NO", "ZIP"),
+    mu_natural_reference = c(1.2, 4),
+    sigma_natural_reference = c(0.75, 0.20),
+    sigma_interpretation = c("standard_deviation", "zero_inflation_probability"),
+    mu_intercept_eta = c(1.2, log(4)),
+    sigma_intercept_eta = c(log(0.75), stats::qlogis(0.20)),
+    truth_rationale = c(
+      "Normal reference uses mean 1.2 and standard deviation 0.75.",
+      paste(
+        "ZIP count reference uses Poisson-component mean 4 and structural-zero",
+        "probability 0.20; both values are registered on the natural parameter scale."
+      )
+    ),
+    stringsAsFactors = FALSE
+  )
+}
+
 jss_joint_case_definitions <- function() {
   cases <- data.frame(
     candidate_id = sprintf("jvs-%02d", 1:4),
@@ -419,7 +446,7 @@ jss_joint_case_definitions <- function() {
       "weaker_scale_signal",
       "count_margin"
     ),
-    family = c("NO", "NO", "NO", "NBI"),
+    family = c("NO", "NO", "NO", "ZIP"),
     copula = "N",
     n = 120L,
     time_points = 8L,
@@ -455,6 +482,13 @@ jss_joint_case_definitions <- function() {
     n_rows = NA_integer_,
     stringsAsFactors = FALSE
   )
+  truth <- jss_joint_family_truth_registry()
+  truth_index <- match(cases$family, truth$family)
+  if (anyNA(truth_index)) {
+    stop("Optimizer design contains a family without registered truth calibration.", call. = FALSE)
+  }
+  truth_fields <- setdiff(names(truth), "family")
+  for (field in truth_fields) cases[[field]] <- truth[[field]][truth_index]
   jss_joint_validate_case_definitions(cases)
   cases
 }
@@ -464,7 +498,8 @@ jss_joint_validate_case_definitions <- function(cases) {
     "family", "copula", "n", "time_points", "mu_strength",
     "sigma_strength", "theta_strength", "time_shape"
   )
-  required <- c("case_id", "base_case_id", "contrast_factor", design_fields)
+  truth_fields <- setdiff(names(jss_joint_family_truth_registry()), "family")
+  required <- c("case_id", "base_case_id", "contrast_factor", design_fields, truth_fields)
   missing <- setdiff(required, names(cases))
   if (length(missing)) {
     stop("Optimizer design is missing field(s): ", paste(missing, collapse = ", "), call. = FALSE)
@@ -472,6 +507,17 @@ jss_joint_validate_case_definitions <- function(cases) {
   base <- cases[cases$case_id == unique(cases$base_case_id), , drop = FALSE]
   if (nrow(base) != 1L || !identical(base$contrast_factor[[1L]], "base")) {
     stop("Optimizer design must contain exactly one declared base case.", call. = FALSE)
+  }
+  truth <- jss_joint_family_truth_registry()
+  truth_index <- match(cases$family, truth$family)
+  if (anyNA(truth_index)) {
+    stop("Optimizer design contains a family without registered truth calibration.", call. = FALSE)
+  }
+  for (field in truth_fields) {
+    expected <- truth[[field]][truth_index]
+    if (!isTRUE(all.equal(cases[[field]], expected, tolerance = 0, check.attributes = FALSE))) {
+      stop("Optimizer design has unregistered family truth in field: ", field, call. = FALSE)
+    }
   }
   variants <- cases[cases$case_id != base$case_id[[1L]], , drop = FALSE]
   for (i in seq_len(nrow(variants))) {
@@ -485,6 +531,22 @@ jss_joint_validate_case_definitions <- function(cases) {
         call. = FALSE
       )
     }
+  }
+  invisible(TRUE)
+}
+
+jss_joint_validate_registered_routes <- function(cases) {
+  required <- c("case_id", "family", "copula")
+  missing <- setdiff(required, names(cases))
+  if (length(missing)) {
+    stop("Optimizer route preflight is missing field(s): ", paste(missing, collapse = ", "), call. = FALSE)
+  }
+  for (i in seq_len(nrow(cases))) {
+    gamlss.longitudinal:::.gl_validate_capability_route(
+      margin_dist = jss_joint_margin_dist(cases$family[[i]]),
+      copula_dist = cases$copula[[i]],
+      context = paste0("optimizer benchmark case ", cases$case_id[[i]])
+    )
   }
   invisible(TRUE)
 }
@@ -583,15 +645,14 @@ jss_joint_linkinv <- function(margin_dist, parameter, eta) {
 }
 
 jss_joint_truth_coefficients <- function(case) {
-  if (identical(case$family[[1L]], "NBI")) {
-    mu_intercept <- log(4)
-    sigma_intercept <- log(0.5)
-  } else {
-    mu_intercept <- 1.2
-    sigma_intercept <- log(0.75)
+  # Intercepts are mandatory registered truths. In particular, JVS04 uses a
+  # ZIP mean of 4 and structural-zero probability of 0.20 on the natural scale,
+  # transformed here by the registered log and logit links.
+  mu_intercept <- as.numeric(jss_joint_case_value(case, "mu_intercept_eta", NA_real_))
+  sigma_intercept <- as.numeric(jss_joint_case_value(case, "sigma_intercept_eta", NA_real_))
+  if (any(!is.finite(c(mu_intercept, sigma_intercept)))) {
+    stop("Optimizer case lacks finite registered margin-truth intercepts.", call. = FALSE)
   }
-  mu_intercept <- as.numeric(jss_joint_case_value(case, "mu_intercept", mu_intercept))
-  sigma_intercept <- as.numeric(jss_joint_case_value(case, "sigma_intercept", sigma_intercept))
   theta_base_tau <- as.numeric(jss_joint_case_value(case, "theta_base_tau", 0.12))
 
   theta_intercept <- gamlss.longitudinal:::get_copula_dist(case$copula[[1L]])$copula_link$theta.linkfun(
@@ -879,6 +940,12 @@ jss_joint_base_result_row <- function(case, rep_idx, method, attempt) {
     sigma_strength = case$sigma_strength,
     theta_strength = case$theta_strength,
     time_shape = case$time_shape,
+    mu_natural_reference = case$mu_natural_reference,
+    sigma_natural_reference = case$sigma_natural_reference,
+    sigma_interpretation = case$sigma_interpretation,
+    mu_intercept_eta = case$mu_intercept_eta,
+    sigma_intercept_eta = case$sigma_intercept_eta,
+    truth_rationale = case$truth_rationale,
     dependence = "case_specific",
     missingness = "none",
     start_mode = "default",
@@ -1052,7 +1119,7 @@ jss_joint_run_case_rep <- function(case, rep_idx, settings, cfg) {
 }
 
 jss_joint_checkpoint_dir <- function(settings) {
-  file.path(settings$out_dir, "checkpoints", jss_joint_module_id(), "paired-one-factor-v6")
+  file.path(settings$out_dir, "checkpoints", jss_joint_module_id(), jss_joint_checkpoint_namespace())
 }
 
 jss_joint_short_hash <- function(x) {
@@ -1256,10 +1323,12 @@ jss_joint_reverify_checkpoint_or_quarantine <- function(settings, checkpoint) {
 jss_joint_checkpoint_spec <- function(settings, case, rep_idx, cfg) {
   design_fields <- c(
     "case_id", "base_case_id", "contrast_factor", "family", "copula", "n",
-    "time_points", "mu_strength", "sigma_strength", "theta_strength", "time_shape"
+    "time_points", "mu_strength", "sigma_strength", "theta_strength", "time_shape",
+    "mu_natural_reference", "sigma_natural_reference", "sigma_interpretation",
+    "mu_intercept_eta", "sigma_intercept_eta", "truth_rationale"
   )
   list(
-    schema_version = 6L,
+    schema_version = jss_joint_checkpoint_schema_version(),
     producer_fingerprint = jss_joint_producer_fingerprint(settings),
     producer_fingerprint_algorithm = "SHA-256",
     package_identity = jss_joint_checkout_package_identity(settings),
@@ -1450,7 +1519,8 @@ jss_joint_read_checkpoint <- function(path, settings, case, rep_idx, cfg) {
   if (!file.exists(path) || file.info(path)$size <= 0L) return(NULL)
   checkpoint <- tryCatch(readRDS(path), error = function(e) NULL)
   expected_spec <- jss_joint_checkpoint_spec(settings, case, rep_idx, cfg)
-  if (!is.list(checkpoint) || !identical(checkpoint$schema_version, 6L) ||
+  if (!is.list(checkpoint) ||
+      !identical(checkpoint$schema_version, jss_joint_checkpoint_schema_version()) ||
       !identical(checkpoint$spec, expected_spec) || !is.list(checkpoint$provenance) ||
       !is.character(checkpoint$result_sha256) || length(checkpoint$result_sha256) != 1L) return(NULL)
   provenance <- checkpoint$provenance
@@ -1501,7 +1571,7 @@ jss_joint_write_checkpoint <- function(result, path, settings, case, rep_idx, cf
   ))
   saveRDS(
     list(
-      schema_version = 6L,
+      schema_version = jss_joint_checkpoint_schema_version(),
       spec = spec,
       result_sha256 = jss_joint_content_sha256(result),
       result_portable_sha256 = jss_joint_portable_result_sha256(result),
@@ -1654,6 +1724,9 @@ jss_joint_run_simulation_fixed <- function(settings, cases, cfg = NULL,
                                            acquire_lock = TRUE, validate_design = TRUE) {
   if (is.null(cfg)) cfg <- jss_joint_simulation_settings(settings)
   if (isTRUE(validate_design)) jss_joint_validate_case_definitions(cases)
+  # Route validation is never bypassed, including adaptive inner calls where
+  # the full one-factor design has already been validated by the outer runner.
+  jss_joint_validate_registered_routes(cases)
   if (isTRUE(acquire_lock)) {
     run_lock <- jss_joint_acquire_run_lock(settings)
     on.exit(jss_joint_release_run_lock(run_lock), add = TRUE)
@@ -1793,7 +1866,7 @@ jss_joint_run_simulation_fixed <- function(settings, cases, cfg = NULL,
       joint_review_rep = task$rep_idx,
       paired_seed = unique(result$paired_seed)[[1L]],
       checkpoint = normalizePath(task$checkpoint, winslash = "/", mustWork = FALSE),
-      checkpoint_schema_version = 6L,
+      checkpoint_schema_version = jss_joint_checkpoint_schema_version(),
       result_content_sha256 = result_sha256[[i]],
       result_portable_sha256 = jss_joint_portable_result_sha256(result),
       producer_fingerprint = producer_fingerprint,
@@ -1842,6 +1915,7 @@ jss_joint_run_simulation <- function(settings, cases, cfg = NULL,
                                      run_case_rep_fn = jss_joint_run_case_rep) {
   if (is.null(cfg)) cfg <- jss_joint_simulation_settings(settings)
   jss_joint_validate_case_definitions(cases)
+  jss_joint_validate_registered_routes(cases)
   run_lock <- jss_joint_acquire_run_lock(settings)
   on.exit(jss_joint_release_run_lock(run_lock), add = TRUE)
   precision <- cfg$precision
@@ -2615,6 +2689,9 @@ jss_run_03_joint_vs_separate <- function(settings) {
   cfg <- jss_joint_simulation_settings(settings)
   precision <- cfg$precision
   for (nm in names(precision)) candidates[[nm]] <- precision[[nm]][[1L]]
+  package_identity <- jss_joint_checkout_package_identity(settings)
+  jss_joint_verify_checkout_package(settings, package_identity, load_checkout = TRUE)
+  jss_joint_validate_registered_routes(candidates)
   utils::write.csv(candidates, paths$candidate_selection, row.names = FALSE)
   utils::write.csv(precision, paths$precision_registry, row.names = FALSE)
 

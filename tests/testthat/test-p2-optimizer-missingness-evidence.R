@@ -88,7 +88,21 @@ test_that("optimizer evidence uses registered paired one-factor contrasts", {
   cases <- env$jss_joint_case_definitions()
   expect_identical(cases$case_id, sprintf("JVS%02d", 1:4))
   expect_identical(cases$base_case_id, rep("JVS01", 4L))
+  expect_identical(cases$family, c("NO", "NO", "NO", "ZIP"))
+  expect_identical(cases$copula, rep("N", 4L))
+  jvs04 <- cases[cases$case_id == "JVS04", , drop = FALSE]
+  expect_identical(jvs04$contrast_factor, "family")
+  expect_identical(jvs04$hypothesis_role, "count_margin")
+  expect_equal(jvs04$mu_natural_reference, 4)
+  expect_equal(jvs04$sigma_natural_reference, 0.20)
+  expect_identical(jvs04$sigma_interpretation, "zero_inflation_probability")
+  expect_equal(jvs04$mu_intercept_eta, log(4))
+  expect_equal(jvs04$sigma_intercept_eta, stats::qlogis(0.20))
+  zip <- env$jss_joint_margin_dist("ZIP")
+  expect_equal(zip$mu.linkinv(jvs04$mu_intercept_eta), 4)
+  expect_equal(zip$sigma.linkinv(jvs04$sigma_intercept_eta), 0.20)
   expect_true(env$jss_joint_validate_case_definitions(cases))
+  expect_true(env$jss_joint_validate_registered_routes(cases))
 
   registry <- env$jss_joint_mc_precision_registry("full")
   expect_equal(registry$confidence_level, 0.95)
@@ -100,6 +114,78 @@ test_that("optimizer evidence uses registered paired one-factor contrasts", {
   invalid <- cases
   invalid$n[invalid$case_id == "JVS02"] <- invalid$n[1] + 1L
   expect_error(env$jss_joint_validate_case_definitions(invalid), "exactly its declared factor")
+
+  invalid_truth <- cases
+  invalid_truth$sigma_natural_reference[invalid_truth$case_id == "JVS04"] <- 0.30
+  expect_error(env$jss_joint_validate_case_definitions(invalid_truth), "registered family truth")
+})
+
+test_that("optimizer route preflight rejects unsupported registered routes synchronously", {
+  root <- local_phase2_repo_root()
+  env <- new.env(parent = globalenv())
+  source(file.path(root, "paper", "R", "03-joint-vs-separate-optimization.R"), local = env)
+
+  cases <- env$jss_joint_case_definitions()
+  invalid_route <- cases
+  invalid_route$copula <- "C"
+  expect_error(
+    env$jss_joint_validate_registered_routes(invalid_route),
+    "tested allowlist",
+    class = "gamlss_longitudinal_unsupported_route_error"
+  )
+
+  out <- tempfile("jvs-route-preflight-")
+  calls <- 0L
+  mock_run <- function(...) {
+    calls <<- calls + 1L
+    stop("worker must not run", call. = FALSE)
+  }
+  settings <- list(profile = "smoke", seed = 101L, out_dir = out, root = root)
+  expect_error(
+    env$jss_joint_run_simulation(
+      settings, invalid_route, list(reps = 1L, resume = TRUE), mock_run
+    ),
+    "tested allowlist",
+    class = "gamlss_longitudinal_unsupported_route_error"
+  )
+  expect_identical(calls, 0L)
+  expect_false(dir.exists(paste0(env$jss_joint_checkpoint_dir(settings), ".run-lock")))
+  expect_false(dir.exists(env$jss_joint_checkpoint_dir(settings)))
+  expect_error(
+    env$jss_joint_run_simulation_fixed(
+      settings, invalid_route, list(reps = 1L, resume = TRUE), mock_run,
+      acquire_lock = FALSE, validate_design = FALSE
+    ),
+    "tested allowlist",
+    class = "gamlss_longitudinal_unsupported_route_error"
+  )
+  expect_identical(calls, 0L)
+})
+
+test_that("optimizer ZIP/Gaussian case runs both RS modes with analytical discrete scoring", {
+  skip_if_not_installed("gamlss.dist")
+  skip_if_not_installed("scoringRules")
+  root <- local_phase2_repo_root()
+  env <- new.env(parent = globalenv())
+  source(file.path(root, "paper", "R", "03-joint-vs-separate-optimization.R"), local = env)
+
+  case <- env$jss_joint_case_definitions()[4L, , drop = FALSE]
+  case$n <- 20L
+  case$time_points <- 3L
+  case$total_observations <- 60L
+  cfg <- list(
+    method = "RS", outer_stop_crit = 1, inner_stop_crit = 1,
+    max_outer_iter = 2L, max_inner_iter = 2L, max_elapsed_sec = 60,
+    warm_start_joint = TRUE, warm_start_joint_iter = 1L,
+    discrete_score_method = "analytical", variogram_nsim = 1L
+  )
+  result <- env$jss_joint_run_case_rep(case, 1L, list(seed = 101L), cfg)
+
+  expect_identical(result$method, c("rs_separate", "rs_joint"))
+  expect_true(all(result$family == "ZIP" & result$copula == "N"))
+  expect_true(all(result$success & result$converged & result$retained))
+  expect_true(all(is.na(result$error)))
+  expect_true(all(is.finite(result$test_log_score_per_obs)))
 })
 
 test_that("optimizer checkpoints are validated and resumed without rerunning cells", {
@@ -252,7 +338,7 @@ test_that("optimizer output lock admits exactly one concurrent launcher", {
   source_file = file.path(root, "paper", "R", "03-joint-vs-separate-optimization.R"))
   expect_identical(sort(unlist(result)), c(FALSE, TRUE))
   expect_false(dir.exists(paste0(file.path(out, "checkpoints", "03-joint-vs-separate-optimization",
-    "paired-one-factor-v6"), ".run-lock")))
+    "paired-one-factor-v7"), ".run-lock")))
 })
 
 test_that("optimizer checkpoint contract rejects forged metrics and labels", {
@@ -450,8 +536,8 @@ test_that("full 4x97 optimizer public bundle validates across named-key CSV boun
   status <- data.frame(task_id = seq_len(388L), case_id = manifest$case_id,
     joint_review_rep = manifest$joint_review_rep,
     paired_seed = 17L + 3000L + manifest$joint_review_rep * 100L,
-    checkpoint = sprintf("checkpoints/03-joint-vs-separate-optimization/paired-one-factor-v6/spec/%s-rep-%d.rds",
-      manifest$case_id, manifest$joint_review_rep), checkpoint_schema_version = 6L,
+    checkpoint = sprintf("checkpoints/03-joint-vs-separate-optimization/paired-one-factor-v7/spec/%s-rep-%d.rds",
+      manifest$case_id, manifest$joint_review_rep), checkpoint_schema_version = 7L,
     result_content_sha256 = manifest$result_content_sha256,
     result_portable_sha256 = manifest$result_portable_sha256,
     producer_fingerprint = producer, producer_fingerprint_algorithm = "SHA-256",
@@ -593,7 +679,7 @@ test_that("optimizer producer fingerprint invalidates checkpoints after code mut
     append = TRUE
   )
   after_package <- env$jss_joint_checkpoint_spec(settings, case, 1L, cfg)
-  expect_identical(before$schema_version, 6L)
+  expect_identical(before$schema_version, 7L)
   expect_false(identical(
     before$package_identity$source_sha256,
     after_package$package_identity$source_sha256
@@ -684,7 +770,7 @@ test_that("optimizer PSOCK execution preserves order and resumes without duplica
   expect_equal(parallel_result, serial, ignore_attr = TRUE)
   parallel_status <- attr(parallel_result, "checkpoint_status")
   expect_identical(parallel_status$task_id, seq_len(4L))
-  expect_true(all(parallel_status$checkpoint_schema_version == 6L))
+  expect_true(all(parallel_status$checkpoint_schema_version == 7L))
   expect_true(all(nzchar(parallel_status$producer_fingerprint)))
   expect_true(all(parallel_status$package_source_sha256 == parallel_status$verified_source_sha256))
   expect_true(all(parallel_status$package_identity_verified))
@@ -896,8 +982,8 @@ test_that("missingness checkpoints reject stale task metadata", {
   intermittent_spec <- env$jss_missing_checkpoint_spec(intermittent_task, configuration)
   expect_false(identical(spec$missingness_seed, intermittent_spec$missingness_seed))
   result <- list(
-    checkpoint_schema_version = 4L,
-    checkpoint_configuration_key = "test-v4",
+    checkpoint_schema_version = 5L,
+    checkpoint_configuration_key = "test-v5",
     checkpoint_spec = spec,
     checkpoint_provenance = env$jss_missing_runtime_identity(),
     runs = data.frame(
@@ -944,7 +1030,8 @@ test_that("missingness checkpoints reject stale task metadata", {
       missing_mechanism = "monotone_dropout", id = rep(seq_len(500L), each = 4L),
       time = rep(as.numeric(1:4), 500L),
       response_observed = rep(c(TRUE, TRUE, FALSE, FALSE), 500L)
-    )
+    ),
+    warning_events = env$jss_missing_empty_warning_events()
   )
   result$checkpoint_content_sha256 <- env$jss_missing_content_sha256(
     env$jss_missing_checkpoint_content(result)
@@ -955,8 +1042,8 @@ test_that("missingness checkpoints reject stale task metadata", {
   failed_fit$runs$success[failed_row] <- FALSE
   failed_fit$runs$converged[failed_row] <- FALSE
   failed_fit$runs$retained[failed_row] <- FALSE
-  failed_fit$runs$stop_reason[failed_row] <- "fit_error"
-  failed_fit$runs$failure_type[failed_row] <- "fit_error"
+  failed_fit$runs$stop_reason[failed_row] <- "time_limit"
+  failed_fit$runs$failure_type[failed_row] <- "fit_error:time_limit"
   failed_fit$runs$logLik[failed_row] <- NA_real_
   failed_fit$runs$df[failed_row] <- NA_real_
   failed_fit$runs$error[failed_row] <- paste(
@@ -969,6 +1056,8 @@ test_that("missingness checkpoints reject stale task metadata", {
   )
   expect_true(env$jss_missing_checkpoint_valid(failed_fit, task, configuration))
   expect_match(failed_fit$runs$error[failed_row], "max_elapsed_sec", fixed = TRUE)
+  expect_identical(env$jss_missing_failure_stop_reason(failed_fit$runs$error[failed_row]),
+    "time_limit")
   rs_sentinel <- result
   rs_sentinel$runs$best_raw_loglik <- c(-Inf, NA_real_)
   rs_sentinel$checkpoint_content_sha256 <- env$jss_missing_content_sha256(
@@ -992,6 +1081,21 @@ test_that("missingness checkpoints reject stale task metadata", {
     mutated_record$checkpoint_content_sha256))
   expect_false(identical(durable_record$public_payload_sha256,
     mutated_record$public_payload_sha256))
+  warning_bound <- result
+  captured_warning <- list(value = NULL, messages = "NaNs produced",
+    condition_classes = "simpleWarning/warning/condition")
+  warning_bound$warning_events <- env$jss_missing_warning_events(captured_warning,
+    spec$scenario, spec$n, spec$d, spec$replicate, spec$missing_mechanism,
+    spec$missing_rate, "gamlss2")
+  warning_bound$checkpoint_content_sha256 <- env$jss_missing_content_sha256(
+    env$jss_missing_checkpoint_content(warning_bound))
+  expect_true(env$jss_missing_checkpoint_valid(warning_bound, task, configuration))
+  warning_tamper <- warning_bound
+  warning_tamper$warning_events$warning_message <- "Algorithm RS has not yet converged"
+  expect_false(env$jss_missing_checkpoint_valid(warning_tamper, task, configuration))
+  warning_tamper$checkpoint_content_sha256 <- env$jss_missing_content_sha256(
+    env$jss_missing_checkpoint_content(warning_tamper))
+  expect_false(env$jss_missing_checkpoint_valid(warning_tamper, task, configuration))
   forged_metric <- result
   forged_metric$fixed$estimate <- 1e300
   forged_metric$checkpoint_content_sha256 <- env$jss_missing_content_sha256(
@@ -1056,6 +1160,100 @@ test_that("missingness checkpoints reject stale task metadata", {
   expect_false(env$jss_missing_checkpoint_valid(result, task, configuration))
   result$runs$n <- 500L
   expect_false(env$jss_missing_checkpoint_valid(result, task, list(method = "RS", max_outer = 101L)))
+})
+
+test_that("missingness fit warnings are classified, captured, and fail closed", {
+  root <- local_phase2_repo_root(); env <- new.env(parent = globalenv())
+  source(file.path(root, "paper", "R", "missingness-study-helpers.R"), local = env)
+  captured <- env$jss_missing_capture_warnings({
+    warning(paste(
+      "Intermittent observation gaps were detected. Using the segmented likelihood",
+      "requested by missingness = \"segment\": observations in different contiguous",
+      "segments are treated as independent."
+    ))
+    warning("Algorithm RS has not yet converged")
+    warning("NaNs produced")
+    42L
+  })
+  expect_identical(captured$value, 42L)
+  events <- env$jss_missing_warning_events(captured, "scenario", 500L, 4L, 1L,
+    "monotone_dropout", 0.3, "gamlss.longitudinal")
+  expect_identical(events$classification,
+    c("segmented_likelihood_assumption", "optimizer_nonconvergence", "numerical_domain"))
+  expect_true(all(events$expected))
+  expect_silent(env$jss_missing_assert_warning_policy(events))
+
+  unknown <- env$jss_missing_capture_warnings({ warning("unregistered warning text"); NULL })
+  unknown_events <- env$jss_missing_warning_events(unknown, "scenario", 500L, 4L, 1L,
+    "monotone_dropout", 0.3, "gamlss2")
+  expect_identical(unknown_events$classification, "unexpected")
+  expect_error(env$jss_missing_assert_warning_policy(unknown_events),
+    "1 unexpected warning event")
+})
+
+test_that("missingness warning aggregation de-duplicates resume rows and rejects conflicts", {
+  root <- local_phase2_repo_root(); env <- new.env(parent = globalenv())
+  source(file.path(root, "paper", "R", "missingness-study-helpers.R"), local = env)
+  captured <- list(value = NULL, messages = "NaNs produced", condition_classes = "simpleWarning/warning/condition")
+  events <- env$jss_missing_warning_events(captured, "scenario", 500L, 4L, 1L,
+    "monotone_dropout", 0.3, "gamlss2")
+  result <- list(warning_events = events)
+  expect_identical(nrow(env$jss_missing_collect_warning_events(list(result, result))), 1L)
+  conflict <- result
+  conflict$warning_events$warning_message <- "Algorithm RS has not yet converged"
+  expect_error(env$jss_missing_collect_warning_events(list(result, conflict)),
+    "conflicting duplicate event keys")
+})
+
+test_that("missingness warning evidence is content-bound and semantically validated", {
+  root <- local_phase2_repo_root(); env <- new.env(parent = globalenv())
+  source(file.path(root, "paper", "R", "missingness-study-helpers.R"), local = env)
+  captured <- list(value = NULL, messages = "NaNs produced", condition_classes = "simpleWarning/warning/condition")
+  event <- env$jss_missing_warning_events(captured, "scenario", 500L, 4L, 1L,
+    "monotone_dropout", 0.3, "gamlss2")
+  base_hash <- env$jss_missing_portable_task_sha256(data.frame(a = 1), NULL, NULL,
+    data.frame(a = 1), warning_events = event)
+  changed <- event; changed$warning_message <- "Algorithm RS has not yet converged"
+  changed_hash <- env$jss_missing_portable_task_sha256(data.frame(a = 1), NULL, NULL,
+    data.frame(a = 1), warning_events = changed)
+  expect_false(identical(base_hash, changed_hash))
+
+  classified <- env$jss_missing_classify_warning(changed$warning_message)
+  expect_false(identical(changed$classification, classified$classification))
+})
+
+test_that("missingness coverage plot filters and audits every omitted row", {
+  root <- local_phase2_repo_root(); env <- new.env(parent = globalenv())
+  source(file.path(root, "paper", "R", "missingness-study-helpers.R"), local = env)
+  fixed <- data.frame(
+    target_missing_pct = c(0, 10, 20, 30),
+    mean_coverage_95 = c(.95, NA_real_, .92, Inf),
+    model = c("gamlss2", "gamlss.longitudinal", "gamlss2", "gamlss.longitudinal"),
+    parameter = c("mu", "mu", "theta", "sigma"),
+    missing_mechanism = "monotone_dropout", stringsAsFactors = FALSE)
+  payload <- env$jss_missing_coverage_plot_payload(fixed, c("mu", "sigma"))
+  expect_identical(payload$candidate_rows, 3L)
+  expect_identical(payload$omitted_rows, 2L)
+  expect_true(all(is.finite(payload$data$mean_coverage_95)))
+  audit <- env$jss_missing_warning_audit(env$jss_missing_empty_warning_events(),
+    data.frame(model = c("gamlss2", "gamlss.longitudinal")), payload)
+  plot_audit <- audit[audit$audit_type == "plot_omission", , drop = FALSE]
+  expect_identical(plot_audit$omitted_rows, 2L)
+  expect_match(plot_audit$uncertainty, "candidates=3; plotted=1")
+})
+
+test_that("missingness PSOCK workers close cleanly after successful scheduling", {
+  log <- tempfile("missingness-psock-", fileext = ".log")
+  cl <- parallel::makePSOCKcluster(1L, outfile = log)
+  closed <- FALSE
+  on.exit(if (!closed) parallel::stopCluster(cl), add = TRUE)
+  result <- parallel::parLapplyLB(cl, 1:2, function(x) x + 1L)
+  expect_identical(unlist(result), 2:3)
+  expect_silent(parallel::stopCluster(cl))
+  closed <- TRUE
+  worker_log <- if (file.exists(log)) readLines(log, warn = FALSE) else character()
+  expect_false(any(grepl("unserialize|error reading from connection", worker_log,
+    ignore.case = TRUE)))
 })
 
 test_that("missingness estimands use a fixed population centering target", {
@@ -1206,7 +1404,7 @@ test_that("public missingness loader rejects dummy summaries and forged identity
   smooth_raw$public_payload_sha256 <- unname(hash_map[smooth_raw$scenario])
   missing_by_rep$public_payload_sha256 <- unname(hash_map[missing_by_rep$scenario])
   missingness_pattern$public_payload_sha256 <- unname(hash_map[missingness_pattern$scenario])
-  checkpoints <- data.frame(checkpoint_schema_version = 4L, scenario = scenarios, rep = 1L,
+  checkpoints <- data.frame(checkpoint_schema_version = 5L, scenario = scenarios, rep = 1L,
     checkpoint = paste0("rep_results/", scenarios, ".rds"),
     checkpoint_content_sha256 = strrep("a", 64), package_source_sha256 = strrep("b", 64),
     public_payload_sha256 = public_hash, producer_sha256 = strrep("c", 64), package_identity_verified = TRUE,
@@ -1220,6 +1418,13 @@ test_that("public missingness loader rejects dummy summaries and forged identity
     missingness_checkpoint_content_manifest.csv = data.frame(scenario = scenarios, rep = 1L,
       checkpoint = paste0("rep_results/", scenarios, ".rds"),
       checkpoint_content_sha256 = strrep("a", 64), public_payload_sha256 = public_hash),
+    missingness_warning_events.csv = transform(env$jss_missing_empty_warning_events(),
+      public_payload_sha256 = character()),
+    missingness_warning_audit.csv = data.frame(
+      audit_type = character(), classification = character(), policy_action = character(),
+      expected = logical(), events = integer(), affected_fits = integer(),
+      attempted_fits = integer(), omitted_rows = integer(),
+      reconciliation_status = character(), uncertainty = character()),
     fit_run_log.csv = runs, attempt_failure_summary.csv = attempts,
     failure_reason_summary.csv = failures, missingness_by_rep.csv = missing_by_rep,
     missingness_pattern_by_subject_visit.csv = missingness_pattern,
@@ -1356,7 +1561,7 @@ test_that("missingness producer writes public plot data and registered sensitivi
   expect_true(grepl('"missingness_checkpoint_content_manifest.csv"', code, fixed = TRUE))
   expect_true(grepl("not_applicable_segmented_model_hessian", code, fixed = TRUE))
   expect_true(grepl('Sys.getenv("RESUME_CHECKPOINTS", unset = "1")', code, fixed = TRUE))
-  expect_true(grepl('design_version = "missingness-v4"', code, fixed = TRUE))
+  expect_true(grepl('design_version = "missingness-v5"', code, fixed = TRUE))
   expect_true(grepl("jss_missing_verify_checkout", code, fixed = TRUE))
   expect_true(grepl("jss_missing_portable_task_sha256", code, fixed = TRUE))
   expect_true(grepl("checkpoint_content_sha256", code, fixed = TRUE))

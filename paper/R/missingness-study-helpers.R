@@ -230,7 +230,8 @@ jss_missing_producer_sha256 <- function(producer_sources) {
   )
 }
 
-jss_missing_portable_task_sha256 <- function(runs, fixed, smooth, missingness, missingness_pattern = NULL) {
+jss_missing_portable_task_sha256 <- function(runs, fixed, smooth, missingness,
+    missingness_pattern = NULL, warning_events = NULL) {
   encode_frame <- function(x) {
     if (is.null(x)) return("<NULL>")
     x <- x[, setdiff(names(x), "public_payload_sha256"), drop = FALSE]
@@ -245,9 +246,173 @@ jss_missing_portable_task_sha256 <- function(runs, fixed, smooth, missingness, m
     paste(sort(rows), collapse = "\n")
   }
   text <- paste(vapply(list(runs = runs, fixed = fixed, smooth = smooth,
-    missingness = missingness, missingness_pattern = missingness_pattern),
+    missingness = missingness, missingness_pattern = missingness_pattern,
+    warning_events = warning_events),
     encode_frame, character(1)), collapse = "\f")
   digest::digest(text, algo = "sha256", serialize = FALSE)
+}
+
+jss_missing_warning_policy <- function() {
+  data.frame(
+    classification = c(
+      "segmented_likelihood_assumption", "optimizer_nonconvergence",
+      "numerical_domain", "optimizer_step"
+    ),
+    pattern = c(
+      paste0(
+        "Using the segmented likelihood requested by missingness = ",
+        "[\"']segment[\"'].*different contiguous segments.*treated as independent"
+      ),
+      "(algorithm|fitting algorithm).*(has not (yet )?converged|did not converge|failed to converge)",
+      "(NaNs produced|NAs produced|non-finite (function|finite-difference) value)",
+      "step size.*(truncated|halved|reduced)"
+    ),
+    policy_action = "record_expected",
+    expected = TRUE,
+    stringsAsFactors = FALSE
+  )
+}
+
+jss_missing_empty_warning_events <- function() {
+  data.frame(
+    scenario = character(), n = integer(), d = integer(), rep = integer(),
+    missing_mechanism = character(), target_missing_rate = numeric(),
+    model = character(), warning_index = integer(), condition_class = character(),
+    warning_message = character(), normalized_message = character(),
+    classification = character(), policy_action = character(), expected = logical(),
+    stringsAsFactors = FALSE
+  )
+}
+
+jss_missing_classify_warning <- function(message) {
+  normalized <- trimws(gsub("[[:space:]]+", " ", enc2utf8(as.character(message)[[1L]])))
+  policy <- jss_missing_warning_policy()
+  matched <- which(vapply(policy$pattern, grepl, logical(1), x = normalized,
+    ignore.case = TRUE, perl = TRUE))
+  if (!length(matched)) {
+    return(list(normalized_message = normalized, classification = "unexpected",
+      policy_action = "fatal", expected = FALSE))
+  }
+  row <- policy[matched[[1L]], , drop = FALSE]
+  list(normalized_message = normalized,
+    classification = row$classification[[1L]],
+    policy_action = row$policy_action[[1L]], expected = row$expected[[1L]])
+}
+
+jss_missing_capture_warnings <- function(expr) {
+  messages <- character()
+  classes <- character()
+  value <- withCallingHandlers(
+    force(expr),
+    warning = function(w) {
+      messages <<- c(messages, conditionMessage(w))
+      classes <<- c(classes, paste(class(w), collapse = "/"))
+      invokeRestart("muffleWarning")
+    }
+  )
+  list(value = value, messages = messages, condition_classes = classes)
+}
+
+jss_missing_warning_events <- function(captured, scenario, n, d, rep,
+    missing_mechanism, target_missing_rate, model) {
+  if (!length(captured$messages)) return(jss_missing_empty_warning_events())
+  classified <- lapply(captured$messages, jss_missing_classify_warning)
+  data.frame(
+    scenario = rep(as.character(scenario), length(classified)),
+    n = rep(as.integer(n), length(classified)),
+    d = rep(as.integer(d), length(classified)),
+    rep = rep(as.integer(rep), length(classified)),
+    missing_mechanism = rep(as.character(missing_mechanism), length(classified)),
+    target_missing_rate = rep(as.numeric(target_missing_rate), length(classified)),
+    model = rep(as.character(model), length(classified)),
+    warning_index = seq_along(classified),
+    condition_class = as.character(captured$condition_classes),
+    warning_message = as.character(captured$messages),
+    normalized_message = vapply(classified, `[[`, character(1), "normalized_message"),
+    classification = vapply(classified, `[[`, character(1), "classification"),
+    policy_action = vapply(classified, `[[`, character(1), "policy_action"),
+    expected = vapply(classified, `[[`, logical(1), "expected"),
+    stringsAsFactors = FALSE
+  )
+}
+
+jss_missing_collect_warning_events <- function(results) {
+  events <- lapply(results, `[[`, "warning_events")
+  events <- events[vapply(events, function(x) is.data.frame(x) && nrow(x), logical(1))]
+  if (!length(events)) return(jss_missing_empty_warning_events())
+  out <- do.call(rbind, events)
+  rownames(out) <- NULL
+  out <- unique(out)
+  key <- out[c("scenario", "rep", "model", "warning_index")]
+  if (anyDuplicated(key)) {
+    stop("Missingness warning events contain conflicting duplicate event keys.", call. = FALSE)
+  }
+  out[do.call(order, out[c("scenario", "rep", "model", "warning_index")]), , drop = FALSE]
+}
+
+jss_missing_assert_warning_policy <- function(events) {
+  if (!is.data.frame(events)) stop("Missingness warning events are unavailable.", call. = FALSE)
+  unexpected <- !(events$expected %in% TRUE) | events$policy_action == "fatal"
+  if (any(unexpected)) {
+    stop(sprintf("Missingness fit-warning policy failed: %d unexpected warning event(s).",
+      sum(unexpected)), call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+jss_missing_coverage_plot_payload <- function(fixed_term_summary, margin_parameters) {
+  candidate <- fixed_term_summary[
+    fixed_term_summary$parameter %in% margin_parameters, , drop = FALSE]
+  required <- c("target_missing_pct", "mean_coverage_95", "model", "parameter",
+    "missing_mechanism")
+  if (!all(required %in% names(candidate))) {
+    stop("Missingness coverage-plot payload lacks required columns.", call. = FALSE)
+  }
+  keep <- is.finite(candidate$target_missing_pct) & is.finite(candidate$mean_coverage_95) &
+    !is.na(candidate$model) & !is.na(candidate$parameter) & !is.na(candidate$missing_mechanism)
+  list(data = candidate[keep, , drop = FALSE], candidate_rows = nrow(candidate),
+    omitted_rows = sum(!keep))
+}
+
+jss_missing_warning_audit <- function(events, runs, coverage_payload) {
+  policy <- rbind(
+    jss_missing_warning_policy()[c("classification", "policy_action", "expected")],
+    data.frame(classification = "unexpected", policy_action = "fatal", expected = FALSE)
+  )
+  event_counts <- table(factor(events$classification, levels = policy$classification))
+  affected <- vapply(policy$classification, function(classification) {
+    selected <- events[events$classification == classification, , drop = FALSE]
+    if (!nrow(selected)) return(0L)
+    nrow(unique(selected[c("scenario", "rep", "model")]))
+  }, integer(1))
+  fit_rows <- data.frame(
+    audit_type = "fit_warning", classification = policy$classification,
+    policy_action = policy$policy_action, expected = policy$expected,
+    events = as.integer(event_counts), affected_fits = affected,
+    attempted_fits = as.integer(nrow(runs)), omitted_rows = 0L,
+    reconciliation_status = "exact_checkpoint_event_reconciliation",
+    uncertainty = paste(
+      "Counts cover warnings signalled synchronously inside the two registered model-fit calls;",
+      "silenced messages or native-process diagnostics that are not R warning conditions are outside scope."
+    ), stringsAsFactors = FALSE
+  )
+  plot_row <- data.frame(
+    audit_type = "plot_omission", classification = "coverage_not_finite",
+    policy_action = "record_omission", expected = TRUE, events = 0L,
+    affected_fits = NA_integer_, attempted_fits = as.integer(nrow(runs)),
+    omitted_rows = as.integer(coverage_payload$omitted_rows),
+    reconciliation_status = "exact_candidate_row_reconciliation",
+    uncertainty = paste0("Coverage plot candidates=", coverage_payload$candidate_rows,
+      "; plotted=", nrow(coverage_payload$data), "; omitted rows have unavailable/non-finite coverage."),
+    stringsAsFactors = FALSE
+  )
+  rbind(fit_rows, plot_row)
+}
+
+jss_missing_failure_stop_reason <- function(error) {
+  if (length(error) == 1L && !is.na(error) && grepl(
+      "(max_elapsed_sec|time[ -]?limit|timed out|exceeded.*elapsed)", error,
+      ignore.case = TRUE, perl = TRUE)) "time_limit" else "fit_error"
 }
 
 jss_missing_checkout_identity <- function(project_root) {
@@ -345,7 +510,7 @@ jss_missing_seed_offset <- function(mechanism) {
 
 jss_missing_checkpoint_spec <- function(task, configuration) {
   list(
-    schema_version = 4L,
+    schema_version = 5L,
     scenario_id = as.integer(task$scenario_id[[1L]]),
     scenario = sprintf(
       "n%d_d%d_%s_miss%02d",
@@ -368,7 +533,8 @@ jss_missing_checkpoint_spec <- function(task, configuration) {
 }
 
 jss_missing_checkpoint_content <- function(result) {
-  result[c("runs", "fixed", "smooth", "joint", "predictive", "missingness", "missingness_pattern")]
+  result[c("runs", "fixed", "smooth", "joint", "predictive", "missingness",
+    "missingness_pattern", "warning_events")]
 }
 
 jss_missing_checkpoint_archive_record <- function(result) {
@@ -385,7 +551,8 @@ jss_missing_checkpoint_archive_record <- function(result) {
     checkpoint = gsub("\\\\", "/", file.path("rep_results", checkpoint_name)),
     checkpoint_content_sha256 = jss_missing_content_sha256(jss_missing_checkpoint_content(result)),
     public_payload_sha256 = jss_missing_portable_task_sha256(result$runs, result$fixed,
-      result$smooth, result$missingness, result$missingness_pattern), stringsAsFactors = FALSE)
+      result$smooth, result$missingness, result$missingness_pattern,
+      result$warning_events), stringsAsFactors = FALSE)
 }
 
 jss_missing_eligible <- function(runs) {
@@ -432,14 +599,16 @@ jss_missing_checkpoint_valid <- function(result, task, configuration = list()) {
   expected <- jss_missing_checkpoint_spec(task, configuration)
   result_schema <- c("checkpoint_schema_version", "checkpoint_configuration_key", "checkpoint_spec",
     "fixed", "smooth", "joint", "predictive", "runs", "missingness", "missingness_pattern",
+    "warning_events",
     "checkpoint_provenance", "checkpoint_content_sha256")
   if (!is.list(result) || !setequal(names(result), result_schema) ||
-      !identical(result$checkpoint_schema_version, 4L) ||
+      !identical(result$checkpoint_schema_version, 5L) ||
       !is.character(result$checkpoint_configuration_key) || length(result$checkpoint_configuration_key) != 1L ||
       !identical(result$checkpoint_spec, expected) || !is.list(result$checkpoint_provenance) ||
       !is.character(result$checkpoint_content_sha256) || length(result$checkpoint_content_sha256) != 1L ||
       !identical(jss_missing_content_sha256(jss_missing_checkpoint_content(result)), result$checkpoint_content_sha256)) return(FALSE)
   runs <- result$runs
+  warning_events <- result$warning_events
   payload_names <- c("fixed", "smooth", "joint", "predictive")
   required_runs <- c(
     "scenario", "n", "d", "rep", "missing_mechanism", "target_missing_rate",
@@ -468,6 +637,30 @@ jss_missing_checkpoint_valid <- function(result, task, configuration = list()) {
     all(runs$success %in% TRUE | (is.na(runs$logLik) & is.na(runs$df))) &&
     all(is.finite(runs$elapsed_sec) & runs$elapsed_sec >= 0 & runs$elapsed_sec <= 1e12)
   if (!isTRUE(base_valid) || !all(c(payload_names, "missingness_pattern") %in% names(result))) return(FALSE)
+  warning_schema <- names(jss_missing_empty_warning_events())
+  if (!is.data.frame(warning_events) || !identical(names(warning_events), warning_schema) ||
+      !all(vapply(warning_events[c("n", "d", "rep", "warning_index")], is.integer, logical(1))) ||
+      !is.numeric(warning_events$target_missing_rate) || !is.logical(warning_events$expected) ||
+      !all(vapply(warning_events[c("scenario", "missing_mechanism", "model", "condition_class",
+        "warning_message", "normalized_message", "classification", "policy_action")],
+        is.character, logical(1))) || anyDuplicated(warning_events[c("scenario", "rep", "model", "warning_index")]) ||
+      any(warning_events$scenario != expected$scenario) || any(warning_events$n != expected$n) ||
+      any(warning_events$d != expected$d) || any(warning_events$rep != expected$replicate) ||
+      any(warning_events$missing_mechanism != expected$missing_mechanism) ||
+      any(abs(warning_events$target_missing_rate - expected$missing_rate) >= 1e-12) ||
+      any(!warning_events$model %in% c("gamlss.longitudinal", "gamlss2")) ||
+      any(warning_events$warning_index < 1L)) return(FALSE)
+  if (nrow(warning_events)) {
+    classified <- lapply(warning_events$warning_message, jss_missing_classify_warning)
+    if (any(vapply(seq_len(nrow(warning_events)), function(i) {
+      observed <- warning_events[i, c("normalized_message", "classification", "policy_action", "expected")]
+      expected_class <- classified[[i]]
+      !identical(observed$normalized_message[[1L]], expected_class$normalized_message) ||
+        !identical(observed$classification[[1L]], expected_class$classification) ||
+        !identical(observed$policy_action[[1L]], expected_class$policy_action) ||
+        !identical(observed$expected[[1L]], expected_class$expected)
+    }, logical(1)))) return(FALSE)
+  }
   provenance <- result$checkpoint_provenance
   configured_identity <- expected$configuration$package_identity
   runtime_fields <- c("timestamp_utc", "pid", "host", "os", "platform", "r_version", "rng_kind",
@@ -561,12 +754,13 @@ jss_missing_checkpoint_valid <- function(result, task, configuration = list()) {
   allowed_stops <- c("converged", "relative_deviance_tolerance", "max_iterations", "max_stall",
     "objective_deterioration", "invalid_likelihood", "numerical_failure", "time_limit",
     "outer_iteration_limit_or_invalid_loglik", "fit_error")
-  expected_failure <- ifelse(eligible, "none",
-    ifelse(runs$success %in% TRUE, paste0("optimizer_nonconvergence:", runs$stop_reason), "fit_error"))
+  expected_failure <- ifelse(eligible, "none", ifelse(runs$success %in% TRUE,
+    paste0("optimizer_nonconvergence:", runs$stop_reason),
+    ifelse(runs$stop_reason == "fit_error", "fit_error", paste0("fit_error:", runs$stop_reason))))
   if (any(is.na(runs$stop_reason)) || any(!runs$stop_reason %in% allowed_stops) ||
       !identical(as.character(runs$failure_type), as.character(expected_failure)) ||
       any(eligible & runs$stop_reason %in% c("fit_error", "invalid_likelihood", "numerical_failure")) ||
-      any(!runs$success & runs$stop_reason != "fit_error") ||
+      any(!runs$success & !runs$stop_reason %in% c("fit_error", "time_limit")) ||
       any(!runs$success & (is.na(runs$error) | !nzchar(runs$error))) ||
       any(runs$success & !is.na(runs$error) & nzchar(runs$error))) return(FALSE)
   numeric_fields <- names(runs)[vapply(runs, is.numeric, logical(1))]

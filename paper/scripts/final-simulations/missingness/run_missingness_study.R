@@ -215,7 +215,7 @@ smooth_truth <- list(
 )
 
 checkpoint_configuration <- list(
-  design_version = "missingness-v4",
+  design_version = "missingness-v5",
   package_identity = expected_package_identity,
   producer_sha256 = producer_sha256,
   producer_sources = normalizePath(producer_sources, winslash = "/", mustWork = TRUE),
@@ -253,7 +253,7 @@ checkpoint_configuration <- list(
   seed_formula_version = "simulation=100000+rep; mechanism offset + rate offset",
   rng_kind = RNGkind()
 )
-checkpoint_configuration_key <- paste0("missing-v4-", jss_missing_short_hash(checkpoint_configuration))
+checkpoint_configuration_key <- paste0("missing-v5-", jss_missing_short_hash(checkpoint_configuration))
 
 linpred <- function(beta, x1, x2, t) {
   beta[["intercept"]] + beta[["x1"]] * x1 + beta[["x2"]] * x2 + beta[["t"]] * t
@@ -1305,30 +1305,44 @@ run_one_rep <- function(task) {
 
   t0 <- Sys.time()
   err_long <- NA_character_
-  fit_long <- tryCatch(
-    fit_longitudinal_model(dat),
-    error = function(e) {
-      err_long <<- conditionMessage(e)
-      NULL
-    }
+  captured_long <- jss_missing_capture_warnings(
+    tryCatch(
+      fit_longitudinal_model(dat),
+      error = function(e) {
+        err_long <<- conditionMessage(e)
+        NULL
+      }
+    )
   )
+  fit_long <- captured_long$value
   elapsed_long <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
 
   t0 <- Sys.time()
   err_gamlss2 <- NA_character_
-  fit_gamlss2 <- tryCatch(
-    fit_gamlss2_model(dat),
-    error = function(e) {
-      err_gamlss2 <<- conditionMessage(e)
-      NULL
-    }
+  captured_gamlss2 <- jss_missing_capture_warnings(
+    tryCatch(
+      fit_gamlss2_model(dat),
+      error = function(e) {
+        err_gamlss2 <<- conditionMessage(e)
+        NULL
+      }
+    )
   )
+  fit_gamlss2 <- captured_gamlss2$value
   elapsed_gamlss2 <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
 
   conv_long <- if (!is.null(fit_long)) extract_convergence_info(fit_long) else extract_convergence_info(NULL)
   conv_gamlss2 <- extract_gamlss2_convergence_info(fit_gamlss2)
+  if (is.null(fit_long)) conv_long$stop_reason <- jss_missing_failure_stop_reason(err_long)
+  if (is.null(fit_gamlss2)) conv_gamlss2$stop_reason <- jss_missing_failure_stop_reason(err_gamlss2)
   retained_long <- !is.null(fit_long) && isTRUE(conv_long$converged)
   retained_gamlss2 <- !is.null(fit_gamlss2) && isTRUE(conv_gamlss2$converged)
+  warning_events <- rbind(
+    jss_missing_warning_events(captured_long, scenario_label, n_val, d_val, rep_id,
+      missing_mechanism, missing_rate, "gamlss.longitudinal"),
+    jss_missing_warning_events(captured_gamlss2, scenario_label, n_val, d_val, rep_id,
+      missing_mechanism, missing_rate, "gamlss2")
+  )
 
   run_rows[[1]] <- data.frame(
     scenario = scenario_label, n = n_val, d = d_val, rep = rep_id,
@@ -1499,12 +1513,11 @@ run_one_rep <- function(task) {
   }
 
   runs <- do.call(rbind, run_rows)
-  runs$failure_type <- ifelse(
-    runs$success %in% TRUE & runs$converged %in% TRUE, "none",
-    ifelse(runs$success %in% TRUE, paste0("optimizer_nonconvergence:", runs$stop_reason), "fit_error")
-  )
+  runs$failure_type <- ifelse(runs$success %in% TRUE & runs$converged %in% TRUE, "none",
+    ifelse(runs$success %in% TRUE, paste0("optimizer_nonconvergence:", runs$stop_reason),
+      ifelse(runs$stop_reason == "fit_error", "fit_error", paste0("fit_error:", runs$stop_reason))))
   out <- list(
-    checkpoint_schema_version = 4L,
+    checkpoint_schema_version = 5L,
     checkpoint_configuration_key = checkpoint_configuration_key,
     checkpoint_spec = jss_missing_checkpoint_spec(task, checkpoint_configuration),
     fixed = bind_non_null(fixed_rows),
@@ -1514,6 +1527,7 @@ run_one_rep <- function(task) {
     runs = runs,
     missingness = miss_summary,
     missingness_pattern = missingness_pattern,
+    warning_events = warning_events,
     checkpoint_provenance = c(jss_missing_runtime_identity(), list(
       package_identity_verified = isTRUE(get(".jss_missing_verified_worker_identity", envir = .GlobalEnv,
         inherits = TRUE)$verified),
@@ -1593,7 +1607,7 @@ if (length(tasks) == 0L) {
     setup_strategy = "parallel"
   )
 
-  on.exit(parallel::stopCluster(cl), add = TRUE)
+  on.exit(if (!is.null(cl)) parallel::stopCluster(cl), add = TRUE)
   parallel::clusterCall(cl, setwd, project_root)
   worker_status <- parallel::clusterCall(cl, function(project_root, expected_identity, expected_producer_sha256) {
     safe_source <- function(path) {
@@ -1650,10 +1664,13 @@ if (length(tasks) == 0L) {
     print(task_test)
     cat("PARALLEL_SETUP_ONLY=1; stopping after successful worker setup.\n")
     parallel::stopCluster(cl)
+    cl <- NULL
     quit(save = "no", status = 0)
   }
 
   new_results <- parallel::parLapplyLB(cl, tasks, run_one_rep_and_save)
+  parallel::stopCluster(cl)
+  cl <- NULL
 }
 results <- c(results, new_results)
 
@@ -1670,7 +1687,8 @@ checkpoint_status <- do.call(rbind, lapply(results, function(result) {
     checkpoint = gsub("\\\\", "/", file.path("rep_results", checkpoint_name)),
     checkpoint_content_sha256 = result$checkpoint_content_sha256,
     public_payload_sha256 = jss_missing_portable_task_sha256(
-      result$runs, result$fixed, result$smooth, result$missingness, result$missingness_pattern
+      result$runs, result$fixed, result$smooth, result$missingness,
+      result$missingness_pattern, result$warning_events
     ),
     package_source_sha256 = result$checkpoint_spec$configuration$package_identity$source_sha256,
     package_version = result$checkpoint_spec$configuration$package_identity$version,
@@ -1697,6 +1715,8 @@ write.csv(checkpoint_content_manifest,
 runs_all <- bind_non_null(lapply(results, `[[`, "runs"))
 missingness_all <- bind_non_null(lapply(results, `[[`, "missingness"))
 missingness_pattern_all <- bind_non_null(lapply(results, `[[`, "missingness_pattern"))
+warning_events_all <- jss_missing_collect_warning_events(results)
+jss_missing_assert_warning_policy(warning_events_all)
 runs_all$retained <- runs_all$success %in% TRUE & runs_all$converged %in% TRUE
 fixed_all <- jss_missing_filter_payload(bind_non_null(lapply(results, `[[`, "fixed")), runs_all)
 smooth_all <- jss_missing_filter_payload(bind_non_null(lapply(results, `[[`, "smooth")), runs_all)
@@ -1714,6 +1734,7 @@ missingness_all <- attach_public_hash(missingness_all)
 fixed_all <- attach_public_hash(fixed_all)
 smooth_all <- attach_public_hash(smooth_all)
 missingness_pattern_all <- attach_public_hash(missingness_pattern_all)
+warning_events_all <- attach_public_hash(warning_events_all)
 
 saveRDS(
   list(
@@ -1724,6 +1745,7 @@ saveRDS(
     runs = runs_all,
     missingness = missingness_all,
     missingness_pattern = missingness_pattern_all,
+    warning_events = warning_events_all,
     truth = true_beta
   ),
   file.path(out_dir, "all_results.rds")
@@ -1752,6 +1774,7 @@ penalty_registry <- data.frame(
 )
 write.csv(penalty_registry, file.path(out_dir, "missingness_sensitivity_registry.csv"), row.names = FALSE)
 write.csv(runs_all, file.path(out_dir, "fit_run_log.csv"), row.names = FALSE)
+write.csv(warning_events_all, file.path(out_dir, "missingness_warning_events.csv"), row.names = FALSE)
 fit_attempt_summary <- do.call(rbind, lapply(
   split(runs_all, list(runs_all$scenario, runs_all$model), drop = TRUE),
   function(df) data.frame(
@@ -1789,7 +1812,7 @@ failure_reason <- ifelse(
   "retained",
   ifelse(
     !runs_all$success,
-    ifelse(is.na(runs_all$error) | !nzchar(runs_all$error), "fit_error_unspecified", runs_all$error),
+    runs_all$stop_reason,
     ifelse(runs_all$converged %in% FALSE, paste0("nonconverged: ", runs_all$stop_reason), "not_retained")
   )
 )
@@ -2351,8 +2374,13 @@ fixed_rmse_plot <- ggplot(
   )
 ggsave(file.path(out_dir, "fixed_margin_rmse_by_missingness.png"), fixed_rmse_plot, width = 8.5, height = 5.5, dpi = 180)
 
+coverage_plot_payload <- jss_missing_coverage_plot_payload(fixed_term_summary, params_margin)
+warning_audit <- jss_missing_warning_audit(warning_events_all, runs_all, coverage_plot_payload)
+jss_missing_assert_warning_policy(warning_events_all)
+write.csv(warning_audit, file.path(out_dir, "missingness_warning_audit.csv"), row.names = FALSE)
+
 fixed_coverage_plot <- ggplot(
-  fixed_term_summary[fixed_term_summary$parameter %in% params_margin, , drop = FALSE],
+  coverage_plot_payload$data,
   aes(x = target_missing_pct, y = mean_coverage_95, colour = model, shape = model, group = model)
 ) +
   geom_hline(yintercept = 0.95, colour = "gray45", linetype = "dotted") +
