@@ -26,6 +26,14 @@ test_that("inference control exposes stable profiles and records overrides", {
   expect_error(inference_control("standard", rank_tol = 0), "positive finite")
 })
 
+test_that("fitted-score perturbations remain on the coefficient scale", {
+  par <- c(small = 0.01, unit = 1, large = -20)
+  steps <- gamlss.longitudinal:::.gl_vcov_score_steps(par, 1e-4)
+
+  expect_equal(steps, c(small = 1e-4, unit = 1e-4, large = 2e-3))
+  expect_true(all(steps >= 1e-4))
+})
+
 test_that("valid curvature returns signed covariance and complete diagnostics", {
   H <- named_hessian(matrix(c(-4, -0.2, -0.2, -2), 2))
   gradient <- list(

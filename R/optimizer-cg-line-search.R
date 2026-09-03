@@ -15,6 +15,7 @@
     max_backtrack,
     eval_fn,
     objective_fn,
+    gradient = NULL,
     candidate_eval_fn = .gl_evaluate_cg_line_search_candidate) {
   best <- NULL
   line_eval_count <- 0L
@@ -41,7 +42,21 @@
         objective_fn = objective_fn
       )
       if (is.null(candidate)) next
-      if (is.finite(candidate$improvement) && candidate$improvement > max(1e-8, armijo_c1 * max(1, abs(obj_start)))) {
+      delta <- as.numeric(candidate$beta - beta_vec)
+      directional_derivative <- if (
+          !is.null(gradient) && length(gradient) == length(delta)) {
+        sum(as.numeric(gradient) * delta)
+      } else {
+        NA_real_
+      }
+      armijo_threshold <- if (
+          is.finite(directional_derivative) && directional_derivative > 0) {
+        armijo_c1 * directional_derivative
+      } else {
+        0
+      }
+      if (is.finite(candidate$improvement) &&
+          candidate$improvement > max(1e-8, armijo_threshold)) {
         if (is.null(best) || candidate$improvement > best$improvement) {
           best <- candidate
         }
@@ -74,6 +89,7 @@
     backtracking_max_halves,
     eval_fn,
     objective_fn,
+    gradient = NULL,
     verbose,
     line_search_fn = .gl_evaluate_cg_line_search) {
   max_backtrack <- if (isTRUE(use_backtracking)) as.integer(backtracking_max_halves) else 0L
@@ -91,7 +107,8 @@
     max_line_search_evals = max_line_search_evals,
     max_backtrack = max_backtrack,
     eval_fn = eval_fn,
-    objective_fn = objective_fn
+    objective_fn = objective_fn,
+    gradient = gradient
   )
 
   if (verbose > 1) {

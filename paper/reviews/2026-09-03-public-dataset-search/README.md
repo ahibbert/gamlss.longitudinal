@@ -50,11 +50,16 @@ Rscript paper/run-public-application.R --dataset patents --stage screen
 Rscript paper/run-public-application.R --dataset patents --stage fit
 Rscript paper/run-public-application.R --dataset patents --stage fit --comparators
 Rscript paper/run-public-application.R --dataset patents --stage fit --outputs
+Rscript paper/run-public-application.R --dataset patents --stage refine --outputs
 ```
 
-The last command runs the full diagnostic and publication-output
-bundle and is deliberately opt-in because it is more expensive than fitting
-and saving the model.
+The `--outputs` command runs the full diagnostic and publication-output bundle.
+The `refine` stage runs the covariate-matched flexible-margin screen and the
+refined NBI/Clayton model; both are deliberately opt-in because they are more
+expensive than fitting and saving the base model.
+Final application fits compute covariance estimates and validate inference by
+default. `--no-vcov` is available only for exploratory timing runs whose saved
+fits are not suitable for reporting.
 
 ## Candidate ranking
 
@@ -100,32 +105,33 @@ Independent-margin screening results:
 | NBI, sigma by sector and capital | **23,386.4** | **23,484.8** |
 | Delaporte, constant sigma and nu | 23,564.1 | 23,656.4 |
 
-The final joint NBI/Clayton model converged at the prespecified
-`outer_tol = 0.001` after a short continuation from the capped screening fit. It had log
-likelihood -10,468.64, AIC 20,973.27, and BIC 21,083.96. There were no optimizer
-events or model warnings.
+After correcting the fitted-score calculation and tightening the RS inner
+tolerance, the accepted base joint NBI/Clayton model has log likelihood
+-10,417.32, AIC 20,870.65, and BIC 20,981.33. Analytical-Hessian inference is
+available; the curvature-standardized fitted score is 0.078.
 
-Both required components survived joint nested comparisons:
+A second screen showed that log R&D belongs in the dispersion equation. The
+refined joint model
 
-| Joint model | df | log likelihood | AIC | BIC |
-|---|---:|---:|---:|---:|
-| Full: sigma by sector/capital; theta by capital | 18 | **-10,468.64** | **20,973.27** | **21,083.96** |
-| Constant theta | 17 | -10,570.99 | 21,175.97 | 21,280.50 |
-| Constant sigma | 16 | -10,535.61 | 21,103.22 | 21,201.60 |
+```r
+sigma.formula = ~ scientific + capital_z + log_rd
+```
 
-Relative to the full model, constant theta loses 102.35 log-likelihood units
-for one parameter; constant sigma loses 66.97 units for two parameters. Thus
-the two effects are not merely alternative allocations of the same
-heterogeneity.
+has log likelihood -10,374.06, AIC 20,786.12, and BIC 20,902.95. The added
+log-R&D dispersion coefficient is -0.234, and inference validation passes with
+a standardized fitted score of 0.067. This refined model is the version to take
+forward for updated diagnostics and nested comparisons.
 
-On the NBI log-sigma scale, scientific-sector status has coefficient -0.594
-and one SD of log baseline capital has coefficient -0.358. These correspond to
-dispersion ratios of 0.552 and 0.699 respectively. On the Clayton parameter
-link scale, the capital coefficient is 0.432. The implied Kendall tau is about
-0.426, 0.533, and 0.638 at capital z-scores -1, 0, and +1.
+In the covariate-matched independent-margin screen, Delaporte and NBI with
+R&D-dependent dispersion are effectively tied by AIC (23,328.96 versus
+23,329.15), while BIC prefers NBI (23,433.68 versus 23,439.64). A full joint
+Delaporte fit is currently too slow to make part of the routine candidate
+workflow and is deferred unless its negligible independent AIC advantage
+becomes important.
 
-Use the data through `Suggests: pglm` rather than copying it into this package
-unless redistribution rights for the underlying study data are confirmed.
+The packaged derivative retains the upstream GPL >= 2 attribution in
+`inst/DATA-LICENSES.md`; downstream redistribution can be replaced by runtime
+loading from `pglm` if a final licensing confirmation requires it.
 
 Sources:
 
@@ -158,13 +164,12 @@ may be related to clinical deterioration. Any use must therefore distinguish
 actual follow-up day in the marginal model from sequential visit order in the
 copula and state the resulting first-order dependence assumption.
 
-The first capped joint GG/Gaussian-copula fit did not converge within 15 outer
-iterations, so its information criteria were correctly unavailable. A
-fixed-margin screen suggested greater dependence at high baseline stage
-(ordinal-stage BIC improvement 5.2; subject-block bootstrap interval only just
-excluded zero), but a longer, prespecified joint fit is still required before
-adoption. The GG shape estimate was also extreme, which may explain some of the
-joint optimization difficulty.
+The refined joint GG/Gaussian-copula fit converges and supports validated
+analytical-Hessian inference (standardized fitted score 0.037). Its log
+likelihood is -1,934.70, AIC 3,903.39, and BIC 3,996.53. The scale effect is
+strong, but the stage-dependent copula effect remains modest: AIC and its
+likelihood-ratio test favour varying association, whereas BIC slightly favours
+constant association.
 
 Source: <https://stat.ethz.ch/R-manual/R-devel/library/survival/html/pbcseq.html>
 
