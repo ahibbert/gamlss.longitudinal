@@ -67,7 +67,7 @@ test_that("public approvals are hash checked and materialized outside checkout",
   paths <- setup$env$jss_phase2_materialize_public_approvals(
     fixture_root, "paper", approval_dir = approval_dir, external_dir = external
   )
-  expect_length(paths, 10L)
+  expect_length(paths, 2L * nrow(spec))
   expect_true(all(file.exists(paths)))
   expect_true(all(!startsWith(
     tolower(normalizePath(paths, winslash = "/")),
@@ -155,12 +155,12 @@ test_that("external overrides are preflighted before targets run", {
     external_dir = tempfile("approval-external-")), "external to the editable checkout")
 
   Sys.unsetenv(c(spec$attestation_env, spec$signature_env))
-  complete <- vapply(seq_len(10L), function(i) {
+  complete <- vapply(seq_len(2L * nrow(spec)), function(i) {
     path <- tempfile("complete-override-"); writeBin(as.raw(i), path); path
   }, character(1L))
-  unlink(complete[[10L]])
-  do.call(Sys.setenv, stats::setNames(as.list(complete[seq_len(5L)]), spec$attestation_env))
-  do.call(Sys.setenv, stats::setNames(as.list(complete[5L + seq_len(5L)]), spec$signature_env))
+  unlink(complete[[length(complete)]])
+  do.call(Sys.setenv, stats::setNames(as.list(complete[seq_len(nrow(spec))]), spec$attestation_env))
+  do.call(Sys.setenv, stats::setNames(as.list(complete[nrow(spec) + seq_len(nrow(spec))]), spec$signature_env))
   expect_error(setup$env$jss_phase2_materialize_public_approvals(
     fixture_root, "full"), "does not exist or is not a regular file")
 })
@@ -171,11 +171,11 @@ test_that("a complete external override set needs no bundled manifest", {
   spec <- setup$env$jss_phase2_public_approval_spec()
   restore <- local_clear_public_approval_env(spec); on.exit(restore(), add = TRUE)
   fixture_root <- tempfile("approval-checkout-"); dir.create(fixture_root)
-  complete <- vapply(seq_len(10L), function(i) {
+  complete <- vapply(seq_len(2L * nrow(spec)), function(i) {
     path <- tempfile("complete-override-"); writeBin(as.raw(i), path); path
   }, character(1L))
-  do.call(Sys.setenv, stats::setNames(as.list(complete[seq_len(5L)]), spec$attestation_env))
-  do.call(Sys.setenv, stats::setNames(as.list(complete[5L + seq_len(5L)]), spec$signature_env))
+  do.call(Sys.setenv, stats::setNames(as.list(complete[seq_len(nrow(spec))]), spec$attestation_env))
+  do.call(Sys.setenv, stats::setNames(as.list(complete[nrow(spec) + seq_len(nrow(spec))]), spec$signature_env))
   paths <- setup$env$jss_phase2_materialize_public_approvals(fixture_root, "paper")
   expect_identical(unname(normalizePath(paths, winslash = "/")),
     unname(normalizePath(complete, winslash = "/")))

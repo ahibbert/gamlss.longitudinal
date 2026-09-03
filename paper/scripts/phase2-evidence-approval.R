@@ -182,34 +182,7 @@ phase2_sign <- function(study, bundle_dir, root, approver, private_path,
     producer_sha <- jss_missing_producer_sha256(c(file.path(root, "paper", "R", "missingness-study-helpers.R"),
       file.path(root, "paper", "scripts", "final-simulations", "missingness", "run_missingness_study.R")))
     file_sha <- jss_missing_sha256_file
-  } else if (identical(study, "optimizer-benchmark")) {
-    source(file.path(root, "paper", "R", "03-joint-vs-separate-optimization.R"), local = .GlobalEnv)
-    source(file.path(root, "paper", "R", "phase2-paper-evidence.R"), local = .GlobalEnv)
-    original_dirs <- file.path(bundle_dir, c("data", "tables", "figures"))
-    files <- jss_phase2_optimizer_files()
-    original <- c(file.path(original_dirs[[1L]], files$data), file.path(original_dirs[[2L]], files$tables),
-      file.path(original_dirs[[3L]], files$figures))
-    before <- vapply(original, jss_joint_sha256_file, character(1))
-    snapshot <- tempfile("optimizer-approval-snapshot-"); dir.create(snapshot)
-    on.exit(unlink(snapshot, recursive = TRUE, force = TRUE), add = TRUE)
-    snapshot_dirs <- file.path(snapshot, c("data", "tables", "figures"))
-    invisible(lapply(snapshot_dirs, dir.create, recursive = TRUE))
-    required <- c(file.path(snapshot_dirs[[1L]], files$data), file.path(snapshot_dirs[[2L]], files$tables),
-      file.path(snapshot_dirs[[3L]], files$figures))
-    if (!all(file.copy(original, required, overwrite = FALSE)) ||
-        !identical(before, vapply(original, jss_joint_sha256_file, character(1))) ||
-        !identical(unname(before), unname(vapply(required, jss_joint_sha256_file, character(1))))) {
-      stop("Optimizer bundle changed while creating the approval snapshot.", call. = FALSE)
-    }
-    data_dir <- snapshot_dirs[[1L]]; tables_dir <- snapshot_dirs[[2L]]
-    figures_dir <- snapshot_dirs[[3L]]
-    jss_phase2_optimizer_validate_candidate(data_dir, tables_dir, figures_dir, root = root,
-      require_promotion = FALSE)
-    checkpoints <- utils::read.csv(file.path(data_dir, files$data[[3L]]), stringsAsFactors = FALSE)
-    package_sha <- jss_joint_checkout_package_identity(list(root = root))$source_sha256
-    producer_sha <- jss_joint_producer_fingerprint(list(root = root))
-    file_sha <- jss_joint_sha256_file
-  } else stop("study must be main-recovery, missingness, optimizer-benchmark, copula-misspecification, or multivariate-benchmark.", call. = FALSE)
+  } else stop("study must be main-recovery, missingness, copula-misspecification, or multivariate-benchmark.", call. = FALSE)
   manifest <- paste(sort(paste(basename(required), vapply(required, file_sha, character(1)), sep = "\t")), collapse = "\n")
   approved_at <- format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
   if (identical(study, "missingness")) {
