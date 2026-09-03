@@ -19,10 +19,6 @@ copula-tau-labels,copula-misspecification,sec:sim_sensitivity_copula,p2_copula_r
 copula-subjects,copula-misspecification,sec:sim_sensitivity_copula,p2_copula_results,n_subject,set,50|150|500,Subjects,public_manuscript
 copula-visits,copula-misspecification,sec:sim_sensitivity_copula,p2_copula_results,n_time,set,4,Visits,public_manuscript
 copula-replicates,copula-misspecification,sec:sim_sensitivity_copula,p2_copula_results,rep,integer_range,1:100,Replicates per generating scenario,public_manuscript
-benchmark-families,multivariate-benchmark,sec:sim_sensitivity_benchmark,p2_mvt_scenario_grid,family_name,set,binomial|gamma|gaussian|poisson,Response families,public_manuscript
-benchmark-dependence,multivariate-benchmark,sec:sim_sensitivity_benchmark,p2_mvt_scenario_grid,dependence_name,set,external_ar1|external_exchangeable|native_covariate_dependent_adjacent|native_time_varying_adjacent,Dependence structures,public_manuscript
-benchmark-visits,multivariate-benchmark,sec:sim_sensitivity_benchmark,p2_mvt_scenario_grid,n_time,set,20,Visits,public_manuscript
-benchmark-replicates,multivariate-benchmark,sec:sim_sensitivity_benchmark,p2_mvt_fit_status,rep,integer_range,1:100,Replicates per case,public_manuscript
 scaling-subjects,fit-scaling,sec:discussion,p2_scaling_scenarios,n_subjects,set,100|250,Measured subject counts,public_supplemental
 scaling-visits,fit-scaling,sec:discussion,p2_scaling_scenarios,n_visits,set,4|8,Measured visit counts,public_supplemental
 scaling-basis,fit-scaling,sec:discussion,p2_scaling_scenarios,smooth_k,set,5|10,Measured smooth basis sizes,public_supplemental

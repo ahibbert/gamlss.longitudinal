@@ -904,12 +904,7 @@ jss_missingness_validate_public_bundle <- function(input, root = getwd(),
 }
 
 jss_missingness_production_gate <- function(input, root = getwd()) {
-  validated <- jss_missingness_validate_public_bundle(input, root = root)
-  if (nrow(validated$runs) != 480L || nrow(validated$missingness) != 240L ||
-      nrow(validated$attempts) != 24L) {
-    stop("Missingness production aggregate bundle gate did not reconcile registered dimensions.", call. = FALSE)
-  }
-  invisible(validated)
+  invisible(jss_submission_validate_missingness(input, root))
 }
 
 jss_stage_04_missingness_data <- function(input, settings) {
@@ -939,12 +934,12 @@ jss_run_04_missingness_from_public_inputs <- function(settings) {
       call. = FALSE
     )
   }
-  validated <- jss_missingness_validate_public_bundle(input)
+  jss_submission_validate_missingness(input, settings$root)
   fixed <- utils::read.csv(file.path(input, "fixed_term_summary_by_missingness.csv"), stringsAsFactors = FALSE)
   smooth <- utils::read.csv(file.path(input, "smooth_selected_plot_data.csv"), stringsAsFactors = FALSE)
-  attempts <- validated$attempts
-  headline <- validated$headline
-  registry <- validated$registry
+  attempts <- utils::read.csv(file.path(input, "attempt_failure_summary.csv"), stringsAsFactors = FALSE)
+  headline <- utils::read.csv(file.path(input, "missingness_headline_summary.csv"), stringsAsFactors = FALSE)
+  registry <- utils::read.csv(file.path(input, "missingness_design_registry.csv"), stringsAsFactors = FALSE)
   expected_mechanisms <- c("monotone_dropout", "time_dependent_intermittent_mar")
   observed_mechanisms <- unique(c(
     as.character(fixed$missing_mechanism), as.character(smooth$missing_mechanism),

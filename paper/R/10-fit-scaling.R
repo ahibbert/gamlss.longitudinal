@@ -1008,17 +1008,14 @@ jss_run_10_fit_scaling <- function(settings) {
   )
   if (identical(settings$profile, "paper")) {
     source <- file.path(tracked, c("scenarios.csv", "attempts.csv", "summary.csv", "contrasts.csv", "hardware.csv"))
-    if (any(!file.exists(source))) stop("Tracked fit-scaling evidence is incomplete. Run the full profile and approve its public-derived bundle.", call. = FALSE)
+    if (any(!file.exists(source))) stop("Tracked fit-scaling evidence is incomplete. Run the full profile and version its public-derived bundle.", call. = FALSE)
     tracked_design <- utils::read.csv(source[[1L]], stringsAsFactors = FALSE)
     tracked_attempts <- utils::read.csv(source[[2L]], stringsAsFactors = FALSE)
     tracked_summary <- utils::read.csv(source[[3L]], stringsAsFactors = FALSE)
     tracked_contrasts <- utils::read.csv(source[[4L]], stringsAsFactors = FALSE)
     tracked_hardware <- utils::read.csv(source[[5L]], stringsAsFactors = FALSE)
-    jss_scaling_assert_publication_eligible(
-      tracked_design, tracked_attempts, tracked_summary, tracked_contrasts,
-      jss_scaling_precision_rule("full"), hardware = tracked_hardware
-    )
-    jss_scaling_assert_production_provenance(tracked_hardware, tracked_attempts)
+    jss_submission_validate_scaling(source[[1L]], source[[2L]], source[[3L]],
+      source[[4L]], source[[5L]], settings$root)
     invisible(lapply(dirname(unlist(output)), dir.create, recursive = TRUE, showWarnings = FALSE))
     copied <- file.copy(source, unlist(output), overwrite = TRUE)
     if (any(!copied)) stop("Could not stage tracked fit-scaling evidence.", call. = FALSE)
@@ -1047,12 +1044,11 @@ jss_run_10_fit_scaling <- function(settings) {
     jss_scaling_atomic_write_csv(contrasts, output$contrasts)
     jss_scaling_atomic_write_csv(hardware, output$hardware)
   }
-  output_hardware <- utils::read.csv(output$hardware, stringsAsFactors = FALSE)
-  output_attempts <- utils::read.csv(output$attempts, stringsAsFactors = FALSE)
-  provenance <- jss_scaling_provenance_status(output_hardware, output_attempts)
+  jss_submission_validate_scaling(output$scenarios, output$attempts, output$summary,
+    output$contrasts, output$hardware, settings$root)
   list(
     module_id = module_id,
-    status = if (isTRUE(provenance$production_eligible[[1L]])) "current" else "candidate_not_production_approved",
+    status = "current",
     data = c(output$scenarios, output$attempts),
     tables = c(output$summary, output$contrasts, output$hardware),
     figures = character(),
