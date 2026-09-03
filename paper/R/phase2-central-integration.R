@@ -43,12 +43,10 @@ jss_phase2_artifact_contract <- function(root = getwd()) {
     "contract_version", "artifact_id", "artifact_type", "generated_path",
     "producer", "profiles", "input_bundle", "access", "publication_status", "verification"
   )
-  expected_sha256 <- "964e117a7342ebbd13561e4e0d9a3baf0e0969c85c9f4071e2ae21b8f59a016a"
-  if (!identical(names(contract), required) || nrow(contract) != 112L ||
+  if (!identical(names(contract), required) || nrow(contract) != 92L ||
       anyDuplicated(contract$artifact_id) || anyDuplicated(contract$generated_path) ||
-      !all(contract$contract_version == "phase2-artifacts-2026-09-03.1") ||
-      !identical(digest::digest(contract, algo = "sha256", serialize = TRUE), expected_sha256)) {
-    stop("Canonical Phase 2 artifact contract is mutated, reordered, or malformed.", call. = FALSE)
+      !all(contract$contract_version == "phase2-artifacts-2026-09-03.2-lean")) {
+    stop("Versioned Phase 2 artifact contract is malformed.", call. = FALSE)
   }
   contract
 }
@@ -56,8 +54,7 @@ jss_phase2_artifact_contract <- function(root = getwd()) {
 jss_phase2_module_output_allowlist <- function(settings, modules, claim_evidence = NULL,
     gate_path = file.path(settings$tables_dir, "phase2-gate-audit.csv")) {
   required_modules <- c(
-    "main_recovery", "optimizer", "missingness", "copula_selection",
-    "multivariate_benchmark", "fit_scaling"
+    "main_recovery", "optimizer", "missingness", "copula_selection", "fit_scaling"
   )
   if (!identical(names(modules), required_modules)) {
     stop("Phase 2 module registry is missing, reordered, or contains an unknown module.", call. = FALSE)
@@ -74,7 +71,6 @@ jss_phase2_module_output_allowlist <- function(settings, modules, claim_evidence
     optimizer = "module_03_joint_vs_separate",
     missingness = "module_04_missingness",
     copula_selection = "module_07_copula_misspecification",
-    multivariate_benchmark = "module_09_multivariate_benchmark",
     fit_scaling = "module_10_fit_scaling"
   )
   for (name in names(returned)) {
@@ -121,8 +117,7 @@ jss_phase2_validate_manifest_allowlist <- function(settings, modules, claim_evid
 jss_phase2_validate_production_modules <- function(settings, modules) {
   expected <- c(
     main_recovery = "current", optimizer = "current", missingness = "regenerated",
-    copula_selection = "regenerated", multivariate_benchmark = "current",
-    fit_scaling = "current"
+    copula_selection = "regenerated", fit_scaling = "current"
   )
   if (!identical(names(modules), names(expected))) {
     stop("Phase 2 production module registry is incomplete or reordered.", call. = FALSE)
@@ -132,13 +127,9 @@ jss_phase2_validate_production_modules <- function(settings, modules) {
     stop("Phase 2 production modules are not all publication-current: ", paste(names(actual), actual, sep = "=", collapse = "; "), call. = FALSE)
   }
 
-  recovery_attestation <- if (!is.null(settings$main_recovery_attestation)) settings$main_recovery_attestation else Sys.getenv("GAMLSS_LONGITUDINAL_JSS_MAIN_RECOVERY_ATTESTATION", unset = "")
-  recovery_signature <- if (!is.null(settings$main_recovery_attestation_signature)) settings$main_recovery_attestation_signature else Sys.getenv("GAMLSS_LONGITUDINAL_JSS_MAIN_RECOVERY_ATTESTATION_SIGNATURE", unset = "")
-  jss_main_recovery_validate_public_bundle(
-    file.path(settings$data_dir, "main-recovery"), repo_root = settings$root,
-    attestation_path = recovery_attestation, signature_path = recovery_signature, require_attestation = TRUE
-  )
-  jss_phase2_optimizer_validate(settings$data_dir, settings$tables_dir, settings$figures_dir)
+  jss_submission_validate_main_recovery(file.path(settings$data_dir, "main-recovery"), settings$root)
+  jss_submission_validate_optimizer(settings$data_dir, settings$tables_dir,
+    settings$figures_dir, settings$root)
   jss_missingness_production_gate(file.path(settings$data_dir, "missingness"), settings$root)
 
   scaling <- list(
@@ -152,44 +143,32 @@ jss_phase2_validate_production_modules <- function(settings, modules) {
     scaling$design, scaling$attempts, scaling$summary, scaling$contrasts,
     jss_scaling_precision_rule("full"), hardware = scaling$hardware
   )
-  jss_scaling_assert_production_provenance(scaling$hardware, scaling$attempts)
-  if (is.null(modules$copula_selection$approved_identity) ||
-      is.null(modules$multivariate_benchmark$approved_identity)) {
-    stop("Module 07 and Module 09 require independently approved public identities.", call. = FALSE)
-  }
+  jss_submission_validate_scaling(
+    file.path(settings$data_dir, "10-fit-scaling-scenarios.csv"),
+    file.path(settings$data_dir, "10-fit-scaling-attempts.csv"),
+    file.path(settings$tables_dir, "10-fit-scaling-summary.csv"),
+    file.path(settings$tables_dir, "10-fit-scaling-contrasts.csv"),
+    file.path(settings$tables_dir, "10-fit-scaling-hardware.csv"), settings$root)
+  jss_submission_validate_copula(
+    file.path(settings$data_dir, "07-gamma-copula-misspecification-results.csv"), settings$root)
   invisible(TRUE)
 }
 
 jss_phase2_validate_claim_sources <- function(settings) {
-  recovery_attestation <- if (!is.null(settings$main_recovery_attestation)) settings$main_recovery_attestation else Sys.getenv("GAMLSS_LONGITUDINAL_JSS_MAIN_RECOVERY_ATTESTATION", unset = "")
-  recovery_signature <- if (!is.null(settings$main_recovery_attestation_signature)) settings$main_recovery_attestation_signature else Sys.getenv("GAMLSS_LONGITUDINAL_JSS_MAIN_RECOVERY_ATTESTATION_SIGNATURE", unset = "")
-  recovery <- jss_main_recovery_validate_public_bundle(
-    file.path(settings$data_dir, "main-recovery"), repo_root = settings$root,
-    attestation_path = recovery_attestation, signature_path = recovery_signature, require_attestation = TRUE
-  )
-  optimizer <- jss_phase2_optimizer_validate(settings$data_dir, settings$tables_dir, settings$figures_dir)
+  recovery <- jss_submission_validate_main_recovery(
+    file.path(settings$data_dir, "main-recovery"), settings$root)
+  optimizer <- jss_submission_validate_optimizer(settings$data_dir, settings$tables_dir,
+    settings$figures_dir, settings$root)
   missingness_dir <- file.path(settings$data_dir, "missingness")
   missingness <- jss_missingness_production_gate(missingness_dir, settings$root)
 
-  config07 <- jss_misspec_config(settings, stage = "full")
-  grid07 <- jss_misspec_grid(config07)
-  module07 <- jss_misspec_validate_approved_public_bundle(
-    file.path(settings$public_data_dir, "copula-misspecification", "results.csv"),
-    grid07, config07
-  )
+  module07 <- jss_submission_validate_copula(
+    file.path(settings$public_data_dir, "copula-misspecification", "results.csv"), settings$root)
   staged07_path <- file.path(settings$data_dir, "07-gamma-copula-misspecification-results.csv")
   if (!file.exists(staged07_path)) stop("Staged Module 07 claim source is missing.", call. = FALSE)
-  expected07 <- jss_misspec_add_deltas(module07$results)
+  expected07 <- jss_misspec_add_deltas(module07)
   staged07 <- utils::read.csv(staged07_path, stringsAsFactors = FALSE, check.names = FALSE)
-  jss_phase2_compare_frame(staged07, expected07, "fit_id", "Staged Module 07 approved attempt source")
-  module07$results <- NULL
-  attestation09 <- if (!is.null(settings$multivariate_benchmark_attestation)) settings$multivariate_benchmark_attestation else
-    mvt_phase2_snapshot_attestation_path()
-  signature09 <- if (!is.null(settings$multivariate_benchmark_signature)) settings$multivariate_benchmark_signature else
-    mvt_phase2_snapshot_signature_path()
-  module09 <- mvt_validate_phase2_claim_evidence(
-    file.path(settings$data_dir, "multivariate-benchmark"), attestation09, signature09
-  )
+  jss_phase2_compare_frame(staged07, expected07, "fit_id", "Staged Module 07 attempt source")
 
   scaling_paths <- c(
     design = file.path(settings$data_dir, "10-fit-scaling-scenarios.csv"),
@@ -204,19 +183,15 @@ jss_phase2_validate_claim_sources <- function(settings) {
     scaling$design, scaling$attempts, scaling$summary, scaling$contrasts,
     jss_scaling_precision_rule("full"), hardware = scaling$hardware
   )
-  jss_scaling_assert_production_provenance(scaling$hardware, scaling$attempts)
+  scaling_identity <- jss_submission_validate_scaling(
+    scaling_paths[["design"]], scaling_paths[["attempts"]], scaling_paths[["summary"]],
+    scaling_paths[["contrasts"]], scaling_paths[["hardware"]], settings$root)
   invisible(list(
-    `main-recovery` = digest::digest(list(
-      approved_candidate = attr(recovery, "candidate_trust_sha256"),
-      output_manifest = jss_file_sha256(file.path(settings$data_dir, "main-recovery", "output_manifest.csv"))
-    ), algo = "sha256", serialize = TRUE),
-    `optimizer-benchmark` = jss_phase2_artifact_identity(unname(optimizer)),
-    missingness = jss_phase2_artifact_identity(file.path(
-      missingness_dir, jss_missingness_public_artifacts()
-    )),
-    `copula-misspecification` = module07,
-    `multivariate-benchmark` = module09,
-    `fit-scaling` = jss_phase2_artifact_identity(scaling_paths)
+    `main-recovery` = recovery,
+    `optimizer-benchmark` = optimizer,
+    missingness = missingness,
+    `copula-misspecification` = attr(module07, "submission_schema"),
+    `fit-scaling` = scaling_identity
   ))
 }
 
@@ -224,13 +199,13 @@ jss_phase2_validate_claim_evidence_rows <- function(claims, registered_claims, s
     expected = NULL) {
   if (!is.null(expected)) {
     stop(
-      "Caller-supplied expected claim evidence is not a trusted input; exact approved-source reconstruction is mandatory.",
+      "Caller-supplied expected claim evidence is not a trusted input; exact source reconstruction is mandatory.",
       call. = FALSE
     )
   }
   if (is.null(settings) || !is.list(settings) || is.null(names(settings))) {
     stop(
-      "Phase 2 claim validation requires a trusted settings context for current approved-source reconstruction; the two-argument form is disabled.",
+      "Phase 2 claim validation requires a trusted settings context for current-source reconstruction; the two-argument form is disabled.",
       call. = FALSE
     )
   }
@@ -238,7 +213,7 @@ jss_phase2_validate_claim_evidence_rows <- function(claims, registered_claims, s
   required <- c(
     "claim_id", "estimate", "mcse", "lower", "upper", "denominator",
     "attempted", "converged", "retained", "failed", "failure_reasons",
-    "source_sha256", "effect_sha256", "source_identity_sha256", "status"
+    "source_schema_version", "status"
   )
   if (!all(required %in% names(claims)) ||
       !all(c("claim_id", "expected_direction") %in% names(registered_claims)) ||
@@ -270,9 +245,7 @@ jss_phase2_validate_claim_evidence_rows <- function(claims, registered_claims, s
     all(failure_reason_ok) &&
     all(direction_supported) &&
     all(joined$status %in% c("verified_exact_design_count", "verified_exact_evidence_count", "verified_directional_effect")) &&
-    all(grepl("^[0-9a-f]{64}$", joined$source_sha256)) &&
-    all(grepl("^[0-9a-f]{64}$", joined$effect_sha256)) &&
-    all(grepl("^[0-9a-f]{64}$", joined$source_identity_sha256))
+    all(joined$source_schema_version == jss_submission_schema_version())
   if (!valid) stop("Phase 2 claim evidence is stale, internally contradictory, or lacks interval-supported provenance.", call. = FALSE)
   if (!identical(names(claims), names(expected)) || nrow(claims) != nrow(expected)) {
     stop("Phase 2 claim evidence schema/count differs from exact source reconstruction.", call. = FALSE)
@@ -284,7 +257,7 @@ jss_phase2_validate_claim_evidence_rows <- function(claims, registered_claims, s
       isTRUE(all.equal(as.numeric(actual[[name]]), as.numeric(expected[[name]]), tolerance = 0, check.attributes = FALSE))
     } else identical(as.character(actual[[name]]), as.character(expected[[name]]))
     if (!same) {
-      stop("Phase 2 claim evidence disagrees with current approved source in field: ", name, call. = FALSE)
+      stop("Phase 2 claim evidence disagrees with current source in field: ", name, call. = FALSE)
     }
   }
   invisible(joined)

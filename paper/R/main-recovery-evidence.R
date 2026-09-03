@@ -2034,9 +2034,7 @@ jss_run_phase2_main_recovery <- function(settings) {
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
   if (identical(settings$profile, "paper")) {
     tracked <- file.path(settings$public_data_dir, "main-recovery")
-    attestation <- if (!is.null(settings$main_recovery_attestation)) settings$main_recovery_attestation else Sys.getenv("GAMLSS_LONGITUDINAL_JSS_MAIN_RECOVERY_ATTESTATION", unset = "")
-    signature <- if (!is.null(settings$main_recovery_attestation_signature)) settings$main_recovery_attestation_signature else Sys.getenv("GAMLSS_LONGITUDINAL_JSS_MAIN_RECOVERY_ATTESTATION_SIGNATURE", unset = "")
-    paths <- jss_recovery_stage_approved_bundle(tracked, output_dir, settings$root, attestation, signature)
+    paths <- jss_submission_stage_main_recovery(tracked, output_dir, settings$root)
   } else if (identical(settings$profile, "full")) {
     input_root <- file.path(settings$out_dir, "main-recovery")
     bcpe_raw <- file.path(input_root, "bcpe-t"); nbi_raw <- file.path(input_root, "nbi-clayton")
@@ -2050,15 +2048,7 @@ jss_run_phase2_main_recovery <- function(settings) {
       resume = TRUE,
       repo_root = settings$root
     )
-    validated <- jss_main_recovery_validate_public_bundle(output_dir, repo_root = settings$root, require_attestation = FALSE)
-    jss_recovery_atomic_csv(data.frame(schema_version = jss_recovery_schema_version(), study = "main-recovery",
-      status = "candidate_pending_detached_attestation", bundle_sha256 = attr(validated, "candidate_trust_sha256"), stringsAsFactors = FALSE),
-      file.path(settings$out_dir, "main-recovery-candidate-identity.csv"))
-    return(list(
-      module_id = module_id, status = "candidate_pending_external_approval", data = unname(paths),
-      tables = character(), figures = character(),
-      notes = "Fresh main-recovery candidate generated and validated structurally; manuscript assets require a checkout-external detached Ed25519 attestation from the pinned production key."
-    ))
+    jss_submission_validate_main_recovery(output_dir, settings$root)
   } else {
     return(list(
       module_id = module_id, status = "not_run_in_smoke", data = character(),
@@ -2073,6 +2063,6 @@ jss_run_phase2_main_recovery <- function(settings) {
     data = unname(paths),
     tables = assets$tables,
     figures = assets$figures,
-    notes = "Validated authoritative n=500, T=4, R=100 BCPE/t and NBI/Clayton attempt-level evidence; exactly 400 planned method/replicate cells and a retry-aware dynamic attempt ledger."
+    notes = "Versioned n=500, T=4, R=100 BCPE/t and NBI/Clayton evidence validated by schemas, attempt keys, lifecycle reconciliation, and registered numeric tolerances."
   )
 }

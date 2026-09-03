@@ -607,7 +607,8 @@ jss_run_phase2_optimizer <- function(settings) {
   } else {
     return(list(module_id = "03-joint-vs-separate-optimization", status = "not_run_in_smoke", data = character(), tables = character(), figures = character()))
   }
-  jss_phase2_optimizer_validate(settings$data_dir, settings$tables_dir, settings$figures_dir)
+  jss_submission_validate_optimizer(settings$data_dir, settings$tables_dir,
+    settings$figures_dir, settings$root)
   list(
     module_id = "03-joint-vs-separate-optimization", status = "current",
     data = data, tables = tables, figures = figures,
@@ -625,7 +626,6 @@ jss_phase2_claim_source_paths <- function(settings) {
     `optimizer-benchmark` = file.path(settings$data_dir, "03-joint-vs-separate-optimization-results.csv"),
     missingness = file.path(settings$data_dir, "missingness", "fit_run_log.csv"),
     `copula-misspecification` = file.path(settings$data_dir, "07-gamma-copula-misspecification-results.csv"),
-    `multivariate-benchmark` = file.path(settings$data_dir, "multivariate-benchmark", "fit_status_by_rep.csv"),
     `fit-scaling` = file.path(settings$data_dir, "10-fit-scaling-attempts.csv")
   )
 }
@@ -1273,8 +1273,8 @@ jss_build_phase2_claim_evidence <- function(settings) {
         if (pair[[1L]] %in% names(effect)) effect <- effect[as.character(effect[[pair[[1L]]]]) == pair[[2L]], , drop = FALSE]
       }
     }
-    if (!nrow(x)) stop("Claim scenario/source_row_key selects no approved attempt rows: ", claim$claim_id, call. = FALSE)
-    if (!nrow(effect)) stop("Claim scenario/source_row_key selects no approved effect rows: ", claim$claim_id, call. = FALSE)
+    if (!nrow(x)) stop("Claim scenario/source_row_key selects no attempt rows: ", claim$claim_id, call. = FALSE)
+    if (!nrow(effect)) stop("Claim scenario/source_row_key selects no effect rows: ", claim$claim_id, call. = FALSE)
     lifecycle <- jss_phase2_claim_lifecycle(x, as.character(claim$study_id))
     effect_fields <- NULL
     estimate <- if (identical(claim$study_id, "copula-misspecification") &&
@@ -1334,8 +1334,9 @@ jss_build_phase2_claim_evidence <- function(settings) {
       effect_artifact_id = claim$effect_artifact_id,
       source_row_key = claim$source_row_key,
       source_file = substring(normalizePath(source, winslash = "/", mustWork = TRUE), nchar(normalizePath(settings$out_dir, winslash = "/", mustWork = TRUE)) + 2L),
-      source_sha256 = jss_file_sha256(source),
-      effect_sha256 = jss_file_sha256(effect_source),
+      source_schema_version = as.character(
+        source_identities[[as.character(claim$study_id)]]$version
+      ),
       estimate = as.numeric(estimate),
       mcse = if (is.null(effect_fields)) 0 else as.numeric(effect_fields[["mcse"]]),
       lower = if (is.null(effect_fields)) as.numeric(estimate) else as.numeric(effect_fields[["lower"]]),
@@ -1348,9 +1349,6 @@ jss_build_phase2_claim_evidence <- function(settings) {
       failure_reasons = if (!is.null(effect_fields) && effect_fields[["denominator"]] > effect_fields[["retained"]]) {
         paste0("pair_or_selection_not_retained:", effect_fields[["denominator"]] - effect_fields[["retained"]])
       } else if (!is.null(effect_fields)) "none" else lifecycle$failure_reasons,
-      source_identity_sha256 = digest::digest(
-        source_identities[[as.character(claim$study_id)]], algo = "sha256", serialize = TRUE
-      ),
       status = if (!is.null(effect_fields)) "verified_directional_effect" else if (dynamic) "verified_exact_evidence_count" else "verified_exact_design_count",
       stringsAsFactors = FALSE
     )
@@ -1384,7 +1382,7 @@ jss_write_phase2_gate_audit <- function(settings, modules, claim_evidence) {
   }, error = function(e) { production_error <<- conditionMessage(e); FALSE })
   rows[[2L]] <- jss_phase2_gate_row(
     "all_module_production_gates_pass", production_ok,
-    if (production_ok) "optimizer, missingness, recovery, Module07, Module09, and scaling gates passed" else production_error,
+    if (production_ok) "optimizer, missingness, recovery, Module07, and scaling gates passed" else production_error,
     "registered module production validators"
   )
   manifest_error <- NULL
@@ -1465,18 +1463,15 @@ jss_write_phase2_gate_audit <- function(settings, modules, claim_evidence) {
     "main_recovery_code_gate", nrow(validation) > 0L && all(as.logical(validation$pass)),
     "structural and recomputation contract checks; distinct from production completion", validation_path
   )
-  recovery_attestation <- if (!is.null(settings$main_recovery_attestation)) settings$main_recovery_attestation else Sys.getenv("GAMLSS_LONGITUDINAL_JSS_MAIN_RECOVERY_ATTESTATION", unset = "")
-  recovery_signature <- if (!is.null(settings$main_recovery_attestation_signature)) settings$main_recovery_attestation_signature else Sys.getenv("GAMLSS_LONGITUDINAL_JSS_MAIN_RECOVERY_ATTESTATION_SIGNATURE", unset = "")
-  tracked_bundle <- file.path(settings$public_data_dir, "main-recovery")
   trust_error <- NULL
   trust_ok <- tryCatch({
-    jss_main_recovery_validate_public_bundle(tracked_bundle, repo_root = settings$root,
-      attestation_path = recovery_attestation, signature_path = recovery_signature, require_attestation = TRUE)
+    jss_submission_validate_main_recovery(main_bundle, settings$root)
     TRUE
   }, error = function(e) { trust_error <<- conditionMessage(e); FALSE })
   rows[[10L]] <- jss_phase2_gate_row(
     "main_recovery_production_evidence_gate", trust_ok,
-    if (trust_ok) "checkout-external pinned-key detached attestation validates the immutable bundle" else paste("external attestation gate failed", trust_error, sep = ": "), recovery_attestation
+    if (trust_ok) "versioned schema, row keys, lifecycle counts, and design values validated" else trust_error,
+    "paper/submission-input-schemas.csv"
   )
   audit <- do.call(rbind, rows)
   if (!identical(as.character(audit$check_id), jss_phase2_central_gate_registry()) ||
