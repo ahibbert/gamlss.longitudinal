@@ -1,27 +1,25 @@
 jss_phase2_public_approval_spec <- function() {
   data.frame(
     study = c(
-      "main-recovery", "optimizer-benchmark", "missingness",
+      "main-recovery", "missingness",
       "copula-misspecification", "multivariate-benchmark"
     ),
     attestation_file = paste0(c(
-      "main-recovery", "optimizer-benchmark", "missingness",
+      "main-recovery", "missingness",
       "copula-misspecification", "multivariate-benchmark"
     ), ".attestation"),
     signature_file = paste0(c(
-      "main-recovery", "optimizer-benchmark", "missingness",
+      "main-recovery", "missingness",
       "copula-misspecification", "multivariate-benchmark"
     ), ".sig"),
     attestation_env = c(
       "GAMLSS_LONGITUDINAL_JSS_MAIN_RECOVERY_ATTESTATION",
-      "GAMLSS_LONGITUDINAL_JSS_OPTIMIZER_ATTESTATION",
       "GAMLSS_LONGITUDINAL_JSS_MISSINGNESS_ATTESTATION",
       "GAMLSS_LONGITUDINAL_JSS_COPULA_ATTESTATION",
       "GAMLSS_LONGITUDINAL_MVT_ATTESTATION"
     ),
     signature_env = c(
       "GAMLSS_LONGITUDINAL_JSS_MAIN_RECOVERY_ATTESTATION_SIGNATURE",
-      "GAMLSS_LONGITUDINAL_JSS_OPTIMIZER_ATTESTATION_SIGNATURE",
       "GAMLSS_LONGITUDINAL_JSS_MISSINGNESS_ATTESTATION_SIGNATURE",
       "GAMLSS_LONGITUDINAL_JSS_COPULA_ATTESTATION_SIGNATURE",
       "GAMLSS_LONGITUDINAL_MVT_ATTESTATION_SIGNATURE"
@@ -810,11 +808,9 @@ jss_full_metric_snapshots <- function(settings, reference = FALSE) {
 
   optimizer_name <- "03-joint-vs-separate-optimization-difference-uncertainty.csv"
   add(file.path(p$optimizer_tables, optimizer_name), "optimizer_benchmark",
-    c("case_id", "metric"), rbind(
-      jss_metric_spec("conditional_difference", tolerance_group = "paired_effect"),
-      jss_metric_spec("retention_difference", tolerance_group = "paired_effect"),
-      jss_metric_spec("convergence_difference", tolerance_group = "paired_effect"),
-      jss_metric_spec("failure_inclusive_difference", tolerance_group = "paired_effect")
+    c("comparison_id", "comparison_type", "metric"), rbind(
+      jss_metric_spec("estimate", tolerance_group = "paired_effect"),
+      jss_metric_spec("mcse", tolerance_group = "paired_effect")
     ))
 
   add(file.path(p$multivariate, "fit_status_by_rep.csv"), "multivariate_benchmark_status",
@@ -937,6 +933,7 @@ jss_write_run_metadata <- function(settings, started, bootstrap, store) {
       "replication-helpers.R", "public-paper-producers.R",
       "01-simulation-bcpe-t.R", "02-simulation-delaporte-clayton.R",
       "03-joint-vs-separate-optimization.R", "04-missingness-dropout-sensitivity.R",
+      "03-optimizer-publication-lean.R", "run-03-optimizer-publication-lean.R",
       "07-gamma-copula-misspecification.R",
       "10-fit-scaling.R", "main-recovery-evidence.R",
       "missingness-study-helpers.R", "phase2-evidence-contracts.R",
