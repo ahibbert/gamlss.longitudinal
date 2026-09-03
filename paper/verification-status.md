@@ -1,6 +1,6 @@
 # Replication verification status
 
-Last updated: 2026-08-27 (Australia/Sydney).
+Last updated: 2026-09-01 (Australia/Sydney).
 
 ## Completed locally
 
@@ -31,6 +31,16 @@ Last updated: 2026-08-27 (Australia/Sydney).
   temporary one-case benchmark. The second invocation reused the same run
   directory, skipped the completed case, retained one status row, and created
   no duplicate run directory.
+- Pull request 3 was checked at commit
+  `d1dc830d3739c18e1b38bb71ee6b8d4d41c5c06c`. All eight clean public
+  replication jobs passed: Windows and Ubuntu, `smoke` and `paper`, and R
+  4.4.1 and current R. The four package checks and documentation build also
+  passed. The replication jobs produced zero GitHub annotations after the
+  dependency-install and artifact-action cleanup.
+- Observed clean CI runtimes were 4 minutes 41 seconds to 5 minutes 22 seconds
+  for all smoke jobs except pinned R 4.4.1 on Windows, which took 19 minutes
+  54 seconds. That cold-run result exceeds the aspirational 15-minute smoke
+  target and is retained as an explicit runtime exception.
 
 ## Submission gates not yet executed
 
@@ -45,14 +55,12 @@ Last updated: 2026-08-27 (Australia/Sydney).
   now reads its completed/checkpoint tables, validates the scenario and family
   grids, skips synchronized completed cases, and uses replace-safe CSV writes.
   The active run directory is recorded so its existing progress remains usable.
+  At the 2026-09-01 status check, the correlation-misspecification module had
+  completed 210 of 720 cases and both the launcher and worker processes were
+  active.
 - The metric-level comparison is now wired into the full graph and its complete
   mirrored-layout test passed 2,275 comparisons. Acceptance against freshly
   recomputed results remains pending completion of the active full run.
-- The Windows/Ubuntu CI matrix is defined in
-  `.github/workflows/paper-replication.yaml` for both R 4.4.1 and current R. The
-  generic `replication-gates` branch is pushed, but GitHub cannot manually
-  dispatch a workflow that is not yet present on the default branch. A pull
-  request or merge is therefore required to register and trigger this matrix.
 - The exact live Overleaf source has not been modified. Authors must apply the
   documented source/checklist edits and run the publisher against a clean live
   clone before submission.
