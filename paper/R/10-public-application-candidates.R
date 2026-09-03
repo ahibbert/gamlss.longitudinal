@@ -214,11 +214,128 @@ jss_screen_public_application_margins <- function(
   result[order(result$AIC), ]
 }
 
+jss_patents_refined_margin_screen <- function(data = NULL, n_cycles = 200L) {
+  if (is.null(data)) data <- jss_prepare_public_application("patents")
+  specifications <- list(
+    NBI_base = list(family = "NBI", sigma = ~ scientific + capital_z),
+    NBI_rd_dispersion = list(
+      family = "NBI", sigma = ~ scientific + capital_z + log_rd
+    ),
+    DEL_base = list(
+      family = "DEL", sigma = ~ scientific + capital_z, nu = ~ 1
+    ),
+    DEL_rd_dispersion = list(
+      family = "DEL", sigma = ~ scientific + capital_z + log_rd, nu = ~ 1
+    ),
+    DEL_shape_covariates = list(
+      family = "DEL", sigma = ~ scientific + capital_z,
+      nu = ~ scientific + capital_z
+    )
+  )
+  mu_formula <- jss_public_application_spec("patents")$formulas$mu
+  needed <- unique(c(
+    all.vars(mu_formula),
+    unlist(lapply(specifications, function(x) {
+      unlist(lapply(x[intersect(names(x), c("sigma", "nu"))], all.vars))
+    }))
+  ))
+  data <- data[stats::complete.cases(data[needed]), needed, drop = FALSE]
+
+  rows <- lapply(names(specifications), function(model) {
+    specification <- specifications[[model]]
+    warnings <- character()
+    started <- proc.time()[["elapsed"]]
+    fit <- tryCatch(
+      withCallingHandlers(
+        gamlss::gamlss(
+          formula = mu_formula,
+          sigma.formula = specification$sigma,
+          nu.formula = if (is.null(specification$nu)) ~ 1 else specification$nu,
+          family = jss_margin_family(specification$family),
+          data = data,
+          control = gamlss::gamlss.control(
+            n.cyc = as.integer(n_cycles), trace = FALSE
+          )
+        ),
+        warning = function(w) {
+          warnings <<- c(warnings, conditionMessage(w))
+          invokeRestart("muffleWarning")
+        }
+      ),
+      error = identity
+    )
+    elapsed <- proc.time()[["elapsed"]] - started
+    if (inherits(fit, "error")) {
+      return(data.frame(
+        model = model, family = specification$family, converged = FALSE,
+        df = NA_real_, logLik = NA_real_, AIC = NA_real_, BIC = NA_real_,
+        elapsed_sec = elapsed, warning = "", error = conditionMessage(fit)
+      ))
+    }
+    likelihood <- stats::logLik(fit)
+    data.frame(
+      model = model,
+      family = specification$family,
+      converged = isTRUE(fit$converged),
+      df = attr(likelihood, "df"),
+      logLik = as.numeric(likelihood),
+      AIC = stats::AIC(fit),
+      BIC = gamlss::GAIC(fit, k = log(nrow(data))),
+      elapsed_sec = elapsed,
+      warning = paste(unique(warnings), collapse = " | "),
+      error = ""
+    )
+  })
+  result <- do.call(rbind, rows)
+  result[order(result$AIC), , drop = FALSE]
+}
+
+jss_patents_joint_refinement_specs <- function() {
+  base <- jss_public_application_spec("patents")$formulas
+  list(
+    NBI_base = list(margin = "NBI", formulas = base),
+    NBI_rd_dispersion = list(
+      margin = "NBI",
+      formulas = utils::modifyList(base, list(
+        sigma = ~ scientific + capital_z + log_rd
+      ))
+    ),
+    DEL_base = list(margin = "DEL", formulas = base),
+    DEL_rd_dispersion = list(
+      margin = "DEL",
+      formulas = utils::modifyList(base, list(
+        sigma = ~ scientific + capital_z + log_rd
+      ))
+    ),
+    DEL_shape_covariates = list(
+      margin = "DEL",
+      formulas = utils::modifyList(base, list(
+        nu = ~ scientific + capital_z
+      ))
+    )
+  )
+}
+
+jss_patents_nbi_rd_start <- function(fit) {
+  coefficients <- stats::coef(fit)
+  insertion <- match("sigma.capital_z", names(coefficients))
+  if (is.na(insertion)) {
+    stop("The patents base fit does not contain sigma.capital_z.", call. = FALSE)
+  }
+  start <- append(coefficients, values = 0, after = insertion)
+  names(start)[insertion + 1L] <- "sigma.log_rd"
+  start
+}
+
 jss_fit_public_application <- function(
     name = jss_public_application_names(),
     data = NULL,
     formulas = NULL,
+    margin = NULL,
+    copula = NULL,
     compute_vcov = FALSE,
+    outer_tol = 1e-3,
+    inner_tol = NULL,
     max_outer_iter = 40L,
     max_inner_iter = 50L,
     max_elapsed_sec = 600,
@@ -227,14 +344,17 @@ jss_fit_public_application <- function(
   spec <- jss_public_application_spec(name)
   if (is.null(data)) data <- jss_prepare_public_application(name)
   if (is.null(formulas)) formulas <- spec$formulas
+  if (is.null(margin)) margin <- spec$margin
+  if (is.null(copula)) copula <- spec$copula
   user_start <- !all(is.na(start_from))
+  if (is.null(inner_tol)) inner_tol <- min(1e-4, outer_tol / 10)
 
   control <- gamlss.longitudinal::gamlss_longitudinal_control(
-    outer_tol = 1e-3,
+    outer_tol = outer_tol,
     max_outer_iter = as.integer(max_outer_iter),
     max_elapsed_sec = max_elapsed_sec,
     rs = list(
-      inner_tol = 1e-3,
+      inner_tol = inner_tol,
       max_inner_iter = as.integer(max_inner_iter),
       warm_start_joint = !user_start,
       warm_start_joint_iter = if (user_start) 0L else 5L
@@ -243,8 +363,8 @@ jss_fit_public_application <- function(
 
   fit <- gamlss.longitudinal::gamlss_longitudinal(
     dataset = data,
-    margin_dist = jss_margin_family(spec$margin),
-    copula_dist = spec$copula,
+    margin_dist = jss_margin_family(margin),
+    copula_dist = copula,
     subject_var = spec$subject,
     time_var = spec$time,
     missingness = spec$missingness,
@@ -258,6 +378,7 @@ jss_fit_public_application <- function(
     start_from = start_from,
     optimizer_control = control,
     compute_vcov = compute_vcov,
+    vcov_method = if (identical(spec$missingness, "segment")) "sandwich" else "analytical",
     verbose = verbose
   )
   fit$application_candidate <- spec$name
@@ -282,22 +403,102 @@ jss_fit_public_application_comparator <- function(
 }
 
 jss_public_application_outputs <- function(fit) {
-  coefficient_output <- if (isTRUE(fit$vcov$precomputed)) {
-    gamlss.longitudinal::publication_table(fit)
-  } else {
-    data.frame(
-      term = names(stats::coef(fit)),
-      estimate = unname(stats::coef(fit)),
-      inference = "Not computed in candidate fit",
-      stringsAsFactors = FALSE
+  capture_output <- function(code) {
+    tryCatch(
+      code(),
+      error = function(e) structure(
+        list(error = conditionMessage(e)),
+        class = "candidate_output_error"
+      )
     )
   }
+  vcov_method <- if (identical(fit$missingness$requested, "segment")) {
+    "sandwich"
+  } else {
+    "analytical"
+  }
+  diagnostic_data <- fit$dataset
+  time_var <- fit$var_map[[fit$time_var]]
+  response_var <- fit$var_map[[fit$response_var]]
+  if (is.null(time_var)) time_var <- fit$time_var
+  if (is.null(response_var)) response_var <- fit$response_var
+  if (!is.null(diagnostic_data) &&
+      time_var %in% names(diagnostic_data) &&
+      response_var %in% names(diagnostic_data)) {
+    observed_by_time <- tapply(
+      is.finite(diagnostic_data[[response_var]]),
+      diagnostic_data[[time_var]],
+      sum
+    )
+    diagnostic_times <- names(sort(observed_by_time, decreasing = TRUE))[seq_len(
+      min(4L, length(observed_by_time))
+    )]
+    diagnostic_data <- diagnostic_data[
+      as.character(diagnostic_data[[time_var]]) %in% diagnostic_times,
+      ,
+      drop = FALSE
+    ]
+  }
+  vcov_output <- if (
+      isTRUE(fit$vcov_meta$precomputed) &&
+      identical(fit$vcov_meta$method, vcov_method) &&
+      !is.null(fit$vcov)) {
+    fit$vcov
+  } else {
+    capture_output(function() {
+      vcov_args <- list(
+        object = fit,
+        method = vcov_method,
+        details = TRUE,
+        progress = FALSE
+      )
+      if (identical(vcov_method, "sandwich")) {
+        vcov_args$sandwich_bread_method <- "numderiv"
+      }
+      do.call(stats::vcov, vcov_args)
+    })
+  }
+  fit_for_outputs <- fit
+  if (!inherits(vcov_output, "candidate_output_error")) {
+    fit_for_outputs$vcov <- vcov_output
+    fit_for_outputs$vcov_meta$precomputed <- TRUE
+    fit_for_outputs$vcov_meta$numderiv <- FALSE
+    fit_for_outputs$vcov_meta$method <- vcov_method
+  }
+
   list(
-    model_specification = gamlss.longitudinal::model_spec(fit),
-    model_check = gamlss.longitudinal::check_model(fit),
-    coefficient_table = coefficient_output,
-    margin_diagnostics = gamlss.longitudinal::plot_dist(fit),
-    copula_diagnostics = gamlss.longitudinal::plot_copula_diagnostics(fit),
-    term_plot = gamlss.longitudinal::plot_terms(fit)
+    variance_covariance = vcov_output,
+    model_specification = capture_output(function() {
+      gamlss.longitudinal::model_spec(fit_for_outputs)
+    }),
+    model_check = capture_output(function() {
+      gamlss.longitudinal::check_model(fit_for_outputs)
+    }),
+    coefficient_table = capture_output(function() {
+      gamlss.longitudinal::publication_table(
+        fit_for_outputs,
+        vcov_method = vcov_method
+      )
+    }),
+    margin_diagnostics = capture_output(function() {
+      gamlss.longitudinal::plot_dist(
+        dataset = diagnostic_data,
+        fit = fit_for_outputs
+      )
+    }),
+    copula_diagnostics = capture_output(function() {
+      gamlss.longitudinal::plot_copula_diagnostics(fit_for_outputs)
+    }),
+    term_plot = capture_output(function() {
+      if (identical(vcov_method, "sandwich") &&
+          !inherits(vcov_output, "candidate_output_error")) {
+        gamlss.longitudinal::plot_fixed_terms(
+          fit_for_outputs,
+          vcov_obj = vcov_output
+        )
+      } else {
+        gamlss.longitudinal::plot_terms(fit_for_outputs)
+      }
+    })
   )
 }

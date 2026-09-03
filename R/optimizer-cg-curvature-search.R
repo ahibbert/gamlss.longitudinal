@@ -123,6 +123,7 @@
     backtracking_max_halves = backtracking_max_halves,
     eval_fn = eval_fn,
     objective_fn = objective_fn,
+    gradient = g_pen,
     verbose = verbose
   )
 

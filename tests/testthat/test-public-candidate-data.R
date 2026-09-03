@@ -53,3 +53,30 @@ test_that("public application specifications use supported routes", {
   expect_equal(length(unique(environment$jss_prepare_public_application("pbc")$subject)), 227L)
   expect_equal(nrow(environment$jss_prepare_public_application("steps")), 3325L)
 })
+
+test_that("patents refinement adds R&D to the dispersion model and start", {
+  root <- test_path("..", "..")
+  script <- file.path(root, "paper", "R", "10-public-application-candidates.R")
+  skip_if_not(file.exists(script), "Paper source is excluded from the installed package.")
+  environment <- new.env(parent = globalenv())
+  source(script, local = environment)
+
+  refined <- environment$jss_patents_joint_refinement_specs()$NBI_rd_dispersion
+  expect_identical(refined$margin, "NBI")
+  expect_true("log_rd" %in% all.vars(refined$formulas$sigma))
+
+  base_names <- c(
+    "mu.(Intercept)", "sigma.(Intercept)", "sigma.scientificyes",
+    "sigma.capital_z", "theta.(Intercept)"
+  )
+  base_fit <- structure(
+    list(par = stats::setNames(seq_along(base_names), base_names)),
+    class = "gamlss.longitudinal"
+  )
+  start <- environment$jss_patents_nbi_rd_start(base_fit)
+  expect_identical(
+    names(start),
+    append(base_names, "sigma.log_rd", after = 4L)
+  )
+  expect_identical(unname(start[["sigma.log_rd"]]), 0)
+})

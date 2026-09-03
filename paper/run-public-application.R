@@ -18,9 +18,9 @@ option_value <- function(flag, default = NULL) {
 has_flag <- function(flag) flag %in% arguments
 
 candidate <- option_value("--dataset", "patents")
-stage <- match.arg(option_value("--stage", "fit"), c("screen", "fit", "all"))
+stage <- match.arg(option_value("--stage", "fit"), c("screen", "fit", "refine", "all"))
 output_root <- option_value("--output-dir", file.path("results", "public-applications"))
-compute_vcov <- has_flag("--compute-vcov")
+compute_vcov <- !has_flag("--no-vcov")
 run_comparators <- has_flag("--comparators")
 generate_outputs <- has_flag("--outputs")
 force <- has_flag("--force")
@@ -40,6 +40,46 @@ if (identical(candidate, "all")) {
 
 write_capture <- function(object, path) {
   writeLines(utils::capture.output(print(object)), path, useBytes = TRUE)
+}
+
+write_workflow_outputs <- function(fit, directory) {
+  outputs <- tryCatch(
+    jss_public_application_outputs(fit),
+    error = function(e) structure(
+      list(error = conditionMessage(e)),
+      class = "candidate_output_error"
+    )
+  )
+  saveRDS(outputs, file.path(directory, "workflow-outputs.rds"))
+  write_capture(outputs, file.path(directory, "workflow-outputs.txt"))
+  if (inherits(outputs, "candidate_output_error")) return(invisible(outputs))
+
+  if (is.data.frame(outputs$coefficient_table)) {
+    utils::write.csv(
+      outputs$coefficient_table,
+      file.path(directory, "coefficient-table.csv"),
+      row.names = FALSE
+    )
+  }
+  if (inherits(outputs$margin_diagnostics, c("gg", "ggplot"))) {
+    ggplot2::ggsave(
+      file.path(directory, "margin-diagnostics-4-timepoints.png"),
+      outputs$margin_diagnostics,
+      width = 10,
+      height = 8,
+      dpi = 180
+    )
+  }
+  if (inherits(outputs$copula_diagnostics$dashboard, c("gg", "ggplot"))) {
+    ggplot2::ggsave(
+      file.path(directory, "copula-diagnostics-dashboard.png"),
+      outputs$copula_diagnostics$dashboard,
+      width = 12,
+      height = 9,
+      dpi = 180
+    )
+  }
+  invisible(outputs)
 }
 
 for (name in candidates) {
@@ -81,7 +121,7 @@ for (name in candidates) {
       file.path(directory, "coefficient-estimates.csv"),
       row.names = FALSE
     )
-    if (isTRUE(fit$vcov$precomputed)) {
+    if (isTRUE(fit$vcov_meta$precomputed)) {
       write_capture(summary(fit), file.path(directory, "full-fit-summary.txt"))
     }
     write_capture(fit$convergence, file.path(directory, "convergence.txt"))
@@ -99,12 +139,7 @@ for (name in candidates) {
       utils::write.csv(metrics, file.path(directory, "fit-metrics.csv"), row.names = FALSE)
 
       if (generate_outputs) {
-        outputs <- tryCatch(
-          jss_public_application_outputs(fit),
-          error = function(e) structure(list(error = conditionMessage(e)), class = "candidate_output_error")
-        )
-        saveRDS(outputs, file.path(directory, "workflow-outputs.rds"))
-        write_capture(outputs, file.path(directory, "workflow-outputs.txt"))
+        write_workflow_outputs(fit, directory)
       }
     }
 
@@ -121,6 +156,47 @@ for (name in candidates) {
           saveRDS(comparison_fit, comparison_path)
         }
       }
+    }
+  }
+
+  if (stage %in% c("refine", "all") && identical(name, "patents")) {
+    refinement_directory <- file.path(directory, "refinement")
+    dir.create(refinement_directory, recursive = TRUE, showWarnings = FALSE)
+
+    screen_path <- file.path(refinement_directory, "refined-margin-screen.csv")
+    if (force || !file.exists(screen_path)) {
+      refined_screen <- jss_patents_refined_margin_screen()
+      utils::write.csv(refined_screen, screen_path, row.names = FALSE)
+    }
+
+    base_path <- file.path(directory, "full-fit.rds")
+    if (!file.exists(base_path)) {
+      stop("Run the patents fit stage before the refinement stage.", call. = FALSE)
+    }
+    refined_path <- file.path(refinement_directory, "NBI_rd_dispersion-fit.rds")
+    if (force || !file.exists(refined_path)) {
+      base_fit <- readRDS(base_path)
+      refined_spec <- jss_patents_joint_refinement_specs()$NBI_rd_dispersion
+      refined_fit <- jss_fit_public_application(
+        "patents",
+        formulas = refined_spec$formulas,
+        margin = refined_spec$margin,
+        compute_vcov = compute_vcov,
+        outer_tol = 0.01,
+        inner_tol = 1e-5,
+        max_outer_iter = 60L,
+        max_inner_iter = 150L,
+        max_elapsed_sec = 1200,
+        start_from = jss_patents_nbi_rd_start(base_fit)
+      )
+      saveRDS(refined_fit, refined_path)
+    } else {
+      message("Reusing ", refined_path)
+      refined_fit <- readRDS(refined_path)
+    }
+
+    if (generate_outputs && isTRUE(refined_fit$convergence$converged)) {
+      write_workflow_outputs(refined_fit, refinement_directory)
     }
   }
 }
