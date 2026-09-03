@@ -1,0 +1,25 @@
+"scenario","model","missing_mechanism","missingness_label","analysis_role","target_missing_rate","attempted","fit_successful","converged","retained","failed","error_failures","nonconvergence_failures","failure_inclusive_retention_rate","retention_rate_mcse","retention_rate_conf_low","retention_rate_conf_high","failure_rmse_penalty"
+"n500_d4_monotone_dropout_miss00","gamlss.longitudinal","monotone_dropout","subject-level monotone dropout MAR","headline",0,20,20,20,20,0,0,0,1,0,0.838874841947181,1,1
+"n500_d4_monotone_dropout_miss00","gamlss2","monotone_dropout","subject-level monotone dropout MAR","headline",0,20,20,20,20,0,0,0,1,0,0.838874841947181,1,1
+"n500_d4_monotone_dropout_miss10","gamlss.longitudinal","monotone_dropout","subject-level monotone dropout MAR","headline",0.1,20,18,18,18,2,0,2,0.9,0.0670820393249937,0.698966354771513,0.972133518786232,1
+"n500_d4_monotone_dropout_miss10","gamlss2","monotone_dropout","subject-level monotone dropout MAR","headline",0.1,20,20,20,20,0,0,0,1,0,0.838874841947181,1,1
+"n500_d4_monotone_dropout_miss20","gamlss.longitudinal","monotone_dropout","subject-level monotone dropout MAR","headline",0.2,20,19,19,19,1,0,1,0.95,0.0487339717240448,0.763868806553258,0.991118551199205,1
+"n500_d4_monotone_dropout_miss20","gamlss2","monotone_dropout","subject-level monotone dropout MAR","headline",0.2,20,20,20,20,0,0,0,1,0,0.838874841947181,1,1
+"n500_d4_monotone_dropout_miss30","gamlss.longitudinal","monotone_dropout","subject-level monotone dropout MAR","headline",0.3,20,13,13,13,7,0,7,0.65,0.106653645038508,0.432854276685236,0.818808175898918,1
+"n500_d4_monotone_dropout_miss30","gamlss2","monotone_dropout","subject-level monotone dropout MAR","headline",0.3,20,20,20,20,0,0,0,1,0,0.838874841947181,1,1
+"n500_d4_monotone_dropout_miss40","gamlss.longitudinal","monotone_dropout","subject-level monotone dropout MAR","headline",0.4,20,11,11,11,9,0,9,0.55,0.111242977306435,0.342085342450342,0.741802141744376,1
+"n500_d4_monotone_dropout_miss40","gamlss2","monotone_dropout","subject-level monotone dropout MAR","headline",0.4,20,20,20,20,0,0,0,1,0,0.838874841947181,1,1
+"n500_d4_monotone_dropout_miss50","gamlss.longitudinal","monotone_dropout","subject-level monotone dropout MAR","headline",0.5,20,5,5,5,15,0,15,0.25,0.0968245836551854,0.111861701407666,0.468700877618744,1
+"n500_d4_monotone_dropout_miss50","gamlss2","monotone_dropout","subject-level monotone dropout MAR","headline",0.5,20,20,20,20,0,0,0,1,0,0.838874841947181,1,1
+"n500_d4_time_dependent_intermittent_mar_miss00","gamlss.longitudinal","time_dependent_intermittent_mar","time-dependent intermittent MAR","sensitivity",0,20,20,20,20,0,0,0,1,0,0.838874841947181,1,1
+"n500_d4_time_dependent_intermittent_mar_miss00","gamlss2","time_dependent_intermittent_mar","time-dependent intermittent MAR","sensitivity",0,20,20,20,20,0,0,0,1,0,0.838874841947181,1,1
+"n500_d4_time_dependent_intermittent_mar_miss10","gamlss.longitudinal","time_dependent_intermittent_mar","time-dependent intermittent MAR","sensitivity",0.1,20,20,20,20,0,0,0,1,0,0.838874841947181,1,1
+"n500_d4_time_dependent_intermittent_mar_miss10","gamlss2","time_dependent_intermittent_mar","time-dependent intermittent MAR","sensitivity",0.1,20,20,20,20,0,0,0,1,0,0.838874841947181,1,1
+"n500_d4_time_dependent_intermittent_mar_miss20","gamlss.longitudinal","time_dependent_intermittent_mar","time-dependent intermittent MAR","sensitivity",0.2,20,19,19,19,1,0,1,0.95,0.0487339717240448,0.763868806553258,0.991118551199205,1
+"n500_d4_time_dependent_intermittent_mar_miss20","gamlss2","time_dependent_intermittent_mar","time-dependent intermittent MAR","sensitivity",0.2,20,20,20,20,0,0,0,1,0,0.838874841947181,1,1
+"n500_d4_time_dependent_intermittent_mar_miss30","gamlss.longitudinal","time_dependent_intermittent_mar","time-dependent intermittent MAR","sensitivity",0.3,20,7,7,7,13,0,13,0.35,0.106653645038508,0.181191824101082,0.567145723314764,1
+"n500_d4_time_dependent_intermittent_mar_miss30","gamlss2","time_dependent_intermittent_mar","time-dependent intermittent MAR","sensitivity",0.3,20,20,20,20,0,0,0,1,0,0.838874841947181,1,1
+"n500_d4_time_dependent_intermittent_mar_miss40","gamlss.longitudinal","time_dependent_intermittent_mar","time-dependent intermittent MAR","sensitivity",0.4,20,2,2,2,18,0,18,0.1,0.0670820393249937,0.0278664812137682,0.301033645228487,1
+"n500_d4_time_dependent_intermittent_mar_miss40","gamlss2","time_dependent_intermittent_mar","time-dependent intermittent MAR","sensitivity",0.4,20,20,20,20,0,0,0,1,0,0.838874841947181,1,1
+"n500_d4_time_dependent_intermittent_mar_miss50","gamlss.longitudinal","time_dependent_intermittent_mar","time-dependent intermittent MAR","sensitivity",0.5,20,5,5,5,15,0,15,0.25,0.0968245836551854,0.111861701407666,0.468700877618744,1
+"n500_d4_time_dependent_intermittent_mar_miss50","gamlss2","time_dependent_intermittent_mar","time-dependent intermittent MAR","sensitivity",0.5,20,20,20,20,0,0,0,1,0,0.838874841947181,1,1

@@ -937,6 +937,7 @@ jss_write_run_metadata <- function(settings, started, bootstrap, store) {
       "replication-helpers.R", "public-paper-producers.R",
       "01-simulation-bcpe-t.R", "02-simulation-delaporte-clayton.R",
       "03-joint-vs-separate-optimization.R", "04-missingness-dropout-sensitivity.R",
+      "04-missingness-publication-lean.R",
       "07-gamma-copula-misspecification.R",
       "10-fit-scaling.R", "main-recovery-evidence.R",
       "missingness-study-helpers.R", "phase2-evidence-contracts.R",
