@@ -1,0 +1,2 @@
+"penalty","role","scale","application","justification"
+1,"primary","link-scale RMSE/IRMSE","assigned to an attempted fit without a retained finite metric","Prespecified failure-inclusive sensitivity penalty; not an estimand."
