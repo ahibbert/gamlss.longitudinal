@@ -166,6 +166,7 @@ optimizer_control <- if (identical(toupper(optim_method), "RS")) {
     outer_tol = outer_stop_crit,
     max_outer_iter = max_outer_iter,
     max_elapsed_sec = max_elapsed_sec,
+    lambda_start = lambda_start,
     rs = list(
       inner_tol = inner_stop_crit,
       max_inner_iter = max_inner_iter,
@@ -182,6 +183,7 @@ optimizer_control <- if (identical(toupper(optim_method), "RS")) {
     outer_tol = outer_stop_crit,
     max_outer_iter = max_outer_iter,
     max_elapsed_sec = max_elapsed_sec,
+    lambda_start = lambda_start,
     cg = list(
       max_stall = cg_max_stall,
       max_delta = cg_max_delta,
@@ -699,7 +701,7 @@ fit_longitudinal_model <- function(dat) {
   }
 
   gamlss.longitudinal(
-    dataset = dat,
+    data = dat,
     margin_dist = gamlss.dist::BCPE(mu.link = "log"),
     copula_dist = "t",
     time_var = "time",
@@ -713,10 +715,9 @@ fit_longitudinal_model <- function(dat) {
     verbose = verbose_level,
     compute_vcov = isTRUE(compute_se),
     vcov_method = vcov_method_longitudinal,
-    include_dlcopdpar = include_dlcopdpar,
+    optimization = if (isTRUE(include_dlcopdpar)) "joint" else "separate",
     optimizer_control = optimizer_control,
-    method = optim_method,
-    lambda_start = lambda_start
+    method = optim_method
   )
 }
 

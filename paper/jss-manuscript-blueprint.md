@@ -118,7 +118,7 @@ fit <- gamlss_longitudinal(
   mu.formula = response ~ time + treatment + s(baseline),
   sigma.formula = ~ time + treatment,
   theta.formula = ~ time + treatment,
-  dataset = dat,
+  data = dat,
   time_var = "time",
   subject_var = "id",
   margin_dist = GA(),

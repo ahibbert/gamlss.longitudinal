@@ -28,21 +28,25 @@ jss_run_public_workflow_figures <- function(settings) {
   dist <- file.path(settings$figures_dir, "software - plot_dist.png")
   dist_dat <- dat[dat$time %in% sort(unique(dat$time))[1:2], , drop = FALSE]
   p <- gamlss.longitudinal::plot_dist(
-    dataset = dist_dat, margin_dist = gamlss.dist::BCPE(),
+    data = dist_dat, margin_dist = gamlss.dist::BCPE(),
     subject_var = "subject", time_var = "time", response_var = "response"
   )
   ggplot2::ggsave(dist, p, width = 8.5, height = 7.0, dpi = 320, bg = "white")
 
   diag <- file.path(settings$figures_dir, "software - plot_copula_diagnostics.png")
   fit <- suppressWarnings(gamlss.longitudinal::gamlss_longitudinal(
-    dataset = dat, margin_dist = gamlss.dist::BCPE(), copula_dist = "t",
+    data = dat, margin_dist = gamlss.dist::BCPE(), copula_dist = "t",
     time_var = "time", subject_var = "subject", mu.formula = response ~ 1,
     sigma.formula = ~1, nu.formula = ~1, tau.formula = ~1,
-    theta.formula = ~1, zeta.formula = ~1, max_outer_iter = 4L,
-    max_inner_iter = 4L, max_elapsed_sec = 30, compute_vcov = FALSE, verbose = 0
+    theta.formula = ~1, zeta.formula = ~1,
+    optimizer_control = gamlss.longitudinal::gamlss_longitudinal_control(
+      max_outer_iter = 4L, max_elapsed_sec = 30,
+      rs = list(max_inner_iter = 4L)
+    ),
+    compute_vcov = FALSE, verbose = 0
   ))
   diagnostics <- suppressWarnings(gamlss.longitudinal::plot_copula_diagnostics(
-    fit, residual_lags = 1:2, plot = TRUE
+    fit, type = "all", residual_lags = 1:2, plot = FALSE
   ))
   wrap_label <- function(x, width) {
     if (is.null(x) || !length(x) || is.na(x)) return(x)

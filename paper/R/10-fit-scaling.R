@@ -339,7 +339,7 @@ jss_scaling_fit_attempt <- function(
     fit_elapsed <- system.time({
       fit <- withCallingHandlers(
         tryCatch(gamlss.longitudinal::gamlss_longitudinal(
-          dataset = dat,
+          data = dat,
           margin_dist = margin,
           copula_dist = scenario$copula[[1L]],
           time_var = "time",
@@ -347,7 +347,7 @@ jss_scaling_fit_attempt <- function(
           mu.formula = formula,
           sigma.formula = ~1,
           theta.formula = ~1,
-          include_dlcopdpar = TRUE,
+          optimization = "joint",
           method = "RS",
           optimizer_control = gamlss.longitudinal::gamlss_longitudinal_control(
             outer_tol = 1e-3,
@@ -356,8 +356,7 @@ jss_scaling_fit_attempt <- function(
             rs = list(inner_tol = 1e-3, max_inner_iter = 50L)
           ),
           compute_vcov = FALSE,
-          verbose = 0,
-          plot_results = FALSE
+          verbose = 0
         ), error = function(e) {
             error <<- conditionMessage(e)
             NULL

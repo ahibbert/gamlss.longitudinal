@@ -596,8 +596,16 @@ test_that("public bundle verification survives Git newline normalization", {
     con <- file(path, "wb"); writeBin(charToRaw(value), con); close(con)
   }
   expect_silent(env$jss_main_recovery_validate_public_bundle(
-    normalized, repo_root = root, require_attestation = FALSE
+    normalized, repo_root = root, require_attestation = FALSE,
+    source_policy = "recorded"
   ))
+  expect_error(
+    env$jss_main_recovery_validate_public_bundle(
+      normalized, repo_root = root, require_attestation = FALSE,
+      source_policy = "current"
+    ),
+    "checkpoint is invalid|control-source manifest|unchanged registered source tree"
+  )
 })
 
 test_that("publication checkout policy rejects an added untracked file", {

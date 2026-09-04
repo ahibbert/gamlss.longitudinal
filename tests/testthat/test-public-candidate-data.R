@@ -80,3 +80,28 @@ test_that("patents refinement adds R&D to the dispersion model and start", {
   )
   expect_identical(unname(start[["sigma.log_rd"]]), 0)
 })
+
+test_that("segmented public candidate uses a supported fit-time covariance method", {
+  root <- test_path("..", "..")
+  script <- file.path(root, "paper", "R", "10-public-application-candidates.R")
+  skip_if_not(file.exists(script), "Paper source is excluded from the installed package.")
+  environment <- new.env(parent = globalenv())
+  source(script, local = environment)
+
+  captured <- NULL
+  local_mocked_bindings(
+    gamlss_longitudinal = function(...) {
+      captured <<- list(...)
+      structure(list(), class = "gamlss.longitudinal")
+    },
+    .package = "gamlss.longitudinal"
+  )
+
+  environment$jss_fit_public_application(
+    "steps",
+    data = data.frame(unused = 1),
+    compute_vcov = FALSE
+  )
+  expect_identical(captured$missingness, "segment")
+  expect_identical(captured$vcov_method, "analytical")
+})

@@ -104,6 +104,20 @@ jss_recovery_control_source_identity <- function(repo_root) {
   )
 }
 
+jss_recovery_control_identity_sha256 <- function(identity) {
+  required <- c("source_path", "sha256", "bytes")
+  if (!is.data.frame(identity) || !all(required %in% names(identity)) ||
+      anyDuplicated(identity$source_path) ||
+      any(!grepl("^[0-9a-f]{64}$", as.character(identity$sha256))) ||
+      any(!is.finite(as.numeric(identity$bytes))) || any(as.numeric(identity$bytes) < 0)) {
+    stop("Main-recovery control-source manifest is malformed.", call. = FALSE)
+  }
+  digest::digest(
+    paste(identity$source_path, identity$sha256, identity$bytes, sep = "\t", collapse = "\n"),
+    algo = "sha256", serialize = FALSE
+  )
+}
+
 jss_recovery_source_tree_identity <- function(repo_root) {
   paths <- unique(c(
     jss_recovery_package_source_files(repo_root),
@@ -156,8 +170,7 @@ jss_recovery_require_clean_source_checkout <- function(repo_root) {
 }
 
 jss_recovery_producer_sha256 <- function(repo_root = normalizePath(".", winslash = "/", mustWork = TRUE)) {
-  identity <- jss_recovery_control_source_identity(repo_root)
-  digest::digest(paste(identity$source_path, identity$sha256, identity$bytes, sep = "\t", collapse = "\n"), algo = "sha256", serialize = FALSE)
+  jss_recovery_control_identity_sha256(jss_recovery_control_source_identity(repo_root))
 }
 
 jss_recovery_portable_source_identity <- function(x) {
@@ -1863,7 +1876,9 @@ jss_main_recovery_validate_public_bundle <- function(path, conf.level = 0.95,
     repo_root = normalizePath(".", winslash = "/", mustWork = TRUE),
     attestation_path = Sys.getenv("GAMLSS_LONGITUDINAL_JSS_MAIN_RECOVERY_ATTESTATION", unset = ""),
     signature_path = Sys.getenv("GAMLSS_LONGITUDINAL_JSS_MAIN_RECOVERY_ATTESTATION_SIGNATURE", unset = ""),
-    require_attestation = FALSE) {
+    require_attestation = FALSE,
+    source_policy = c("current", "recorded")) {
+  source_policy <- match.arg(source_policy)
   required <- file.path(path, jss_main_recovery_artifact_names())
   missing <- required[!file.exists(required)]
   if (length(missing)) {
@@ -1875,6 +1890,12 @@ jss_main_recovery_validate_public_bundle <- function(path, conf.level = 0.95,
   manifest <- read("output_manifest.csv")
   checkpoint <- read("bundle_checkpoint.csv")
   input_provenance <- read("input_provenance.csv")
+  recorded_control_sources <- read("control_source_manifest.csv")
+  expected_producer <- if (identical(source_policy, "current")) {
+    jss_recovery_producer_sha256(repo_root)
+  } else {
+    jss_recovery_control_identity_sha256(recorded_control_sources)
+  }
   expected_inputs <- jss_recovery_public_input_map()
   if (!all(c("input_id", "path", "sha256", "bytes") %in% names(input_provenance)) || anyDuplicated(input_provenance$input_id) ||
       any(!grepl("^[0-9a-f]{64}$", input_provenance$sha256)) || any(dirname(input_provenance$path) != ".")) {
@@ -1897,15 +1918,16 @@ jss_main_recovery_validate_public_bundle <- function(path, conf.level = 0.95,
   if (any(!hash_ok)) stop("Main-recovery publication artifact hash mismatch: ", paste(manifest$artifact[!hash_ok], collapse = ", "), call. = FALSE)
   input_digest <- digest::digest(paste(input_provenance$input_id, input_provenance$sha256, sep = "=", collapse = "\n"), algo = "sha256", serialize = FALSE)
   if (nrow(checkpoint) != 1L || checkpoint$schema_version != jss_recovery_schema_version() ||
-      checkpoint$producer_sha256 != jss_recovery_producer_sha256(repo_root) || checkpoint$input_provenance_sha256 != input_digest ||
+      checkpoint$producer_sha256 != expected_producer || checkpoint$input_provenance_sha256 != input_digest ||
       checkpoint$output_manifest_sha256 != unname(jss_recovery_portable_sha256(file.path(path, "output_manifest.csv"))) ||
       checkpoint$artifact_count != nrow(manifest)) {
     stop("Main-recovery portable checkpoint is invalid.", call. = FALSE)
   }
-  recorded_control_sources <- read("control_source_manifest.csv")
-  current_control_sources <- jss_recovery_control_source_identity(repo_root)
-  if (!jss_recovery_frames_equal(recorded_control_sources, current_control_sources)) {
-    stop("Main-recovery control-source manifest does not match the current producer, validator, runners, and input schema.", call. = FALSE)
+  if (identical(source_policy, "current")) {
+    current_control_sources <- jss_recovery_control_source_identity(repo_root)
+    if (!jss_recovery_frames_equal(recorded_control_sources, current_control_sources)) {
+      stop("Main-recovery control-source manifest does not match the current producer, validator, runners, and input schema.", call. = FALSE)
+    }
   }
 
   ledger_input <- read("attempt_metadata.csv")
@@ -1927,7 +1949,7 @@ jss_main_recovery_validate_public_bundle <- function(path, conf.level = 0.95,
     BCPE = read("runner_settings_bcpe.csv", colClasses = "character", na.strings = c("NA", "")),
     NBI = read("runner_settings_nbi.csv", colClasses = "character", na.strings = c("NA", ""))
   )
-  jss_recovery_require_clean_source_checkout(repo_root)
+  if (identical(source_policy, "current")) jss_recovery_require_clean_source_checkout(repo_root)
   identity_fields <- c("runner_settings_signature", "runner_settings_sha256", "runner_sha256", "package_source_path", "package_version", "package_source_sha256")
   if (nrow(settings_identity) != 2L || !all(c("margin_family", "study_id", identity_fields) %in% names(settings_identity))) stop("Main-recovery runner-settings identity artifact is malformed.", call. = FALSE)
   for (margin in c("BCPE", "NBI")) {
@@ -1952,11 +1974,13 @@ jss_main_recovery_validate_public_bundle <- function(path, conf.level = 0.95,
   if (any(vapply(sha_fields, function(name) any(!grepl("^[0-9a-f]{64}$", as.character(ledger_input[[name]]))), logical(1)))) stop("Main-recovery source identity contains a noncanonical SHA-256 value.", call. = FALSE)
   recomputed_settings_sha <- vapply(as.character(ledger_input$runner_settings_signature), digest::digest, character(1), algo = "sha256", serialize = FALSE)
   if (any(as.character(ledger_input$runner_settings_sha256) != recomputed_settings_sha)) stop("Main-recovery canonical settings signature/SHA mismatch.", call. = FALSE)
-  runner_paths <- c(BCPE = file.path(repo_root, "paper", "scripts", "final-simulations", "bcpe-t", "simulation_bcpe_t_gamlss_comparison.R"),
-    NBI = file.path(repo_root, "paper", "scripts", "final-simulations", "nbi-clayton", "compare_gamlss_ours_nbi_sigma_smooth.R"))
-  for (margin in names(runner_paths)) {
-    actual <- unname(jss_recovery_sha256(runner_paths[[margin]]))
-    if (!identical(unique(as.character(ledger_input$runner_sha256[ledger_input$margin_family == margin])), actual)) stop("Main-recovery runner source SHA mismatch for ", margin, ".", call. = FALSE)
+  if (identical(source_policy, "current")) {
+    runner_paths <- c(BCPE = file.path(repo_root, "paper", "scripts", "final-simulations", "bcpe-t", "simulation_bcpe_t_gamlss_comparison.R"),
+      NBI = file.path(repo_root, "paper", "scripts", "final-simulations", "nbi-clayton", "compare_gamlss_ours_nbi_sigma_smooth.R"))
+    for (margin in names(runner_paths)) {
+      actual <- unname(jss_recovery_sha256(runner_paths[[margin]]))
+      if (!identical(unique(as.character(ledger_input$runner_sha256[ledger_input$margin_family == margin])), actual)) stop("Main-recovery runner source SHA mismatch for ", margin, ".", call. = FALSE)
+    }
   }
   actual_package_version <- as.character(read.dcf(file.path(repo_root, "DESCRIPTION"))[1, "Version"])
   fitted_package_sha <- unique(as.character(ledger_input$package_source_sha256))
@@ -1997,7 +2021,7 @@ jss_main_recovery_validate_public_bundle <- function(path, conf.level = 0.95,
   }
   provenance <- read("production_provenance.csv")
   recorded_producer <- provenance$value[provenance$key == "producer_sha256"]
-  if (length(recorded_producer) != 1L || !identical(recorded_producer, jss_recovery_producer_sha256(repo_root))) stop("Main-recovery public producer/control-source identity is inconsistent.", call. = FALSE)
+  if (length(recorded_producer) != 1L || !identical(recorded_producer, expected_producer)) stop("Main-recovery public producer/control-source identity is inconsistent.", call. = FALSE)
   recorded_source <- provenance$value[provenance$key == "package_source_sha256"]
   if (length(recorded_source) != 1L || !identical(recorded_source, unique(ledger$package_source_sha256))) stop("Main-recovery package-source identity is inconsistent.", call. = FALSE)
   recorded_git_sha <- provenance$value[provenance$key == "git_sha"]
@@ -2007,7 +2031,7 @@ jss_main_recovery_validate_public_bundle <- function(path, conf.level = 0.95,
   jss_recovery_validate_recorded_git(
     recorded_git_sha, recorded_git_state, repo_root, "Main-recovery public bundle"
   )
-  if (!identical(recorded_source_tree_sha, jss_recovery_source_tree_sha256(repo_root)) ||
+  if ((identical(source_policy, "current") && !identical(recorded_source_tree_sha, jss_recovery_source_tree_sha256(repo_root))) ||
       length(recorded_package_path) != 1L || is.na(jss_recovery_portable_source_identity(recorded_package_path))) {
     stop("Main-recovery public source-tree or portable checkout provenance does not match the current registered sources.", call. = FALSE)
   }

@@ -91,6 +91,12 @@ of the reported summaries from their analysis-ready inputs. It does not require
 an author-held signing key or compare thousands of incidental intermediate
 quantities. The deferred multivariate comparison is documented in
 `DEFERRED-MULTIVARIATE-STUDY.md` and is not part of the submission gate.
+For approved main-recovery results, the `paper` profile validates the recorded
+source manifest and internal provenance carried by the bundle. The stricter
+`source_policy = "current"` check is reserved for production and approval: it
+requires the bundle to match the exact current producer and package source tree.
+This distinction keeps historical results verifiable after interface-only
+package releases without representing them as newly computed results.
 Manuscript claim wording and exact display selectors are tracked in the generated
 Phase 3 checklist but do not block the Phase 2 evidence gate; the separate
 manuscript audit continues to fail until those authoring tasks are resolved.

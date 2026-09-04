@@ -250,6 +250,7 @@ fit_ours <- function(dat, engine) {
     outer_tol = 0.001,
     max_outer_iter = max_outer_iter,
     max_elapsed_sec = max_elapsed_sec,
+    lambda_start = lambda_start,
     rs = list(
       inner_tol = 0.001,
       max_inner_iter = max_inner_iter,
@@ -262,7 +263,7 @@ fit_ours <- function(dat, engine) {
     )
   )
   gamlss.longitudinal::gamlss_longitudinal(
-    dataset = dat,
+    data = dat,
     margin_dist = gamlss.dist::NBI(),
     copula_dist = nbi_copula_code,
     time_var = "time",
@@ -272,11 +273,10 @@ fit_ours <- function(dat, engine) {
     theta.formula = "~ time_scaled + s(s1, bs = 'ps', k = 8)",
     zeta.formula = "~ 1",
     method = "RS",
-    include_dlcopdpar = is_joint,
+    optimization = if (is_joint) "joint" else "separate",
     optimizer_control = optimizer_control,
     compute_vcov = FALSE,
     vcov_method = vcov_method_longitudinal,
-    lambda_start = lambda_start,
     verbose = 0
   )
 }

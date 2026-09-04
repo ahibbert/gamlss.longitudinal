@@ -300,7 +300,7 @@ jss_rand_fit_longitudinal <- function(data, copula_dist = "C", theta_formula = ~
                                       compute_vcov = FALSE) {
   out <- NULL
   utils::capture.output(out <- suppressMessages(gamlss.longitudinal::gamlss_longitudinal(
-    dataset = data,
+    data = data,
     margin_dist = jss_rand_margin_dist(margin_family),
     copula_dist = copula_dist,
     time_var = "time",
@@ -308,9 +308,11 @@ jss_rand_fit_longitudinal <- function(data, copula_dist = "C", theta_formula = ~
     mu.formula = jss_rand_mu_formula(),
     sigma.formula = jss_rand_sigma_formula(),
     theta.formula = theta_formula,
-    include_dlcopdpar = FALSE,
-    max_outer_iter = fit_budget$max_outer_iter,
-    max_inner_iter = fit_budget$max_inner_iter,
+    optimization = "separate",
+    optimizer_control = gamlss.longitudinal::gamlss_longitudinal_control(
+      max_outer_iter = fit_budget$max_outer_iter,
+      rs = list(max_inner_iter = fit_budget$max_inner_iter)
+    ),
     verbose = 0,
     compute_vcov = compute_vcov
   )))
@@ -830,7 +832,7 @@ jss_rand_write_workflow_artifacts <- function(full_data, sample_data, family_scr
       out$dashboard
     }, title = "Marginal Diagnostics"),
     jss_rand_save_plot(paths$copula_diagnostics_figure, 13, 13, function() {
-      diag <- gamlss.longitudinal::plot_copula_diagnostics(final_fit, data = sample_data, plot = FALSE, dashboard_ncol = 3)
+      diag <- gamlss.longitudinal::plot_copula_diagnostics(final_fit, data = sample_data, plot = FALSE, ncol = 3)
       jss_rand_write_copula_diagnostic_tables(diag, paths)
       diag$dashboard
     }, title = "Copula Diagnostics")
