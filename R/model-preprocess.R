@@ -75,7 +75,7 @@
   if (length(subject_time_combo) != length(unique(subject_time_combo))) {
     duplicate_combos <- subject_time_combo[duplicated(subject_time_combo)]
     stop(
-      "ERROR: Duplicate subject/time combinations found.\n",
+      "Duplicate subject/time combinations were found.\n",
       "Each subject must have exactly one observation per time point.\n",
       "Duplicate combinations (first 10): ",
       paste(unique(duplicate_combos)[1:min(10, length(unique(duplicate_combos)))], collapse = ", ")

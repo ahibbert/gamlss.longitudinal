@@ -138,6 +138,9 @@ select_copula <- function(
   out$n_pairs <- nrow(pairs)
   out <- out[order(out[[criterion]], decreasing = identical(criterion, "logLik")), , drop = FALSE]
   rownames(out) <- NULL
+  out$rank <- seq_len(nrow(out))
+  best_value <- if (nrow(out)) out[[criterion]][[1L]] else NA_real_
+  out$delta <- if (identical(criterion, "logLik")) best_value - out[[criterion]] else out[[criterion]] - best_value
   attr(out, "selected") <- out$family[1]
   attr(out, "criterion") <- criterion
   attr(out, "margin_selection") <- attr(pairs, "margin_selection")

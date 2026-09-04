@@ -109,8 +109,8 @@ test_that("T153a plot_terms routes an explicit covariance method", {
     .package = "gamlss.longitudinal"
   )
 
-  expect_output(plot_terms(fixture$fit, data = fixture$data,
-    vcov_method = "sandwich"), "Plotting term effects", fixed = TRUE)
+  expect_silent(plot_terms(fixture$fit, data = fixture$data,
+    vcov_method = "sandwich"))
   expect_identical(captured_method, "sandwich")
 })
 

@@ -54,8 +54,8 @@ plot_terms <- function(
     ncol = 4,
     include_intercept = FALSE,
     plot_interactions = FALSE,
-    ci_col = "red",
-    fit_col = "black",
+    ci_col = .gl_plot_colours()[["interval"]],
+    fit_col = .gl_plot_colours()[["fitted"]],
     show_legend = TRUE,
     smooth_even_grid = TRUE,
     smooth_grid_n = 200,
@@ -101,8 +101,8 @@ plot.terms <- function(x, ...) {
     ncol = 4,
     include_intercept = FALSE,
     plot_interactions = FALSE,
-    ci_col = "red",
-    fit_col = "black",
+    ci_col = .gl_plot_colours()[["interval"]],
+    fit_col = .gl_plot_colours()[["fitted"]],
     show_legend = TRUE,
     smooth_even_grid = TRUE,
     smooth_grid_n = 200,
@@ -113,8 +113,6 @@ plot.terms <- function(x, ...) {
   }
   vcov_method <- match.arg(vcov_method)
 
-  cat("\n=== Plotting term effects for gamlss.longitudinal object ===\n")
-
   counts <- .plot_terms_count(
     x,
     data = data,
@@ -122,15 +120,12 @@ plot.terms <- function(x, ...) {
     plot_interactions = plot_interactions
   )
 
-  cat(sprintf(
-    "Found %d smooth terms and %d fixed terms (total: %d plots).\n\n",
-    counts$smooth, counts$fixed, counts$total
-  ))
-
   if (counts$total == 0) {
     warning("No term plots to display.")
 
-    return(invisible(list(smooth_terms = list(), fixed_terms = list())))
+    return(invisible(.gl_new_plot_result(list(
+      smooth_terms = list(), fixed_terms = list(), dashboard = NULL
+    ))))
   }
 
   vcov_obj <- .resolve_vcov(x, numderiv = FALSE, extra_args = list(method = vcov_method))
@@ -184,5 +179,5 @@ plot.terms <- function(x, ...) {
     fixed = attr(fixed_results, "inference_contract"),
     smooth = attr(smooth_results, "inference_contract")
   )
-  invisible(out)
+  invisible(.gl_new_plot_result(out))
 }

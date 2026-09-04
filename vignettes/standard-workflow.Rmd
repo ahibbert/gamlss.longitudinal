@@ -145,12 +145,17 @@ Depending on the margin distribution selected and the copula function selected, 
 
 Other than the covariate formulas, the model requires the user specify the subject and time variables in the provided dataset through parameters `time_var` and `subject_var`. The user should also specify the chosen margin distribution in functional form (i.e. `GA()`) as well as the selected distributions for the margin and copula (initially based on screening in the previous step).
 
+By default, `optimization = "joint"` includes the copula contribution when
+updating marginal parameters. `optimization = "separate"` is an explicit,
+faster RS approximation. Advanced settings are supplied together through
+`optimizer_control = gamlss_longitudinal_control(...)`.
+
 For the included simulated example, we know there is a binary treatment effect and a time effect on both the mean, `mu.formula`, and the variance, `sigma.formula`. In addition, there is a smooth age-effect on the mean. There is also increasing correlation over time which we capture with a covariate in `theta.formula`.
 
 ```{r fit}
 # Fit longitudinal gamlss model
 fit <- gamlss_longitudinal(
-  dataset = dat,
+  data = dat,
   margin_dist = margin_dist,
   copula_dist = copula_dist,
   time_var = "time",
@@ -179,7 +184,7 @@ wald_test(fit)
 
 # Likelihood ratio test
 fit_reduced <- gamlss_longitudinal(
-  dataset = dat,
+  data = dat,
   margin_dist = margin_dist,
   copula_dist = copula_dist,
   time_var = "time",

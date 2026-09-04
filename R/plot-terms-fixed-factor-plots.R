@@ -24,7 +24,7 @@
     ),
     "labs"
   )
-  p <- gg_add(p, ggplot2::theme_minimal(), "theme_minimal")
+  p <- gg_add(p, theme_gamlss_longitudinal(), "theme_gamlss_longitudinal")
 
   if (!is.null(term_data$y_lim)) {
     p <- gg_add(p, ggplot2::coord_cartesian(ylim = term_data$y_lim), "coord_cartesian")
@@ -57,7 +57,15 @@
   p <- gg_add(p, ggplot2::geom_point(size = factor_cex), "geom_point")
   p <- gg_add(p, ggplot2::geom_errorbar(ggplot2::aes(ymin = ci_lower, ymax = ci_upper), width = 0.15), "geom_errorbar")
   p <- gg_add(p, ggplot2::scale_x_continuous(breaks = term_data$x_plot, labels = term_data$x_labels), "scale_x_continuous")
-  p <- gg_add(p, ggplot2::scale_color_discrete(name = og$var_name), "scale_color_discrete")
+  group_levels <- unique(as.character(plot_df$group[plot_df$keep]))
+  p <- gg_add(
+    p,
+    ggplot2::scale_color_manual(
+      name = og$var_name,
+      values = stats::setNames(.gl_group_colours(length(group_levels)), group_levels)
+    ),
+    "scale_color_manual"
+  )
   p <- gg_add(
     p,
     ggplot2::labs(
@@ -67,7 +75,7 @@
     ),
     "labs"
   )
-  p <- gg_add(p, ggplot2::theme_minimal(), "theme_minimal")
+  p <- gg_add(p, theme_gamlss_longitudinal(), "theme_gamlss_longitudinal")
 
   if (!is.null(term_data$y_lim)) {
     p <- gg_add(p, ggplot2::coord_cartesian(ylim = term_data$y_lim), "coord_cartesian")
@@ -102,7 +110,7 @@
     ),
     "labs"
   )
-  p <- gg_add(p, ggplot2::theme_minimal(), "theme_minimal")
+  p <- gg_add(p, theme_gamlss_longitudinal(), "theme_gamlss_longitudinal")
 
   if (!is.null(term_data$y_lim)) {
     p <- gg_add(p, ggplot2::coord_cartesian(ylim = term_data$y_lim), "coord_cartesian")

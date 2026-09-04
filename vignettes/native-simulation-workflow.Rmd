@@ -179,7 +179,7 @@ missing_rows <- which(dat$subject %in% dropout_subjects & dat$time_scaled > 0.5)
 dat$response[missing_rows] <- NA_real_
 dat$response_missing <- is.na(dat$response)
 
-dataset=dat[,c("subject", "time", "response", "treatment", "age")]
+dataset <- dat[, c("subject", "time", "response", "treatment", "age")]
 ```
 
 </details>
@@ -452,7 +452,7 @@ Let's begin by inspecting a fully specified model with factor terms for `time` a
 
 ```{r fit-model-factortime, results='hide'}
 fit_fullyspecified <- gamlss_longitudinal(
-  dataset = dat,
+  data = dat,
   margin_dist = GG(),
   copula_dist = "N",
   time_var = "time",
@@ -475,7 +475,7 @@ We start with `mu` and note the significant treatment effect but minimal effect 
 <details>
 ```{r fit-models-all, results='hide'}
 fit_mulineartime <- gamlss_longitudinal(
-  dataset = dataset,
+  data = dataset,
   margin_dist = GG(),
   copula_dist = "N",
   time_var = "time",
@@ -486,7 +486,7 @@ fit_mulineartime <- gamlss_longitudinal(
   theta.formula = ~ treatment + as.factor(time) + s(age)
 )
 fit_munotime <- gamlss_longitudinal(
-  dataset = dataset,
+  data = dataset,
   margin_dist = GG(),
   copula_dist = "N",
   time_var = "time",
@@ -497,7 +497,7 @@ fit_munotime <- gamlss_longitudinal(
   theta.formula = ~ treatment + as.factor(time) + s(age)
 )
 fit_sigmalineartime <- gamlss_longitudinal(
-  dataset = dataset,
+  data = dataset,
   margin_dist = GG(),
   copula_dist = "N",
   time_var = "time",
@@ -508,7 +508,7 @@ fit_sigmalineartime <- gamlss_longitudinal(
   theta.formula = ~ treatment + as.factor(time) + s(age)
 )
 fit_nutimeonly <- gamlss_longitudinal(
-  dataset = dataset,
+  data = dataset,
   margin_dist = GG(),
   copula_dist = "N",
   time_var = "time",
@@ -519,7 +519,7 @@ fit_nutimeonly <- gamlss_longitudinal(
   theta.formula = ~ treatment + as.factor(time) + s(age)
 )
 fit_nutrtonly <- gamlss_longitudinal(
-  dataset = dataset,
+  data = dataset,
   margin_dist = GG(),
   copula_dist = "N",
   time_var = "time",
@@ -530,7 +530,7 @@ fit_nutrtonly <- gamlss_longitudinal(
   theta.formula = ~ treatment + as.factor(time) + s(age)
 )
 fit_nuageonly <- gamlss_longitudinal(
-  dataset = dataset,
+  data = dataset,
   margin_dist = GG(),
   copula_dist = "N",
   time_var = "time",
@@ -541,7 +541,7 @@ fit_nuageonly <- gamlss_longitudinal(
   theta.formula = ~ treatment + as.factor(time) + s(age)
 )
 fit_nuinterceptonly <- gamlss_longitudinal(
-  dataset = dataset,
+  data = dataset,
   margin_dist = GG(),
   copula_dist = "N",
   time_var = "time",
@@ -552,7 +552,7 @@ fit_nuinterceptonly <- gamlss_longitudinal(
   theta.formula = ~ treatment + as.factor(time) + s(age)
 )
 fit_thetalineartime <- gamlss_longitudinal(
-  dataset = dataset,
+  data = dataset,
   margin_dist = GG(),
   copula_dist = "N",
   time_var = "time",
@@ -563,7 +563,7 @@ fit_thetalineartime <- gamlss_longitudinal(
   theta.formula = ~ treatment + (time) + s(age)
 )
 fit_thetalineartime_notrt <- gamlss_longitudinal(
-  dataset = dataset,
+  data = dataset,
   margin_dist = GG(),
   copula_dist = "N",
   time_var = "time",
@@ -574,7 +574,7 @@ fit_thetalineartime_notrt <- gamlss_longitudinal(
   theta.formula = ~ (time) + s(age)
 )
 fit_thetalineartime_notrt_noage <- gamlss_longitudinal(
-  dataset = dataset,
+  data = dataset,
   margin_dist = GG(),
   copula_dist = "N",
   time_var = "time",
@@ -776,7 +776,7 @@ The selected final model does not include `time` on `mu`, while the benchmark me
 
 ```{r fit-benchmark-mu-time, results='hide'}
 fit_benchmark_mu_time <- gamlss_longitudinal(
-  dataset = dataset,
+  data = dataset,
   margin_dist = GG(),
   copula_dist = "N",
   time_var = "time",
@@ -806,7 +806,7 @@ Then we can compare a reduced model without the age smooth to be able to compare
 <details>
 ```{r fit-reduced-final-model-no-smooth}
 fit_reduced <- gamlss_longitudinal(
-  dataset = dataset,
+  data = dataset,
   margin_dist = GG(),
   copula_dist = "N",
   time_var = "time",
@@ -818,7 +818,7 @@ fit_reduced <- gamlss_longitudinal(
 )
 
 fit_reduced_mu_time <- gamlss_longitudinal(
-  dataset = dataset,
+  data = dataset,
   margin_dist = GG(),
   copula_dist = "N",
   time_var = "time",

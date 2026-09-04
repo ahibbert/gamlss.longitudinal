@@ -80,7 +80,7 @@
       inner_stop_crit <- .gl_validate_stop_crit(inner_stop_crit, "inner_stop_crit")
     }
 
-    if (verbose > 0) {
+    if (verbose > 1) {
       cat(
         "\nUsing stop criteria:",
         "inner_stop_crit=", format(inner_stop_crit, digits = 6),

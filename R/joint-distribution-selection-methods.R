@@ -14,7 +14,7 @@ best_fit.joint_distribution_selection <- function(x, ...) {
       criterion = attr(x, "criterion")
     ))
   }
-  row <- as.list(as.data.frame(x)[eligible[[1L]], , drop = FALSE])
+  row <- .gl_row_as_plain_list(x, eligible[[1L]])
   margin_family_name <- row$margin_family
   copula_family <- row$copula_family
   row$margin_family <- NULL
@@ -49,26 +49,26 @@ best_fit_family.joint_distribution_selection <- function(x, ...) {
 
 #' @export
 print.joint_distribution_selection <- function(x, ..., n = 10L) {
-  cat("\nJoint Distribution Screen\n")
-  cat("-------------------------\n")
+  cat("\n<Joint distribution selection>\n")
   if (nrow(x) == 0L) {
     cat("No candidate combinations were retained.\n")
     return(invisible(x))
   }
   selected <- attr(x, "selected")
-  cat("Selected:", if (length(selected) != 1L || is.na(selected)) "none" else selected, "\n")
-  cat("Criterion:", attr(x, "criterion"), "\n\n")
+  cat("Criterion: ", attr(x, "criterion"), "\n", sep = "")
+  cat("Selected: ", if (length(selected) != 1L || is.na(selected)) "none" else selected, "\n\n", sep = "")
   cols <- intersect(
     c(
       "rank", "margin_family", "copula_family", "logLik", "AIC", "BIC",
-      "EDF", "converged", "stop_reason", "selection_eligible", "elapsed_sec", "error"
+      "EDF", "converged", "selection_eligible"
     ),
     names(x)
   )
   display <- utils::head(as.data.frame(x)[cols], n = n)
   print(display, row.names = FALSE)
+  .gl_selection_footer(x, n)
   if ("converged" %in% names(display) && any(!display$converged, na.rm = TRUE)) {
-    cat("\nWarning: one or more printed joint candidate fits did not report convergence.\n")
+    cat("\nOne or more displayed candidates did not converge; inspect `as.data.frame(x)` for details.\n")
   }
   invisible(x)
 }

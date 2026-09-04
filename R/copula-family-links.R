@@ -36,7 +36,7 @@ get_copula_dist <- function(copula_dist) {
 
     parameters <- c("theta", "zeta")
   } else {
-    stop("ERROR: COPULA DIST LINK FUNCTIONS NOT YET IMPLEMENTED.")
+    stop("Link functions are not implemented for this copula family.", call. = FALSE)
   }
 
   if (two_par_cop) {

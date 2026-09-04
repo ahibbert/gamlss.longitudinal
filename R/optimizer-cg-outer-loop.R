@@ -61,7 +61,7 @@
   while (!cg_converged && outer_only_run_counter <= max_outer_iter) {
     check_elapsed_budget("CG outer iteration")
 
-    if (verbose > 0) cat(paste("\nOUTER ITERATION:", outer_only_run_counter))
+    if (verbose > 1) cat(paste("\nOuter iteration:", outer_only_run_counter))
 
     cg_outer_iteration <- outer_iteration_step_fn(
       dataset = dataset,

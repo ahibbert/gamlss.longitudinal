@@ -3,7 +3,7 @@
       is.na(backtracking_max_halves) || !is.finite(backtracking_max_halves) ||
       backtracking_max_halves < 0 ||
       backtracking_max_halves != as.integer(backtracking_max_halves)) {
-    stop("ERROR: backtracking_max_halves must be a single non-negative integer.")
+    stop("`backtracking_max_halves` must be a single non-negative integer.", call. = FALSE)
   }
   backtracking_max_halves <- as.integer(backtracking_max_halves)
 
@@ -13,7 +13,7 @@
 .gl_validate_rs_smooth_trust_radius <- function(rs_smooth_trust_radius) {
   if (length(rs_smooth_trust_radius) != 1 || !is.numeric(rs_smooth_trust_radius) ||
     is.na(rs_smooth_trust_radius) || rs_smooth_trust_radius <= 0) {
-    stop("ERROR: rs_smooth_trust_radius must be a single positive numeric value or Inf.")
+    stop("`rs$smooth_trust_radius` must be a single positive number or Inf.", call. = FALSE)
   }
 
   rs_smooth_trust_radius
@@ -21,14 +21,14 @@
 
 .gl_normalize_warm_start_controls <- function(warm_start_joint, warm_start_joint_iter) {
   if (!is.logical(warm_start_joint) || length(warm_start_joint) != 1 || is.na(warm_start_joint)) {
-    stop("ERROR: warm_start_joint must be TRUE or FALSE.")
+    stop("`rs$warm_start_joint` must be TRUE or FALSE.", call. = FALSE)
   }
   if (!is.numeric(warm_start_joint_iter) || length(warm_start_joint_iter) != 1 || is.na(warm_start_joint_iter)) {
-    stop("ERROR: warm_start_joint_iter must be a single non-negative integer.")
+    stop("`rs$warm_start_joint_iter` must be a single non-negative integer.", call. = FALSE)
   }
   warm_start_joint_iter <- as.integer(warm_start_joint_iter)
   if (warm_start_joint_iter < 0) {
-    stop("ERROR: warm_start_joint_iter must be a single non-negative integer.")
+    stop("`rs$warm_start_joint_iter` must be a single non-negative integer.", call. = FALSE)
   }
 
   list(
@@ -49,7 +49,7 @@
 
 .gl_normalize_cg_line_search_evals <- function(cg_max_line_search_evals) {
   if (length(cg_max_line_search_evals) != 1 || is.null(cg_max_line_search_evals)) {
-    stop("ERROR: cg_max_line_search_evals must be a single non-negative integer or NA.")
+    stop("`cg$max_line_search_evals` must be a single non-negative integer or NA.", call. = FALSE)
   }
   if (is.na(cg_max_line_search_evals)) {
     cg_max_line_search_evals <- Inf
@@ -57,7 +57,7 @@
     if (!is.numeric(cg_max_line_search_evals) ||
         !is.finite(cg_max_line_search_evals) || cg_max_line_search_evals < 0 ||
         cg_max_line_search_evals != as.integer(cg_max_line_search_evals)) {
-      stop("ERROR: cg_max_line_search_evals must be a single non-negative integer or NA.")
+      stop("`cg$max_line_search_evals` must be a single non-negative integer or NA.", call. = FALSE)
     }
     cg_max_line_search_evals <- as.integer(cg_max_line_search_evals)
   }

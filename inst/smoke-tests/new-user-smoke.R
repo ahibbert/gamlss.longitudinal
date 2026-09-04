@@ -17,7 +17,7 @@ dat <- simulate_longitudinal_dataset(
 )
 
 fit_no <- gamlss_longitudinal(
-  dataset = dat,
+  data = dat,
   margin_dist = NO(),
   copula_dist = "N",
   time_var = "time",
@@ -25,8 +25,10 @@ fit_no <- gamlss_longitudinal(
   mu.formula = response ~ time,
   sigma.formula = ~ 1,
   theta.formula = ~ 1,
-  max_outer_iter = 5,
-  max_inner_iter = 5,
+  optimizer_control = gamlss_longitudinal_control(
+    max_outer_iter = 5,
+    rs = list(max_inner_iter = 5)
+  ),
   compute_vcov = FALSE,
   verbose = 0
 )
@@ -48,7 +50,7 @@ dat_pos <- simulate_longitudinal_dataset(
 )
 
 fit_ga <- gamlss_longitudinal(
-  dataset = dat_pos,
+  data = dat_pos,
   margin_dist = GA(),
   copula_dist = "N",
   time_var = "time",
@@ -56,8 +58,10 @@ fit_ga <- gamlss_longitudinal(
   mu.formula = response ~ time,
   sigma.formula = ~ 1,
   theta.formula = ~ 1,
-  max_outer_iter = 5,
-  max_inner_iter = 5,
+  optimizer_control = gamlss_longitudinal_control(
+    max_outer_iter = 5,
+    rs = list(max_inner_iter = 5)
+  ),
   compute_vcov = FALSE,
   verbose = 0
 )
