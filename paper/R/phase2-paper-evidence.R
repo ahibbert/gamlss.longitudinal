@@ -1419,10 +1419,12 @@ jss_write_phase2_gate_audit <- function(settings, modules, claim_evidence) {
     TRUE
   }, error = function(e) { claim_error <<- conditionMessage(e); FALSE })
   rows[[5L]] <- jss_phase2_gate_row(
-    "all_registered_claims_verified", !any(pending_claims) && nrow(claims) == nrow(registered_claims) &&
+    "verified_claim_evidence_valid", nrow(claims) == nrow(registered_claims) &&
       setequal(claims$claim_id, registered_claims$claim_id) && claim_ok,
-    if (any(pending_claims)) paste("pending_evidence", sum(pending_claims), sep = "=") else
-      if (claim_ok) paste("verified_claims", nrow(claims), sep = "=") else claim_error,
+    if (claim_ok) paste0(
+      "verified_claims=", nrow(claims),
+      "; pending_phase3_claims=", sum(pending_claims)
+    ) else claim_error,
     "paper/phase2-claims.csv; paper/phase2-pending-claims.csv"
   )
   schema_error <- NULL

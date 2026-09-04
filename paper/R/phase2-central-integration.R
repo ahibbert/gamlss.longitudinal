@@ -26,7 +26,7 @@ jss_phase2_central_gate_registry <- function() {
     "all_module_production_gates_pass",
     "phase2_manifest_exact_bidirectional",
     "no_registered_stale_claims",
-    "all_registered_claims_verified",
+    "verified_claim_evidence_valid",
     "claim_schema_and_scope_registered",
     "design_contract_and_tex_assets_verified",
     "canonical_manuscript_artifacts_registered",

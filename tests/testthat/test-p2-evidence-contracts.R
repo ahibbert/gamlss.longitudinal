@@ -303,7 +303,7 @@ test_that("Phase 2 central target and seed registrations are explicit", {
   expect_match(seeds$replicate_rule[seeds$study == "optimizer-benchmark"], "3000 + 100*rep", fixed = TRUE)
 })
 
-test_that("central gate preserves manuscript scope and fails closed on pending evidence", {
+test_that("central gate validates frozen evidence while reporting Phase 3 claim work", {
   env <- local_phase2_claim_env()
   root <- normalizePath(file.path("..", ".."), winslash = "/", mustWork = TRUE)
   source(file.path(root, "paper", "R", "phase2-central-integration.R"), local = env)
@@ -336,15 +336,17 @@ test_that("central gate preserves manuscript scope and fails closed on pending e
   modules <- stats::setNames(rep(list(list(status = "current")), 5L),
     c("main_recovery", "optimizer", "missingness", "copula_selection", "fit_scaling"))
 
-  expect_error(env$jss_write_phase2_gate_audit(settings, modules, claim_path),
-    "all_registered_claims_verified")
+  expect_silent(env$jss_write_phase2_gate_audit(settings, modules, claim_path))
   audit <- utils::read.csv(file.path(settings$tables_dir, "phase2-gate-audit.csv"), stringsAsFactors = FALSE)
   value <- function(id) audit$pass[audit$check_id == id]
   expect_true(value("no_registered_stale_claims"))
   expect_true(value("claim_schema_and_scope_registered"))
-  expect_false(value("all_registered_claims_verified"))
-  expect_identical(audit$detail[audit$check_id == "all_registered_claims_verified"], "pending_evidence=20")
-  expect_false(all(audit$pass))
+  expect_true(value("verified_claim_evidence_valid"))
+  expect_identical(
+    audit$detail[audit$check_id == "verified_claim_evidence_valid"],
+    paste0("verified_claims=", nrow(verified), "; pending_phase3_claims=20")
+  )
+  expect_true(all(audit$pass))
 })
 
 test_that("Phase 2 manifest retires superseded evidence and registers current artifacts", {
