@@ -237,7 +237,8 @@ Move to supplement:
 - Full grid tables by family/correlation/design.
 - Smooth recovery plots not needed for the main narrative.
 - Detailed optimizer derivations.
-- Full missingness sensitivity until module 04 is final.
+- Detailed missingness sensitivity beyond the registered monotone-dropout
+  headline and intermittent-MAR sensitivity analyses.
 
 ## 7. Reproducibility
 
@@ -247,8 +248,11 @@ Required content:
 
 - `paper/replicate.R` is the paper-facing entry point.
 - `GAMLSS_LONGITUDINAL_JSS_PROFILE=smoke` runs a quick reviewer check.
-- `GAMLSS_LONGITUDINAL_JSS_PROFILE=expanded` regenerates the full paper
-  outputs.
+- `GAMLSS_LONGITUDINAL_JSS_PROFILE=paper` regenerates all public paper outputs
+  from versioned analysis-ready inputs.
+- `GAMLSS_LONGITUDINAL_JSS_PROFILE=full` optionally reruns the retained public
+  Monte Carlo studies with checkpoints; it is an author-side recomputation,
+  not a routine reviewer requirement.
 - `paper/manifest.csv` maps result IDs to output files and analysis states.
 - `results/jss-replication/<profile>/logs/session_info.txt` and
   `output_hashes.csv` record software state and output hashes.
@@ -264,7 +268,7 @@ Required content:
 - Main limitations: first-order dependence assumption, runtime, model-selection
   burden, and sensitivity to major dependence misspecification.
 - Future work: higher-order residual dependence handling, faster derivatives,
-  broader public examples, and expanded platform/runtime validation.
+  broader public examples, and broader platform/runtime validation.
 
 ## Main Paper Target Outputs
 
@@ -283,6 +287,7 @@ Use the audit file to finalize the exact set, but target no more than:
 - R package source.
 - Replication scripts and manifest.
 - Data or accepted download instructions.
-- Expected smoke and expanded runtime notes.
+- Expected smoke and paper runtime notes; document the optional full-profile
+  runtime separately.
 - Session information and output hashes.
 - License and metadata confirmation.
