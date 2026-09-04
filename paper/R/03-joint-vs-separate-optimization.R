@@ -1515,13 +1515,23 @@ jss_joint_checkpoint_path <- function(settings, case, rep_idx, cfg) {
   )
 }
 
+jss_joint_portable_checkpoint_spec <- function(spec) {
+  if (is.list(spec) && is.list(spec$package_identity)) {
+    spec$package_identity$checkout_path <- "<portable-checkout>"
+  }
+  spec
+}
+
 jss_joint_read_checkpoint <- function(path, settings, case, rep_idx, cfg) {
   if (!file.exists(path) || file.info(path)$size <= 0L) return(NULL)
   checkpoint <- tryCatch(readRDS(path), error = function(e) NULL)
   expected_spec <- jss_joint_checkpoint_spec(settings, case, rep_idx, cfg)
   if (!is.list(checkpoint) ||
       !identical(checkpoint$schema_version, jss_joint_checkpoint_schema_version()) ||
-      !identical(checkpoint$spec, expected_spec) || !is.list(checkpoint$provenance) ||
+      !identical(
+        jss_joint_portable_checkpoint_spec(checkpoint$spec),
+        jss_joint_portable_checkpoint_spec(expected_spec)
+      ) || !is.list(checkpoint$provenance) ||
       !is.character(checkpoint$result_sha256) || length(checkpoint$result_sha256) != 1L) return(NULL)
   provenance <- checkpoint$provenance
   observed <- jss_joint_runtime_identity()
@@ -1535,7 +1545,7 @@ jss_joint_read_checkpoint <- function(path, settings, case, rep_idx, cfg) {
       any(vapply(runtime_fields, function(field)
         !identical(provenance[[field]], observed[[field]]), logical(1))) ||
       !identical(provenance$package_source_sha256, expected_spec$package_identity$source_sha256) ||
-      !identical(provenance$package_checkout_path, expected_spec$package_identity$checkout_path) ||
+      !identical(provenance$package_checkout_path, checkpoint$spec$package_identity$checkout_path) ||
       !identical(provenance$producer_sha256_verified, expected_spec$producer_fingerprint)) return(NULL)
   validation <- jss_joint_validate_result_payload(checkpoint$result, expected_spec, case, rep_idx)
   if (!isTRUE(validation$valid) ||
