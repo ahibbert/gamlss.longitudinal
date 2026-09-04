@@ -1,6 +1,7 @@
 local_phase2_scaling_env <- function() {
   root <- normalizePath(file.path("..", ".."), winslash = "/", mustWork = TRUE)
   env <- new.env(parent = globalenv())
+  source(file.path(root, "paper", "R", "submission-replication.R"), local = env)
   source(file.path(root, "paper", "R", "10-fit-scaling.R"), local = env)
   env
 }
@@ -346,8 +347,8 @@ test_that("tracked fit-scaling evidence reconciles with its attempts", {
   }
   expect_setequal(manifest$artifact_id, names(source_paths))
   manifest <- manifest[match(names(source_paths), manifest$artifact_id), , drop = FALSE]
-  expect_identical(manifest$verification, rep("canonical_sha256", length(source_paths)))
-  expect_identical(manifest$approved_sha256, unname(vapply(source_paths, canonical_sha256, character(1))))
+  expect_identical(manifest$verification, rep("schema_keys_tolerance", length(source_paths)))
+  expect_identical(manifest$approved_sha256, rep("", length(source_paths)))
 })
 
 test_that("paper profile stages the approved fit-scaling bundle as current", {

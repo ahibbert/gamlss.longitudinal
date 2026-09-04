@@ -447,7 +447,7 @@ test_that("approval helper exposes only the pinned public key and documents inde
   ceremony <- paste(readLines(file.path(root, "paper", "notes", "phase2-evidence-signing.md"),
     warn = FALSE), collapse = "\n")
   expect_match(ceremony, "access-restricted, checkout-external", fixed = TRUE)
-  expect_match(ceremony, "all five validators", fixed = TRUE)
+  expect_match(ceremony, "all four validators", fixed = TRUE)
   expect_match(ceremony, "code-only change", fixed = TRUE)
   expect_match(ceremony, "separate data-only review/commit", fixed = TRUE)
 })

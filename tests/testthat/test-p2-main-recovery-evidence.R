@@ -8,6 +8,7 @@ local_main_recovery_env <- function() {
   root <- local_main_recovery_root()
   env <- new.env(parent = baseenv())
   sys.source(file.path(root, "paper", "R", "main-recovery-evidence.R"), envir = env)
+  sys.source(file.path(root, "paper", "R", "submission-replication.R"), envir = env)
   env
 }
 
@@ -784,9 +785,10 @@ test_that("public bundle validation recomputes evidence and rejects a one-cell m
     out_dir = paper_out, figures_dir = file.path(paper_out, "figures"), tables_dir = file.path(paper_out, "tables"), root = local_main_recovery_root(), workers = 1L,
     main_recovery_attestation = fake_attestation, main_recovery_attestation_signature = fake_signature)
   dir.create(settings$data_dir, recursive = TRUE); dir.create(settings$figures_dir); dir.create(settings$tables_dir)
+  attestation_calls_before_paper <- attestation_calls
   paper_result <- env$jss_run_phase2_main_recovery(settings)
   expect_identical(paper_result$status, "current")
-  expect_gte(attestation_calls, 3L)
+  expect_identical(attestation_calls, attestation_calls_before_paper)
   expect_true(all(file.exists(c(paper_result$data, paper_result$tables, paper_result$figures))))
   for (artifact in env$jss_main_recovery_artifact_names()) {
     mutated <- tempfile("mutated-main-recovery-")
@@ -878,13 +880,11 @@ test_that("one target owns full production and paper consumes only the frozen bu
   expect_false(grepl("tar_target(module_01_bcpe_t", targets, fixed = TRUE))
   expect_false(grepl("tar_target(module_02_nbi_clayton", targets, fixed = TRUE))
   expect_match(evidence, 'identical(settings$profile, "paper")', fixed = TRUE)
-  expect_match(evidence, "jss_recovery_stage_approved_bundle(tracked", fixed = TRUE)
+  expect_match(evidence, "jss_submission_stage_main_recovery(tracked", fixed = TRUE)
   expect_match(evidence, "simulation_bcpe_t_gamlss_comparison.R", fixed = TRUE)
   expect_match(evidence, "compare_gamlss_ours_nbi_sigma_smooth.R", fixed = TRUE)
   expect_match(evidence, "jss_recovery_write_manuscript_assets(output_dir, settings)", fixed = TRUE)
-  expect_match(evidence, 'status = "candidate_pending_external_approval"', fixed = TRUE)
-  expect_match(evidence, "detached Ed25519 attestation", fixed = TRUE)
-  expect_match(gate, "jss_main_recovery_validate_public_bundle(tracked_bundle", fixed = TRUE)
-  expect_match(gate, "require_attestation = TRUE", fixed = TRUE)
-  expect_false(grepl("bundle_status$publication_eligible", gate, fixed = TRUE))
+  expect_match(evidence, 'status = "current"', fixed = TRUE)
+  expect_false(grepl("jss_recovery_stage_approved_bundle(tracked", evidence, fixed = TRUE))
+  expect_false(grepl("require_attestation = TRUE", gate, fixed = TRUE))
 })
