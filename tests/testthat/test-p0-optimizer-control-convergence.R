@@ -6,6 +6,8 @@ test_that("optimizer control constructor is strict and method aware", {
   )
   expect_s3_class(ctl, "gamlss.longitudinal.control")
   expect_equal(ctl$shared$outer_tol, 0.01)
+  expect_true(is.na(ctl$shared$lambda_start))
+  expect_equal(ctl$shared$lambda_penalty, 2)
   expect_identical(ctl$rs$max_inner_iter, 8)
 
   expect_error(gamlss_longitudinal_control(outer_tol = 0), "positive")
@@ -14,6 +16,8 @@ test_that("optimizer control constructor is strict and method aware", {
   expect_error(gamlss_longitudinal_control(rs = structure(list(1, 2), names = c("max_steps", "max_steps"))), "Duplicate")
   expect_error(gamlss_longitudinal_control(rs = list(max_inner_iter = 0)), "positive integer")
   expect_error(gamlss_longitudinal_control(cg = list(max_stall = 0)), "positive integer")
+  expect_error(gamlss_longitudinal_control(lambda_start = 0), "lambda_start")
+  expect_error(gamlss_longitudinal_control(lambda_penalty = Inf), "lambda_penalty")
 
   expect_error(
     gamlss.longitudinal:::.gl_resolve_optimizer_control(
@@ -25,6 +29,8 @@ test_that("optimizer control constructor is strict and method aware", {
 })
 
 test_that("legacy inactive-method controls deprecate and are ignored for one release", {
+  old_options <- options(gamlss.longitudinal.lifecycle_verbosity = "warning")
+  on.exit(options(old_options), add = TRUE)
   gamlss.longitudinal:::.gl_reset_optimizer_control_deprecation()
   seen <- NULL
   cg <- withCallingHandlers(
@@ -51,6 +57,8 @@ test_that("legacy inactive-method controls deprecate and are ignored for one rel
 })
 
 test_that("legacy optimizer controls deprecate once and conflicts error", {
+  old_options <- options(gamlss.longitudinal.lifecycle_verbosity = "warning")
+  on.exit(options(old_options), add = TRUE)
   gamlss.longitudinal:::.gl_reset_optimizer_control_deprecation()
   vals <- list(outer_stop_crit = 0.2)
   supplied <- c(outer_stop_crit = TRUE)
@@ -72,6 +80,72 @@ test_that("legacy optimizer controls deprecate once and conflicts error", {
     ),
     "same setting"
   )
+})
+
+test_that("smoothing controls have a validated canonical route", {
+  ctl <- gamlss_longitudinal_control(lambda_start = 4, lambda_penalty = 3)
+  expect_equal(ctl$shared$lambda_start, 4)
+  expect_equal(ctl$shared$lambda_penalty, 3)
+
+  gamlss.longitudinal:::.gl_reset_optimizer_control_deprecation()
+  legacy <- suppressWarnings(gamlss.longitudinal:::.gl_resolve_optimizer_control(
+    "RS", NULL,
+    legacy_values = list(lambda_start = 5, lambda_penalty_K = 4),
+    legacy_supplied = c(lambda_start = TRUE, lambda_penalty_K = TRUE)
+  ))
+  expect_equal(legacy$shared$lambda_start, 5)
+  expect_equal(legacy$shared$lambda_penalty, 4)
+  expect_error(
+    gamlss.longitudinal:::.gl_resolve_optimizer_control(
+      "RS", gamlss_longitudinal_control(lambda_start = 2),
+      legacy_values = list(lambda_start = 5),
+      legacy_supplied = c(lambda_start = TRUE)
+    ),
+    "same setting"
+  )
+})
+
+test_that("legacy optimizer warnings respect quiet lifecycle mode", {
+  old <- options(gamlss.longitudinal.lifecycle_verbosity = "quiet")
+  on.exit(options(old), add = TRUE)
+  gamlss.longitudinal:::.gl_reset_optimizer_control_deprecation()
+  expect_silent(gamlss.longitudinal:::.gl_resolve_optimizer_control(
+    "RS", NULL,
+    legacy_values = list(outer_stop_crit = 0.1),
+    legacy_supplied = c(outer_stop_crit = TRUE)
+  ))
+})
+
+test_that("optimizer control preserves its original positional contract", {
+  positional <- gamlss_longitudinal_control(
+    NA, 100, Inf, TRUE,
+    list(inner_tol = 0.01),
+    list(max_stall = 7)
+  )
+  expect_equal(positional$rs$inner_tol, 0.01)
+  expect_equal(positional$cg$max_stall, 7L)
+  expect_identical(
+    names(formals(gamlss_longitudinal_control))[1:6],
+    c("outer_tol", "max_outer_iter", "max_elapsed_sec", "stop_on_convergence", "rs", "cg")
+  )
+})
+
+test_that("optimizer control upgrades objects saved before smoothing controls", {
+  old <- gamlss_longitudinal_control()
+  old$shared$lambda_start <- NULL
+  old$shared$lambda_penalty <- NULL
+  specified <- attr(old, "specified")
+  specified$shared <- specified$shared[
+    !names(specified$shared) %in% c("lambda_start", "lambda_penalty")
+  ]
+  attr(old, "specified") <- specified
+
+  expect_output(print(old), "lambda_start: auto", fixed = TRUE)
+  upgraded <- gamlss.longitudinal:::.gl_resolve_optimizer_control(
+    "RS", old, legacy_values = list(), legacy_supplied = logical()
+  )
+  expect_true(is.na(upgraded$shared$lambda_start))
+  expect_equal(upgraded$shared$lambda_penalty, 2)
 })
 
 test_that("requested and effective controls retain automatic tolerance provenance", {
@@ -123,6 +197,7 @@ test_that("warm start uses one optimizer control bundle without legacy arguments
   expect_identical(captured$optimizer_control$shared$max_outer_iter, 3L)
   expect_false(captured$optimizer_control$rs$warm_start_joint)
   expect_false(any(names(captured) %in% names(gamlss.longitudinal:::.gl_legacy_optimizer_map())))
+  expect_false(any(names(captured) %in% c("true_val", "vcov_numderiv", "use_Rcpp")))
 })
 
 test_that("method-neutral convergence contract uses stable stop reasons", {
@@ -232,13 +307,14 @@ test_that("public RS and CG limits execute exactly one outer iteration", {
   common <- list(
     dataset = dat, margin_dist = gamlss.dist::NO(), copula_dist = "N",
     time_var = "time_raw", subject_var = "id", mu.formula = y ~ time_raw,
-    sigma.formula = ~1, theta.formula = ~1, include_dlcopdpar = FALSE,
+    sigma.formula = ~1, theta.formula = ~1,
     compute_vcov = FALSE, verbose = 0
   )
   quiet_fit <- function(method, control) {
     withCallingHandlers(
       do.call(gamlss_longitudinal, c(common, list(
         method = method,
+        optimization = if (identical(method, "CG")) "joint" else "separate",
         optimizer_control = control
       ))),
       warning = function(w) invokeRestart("muffleWarning")
@@ -277,7 +353,7 @@ test_that("public RS and CG time budgets abort with classed errors", {
   common <- list(
     dataset = dat, margin_dist = gamlss.dist::NO(), copula_dist = "N",
     time_var = "time_raw", subject_var = "id", mu.formula = y ~ time_raw,
-    sigma.formula = ~1, theta.formula = ~1, include_dlcopdpar = FALSE,
+    sigma.formula = ~1, theta.formula = ~1,
     compute_vcov = FALSE, verbose = 0
   )
   for (method in c("RS", "CG")) {
@@ -292,6 +368,7 @@ test_that("public RS and CG time budgets abort with classed errors", {
     err <- tryCatch(
       do.call(gamlss_longitudinal, c(common, list(
         method = method,
+        optimization = if (identical(method, "CG")) "joint" else "separate",
         optimizer_control = control
       ))),
       error = identity
@@ -306,7 +383,7 @@ test_that("legacy and control-object routes are numerically equivalent for RS an
   common <- list(
     dataset = dat, margin_dist = gamlss.dist::NO(), copula_dist = "N",
     time_var = "time_raw", subject_var = "id", mu.formula = y ~ time_raw,
-    sigma.formula = ~1, theta.formula = ~1, include_dlcopdpar = FALSE,
+    sigma.formula = ~1, theta.formula = ~1,
     compute_vcov = FALSE, verbose = 0
   )
   quiet_fit <- function(args) {
@@ -318,11 +395,11 @@ test_that("legacy and control-object routes are numerically equivalent for RS an
 
   gamlss.longitudinal:::.gl_reset_optimizer_control_deprecation()
   rs_old <- quiet_fit(c(common, list(
-    method = "RS", outer_stop_crit = 1, inner_stop_crit = 1,
+    method = "RS", include_dlcopdpar = FALSE, outer_stop_crit = 1, inner_stop_crit = 1,
     max_outer_iter = 2L, max_inner_iter = 2L, warm_start_joint = FALSE
   )))
   rs_new <- quiet_fit(c(common, list(
-    method = "RS",
+    method = "RS", optimization = "separate",
     optimizer_control = gamlss_longitudinal_control(
       outer_tol = 1, max_outer_iter = 2L,
       rs = list(inner_tol = 1, max_inner_iter = 2L, warm_start_joint = FALSE)
@@ -331,11 +408,11 @@ test_that("legacy and control-object routes are numerically equivalent for RS an
   expect_equal(rs_new$par, rs_old$par, tolerance = 1e-12)
 
   cg_old <- quiet_fit(c(common, list(
-    method = "CG", outer_stop_crit = 1, max_outer_iter = 2L,
+    method = "CG", include_dlcopdpar = TRUE, outer_stop_crit = 1, max_outer_iter = 2L,
     cg_grad_tol = 100, cg_step_tol = 100, cg_update_lambda = FALSE
   )))
   cg_new <- quiet_fit(c(common, list(
-    method = "CG",
+    method = "CG", optimization = "joint",
     optimizer_control = gamlss_longitudinal_control(
       outer_tol = 1, max_outer_iter = 2L,
       cg = list(grad_tol = 100, step_tol = 100, update_lambda = FALSE)

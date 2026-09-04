@@ -21,7 +21,7 @@
 
   args <- c(
     list(
-      dataset = dat,
+      data = dat,
       margin_dist = object$margin_dist,
       copula_dist = object$copula_dist,
       time_var = "time",
@@ -32,8 +32,8 @@
       tau.formula = object$formulas_int$tau,
       theta.formula = object$formulas_int$theta,
       zeta.formula = object$formulas_int$zeta,
-      start_from = object$par,
-      include_dlcopdpar = object$include_dlcopdpar,
+      start = object$par,
+      optimization = if (isTRUE(object$include_dlcopdpar)) "joint" else "separate",
       compute_vcov = FALSE,
       verbose = 0
     ),
@@ -53,7 +53,7 @@
 
   args <- c(
     list(
-      dataset = dat,
+      data = dat,
       margin_dist = object$margin_dist,
       copula_dist = object$copula_dist,
       time_var = "time",
@@ -64,8 +64,8 @@
       tau.formula = object$formulas_int$tau,
       theta.formula = object$formulas_int$theta,
       zeta.formula = object$formulas_int$zeta,
-      start_from = object$par,
-      include_dlcopdpar = object$include_dlcopdpar,
+      start = object$par,
+      optimization = if (isTRUE(object$include_dlcopdpar)) "joint" else "separate",
       compute_vcov = FALSE,
       verbose = 0
     ),
@@ -247,14 +247,12 @@ bootstrap_inference <- function(
 
 print.gamlss_longitudinal_bootstrap <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   title <- if (identical(x$simulation_type, "cluster")) {
-    "Cluster Bootstrap for gamlss.longitudinal"
+    "Cluster bootstrap"
   } else {
-    "Parametric Bootstrap for gamlss.longitudinal"
+    "Parametric bootstrap"
   }
 
-  cat("\n", title, "\n", sep = "")
-
-  cat(paste(rep("-", nchar(title)), collapse = ""), "\n", sep = "")
+  cat("\n<", title, ">\n", sep = "")
 
   cat("Replicates:", x$R, "\n")
 

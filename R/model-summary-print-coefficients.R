@@ -50,8 +50,21 @@
     coef_disp,
     param_order = c("mu", "sigma", "nu", "tau", "theta", "zeta"),
     prefix = "    ") {
+  has_inference <- any(coef_disp$std_error != "NA" | coef_disp$p_value != "NA")
   w_term <- max(nchar("term"), nchar(coef_disp$term, type = "width"), na.rm = TRUE)
   w_est <- max(nchar("estimate"), nchar(coef_disp$estimate, type = "width"), na.rm = TRUE)
+  if (!has_inference) {
+    for (p in c(param_order[param_order %in% unique(coef_disp$parameter)],
+                setdiff(unique(coef_disp$parameter), param_order))) {
+      block <- coef_disp[coef_disp$parameter == p, , drop = FALSE]
+      cat(sprintf("  [%s]\n", p))
+      cat(sprintf("    %-*s  %*s\n", w_term, "term", w_est, "estimate"))
+      for (ii in seq_len(nrow(block))) {
+        cat(sprintf("    %-*s  %*s\n", w_term, block$term[ii], w_est, block$estimate[ii]))
+      }
+    }
+    return(invisible(coef_disp))
+  }
   w_se <- max(nchar("std_error"), nchar(coef_disp$std_error, type = "width"), na.rm = TRUE)
   w_p <- max(nchar("p_value"), nchar(coef_disp$p_value, type = "width"), na.rm = TRUE)
   w_sig <- max(nchar("signif"), nchar(coef_disp$signif, type = "width"), na.rm = TRUE)

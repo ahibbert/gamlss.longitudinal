@@ -87,7 +87,7 @@
     # Check optional elapsed time budget (often used for debugging / stopping long runs proactively) 
     check_elapsed_budget("RS outer iteration")
 
-    if (verbose > 0) cat(paste("\nOUTER ITERATION:", outer_only_run_counter))
+    if (verbose > 1) cat(paste("\nOuter iteration:", outer_only_run_counter))
 
     #Per-outer-loop flag for the first iteration in the outer loop, 
     # used to control some logging and caching behavior

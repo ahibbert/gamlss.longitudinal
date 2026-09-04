@@ -64,7 +64,7 @@
     data = contour_grid,
     ggplot2::aes(x = .data$X1, y = .data$X2, z = .data$density),
     inherit.aes = FALSE,
-    color = "#e41a1c",
+    color = .gl_plot_colours()[["fitted"]],
     linewidth = 0.8,
     bins = contour_bins
   )
@@ -113,7 +113,7 @@
     data = contour_grid,
     ggplot2::aes(x = .data$X1, y = .data$X2, z = .data$density),
     inherit.aes = FALSE,
-    color = "#e41a1c",
+    color = .gl_plot_colours()[["fitted"]],
     linewidth = 0.8,
     bins = contour_bins
   )

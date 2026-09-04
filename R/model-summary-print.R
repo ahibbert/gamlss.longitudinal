@@ -29,7 +29,7 @@
   df_label <- paste0(formatC(zeta_nat, format = "f", digits = 1), collapse = ", ")
 
   paste0(
-    "WARNING: t-copula zeta is near the Gaussian-limit regime (link-scale zeta = ",
+    "Caution: t-copula zeta is near the Gaussian-limit regime (link-scale zeta = ",
     zeta_label,
     "; implied degrees of freedom ",
     df_label,
@@ -39,10 +39,11 @@
 
 #' @export
 print.summary.gamlss.longitudinal <- function(x, digits = max(3, getOption("digits") - 3), ...) {
-  cat("\nGAMLSS Longitudinal Model Summary\n")
-  cat("--------------------------------\n")
-  cat("Margin distribution:", x$model$margin_dist, "\n")
-  cat("Copula distribution:", x$model$copula_dist, "\n")
+  cat("\n<gamlss_longitudinal summary>\n")
+  margin_family <- .margin_family_object(x$model$margin_dist)
+  margin_label <- if (is.null(margin_family)) x$model$margin_dist else .gl_margin_display_label(margin_family)
+  cat("Margin: ", margin_label, " | Copula: ", .gl_copula_display_label(x$model$copula_dist), "\n", sep = "")
+  cat("Optimizer: ", x$model$optimizer, ", ", x$model$optimization, "\n", sep = "")
   if (identical(x$convergence$converged, FALSE)) {
     cat(
       "Convergence: NOT CONVERGED (stop reason:",
@@ -50,7 +51,7 @@ print.summary.gamlss.longitudinal <- function(x, digits = max(3, getOption("digi
     )
     cat("Inference is disabled; likelihood criteria below are provisional and must not be used for model selection.\n")
   } else {
-    cat("Convergence: CONVERGED\n")
+    cat("Convergence: converged\n")
   }
 
   copula_warning <- .copula_v2_gaussian_limit_warning(x)
@@ -59,7 +60,7 @@ print.summary.gamlss.longitudinal <- function(x, digits = max(3, getOption("digi
   }
 
   cat(
-    "Observations:", x$model$n_obs,
+    "Observed responses:", x$model$n_obs,
     " | Subjects:", x$model$n_subjects,
     " | Time points:", x$model$n_timepoints, "\n"
   )
@@ -102,16 +103,17 @@ print.summary.gamlss.longitudinal <- function(x, digits = max(3, getOption("digi
     }
   }
 
-  cat("\nFixed coefficients:\n")
-  cat("--------------------\n")
+  cat("\nFixed coefficients\n")
   coef_disp <- .gl_summary_coefficient_display(x$coefficients, digits = digits)
   .gl_print_summary_coefficient_blocks(coef_disp)
 
-  cat("  Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1\n")
+  if (any(is.finite(x$coefficients$std_error))) {
+    cat("  Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1\n")
+  } else {
+    cat("  Standard errors were not computed.\n")
+  }
 
   .gl_print_summary_smooth_terms(x$smooth_terms, digits = digits)
   .gl_print_summary_model_selection(x$fit, digits = digits)
-  cat("--------------------------------\n")
-
   invisible(x)
 }

@@ -139,7 +139,12 @@ boot <- bootstrap_inference(
   R = 200,
   terms = c("mu.treatment", "sigma.treatment"),
   seed = 1,
-  fit_args = list(max_outer_iter = 20, max_inner_iter = 20)
+  fit_args = list(
+    optimizer_control = gamlss_longitudinal_control(
+      max_outer_iter = 20,
+      rs = list(max_inner_iter = 20)
+    )
+  )
 )
 
 boot

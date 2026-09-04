@@ -27,7 +27,7 @@
 
   invisible(utils::capture.output({
     fit <- gamlss_longitudinal(
-      dataset = dat,
+      data = dat,
       margin_dist = margin_dist,
       copula_dist = copula,
       time_var = "time",
@@ -39,9 +39,9 @@
       tau.formula = formulas$tau,
       theta.formula = formulas$theta,
       zeta.formula = formulas$zeta,
-      include_dlcopdpar = FALSE,
+      optimization = "separate",
       method = "RS",
-      start_from = NA,
+      start = NA,
       optimizer_control = gamlss_longitudinal_control(
         outer_tol = 1e-4,
         max_outer_iter = max_outer_iter,
@@ -121,7 +121,7 @@
 
     invisible(utils::capture.output({
       fit <- gamlss_longitudinal(
-        dataset = dat,
+        data = dat,
         margin_dist = margin_dist,
         copula_dist = copula,
         time_var = "time",
@@ -133,9 +133,9 @@
         tau.formula = formulas$tau,
         theta.formula = formulas$theta,
         zeta.formula = formulas$zeta,
-        include_dlcopdpar = include_dlcopdpar,
+        optimization = if (isTRUE(include_dlcopdpar)) "joint" else "separate",
         method = fit_method,
-        start_from = start_from,
+        start = start_from,
         optimizer_control = optimizer_control,
         compute_vcov = FALSE,
         verbose = 0

@@ -183,9 +183,7 @@ wald_test <- function(
 #' @export
 
 print.gamlss_longitudinal_wald_test <- function(x, digits = max(3, getOption("digits") - 3), ...) {
-  cat("\nWald Test for gamlss.longitudinal\n")
-
-  cat("---------------------------------\n")
+  cat("\n<Wald test>\n")
 
   cat("Test type:", if (isTRUE(attr(x, "joint"))) "joint" else "individual", "\n")
 

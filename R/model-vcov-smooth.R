@@ -120,24 +120,6 @@
               allow_zero = FALSE
             )
 
-            cat(sprintf("\nSmooth term variance estimates for %s:%s\n", par_name, s_name))
-
-            cat(sprintf(
-              "  Basis coefficients SE: min=%.4f, max=%.4f, mean=%.4f\n",
-              min(smooth_se), max(smooth_se), mean(smooth_se)
-            ))
-
-            cat(sprintf(
-              "  Fitted values SE: min=%.4f, max=%.4f, mean=%.4f\n",
-              min(fitted_se), max(fitted_se), mean(fitted_se)
-            ))
-
-            cat(sprintf(
-              "  Effective DF: %.2f (trace of smoother matrix)\n",
-              sum(diag(smoother_matrix))
-            ))
-
-            cat(sprintf("  Smoothing parameter lambda: %.4f\n", lambda))
           },
           error = function(e) {
             warning(sprintf(

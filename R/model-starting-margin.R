@@ -24,8 +24,6 @@
       stats::sd(finite_response) / mean(finite_response)
     )
   } else {
-    cat("Fitting initial GAMLSS model for margin to obtain starting values...\n")
-
     # Deliberately low-iteration startup fit; silence expected convergence warnings.
     start_fit <- tryCatch(
       {

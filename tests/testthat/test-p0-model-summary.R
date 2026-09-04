@@ -34,7 +34,7 @@ test_that("summary helpers build model metadata and criteria", {
   model_info <- gamlss.longitudinal:::.gl_summary_model_info(object)
   fit_criteria <- gamlss.longitudinal:::.gl_summary_fit_criteria(object, n_obs = model_info$n_obs)
 
-  expect_equal(model_info$n_obs, 3L)
+  expect_equal(model_info$n_obs, 2L)
   expect_equal(model_info$n_subjects, 2L)
   expect_equal(model_info$n_timepoints, 2L)
   expect_equal(model_info$n_fixed, 3L)
@@ -219,7 +219,7 @@ test_that("summary method delegates to summary helpers", {
   out <- summary(object, include_vcov = FALSE)
 
   expect_s3_class(out, "summary.gamlss.longitudinal")
-  expect_equal(out$model$n_obs, 3L)
+  expect_equal(out$model$n_obs, 2L)
   expect_equal(out$fit$logLik, -12)
   expect_equal(out$coefficients$term, c("mu.intercept", "sigma.intercept", "theta.intercept"))
   expect_equal(nrow(out$smooth_terms), 1L)
@@ -231,7 +231,7 @@ test_that("summary print method uses grouped coefficient display", {
 
   printed <- capture.output(print(out))
 
-  expect_true(any(grepl("GAMLSS Longitudinal Model Summary", printed, fixed = TRUE)))
+  expect_true(any(grepl("<gamlss_longitudinal summary>", printed, fixed = TRUE)))
   expect_true(any(grepl("Fixed coefficients:", printed, fixed = TRUE)))
   expect_true(any(grepl("  [mu]", printed, fixed = TRUE)))
   expect_true(any(grepl("  [sigma]", printed, fixed = TRUE)))

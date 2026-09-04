@@ -122,15 +122,16 @@ plot.copula_contour_compare <- function(x, lags = 1, grid_n = 45, max_pairs_over
   x_label <- axis_labels$x
   y_label <- axis_labels$y
 
+  cols <- .gl_plot_colours()
   p_emp <- ggplot2::ggplot(grid_df, ggplot2::aes(x = u1, y = u2, z = density_emp)) +
-    ggplot2::geom_contour(color = "#4d4d4d", bins = contour_bins, linewidth = 0.9) +
+    ggplot2::geom_contour(color = cols[["observed"]], bins = contour_bins, linewidth = 0.9) +
     ggplot2::labs(title = "Empirical Copula Contours", x = x_label, y = y_label) +
-    ggplot2::theme_minimal()
+    theme_gamlss_longitudinal()
 
   p_fit <- ggplot2::ggplot(grid_df, ggplot2::aes(x = u1, y = u2, z = density_fit)) +
-    ggplot2::geom_contour(color = "#e41a1c", bins = contour_bins, linewidth = 0.9) +
+    ggplot2::geom_contour(color = cols[["fitted"]], bins = contour_bins, linewidth = 0.9) +
     ggplot2::labs(title = "Fitted Copula Contours", x = x_label, y = y_label) +
-    ggplot2::theme_minimal()
+    theme_gamlss_longitudinal()
 
   p_diff <- ggplot2::ggplot(grid_df, ggplot2::aes(x = u1, y = u2, fill = density_diff)) +
     ggplot2::geom_raster(interpolate = TRUE) +
@@ -144,7 +145,7 @@ plot.copula_contour_compare <- function(x, lags = 1, grid_n = 45, max_pairs_over
       name = "Fit - Emp"
     ) +
     ggplot2::labs(title = "Contour Difference Surface", x = x_label, y = y_label) +
-    ggplot2::theme_minimal()
+    theme_gamlss_longitudinal()
 
   if (isTRUE(time_stratified)) {
     p_emp <- p_emp + ggplot2::facet_wrap(~time_pair)
@@ -160,10 +161,10 @@ plot.copula_contour_compare <- function(x, lags = 1, grid_n = 45, max_pairs_over
     print(dashboard)
   }
 
-  invisible(list(
+  invisible(.gl_new_plot_result(list(
     plots = list(empirical_contours = p_emp, fitted_contours = p_fit, difference_surface = p_diff),
     dashboard = dashboard,
     grid = grid_df,
     metrics = list(summary = metric_summary, overlap = metric_overlap)
-  ))
+  )))
 }

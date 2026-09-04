@@ -298,7 +298,7 @@ test_that("T203 check_model returns basic-check diagnostic object", {
   expect_true(all(c("scope_status", "threshold_source") %in% names(chk$residual_dependence)))
 
   printed <- capture.output(print(chk))
-  expect_lt(grep("Basic Checks", printed), grep("Scores", printed))
+  expect_lt(grep("Basic checks", printed, fixed = TRUE), grep("Scores", printed, fixed = TRUE))
   expect_true(any(grepl("Summary:", printed, fixed = TRUE)))
   expect_true(any(grepl("not package pass/fail verdicts", printed, fixed = TRUE)))
   expect_false(any(grepl("Detailed checks", printed, fixed = TRUE)))
@@ -364,7 +364,7 @@ test_that("T203b check_missingness screens response missingness against observed
   expect_equal(chk$response$n_missing, sum(is.na(dat$y)))
   expect_true(chk$assessment %in% c("covariate_related_missingness", "no_detected_covariate_association"))
   expect_true(all(c("term", "p_value") %in% names(chk$terms)))
-  expect_output(print(chk), "Response Missingness Check")
+  expect_output(print(chk), "<Response missingness check>", fixed = TRUE)
 
   no_missing <- check_missingness(dat[!is.na(dat$y), ], response_var = "y")
   expect_equal(no_missing$assessment, "no_missing_responses")
@@ -400,7 +400,7 @@ test_that("T204b copula_time_summary prints dependence summaries", {
 
   expect_s3_class(dep, "copula_time_summary")
   expect_true(all(c("time_summary", "pair_summary", "fit_data", "pair_data") %in% names(dep)))
-  expect_output(print(dep), "Copula Dependence Summary")
+  expect_output(print(dep), "<Copula dependence summary>", fixed = TRUE)
   expect_true(all(c("theta_fit", "tau_fit") %in% names(dep$time_summary)))
 })
 
@@ -424,8 +424,10 @@ test_that("T205 select_margin and screen_margin return ordered candidate tables 
   expect_equal(best_fit_family(screen)$family[1], screen$family[[1L]])
 
   dat <- data.frame(response = y)
-  expect_silent(
-    from_data <- screen_margin(dat, response_var = "response", type = "realAll", try.gamlss = FALSE, trace = FALSE)
+  expect_warning(
+    from_data <- screen_margin(dat, response_var = "response", type = "realAll", try.gamlss = FALSE, trace = FALSE),
+    "'screen_margin' is deprecated",
+    fixed = TRUE
   )
   expect_s3_class(from_data, "margin_selection")
   expect_s3_class(from_data, "margin_screen")

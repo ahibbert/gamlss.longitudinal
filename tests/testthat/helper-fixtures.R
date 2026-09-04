@@ -105,7 +105,7 @@ fit_fixture_model <- function(
 
   withCallingHandlers(
     gamlss.longitudinal::gamlss_longitudinal(
-      dataset = dataset,
+      data = dataset,
       margin_dist = gamlss.dist::NO(),
       copula_dist = "N",
       time_var = time_var,
@@ -117,8 +117,8 @@ fit_fixture_model <- function(
       tau.formula = tau_formula,
       theta.formula = theta_formula,
       zeta.formula = zeta_formula,
-      start_from = start_from,
-      include_dlcopdpar = include_dlcopdpar,
+      start = start_from,
+      optimization = if (isTRUE(include_dlcopdpar)) "joint" else "separate",
       method = method,
       optimizer_control = if (identical(toupper(method), "RS")) {
         gamlss.longitudinal::gamlss_longitudinal_control(
@@ -254,3 +254,4 @@ capture_warnings <- function(expr) {
   )
   list(value = value, warnings = warnings)
 }
+options(gamlss.longitudinal.lifecycle_verbosity = "quiet")

@@ -20,6 +20,18 @@
   )
 }
 
+.copula_v2_select_dashboard_plots <- function(plots, type) {
+  keys <- switch(
+    type,
+    overview = c("empirical_overlay", "kendall_function", "rosenblatt_qq", "residual_lag_correlation"),
+    calibration = c("empirical_overlay", "quartile_correlation", "kendall_function"),
+    residuals = c("rosenblatt_by_time", "rosenblatt_qq", "rosenblatt_lag", "residual_lag_correlation"),
+    tails = c("tail_cooccurrence", "conditional_tail_exceedance"),
+    all = names(plots)
+  )
+  plots[keys]
+}
+
 .copula_v2_arrange_dashboard <- function(dashboard_plots, dashboard_ncol) {
   do.call(
     ggpubr::ggarrange,
@@ -34,6 +46,8 @@
 }
 
 .copula_v2_plot_result <- function(plots,
+                                   displayed_plots = plots,
+                                   type = "all",
                                    dashboard,
                                    fit_data,
                                    pair_data,
@@ -45,8 +59,10 @@
                                    tail_summary,
                                    conditional_tail_summary,
                                    residual_lag_summary) {
-  list(
+  .gl_new_plot_result(list(
     plots = plots,
+    displayed_plots = displayed_plots,
+    type = type,
     dashboard = dashboard,
     fit_data = fit_data,
     pair_data = pair_data,
@@ -58,5 +74,5 @@
     tail_summary = tail_summary,
     conditional_tail_summary = conditional_tail_summary,
     residual_lag_summary = residual_lag_summary
-  )
+  ))
 }

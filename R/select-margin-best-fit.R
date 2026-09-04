@@ -61,11 +61,9 @@ best_fit.margin_selection <- function(x, ...) {
     ))
   }
 
-  row <- as.data.frame(x)[1L, , drop = FALSE]
+  row_meta <- .gl_row_as_plain_list(x, 1L)
 
-  family_name <- as.character(row$family[[1L]])
-
-  row_meta <- as.list(row)
+  family_name <- as.character(row_meta$family)
 
   row_meta$family <- NULL
 

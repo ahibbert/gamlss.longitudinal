@@ -74,9 +74,7 @@ likelihood_compare <- function(..., sort = FALSE) {
 #' @export
 
 print.gamlss_longitudinal_likelihood_compare <- function(x, digits = max(3, getOption("digits") - 3), ...) {
-  cat("\nLikelihood Comparison for gamlss.longitudinal\n")
-
-  cat("--------------------------------------------\n")
+  cat("\n<Likelihood comparison>\n")
 
   cat("Sequential LR rows compare each model with the previous row.\n\n")
 
