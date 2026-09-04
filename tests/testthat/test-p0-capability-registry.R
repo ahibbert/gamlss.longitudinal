@@ -59,7 +59,9 @@ test_that("capability tables are direct projections of the registry specs", {
     expect_equal(observed, expected, info = family)
   }
 
-  rd <- readLines(test_path("..", "..", "man", "longitudinal_capabilities.Rd"), warn = FALSE)
+  rd_path <- test_path("..", "..", "man", "longitudinal_capabilities.Rd")
+  skip_if_not(file.exists(rd_path), "Package source documentation is unavailable in the installed-package test context.")
+  rd <- readLines(rd_path, warn = FALSE)
   expect_true(any(grepl("BCPE", rd, fixed = TRUE)))
   expect_true(any(grepl("NBI", rd, fixed = TRUE)))
   expect_true(any(grepl("one homogeneous marginal family", tolower(rd), fixed = TRUE)))
