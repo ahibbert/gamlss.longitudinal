@@ -1,0 +1,2 @@
+"schema_version","target_usable_pairs","confidence_level","estimand","runtime_interpretation","publication_scope"
+"optimizer-publication-lean-v1",97,0.95,"paired RS-joint minus RS-separate mean difference","descriptive_order_confounded","supplementary"
