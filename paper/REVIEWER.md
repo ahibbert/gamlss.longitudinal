@@ -12,7 +12,9 @@ The first run restores the lockfile and installs this checkout into an isolated 
 
 - `smoke` uses only newly simulated public data and is intended to finish in 15 minutes.
 - `paper` rebuilds every public manuscript asset from versioned analysis-ready inputs and is intended to finish in 60 minutes.
-- `full` reruns all public Monte Carlo studies with fixed seeds and checkpoint/resume support.
+- `full` reruns the retained public Monte Carlo studies with fixed seeds and
+  checkpoint/resume support. The exploratory multivariate benchmark is deferred
+  from this submission and is not in the target graph.
 
 The public workflow has no private-data application dependency. The fully simulated BCPE/t workflow reproduces the complete model-building, diagnostic, prediction, and visualization sequence.
 
@@ -31,11 +33,16 @@ For text inputs, `sha256` is the newline/BOM-canonicalized digest used by the
 cross-platform verifier; `raw_sha256` is also supplied for comparison with
 ordinary file-hashing tools. Binary inputs use the same raw digest in both.
 
-For CSV and TeX publication assets, validation requires the approved canonical
-hash. PNG hashes are recorded and compared with the approved reference, but a
-changed hash is informational because plotting-library and renderer versions can
-change binary bytes; PNG validation requires valid dimensions and nonblank
-content, followed by the publisher dry-run and visual manuscript check.
+Reviewer-facing evidence is checked using versioned schemas, complete scenario
+and replicate keys, explicit attempt/convergence/retention denominators, finite
+numeric fields, and reconstruction of publication summaries. It requires no
+author-held signing key or detached attestation. PNG hashes are recorded and
+compared with the reference, but a changed hash is informational because
+plotting-library and renderer versions can change binary bytes; PNG validation
+requires valid dimensions and nonblank content, followed by the publisher
+dry-run and visual manuscript check.
 
 The generated profile manifest contains public rows only and uses paths relative
-to its result directory. Do not provide private data to any public command.
+to its result directory. Private static manuscript assets are hash-audited
+separately and are never copied, regenerated, or published by these commands.
+Do not provide private data to any public command.
