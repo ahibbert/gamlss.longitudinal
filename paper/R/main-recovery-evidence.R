@@ -3,7 +3,7 @@
 # This file is sourced by the production evidence runner and focused tests; it
 # is not package API. SHA-256 provenance requires the pinned digest package.
 
-jss_recovery_schema_version <- function() "2026-09-04.1"
+jss_recovery_schema_version <- function() "2026-09-05.1"
 
 jss_recovery_phase1_contract_version <- function() {
   "likelihood-jss001-2026-09-01|inference-2026.1|capability-2026.2"
@@ -16,6 +16,38 @@ jss_recovery_sha256 <- function(paths) {
     stop("Package 'digest' is required for main-recovery SHA-256 provenance.", call. = FALSE)
   }
   vapply(paths, digest::digest, character(1), file = TRUE, algo = "sha256", serialize = FALSE)
+}
+
+jss_recovery_portable_text <- function(path) {
+  value <- paste(readLines(path, warn = FALSE, encoding = "UTF-8"), collapse = "\n")
+  sub("^\ufeff", "", value)
+}
+
+jss_recovery_is_portable_text <- function(paths) {
+  grepl("[.](csv|tex|txt|md|R|Rmd|qmd|ya?ml|json)$", paths, ignore.case = TRUE)
+}
+
+jss_recovery_portable_sha256 <- function(paths) {
+  if (!requireNamespace("digest", quietly = TRUE)) {
+    stop("Package 'digest' is required for main-recovery SHA-256 provenance.", call. = FALSE)
+  }
+  vapply(paths, function(path) {
+    if (jss_recovery_is_portable_text(path)) {
+      digest::digest(charToRaw(jss_recovery_portable_text(path)), algo = "sha256", serialize = FALSE)
+    } else {
+      digest::digest(file = path, algo = "sha256", serialize = FALSE)
+    }
+  }, character(1L))
+}
+
+jss_recovery_portable_bytes <- function(paths) {
+  vapply(paths, function(path) {
+    if (jss_recovery_is_portable_text(path)) {
+      length(charToRaw(jss_recovery_portable_text(path)))
+    } else {
+      unname(file.info(path)$size)
+    }
+  }, numeric(1L))
 }
 
 jss_recovery_package_source_files <- function(repo_root) {
@@ -67,7 +99,7 @@ jss_recovery_control_source_identity <- function(repo_root) {
   paths <- jss_recovery_control_source_paths(repo_root)
   data.frame(
     schema_version = jss_recovery_schema_version(), source_path = names(paths),
-    sha256 = unname(jss_recovery_sha256(paths)), bytes = unname(file.info(paths)$size),
+    sha256 = unname(jss_recovery_portable_sha256(paths)), bytes = unname(jss_recovery_portable_bytes(paths)),
     stringsAsFactors = FALSE
   )
 }
@@ -282,8 +314,8 @@ jss_recovery_frame_identity <- function(frames) {
     on.exit(unlink(temporary), add = TRUE)
     utils::write.csv(frames[[name]], temporary, row.names = FALSE, na = "")
     data.frame(schema_version = jss_recovery_schema_version(), input_id = name,
-      path = paste0(name, ".csv"), sha256 = unname(jss_recovery_sha256(temporary)),
-      bytes = unname(file.info(temporary)$size), stringsAsFactors = FALSE)
+      path = paste0(name, ".csv"), sha256 = unname(jss_recovery_portable_sha256(temporary)),
+      bytes = unname(jss_recovery_portable_bytes(temporary)), stringsAsFactors = FALSE)
   })
   do.call(rbind, rows)
 }
@@ -306,8 +338,8 @@ jss_recovery_bundle_is_current <- function(output_dir, expected_outputs, provena
   if (!all(comparable %in% names(checkpoint$input_provenance)) ||
       !isTRUE(all.equal(checkpoint$input_provenance[comparable], provenance[comparable], check.attributes = FALSE))) return(FALSE)
   current <- data.frame(
-    file = basename(expected_outputs), sha256 = unname(jss_recovery_sha256(expected_outputs)),
-    bytes = unname(file.info(expected_outputs)$size), stringsAsFactors = FALSE
+    file = basename(expected_outputs), sha256 = unname(jss_recovery_portable_sha256(expected_outputs)),
+    bytes = unname(jss_recovery_portable_bytes(expected_outputs)), stringsAsFactors = FALSE
   )
   isTRUE(all.equal(checkpoint$output_files, current, check.attributes = FALSE))
 }
@@ -338,8 +370,8 @@ jss_recovery_install_bundle <- function(outputs, output_dir, provenance, repo_ro
   output_manifest <- data.frame(
     schema_version = jss_recovery_schema_version(),
     artifact = basename(staged_outputs),
-    sha256 = unname(jss_recovery_sha256(staged_outputs)),
-    bytes = unname(file.info(staged_outputs)$size),
+    sha256 = unname(jss_recovery_portable_sha256(staged_outputs)),
+    bytes = unname(jss_recovery_portable_bytes(staged_outputs)),
     stringsAsFactors = FALSE
   )
   jss_recovery_atomic_csv(output_manifest, output_manifest_path)
@@ -350,15 +382,15 @@ jss_recovery_install_bundle <- function(outputs, output_dir, provenance, repo_ro
     schema_version = jss_recovery_schema_version(),
     producer_sha256 = jss_recovery_producer_sha256(repo_root),
     input_provenance_sha256 = input_digest,
-    output_manifest_sha256 = unname(jss_recovery_sha256(output_manifest_path)),
+    output_manifest_sha256 = unname(jss_recovery_portable_sha256(output_manifest_path)),
     artifact_count = nrow(output_manifest), stringsAsFactors = FALSE
   )
   jss_recovery_atomic_csv(portable_checkpoint, portable_checkpoint_path)
   staged_all <- c(staged_outputs, output_manifest = output_manifest_path, bundle_checkpoint = portable_checkpoint_path)
   checkpoint <- list(
     schema_version = jss_recovery_schema_version(), input_provenance = provenance,
-    output_files = data.frame(file = basename(staged_all), sha256 = unname(jss_recovery_sha256(staged_all)),
-      bytes = unname(file.info(staged_all)$size), stringsAsFactors = FALSE)
+    output_files = data.frame(file = basename(staged_all), sha256 = unname(jss_recovery_portable_sha256(staged_all)),
+      bytes = unname(jss_recovery_portable_bytes(staged_all)), stringsAsFactors = FALSE)
   )
   saveRDS(checkpoint, jss_recovery_bundle_checkpoint_path(staging))
   if (dir.exists(output_dir) && !file.rename(output_dir, backup)) stop("Could not move the previous bundle aside.", call. = FALSE)
@@ -1771,7 +1803,7 @@ jss_recovery_bundle_identity <- function(path) {
   artifact_names <- jss_main_recovery_artifact_names()
   files <- file.path(path, artifact_names)
   if (any(!file.exists(files))) stop("Cannot identify an incomplete main-recovery bundle.", call. = FALSE)
-  hashes <- unname(jss_recovery_sha256(files))
+  hashes <- unname(jss_recovery_portable_sha256(files))
   bundle_sha <- digest::digest(paste(artifact_names, hashes, sep = "\t", collapse = "\n"), "sha256", serialize = FALSE)
   ledger <- utils::read.csv(file.path(path, "attempt_metadata.csv"), stringsAsFactors = FALSE, check.names = FALSE)
   design <- utils::read.csv(file.path(path, "design_table.csv"), stringsAsFactors = FALSE, check.names = FALSE)
@@ -1781,7 +1813,7 @@ jss_recovery_bundle_identity <- function(path) {
   settings <- data.frame(
     margin_family = c("BCPE", "NBI"),
     file = c("runner_settings_bcpe.csv", "runner_settings_nbi.csv"),
-    sha256 = unname(jss_recovery_sha256(file.path(path, c("runner_settings_bcpe.csv", "runner_settings_nbi.csv")))),
+    sha256 = unname(jss_recovery_portable_sha256(file.path(path, c("runner_settings_bcpe.csv", "runner_settings_nbi.csv")))),
     stringsAsFactors = FALSE
   )
   package_sha <- unique(as.character(ledger$package_source_sha256)); producer <- utils::read.csv(file.path(path, "production_provenance.csv"), stringsAsFactors = FALSE)
@@ -1796,10 +1828,10 @@ jss_recovery_bundle_identity <- function(path) {
       sum(planned_groups$target_replicates) != registered$planned_method_replicate_cells) stop("Main-recovery bundle identity does not satisfy the exact registered n/T/R design.", call. = FALSE)
   list(
     schema_version = 1L, study = "main-recovery", bundle_sha256 = bundle_sha,
-    output_manifest_sha256 = unname(jss_recovery_sha256(file.path(path, "output_manifest.csv"))),
-    bundle_checkpoint_sha256 = unname(jss_recovery_sha256(file.path(path, "bundle_checkpoint.csv"))),
+    output_manifest_sha256 = unname(jss_recovery_portable_sha256(file.path(path, "output_manifest.csv"))),
+    bundle_checkpoint_sha256 = unname(jss_recovery_portable_sha256(file.path(path, "bundle_checkpoint.csv"))),
     runner_settings_manifest = settings,
-    control_source_manifest_sha256 = unname(jss_recovery_sha256(file.path(path, "control_source_manifest.csv"))),
+    control_source_manifest_sha256 = unname(jss_recovery_portable_sha256(file.path(path, "control_source_manifest.csv"))),
     package_source_sha256 = package_sha, producer_sha256 = producer_sha,
     registered_configuration = registered, execution_manifest = execution
   )
@@ -1853,7 +1885,7 @@ jss_main_recovery_validate_public_bundle <- function(path, conf.level = 0.95,
     stop("Main-recovery bundled input provenance does not exactly match the canonical normalized-input allowlist.", call. = FALSE)
   }
   input_paths <- file.path(path, input_provenance$path)
-  input_ok <- file.exists(input_paths) & input_provenance$sha256 == unname(jss_recovery_sha256(input_paths)) & input_provenance$bytes == unname(file.info(input_paths)$size)
+  input_ok <- file.exists(input_paths) & input_provenance$sha256 == unname(jss_recovery_portable_sha256(input_paths)) & input_provenance$bytes == unname(jss_recovery_portable_bytes(input_paths))
   if (any(!input_ok)) stop("Main-recovery bundled input provenance hash mismatch.", call. = FALSE)
   protected <- setdiff(jss_main_recovery_artifact_names(), c("output_manifest.csv", "bundle_checkpoint.csv"))
   if (!identical(sort(as.character(manifest$artifact)), sort(protected)) || anyDuplicated(manifest$artifact)) {
@@ -1861,12 +1893,12 @@ jss_main_recovery_validate_public_bundle <- function(path, conf.level = 0.95,
   }
   if (!all(manifest$schema_version == jss_recovery_schema_version()) || any(!grepl("^[0-9a-f]{64}$", manifest$sha256))) stop("Main-recovery output manifest has invalid schema or SHA-256 fields.", call. = FALSE)
   manifest_paths <- file.path(path, manifest$artifact)
-  hash_ok <- manifest$sha256 == unname(jss_recovery_sha256(manifest_paths)) & manifest$bytes == unname(file.info(manifest_paths)$size)
+  hash_ok <- manifest$sha256 == unname(jss_recovery_portable_sha256(manifest_paths)) & manifest$bytes == unname(jss_recovery_portable_bytes(manifest_paths))
   if (any(!hash_ok)) stop("Main-recovery publication artifact hash mismatch: ", paste(manifest$artifact[!hash_ok], collapse = ", "), call. = FALSE)
   input_digest <- digest::digest(paste(input_provenance$input_id, input_provenance$sha256, sep = "=", collapse = "\n"), algo = "sha256", serialize = FALSE)
   if (nrow(checkpoint) != 1L || checkpoint$schema_version != jss_recovery_schema_version() ||
       checkpoint$producer_sha256 != jss_recovery_producer_sha256(repo_root) || checkpoint$input_provenance_sha256 != input_digest ||
-      checkpoint$output_manifest_sha256 != unname(jss_recovery_sha256(file.path(path, "output_manifest.csv"))) ||
+      checkpoint$output_manifest_sha256 != unname(jss_recovery_portable_sha256(file.path(path, "output_manifest.csv"))) ||
       checkpoint$artifact_count != nrow(manifest)) {
     stop("Main-recovery portable checkpoint is invalid.", call. = FALSE)
   }

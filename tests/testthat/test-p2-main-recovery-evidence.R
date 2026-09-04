@@ -16,18 +16,18 @@ local_repin_main_recovery_bundle <- function(env, path) {
   input <- utils::read.csv(file.path(path, "input_provenance.csv"), stringsAsFactors = FALSE, check.names = FALSE)
   for (i in seq_len(nrow(input))) {
     raw <- file.path(path, input$path[[i]])
-    input$sha256[[i]] <- unname(env$jss_recovery_sha256(raw)); input$bytes[[i]] <- file.info(raw)$size
+    input$sha256[[i]] <- unname(env$jss_recovery_portable_sha256(raw)); input$bytes[[i]] <- env$jss_recovery_portable_bytes(raw)
   }
   utils::write.csv(input, file.path(path, "input_provenance.csv"), row.names = FALSE, na = "")
   manifest <- utils::read.csv(file.path(path, "output_manifest.csv"), stringsAsFactors = FALSE, check.names = FALSE)
   for (i in seq_len(nrow(manifest))) {
     raw <- file.path(path, manifest$artifact[[i]])
-    manifest$sha256[[i]] <- unname(env$jss_recovery_sha256(raw)); manifest$bytes[[i]] <- file.info(raw)$size
+    manifest$sha256[[i]] <- unname(env$jss_recovery_portable_sha256(raw)); manifest$bytes[[i]] <- env$jss_recovery_portable_bytes(raw)
   }
   utils::write.csv(manifest, file.path(path, "output_manifest.csv"), row.names = FALSE, na = "")
   checkpoint <- utils::read.csv(file.path(path, "bundle_checkpoint.csv"), stringsAsFactors = FALSE, check.names = FALSE)
   checkpoint$input_provenance_sha256 <- digest::digest(paste(input$input_id, input$sha256, sep = "=", collapse = "\n"), algo = "sha256", serialize = FALSE)
-  checkpoint$output_manifest_sha256 <- unname(env$jss_recovery_sha256(file.path(path, "output_manifest.csv")))
+  checkpoint$output_manifest_sha256 <- unname(env$jss_recovery_portable_sha256(file.path(path, "output_manifest.csv")))
   utils::write.csv(checkpoint, file.path(path, "bundle_checkpoint.csv"), row.names = FALSE, na = "")
   invisible(path)
 }
@@ -567,7 +567,7 @@ test_that("checkout source identity is clone-portable and rejects paths outside 
   expect_identical(env$jss_recovery_package_source_sha256(clone), env$jss_recovery_package_source_sha256(root))
 })
 
-test_that("producer identity binds the lean portable control surface by exact bytes", {
+test_that("producer identity binds the lean portable control surface by canonical text", {
   env <- local_main_recovery_env(); root <- local_main_recovery_root()
   identity <- env$jss_recovery_control_source_identity(root)
   required <- c("paper/R/main-recovery-evidence.R",
@@ -581,6 +581,23 @@ test_that("producer identity binds the lean portable control surface by exact by
   expect_true(all(identity$bytes > 0))
   expected <- digest::digest(paste(identity$source_path, identity$sha256, identity$bytes, sep = "\t", collapse = "\n"), algo = "sha256", serialize = FALSE)
   expect_identical(env$jss_recovery_producer_sha256(root), expected)
+})
+
+test_that("public bundle verification survives Git newline normalization", {
+  env <- local_main_recovery_env(); root <- local_main_recovery_root()
+  source <- file.path(root, "paper", "data", "public-derived", "main-recovery")
+  normalized <- tempfile("main-recovery-lf-checkout-"); dir.create(normalized)
+  files <- file.path(source, env$jss_main_recovery_artifact_names())
+  expect_true(all(file.copy(files, normalized)))
+  copied <- file.path(normalized, basename(files))
+  for (path in copied) {
+    raw <- readBin(path, "raw", n = file.info(path)$size)
+    value <- gsub("\r\n", "\n", rawToChar(raw), fixed = TRUE)
+    con <- file(path, "wb"); writeBin(charToRaw(value), con); close(con)
+  }
+  expect_silent(env$jss_main_recovery_validate_public_bundle(
+    normalized, repo_root = root, require_attestation = FALSE
+  ))
 })
 
 test_that("publication checkout policy rejects an added untracked file", {
@@ -745,18 +762,18 @@ test_that("public bundle validation recomputes evidence and rejects a one-cell m
   input_hashes <- utils::read.csv(file.path(forged, "input_provenance.csv"), stringsAsFactors = FALSE, check.names = FALSE)
   for (name in c("attempt_metadata", "runner_settings_identity")) {
     index <- input_hashes$input_id == name; raw <- file.path(forged, paste0(name, ".csv"))
-    input_hashes$sha256[index] <- unname(env$jss_recovery_sha256(raw)); input_hashes$bytes[index] <- file.info(raw)$size
+    input_hashes$sha256[index] <- unname(env$jss_recovery_portable_sha256(raw)); input_hashes$bytes[index] <- env$jss_recovery_portable_bytes(raw)
   }
   utils::write.csv(input_hashes, file.path(forged, "input_provenance.csv"), row.names = FALSE, na = "")
   manifest <- utils::read.csv(file.path(forged, "output_manifest.csv"), stringsAsFactors = FALSE, check.names = FALSE)
   for (artifact in c("attempt_metadata.csv", "runner_settings_identity.csv", "input_provenance.csv")) {
     index <- manifest$artifact == artifact; raw <- file.path(forged, artifact)
-    manifest$sha256[index] <- unname(env$jss_recovery_sha256(raw)); manifest$bytes[index] <- file.info(raw)$size
+    manifest$sha256[index] <- unname(env$jss_recovery_portable_sha256(raw)); manifest$bytes[index] <- env$jss_recovery_portable_bytes(raw)
   }
   utils::write.csv(manifest, file.path(forged, "output_manifest.csv"), row.names = FALSE, na = "")
   checkpoint <- utils::read.csv(file.path(forged, "bundle_checkpoint.csv"), stringsAsFactors = FALSE, check.names = FALSE)
   checkpoint$input_provenance_sha256 <- digest::digest(paste(input_hashes$input_id, input_hashes$sha256, sep = "=", collapse = "\n"), algo = "sha256", serialize = FALSE)
-  checkpoint$output_manifest_sha256 <- unname(env$jss_recovery_sha256(file.path(forged, "output_manifest.csv")))
+  checkpoint$output_manifest_sha256 <- unname(env$jss_recovery_portable_sha256(file.path(forged, "output_manifest.csv")))
   utils::write.csv(checkpoint, file.path(forged, "bundle_checkpoint.csv"), row.names = FALSE, na = "")
   expect_error(env$jss_main_recovery_validate_public_bundle(forged, repo_root = local_main_recovery_root(), require_attestation = FALSE), "runner source SHA mismatch")
   dropped_input <- tempfile("dropped-input-provenance-"); dir.create(dropped_input)
