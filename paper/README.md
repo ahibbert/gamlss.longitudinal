@@ -14,6 +14,8 @@ the authoring front door before changing the manuscript:
   JSS article.
 - `jss-submission-checklist.md`: blocking gates for manuscript, package,
   replication, and submission packaging readiness.
+- `phase2-acceptance-ledger.md`: the simplified public-evidence gate and its
+  executed acceptance checks.
 - `manuscript/jss-skeleton.tex`: JSS-style manuscript source skeleton.
 
 The main-paper example must be public, package-shipped, or fully simulated.
