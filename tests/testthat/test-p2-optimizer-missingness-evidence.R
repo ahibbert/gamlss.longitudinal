@@ -701,6 +701,47 @@ test_that("optimizer producer fingerprint invalidates checkpoints after code mut
   expect_true(length(Sys.glob(paste0(checkpoint, ".source-identity-changed-*"))) == 1L)
 })
 
+test_that("optimizer checkpoints resume across identical checkout locations", {
+  root <- local_phase2_repo_root()
+  env <- new.env(parent = globalenv())
+  source(file.path(root, "paper", "R", "03-joint-vs-separate-optimization.R"), local = env)
+  make_package_copy <- function() {
+    package_copy <- tempfile("optimizer-package-")
+    dir.create(file.path(package_copy, "R"), recursive = TRUE)
+    file.copy(file.path(root, c("DESCRIPTION", "NAMESPACE")), package_copy)
+    file.copy(
+      file.path(root, "R", "benchmark-adoption-scenarios.R"),
+      file.path(package_copy, "R", "benchmark-adoption-scenarios.R")
+    )
+    package_copy
+  }
+  package_a <- make_package_copy()
+  package_b <- make_package_copy()
+  out <- tempfile("portable-checkpoint-")
+  settings_a <- list(
+    profile = "smoke", seed = 101L, out_dir = out, root = root,
+    package_source_root = package_a
+  )
+  settings_b <- settings_a
+  settings_b$package_source_root <- package_b
+  case <- env$jss_joint_case_definitions()[1, , drop = FALSE]
+  cfg <- list(reps = 1L, resume = TRUE, workers = 1L)
+  result <- env$jss_joint_contract_fixture(case, 1L, settings_a)
+  checkpoint <- env$jss_joint_checkpoint_path(settings_a, case, 1L, cfg)
+  env$jss_joint_write_checkpoint(result, checkpoint, settings_a, case, 1L, cfg)
+
+  recorded <- readRDS(checkpoint)
+  expect_false(identical(
+    normalizePath(package_a, winslash = "/"),
+    normalizePath(package_b, winslash = "/")
+  ))
+  expect_identical(
+    recorded$provenance$package_checkout_path,
+    normalizePath(package_a, winslash = "/")
+  )
+  expect_true(env$jss_joint_checkpoint_valid(checkpoint, settings_b, case, 1L, cfg))
+})
+
 test_that("optimizer worker refuses a parent-to-worker producer mutation", {
   skip_if_not_installed("pkgload")
   root <- local_phase2_repo_root()
