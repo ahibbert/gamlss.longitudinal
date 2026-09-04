@@ -438,7 +438,7 @@ test_that("production attestation rejects self-forged signatures and invalid UTC
     "valid detached production signature")
 })
 
-test_that("approval helper exposes only the pinned public key and documents independent rotation", {
+test_that("historical approval helper remains isolated from the lean reviewer workflow", {
   root <- local_phase2_repo_root(); env <- new.env(parent = globalenv())
   source(file.path(root, "paper", "scripts", "phase2-evidence-approval.R"), local = env)
   expect_identical(digest::digest(env$phase2_pinned_public_key(), "sha256", serialize = FALSE),
@@ -446,10 +446,10 @@ test_that("approval helper exposes only the pinned public key and documents inde
   expect_false(identical(sodium::sig_pubkey(sodium::sig_keygen()), env$phase2_pinned_public_key()))
   ceremony <- paste(readLines(file.path(root, "paper", "notes", "phase2-evidence-signing.md"),
     warn = FALSE), collapse = "\n")
-  expect_match(ceremony, "access-restricted, checkout-external", fixed = TRUE)
-  expect_match(ceremony, "all four validators", fixed = TRUE)
-  expect_match(ceremony, "code-only change", fixed = TRUE)
-  expect_match(ceremony, "separate data-only review/commit", fixed = TRUE)
+  expect_match(ceremony, "Archived Phase 2 evidence-signing design", fixed = TRUE)
+  expect_match(ceremony, "no\\s+private key, signature, attestation file", perl = TRUE)
+  expect_match(ceremony, "not a reviewer prerequisite", fixed = TRUE)
+  expect_match(ceremony, "multivariate benchmark", fixed = TRUE)
 })
 
 test_that("public validators detect source mutation while copying immutable snapshots", {
