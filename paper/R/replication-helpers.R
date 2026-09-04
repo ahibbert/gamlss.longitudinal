@@ -681,7 +681,13 @@ jss_png_nonblank <- function(path) {
   value(header[17:20]) > 10L && value(header[21:24]) > 10L
 }
 
-jss_file_sha256 <- function(path, canonical_text = grepl("[.](csv|tex|txt|md)$", path, ignore.case = TRUE)) {
+jss_is_text_path <- function(path) {
+  basename <- basename(path)
+  basename %in% c("DESCRIPTION", "NAMESPACE") |
+    grepl("[.](csv|tsv|tex|txt|md|R|Rd|Rmd|qmd|ya?ml|json|lock)$", path, ignore.case = TRUE)
+}
+
+jss_file_sha256 <- function(path, canonical_text = jss_is_text_path(path)) {
   if (!requireNamespace("digest", quietly = TRUE)) stop("Package 'digest' is required for SHA-256 verification.", call. = FALSE)
   if (canonical_text) {
     text <- paste(readLines(path, warn = FALSE, encoding = "UTF-8"), collapse = "\n")
@@ -696,7 +702,7 @@ jss_git_dirty <- function(root) {
   if (identical(out, "unknown")) "unknown" else if (length(out)) "dirty" else "clean"
 }
 
-jss_write_run_metadata <- function(settings, started, bootstrap, store) {
+jss_write_run_metadata <- function(settings, started, bootstrap, store, run_error = NULL) {
   meta <- targets::tar_meta(store = store, fields = c("name", "seconds", "warnings", "error"))
   timing <- data.frame(name = meta$name, seconds = as.numeric(meta$seconds), warnings = as.character(meta$warnings), error = as.character(meta$error), stringsAsFactors = FALSE)
   timing <- timing[!is.na(timing$seconds) | (!is.na(timing$warnings) & nzchar(timing$warnings)) | (!is.na(timing$error) & nzchar(timing$error)), , drop = FALSE]
@@ -710,7 +716,9 @@ jss_write_run_metadata <- function(settings, started, bootstrap, store) {
   utils::write.csv(events, file.path(settings$logs_dir, "target-events.csv"), row.names = FALSE)
   lock <- file.path(settings$root, "paper", "renv.lock")
   run <- data.frame(
-    profile = settings$profile, started = format(started, "%Y-%m-%dT%H:%M:%S%z"), finished = format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z"),
+    profile = settings$profile, status = if (is.null(run_error)) "completed" else "failed",
+    error = if (is.null(run_error)) "" else conditionMessage(run_error),
+    started = format(started, "%Y-%m-%dT%H:%M:%S%z"), finished = format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z"),
     git_sha = jss_git_sha(settings$root), git_state = jss_git_dirty(settings$root), r_version = R.version.string,
     platform = R.version$platform, workers = settings$workers, seed = settings$seed,
     library_id = paste(tail(strsplit(bootstrap$library, "/", fixed = TRUE)[[1L]], 2L), collapse = "/"),
@@ -754,7 +762,7 @@ jss_write_run_metadata <- function(settings, started, bootstrap, store) {
     file = substring(normalizePath(inputs, winslash = "/", mustWork = TRUE), nchar(normalizePath(settings$root, winslash = "/", mustWork = TRUE)) + 2L),
     sha256 = vapply(inputs, jss_file_sha256, character(1)),
     raw_sha256 = vapply(inputs, jss_file_sha256, character(1), canonical_text = FALSE),
-    hash_mode = ifelse(grepl("[.](csv|tex|txt|md)$", inputs, ignore.case = TRUE), "canonical_text_sha256", "raw_file_sha256"),
+    hash_mode = ifelse(jss_is_text_path(inputs), "canonical_text_sha256", "raw_file_sha256"),
     bytes = file.info(inputs)$size,
     stringsAsFactors = FALSE
   )
@@ -774,7 +782,8 @@ jss_write_run_metadata <- function(settings, started, bootstrap, store) {
   execution_failures <- if ("event_type" %in% names(fit_audit)) sum(fit_audit$event_type == "execution_failure") else 0L
   summary <- c(
     paste0("# Reviewer run summary: ", settings$profile), "",
-    paste0("- Status: completed"),
+    paste0("- Status: ", run$status),
+    if (nzchar(run$error)) paste0("- Error: `", run$error, "`") else NULL,
     paste0("- Started: ", run$started),
     paste0("- Finished: ", run$finished),
     paste0("- Git: `", run$git_sha, "` (", run$git_state, ")"),

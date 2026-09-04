@@ -18,22 +18,35 @@ The first run restores the lockfile and installs this checkout into an isolated 
 
 The public workflow has no private-data application dependency. The fully simulated BCPE/t workflow reproduces the complete model-building, diagnostic, prediction, and visualization sequence.
 
-Every successful run writes session information, Git/dirty state, lockfile and actual-input
+Every run writes the available session information, Git/dirty state, lockfile and actual-input
 hashes, seeds, cores, target timings, structured target/fit events, artifact
 hashes, figure-reference comparisons, and provenance-log hashes beneath the
 profile's `logs/` directory. Platform startup messages emitted before the script
 runs (for example a host's invalid locale setting) cannot be captured there and
 do not count as target warnings.
 
-After a successful run, start with `logs/reviewer-summary.md`. A failed run may
-stop before the logging targets are reached, in which case use the command's
-terminal error and rerun after correcting it. The two `target-graph-*.csv` files provide
+Start with `logs/reviewer-summary.md`. The wrapper writes this summary and the
+available target metadata even when a target fails, and then returns the
+original error. The two `target-graph-*.csv` files provide
 a portable vertex/edge dependency graph, and `input-hashes.csv` covers the
-package R source, workflow definitions/configuration, and only the public data
-bundle actually read by the selected profile.
+package R source, workflow definitions/configuration, and the complete declared
+public-data tree for non-smoke profiles.
 For text inputs, `sha256` is the newline/BOM-canonicalized digest used by the
 cross-platform verifier; `raw_sha256` is also supplied for comparison with
 ordinary file-hashing tools. Binary inputs use the same raw digest in both.
+
+To audit asset staging and the compiled manuscript, use a disposable clone of
+the canonical paper repository; the publisher never commits or pushes:
+
+```text
+git clone https://github.com/ahibbert/working-paper-gamlss-long.git <paper-clone>
+Rscript paper/publish-assets.R --paper-repo <paper-clone> --profile paper --dry-run
+Rscript paper/publish-assets.R --paper-repo <paper-clone> --profile paper --apply
+```
+
+Review the listed `charts/` and `tables/` changes before compiling the paper
+clone. Existing manuscript-source errors and unresolved citations are tracked
+as Phase 3 authoring work; the publisher must not modify them.
 
 Reviewer-facing evidence is checked using versioned schemas, complete scenario
 and replicate keys, explicit attempt/convergence/retention denominators, finite

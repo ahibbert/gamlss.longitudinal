@@ -1,7 +1,7 @@
 "schema_version","source_path","sha256","bytes"
-"2026-09-04.1","paper/R/main-recovery-evidence.R","9cb5f45091fb83e571218343aa3992d04738f789aae4f1f5e76d9b33d04889d4",144588
-"2026-09-04.1","paper/R/submission-replication.R","ab95c8787b4056feded5b6ccc4f83999f6824c073412877a063a5766152eced7",10624
-"2026-09-04.1","paper/scripts/final-simulations/bcpe-t/simulation_bcpe_t_gamlss_comparison.R","047f7badf68fb36ab97ac4d2cab875455e78daa3822bdad05f409ca63ab0dcd7",95164
-"2026-09-04.1","paper/scripts/final-simulations/nbi-clayton/compare_gamlss_ours_nbi_sigma_smooth.R","276659f3f130ebdaa9c00e177f2ff8eea41e7e2702ee5fb3a0d66217da3264f5",61183
-"2026-09-04.1","paper/scripts/final-simulations/main-recovery/run_main_recovery_evidence.R","444dd206e71fbe8dce0affa7121cd386dbadbc912dc404c6895fabe51745071c",1258
-"2026-09-04.1","paper/submission-input-schemas.csv","2c314308e5eced95b8036874170b402fafffb6e5a0123a3240b50843fcf21fd7",1382
+"2026-09-05.1","paper/R/main-recovery-evidence.R","f49be1de1de7d911b1a1a6019e080a8de750796bb807d17733dccf0e4fb8316c",145858
+"2026-09-05.1","paper/R/submission-replication.R","1e8d4b60df672effe09cace2606e2ed8bf34176172eb4304e76c3c33d2cb3e6f",10623
+"2026-09-05.1","paper/scripts/final-simulations/bcpe-t/simulation_bcpe_t_gamlss_comparison.R","e710eb594424e7149270b7c8409243df2d07edfe547d63aa73f04a620982081c",95163
+"2026-09-05.1","paper/scripts/final-simulations/nbi-clayton/compare_gamlss_ours_nbi_sigma_smooth.R","736ccf114ca1f1f8c8f3186b3e8f0826af1235f7ddc9751e2339d7b40ac6c59e",61182
+"2026-09-05.1","paper/scripts/final-simulations/main-recovery/run_main_recovery_evidence.R","95369d4e5f29db7139e7b4ca089435e3a2de009b6a5587e477d7e5ce04bd5eef",1257
+"2026-09-05.1","paper/submission-input-schemas.csv","6352dbd0ae914d7f656b3850b410bf93dd68a15836cb9fa625c60e8b323cad7f",1381

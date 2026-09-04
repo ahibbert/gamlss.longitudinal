@@ -28,7 +28,7 @@ a routine reviewer or submission gate.
 | Missingness evidence | Pass | 240 scenario/replicate tasks, 480 fits, 399 retained, 81 named failures, 298 expected warnings, and zero unexpected warnings. |
 | Copula misspecification | Pass | 2,400 registered paired candidate fits pass the submission schema and publication validator. |
 | Fit scaling | Pass | 62 registered attempts pass the submission schema and reconstruction checks; timing claims remain environment-specific. |
-| Portable public boundary | Pass | Public-input scan finds no absolute host paths; public profiles have no private-data application dependency, and Module 09 is deferred. |
+| Portable public boundary | Pass | Public-input scan finds no checkout, user-home, cloud-storage, or private-data paths. Generic interpreter paths remain as explicit execution provenance. Public profiles have no private-data application dependency, and Module 09 is deferred. |
 | Package suite | Pass | The complete ordinary P0/P1/P2 source-tree suite passes after correcting the documentation privacy-boundary regression. The only skips are two explicitly opt-in extended SRR stress tests. |
 | Reviewer profiles | Pass | Strict paper completed with all 10 Phase 2 gates true, 83 exact public manifest paths, 17 verified claims, and no target warnings/errors. Strict smoke also passed from a detached clean checkout in 1 minute 4 seconds with no target warnings/errors and nine structured optimizer-nonconvergence events. |
 | Manuscript asset classification | Pass | Read-only canonical audit classifies 40/40 assets with zero unclassified items. |
