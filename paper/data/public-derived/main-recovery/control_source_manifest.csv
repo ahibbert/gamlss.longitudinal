@@ -1,0 +1,7 @@
+"schema_version","source_path","sha256","bytes"
+"2026-09-04.1","paper/R/main-recovery-evidence.R","8ec5647afc6e9d8ab93ebd21358ab3ea6827c67d5adc0e6460a54f2f786dde5e",144444
+"2026-09-04.1","paper/R/submission-replication.R","ab95c8787b4056feded5b6ccc4f83999f6824c073412877a063a5766152eced7",10624
+"2026-09-04.1","paper/scripts/final-simulations/bcpe-t/simulation_bcpe_t_gamlss_comparison.R","047f7badf68fb36ab97ac4d2cab875455e78daa3822bdad05f409ca63ab0dcd7",95164
+"2026-09-04.1","paper/scripts/final-simulations/nbi-clayton/compare_gamlss_ours_nbi_sigma_smooth.R","276659f3f130ebdaa9c00e177f2ff8eea41e7e2702ee5fb3a0d66217da3264f5",61183
+"2026-09-04.1","paper/scripts/final-simulations/main-recovery/run_main_recovery_evidence.R","444dd206e71fbe8dce0affa7121cd386dbadbc912dc404c6895fabe51745071c",1258
+"2026-09-04.1","paper/submission-input-schemas.csv","2c314308e5eced95b8036874170b402fafffb6e5a0123a3240b50843fcf21fd7",1382
