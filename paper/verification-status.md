@@ -14,11 +14,10 @@ author-side recomputation.
 
 - Phase 1 passed independently; see
   `reviews/2026-08-27-jss-round-1/phase1-acceptance-ledger.md`.
-- The first close-out source-tree suite exercised all ordinary P0/P1/P2 tests
-  and found one repository-boundary failure caused by two documentation
-  strings. Those strings were corrected; the final clean suite is run again
-  before this ledger is closed. The only intentional skips are two opt-in
-  extended SRR stress tests.
+- The complete close-out source-tree suite passes all ordinary P0/P1/P2 tests.
+  An initial run found one repository-boundary failure caused by two
+  documentation strings; those strings were corrected and the full suite then
+  passed. The only intentional skips are two opt-in extended SRR stress tests.
 - A full local Windows R 4.4.1 source-package check completed with status OK:
   zero errors, zero warnings, and zero notes. The later Phase 2 changes affect
   CRAN-excluded paper files and tests, not packaged R code.
@@ -63,7 +62,6 @@ author-side recomputation.
 
 ## Checks in progress
 
-- Run the complete ordinary package suite after the documentation boundary fix.
 - Give a context-free independent reviewer only `paper/REVIEWER.md`; fix every
   in-scope ambiguity or failure before closing Phase 2.
 
