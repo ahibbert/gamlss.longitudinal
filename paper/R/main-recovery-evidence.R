@@ -2054,7 +2054,7 @@ jss_recovery_write_manuscript_assets <- function(bundle_dir, settings) {
     study <- unique(status$study_id[grepl(tolower(margin), tolower(status$study_id), fixed = TRUE)])
     fx <- fixed[fixed$study_id %in% study, ]
     sm <- smooth[smooth$study_id %in% study, ]
-    p_fixed <- ggplot2::ggplot(fx, ggplot2::aes(x = term, y = bias, colour = method, shape = method)) + ggplot2::geom_hline(yintercept = 0, linetype = 2) + ggplot2::geom_point(position = ggplot2::position_dodge(width = 0.4)) + ggplot2::facet_wrap(~parameter, scales = "free_y") + ggplot2::theme_bw() + ggplot2::labs(x = NULL, y = "Bias", subtitle = "Converged, complete, publication-retained attempts only")
+    p_fixed <- ggplot2::ggplot(fx, ggplot2::aes(x = term, y = bias, colour = method, shape = method)) + ggplot2::geom_hline(yintercept = 0, linetype = 2) + ggplot2::geom_point(position = ggplot2::position_dodge(width = 0.4)) + ggplot2::facet_wrap(~parameter, scales = "free_y") + ggplot2::scale_x_discrete(labels = function(x) sub("_scaled$", "", x)) + ggplot2::theme_bw() + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 30, hjust = 1)) + ggplot2::labs(x = NULL, y = "Bias", subtitle = "Converged, complete, publication-retained attempts only")
     p_smooth <- ggplot2::ggplot(sm, ggplot2::aes(x = parameter, y = irmse, fill = method)) + ggplot2::geom_col(position = "dodge") + ggplot2::theme_bw() + ggplot2::labs(x = NULL, y = "Integrated RMSE", subtitle = "Authoritative main-recovery attempt set")
     index <- if (margin == "BCPE") 1:2 else 3:4
     ggplot2::ggsave(figure_paths[index[[1]]], p_fixed, width = 9, height = 5.5, dpi = 180)

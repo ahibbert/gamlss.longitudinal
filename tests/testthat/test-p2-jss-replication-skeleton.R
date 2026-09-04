@@ -620,6 +620,18 @@ test_that("publisher is allowlist-only and never commits or edits TeX", {
   expect_false(grepl("git push", code, fixed = TRUE))
 })
 
+test_that("paper figure labels and zero-event logs remain publication-readable", {
+  root <- local_jss_repo_root()
+  missingness <- paste(readLines(file.path(root, "paper", "R", "04-missingness-publication-lean.R"), warn = FALSE), collapse = "\n")
+  recovery <- paste(readLines(file.path(root, "paper", "R", "main-recovery-evidence.R"), warn = FALSE), collapse = "\n")
+  helpers <- paste(readLines(file.path(root, "paper", "R", "replication-helpers.R"), warn = FALSE), collapse = "\n")
+  expect_true(grepl("Dropout headline", missingness, fixed = TRUE))
+  expect_true(grepl("MAR sensitivity", missingness, fixed = TRUE))
+  expect_true(grepl('sub("_scaled$", "", x)', recovery, fixed = TRUE))
+  expect_true(grepl("empty_fit_events", helpers, fixed = TRUE))
+  expect_true(grepl("utils::write.csv(empty_fit_events, fit_path", helpers, fixed = TRUE))
+})
+
 test_that("generated reviewer manifest is public-only and portable", {
   root <- local_jss_repo_root()
   env <- new.env(parent = globalenv())
