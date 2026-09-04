@@ -445,7 +445,7 @@ test_that("central claim evidence rejects stale schemas and unsupported directio
     estimate = 0.2, mcse = 0.03, lower = 0.1, upper = 0.3,
     denominator = 100L, attempted = 100L, converged = 95L, retained = 94L,
     failed = 6L, failure_reasons = "optimizer_nonconvergence:6",
-    source_schema_version = "jss-submission-inputs-1",
+    source_schema_version = "jss-submission-inputs-2",
     status = "verified_directional_effect", stringsAsFactors = FALSE
   )
   trusted_settings <- list(root = root)

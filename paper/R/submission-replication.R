@@ -1,4 +1,4 @@
-jss_submission_schema_version <- function() "jss-submission-inputs-1"
+jss_submission_schema_version <- function() "jss-submission-inputs-2"
 
 jss_submission_input_registry <- function(root = getwd()) {
   path <- file.path(root, "paper", "submission-input-schemas.csv")
