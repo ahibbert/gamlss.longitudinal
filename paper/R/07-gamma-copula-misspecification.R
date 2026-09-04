@@ -1229,8 +1229,8 @@ jss_misspec_run_scenario_checkpoints <- function(idx, pending, config) {
   length(idx)
 }
 
-jss_misspec_prepare_workers <- function(cl, config,
-    source_env = environment(jss_misspec_run_checkpoints)) {
+jss_misspec_prepare_workers <- function(cl, config, source_env = NULL) {
+  if (is.null(source_env)) source_env <- parent.env(environment())
   functions <- ls(pattern = "^jss_misspec_", envir = source_env)
   parallel::clusterExport(cl, functions, envir = source_env)
   parallel::clusterEvalQ(cl, {
