@@ -232,6 +232,15 @@ jss_grid_settings <- function(profile) {
   )
 }
 
+jss_is_expected_coverage_warning <- function(warning) {
+  inherits(warning, "gamlss.longitudinal_nonconvergence_warning") ||
+    grepl(
+      "max_outer_iter|not converged|without satisfying the optimizer convergence contract",
+      conditionMessage(warning),
+      ignore.case = TRUE
+    )
+}
+
 jss_run_coverage_suite <- function(settings) {
   set.seed(settings$seed)
   grid <- jss_grid_settings(settings$profile)
@@ -251,7 +260,7 @@ jss_run_coverage_suite <- function(settings) {
     output_dir = settings$data_dir,
     write_results = TRUE
   ), warning = function(w) {
-    if (grepl("max_outer_iter|not converged", conditionMessage(w), ignore.case = TRUE)) invokeRestart("muffleWarning")
+    if (jss_is_expected_coverage_warning(w)) invokeRestart("muffleWarning")
   })
   nonconverged <- !is.na(results$success) & results$success &
     (is.na(results$converged) | !results$converged)
