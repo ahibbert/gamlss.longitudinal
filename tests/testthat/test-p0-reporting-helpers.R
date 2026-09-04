@@ -41,11 +41,18 @@ test_that("model_spec builds printable fitted-model audit metadata", {
   expect_identical(out, spec)
   expect_identical(spec$variables$response, "y")
   expect_identical(spec$distributions$margin, "NO")
-  expect_identical(spec$optimisation$method, "RS")
+  expect_identical(spec$optimization$method, "RS")
+  expect_identical(spec$optimisation, spec$optimization)
   expect_identical(spec$missingness$n_missing_response, 1L)
   expect_identical(spec$missingness$n_nonfinite_response, 1L)
   expect_equal(spec$margin_links$parameter, c("mu", "sigma"))
-  expect_true(any(grepl("GAMLSS Longitudinal Model Specification", printed)))
+  expect_true(any(grepl("<Model specification>", printed, fixed = TRUE)))
+
+  old_spec <- spec
+  old_spec$optimisation <- old_spec$optimization
+  old_spec$optimization <- NULL
+  old_printed <- capture.output(print(old_spec))
+  expect_true(any(grepl("Optimizer: RS, separate", old_printed, fixed = TRUE)))
 })
 
 test_that("model_spec rejects non-fitted inputs", {

@@ -19,7 +19,7 @@ test_that("copula diagnostics empirical overlay panel renders finite density gri
   )
 
   expect_s3_class(p, "ggplot")
-  expect_equal(p$labels$title, "Empirical Copula with Fitted Overlay")
+  expect_equal(p$labels$title, "Empirical and fitted copula")
   expect_true(is.expression(p$labels$x))
 })
 
@@ -61,7 +61,7 @@ test_that("copula diagnostics empirical overlay panel handles grouped and empty 
   expect_s3_class(grouped, "ggplot")
   expect_identical(names(grouped$facet$params$facets), "split_group")
   expect_s3_class(empty, "ggplot")
-  expect_equal(empty$labels$title, "Empirical Copula with Fitted Overlay")
+  expect_equal(empty$labels$title, "Empirical and fitted copula")
 })
 
 test_that("copula diagnostics cut summary panel renders finite and empty summaries", {
@@ -130,12 +130,12 @@ test_that("copula diagnostics Rosenblatt QQ panel handles finite and empty data"
   p <- .copula_v2_rosenblatt_qq_panel(data.frame(theoretical = c(-1, 1), observed = c(-0.8, 0.9)))
 
   expect_s3_class(p, "ggplot")
-  expect_equal(p$labels$title, "Rosenblatt Normal QQ")
+  expect_equal(p$labels$title, "Rosenblatt normal Q-Q")
   expect_equal(p$labels$x, "Theoretical normal quantile")
 
   empty <- .copula_v2_rosenblatt_qq_panel(data.frame())
   expect_s3_class(empty, "ggplot")
-  expect_equal(empty$labels$title, "Rosenblatt Normal QQ")
+  expect_equal(empty$labels$title, "Rosenblatt normal Q-Q")
 })
 
 test_that("copula diagnostics Rosenblatt lag panel handles finite and empty data", {
@@ -154,12 +154,12 @@ test_that("copula diagnostics Kendall panel handles finite and empty data", {
   p <- .copula_v2_kendall_panel(data.frame(fitted = c(0.1, 0.5, 0.9), empirical = c(0.2, 0.4, 0.8)))
 
   expect_s3_class(p, "ggplot")
-  expect_equal(p$labels$title, "Kendall Function Diagnostic")
+  expect_equal(p$labels$title, "Kendall-function calibration")
   expect_equal(p$labels$x, "Fitted copula probability")
 
   empty <- .copula_v2_kendall_panel(data.frame())
   expect_s3_class(empty, "ggplot")
-  expect_equal(empty$labels$title, "Kendall Function Diagnostic")
+  expect_equal(empty$labels$title, "Kendall-function calibration")
 })
 
 test_that("copula diagnostics tail panel renders finite tail data", {
@@ -203,10 +203,10 @@ test_that("copula diagnostics residual lag panel handles finite and empty data",
   p <- .copula_v2_residual_lag_panel(data.frame(lag = c(1L, 2L), cor_z = c(0.1, -0.2), n_pairs = c(12L, 10L)))
 
   expect_s3_class(p, "ggplot")
-  expect_equal(p$labels$title, "Residual Dependence by Lag")
+  expect_equal(p$labels$title, "Residual dependence by lag")
   expect_equal(p$labels$y, "Correlation")
 
   empty <- .copula_v2_residual_lag_panel(data.frame(lag = 1L, cor_z = NA_real_, n_pairs = 0L))
   expect_s3_class(empty, "ggplot")
-  expect_equal(empty$labels$title, "Residual Dependence by Lag")
+  expect_equal(empty$labels$title, "Residual dependence by lag")
 })

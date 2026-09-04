@@ -25,7 +25,9 @@
     optim_fn = stats::optim) {
   for (smooth_name in names(lambda_s[[par_name]])) {
     if (isTRUE(rs_update_lambda) && inner_run_counter == 1) {
-      cat(paste("\nOptimising smoothing parameter for", par_name, "-", smooth_name))
+      if (verbose > 1) {
+        cat("\nOptimizing smoothing parameter for ", par_name, " - ", smooth_name, "\n", sep = "")
+      }
 
       optim_lambda <- function(lambda_val) {
         lambda_s_temp <- lambda_s

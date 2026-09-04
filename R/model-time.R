@@ -17,7 +17,7 @@
     dataset$time <- match(time_chr, time_covariate_levels)
 
     if (anyNA(dataset$time)) {
-      stop("ERROR: Failed to map factor time levels to internal numeric time index.")
+      stop("Failed to map factor time levels to the internal numeric time index.", call. = FALSE)
     }
 
     dataset$time_covariate <- factor(time_chr, levels = time_covariate_levels, ordered = time_covariate_ordered)
@@ -38,7 +38,7 @@
 
     if (anyNA(time_numeric)) {
       stop(
-        "ERROR: time must be numeric-like unless supplied as factor.\n",
+        "`time_var` must be numeric-like unless supplied as a factor.\n",
         "If time is categorical for formulas/interactions, convert it to factor before fitting."
       )
     }
@@ -51,7 +51,7 @@
     dataset$time_covariate <- time_numeric
   } else {
     stop(
-      "ERROR: Unsupported time variable type: ", class(dataset$time_covariate)[1],
+      "Unsupported time-variable type: ", class(dataset$time_covariate)[1],
       ". Use numeric/integer, numeric-like character, or factor."
     )
   }
@@ -61,7 +61,7 @@
   }
 
   if (any(is.na(dataset$time)) || any(is.na(dataset$subject)) || any(!is.finite(dataset$time))) {
-    stop("ERROR: time and subject variables cannot contain missing or non-finite values.")
+    stop("Time and subject variables cannot contain missing or non-finite values.", call. = FALSE)
   }
 
   list(

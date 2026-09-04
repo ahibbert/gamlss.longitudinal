@@ -12,17 +12,21 @@
   grid_n = 35,
   max_pairs_overlay = 300,
   transform = "normal",
-  plot1_style = "bins",
+  plot1_style = NULL,
   contour_bins = 8,
   time_stratified = FALSE,
   by = NULL,
   data = NULL,
   tau_ylim = NULL,
-  plot2_cuts = 10,
+  plot2_cuts = NULL,
   tail_thresholds = c(0.05, 0.1, 0.2),
   residual_lags = 1:3,
-  dashboard_ncol = 3,
+  dashboard_ncol = NULL,
   plot = TRUE,
+  type = c("overview", "calibration", "residuals", "tails", "all"),
+  empirical = c("bins", "points"),
+  n_bins = 10,
+  ncol = 2,
   ...
 )
 
@@ -32,17 +36,21 @@ plot_copula_diagnostics(
   grid_n = 35,
   max_pairs_overlay = 300,
   transform = "normal",
-  plot1_style = "bins",
+  plot1_style = NULL,
   contour_bins = 8,
   time_stratified = FALSE,
   by = NULL,
   data = NULL,
   tau_ylim = NULL,
-  plot2_cuts = 10,
+  plot2_cuts = NULL,
   tail_thresholds = c(0.05, 0.1, 0.2),
   residual_lags = 1:3,
-  dashboard_ncol = 3,
+  dashboard_ncol = NULL,
   plot = TRUE,
+  type = c("overview", "calibration", "residuals", "tails", "all"),
+  empirical = c("bins", "points"),
+  n_bins = 10,
+  ncol = 2,
   ...
 )
 }
@@ -55,10 +63,11 @@ plot_copula_diagnostics(
 
 \item{max_pairs_overlay}{Maximum number of paired observations used for the fitted overlay.}
 
-\item{transform}{Character; "uniform" (default) shows empirical copula on
-the unit interval, "normal" transforms to standard normal scale.}
+\item{transform}{Character; \code{"normal"} (the default) shows standard-normal
+scores, while \code{"uniform"} shows the empirical copula on the unit interval.}
 
-\item{plot1_style}{Character; "bins" (default) draws a binned empirical layer, "scatter" draws points.}
+\item{plot1_style}{Deprecated alias for \code{empirical}, retained by the S3
+method for compatibility.}
 
 \item{contour_bins}{Integer number of contour levels for the fitted copula overlay in plot 1.}
 
@@ -73,7 +82,8 @@ fitted pair object (for example gender).}
 \item{tau_ylim}{Optional numeric vector of length 2 specifying y-axis limits
 for Kendall's tau chart(s). If \code{NULL} (default), y-axis scales are automatic.}
 
-\item{plot2_cuts}{Integer number of quantile-based cuts used in plot 2 (default 10).}
+\item{plot2_cuts}{Deprecated alias for \code{n_bins}, retained by the S3 method
+for compatibility.}
 
 \item{tail_thresholds}{Numeric vector of lower-tail probabilities used for
 tail co-occurrence and conditional exceedance diagnostics.}
@@ -81,14 +91,29 @@ tail co-occurrence and conditional exceedance diagnostics.}
 \item{residual_lags}{Integer lags used for Rosenblatt normal-score
 autocorrelation diagnostics.}
 
-\item{dashboard_ncol}{Number of columns in the combined diagnostic dashboard.}
+\item{dashboard_ncol}{Deprecated alias for \code{ncol}, retained by the S3 method
+for compatibility.}
 
 \item{plot}{Logical; if TRUE, print the dashboard.}
 
-\item{...}{Additional arguments reserved for future methods.}
+\item{type}{Diagnostic set to display. \code{"overview"} (the default) shows four
+complementary checks; use \code{"calibration"}, \code{"residuals"}, \code{"tails"}, or
+\code{"all"} for focused or complete dashboards.}
+
+\item{empirical}{Empirical layer for the copula overlay: \code{"bins"} or
+\code{"points"}.}
+
+\item{n_bins}{Number of bins used for the fitted-versus-observed dependence
+calibration panel.}
+
+\item{ncol}{Number of dashboard columns.}
+
+\item{...}{Deprecated aliases \code{plot1_style}, \code{plot2_cuts}, and
+\code{dashboard_ncol} are accepted temporarily.}
 }
 \value{
-Invisibly returns a list with plot objects and summaries.
+Invisibly returns a \code{gamlss_longitudinal_plot} object containing the
+displayed dashboard, all component plots, and their diagnostic data.
 }
 \description{
 Plot copula diagnostics for a fitted gamlss.longitudinal object

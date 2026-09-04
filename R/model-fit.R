@@ -23,16 +23,16 @@
 #' and the subject identifier is used to link the repeated measurements for each subject. 
 #' The response variable must be included in the `mu.formula` as the left-hand side.
 #' 
-#' The model is fit using Rigby and Stasinopoulis (RS) optimisation against
+#' The model is fit using Rigby and Stasinopoulos (RS) optimization against
 #' the full joint likelihood by default, which iteratively updates the margin 
 #' and copula parameters in turn until convergence. We provide alternative methods, 
-#' including a separately optimised RS method which optimises margin and copula
+#' including a separately optimized RS method which optimizes margin and copula
 #' likelihood separately which is faster but slightly less optimal for overall fit,
 #' and the Cole and Green method (CG) which updates based on the full first 
 #' and second derivative matrix updating all parameters at once which is generally the 
 #' slowest method but may provide better fits for some models. 
 #'
-#' @param dataset Long-format data frame containing the response, subject, time,
+#' @param data Long-format data frame containing the response, subject, time,
 #'   and covariate columns.
 #' @param margin_dist One registered `gamlss.dist` family object. A fit uses one
 #'   homogeneous margin family; see [longitudinal_capabilities()].
@@ -60,116 +60,26 @@
 #' @param tau.formula Formula for the tau parameter of the marginal distribution
 #' @param theta.formula Formula for the theta parameter of the copula distribution
 #' @param zeta.formula Formula for the zeta parameter of the copula distribution
-#' @param include_dlcopdpar Include the derivative of the copula likelihood with respect
-#' to the margin parameters in the joint likelihood. This is only relevant for method=`RS` fits
-#' and is `TRUE` by default. Setting this to `FALSE` can speed up fitting for most models
-#' due to separately optimised margin and copula fits at the expense of a slightly less optimal overall fit. 
-#' For some models, including the dlcopdpar contribution can be important for good convergence and fit.
-#' @param check_dlcopdpar_gradient If `TRUE`, run an optional finite-difference
-#' diagnostic for the margin score contribution when `include_dlcopdpar = TRUE`.
-#' @param inner_stop_crit Stopping criterion for the inner loop. If `NA` or
-#' `NULL`, an automatic data-adaptive value is used. This is based on change in log
-#' likelihood in each iteration so `0.1` results in algorithm stopping in the inner loop
-#' if likelihood changes by less than 0.1 in that iteration. 
-#' Use `optimizer_control`; this flat argument is retained for one release.
-#' Tolerances must be positive. To run to the iteration limit, set
-#' `stop_on_convergence = FALSE` in [gamlss_longitudinal_control()].
-#' Note inner iterations are only relevant for the RS algorithm as CG does not have an inner loop.
-#' @param outer_stop_crit Stopping criterion for the outer loop. If `NA` or
-#' `NULL`, an automatic data-adaptive value is used. This is based on change 
-#' in log likelihood in each iteration so `0.1` results in algorithm stopping 
-#' if likelihood changes by less than 0.1 in that outer iteration. 
-#' Use `optimizer_control`; this flat argument is retained for one release.
-#' Tolerances must be positive. To run to the iteration limit, set
-#' `stop_on_convergence = FALSE` in [gamlss_longitudinal_control()].
-#' @param start_step_size Initial step size for the backfitting algorithm
-#' @param step_adjustment Step size adjustment factor
-#' @param max_steps Maximum number of times for reducing the step size
-#' @param start_from Starting values for the parameters if needed
-#' @param warm_start_joint Logical; if `TRUE` (default), RS joint fits started
-#' without explicit `start_from` first run a short separate RS stabilisation
-#' phase and use those coefficients as the joint starting values.
-#' @param warm_start_joint_iter Integer; number of separate RS outer iterations
-#' used for the default joint warm start.
-#' @param verbose Level of output to the console 3 = ALL, 0 = Minimal
-#' @param plot_results Plot the results of the optimisation (depreciated) 
-#' @param true_val True values for the parameters if known for plotting (depreciated)
-#' @param method Optimisation method to use, 'RS' for Rigby and Stasinopoulis backfitting (default) or 'CG' for Cole and Green.
+#' @param method Optimization method: `"RS"` for Rigby-Stasinopoulos
+#'   backfitting (the default) or `"CG"` for Cole-Green updates.
+#' @param optimization Parameter-update strategy. `"joint"` includes the
+#'   copula contribution when updating marginal parameters and is the default.
+#'   `"separate"` uses separate margin and copula updates and is available only
+#'   for `method = "RS"`.
 #' @param optimizer_control Optimizer settings created by
 #'   [gamlss_longitudinal_control()]. `method` remains a top-level choice.
-#' @param max_outer_iter Maximum number of outer iterations for the optimisation algorithm (both RS and CG).
-#' @param max_inner_iter Maximum number of inner iterations for the RS backfitting algorithm. 
-#' Not relevant for CG which does not have an inner loop.
-#' @param max_negative_outer_streak Maximum number of consecutive negative outer
-#' log-likelihood changes allowed before stopping. 
-#' (This is a safeguard against very badly formed likelihood steps which can cause the algorithm to diverge and produce NaNs. Setting this to `Inf` disables this stopping criterion.)
-#' @param max_elapsed_sec Optional positive optimizer time budget in seconds.
-#' If finite, it is checked at RS or CG iteration boundaries and aborts with a
-#' classed error once exceeded. It is not a deadline for post-optimizer
-#' finalization, and no partial fitted object is returned.
-#' @param use_backtracking Logical; if `TRUE` (default), apply step-halving
-#' backtracking to reject downhill inner updates.
-#' @param backtracking_max_halves Integer; maximum number of consecutive
-#' step halvings attempted after a rejected update before taking no step.
-#' @param cg_max_stall Integer; for `method = "CG"` only. Maximum number of
-#' consecutive outer iterations where no improving step is found before CG stops.
-#' @param cg_max_delta Numeric; for `method = "CG"` only. Maximum absolute
-#' coefficient step size used to limit Newton/trust-region updates.
-#' @param cg_armijo_c1 Numeric; for `method = "CG"` only. Minimum improvement
-#' threshold used by the line-search acceptance rule.
-#' @param cg_grad_tol Numeric; for `method = "CG"` only. Penalized-gradient
-#' infinity-norm convergence tolerance. If `NA`, selected from `outer_stop_crit`.
-#' @param cg_step_tol Numeric; for `method = "CG"` only. Accepted-step L2
-#' convergence tolerance. If `NA`, selected from `outer_stop_crit`.
-#' @param cg_update_lambda Logical; for `method = "CG"` only. If `TRUE`, update
-#' smoother penalties during CG iterations.
-#' @param cg_lambda_update_every Integer; for `method = "CG"` only. When
-#' `cg_update_lambda = TRUE`, update each smoother's lambda every this many
-#' outer iterations. Use `1` to update every CG iteration.
-#' @param cg_max_lambda_updates Integer; for `method = "CG"` only. Maximum
-#' number of smoother penalty update rounds. Use `NA` for no cap.
-#' @param cg_raw_loglik_drop_tol Numeric; for `method = "CG"` only. Stop CG as
-#' not converged if the raw joint log-likelihood drops this far below the best
-#' raw joint log-likelihood seen after at least one lambda update. Use `NA` to
-#' disable.
-#' @param cg_line_search Character; for `method = "CG"` only. `"best"` evaluates
-#' candidate steps up to `cg_max_line_search_evals` before taking the largest
-#' improvement, while `"first"` accepts the first improving candidate step.
-#' @param cg_max_line_search_evals Integer; for `method = "CG"` only. Optional
-#' cap on the number of candidate likelihood evaluations per outer iteration.
-#' @param cg_gradient_method Character; for `method = "CG"` only.
-#' `"analytical"` uses the same score components as RS, `"forward"` uses
-#' one-sided finite differences, and `"central"` uses two-sided finite
-#' differences.
-#' @param discrete_score_method Character. For discrete margins using exact
-#' rectangle likelihoods, choose `"analytical"` for vectorised rectangle-score
-#' assembly or `"finite"` for slow row-wise finite-difference scores.
-#' @param cg_zeta_hessian Character; for `method = "CG"` only. `"analytical"`
-#' uses the analytical Hessian for the zeta block, while `"finite"` replaces
-#' the zeta-zeta block with central finite differences of the raw joint
-#' log-likelihood.
-#' @param cg_hessian_method Character; for `method = "CG"` only. `"analytical"`
-#' uses the semi-analytical Hessian for Newton steps, `"finite"` uses a full
-#' finite-difference Hessian, and `"auto"` tries analytical then falls back to
-#' finite differences when needed.
+#' @param start Optional named starting coefficients. `NULL` uses automatic
+#'   starting values.
 #' @param compute_vcov Logical; if `TRUE` (default), compute and store the
 #' model variance-covariance output at the end of fitting.
 #' @param vcov_method Character; fit-time vcov method when `compute_vcov = TRUE`.
 #' One of `"analytical"` or `"numderiv"`. Analytical vcov covers continuous
 #' margins and supported exact-discrete rectangle likelihoods, and falls back
 #' to the numerical reference path if the analytical Hessian cannot be inverted.
-#' @param vcov_numderiv Logical; passed to `vcov.gamlss.longitudinal()` when
-#' `compute_vcov = TRUE`.
-#' @param use_Rcpp Use Rcpp for matrix operations (depreciated)
-#' @param lambda_start Optional starting value for smooth-term penalties.
-#' @param lambda_penalty_K Penalty strength used when updating smooth-term
-#'   smoothing parameters.
-#' @param rs_update_lambda Logical; for `method = "RS"` only. If `TRUE`,
-#' update smoothing parameters by the RS GAIC step; if `FALSE`, keep
-#' `lambda_start` fixed.
-#' @param rs_smooth_trust_radius Numeric; for `method = "RS"` only. Optional
-#' L2 trust radius applied separately to each smooth coefficient block after
-#' the RS weighted least-squares proposal. Use `Inf` to disable.
+#' @param verbose Logical; print optimizer progress when `TRUE`. Integer levels
+#'   `0` to `3` remain available for advanced tracing.
+#' @param ... Deprecated argument aliases retained for compatibility. New code
+#'   should use `data`, `optimization`, `start`, and `optimizer_control`.
 #'
 #' @details
 #' The ordered unique values of `time_var` define the scheduled visit order.
@@ -181,108 +91,46 @@
 #' `missingness = "segment"`, pairs crossing an intermittent gap are omitted
 #' and the resulting observed segments contribute independently.
 #'
-#' Flat optimizer arguments are soft-deprecated for one release. New code
-#' should supply a single `optimizer_control` object. If a flat argument and
-#' the control object specify the same setting, fitting stops with an error.
-#' During this transition, a legacy flat control for the inactive optimizer is
-#' deprecated and ignored. In contrast, an explicitly supplied inactive `rs`
-#' or `cg` section in a new control object is an error, preventing accidental
-#' cross-method configuration.
+#' Legacy aliases, including `dataset`, `include_dlcopdpar`, `start_from`, and
+#' flat optimizer controls, are accepted temporarily through `...`. Supplying
+#' both an alias and its replacement is an error. Inactive optimizer sections
+#' in a new control object are also rejected.
 #'
 #' @export
-gamlss_longitudinal <- function(dataset,
+gamlss_longitudinal <- function(data = NULL,
                                 margin_dist,
                                 copula_dist,
                                 time_var = NA,
                                 subject_var = NA,
                                 missingness = c("error", "segment"),
-                                mu.formula = ("response ~ 1"),
-                                sigma.formula = ("~ 1"),
-                                nu.formula = ("~ 1"),
-                                tau.formula = ("~ 1"),
-                                theta.formula = ("~ 1"),
-                                zeta.formula = ("~ 1"),
-                                include_dlcopdpar = TRUE,
-                                check_dlcopdpar_gradient = FALSE,
-                                inner_stop_crit = NA,
-                                outer_stop_crit = NA,
-                                start_step_size = .5,
-                                step_adjustment = NA,
-                                max_steps = 5,
-                                start_from = NA,
-                                warm_start_joint = TRUE,
-                                warm_start_joint_iter = 5,
-                                verbose = 1,
-                                plot_results = FALSE,
-                                true_val = NA,
+                                mu.formula = response ~ 1,
+                                sigma.formula = ~ 1,
+                                nu.formula = ~ 1,
+                                tau.formula = ~ 1,
+                                theta.formula = ~ 1,
+                                zeta.formula = ~ 1,
                                 method = "RS",
+                                optimization = c("joint", "separate"),
                                 optimizer_control = NULL,
-                                max_outer_iter = 100,
-                                max_inner_iter = 100,
-                                max_negative_outer_streak = 10,
-                                max_elapsed_sec = Inf,
-                                use_backtracking = TRUE,
-                                backtracking_max_halves = 50,
-                                cg_max_stall = 5,
-                                cg_max_delta = 0.5,
-                                cg_armijo_c1 = 1e-4,
-                                cg_grad_tol = NA,
-                                cg_step_tol = NA,
-                                cg_update_lambda = TRUE,
-                                cg_lambda_update_every = 10,
-                                cg_max_lambda_updates = NA,
-                                cg_raw_loglik_drop_tol = 10,
-                                cg_line_search = "best",
-                                cg_max_line_search_evals = 60,
-                                cg_gradient_method = "forward",
-                                discrete_score_method = c("analytical", "finite"),
-                                cg_zeta_hessian = "analytical",
-                                cg_hessian_method = c("analytical", "finite", "auto"),
+                                start = NULL,
                                 compute_vcov = TRUE,
                                 vcov_method = c("analytical", "numderiv"),
-                                vcov_numderiv = FALSE,
-                                use_Rcpp = FALSE,
-                                lambda_start = NA,
-                                lambda_penalty_K = 2,
-                                rs_update_lambda = TRUE,
-                                rs_smooth_trust_radius = Inf) {
+                                verbose = FALSE,
+                                ...) {
+  data_supplied <- !missing(data)
+  optimization_supplied <- !missing(optimization)
+  start_supplied <- !missing(start)
+  legacy <- .gl_resolve_legacy_fit_dots(list(...))
+  dataset <- .gl_resolve_fit_data_alias(data, data_supplied, legacy)
+  start_from <- .gl_resolve_fit_start_alias(start, start_supplied, legacy)
+  verbose <- .gl_normalize_verbose(verbose)
   missingness <- match.arg(missingness)
-  legacy_values <- list(
-    inner_stop_crit = inner_stop_crit, outer_stop_crit = outer_stop_crit,
-    start_step_size = start_step_size, step_adjustment = step_adjustment,
-    max_steps = max_steps, warm_start_joint = warm_start_joint,
-    warm_start_joint_iter = warm_start_joint_iter, max_outer_iter = max_outer_iter,
-    max_inner_iter = max_inner_iter, max_negative_outer_streak = max_negative_outer_streak,
-    max_elapsed_sec = max_elapsed_sec, use_backtracking = use_backtracking,
-    backtracking_max_halves = backtracking_max_halves, cg_max_stall = cg_max_stall,
-    cg_max_delta = cg_max_delta, cg_armijo_c1 = cg_armijo_c1,
-    cg_grad_tol = cg_grad_tol, cg_step_tol = cg_step_tol,
-    cg_update_lambda = cg_update_lambda, cg_lambda_update_every = cg_lambda_update_every,
-    cg_max_lambda_updates = cg_max_lambda_updates,
-    cg_raw_loglik_drop_tol = cg_raw_loglik_drop_tol, cg_line_search = cg_line_search,
-    cg_max_line_search_evals = cg_max_line_search_evals,
-    cg_gradient_method = cg_gradient_method, discrete_score_method = discrete_score_method,
-    cg_zeta_hessian = cg_zeta_hessian, cg_hessian_method = cg_hessian_method,
-    rs_update_lambda = rs_update_lambda, rs_smooth_trust_radius = rs_smooth_trust_radius
-  )
-  legacy_supplied <- c(
-    inner_stop_crit = !missing(inner_stop_crit), outer_stop_crit = !missing(outer_stop_crit),
-    start_step_size = !missing(start_step_size), step_adjustment = !missing(step_adjustment),
-    max_steps = !missing(max_steps), warm_start_joint = !missing(warm_start_joint),
-    warm_start_joint_iter = !missing(warm_start_joint_iter), max_outer_iter = !missing(max_outer_iter),
-    max_inner_iter = !missing(max_inner_iter), max_negative_outer_streak = !missing(max_negative_outer_streak),
-    max_elapsed_sec = !missing(max_elapsed_sec), use_backtracking = !missing(use_backtracking),
-    backtracking_max_halves = !missing(backtracking_max_halves), cg_max_stall = !missing(cg_max_stall),
-    cg_max_delta = !missing(cg_max_delta), cg_armijo_c1 = !missing(cg_armijo_c1),
-    cg_grad_tol = !missing(cg_grad_tol), cg_step_tol = !missing(cg_step_tol),
-    cg_update_lambda = !missing(cg_update_lambda), cg_lambda_update_every = !missing(cg_lambda_update_every),
-    cg_max_lambda_updates = !missing(cg_max_lambda_updates),
-    cg_raw_loglik_drop_tol = !missing(cg_raw_loglik_drop_tol), cg_line_search = !missing(cg_line_search),
-    cg_max_line_search_evals = !missing(cg_max_line_search_evals),
-    cg_gradient_method = !missing(cg_gradient_method), discrete_score_method = !missing(discrete_score_method),
-    cg_zeta_hessian = !missing(cg_zeta_hessian), cg_hessian_method = !missing(cg_hessian_method),
-    rs_update_lambda = !missing(rs_update_lambda), rs_smooth_trust_radius = !missing(rs_smooth_trust_radius)
-  )
+  optimizer_legacy_names <- unique(c(
+    names(.gl_legacy_optimizer_map()),
+    "use_backtracking", "backtracking_max_halves"
+  ))
+  legacy_values <- legacy$values[optimizer_legacy_names]
+  legacy_supplied <- legacy$supplied[optimizer_legacy_names]
   optimizer_control <- .gl_resolve_optimizer_control(
     method = method,
     optimizer_control = optimizer_control,
@@ -290,8 +138,15 @@ gamlss_longitudinal <- function(dataset,
     legacy_supplied = legacy_supplied
   )
   method <- attr(optimizer_control, "method")
+  optimization <- .gl_resolve_optimization(
+    method = method,
+    optimization = optimization,
+    optimization_supplied = optimization_supplied,
+    legacy = legacy
+  )
+  include_dlcopdpar <- identical(optimization, "joint")
 
-  .gl_run_gamlss_longitudinal_entrypoint(
+  fit <- .gl_run_gamlss_longitudinal_entrypoint(
     dataset = dataset,
     margin_dist = margin_dist,
     copula_dist = copula_dist,
@@ -305,19 +160,22 @@ gamlss_longitudinal <- function(dataset,
     theta.formula = theta.formula,
     zeta.formula = zeta.formula,
     include_dlcopdpar = include_dlcopdpar,
-    check_dlcopdpar_gradient = check_dlcopdpar_gradient,
+    check_dlcopdpar_gradient = legacy$values$check_dlcopdpar_gradient,
     start_from = start_from,
     verbose = verbose,
-    plot_results = plot_results,
-    true_val = true_val,
+    plot_results = legacy$values$plot_results,
+    true_val = legacy$values$true_val,
     method = method,
     optimizer_control = optimizer_control,
     compute_vcov = compute_vcov,
     vcov_method = vcov_method,
-    vcov_numderiv = vcov_numderiv,
-    use_Rcpp = use_Rcpp,
-    lambda_start = lambda_start,
-    lambda_penalty_K = lambda_penalty_K
+    vcov_numderiv = legacy$values$vcov_numderiv,
+    use_Rcpp = legacy$values$use_Rcpp,
+    lambda_start = optimizer_control$shared$lambda_start,
+    lambda_penalty_K = optimizer_control$shared$lambda_penalty
   )
+  fit$optimization <- optimization
+  fit$convergence$optimization <- optimization
+  fit
 }
 gamlss.longitudinal <- gamlss_longitudinal

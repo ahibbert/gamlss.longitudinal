@@ -4,11 +4,11 @@
   }
 
   if (nrow(dataset) == 0L) {
-    stop("ERROR: ", context, " must contain at least one row.", call. = FALSE)
+    stop(context, " must contain at least one row.", call. = FALSE)
   }
 
   if (ncol(dataset) == 0L) {
-    stop("ERROR: ", context, " must contain at least one column.", call. = FALSE)
+    stop(context, " must contain at least one column.", call. = FALSE)
   }
 
   list_cols <- names(dataset)[vapply(dataset, is.list, logical(1))]
@@ -16,7 +16,7 @@
   if (length(list_cols) > 0L) {
     stop(
 
-      "ERROR: ", context, " contains unsupported list-column(s): ",
+      context, " contains unsupported list-column(s): ",
       paste(list_cols, collapse = ", "),
       ". Flatten or remove list-columns before fitting.",
       call. = FALSE
@@ -27,7 +27,7 @@
   if (length(matrix_cols) > 0L) {
     stop(
 
-      "ERROR: ", context, " contains unsupported matrix/data-frame column(s): ",
+      context, " contains unsupported matrix/data-frame column(s): ",
       paste(matrix_cols, collapse = ", "),
       ". Expand these columns into ordinary vector columns before fitting.",
       call. = FALSE

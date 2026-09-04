@@ -14,6 +14,10 @@
 #' @param stop_on_convergence If `TRUE`, stop as soon as the method's convergence
 #'   contract is satisfied. If `FALSE`, continue to a safeguard or iteration
 #'   limit while still reporting whether the final state satisfies the contract.
+#' @param lambda_start Optional positive initial smoothing parameter. `NA` uses
+#'   the data-adaptive initialization for each smooth term.
+#' @param lambda_penalty Positive penalty multiplier used when selecting
+#'   smoothing parameters. The default of 2 corresponds to AIC.
 #' @param rs Named list of RS-only controls. See Details.
 #' @param cg Named list of CG-only controls. See Details.
 #'
@@ -32,9 +36,10 @@
 #' post-fit curvature.
 #'
 #' Shared defaults are `outer_tol = NA` (data-adaptive),
-#' `max_outer_iter = 100`, `max_elapsed_sec = Inf`, and
-#' `stop_on_convergence = TRUE`. Tolerances must be positive finite numbers or
-#' `NA` where an automatic value is documented; iteration counts are positive
+#' `max_outer_iter = 100`, `max_elapsed_sec = Inf`,
+#' `stop_on_convergence = TRUE`, `lambda_start = NA`, and
+#' `lambda_penalty = 2`. Tolerances must be positive finite numbers or `NA`
+#' where an automatic value is documented; iteration counts are positive
 #' integers. The elapsed budget must be positive or `Inf`.
 #'
 #' RS defaults are `inner_tol = NA`, `max_inner_iter = 100`,
@@ -88,13 +93,17 @@ gamlss_longitudinal_control <- function(
     max_elapsed_sec = Inf,
     stop_on_convergence = TRUE,
     rs = list(),
-    cg = list()) {
+    cg = list(),
+    lambda_start = NA_real_,
+    lambda_penalty = 2) {
   specified <- list(
     shared = c(
       outer_tol = !missing(outer_tol),
       max_outer_iter = !missing(max_outer_iter),
       max_elapsed_sec = !missing(max_elapsed_sec),
-      stop_on_convergence = !missing(stop_on_convergence)
+      stop_on_convergence = !missing(stop_on_convergence),
+      lambda_start = !missing(lambda_start),
+      lambda_penalty = !missing(lambda_penalty)
     ),
     rs = .gl_control_list_names(rs, "rs"),
     cg = .gl_control_list_names(cg, "cg")
@@ -106,7 +115,9 @@ gamlss_longitudinal_control <- function(
     outer_tol = outer_tol,
     max_outer_iter = max_outer_iter,
     max_elapsed_sec = max_elapsed_sec,
-    stop_on_convergence = stop_on_convergence
+    stop_on_convergence = stop_on_convergence,
+    lambda_start = lambda_start,
+    lambda_penalty = lambda_penalty
   )
   shared <- .gl_validate_shared_optimizer_controls(shared)
 
@@ -189,6 +200,10 @@ gamlss_longitudinal_control <- function(
 }
 
 .gl_validate_shared_optimizer_controls <- function(x) {
+  # Upgrade control objects saved by versions before smoothing controls were
+  # represented in the shared section.
+  if (is.null(x$lambda_start)) x$lambda_start <- NA_real_
+  if (is.null(x$lambda_penalty)) x$lambda_penalty <- 2
   if (!.gl_is_auto_stop_crit(x$outer_tol)) {
     x$outer_tol <- .gl_validate_stop_crit(x$outer_tol, "outer_tol")
   }
@@ -206,6 +221,17 @@ gamlss_longitudinal_control <- function(
       is.na(x$stop_on_convergence)) {
     stop("stop_on_convergence must be TRUE or FALSE.", call. = FALSE)
   }
+  if (!is.numeric(x$lambda_start) || length(x$lambda_start) != 1L ||
+      is.nan(x$lambda_start) || (!is.na(x$lambda_start) &&
+      (!is.finite(x$lambda_start) || x$lambda_start <= 0))) {
+    stop("lambda_start must be a single positive finite number or NA.", call. = FALSE)
+  }
+  if (!is.numeric(x$lambda_penalty) || length(x$lambda_penalty) != 1L ||
+      is.na(x$lambda_penalty) || !is.finite(x$lambda_penalty) || x$lambda_penalty <= 0) {
+    stop("lambda_penalty must be a single positive finite number.", call. = FALSE)
+  }
+  x$lambda_start <- as.numeric(x$lambda_start)
+  x$lambda_penalty <- as.numeric(x$lambda_penalty)
   x
 }
 
@@ -301,6 +327,9 @@ gamlss_longitudinal_control <- function(
 }
 
 .gl_warn_legacy_optimizer_controls <- function() {
+  if (identical(getOption("gamlss.longitudinal.lifecycle_verbosity", "warning"), "quiet")) {
+    return(invisible())
+  }
   if (isTRUE(.gl_deprecation_state$optimizer_controls)) return(invisible())
   .gl_deprecation_state$optimizer_controls <- TRUE
   warning(structure(
@@ -316,6 +345,7 @@ gamlss_longitudinal_control <- function(
 .gl_legacy_optimizer_map <- function() {
   c(
     inner_stop_crit = "rs.inner_tol", outer_stop_crit = "shared.outer_tol",
+    lambda_start = "shared.lambda_start", lambda_penalty_K = "shared.lambda_penalty",
     start_step_size = "rs.start_step_size", step_adjustment = "rs.step_adjustment",
     max_steps = "rs.max_steps", warm_start_joint = "rs.warm_start_joint",
     warm_start_joint_iter = "rs.warm_start_joint_iter", max_outer_iter = "shared.max_outer_iter",
@@ -334,7 +364,7 @@ gamlss_longitudinal_control <- function(
 
 .gl_resolve_optimizer_control <- function(method, optimizer_control, legacy_values, legacy_supplied) {
   method <- toupper(as.character(method)[1L])
-  if (!method %in% c("RS", "CG")) stop("ERROR: method must be one of 'RS' or 'CG'.", call. = FALSE)
+  if (!method %in% c("RS", "CG")) stop("`method` must be one of \"RS\" or \"CG\".", call. = FALSE)
   supplied_new <- !is.null(optimizer_control)
   if (!supplied_new) optimizer_control <- gamlss_longitudinal_control()
   if (!inherits(optimizer_control, "gamlss.longitudinal.control")) {
@@ -388,14 +418,16 @@ gamlss_longitudinal_control <- function(
     return(c(list(
       inner_stop_crit = rs$inner_tol, outer_stop_crit = shared$outer_tol,
       max_outer_iter = shared$max_outer_iter, max_elapsed_sec = shared$max_elapsed_sec,
-      stop_on_convergence = shared$stop_on_convergence
+      stop_on_convergence = shared$stop_on_convergence,
+      lambda_start = shared$lambda_start, lambda_penalty_K = shared$lambda_penalty
     ), rs))
   }
   cg <- control$cg
   c(list(
     inner_stop_crit = NA, outer_stop_crit = shared$outer_tol,
     max_outer_iter = shared$max_outer_iter, max_elapsed_sec = shared$max_elapsed_sec,
-    stop_on_convergence = shared$stop_on_convergence
+    stop_on_convergence = shared$stop_on_convergence,
+    lambda_start = shared$lambda_start, lambda_penalty_K = shared$lambda_penalty
   ), cg)
 }
 

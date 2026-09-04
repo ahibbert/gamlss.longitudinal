@@ -27,7 +27,7 @@
   if (length(missing_vars) > 0L) {
     stop(
 
-      "ERROR: formula variable(s) not found in dataset after internal name mapping: ",
+      "Formula variable(s) not found in `data` after internal name mapping: ",
       paste(missing_vars, collapse = ", "),
       call. = FALSE
     )
@@ -36,13 +36,13 @@
   response <- dataset[[response_name]]
 
   if (!is.numeric(response) && !is.integer(response)) {
-    stop("ERROR: response variable must be numeric for gamlss_longitudinal().", call. = FALSE)
+    stop("The response variable must be numeric for `gamlss_longitudinal()`.", call. = FALSE)
   }
 
   if (!.gl_has_supported_base_column_class(response)) {
     stop(
 
-      "ERROR: response variable has unsupported class: ",
+      "The response variable has unsupported class: ",
       paste(class(response), collapse = "/"),
       ". Use an ordinary numeric or integer response column.",
       call. = FALSE
@@ -50,7 +50,7 @@
   }
 
   if (any(is.nan(response) | is.infinite(response))) {
-    stop("ERROR: response variable contains NaN or Inf values; only finite values or NA are allowed.", call. = FALSE)
+    stop("The response variable contains NaN or Inf values; only finite values or NA are allowed.", call. = FALSE)
   }
 
   predictor_vars <- setdiff(formula_vars, response_name)
@@ -87,7 +87,7 @@
 
   if (length(unsupported) > 0L) {
     stop(
-      "ERROR: predictor column(s) have unsupported classes: ",
+      "Predictor column(s) have unsupported classes: ",
       paste(unsupported, collapse = ", "),
       ". Use numeric, integer, logical, factor, ordered factor, or character columns.",
       call. = FALSE
@@ -96,7 +96,7 @@
 
   if (length(nonfinite) > 0L) {
     stop(
-      "ERROR: predictor column(s) contain NaN or Inf values: ",
+      "Predictor column(s) contain NaN or Inf values: ",
       paste(unique(nonfinite), collapse = ", "),
       ". Clean non-finite predictor values before fitting.",
       call. = FALSE
@@ -105,7 +105,7 @@
 
   if (length(missing) > 0L) {
     stop(
-      "ERROR: predictor column(s) contain missing values in submitted rows: ",
+      "Predictor column(s) contain missing values in submitted rows: ",
       paste(unique(missing), collapse = ", "),
       ". Missing responses and structurally missing visits are allowed, but predictor values must be observed.",
       call. = FALSE

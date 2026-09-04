@@ -87,7 +87,7 @@ test_that("fit data preparation keeps duplicate subject/time error contract", {
       zeta.formula = ~ 1,
       verbose = 0
     ),
-    "Duplicate subject/time combinations found",
+    "Duplicate subject/time combinations were found.",
     fixed = TRUE
   )
 })
@@ -128,7 +128,7 @@ test_that("fit input column normalization keeps required-column error contracts"
       mu.formula = y ~ visit,
       verbose = 0
     ),
-    "time_var='missing_visit' not found",
+    "`time_var = \"missing_visit\"` was not found in `data`.",
     fixed = TRUE
   )
   expect_error(
@@ -139,7 +139,7 @@ test_that("fit input column normalization keeps required-column error contracts"
       mu.formula = y ~ visit,
       verbose = 0
     ),
-    "subject_var='missing_id' not found",
+    "`subject_var = \"missing_id\"` was not found in `data`.",
     fixed = TRUE
   )
   expect_error(
@@ -150,7 +150,7 @@ test_that("fit input column normalization keeps required-column error contracts"
       mu.formula = missing_y ~ visit,
       verbose = 0
     ),
-    "response variable 'missing_y' not found",
+    "Response variable `missing_y` was not found in `data`.",
     fixed = TRUE
   )
 })

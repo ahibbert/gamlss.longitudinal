@@ -36,8 +36,8 @@ plot_smooth_terms <- function(
     data = NULL,
     ci_level = 0.95,
     ncol = NULL,
-    ci_col = "red",
-    fit_col = "black",
+    ci_col = .gl_plot_colours()[["interval"]],
+    fit_col = .gl_plot_colours()[["fitted"]],
     ci_lty = 2,
     fit_lwd = 2,
     sort_x = TRUE,
@@ -160,7 +160,7 @@ plot_smooth_terms <- function(
       p <- p + ggplot2::labs(caption = paste("fit /", round(ci_level * 100), "% CI"))
     }
 
-    p <- p + ggplot2::theme_minimal()
+    p <- p + theme_gamlss_longitudinal()
 
     plot_objects[[length(plot_objects) + 1]] <- p
 

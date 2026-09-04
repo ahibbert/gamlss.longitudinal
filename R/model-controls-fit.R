@@ -39,7 +39,7 @@
   cg_max_line_search_evals <- .gl_normalize_cg_line_search_evals(cg_max_line_search_evals)
 
   if (!method %in% c("RS", "CG")) {
-    stop("ERROR: method must be one of 'RS' or 'CG'.")
+    stop("`method` must be one of \"RS\" or \"CG\".", call. = FALSE)
   }
 
   user_supplied_start <- !all(is.na(start_from))

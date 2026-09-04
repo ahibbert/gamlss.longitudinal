@@ -74,6 +74,9 @@ test_that("outer negative streak helper returns a stable classed failure", {
     "Optimization stopped after 3 consecutive negative outer log-likelihood changes",
     fixed = TRUE
   )
+  expect_match(conditionMessage(err), "optimizer_control =", fixed = TRUE)
+  expect_match(conditionMessage(err), "rs = list(max_negative_outer_streak = ...)", fixed = TRUE)
+  expect_false(grepl("likelihood.Alternatively", conditionMessage(err), fixed = TRUE))
 })
 
 test_that("outer iteration summary helper returns named values and respects verbosity", {
@@ -97,7 +100,7 @@ test_that("outer iteration summary helper returns named values and respects verb
     outer_start_log_lik = -10,
     outer_end_log_lik = -8,
     outer_log_lik_change = 2,
-    verbose = 1,
+    verbose = 2,
     cat_fn = function(...) cat_calls <<- c(cat_calls, paste0(...)),
     print_fn = function(x, ...) print_calls[[length(print_calls) + 1L]] <<- x
   )
@@ -114,7 +117,7 @@ test_that("outer convergence helper reports only when tolerance is satisfied and
   not_converged <- gamlss.longitudinal:::.gl_print_outer_convergence(
     outer_log_lik_change = 0.2,
     outer_stop_crit = 0.1,
-    verbose = 1,
+    verbose = 2,
     cat_fn = function(...) cat_calls <<- c(cat_calls, paste0(...)),
     print_fn = function(x, ...) print_calls[[length(print_calls) + 1L]] <<- x
   )
@@ -136,13 +139,13 @@ test_that("outer convergence helper reports only when tolerance is satisfied and
   converged_verbose <- gamlss.longitudinal:::.gl_print_outer_convergence(
     outer_log_lik_change = -0.05,
     outer_stop_crit = 0.1,
-    verbose = 1,
+    verbose = 2,
     cat_fn = function(...) cat_calls <<- c(cat_calls, paste0(...)),
     print_fn = function(x, ...) print_calls[[length(print_calls) + 1L]] <<- x
   )
   expect_true(converged_verbose)
   expect_equal(print_calls[[1]], c(-0.05))
-  expect_equal(cat_calls, "\nOUTER CONVERGED")
+  expect_equal(cat_calls, "\nOuter optimizer converged")
 })
 
 test_that("RS inner-loop continuation helper preserves first-run and tolerance logic", {

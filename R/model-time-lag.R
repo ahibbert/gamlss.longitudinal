@@ -7,7 +7,7 @@ normalize_lag_time <- function(time) {
     time_numeric <- suppressWarnings(as.numeric(time))
 
     if (anyNA(time_numeric)) {
-      stop("ERROR: time must be numeric or numeric-like when use_dlcopdpar=TRUE.")
+      stop("Time must be numeric or numeric-like for joint optimization.", call. = FALSE)
     }
 
     time <- time_numeric

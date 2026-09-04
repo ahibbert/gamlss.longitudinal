@@ -75,13 +75,34 @@ fit <- gamlss_longitudinal(
   mu.formula = response ~ time + group + s(baseline),
   sigma.formula = ~ time + group,
   theta.formula = ~ time + group,
-  dataset = dat,
+  data = dat,
   time_var = "time",
   subject_var = "id",
   margin_dist = GA(),
   copula_dist = "t"
 )
 summary(fit)
+```
+
+The default `optimization = "joint"` updates marginal parameters against the
+joint margin-copula objective. For a faster RS approximation, request
+`optimization = "separate"` explicitly. Optimizer tuning is grouped in one
+validated control object rather than spread across the fit call:
+
+```{r optimizer-controls, eval=FALSE}
+control <- gamlss_longitudinal_control(
+  outer_tol = 1e-4,
+  max_outer_iter = 100,
+  rs = list(inner_tol = 1e-5, max_inner_iter = 50)
+)
+fit <- gamlss_longitudinal(
+  data = dat,
+  margin_dist = GA(),
+  copula_dist = "t",
+  time_var = "time",
+  subject_var = "id",
+  optimizer_control = control
+)
 ```
 
 Use the final JSS paper example for the exact family, copula, and covariates.

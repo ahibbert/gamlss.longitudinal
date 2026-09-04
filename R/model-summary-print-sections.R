@@ -6,7 +6,6 @@
 #' @noRd
 .gl_print_summary_smooth_terms <- function(smooth_terms, digits) {
   cat("\nSmooth terms:\n")
-  cat("--------------------\n")
   if (!is.null(smooth_terms) && nrow(smooth_terms) > 0) {
     smooth_disp <- smooth_terms
     if ("edf" %in% names(smooth_disp)) {
@@ -34,7 +33,6 @@
     "Model Selection Criteria:"
   }
   cat("\n", heading, "\n", sep = "")
-  cat("--------------------\n")
   if (!is.null(fit$model_selection)) {
     print(round(fit$model_selection, digits))
   } else {

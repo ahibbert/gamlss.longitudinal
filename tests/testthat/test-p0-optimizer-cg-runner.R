@@ -488,7 +488,7 @@ test_that("CG optimizer startup report is quiet unless verbose", {
 
   noisy <- capture.output(
     .gl_report_cg_optimizer_start(
-      verbose = 1,
+      verbose = 2,
       cg_max_delta = 0.5,
       cg_lambda_update_every = 10L,
       cg_update_lambda = TRUE,

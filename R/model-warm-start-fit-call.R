@@ -33,11 +33,12 @@
   warm_control$shared$max_outer_iter <- as.integer(warm_start_joint_iter)
   warm_control$rs$warm_start_joint <- FALSE
   warm_control$rs$warm_start_joint_iter <- 0L
-  attr(warm_control, "specified") <- list(
-    shared = c(outer_tol = FALSE, max_outer_iter = TRUE, max_elapsed_sec = FALSE, stop_on_convergence = FALSE),
-    rs = c("warm_start_joint", "warm_start_joint_iter"),
-    cg = character(0)
-  )
+  specified <- attr(warm_control, "specified")
+  specified$shared[] <- FALSE
+  specified$shared[["max_outer_iter"]] <- TRUE
+  specified$rs <- c("warm_start_joint", "warm_start_joint_iter")
+  specified$cg <- character(0)
+  attr(warm_control, "specified") <- specified
 
   tryCatch(
     {
@@ -45,7 +46,7 @@
         withCallingHandlers(
           {
             warm_fit <- fit_fn(
-              dataset = dataset_original,
+              data = dataset_original,
               margin_dist = margin_dist,
               copula_dist = copula_dist,
               time_var = time_var,
@@ -57,20 +58,13 @@
               tau.formula = tau.formula,
               theta.formula = theta.formula,
               zeta.formula = zeta.formula,
-              include_dlcopdpar = FALSE,
-              check_dlcopdpar_gradient = FALSE,
-              start_from = NA,
+              optimization = "separate",
+              start = NA,
               verbose = 0,
-              plot_results = FALSE,
-              true_val = true_val,
               method = method,
               optimizer_control = warm_control,
               compute_vcov = FALSE,
-              vcov_method = vcov_method,
-              vcov_numderiv = vcov_numderiv,
-              use_Rcpp = use_Rcpp,
-              lambda_start = lambda_start,
-              lambda_penalty_K = lambda_penalty_K
+              vcov_method = vcov_method
             )
           },
           warning = function(w) {

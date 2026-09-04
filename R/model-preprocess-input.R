@@ -17,11 +17,11 @@
     dataset <- as.data.frame(dataset, stringsAsFactors = FALSE)
   }
 
-  .gl_validate_tabular_shape(dataset, context = "dataset")
+  .gl_validate_tabular_shape(dataset, context = "`data`")
 
   if (all(is.na(time_var)) || all(is.na(subject_var))) {
     stop(
-      "ERROR: Required input variables not specified.\n",
+      "Required input variables were not specified.\n",
       "Please specify:\n",
       "  - time_var: column name for time/margin variable (e.g., 'time')\n",
       "  - subject_var: column name for subject ID variable (e.g., 'subject')\n",
@@ -31,13 +31,13 @@
 
   if (!time_var %in% colnames(dataset)) {
     stop(
-      "ERROR: time_var='", time_var, "' not found in dataset.\n",
+      "`time_var = \"", time_var, "\"` was not found in `data`.\n",
       "Available columns: ", paste(colnames(dataset), collapse = ", ")
     )
   }
   if (!subject_var %in% colnames(dataset)) {
     stop(
-      "ERROR: subject_var='", subject_var, "' not found in dataset.\n",
+      "`subject_var = \"", subject_var, "\"` was not found in `data`.\n",
       "Available columns: ", paste(colnames(dataset), collapse = ", ")
     )
   }
@@ -48,7 +48,7 @@
 
   if (!response_var %in% names(dataset)) {
     stop(
-      "ERROR: response variable '", response_var, "' not found in dataset.\n",
+      "Response variable `", response_var, "` was not found in `data`.\n",
       "Available columns: ", paste(names(dataset), collapse = ", ")
     )
   }

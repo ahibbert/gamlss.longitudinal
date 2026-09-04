@@ -3,15 +3,15 @@
   fc_fit_q$idx <- seq_len(nrow(fc_fit_q))
 
   p_fit_quant <- ggplot2::ggplot(fc_fit_q, ggplot2::aes(x = idx)) +
-    ggplot2::geom_ribbon(ggplot2::aes_string(ymin = q_cols$q_low, ymax = q_cols$q_high), fill = "#4e79a7", alpha = 0.25) +
-    ggplot2::geom_line(ggplot2::aes_string(y = q_cols$q_mid), color = "#1f4e79", linewidth = 0.8) +
-    ggplot2::geom_point(ggplot2::aes(y = response), color = "black", alpha = 0.35, size = 0.9) +
+    ggplot2::geom_ribbon(ggplot2::aes_string(ymin = q_cols$q_low, ymax = q_cols$q_high), fill = .gl_plot_colours()[["interval"]], alpha = 0.25) +
+    ggplot2::geom_line(ggplot2::aes_string(y = q_cols$q_mid), color = .gl_plot_colours()[["fitted"]], linewidth = 0.8) +
+    ggplot2::geom_point(ggplot2::aes(y = response), color = .gl_plot_colours()[["observed"]], alpha = 0.35, size = 0.9) +
     ggplot2::labs(
-      title = "Fitted Forecast Quantiles",
-      x = "Observation Index",
+      title = "Fitted forecast quantiles",
+      x = "Observation index",
       y = "Response"
     ) +
-    ggplot2::theme_minimal()
+    theme_gamlss_longitudinal()
 
   list(plot = p_fit_quant, data = fc_fit_q)
 }
@@ -64,12 +64,18 @@
         ggplot2::geom_ribbon(ggplot2::aes_string(ymin = q_cols$q_low, ymax = q_cols$q_high, fill = "person_plot"), alpha = 0.14, color = NA, show.legend = FALSE) +
         ggplot2::geom_line(ggplot2::aes_string(y = q_cols$q_mid), linewidth = 0.8) +
         ggplot2::geom_point(ggplot2::aes_string(y = q_cols$q_mid), size = 1.7) +
+        ggplot2::scale_color_manual(values = stats::setNames(
+          .gl_group_colours(nlevels(fc_new_q$person_plot)), levels(fc_new_q$person_plot)
+        )) +
+        ggplot2::scale_fill_manual(values = stats::setNames(
+          .gl_group_colours(nlevels(fc_new_q$person_plot)), levels(fc_new_q$person_plot)
+        )) +
         ggplot2::labs(
-          title = "Newdata Forecast Quantiles",
+          title = "Forecast quantiles for new data",
           x = "Time",
           y = paste0("Predicted ", q_cols$q_mid)
         ) +
-        ggplot2::theme_minimal()
+        theme_gamlss_longitudinal()
     }
   }
 

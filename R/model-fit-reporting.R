@@ -3,26 +3,14 @@
 #'
 #' @noRd
 .gl_print_fit_summary <- function(par_cov, aics, dataset, margin_dist, copula_dist, total_fit_time) {
-  cat("\n\n############ MODEL FIT ############\n")
-  cat(paste("\nMargin distribution:", margin_dist$family[2]))
-  cat(paste("\nCopula distribution:", copula_dist))
-  cat("\n")
-  cat(paste("\nParameter count:", length(par_cov)))
-  cat(paste("\nObservations:", nrow(dataset)))
-  cat(paste("\nMargins:", length(unique(dataset$time))))
-  cat("\n")
-  cat(paste("\nTotal time (seconds):", round(total_fit_time, 2)))
-  cat("\n\n")
-
-  par_mat_out_temp <- t(t((par_cov)))
-  colnames(par_mat_out_temp) <- c("estimate")
-  print(par_mat_out_temp)
-
-  cat("\n")
-  cat("Model Selection Criteria:")
-  cat("\n")
-  print(aics)
-  cat("\n####################################\n")
+  cat("\nFit complete: ", .gl_margin_display_label(margin_dist), " margin with ",
+      .gl_copula_display_label(copula_dist), " copula\n", sep = "")
+  cat("Data: ", sum(is.finite(dataset$response)), " observed responses, ",
+      length(unique(dataset$subject)), " subjects, ", length(unique(dataset$time)),
+      " time points | Parameters: ", length(par_cov), "\n", sep = "")
+  cat("Elapsed: ", format(round(total_fit_time, 2), nsmall = 2), " seconds",
+      " | logLik: ", .gl_format_console_number(aics["LogLik", "joint"]),
+      " | AIC: ", .gl_format_console_number(aics["AIC", "joint"]), "\n", sep = "")
 }
 
 #' Kickoff variance / covariance calculation and attach to fitted object if requested (it's on by default)

@@ -10,7 +10,9 @@ gamlss_longitudinal_control(
   max_elapsed_sec = Inf,
   stop_on_convergence = TRUE,
   rs = list(),
-  cg = list()
+  cg = list(),
+  lambda_start = NA_real_,
+  lambda_penalty = 2
 )
 }
 \arguments{
@@ -31,6 +33,12 @@ limit while still reporting whether the final state satisfies the contract.}
 \item{rs}{Named list of RS-only controls. See Details.}
 
 \item{cg}{Named list of CG-only controls. See Details.}
+
+\item{lambda_start}{Optional positive initial smoothing parameter. \code{NA} uses
+the data-adaptive initialization for each smooth term.}
+
+\item{lambda_penalty}{Positive penalty multiplier used when selecting
+smoothing parameters. The default of 2 corresponds to AIC.}
 }
 \value{
 A \code{gamlss.longitudinal.control} object.
@@ -55,9 +63,10 @@ is distinct from \code{inference_control(gradient_tol = ...)}, which validates
 post-fit curvature.
 
 Shared defaults are \code{outer_tol = NA} (data-adaptive),
-\code{max_outer_iter = 100}, \code{max_elapsed_sec = Inf}, and
-\code{stop_on_convergence = TRUE}. Tolerances must be positive finite numbers or
-\code{NA} where an automatic value is documented; iteration counts are positive
+\code{max_outer_iter = 100}, \code{max_elapsed_sec = Inf},
+\code{stop_on_convergence = TRUE}, \code{lambda_start = NA}, and
+\code{lambda_penalty = 2}. Tolerances must be positive finite numbers or \code{NA}
+where an automatic value is documented; iteration counts are positive
 integers. The elapsed budget must be positive or \code{Inf}.
 
 RS defaults are \code{inner_tol = NA}, \code{max_inner_iter = 100},

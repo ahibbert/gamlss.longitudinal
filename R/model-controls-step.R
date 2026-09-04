@@ -12,21 +12,21 @@
     verbose) {
   if (length(start_step_size) != 1 || !is.numeric(start_step_size) ||
     !is.finite(start_step_size) || start_step_size <= 0) {
-    stop("ERROR: start_step_size must be a single positive finite numeric value.")
+    stop("`rs$start_step_size` must be a single positive finite number.", call. = FALSE)
   }
 
   if (length(max_steps) != 1 || !is.numeric(max_steps) || is.na(max_steps)) {
-    stop("ERROR: max_steps must be a single non-negative integer.")
+    stop("`rs$max_steps` must be a single non-negative integer.", call. = FALSE)
   }
 
   max_steps <- as.integer(max_steps)
 
   if (max_steps < 0) {
-    stop("ERROR: max_steps must be a single non-negative integer.")
+    stop("`rs$max_steps` must be a single non-negative integer.", call. = FALSE)
   }
 
   if (length(step_adjustment) != 1 || is.null(step_adjustment)) {
-    stop("ERROR: step_adjustment must be a single positive numeric value, or NA for the method-specific default.")
+    stop("`rs$step_adjustment` must be a single positive number, or NA for the method-specific default.", call. = FALSE)
   }
 
   step_adjustment <- as.numeric(step_adjustment)
@@ -43,9 +43,9 @@
       1
     }
 
-    if (verbose > 0) {
+    if (verbose > 1) {
       cat(
-        "\nUsing automatic step_adjustment=",
+        "Using automatic step adjustment ",
         signif(step_adjustment, 4),
         " for ",
         if (method == "RS" && isTRUE(include_dlcopdpar)) "joint RS" else if (method == "RS") "separate RS" else method,
@@ -54,7 +54,7 @@
       )
     }
   } else if (!is.finite(step_adjustment) || step_adjustment <= 0) {
-    stop("ERROR: step_adjustment must be a single positive numeric value, or NA for the method-specific default.")
+    stop("`rs$step_adjustment` must be a single positive number, or NA for the method-specific default.", call. = FALSE)
   }
 
   list(

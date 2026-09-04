@@ -25,7 +25,7 @@
       copula_time_intercepts = copula_time_intercepts
     )
     default_args <- list(
-      dataset = data,
+      data = data,
       margin_dist = margin_dist,
       copula_dist = copula_family,
       time_var = time_var,
@@ -36,7 +36,7 @@
       tau.formula = formulas$par_formula,
       theta.formula = formulas$theta_formula,
       zeta.formula = ~1,
-      include_dlcopdpar = TRUE,
+      optimization = "joint",
       compute_vcov = FALSE,
       optimizer_control = gamlss_longitudinal_control(
         rs = list(warm_start_joint = FALSE)

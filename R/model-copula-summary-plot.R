@@ -33,36 +33,37 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
 
   time_summary$time <- as.factor(time_summary$time)
 
+  cols <- .gl_plot_colours()
   p_theta <- ggplot2::ggplot(time_summary, ggplot2::aes(x = time, y = theta_fit, group = 1)) +
-    ggplot2::geom_line(color = "#1f4e79", linewidth = 0.8) +
-    ggplot2::geom_point(color = "#1f4e79", size = 2.5) +
+    ggplot2::geom_line(color = cols[["fitted"]], linewidth = 0.8) +
+    ggplot2::geom_point(color = cols[["fitted"]], size = 2.5) +
     ggplot2::labs(
       title = "Fitted Copula Theta by Time",
       x = "Time",
       y = "Theta"
     ) +
-    ggplot2::theme_minimal()
+    theme_gamlss_longitudinal()
 
   p_tau <- ggplot2::ggplot(time_summary, ggplot2::aes(x = time, y = tau_fit, group = 1)) +
-    ggplot2::geom_line(color = "#e41a1c", linewidth = 0.8) +
-    ggplot2::geom_point(color = "#e41a1c", size = 2.5) +
+    ggplot2::geom_line(color = cols[["fitted"]], linewidth = 0.8) +
+    ggplot2::geom_point(color = cols[["fitted"]], size = 2.5) +
     ggplot2::labs(
       title = "Fitted Copula Kendall's Tau by Time",
       x = "Time",
       y = "Tau"
     ) +
-    ggplot2::theme_minimal()
+    theme_gamlss_longitudinal()
 
   if ("zeta_fit" %in% names(time_summary)) {
     p_zeta <- ggplot2::ggplot(time_summary, ggplot2::aes(x = time, y = zeta_fit, group = 1)) +
-      ggplot2::geom_line(color = "#4d4d4d", linewidth = 0.8) +
-      ggplot2::geom_point(color = "#4d4d4d", size = 2.5) +
+      ggplot2::geom_line(color = cols[["fitted"]], linewidth = 0.8) +
+      ggplot2::geom_point(color = cols[["fitted"]], size = 2.5) +
       ggplot2::labs(
         title = "Fitted Copula Zeta by Time",
         x = "Time",
         y = "Zeta"
       ) +
-      ggplot2::theme_minimal()
+      theme_gamlss_longitudinal()
   } else {
     p_zeta <- NULL
   }
@@ -77,11 +78,11 @@ plot.copula_time_summary <- function(x, ..., lags = 1, stat = c("mean", "median"
     print(dashboard)
   }
 
-  invisible(list(
+  invisible(.gl_new_plot_result(list(
     summary = summary_out,
     p_theta = p_theta,
     p_tau = p_tau,
     p_zeta = p_zeta,
     dashboard = dashboard
-  ))
+  )))
 }

@@ -12,8 +12,8 @@
     msg <- paste0(
       "Optimization stopped after ", max_negative_outer_streak, " consecutive negative outer log-likelihood changes. ",
       "We believe the model may be misspecified and the likelihood may be malformed. ",
-      "Try different starting parameters or covariate combinations. Other options include switching between joint and separate optimisation. In general, joint optimisation provides more stable convergence.",
-      "Alternatively, you can increase the max_negative_outer_streak parameter to allow more negative changes before stopping, but we recommend investigating the cause of the consecutive negative changes in likelihood."
+      "Try different starting parameters or covariate combinations. You can also switch between joint and separate optimization; joint optimization is generally more stable. ",
+      "To allow a longer streak, set `optimizer_control = gamlss_longitudinal_control(rs = list(max_negative_outer_streak = ...))`, but investigate why the likelihood decreases consecutively."
     )
 
     stop(structure(

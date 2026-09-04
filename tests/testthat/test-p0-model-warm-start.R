@@ -58,6 +58,19 @@ run_warm_start_fit_call <- function(...) {
   do.call(gamlss.longitudinal:::.gl_call_joint_warm_start_fit, args)
 }
 
+test_that("warm-start failures teach the structured optimizer control", {
+  err <- tryCatch(
+    gamlss.longitudinal:::.gl_validate_joint_warm_start_fit(
+      NULL,
+      simpleError("example failure")
+    ),
+    error = identity
+  )
+  expect_match(conditionMessage(err), "optimizer_control =", fixed = TRUE)
+  expect_match(conditionMessage(err), "rs = list(warm_start_joint = FALSE)", fixed = TRUE)
+  expect_false(grepl("Set warm_start_joint = FALSE", conditionMessage(err), fixed = TRUE))
+})
+
 test_that("warm-start policy preserves the previous joint RS conditions", {
   expect_true(gamlss.longitudinal:::.gl_should_run_joint_warm_start(
     method = "RS",
@@ -115,8 +128,8 @@ test_that("warm-start helper captures fit output warnings and starts", {
   expect_match(paste(top_output, collapse = "\n"), "Running separate RS warm-start phase", fixed = TRUE)
   expect_match(paste(top_output, collapse = "\n"), "warm output line", fixed = TRUE)
 
-  expect_false(fit_args$include_dlcopdpar)
-  expect_false(fit_args$check_dlcopdpar_gradient)
+  expect_identical(fit_args$optimization, "separate")
+  expect_false("check_dlcopdpar_gradient" %in% names(fit_args))
   expect_false(fit_args$optimizer_control$rs$warm_start_joint)
   expect_equal(fit_args$optimizer_control$rs$warm_start_joint_iter, 0L)
   expect_equal(fit_args$optimizer_control$shared$max_outer_iter, 2L)
@@ -169,8 +182,8 @@ test_that("warm-start fit-call helper captures output warnings and cold-start ar
   expect_match(out$output, "fit call output")
   expect_equal(out$warnings, "fit call warning")
   expect_null(out$error)
-  expect_false(fit_args$include_dlcopdpar)
-  expect_false(fit_args$check_dlcopdpar_gradient)
+  expect_identical(fit_args$optimization, "separate")
+  expect_false("check_dlcopdpar_gradient" %in% names(fit_args))
   expect_false(fit_args$optimizer_control$rs$warm_start_joint)
   expect_equal(fit_args$optimizer_control$rs$warm_start_joint_iter, 0L)
   expect_equal(fit_args$optimizer_control$shared$max_outer_iter, 2L)

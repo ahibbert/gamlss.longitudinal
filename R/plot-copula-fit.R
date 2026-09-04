@@ -111,11 +111,11 @@ plot_copula_fit <- function(
     print(p)
   }
 
-  invisible(list(
+  invisible(.gl_new_plot_result(list(
     plot = p,
     pair_data = pair_data,
     density = density_grid,
     copula = spec,
     selection = selection
-  ))
+  ), primary = "plot"))
 }

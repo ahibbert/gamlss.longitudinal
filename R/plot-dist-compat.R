@@ -1,6 +1,6 @@
 #' @rdname plot_dist
 #' @export
 plotDist <- function(...) {
-  warning("plotDist() is retained for compatibility; use plot_dist() instead.", call. = FALSE)
+  .Deprecated("plot_dist", package = "gamlss.longitudinal")
   plot_dist(...)
 }

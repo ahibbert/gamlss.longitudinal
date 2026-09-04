@@ -1,7 +1,7 @@
 #' Audit a fitted longitudinal GAMLSS-copula model specification
 #'
 #' `model_spec()` returns a compact, printable audit trail for a fitted model:
-#' formulas, distributions, links, optimisation settings, missing-response
+#' formulas, distributions, links, optimization settings, missing-response
 #' counts, likelihood components, and variance-covariance metadata.
 #'
 #' @param object A fitted `gamlss.longitudinal` object.
@@ -28,6 +28,16 @@ model_spec <- function(object) {
   model_selection <- tryCatch(summary(object, include_vcov = FALSE)$fit$model_selection, error = function(e) NULL)
   dep <- tryCatch(copula_time_summary(object), error = function(e) NULL)
 
+  optimization <- list(
+    method = object$optim_method %||% object$convergence$method %||% NA_character_,
+    strategy = object$optimization %||%
+      if (isTRUE(object$include_dlcopdpar)) "joint" else "separate",
+    converged = isTRUE(object$convergence$converged),
+    stop_reason = object$convergence$stop_reason %||% NA_character_,
+    outer_iterations = object$convergence$outer_iterations %||% NA_integer_,
+    max_outer_iter = object$convergence$max_outer_iter %||% NA_integer_
+  )
+
   out <- list(
     variables = list(
       response = object$response_var %||% "response",
@@ -41,13 +51,10 @@ model_spec <- function(object) {
     ),
     formulas = object$formulas,
     margin_links = margin_links,
-    optimisation = list(
-      method = object$optim_method %||% object$convergence$method %||% NA_character_,
-      converged = isTRUE(object$convergence$converged),
-      stop_reason = object$convergence$stop_reason %||% NA_character_,
-      outer_iterations = object$convergence$outer_iterations %||% NA_integer_,
-      max_outer_iter = object$convergence$max_outer_iter %||% NA_integer_
-    ),
+    optimization = optimization,
+    # Retain the original field name for one transition period. New code should
+    # use $optimization; the duplicate value avoids breaking saved workflows.
+    optimisation = optimization,
     missingness = list(
       n_rows = length(response),
       n_missing_response = sum(is.na(response)),
@@ -67,11 +74,12 @@ model_spec <- function(object) {
 
 #' @export
 print.gamlss_longitudinal_model_spec <- function(x, digits = max(3, getOption("digits") - 3), ...) {
-  cat("\nGAMLSS Longitudinal Model Specification\n")
-  cat("--------------------------------------\n")
+  optimization <- x$optimization %||% x$optimisation
+  cat("\n<Model specification>\n")
   cat("Response:", x$variables$response, " | Subject:", x$variables$subject, " | Time:", x$variables$time, "\n")
   cat("Margin:", x$distributions$margin, " | Copula:", x$distributions$copula, "\n")
-  cat("Optimisation:", x$optimisation$method, " | Converged:", if (isTRUE(x$optimisation$converged)) "yes" else "no", "\n")
+  cat("Optimizer: ", optimization$method, ", ", optimization$strategy,
+      " | Converged: ", if (isTRUE(optimization$converged)) "yes" else "no", "\n", sep = "")
   cat("Missing responses:", x$missingness$n_missing_response, "of", x$missingness$n_rows, "\n")
   if (identical(x$likelihood_contract$objective, "segmented")) {
     cat(
@@ -91,15 +99,15 @@ print.gamlss_longitudinal_model_spec <- function(x, digits = max(3, getOption("d
     print(vapply(x$formulas, function(f) paste(deparse(f), collapse = " "), character(1)))
   }
   if (!is.null(x$margin_links) && nrow(x$margin_links) > 0L) {
-    cat("\nMargin Links\n")
+    cat("\nMargin links\n")
     print(x$margin_links, row.names = FALSE)
   }
   if (!is.null(x$likelihood)) {
-    cat("\nLikelihood And Information Criteria\n")
+    cat("\nLikelihood and information criteria\n")
     print(round(x$likelihood, digits))
   }
   if (!is.null(x$dependence) && nrow(x$dependence) > 0L) {
-    cat("\nDependence By Time (includes Kendall's tau)\n")
+    cat("\nDependence by time (includes Kendall's tau)\n")
     print(x$dependence, digits = digits, row.names = FALSE)
   }
   invisible(x)
