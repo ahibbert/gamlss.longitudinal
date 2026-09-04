@@ -644,7 +644,12 @@ jss_phase2_claim_lifecycle <- function(x, study_id) {
   }
   retained <- retained & converged
   if (!all(attempted) || any(retained & !converged)) stop("Claim source lifecycle is contradictory: ", study_id, call. = FALSE)
-  failed <- !retained
+  exclusion <- as.character(choose("exclusion_reason", rep("none", nrow(x))))
+  exclusion[is.na(exclusion)] <- ""
+  excluded <- nzchar(trimws(exclusion)) & !tolower(trimws(exclusion)) %in% c("none", "not_excluded")
+  if (any(retained & excluded)) stop("Claim source retains an explicitly excluded row: ", study_id, call. = FALSE)
+  analysis_attempted <- attempted & !excluded
+  failed <- analysis_attempted & !retained
   reason <- as.character(choose(
     c("failure_reason", "failure_reason_short", "failure_type", "stop_reason", "error"),
     ifelse(failed, "unclassified_failure", "none")
@@ -653,7 +658,8 @@ jss_phase2_claim_lifecycle <- function(x, study_id) {
   if (any(failed & reason == "none")) stop("Claim source hides one or more failures: ", study_id, call. = FALSE)
   reasons <- sort(table(reason[failed]), decreasing = TRUE)
   list(
-    attempted = sum(attempted), converged = sum(converged), retained = sum(retained),
+    attempted = sum(analysis_attempted), converged = sum(converged & analysis_attempted),
+    retained = sum(retained & analysis_attempted),
     failed = sum(failed),
     failure_reasons = if (length(reasons)) paste(names(reasons), as.integer(reasons), sep = ":", collapse = ";") else "none"
   )
@@ -788,6 +794,16 @@ jss_phase2_design_value <- function(x, field, check_type, expected) {
   } else if (identical(check_type, "unique_count")) {
     target <- as.character(as.integer(expected))
     actual <- as.character(length(actual))
+  } else if (identical(check_type, "unique_count_per_study")) {
+    if (!"study_id" %in% names(x)) {
+      stop("Phase 2 per-study design check requires study_id.", call. = FALSE)
+    }
+    counts <- vapply(
+      split(as.character(x[[field]]), as.character(x$study_id), drop = TRUE),
+      function(values) length(unique(values[!is.na(values)])), integer(1L)
+    )
+    target <- as.character(as.integer(expected))
+    actual <- as.character(sort(unique(counts)))
   } else stop("Unknown Phase 2 design check_type: ", check_type, call. = FALSE)
   if (!identical(sort(actual), sort(target))) {
     stop("Phase 2 design values disagree for ", field, ": expected ",
@@ -802,7 +818,7 @@ jss_phase2_validate_design_contract <- function(settings) {
   required <- c("design_id", "study_id", "tex_anchor", "source_artifact_id", "field",
     "check_type", "expected_values", "display_label", "publication_scope")
   if (!identical(names(contract), required) || !nrow(contract) || anyDuplicated(contract$design_id) ||
-      any(!contract$check_type %in% c("set", "integer_range", "unique_count")) ||
+      any(!contract$check_type %in% c("set", "integer_range", "unique_count", "unique_count_per_study")) ||
       any(!contract$publication_scope %in% c("public_manuscript", "public_supplemental"))) {
     stop("Phase 2 design contract is malformed.", call. = FALSE)
   }
