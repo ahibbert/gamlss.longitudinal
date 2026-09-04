@@ -76,39 +76,22 @@ version are included. Its signature is the exact ordered `field=value`
 serialization of that row, so changing `N_CORES` (including 1 to 7) invalidates
 checkpoints and prevents incomparable runtimes from being pooled.
 
-The public bundle is protected by `output_manifest.csv` and
-`bundle_checkpoint.csv`. Validation verifies every artifact hash and then
-recomputes authority, design/cardinality, denominators, lifecycle counts, and
-publication summaries from attempt-level and normalized per-attempt files;
-`bundle_status.csv` and `evidence_validation.csv` are never trusted as authority.
-The normalized attempt payload and both canonical runner-settings rows are
-the bundled public inputs, and `input_provenance.csv` hashes those actual files.
-Paper-profile use additionally requires checkout-external serialized
-attestation bytes and a detached Ed25519 signature made by the shared pinned
-Phase 2 production key (fingerprint
-`cb73c05cede55bfd56357b1780b90c1bf254413d82765c7a682fc9db3a0d8587`).
-There is no caller key override and an editable approval CSV has no authority.
-A full-profile run emits only a candidate identity for independent signing.
-The bundle also records exact-byte hashes for the evidence builder, both fit
-runners, target wrapper, central publication gate, target graph, artifact
-allowlist, claims registry, signing helper, and signing ceremony documentation.
-Git commit/state and a hash of every tracked worktree file are checked against
-the validating checkout; self-reported provenance rows are not authoritative.
-Candidate building and public validation additionally require Git state
-`clean`; any modified or untracked file is a publication-policy failure.
-The signed bytes bind the exact canonical bundle, output manifest, checkpoint,
-both runner settings files, control-source manifest, package and producer
-identities, exact n=500/T=4/R=100 design, every attempt completion instant,
-approval instant, and named approver. Approval must postdate every execution.
-Validation is repeated on an immutable staged copy and the installed copy, with
-before/after source hashes and the same attestation checked each time.
+The author-side bundle builder writes `output_manifest.csv` and
+`bundle_checkpoint.csv`, validates every artifact hash, and recomputes the
+design, lifecycle denominators, and publication summaries from attempt-level
+and normalized per-attempt files. These checks make incomplete or internally
+inconsistent production runs fail before promotion.
 
-The hardened code gate and the production-evidence gate are separate. No
-production attestation currently exists, and manuscript assets are conditional,
-until a fresh n=500, T=4, R=100 run under the current runner/schema fingerprints
-has completed and its candidate bundle has been independently validated. Runs
-started under earlier fingerprints are not publication evidence.
-Full profile execution stops after writing and validating an unapproved
-candidate bundle and candidate identity; it writes no manuscript tables or
-figures. Only paper-profile validation against the checkout-external pinned-key
-attestation/signature may generate those assets or satisfy the central gate.
+The public reviewer workflow deliberately uses a leaner contract. It validates
+the tracked analysis-ready bundle against the versioned schemas in
+`paper/submission-input-schemas.csv`, checks complete scenario/method/replicate
+keys and lifecycle counts, and reconstructs the paper summaries. Reviewers do
+not need a checkout-external key, detached signature, machine-specific source
+hash, or author approval ceremony. Source and settings fingerprints remain in
+the author-side checkpoint layer because they prevent incompatible interrupted
+runs from being resumed together; they are not prerequisites for rebuilding
+the paper from the published inputs.
+
+The full profile performs the fixed-seed 100-replicate BCPE/t and NBI/Clayton
+runs and rebuilds this same public bundle. The paper profile consumes only the
+versioned public bundle and never reads ignored local results.
