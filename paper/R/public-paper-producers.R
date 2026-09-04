@@ -228,6 +228,7 @@ jss_run_07_from_public_results <- function(settings) {
   results <- jss_submission_validate_copula(public_results, settings$root)
   evidence_config <- config
   evidence_grid <- jss_misspec_grid(evidence_config)
+  jss_misspec_validate_public_full_bundle(results, evidence_grid, evidence_config)
   results <- jss_misspec_add_deltas(results)
   summary <- jss_misspec_summary(results)
   selection_attempts <- jss_misspec_selection_attempts(results)
