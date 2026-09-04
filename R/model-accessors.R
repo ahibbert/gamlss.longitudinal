@@ -33,6 +33,7 @@ logLik.gamlss.longitudinal <- function(object, ...) {
 #' @param k Penalty multiplier.
 #' @return A numeric criterion, or the standard comparison table when multiple
 #'   models are supplied to `AIC()`.
+#' @importFrom stats AIC BIC logLik
 #' @export
 AIC.gamlss.longitudinal <- function(object, ..., k = 2) {
   .gl_require_converged_fit(object, "AIC model comparison")
