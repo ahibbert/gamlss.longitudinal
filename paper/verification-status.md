@@ -22,10 +22,10 @@ author-side recomputation.
 - A full local Windows R 4.4.1 source-package check completed with status OK:
   zero errors, zero warnings, and zero notes. The later Phase 2 changes affect
   CRAN-excluded paper files and tests, not packaged R code.
-- Strict-warning smoke recomputation completed with no target warnings/errors.
-  Nine deliberately short nonconverged fits are retained as structured
-  `fit-events.csv` rows rather than leaked target warnings. A final
-  fresh-checkout rerun is part of close-out.
+- Strict-warning smoke recomputation from a detached clean checkout completed
+  in 1 minute 4 seconds with no target warnings/errors. Nine deliberately short
+  nonconverged fits are retained as structured `fit-events.csv` rows rather
+  than leaked target warnings.
 - The optimizer bundle contains three scenarios and 97 paired replicates per
   scenario: 582/582 attempts converged and were retained. Both producer and
   submission validators pass, including the cross-checkout checkpoint test.
@@ -64,7 +64,6 @@ author-side recomputation.
 ## Checks in progress
 
 - Run the complete ordinary package suite after the documentation boundary fix.
-- Run strict smoke from the final clean checkout and record its runtime.
 - Give a context-free independent reviewer only `paper/REVIEWER.md`; fix every
   in-scope ambiguity or failure before closing Phase 2.
 

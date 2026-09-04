@@ -43,12 +43,12 @@ not ready until every `Blocking` item is resolved.
 
 | Gate | Status | Required action |
 |---|---|---|
-| Smoke profile | Passed; final clean rerun pending | Repeat from the close-out commit and record runtime. |
+| Smoke profile | Passed | A detached clean-checkout run completed in 1 minute 4 seconds with no target warnings/errors; nine deliberately short nonconverged fits were recorded structurally. |
 | Paper profile | Passed | All 10 Phase 2 gates pass, 83 exact public paths are registered, and `target-events.csv` reports no target warnings/errors. |
 | Full profile | Optional author QA | Retain the checkpointed command, but do not make a publication-scale rerun a routine reviewer or Phase 2 gate. |
 | Manifest coverage | Asset classification passed | The read-only canonical audit classifies all 40 current manuscript assets; Phase 3 must update obsolete empirical references. |
 | Output hashes | Implemented | Keep output, input, and provenance hashes in each generated replication run. |
-| Runtime notes | Evidence recorded | The final cached strict paper pipeline completed in 1 minute 1.6 seconds; record the close-out fresh smoke runtime separately. Full remains optional. |
+| Runtime notes | Evidence recorded | Fresh strict smoke completed in 1 minute 4 seconds and the final cached strict paper pipeline in 1 minute 1.6 seconds. Full remains optional. |
 | External data notes | Repository resolved; manuscript edit blocking | Public commands have no private-data dependency; state any private-data access exception in the paper. |
 
 ## Package-Facing Gates
