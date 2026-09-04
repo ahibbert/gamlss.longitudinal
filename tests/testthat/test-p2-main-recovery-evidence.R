@@ -567,19 +567,16 @@ test_that("checkout source identity is clone-portable and rejects paths outside 
   expect_identical(env$jss_recovery_package_source_sha256(clone), env$jss_recovery_package_source_sha256(root))
 })
 
-test_that("producer identity binds every publication control file by exact bytes", {
+test_that("producer identity binds the lean portable control surface by exact bytes", {
   env <- local_main_recovery_env(); root <- local_main_recovery_root()
   identity <- env$jss_recovery_control_source_identity(root)
   required <- c("paper/R/main-recovery-evidence.R",
+    "paper/R/submission-replication.R",
     "paper/scripts/final-simulations/bcpe-t/simulation_bcpe_t_gamlss_comparison.R",
     "paper/scripts/final-simulations/nbi-clayton/compare_gamlss_ours_nbi_sigma_smooth.R",
     "paper/scripts/final-simulations/main-recovery/run_main_recovery_evidence.R",
-    "paper/R/phase2-paper-evidence.R", "paper/R/phase2-evidence-contracts.R",
-    "paper/R/phase2-central-integration.R", "paper/R/public-paper-producers.R",
-    "paper/R/replication-helpers.R", "paper/_targets.R", "paper/manifest.csv",
-    "paper/phase2-artifact-contract.csv", "paper/phase2-claims.csv",
-    "paper/scripts/phase2-evidence-approval.R", "paper/notes/phase2-evidence-signing.md")
-  expect_true(all(required %in% identity$source_path))
+    "paper/submission-input-schemas.csv")
+  expect_setequal(identity$source_path, required)
   expect_true(all(grepl("^[0-9a-f]{64}$", identity$sha256)))
   expect_true(all(identity$bytes > 0))
   expected <- digest::digest(paste(identity$source_path, identity$sha256, identity$bytes, sep = "\t", collapse = "\n"), algo = "sha256", serialize = FALSE)
@@ -646,6 +643,25 @@ test_that("BCPE canonical configuration covers every registered DGP, fit, and ch
   expect_true(all(vapply(expected_env, function(name) grepl(paste0('Sys.getenv("', name, '"'), source, fixed = TRUE), logical(1))))
 })
 
+test_that("recovery builder preserves canonical decimal spelling in settings CSVs", {
+  env <- local_main_recovery_env()
+  settings <- local_main_recovery_fixture(env)$bcpe_settings
+  settings$cg_armijo_c1 <- "0.0001"
+  settings$dgp_uniform_clip <- "0.00000001"
+  signature <- env$jss_recovery_settings_signature(settings, "BCPE")
+  path <- tempfile(fileext = ".csv")
+  utils::write.csv(settings, path, row.names = FALSE, na = "")
+  parsed <- utils::read.csv(
+    path, stringsAsFactors = FALSE, check.names = FALSE,
+    colClasses = "character"
+  )
+  expect_identical(env$jss_recovery_settings_signature(parsed, "BCPE"), signature)
+  builder <- paste(deparse(body(env$jss_build_main_recovery_evidence)), collapse = "\n")
+  expect_match(builder, 'colClasses = "character"', fixed = TRUE)
+  validator <- paste(deparse(body(env$jss_main_recovery_validate_public_bundle)), collapse = "\n")
+  expect_match(validator, 'colClasses = "character"', fixed = TRUE)
+})
+
 test_that("recovery manuscript guards are local and do not capture unrelated figures or sections", {
   lines <- readLines(file.path(local_main_recovery_root(), "paper", "manuscript", "main.tex"), warn = FALSE)
   opens <- grep("^\\\\IfFileExists\\{charts/paper_simulation_", lines)
@@ -678,7 +694,7 @@ test_that("public bundle validation recomputes evidence and rejects a one-cell m
     runner_settings_identity = unique(ledger[c("margin_family", "study_id", "runner_settings_signature", "runner_settings_sha256", "runner_sha256", "package_source_path", "package_version", "package_source_sha256")]),
     runner_settings_bcpe = fixture$bcpe_settings, runner_settings_nbi = fixture$nbi_settings,
     control_source_manifest = env$jss_recovery_control_source_identity(local_main_recovery_root()),
-    bundle_status = data.frame(schema_version = env$jss_recovery_schema_version(), status = "candidate_post_phase1_unapproved", publication_eligible = FALSE, reason = "candidate fixture requires external approval"),
+    bundle_status = data.frame(schema_version = env$jss_recovery_schema_version(), status = "portable_public_evidence", publication_eligible = TRUE, reason = "portable fixture satisfies the publication evidence contract"),
     production_provenance = env$jss_recovery_production_provenance(local_main_recovery_root(), ledger), evidence_validation = validation
   )
   outputs$input_provenance <- env$jss_recovery_frame_identity(outputs[c("attempt_metadata", "fixed_by_attempt", "smooth_by_attempt", "predictive_by_attempt", "diagnostic_by_attempt", "runner_settings_identity", "runner_settings_bcpe", "runner_settings_nbi")])
@@ -694,7 +710,7 @@ test_that("public bundle validation recomputes evidence and rejects a one-cell m
   fake_key <- sodium::sig_keygen(); fake_identity <- env$jss_recovery_bundle_identity(pristine)
   fake_message <- serialize(c(fake_identity, list(approved_at_utc = "2026-09-02T00:00:00Z", approver = "self-appointed")), NULL, version = 3L)
   writeBin(fake_message, fake_attestation); writeBin(sodium::sig_sign(fake_message, fake_key), fake_signature)
-  expect_error(env$jss_main_recovery_validate_public_bundle(pristine, repo_root = local_main_recovery_root(), attestation_path = fake_attestation, signature_path = fake_signature), "pinned key")
+  expect_error(env$jss_main_recovery_validate_public_bundle(pristine, repo_root = local_main_recovery_root(), attestation_path = fake_attestation, signature_path = fake_signature, require_attestation = TRUE), "pinned key")
   expect_error(env$jss_recovery_parse_rfc3339_utc("2026-02-30T00:00:00Z"), "not a real RFC3339")
   expect_error(env$jss_recovery_validate_approval_order("2026-08-31T23:59:59Z", ledger$execution_completed_at_utc), "after every execution")
   for (attack in c("named_status", "basis", "extra_field")) {

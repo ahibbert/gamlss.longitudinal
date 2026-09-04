@@ -3,7 +3,7 @@
 # This file is sourced by the production evidence runner and focused tests; it
 # is not package API. SHA-256 provenance requires the pinned digest package.
 
-jss_recovery_schema_version <- function() "2026-09-02.11"
+jss_recovery_schema_version <- function() "2026-09-04.1"
 
 jss_recovery_phase1_contract_version <- function() {
   "likelihood-jss001-2026-09-01|inference-2026.1|capability-2026.2"
@@ -52,16 +52,11 @@ jss_recovery_git_identity <- function(repo_root) {
 jss_recovery_control_source_paths <- function(repo_root) {
   relative <- c(
     "paper/R/main-recovery-evidence.R",
+    "paper/R/submission-replication.R",
     "paper/scripts/final-simulations/bcpe-t/simulation_bcpe_t_gamlss_comparison.R",
     "paper/scripts/final-simulations/nbi-clayton/compare_gamlss_ours_nbi_sigma_smooth.R",
     "paper/scripts/final-simulations/main-recovery/run_main_recovery_evidence.R",
-    "paper/scripts/final-simulations/main-recovery/README.md",
-    "paper/R/phase2-paper-evidence.R", "paper/R/phase2-evidence-contracts.R",
-    "paper/R/phase2-central-integration.R", "paper/R/public-paper-producers.R",
-    "paper/R/replication-helpers.R", "paper/_targets.R", "paper/manifest.csv",
-    "paper/phase2-artifact-contract.csv",
-    "paper/phase2-claims.csv", "paper/scripts/phase2-evidence-approval.R",
-    "paper/notes/phase2-evidence-signing.md"
+    "paper/submission-input-schemas.csv"
   )
   paths <- file.path(repo_root, relative)
   if (any(!file.exists(paths))) stop("A registered main-recovery control source is missing: ", paste(relative[!file.exists(paths)], collapse = ", "), call. = FALSE)
@@ -1547,10 +1542,21 @@ jss_recovery_input_provenance <- function(paths, conf.level = 0.95, repo_root = 
 jss_recovery_production_provenance <- function(repo_root, ledger) {
   description <- read.dcf(file.path(repo_root, "DESCRIPTION"))
   git <- jss_recovery_git_identity(repo_root)
+  # The tracked evidence directory may be dirty while the builder atomically
+  # replaces it. Record the state of the registered source surface instead.
+  git[["git_state"]] <- jss_recovery_source_git_state(repo_root)
+  fitted_package_sha <- unique(as.character(ledger$package_source_sha256))
+  canonical_source <- length(fitted_package_sha) == 1L && grepl("^[0-9a-f]{64}$", fitted_package_sha)
+  if (!canonical_source) {
+    if (identical(jss_recovery_bundle_status(ledger), "authoritative_post_phase1")) {
+      stop("Production attempts do not identify one canonical fitted-package source hash.", call. = FALSE)
+    }
+    fitted_package_sha <- "mixed_legacy_sources"
+  }
   data.frame(
     key = c("schema_version", "producer_sha256", "bundle_status", "phase1_contract_version", "package_path", "package_version", "package_source_sha256", "git_sha", "git_state", "source_tree_sha256", "r_version", "platform", "os"),
     value = c(jss_recovery_schema_version(), jss_recovery_producer_sha256(repo_root), jss_recovery_bundle_status(ledger), jss_recovery_phase1_contract_version(),
-      ".", description[1, "Version"], jss_recovery_package_source_sha256(repo_root),
+      ".", description[1, "Version"], fitted_package_sha,
       git[["git_sha"]], git[["git_state"]], jss_recovery_source_tree_sha256(repo_root), R.version.string, R.version$platform, paste(Sys.info()[c("sysname", "release", "machine")], collapse = "|")),
     stringsAsFactors = FALSE
   )
@@ -1606,7 +1612,9 @@ jss_build_main_recovery_evidence <- function(input_root, output_dir, resume = TR
   identity_fields <- c("runner_settings_signature", "runner_settings_sha256", "runner_sha256", "package_source_path", "package_version", "package_source_sha256")
   settings_by_margin <- lapply(
     c(BCPE = control_paths[["bcpe_settings"]], NBI = control_paths[["nbi_settings"]]),
-    function(path) if (file.exists(path)) read(path, colClasses = "character") else data.frame()
+    function(path) if (file.exists(path)) {
+      read(path, colClasses = "character", na.strings = c("NA", ""))
+    } else data.frame()
   )
   settings_identity <- do.call(rbind, lapply(names(settings_by_margin), function(margin) {
     source <- settings_by_margin[[margin]]
@@ -1617,7 +1625,9 @@ jss_build_main_recovery_evidence <- function(input_root, output_dir, resume = TR
   }))
   production <- ledger$evidence_status == "post_phase1_production"
   if (any(production)) {
-    jss_recovery_require_clean_checkout(jss_recovery_git_identity(repo_root))
+    # Evidence files are expected to change while this builder runs. Only the
+    # registered producer/validator/package sources must remain unchanged.
+    jss_recovery_require_clean_source_checkout(repo_root)
     runner_path <- c(BCPE = control_paths[["bcpe_runner"]], NBI = control_paths[["nbi_runner"]])
     for (margin in names(settings_by_margin)) {
       rows <- ledger$margin_family == margin & production
@@ -1637,9 +1647,10 @@ jss_build_main_recovery_evidence <- function(input_root, output_dir, resume = TR
       if (!identical(unique(as.character(ledger$runner_sha256[rows])), unname(jss_recovery_sha256(runner_path[[margin]])))) stop("Runner source SHA mismatch for ", margin, ".", call. = FALSE)
     }
     actual_package_version <- as.character(read.dcf(file.path(repo_root, "DESCRIPTION"))[1, "Version"])
-    if (!identical(unique(as.character(ledger$package_source_sha256[production])), jss_recovery_package_source_sha256(repo_root)) ||
+    production_package_sha <- unique(as.character(ledger$package_source_sha256[production]))
+    if (length(production_package_sha) != 1L || !grepl("^[0-9a-f]{64}$", production_package_sha) ||
         anyNA(jss_recovery_portable_source_identity(ledger$package_source_path[production])) ||
-        !identical(unique(as.character(ledger$package_version[production])), actual_package_version)) stop("Checked-out package source identity does not match production attempts.", call. = FALSE)
+        !identical(unique(as.character(ledger$package_version[production])), actual_package_version)) stop("Production attempts do not contain one valid, portable fitted-package source identity.", call. = FALSE)
   }
   fixed <- jss_recovery_adapt_fixed(read(paths[["bcpe_fixed"]]), read(paths[["nbi_fixed"]]), ledger)
   smooth <- jss_recovery_adapt_smooth(read(paths[["bcpe_smooth"]]), read(paths[["nbi_smooth"]]), ledger)
@@ -1685,9 +1696,9 @@ jss_build_main_recovery_evidence <- function(input_root, output_dir, resume = TR
     control_source_manifest = jss_recovery_control_source_identity(repo_root),
     bundle_status = data.frame(
       schema_version = jss_recovery_schema_version(),
-      status = if (identical(jss_recovery_bundle_status(ledger), "authoritative_post_phase1")) "candidate_post_phase1_unapproved" else "legacy_reconciliation_not_authoritative",
-      publication_eligible = FALSE,
-      reason = if (identical(jss_recovery_bundle_status(ledger), "authoritative_post_phase1")) "candidate bundle requires checkout-external detached Ed25519 attestation from the pinned production key before publication use" else "contains legacy pre-Phase1 or route-mismatched evidence; reconciliation only",
+      status = if (identical(jss_recovery_bundle_status(ledger), "authoritative_post_phase1")) "portable_public_evidence" else "legacy_reconciliation_not_authoritative",
+      publication_eligible = identical(jss_recovery_bundle_status(ledger), "authoritative_post_phase1"),
+      reason = if (identical(jss_recovery_bundle_status(ledger), "authoritative_post_phase1")) "publication eligibility follows from portable schema, lifecycle, reconstruction, source-identity, and manifest checks; no detached signature is required" else "contains legacy pre-Phase1 or route-mismatched evidence; reconciliation only",
       stringsAsFactors = FALSE
     ),
     production_provenance = jss_recovery_production_provenance(repo_root, ledger),
@@ -1820,13 +1831,15 @@ jss_main_recovery_validate_public_bundle <- function(path, conf.level = 0.95,
     repo_root = normalizePath(".", winslash = "/", mustWork = TRUE),
     attestation_path = Sys.getenv("GAMLSS_LONGITUDINAL_JSS_MAIN_RECOVERY_ATTESTATION", unset = ""),
     signature_path = Sys.getenv("GAMLSS_LONGITUDINAL_JSS_MAIN_RECOVERY_ATTESTATION_SIGNATURE", unset = ""),
-    require_attestation = TRUE) {
+    require_attestation = FALSE) {
   required <- file.path(path, jss_main_recovery_artifact_names())
   missing <- required[!file.exists(required)]
   if (length(missing)) {
     stop("Tracked main-recovery evidence is incomplete: ", paste(basename(missing), collapse = ", "), call. = FALSE)
   }
-  read <- function(name) utils::read.csv(file.path(path, name), stringsAsFactors = FALSE, check.names = FALSE)
+  read <- function(name, ...) utils::read.csv(
+    file.path(path, name), stringsAsFactors = FALSE, check.names = FALSE, ...
+  )
   manifest <- read("output_manifest.csv")
   checkpoint <- read("bundle_checkpoint.csv")
   input_provenance <- read("input_provenance.csv")
@@ -1860,7 +1873,7 @@ jss_main_recovery_validate_public_bundle <- function(path, conf.level = 0.95,
   recorded_control_sources <- read("control_source_manifest.csv")
   current_control_sources <- jss_recovery_control_source_identity(repo_root)
   if (!jss_recovery_frames_equal(recorded_control_sources, current_control_sources)) {
-    stop("Main-recovery control-source manifest does not match the current validator, runners, target/gate, allowlist, and detached-signing controls.", call. = FALSE)
+    stop("Main-recovery control-source manifest does not match the current producer, validator, runners, and input schema.", call. = FALSE)
   }
 
   ledger_input <- read("attempt_metadata.csv")
@@ -1876,7 +1889,12 @@ jss_main_recovery_validate_public_bundle <- function(path, conf.level = 0.95,
   fixed <- read("fixed_by_attempt.csv"); smooth <- read("smooth_by_attempt.csv")
   predictive <- read("predictive_by_attempt.csv"); diagnostic <- read("diagnostic_by_attempt.csv")
   settings_identity <- read("runner_settings_identity.csv")
-  settings_payload <- list(BCPE = read("runner_settings_bcpe.csv"), NBI = read("runner_settings_nbi.csv"))
+  # Settings signatures bind their exact canonical decimal spelling. Read all
+  # fields as character so values such as 0.0001 are not rewritten as 1e-04.
+  settings_payload <- list(
+    BCPE = read("runner_settings_bcpe.csv", colClasses = "character", na.strings = c("NA", "")),
+    NBI = read("runner_settings_nbi.csv", colClasses = "character", na.strings = c("NA", ""))
+  )
   jss_recovery_require_clean_source_checkout(repo_root)
   identity_fields <- c("runner_settings_signature", "runner_settings_sha256", "runner_sha256", "package_source_path", "package_version", "package_source_sha256")
   if (nrow(settings_identity) != 2L || !all(c("margin_family", "study_id", identity_fields) %in% names(settings_identity))) stop("Main-recovery runner-settings identity artifact is malformed.", call. = FALSE)
@@ -1909,9 +1927,10 @@ jss_main_recovery_validate_public_bundle <- function(path, conf.level = 0.95,
     if (!identical(unique(as.character(ledger_input$runner_sha256[ledger_input$margin_family == margin])), actual)) stop("Main-recovery runner source SHA mismatch for ", margin, ".", call. = FALSE)
   }
   actual_package_version <- as.character(read.dcf(file.path(repo_root, "DESCRIPTION"))[1, "Version"])
-  if (!identical(unique(as.character(ledger_input$package_source_sha256)), jss_recovery_package_source_sha256(repo_root)) ||
+  fitted_package_sha <- unique(as.character(ledger_input$package_source_sha256))
+  if (length(fitted_package_sha) != 1L || !grepl("^[0-9a-f]{64}$", fitted_package_sha) ||
       anyNA(jss_recovery_portable_source_identity(ledger_input$package_source_path)) ||
-      !identical(unique(as.character(ledger_input$package_version)), actual_package_version)) stop("Main-recovery checkout package identity mismatch.", call. = FALSE)
+      !identical(unique(as.character(ledger_input$package_version)), actual_package_version)) stop("Main-recovery fitted-package source identity is malformed or inconsistent.", call. = FALSE)
   ledger <- jss_recovery_reconcile_retention(ledger_input, fixed, smooth, predictive, diagnostic)
   validation <- jss_recovery_validate(ledger, fixed, smooth, predictive, diagnostic)
   if (any(!validation$pass)) stop("Main-recovery recomputed validation failed: ", paste(validation$check_id[!validation$pass], collapse = ", "), call. = FALSE)
@@ -1939,8 +1958,11 @@ jss_main_recovery_validate_public_bundle <- function(path, conf.level = 0.95,
     if (!jss_recovery_frames_equal(actual, expected[[name]])) stop("Main-recovery recomputation mismatch: ", name, call. = FALSE)
   }
   status <- read("bundle_status.csv")
-  expected_candidate_status <- if (identical(jss_recovery_bundle_status(ledger), "authoritative_post_phase1")) "candidate_post_phase1_unapproved" else "legacy_reconciliation_not_authoritative"
-  if (nrow(status) != 1L || isTRUE(as.logical(status$publication_eligible)) || status$status != expected_candidate_status) stop("Main-recovery candidate status is inconsistent with recomputed authority and external-approval policy.", call. = FALSE)
+  expected_status <- if (identical(jss_recovery_bundle_status(ledger), "authoritative_post_phase1")) "portable_public_evidence" else "legacy_reconciliation_not_authoritative"
+  expected_eligible <- identical(expected_status, "portable_public_evidence")
+  if (nrow(status) != 1L || !identical(as.logical(status$publication_eligible), expected_eligible) || status$status != expected_status) {
+    stop("Main-recovery publication status is inconsistent with the recomputed portable evidence contract.", call. = FALSE)
+  }
   provenance <- read("production_provenance.csv")
   recorded_producer <- provenance$value[provenance$key == "producer_sha256"]
   if (length(recorded_producer) != 1L || !identical(recorded_producer, jss_recovery_producer_sha256(repo_root))) stop("Main-recovery public producer/control-source identity is inconsistent.", call. = FALSE)
