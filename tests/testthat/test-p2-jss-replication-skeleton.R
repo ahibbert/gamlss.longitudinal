@@ -644,6 +644,21 @@ test_that("nonconverged smoke fits are structured events", {
   expect_identical(audit$event_type, "optimizer_nonconvergence")
 })
 
+test_that("coverage workflow muffles only recognized convergence warnings", {
+  root <- local_jss_repo_root()
+  env <- new.env(parent = globalenv())
+  source(file.path(root, "paper", "R", "replication-helpers.R"), local = env)
+  typed <- structure(
+    list(message = "new wording", call = NULL),
+    class = c("gamlss.longitudinal_nonconvergence_warning", "warning", "condition")
+  )
+  legacy <- simpleWarning("Model did not converge within max_outer_iter")
+  unrelated <- simpleWarning("input file is missing")
+  expect_true(env$jss_is_expected_coverage_warning(typed))
+  expect_true(env$jss_is_expected_coverage_warning(legacy))
+  expect_false(env$jss_is_expected_coverage_warning(unrelated))
+})
+
 test_that("full-profile tolerance comparisons enforce registered bounds", {
   root <- local_jss_repo_root()
   env <- new.env(parent = globalenv())
