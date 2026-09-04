@@ -2,7 +2,7 @@
 
 Status: Phase 1 passed on 2026-09-01 after independent review.
 
-This ledger maps the Phase 1 gates in `next-steps.md` to executable evidence.
+This ledger maps the original Phase 1 gates to executable evidence.
 The approved scope decision for segmented likelihoods is retained: AIC and BIC
 are available under the stated between-segment independence assumption, while
 ordinary model-Hessian inference is unavailable.

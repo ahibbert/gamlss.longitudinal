@@ -19,6 +19,11 @@
 #' Curvature-scaled finite-difference score at the fitted coefficients
 #'
 #' @noRd
+.gl_vcov_score_steps <- function(par_cov, step) {
+  stats::setNames(step * pmax(1, abs(par_cov)), names(par_cov))
+}
+
+#' @noRd
 .gl_vcov_fitted_gradient <- function(object, par_cov, H, step) {
   if (!is.matrix(H) || nrow(H) != ncol(H) || any(!is.finite(H))) {
     return(list(
@@ -36,7 +41,12 @@
       scaled_max = Inf
     ))
   }
-  steps <- step / sqrt(info_diag)
+  # Use a coefficient-scale perturbation for the numerical score. Scaling the
+  # perturbation by inverse curvature can make it vanishingly small in large
+  # samples (for example, below 1e-7 when the information is large), at which
+  # point subtraction error can dominate the fitted-score check. Curvature is
+  # still used below to standardize the resulting score.
+  steps <- .gl_vcov_score_steps(par_cov, step)
   pair_cache <- build_copula_pair_cache(
     object$response, object$response_margin, object$response_subject
   )
