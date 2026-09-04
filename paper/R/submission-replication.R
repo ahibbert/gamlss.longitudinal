@@ -113,6 +113,9 @@ jss_submission_validate_figures <- function(paths) {
 jss_submission_validate_main_recovery <- function(path, root = getwd()) {
   files <- file.path(path, jss_main_recovery_artifact_names())
   jss_submission_require_files(files, "Main-recovery bundle")
+  jss_main_recovery_validate_public_bundle(
+    path, repo_root = root, require_attestation = FALSE
+  )
   attempts <- jss_submission_read_registered_input(
     "main-recovery", file.path(path, "attempt_metadata.csv"), root
   )
