@@ -89,6 +89,7 @@ local_phase2_claim_env <- function() {
   root <- normalizePath(file.path("..", ".."), winslash = "/", mustWork = TRUE)
   env <- new.env(parent = globalenv())
   source(file.path(root, "paper", "R", "replication-helpers.R"), local = env)
+  source(file.path(root, "paper", "R", "submission-replication.R"), local = env)
   source(file.path(root, "paper", "R", "phase2-paper-evidence.R"), local = env)
   env
 }
@@ -174,8 +175,9 @@ test_that("Phase 2 claim markers are unique, scoped, and mutation-sensitive", {
   bare <- sub("PhaseTwoClaimInterval", "PhaseTwoClaim", interval$claim_marker, fixed = TRUE)
   expect_error(env$jss_phase2_validate_claim_markers(bare, interval, allow_pending = FALSE), "unregistered")
   pending <- claims[claims$evidence_state == "pending_specification", , drop = FALSE]
-  expect_setequal(unique(pending$study_id), c("main-recovery", "optimizer-benchmark", "missingness",
-    "multivariate-benchmark", "fit-scaling"))
+  expect_setequal(unique(pending$study_id), c(
+    "main-recovery", "optimizer-benchmark", "missingness", "fit-scaling"
+  ))
   expect_true(all(nzchar(pending$pending_reason)))
   expect_true(all(pending$manuscript_state == "pending_evidence"))
 })
@@ -202,7 +204,7 @@ test_that("Phase 2 exact design registry reconstructs inputs and renders TeX-rea
   design <- env$jss_phase2_validate_design_contract(settings)
   expect_equal(nrow(design), nrow(utils::read.csv(file.path(root, "paper", "phase2-design-contract.csv"))))
   expect_true(all(grepl("^[0-9a-f]{64}$", design$source_sha256)))
-  expect_equal(nrow(env$jss_phase2_validate_joint_design_contract(settings)), 6L)
+  expect_equal(nrow(env$jss_phase2_validate_joint_design_contract(settings)), 5L)
 
   claims <- env$jss_phase2_claim_register(root)
   verified <- claims[claims$evidence_state == "verified_source", , drop = FALSE]
@@ -230,19 +232,6 @@ test_that("Phase 2 exact design registry reconstructs inputs and renders TeX-rea
   utils::write.csv(missing, missing_path, row.names = FALSE)
   expect_error(env$jss_phase2_validate_joint_design_contract(settings), "duplicated or empty")
 
-  local_phase2_design_fixture(root, out)
-  status_path <- file.path(out, manifest$generated_path[manifest$artifact_id == "p2_mvt_fit_status"])
-  status <- utils::read.csv(status_path, stringsAsFactors = FALSE)
-  case_reps <- unique(status[c("case_id", "rep")])
-  cases <- c(case_reps$case_id[[1L]], case_reps$case_id[case_reps$rep != case_reps$rep[[1L]]][[1L]])
-  before <- sort(unique(status$rep))
-  first_rep <- unique(status$rep[status$case_id == cases[[1L]]])
-  second_rep <- unique(status$rep[status$case_id == cases[[2L]]])
-  status$rep[status$case_id == cases[[1L]]] <- second_rep
-  status$rep[status$case_id == cases[[2L]]] <- first_rep
-  expect_identical(sort(unique(status$rep)), before)
-  utils::write.csv(status, status_path, row.names = FALSE)
-  expect_error(env$jss_phase2_validate_joint_design_contract(settings), "do not match the registered scenario grid")
 })
 
 test_that("canonical manuscript paths, labels, and private scope are explicit", {
@@ -294,10 +283,10 @@ test_that("Phase 2 central target and seed registrations are explicit", {
   expect_true(all(vapply(c(
     "phase2-evidence-contracts.R", "main-recovery-evidence.R",
     "missingness-study-helpers.R", "phase2-central-integration.R", "10-fit-scaling.R",
-    "09-simulation-multivariate-longitudinal"
+    "submission-replication.R"
   ), grepl, logical(1), x = target_code, fixed = TRUE)))
   expect_match(target_code, "value$target_integrated <- TRUE", fixed = TRUE)
-  expect_match(target_code, "module_09_multivariate_benchmark", fixed = TRUE)
+  expect_false(grepl("module_09_multivariate_benchmark", target_code, fixed = TRUE))
   expect_false(grepl("module_08_correlation_misspecification", target_code, fixed = TRUE))
   producers <- paste(readLines(file.path(root, "paper", "R", "public-paper-producers.R"), warn = FALSE), collapse = "\n")
   expect_false(grepl("(?m)^jss_run_03_joint_vs_separate <-", producers, perl = TRUE))
@@ -308,7 +297,7 @@ test_that("Phase 2 central target and seed registrations are explicit", {
     "main-recovery-bcpe-t", "main-recovery-nbi-clayton",
     "main-recovery-summary-bootstrap", "optimizer-benchmark",
     "missingness-data", "missingness-mechanism", "copula-misspecification",
-    "multivariate-benchmark", "fit-scaling"
+    "fit-scaling"
   ) %in% seeds$study))
   expect_identical(seeds$base_seed[seeds$study == "copula-misspecification"], 20960528L)
   expect_match(seeds$replicate_rule[seeds$study == "optimizer-benchmark"], "3000 + 100*rep", fixed = TRUE)
@@ -343,8 +332,9 @@ test_that("central gate preserves manuscript scope and fails closed on pending e
   env$jss_phase2_validate_joint_design_contract <- function(...) data.frame()
   env$jss_phase2_validate_manuscript_artifact_registry <- function(...) TRUE
   env$jss_main_recovery_validate_public_bundle <- function(...) TRUE
-  modules <- stats::setNames(rep(list(list(status = "current")), 6L),
-    c("main_recovery", "optimizer", "missingness", "copula_selection", "multivariate_benchmark", "fit_scaling"))
+  env$jss_submission_validate_main_recovery <- function(...) TRUE
+  modules <- stats::setNames(rep(list(list(status = "current")), 5L),
+    c("main_recovery", "optimizer", "missingness", "copula_selection", "fit_scaling"))
 
   expect_error(env$jss_write_phase2_gate_audit(settings, modules, claim_path),
     "all_registered_claims_verified")
@@ -353,7 +343,7 @@ test_that("central gate preserves manuscript scope and fails closed on pending e
   expect_true(value("no_registered_stale_claims"))
   expect_true(value("claim_schema_and_scope_registered"))
   expect_false(value("all_registered_claims_verified"))
-  expect_identical(audit$detail[audit$check_id == "all_registered_claims_verified"], "pending_evidence=27")
+  expect_identical(audit$detail[audit$check_id == "all_registered_claims_verified"], "pending_evidence=21")
   expect_false(all(audit$pass))
 })
 
@@ -373,9 +363,11 @@ test_that("Phase 2 manifest retires superseded evidence and registers current ar
     "p2_optimizer_checkpoint_archive", "p2_optimizer_checkpoint_manifest",
     "p2_missing_checkpoint_archive", "p2_missing_checkpoint_manifest",
     "p2_missing_warning_events", "p2_missing_warning_audit",
-    "p2_mvt_fit_status", "p2_mvt_benchmark_results", "p2_mvt_audit_csv",
     "p2_scaling_attempts", "p2_scaling_hardware"
   ) %in% active))
+  deferred <- grepl("^p2_mvt_", manifest$artifact_id)
+  expect_true(all(manifest$publication_status[deferred] == "deferred"))
+  expect_true(all(manifest$profiles[deferred] == ""))
   claims <- utils::read.csv(file.path(root, "paper", "phase2-claims.csv"), stringsAsFactors = FALSE)
   pending_claims <- utils::read.csv(file.path(root, "paper", "phase2-pending-claims.csv"), stringsAsFactors = FALSE)
   expect_true(all(claims$attempt_artifact_id %in% active))
@@ -392,6 +384,7 @@ test_that("Phase 2 manifest retires superseded evidence and registers current ar
 test_that("Phase 2 manifest is an exact bidirectional module allowlist", {
   root <- normalizePath(file.path("..", ".."), winslash = "/", mustWork = TRUE)
   env <- new.env(parent = globalenv())
+  source(file.path(root, "paper", "R", "submission-replication.R"), local = env)
   source(file.path(root, "paper", "R", "phase2-central-integration.R"), local = env)
   manifest_path <- file.path(root, "paper", "manifest.csv")
   manifest <- utils::read.csv(manifest_path, stringsAsFactors = FALSE, check.names = FALSE)
@@ -402,7 +395,7 @@ test_that("Phase 2 manifest is an exact bidirectional module allowlist", {
   producer_map <- c(
     main_recovery = "module_phase2_main_recovery", optimizer = "module_03_joint_vs_separate",
     missingness = "module_04_missingness", copula_selection = "module_07_copula_misspecification",
-    multivariate_benchmark = "module_09_multivariate_benchmark", fit_scaling = "module_10_fit_scaling"
+    fit_scaling = "module_10_fit_scaling"
   )
   modules <- lapply(producer_map, function(producer) {
     paths <- p2$generated_path[p2$producer == producer]
@@ -413,7 +406,7 @@ test_that("Phase 2 manifest is an exact bidirectional module allowlist", {
   expect_silent(env$jss_phase2_validate_manifest_allowlist(settings, modules, claim, manifest_path))
 
   missing_manifest <- tempfile(fileext = ".csv")
-  utils::write.csv(manifest[manifest$artifact_id != "p2_mvt_fit_status", ], missing_manifest, row.names = FALSE, na = "")
+  utils::write.csv(manifest[manifest$artifact_id != "p2_scaling_attempts", ], missing_manifest, row.names = FALSE, na = "")
   expect_error(env$jss_phase2_validate_manifest_allowlist(settings, modules, claim, missing_manifest), "missing")
   forged <- manifest[1L, , drop = FALSE]
   forged$artifact_id <- "p2_reverse_unproduced"
@@ -423,8 +416,8 @@ test_that("Phase 2 manifest is an exact bidirectional module allowlist", {
   utils::write.csv(rbind(manifest, forged), reverse_manifest, row.names = FALSE, na = "")
   expect_error(env$jss_phase2_validate_manifest_allowlist(settings, modules, claim, reverse_manifest), "reverse/unproduced")
   forged_modules <- modules
-  forged_modules$multivariate_benchmark$data <- c(
-    forged_modules$multivariate_benchmark$data,
+  forged_modules$fit_scaling$data <- c(
+    forged_modules$fit_scaling$data,
     file.path(out, "data", "arbitrary-14400-row-bypass.csv")
   )
   expect_error(env$jss_phase2_validate_manifest_allowlist(
@@ -440,9 +433,10 @@ test_that("Phase 2 manifest is an exact bidirectional module allowlist", {
   ), "reordered")
 })
 
-test_that("central claim evidence rejects stale hashes and unsupported directions", {
+test_that("central claim evidence rejects stale schemas and unsupported directions", {
   root <- normalizePath(file.path("..", ".."), winslash = "/", mustWork = TRUE)
   env <- new.env(parent = globalenv())
+  source(file.path(root, "paper", "R", "submission-replication.R"), local = env)
   source(file.path(root, "paper", "R", "phase2-central-integration.R"), local = env)
   registered <- data.frame(claim_id = "claim-a", expected_direction = "positive", stringsAsFactors = FALSE)
   evidence <- data.frame(
@@ -450,9 +444,7 @@ test_that("central claim evidence rejects stale hashes and unsupported direction
     estimate = 0.2, mcse = 0.03, lower = 0.1, upper = 0.3,
     denominator = 100L, attempted = 100L, converged = 95L, retained = 94L,
     failed = 6L, failure_reasons = "optimizer_nonconvergence:6",
-    source_sha256 = paste(rep("a", 64L), collapse = ""),
-    effect_sha256 = paste(rep("a", 64L), collapse = ""),
-    source_identity_sha256 = paste(rep("b", 64L), collapse = ""),
+    source_schema_version = "jss-submission-inputs-1",
     status = "verified_directional_effect", stringsAsFactors = FALSE
   )
   trusted_settings <- list(root = root)
@@ -473,7 +465,7 @@ test_that("central claim evidence rejects stale hashes and unsupported direction
   expect_silent(env$jss_phase2_validate_claim_evidence_rows(
     evidence, registered, settings = trusted_settings
   ))
-  stale <- evidence; stale$source_sha256 <- "forged"
+  stale <- evidence; stale$source_schema_version <- "unsupported"
   expect_error(env$jss_phase2_validate_claim_evidence_rows(
     stale, registered, settings = trusted_settings
   ), "stale")
@@ -488,7 +480,7 @@ test_that("central claim evidence rejects stale hashes and unsupported direction
   forged_estimate <- evidence; forged_estimate$estimate <- forged_estimate$lower <- forged_estimate$upper <- 999
   expect_error(env$jss_phase2_validate_claim_evidence_rows(
     forged_estimate, registered, settings = trusted_settings
-  ), "current approved source")
+  ), "current source")
   hidden_failure <- evidence; hidden_failure$failure_reasons <- "none"
   expect_error(env$jss_phase2_validate_claim_evidence_rows(
     hidden_failure, registered, settings = trusted_settings
@@ -496,18 +488,16 @@ test_that("central claim evidence rejects stale hashes and unsupported direction
   wrong_scenario <- evidence; wrong_scenario$scenario_id <- "wrong-scenario"
   expect_error(env$jss_phase2_validate_claim_evidence_rows(
     wrong_scenario, registered, settings = trusted_settings
-  ), "current approved source")
+  ), "current source")
   wrong_selector <- evidence; wrong_selector$source_row_key <- "scenario_id=wrong"
   expect_error(env$jss_phase2_validate_claim_evidence_rows(
     wrong_selector, registered, settings = trusted_settings
-  ), "current approved source")
+  ), "current source")
   fabricated_hashes <- evidence
-  fabricated_hashes$source_sha256 <- paste(rep("c", 64L), collapse = "")
-  fabricated_hashes$effect_sha256 <- paste(rep("c", 64L), collapse = "")
-  fabricated_hashes$source_identity_sha256 <- paste(rep("d", 64L), collapse = "")
+  fabricated_hashes$source_schema_version <- "jss-submission-inputs-forged"
   expect_error(env$jss_phase2_validate_claim_evidence_rows(
     fabricated_hashes, registered, settings = trusted_settings
-  ), "current approved source")
+  ), "stale")
 })
 
 test_that("protected manuscript contains no retired Phase 2 counts or table inputs", {
@@ -556,7 +546,7 @@ test_that("full-profile tolerances use current Phase 2 evidence only", {
   root <- normalizePath(file.path("..", ".."), winslash = "/", mustWork = TRUE)
   helper <- paste(readLines(file.path(root, "paper", "R", "replication-helpers.R"), warn = FALSE), collapse = "\n")
   expect_match(helper, "optimizer_benchmark", fixed = TRUE)
-  expect_match(helper, "multivariate_benchmark_status", fixed = TRUE)
+  expect_false(grepl("multivariate_benchmark_status", helper, fixed = TRUE))
   expect_match(helper, "fit_scaling", fixed = TRUE)
   expect_match(helper, "recovery = file.path(public, \"main-recovery\")", fixed = TRUE)
   expect_match(helper, "recovery = file.path(settings$data_dir, \"main-recovery\")", fixed = TRUE)

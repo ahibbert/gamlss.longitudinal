@@ -225,12 +225,9 @@ jss_run_07_from_public_results <- function(settings) {
   config <- jss_misspec_config(settings, stage = "full")
   grid <- jss_misspec_grid(config)
   public_results <- file.path(settings$public_data_dir, "copula-misspecification", "results.csv")
-  approval <- jss_misspec_validate_approved_public_bundle(public_results, grid, config)
-  results <- approval$results
-  approval$results <- NULL
-  evidence_config <- approval$evidence_config
+  results <- jss_submission_validate_copula(public_results, settings$root)
+  evidence_config <- config
   evidence_grid <- jss_misspec_grid(evidence_config)
-  jss_misspec_validate_public_full_bundle(results, evidence_grid, evidence_config)
   results <- jss_misspec_add_deltas(results)
   summary <- jss_misspec_summary(results)
   selection_attempts <- jss_misspec_selection_attempts(results)
@@ -252,25 +249,21 @@ jss_run_07_from_public_results <- function(settings) {
   manifest <- utils::read.csv(source_manifest, stringsAsFactors = FALSE, check.names = FALSE)
   jss_misspec_write_csv_atomic(manifest, paths$execution_manifest)
   jss_misspec_write_paper_summary_heatmap(summary, paths$paper_summary_heatmap)
-  jss_misspec_validate_evidence_bundle(
-    paths$results, config,
-    unlist(paths[c("results", "paired_effects", "warning_audit", "execution_manifest",
-      "selection_attempts", "selection")], use.names = TRUE)
-  )
   installed_results <- utils::read.csv(paths$results, stringsAsFactors = FALSE, check.names = FALSE)
   review <- jss_misspec_binding_review_gate(
     installed_results, grid = evidence_grid, paths = paths,
     context = "paper-public-derived", config = evidence_config
   )
   jss_misspec_write_csv_atomic(review[c("check", "status", "detail")], paths$review)
-  jss_misspec_revalidate_approved_source(public_results, approval, config)
   list(module_id = "07-gamma-copula-misspecification", status = "regenerated",
     data = c(paths$grid, paths$results, paths$selection_attempts, paths$execution_manifest),
     tables = c(paths$summary, paths$selection, paths$selection_confusion, paths$selection_failures,
       paths$paired_effects, paths$warning_audit, paths$review),
-    figures = paths$paper_summary_heatmap, approved_identity = approval)
+    figures = paths$paper_summary_heatmap)
 }
 
+# Deferred from the current submission target graph. Retained for future work;
+# see paper/DEFERRED-MULTIVARIATE-STUDY.md.
 jss_run_phase2_multivariate_benchmark <- function(settings) {
   configured <- Sys.getenv("GAMLSS_LONGITUDINAL_MVT_APPROVED_RUN_DIR", unset = "")
   source <- if (nzchar(configured)) configured else
