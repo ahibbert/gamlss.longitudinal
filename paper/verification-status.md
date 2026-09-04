@@ -45,7 +45,16 @@ author-side recomputation.
   public bundle contains no RDS, fitted object, residual, or private asset.
 - The strict `paper` profile passes all 10 Phase 2 gates with 83 exact public
   manifest paths and 17 verified claims. `target-events.csv` reports no target
-  warnings/errors; the final cached pipeline took 1 minute 1.6 seconds.
+  warnings/errors; the final cached pipeline took 1 minute 1.6 seconds and a
+  detached clean-checkout pipeline took 3 minutes 50.6 seconds.
+- The first context-free audit exposed main-recovery hashes recorded against
+  CRLF working-tree bytes while Git enforces LF. The repaired bundle uses
+  newline/BOM-canonicalized text hashes and canonical byte counts. A regression
+  converts the complete bundle to LF before validating it, and a newly detached
+  checkout passes the ordinary `paper` command.
+- Terminal manifest validation now parses, constrains, covers, and recomputes
+  every `output_hashes.csv` row. Failed target runs write available run/target
+  metadata and a reviewer summary before returning the original error.
 - Publisher dry-run/apply in a clean disposable manuscript clone staged exactly
   17 assets and changed only `charts/` and `tables/`. It did not edit, commit,
   or push manuscript source.
@@ -64,7 +73,8 @@ author-side recomputation.
 ## Checks in progress
 
 - Give a context-free independent reviewer only `paper/REVIEWER.md`; fix every
-  in-scope ambiguity or failure before closing Phase 2.
+  in-scope ambiguity or failure before closing Phase 2. The post-repair repeat
+  is the remaining audit step.
 
 ## Separate Phase 3 manuscript work
 

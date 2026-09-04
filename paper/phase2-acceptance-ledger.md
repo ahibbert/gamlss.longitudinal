@@ -30,10 +30,10 @@ a routine reviewer or submission gate.
 | Fit scaling | Pass | 62 registered attempts pass the submission schema and reconstruction checks; timing claims remain environment-specific. |
 | Portable public boundary | Pass | Public-input scan finds no checkout, user-home, cloud-storage, or private-data paths. Generic interpreter paths remain as explicit execution provenance. Public profiles have no private-data application dependency, and Module 09 is deferred. |
 | Package suite | Pass | The complete ordinary P0/P1/P2 source-tree suite passes after correcting the documentation privacy-boundary regression. The only skips are two explicitly opt-in extended SRR stress tests. |
-| Reviewer profiles | Pass | Strict paper completed with all 10 Phase 2 gates true, 83 exact public manifest paths, 17 verified claims, and no target warnings/errors. Strict smoke also passed from a detached clean checkout in 1 minute 4 seconds with no target warnings/errors and nine structured optimizer-nonconvergence events. |
+| Reviewer profiles | Pass | Strict paper completed from a detached clean checkout with all 10 Phase 2 gates true, 83 exact public manifest paths, 17 verified claims, and no target warnings/errors (3 minutes 50.6 seconds pipeline). Strict smoke also passed from a detached clean checkout in 1 minute 4 seconds with no target warnings/errors and nine structured optimizer-nonconvergence events. |
 | Manuscript asset classification | Pass | Read-only canonical audit classifies 40/40 assets with zero unclassified items. |
 | Publisher/compiled-paper isolation | Pass | Dry-run and apply staged exactly 17 renderable assets, all under `charts/` or `tables/`, with no commit or push. A disposable canonical clone compiled to 47 nonblank pages after three already-documented manuscript-source fixes; the remaining 2 unresolved references and 8 citation occurrences are Phase 3 work. |
-| Independent final audit | Pending | Run context-free from a clean checkout after the final suite and smoke profile pass. |
+| Independent final audit | Repeat pending | The first context-free run passed smoke but exposed CRLF-bound main-recovery hashes. Hashes/byte counts are now newline/BOM canonicalized, hash logs are terminally verified, and a new detached checkout passes the complete paper profile. Repeat the context-free audit against this repair before closure. |
 
 ## Explicit non-gates
 
