@@ -1,7 +1,6 @@
 # Simplified Phase 2 acceptance ledger
 
-Status: technical gates complete. The final context-free reviewer audit is the
-only remaining close-out check.
+Status: complete.
 
 ## Accepted scope
 
@@ -33,7 +32,7 @@ a routine reviewer or submission gate.
 | Reviewer profiles | Pass | Strict paper completed from a detached clean checkout with all 10 Phase 2 gates true, 83 exact public manifest paths, 17 verified claims, and no target warnings/errors (3 minutes 50.6 seconds pipeline). Strict smoke also passed from a detached clean checkout in 1 minute 4 seconds with no target warnings/errors and nine structured optimizer-nonconvergence events. |
 | Manuscript asset classification | Pass | Read-only canonical audit classifies 40/40 assets with zero unclassified items. |
 | Publisher/compiled-paper isolation | Pass | Dry-run and apply staged exactly 17 renderable assets, all under `charts/` or `tables/`, with no commit or push. A disposable canonical clone compiled to 47 nonblank pages after three already-documented manuscript-source fixes; the remaining 2 unresolved references and 8 citation occurrences are Phase 3 work. |
-| Independent final audit | Repeat pending | The first context-free run passed smoke but exposed CRLF-bound main-recovery hashes. Hashes/byte counts are now newline/BOM canonicalized, hash logs are terminally verified, and a new detached checkout passes the complete paper profile. Repeat the context-free audit against this repair before closure. |
+| Independent final audit | Pass | The first context-free run exposed CRLF-bound hashes; a second exposed two figure-label defects. After both repairs, a third new detached checkout passed 19/19 paper targets and 10/10 gates, independently matched 511 input, 88 output, and 11 provenance hashes, and found both figures clear at original size. |
 
 ## Explicit non-gates
 
