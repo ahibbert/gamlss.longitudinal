@@ -67,7 +67,7 @@ files), while `logs/provenance-hashes.csv` hashes the completed run logs.
 ## Public analysis modules
 
 The public graph contains the introductory and BCPE/t software-workflow figures
-plus six analysis modules:
+plus five evidence modules:
 
 1. BCPE/t recovery from tracked replicate-level public inputs (`paper`) or a
    checkpointed 100-replicate rerun (`full`).
@@ -75,20 +75,22 @@ plus six analysis modules:
    a checkpointed 100-replicate rerun (`full`).
 3. Joint-versus-separate tables rebuilt from tracked per-replicate deltas, with
    the published 10/100/100 replicate designs rerun with checkpoints in `full`.
-4. Missingness/dropout figures rebuilt from tracked aggregate simulation inputs,
+4. Missingness/dropout figures rebuilt from tracked attempt-level public inputs,
    with the published 20-replicate checkpointed study rerun in `full`.
 5. Gamma-margin copula-family misspecification summaries and heatmap.
-6. Correlation-structure misspecification and standard-model benchmarking.
 
 `smoke` instead runs small new public simulations and representative workflow
 figures. `paper` never reads ignored local results. `full` uses fixed seeds and
-resumable checkpoints before rebuilding the same publication interfaces. Its
-final validation compares 2,000+ grouped estimands against the approved public
-inputs using `paper/tolerances.csv`; missing comparison rows and values outside
-the registered absolute-plus-relative bounds fail the pipeline.
+resumable checkpoints before rebuilding the same publication interfaces.
+Reviewer-facing validation checks versioned schemas, complete scenario and
+replicate keys, lifecycle denominators, finite numeric fields, and reconstruction
+of the reported summaries from their analysis-ready inputs. It does not require
+an author-held signing key or compare thousands of incidental intermediate
+quantities. The deferred multivariate comparison is documented in
+`DEFERRED-MULTIVARIATE-STUDY.md` and is not part of the submission gate.
 
 The manifest records which artifact belongs to each module, its input bundle,
-verification policy, approved paper hash, and publication status. Public inline
+verification policy, optional reference hash, and publication status. Public inline
 tables that still need conversion to generated `\\input{tables/...}` assets are
 listed in `overleaf-inline-table-checklist.md`.
 
