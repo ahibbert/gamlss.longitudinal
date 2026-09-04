@@ -1987,7 +1987,7 @@ jss_main_recovery_validate_public_bundle <- function(path, conf.level = 0.95,
 }
 
 jss_recovery_latex_text <- function(x) {
-  gsub("_", "\\\\_", as.character(x), fixed = TRUE)
+  gsub("_", "\\_", as.character(x), fixed = TRUE)
 }
 
 jss_recovery_write_manuscript_assets <- function(bundle_dir, settings) {
