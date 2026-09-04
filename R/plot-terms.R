@@ -13,6 +13,9 @@
 #'   are grouped into one point-and-interval plot per model term and parameter.
 
 #' @param ci_level Confidence level for pointwise intervals.
+#' @param vcov_method Variance-covariance method passed to
+#'   [vcov.gamlss.longitudinal()]. Use `"sandwich"` for a fit created with
+#'   `missingness = "segment"`.
 
 #' @param ncol Number of columns in the combined dashboard.
 
@@ -47,6 +50,7 @@ plot_terms <- function(
     y = NULL,
     data = NULL,
     ci_level = 0.95,
+    vcov_method = c("analytical", "numderiv", "analytical_only", "sandwich"),
     ncol = 4,
     include_intercept = FALSE,
     plot_interactions = FALSE,
@@ -62,6 +66,7 @@ plot_terms <- function(
     y = y,
     data = data,
     ci_level = ci_level,
+    vcov_method = vcov_method,
     ncol = ncol,
     include_intercept = include_intercept,
     plot_interactions = plot_interactions,
@@ -92,6 +97,7 @@ plot.terms <- function(x, ...) {
     y = NULL,
     data = NULL,
     ci_level = 0.95,
+    vcov_method = c("analytical", "numderiv", "analytical_only", "sandwich"),
     ncol = 4,
     include_intercept = FALSE,
     plot_interactions = FALSE,
@@ -105,6 +111,7 @@ plot.terms <- function(x, ...) {
   if (!inherits(x, "gamlss.longitudinal")) {
     stop("'x' must be a fitted 'gamlss.longitudinal' object.")
   }
+  vcov_method <- match.arg(vcov_method)
 
   cat("\n=== Plotting term effects for gamlss.longitudinal object ===\n")
 
@@ -126,7 +133,7 @@ plot.terms <- function(x, ...) {
     return(invisible(list(smooth_terms = list(), fixed_terms = list())))
   }
 
-  vcov_obj <- .resolve_vcov(x, numderiv = FALSE, extra_args = list(method = "analytical"))
+  vcov_obj <- .resolve_vcov(x, numderiv = FALSE, extra_args = list(method = vcov_method))
 
   smooth_results <- list()
 
