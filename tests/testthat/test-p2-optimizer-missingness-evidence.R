@@ -837,7 +837,11 @@ test_that("actual optimizer runner has serial and PSOCK warning/content parity",
   cfg$resume <- FALSE
   cfg$max_outer_iter <- 1L
   cfg$max_inner_iter <- 1L
-  cfg$max_elapsed_sec <- 3
+  # An elapsed-time cap makes serial/PSOCK parity depend on host scheduling:
+  # the same fit can cross the cap in only one execution mode.  This test is
+  # about deterministic content and warning parity, so disable that policy
+  # boundary here; elapsed-cap behavior has separate focused coverage.
+  cfg$max_elapsed_sec <- Inf
   cfg$variogram_nsim <- 1L
   serial_settings <- list(profile = "smoke", seed = 717L, out_dir = tempfile("jvs-real-serial-"),
     logs_dir = tempfile("jvs-real-serial-log-"), root = root)

@@ -13,6 +13,7 @@ source(file.path("paper", "R", "07-gamma-copula-misspecification.R"))
 source(file.path("paper", "R", "10-fit-scaling.R"))
 source(file.path("paper", "R", "phase2-central-integration.R"))
 source(file.path("paper", "R", "phase2-paper-evidence.R"))
+source(file.path("paper", "R", "03-optimizer-publication-lean.R"))
 source(file.path("paper", "R", "public-paper-producers.R"))
 source(file.path("paper", "R", "submission-replication.R"))
 
@@ -38,7 +39,7 @@ if (!identical(profile, "smoke")) {
   common <- c(common, list(
     tar_target(
       public_input_files,
-      list.files(settings$public_data_dir, full.names = TRUE, recursive = TRUE, pattern = "[.](csv|tex|md)$"),
+      list.files(settings$public_data_dir, full.names = TRUE, recursive = TRUE, pattern = "[.](csv|tex|md|png)$"),
       format = "file"
     ),
     tar_target(

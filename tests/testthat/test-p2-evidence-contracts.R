@@ -112,9 +112,9 @@ local_phase2_design_fixture <- function(root, out) {
   recovery$copula_code <- ifelse(recovery$study_id == "bcpe_t", "t", "C")
   write_artifact("p2_recovery_attempts", recovery)
   write_artifact("p2_optimizer_design", data.frame(
-    case_id = sprintf("JVS%02d", 1:4),
-    contrast_factor = c("base", "theta_strength", "sigma_strength", "family")))
-  write_artifact("p2_optimizer_attempts", expand.grid(case_id = sprintf("JVS%02d", 1:4),
+    case_id = sprintf("JVS%02d", 1:3),
+    changed_factor = c("none", "theta_strength", "sigma_strength")))
+  write_artifact("p2_optimizer_attempts", expand.grid(case_id = sprintf("JVS%02d", 1:3),
     joint_review_rep = 1:3, method = c("rs_joint", "rs_separate"), stringsAsFactors = FALSE))
   missing <- expand.grid(missing_mechanism = c("monotone_dropout", "time_dependent_intermittent_mar"),
     target_missing_rate = seq(0, .5, .1), rep = 1:20,
@@ -343,7 +343,7 @@ test_that("central gate preserves manuscript scope and fails closed on pending e
   expect_true(value("no_registered_stale_claims"))
   expect_true(value("claim_schema_and_scope_registered"))
   expect_false(value("all_registered_claims_verified"))
-  expect_identical(audit$detail[audit$check_id == "all_registered_claims_verified"], "pending_evidence=21")
+  expect_identical(audit$detail[audit$check_id == "all_registered_claims_verified"], "pending_evidence=20")
   expect_false(all(audit$pass))
 })
 
@@ -358,9 +358,8 @@ test_that("Phase 2 manifest retires superseded evidence and registers current ar
   expect_true(all(manifest$publication_status[match(retired, manifest$artifact_id)] == "retired"))
   active <- manifest$artifact_id[manifest$publication_status == "active" & manifest$access == "public"]
   expect_true(all(c(
-    "p2_recovery_attempts", "p2_optimizer_attempts", "p2_optimizer_uncertainty",
+    "p2_recovery_attempts", "p2_optimizer_attempts", "p2_optimizer_pairs", "p2_optimizer_uncertainty",
     "p2_missing_attempts", "p2_copula_selection_attempts",
-    "p2_optimizer_checkpoint_archive", "p2_optimizer_checkpoint_manifest",
     "p2_missing_configuration",
     "p2_missing_warning_events", "p2_missing_warning_audit",
     "p2_scaling_attempts", "p2_scaling_hardware"

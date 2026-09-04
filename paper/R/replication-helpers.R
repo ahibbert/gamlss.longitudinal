@@ -592,11 +592,9 @@ jss_full_metric_snapshots <- function(settings, reference = FALSE) {
 
   optimizer_name <- "03-joint-vs-separate-optimization-difference-uncertainty.csv"
   add(file.path(p$optimizer_tables, optimizer_name), "optimizer_benchmark",
-    c("case_id", "metric"), rbind(
-      jss_metric_spec("conditional_difference", tolerance_group = "paired_effect"),
-      jss_metric_spec("retention_difference", tolerance_group = "paired_effect"),
-      jss_metric_spec("convergence_difference", tolerance_group = "paired_effect"),
-      jss_metric_spec("failure_inclusive_difference", tolerance_group = "paired_effect")
+    c("comparison_id", "comparison_type", "metric"), rbind(
+      jss_metric_spec("estimate", tolerance_group = "paired_effect"),
+      jss_metric_spec("mcse", tolerance_group = "paired_effect")
     ))
 
   scaling_path <- if (reference) file.path(p$scaling_data, "attempts.csv") else
@@ -706,6 +704,7 @@ jss_write_run_metadata <- function(settings, started, bootstrap, store) {
       "01-simulation-bcpe-t.R", "02-simulation-delaporte-clayton.R",
       "03-joint-vs-separate-optimization.R", "04-missingness-dropout-sensitivity.R",
       "04-missingness-publication-lean.R",
+      "03-optimizer-publication-lean.R", "run-03-optimizer-publication-lean.R",
       "07-gamma-copula-misspecification.R", "submission-replication.R",
       "10-fit-scaling.R", "main-recovery-evidence.R",
       "missingness-study-helpers.R", "phase2-evidence-contracts.R",
