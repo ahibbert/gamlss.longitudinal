@@ -10,6 +10,8 @@ test_that("public profiles and isolated stores are declared", {
   expect_true(any(grepl('c\\("smoke", "paper", "full"\\)', replicate)))
   expect_true(any(grepl('file.path\\("paper", "_targets", profile\\)', replicate)))
   expect_true(any(grepl("expanded.*deprecated", replicate, ignore.case = TRUE)))
+  expect_true(any(grepl("run_error <- tryCatch", replicate, fixed = TRUE)))
+  expect_true(any(grepl("run_error = run_error", replicate, fixed = TRUE)))
 })
 
 test_that("manifest classifies every active artifact without stubs", {
@@ -655,6 +657,18 @@ test_that("manifest validation recomputes and enforces the output hash log", {
   hashes$sha256[[1L]] <- paste(rep("0", 64L), collapse = "")
   utils::write.csv(hashes, hashes_path, row.names = FALSE)
   expect_error(env$jss_validate_manifest(manifest_path, hashes_path), "Output hash verification failed")
+})
+
+test_that("text provenance canonicalizes source and lockfile line endings", {
+  root <- local_jss_repo_root()
+  env <- new.env(parent = globalenv())
+  source(file.path(root, "paper", "R", "replication-helpers.R"), local = env)
+  expect_true(all(env$jss_is_text_path(c("DESCRIPTION", "NAMESPACE", "analysis.R", "renv.lock", "config.yml", "table.csv"))))
+  lf <- tempfile(fileext = ".R"); crlf <- tempfile(fileext = ".R")
+  writeBin(charToRaw("x <- 1\ny <- 2\n"), lf)
+  writeBin(charToRaw("x <- 1\r\ny <- 2\r\n"), crlf)
+  expect_identical(env$jss_file_sha256(lf), env$jss_file_sha256(crlf))
+  expect_false(identical(env$jss_file_sha256(lf, FALSE), env$jss_file_sha256(crlf, FALSE)))
 })
 
 test_that("nonconverged smoke fits are structured events", {

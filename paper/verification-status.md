@@ -55,8 +55,9 @@ author-side recomputation.
   unresolved references and eight citation occurrences remain assigned to
   Phase 3.
 - The read-only canonical manuscript audit classified 40/40 assets with zero
-  unclassified items. A scan of public-derived text inputs found no absolute
-  Windows, OneDrive, `/Users`, or `/home` paths.
+  unclassified items. A scan of public-derived text inputs found no checkout,
+  user-home, OneDrive, `/Users`, or private-data paths. Generic R interpreter
+  paths are retained as execution provenance and are not input dependencies.
 - Module 09 is absent from active claims, artifact contracts, manifests, and
   target graphs. Its source and tiny unit-test fixtures remain for future work.
 

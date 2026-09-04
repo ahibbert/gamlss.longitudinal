@@ -1,2 +1,2 @@
 "schema_version","status","publication_eligible","reason"
-"2026-09-04.1","portable_public_evidence",TRUE,"publication eligibility follows from portable schema, lifecycle, reconstruction, source-identity, and manifest checks; no detached signature is required"
+"2026-09-05.1","portable_public_evidence",TRUE,"publication eligibility follows from portable schema, lifecycle, reconstruction, source-identity, and manifest checks; no detached signature is required"
