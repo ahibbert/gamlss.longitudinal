@@ -223,10 +223,18 @@ jss_legacy_run_03_joint_vs_separate <- function(settings) {
 jss_run_07_from_public_results <- function(settings) {
   paths <- jss_misspec_paths(settings)
   config <- jss_misspec_config(settings, stage = "full")
-  grid <- jss_misspec_grid(config)
   public_results <- file.path(settings$public_data_dir, "copula-misspecification", "results.csv")
   results <- jss_submission_validate_copula(public_results, settings$root)
+  source_manifest <- jss_misspec_evidence_paths(public_results)[["execution_manifest"]]
+  manifest <- utils::read.csv(source_manifest, stringsAsFactors = FALSE, check.names = FALSE)
+  identity_fields <- c("producer_sha256", "package_source_sha256", "configuration_sha256")
+  if (nrow(manifest) != 1L || !all(identity_fields %in% names(manifest)) ||
+      any(!grepl("^[0-9a-f]{64}$", unlist(manifest[identity_fields], use.names = FALSE)))) {
+    stop("Module 07 public input lacks its generation-time source identity.", call. = FALSE)
+  }
   evidence_config <- config
+  for (field in identity_fields) evidence_config[[field]] <- manifest[[field]][[1L]]
+  jss_misspec_validate_config(evidence_config, require_callr = FALSE, verify_source = FALSE)
   evidence_grid <- jss_misspec_grid(evidence_config)
   jss_misspec_validate_public_full_bundle(results, evidence_grid, evidence_config)
   results <- jss_misspec_add_deltas(results)
@@ -246,8 +254,6 @@ jss_run_07_from_public_results <- function(settings) {
   jss_misspec_write_csv_atomic(selection_failures, paths$selection_failures)
   jss_misspec_write_csv_atomic(paired_effects, paths$paired_effects)
   jss_misspec_write_csv_atomic(warning_audit, paths$warning_audit)
-  source_manifest <- jss_misspec_evidence_paths(public_results)[["execution_manifest"]]
-  manifest <- utils::read.csv(source_manifest, stringsAsFactors = FALSE, check.names = FALSE)
   jss_misspec_write_csv_atomic(manifest, paths$execution_manifest)
   jss_misspec_write_paper_summary_heatmap(summary, paths$paper_summary_heatmap)
   installed_results <- utils::read.csv(paths$results, stringsAsFactors = FALSE, check.names = FALSE)
