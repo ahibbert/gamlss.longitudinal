@@ -1,0 +1,6 @@
+scope_id,tex_anchor,evidence_scope,verification_policy,publication_state,manual_requirement,required_text
+recovery,sec:sim_recovery,public_empirical,attempt_level_failure_inclusive,present,Use generated claim macros and registered recovery assets,
+optimizer,sec:sim_jvs,public_supplemental,paired_attempt_level_with_mcse,present,Keep the three-scenario comparison supplemental until evidence is frozen,
+copula,sec:sim_sensitivity_copula,public_empirical,paired_attempt_level_with_selection_failures,present,Use only the registered Gaussian--Clayton design and generated denominators,
+missingness,sec:sim_sensitivity_missingness,public_empirical,failure_inclusive_segmented_sensitivity,present,Separate monotone dropout from intermittent segmented-likelihood sensitivity,
+scaling,sec:discussion,public_supplemental,attempt_level_hardware_stratified,present,Keep detailed scaling evidence supplemental,
