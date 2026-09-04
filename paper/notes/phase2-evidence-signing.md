@@ -1,8 +1,8 @@
 # Phase 2 evidence approval ceremony
 
-The public main-recovery, optimizer, missingness, copula-misspecification, and
+The public main-recovery, missingness, copula-misspecification, and
 multivariate-benchmark validators accept only a detached Ed25519 signature made
-by the production key whose public half is pinned in all five validators.
+by the production key whose public half is pinned in those four validators.
 Caller-provided hashes, keys, or editable checkout trust files are
 not accepted. The current pinned public-key SHA-256 is
 `cb73c05cede55bfd56357b1780b90c1bf254413d82765c7a682fc9db3a0d8587`.
@@ -12,6 +12,11 @@ repository, a cloud-synchronised folder, logs, tickets, or test fixtures. The
 publication gate remains closed until an independent reviewer validates and
 signs each production bundle.
 
+The optimizer benchmark is different: it is supplementary, is validated from
+paired attempt-level evidence by simple schema, lifecycle, numeric, and Monte
+Carlo checks, and has no signature or attestation ceremony. Its runtime values
+are descriptive because method order was fixed.
+
 1. The reviewer runs `Rscript paper/scripts/phase2-evidence-approval.R
    generate-key C:/checkout-external/phase2-approval` using a directory outside
    every checkout. The helper refuses overwrite, applies mode 0600 and attempts
@@ -20,7 +25,7 @@ signs each production bundle.
    tickets, and test fixtures.
 2. A different reviewer compares the displayed public-key fingerprint with the
    external public-key file. In a code-only change, replace the 32 pinned public
-   key bytes in all five validators and in the signing helper. Review and merge that
+   key bytes in all four validators and in the signing helper. Review and merge that
    change before any evidence approval. This pin-only change does not alter the
    producer fingerprints or invalidate durable attempt checkpoints.
 3. Run the full candidate validation without promotion. The independent
@@ -33,7 +38,6 @@ signs each production bundle.
    `..._ATTESTATION_SIGNATURE` environment variables to the checkout-external
    files and run the public validator. Approval must postdate every checkpoint.
    The exact prefixes are `GAMLSS_LONGITUDINAL_JSS_MAIN_RECOVERY`,
-   `GAMLSS_LONGITUDINAL_JSS_OPTIMIZER`,
    `GAMLSS_LONGITUDINAL_JSS_MISSINGNESS`, `GAMLSS_LONGITUDINAL_JSS_COPULA`,
    and `GAMLSS_LONGITUDINAL_MVT`. Module 07 validates resumable per-fit
    checkpoints in the registered `ga-nc-v2` namespace and records rejected

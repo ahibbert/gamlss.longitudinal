@@ -4,13 +4,11 @@ Status: empirical CG performance guidance is withdrawn from the Phase 2
 optimizer benchmark.
 
 - The registered empirical methods are exactly `rs_separate` and `rs_joint`.
-- The v7 design uses Gaussian-copula routes throughout. JVS01--JVS03 use the
-  Normal margin and JVS04 changes only the family to ZIP, retaining the same
-  panel, predictors, signal strengths, time shape, and Gaussian copula.
-- JVS04 registers a Poisson-component mean of 4 and a structural-zero
-  probability of 0.20 on the natural parameter scale. Its optimizer-scale
-  intercepts are therefore `log(4)` and `qlogis(0.20)`; it must not inherit the
-  Normal scale intercept `log(0.75)`.
+- The supplementary publication layer retains only JVS01 (Normal/Gaussian
+  reference), JVS02 (dependence-strength contrast), and JVS03
+  (scale-complexity contrast).
+- JVS04 remains available only as retired raw author-workflow output. Its
+  heterogeneous family contrast is excluded from publication evidence.
 - Every registered margin/copula route is synchronously capability-checked
   before a run lock is acquired, workers are started, or checkpoints are read
   or written.
@@ -18,6 +16,12 @@ optimizer benchmark.
   v6 checkpoints were generated under the rejected NBI/Gaussian route and are
   preserved in the `rejected-unsupported-route` archive; they are not eligible
   for v7 resumption or publication evidence.
+- After JVS01--JVS03 each have 97 complete paired checkpoints, export the
+  supplementary bundle with
+  `Rscript paper/R/run-03-optimizer-publication-lean.R CHECKPOINT_DIR DATA_DIR TABLES_DIR FIGURES_DIR`.
+  The exporter publishes attempts, paired differences, uncertainty, and visible
+  failure counts only; machine paths, hosts, process identifiers, signatures,
+  and checkpoint hash chains are excluded.
 - Do not claim that CG and joint RS are interchangeable.
 - Do not claim that CG is generally faster or slower.
 - Do not recommend CG as an empirical convergence-sensitivity check.

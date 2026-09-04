@@ -661,8 +661,13 @@ jss_phase2_claim_lifecycle <- function(x, study_id) {
 
 jss_phase2_optimizer_claim_estimates <- function(attempts, precision) {
   required <- c("case_id", "joint_review_rep", "method", "success", "converged")
+  target_field <- if ("target_usable_pairs" %in% names(precision)) {
+    "target_usable_pairs"
+  } else {
+    "initial_attempts"
+  }
   if (!all(required %in% names(attempts)) || !nrow(attempts) ||
-      is.null(precision$initial_attempts) || length(precision$initial_attempts) != 1L) {
+      is.null(precision[[target_field]]) || length(precision[[target_field]]) != 1L) {
     stop("Optimizer claim evidence lacks its registered attempt/precision fields.", call. = FALSE)
   }
   pair_key <- unique(attempts[c("case_id", "joint_review_rep")])
@@ -674,7 +679,7 @@ jss_phase2_optimizer_claim_estimates <- function(attempts, precision) {
   c(
     registered_scenario_cells = nrow(unique(attempts["case_id"])),
     registered_method_cells = nrow(unique(attempts[c("case_id", "method")])),
-    planned_initial_pairs = nrow(unique(attempts["case_id"])) * as.integer(precision$initial_attempts[[1L]]),
+    planned_initial_pairs = nrow(unique(attempts["case_id"])) * as.integer(precision[[target_field]][[1L]]),
     actual_attempt_rows = nrow(attempts),
     achieved_min_retained_pairs = min(retained_by_case$x)
   )
