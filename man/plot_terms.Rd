@@ -10,6 +10,7 @@ plot_terms(
   y = NULL,
   data = NULL,
   ci_level = 0.95,
+  vcov_method = c("analytical", "numderiv", "analytical_only", "sandwich"),
   ncol = 4,
   include_intercept = FALSE,
   plot_interactions = FALSE,
@@ -32,6 +33,10 @@ covariate scales, and interaction plotting metadata. Factor fixed terms
 are grouped into one point-and-interval plot per model term and parameter.}
 
 \item{ci_level}{Confidence level for pointwise intervals.}
+
+\item{vcov_method}{Variance-covariance method passed to
+\code{\link[=vcov.gamlss.longitudinal]{vcov.gamlss.longitudinal()}}. Use \code{"sandwich"} for a fit created with
+\code{missingness = "segment"}.}
 
 \item{ncol}{Number of columns in the combined dashboard.}
 

@@ -96,6 +96,24 @@ test_that("T153 plot methods smoke test return dashboard structures", {
   expect_true(is.data.frame(pdiag_forecasts$newdata_data))
 })
 
+test_that("T153a plot_terms routes an explicit covariance method", {
+  fixture <- get_valid_plot_fixture()
+  original_resolve <- gamlss.longitudinal:::.resolve_vcov
+  captured_method <- NULL
+  testthat::local_mocked_bindings(
+    .resolve_vcov = function(object, numderiv = FALSE, extra_args = list()) {
+      captured_method <<- extra_args$method
+      original_resolve(object, numderiv = FALSE,
+        extra_args = list(method = "analytical"))
+    },
+    .package = "gamlss.longitudinal"
+  )
+
+  expect_output(plot_terms(fixture$fit, data = fixture$data,
+    vcov_method = "sandwich"), "Plotting term effects", fixed = TRUE)
+  expect_identical(captured_method, "sandwich")
+})
+
 test_that("T153b PIT histogram bins stay inside unit interval", {
   dat <- make_fixture_factor_time_interaction(n_subject = 14L)
   fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
