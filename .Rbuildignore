@@ -23,6 +23,7 @@
 ^results($|/)
 ^_targets($|/)
 ^paper($|/)
+^data-raw($|/)
 ^\.codex-backups($|/)
 ^_check($|/)
 ^.*\.Rcheck($|/)
