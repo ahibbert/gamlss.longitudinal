@@ -4,3 +4,4 @@ optimizer,sec:sim_jvs,public_supplemental,paired_attempt_level_with_mcse,present
 copula,sec:sim_sensitivity_copula,public_empirical,paired_attempt_level_with_selection_failures,present,Use only the registered Gaussian--Clayton design and generated denominators,
 missingness,sec:sim_sensitivity_missingness,public_empirical,failure_inclusive_segmented_sensitivity,present,Separate monotone dropout from intermittent segmented-likelihood sensitivity,
 scaling,sec:discussion,public_supplemental,attempt_level_hardware_stratified,present,Keep detailed scaling evidence supplemental,
+private_clinical,sec:reproducibility,private_static,hash_and_code_provenance,retained_exception,State the private-data exception positively,data cannot be redistributed
