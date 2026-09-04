@@ -1,0 +1,3 @@
+"missing_mechanism","display_name","pattern","analysis_role"
+"monotone_dropout","subject-level monotone dropout MAR","monotone_dropout","headline"
+"time_dependent_intermittent_mar","time-dependent intermittent MAR","intermittent","sensitivity"
