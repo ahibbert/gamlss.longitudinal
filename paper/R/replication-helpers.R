@@ -776,7 +776,15 @@ jss_write_run_metadata <- function(settings, started, bootstrap, store, run_erro
   utils::write.csv(as.data.frame(network$edges), file.path(settings$logs_dir, "target-graph-edges.csv"), row.names = FALSE)
 
   fit_path <- file.path(settings$logs_dir, "fit-events.csv")
-  fit_audit <- if (file.exists(fit_path)) utils::read.csv(fit_path, stringsAsFactors = FALSE) else data.frame()
+  if (!file.exists(fit_path)) {
+    empty_fit_events <- data.frame(
+      event_type = character(), family = character(), copula = character(), design = character(),
+      method = character(), success = logical(), converged = logical(), failure_type = character(),
+      warnings = character(), error = character(), elapsed_sec = numeric(), stringsAsFactors = FALSE
+    )
+    utils::write.csv(empty_fit_events, fit_path, row.names = FALSE)
+  }
+  fit_audit <- utils::read.csv(fit_path, stringsAsFactors = FALSE)
   fit_events <- nrow(fit_audit)
   nonconverged <- if ("event_type" %in% names(fit_audit)) sum(fit_audit$event_type == "optimizer_nonconvergence") else 0L
   execution_failures <- if ("event_type" %in% names(fit_audit)) sum(fit_audit$event_type == "execution_failure") else 0L

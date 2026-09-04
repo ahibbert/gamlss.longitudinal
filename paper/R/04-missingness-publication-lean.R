@@ -672,6 +672,10 @@ jss_run_04_missingness_from_public_inputs <- function(settings) {
 
   smooth$missing_label <- factor(smooth$missing_label, levels = c("0%", "30%", "50%"))
   smooth$model <- factor(smooth$model, levels = c("gamlss2", "gamlss.longitudinal"))
+  smooth$mechanism_panel <- unname(c(
+    monotone_dropout = "Dropout headline",
+    time_dependent_intermittent_mar = "MAR sensitivity"
+  )[smooth$missing_mechanism])
   smooth_plot <- smooth[is.finite(smooth$smooth_true) & is.finite(smooth$smooth_median), , drop = FALSE]
   p2 <- ggplot2::ggplot(smooth_plot, ggplot2::aes(s1)) +
     ggplot2::geom_line(ggplot2::aes(y = smooth_true), colour = "black", linewidth = .75) +
