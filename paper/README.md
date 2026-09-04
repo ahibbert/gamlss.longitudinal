@@ -87,6 +87,9 @@ of the reported summaries from their analysis-ready inputs. It does not require
 an author-held signing key or compare thousands of incidental intermediate
 quantities. The deferred multivariate comparison is documented in
 `DEFERRED-MULTIVARIATE-STUDY.md` and is not part of the submission gate.
+Manuscript claim wording and exact display selectors are tracked in the generated
+Phase 3 checklist but do not block the Phase 2 evidence gate; the separate
+manuscript audit continues to fail until those authoring tasks are resolved.
 
 The manifest records which artifact belongs to each module, its input bundle,
 verification policy, optional reference hash, and publication status. Public inline
