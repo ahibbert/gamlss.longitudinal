@@ -9,24 +9,18 @@ source(file.path("paper", "R", "03-joint-vs-separate-optimization.R"))
 source(file.path("paper", "R", "missingness-study-helpers.R"))
 source(file.path("paper", "R", "04-missingness-dropout-sensitivity.R"))
 source(file.path("paper", "R", "07-gamma-copula-misspecification.R"))
-source(file.path("paper", "R", "09-simulation-multivariate-longitudinal", "00-multivariate-setup.R"))
 source(file.path("paper", "R", "10-fit-scaling.R"))
 source(file.path("paper", "R", "phase2-central-integration.R"))
 source(file.path("paper", "R", "phase2-paper-evidence.R"))
 source(file.path("paper", "R", "public-paper-producers.R"))
+source(file.path("paper", "R", "submission-replication.R"))
 
 tar_option_set(packages = c("gamlss.longitudinal", "gamlss.dist", "ggplot2"), format = "rds")
 profile <- Sys.getenv("GAMLSS_LONGITUDINAL_JSS_PROFILE", "smoke")
 if (identical(profile, "expanded")) profile <- "paper"
-approval_bundle_identity <- jss_phase2_verify_materialized_public_approvals(
-  normalizePath(Sys.getenv("GAMLSS_LONGITUDINAL_JSS_ROOT", unset = "."),
-    winslash = "/", mustWork = TRUE),
-  profile
-)
 
 common <- list(
   tar_target(settings, {
-    approval_bundle_identity
     value <- jss_settings()
     value$target_integrated <- TRUE
     value
@@ -53,6 +47,7 @@ if (!identical(profile, "smoke")) {
         "phase2-pending-claims.csv", "phase2-design-joint-contract.csv", "phase2-prose-allowlist.csv",
         "phase2-manuscript-artifacts.csv", "canonical-phase2-manuscript-audit.csv",
         "phase2-canonical-source.csv", "phase2-artifact-contract.csv", "manifest.csv",
+        "submission-input-schemas.csv", "DEFERRED-MULTIVARIATE-STUDY.md",
         file.path("manuscript", "main.tex")
       )),
       format = "file"
@@ -76,7 +71,6 @@ modules <- if (identical(profile, "smoke")) {
       public_input_files
       jss_run_07_from_public_results(settings)
     }),
-    tar_target(module_09_multivariate_benchmark, { public_input_files; jss_run_phase2_multivariate_benchmark(settings) }),
     tar_target(module_10_fit_scaling, { public_input_files; jss_run_10_fit_scaling(settings) }),
     tar_target(phase2_production_modules, {
       registered <- list(
@@ -84,7 +78,6 @@ modules <- if (identical(profile, "smoke")) {
         optimizer = module_03_joint_vs_separate,
         missingness = module_04_missingness,
         copula_selection = module_07_copula_misspecification,
-        multivariate_benchmark = module_09_multivariate_benchmark,
         fit_scaling = module_10_fit_scaling
       )
       jss_phase2_validate_production_modules(settings, registered)
@@ -105,7 +98,7 @@ output_target <- if (identical(profile, "smoke")) {
   tar_target(public_outputs, list(public_workflow_figures, coverage_summary_csv, convergence_summary_csv, fit_events))
 } else {
   tar_target(public_outputs, list(public_workflow_figures, module_phase2_main_recovery, module_03_joint_vs_separate, module_04_missingness,
-    module_07_copula_misspecification, module_09_multivariate_benchmark,
+    module_07_copula_misspecification,
     module_10_fit_scaling, phase2_claim_evidence, phase2_gate_audit))
 }
 

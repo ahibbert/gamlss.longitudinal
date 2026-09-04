@@ -30,7 +30,6 @@ Sys.setenv(
   GAMLSS_LONGITUDINAL_JSS_WORKERS = workers
 )
 source(file.path("paper", "R", "replication-helpers.R"))
-approval_cache <- jss_phase2_materialize_public_approvals(root, profile)
 store <- file.path("paper", "_targets", profile)
 message("Running public JSS replication profile '", profile, "' with ", workers, " worker(s).")
 started <- Sys.time()
