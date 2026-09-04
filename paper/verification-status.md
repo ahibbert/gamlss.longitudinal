@@ -1,6 +1,6 @@
 # Replication verification status
 
-Last updated: 2026-09-04 (Australia/Sydney).
+Last updated: 2026-09-05 (Australia/Sydney).
 
 ## Gate definition
 
@@ -14,14 +14,18 @@ author-side recomputation.
 
 - Phase 1 passed independently; see
   `reviews/2026-08-27-jss-round-1/phase1-acceptance-ledger.md`.
-- The complete ordinary source-tree suite passes with no test failures or test
-  warnings. The only skips are two explicitly opt-in extended SRR stress tests.
+- The first close-out source-tree suite exercised all ordinary P0/P1/P2 tests
+  and found one repository-boundary failure caused by two documentation
+  strings. Those strings were corrected; the final clean suite is run again
+  before this ledger is closed. The only intentional skips are two opt-in
+  extended SRR stress tests.
 - A full local Windows R 4.4.1 source-package check completed with status OK:
   zero errors, zero warnings, and zero notes. The later Phase 2 changes affect
   CRAN-excluded paper files and tests, not packaged R code.
 - Strict-warning smoke recomputation completed with no target warnings/errors.
-  Three deliberately short fits that reached their optimizer limit are retained
-  as structured `fit-events.csv` rows rather than leaked target warnings.
+  Nine deliberately short nonconverged fits are retained as structured
+  `fit-events.csv` rows rather than leaked target warnings. A final
+  fresh-checkout rerun is part of close-out.
 - The optimizer bundle contains three scenarios and 97 paired replicates per
   scenario: 582/582 attempts converged and were retained. Both producer and
   submission validators pass, including the cross-checkout checkpoint test.
@@ -34,6 +38,23 @@ author-side recomputation.
 - BCPE/t completed all 200 method attempts successfully and converged. Its
   exact-settings resume accepted 200/200 checkpoints, found zero pending, and
   changed no checkpoint timestamp or hash.
+- NBI/Clayton completed all 200 method attempts successfully and converged. Its
+  exact-settings resume also accepted 200/200 checkpoints, found zero pending,
+  and changed no checkpoint timestamp or hash.
+- The promoted main-recovery bundle contains 26 CSV files and 400/400
+  successful, converged, retained attempts. All 31 evidence checks pass; the
+  public bundle contains no RDS, fitted object, residual, or private asset.
+- The strict `paper` profile passes all 10 Phase 2 gates with 83 exact public
+  manifest paths and 17 verified claims. `target-events.csv` reports no target
+  warnings/errors; the final cached pipeline took 1 minute 1.6 seconds.
+- Publisher dry-run/apply in a clean disposable manuscript clone staged exactly
+  17 assets and changed only `charts/` and `tables/`. It did not edit, commit,
+  or push manuscript source.
+- After applying three known manuscript-only compile fixes in that disposable
+  clone, the staged paper compiled to a visually inspected 47-page PDF. The
+  generated recovery tables and figures are nonblank and unclipped. Two
+  unresolved references and eight citation occurrences remain assigned to
+  Phase 3.
 - The read-only canonical manuscript audit classified 40/40 assets with zero
   unclassified items. A scan of public-derived text inputs found no absolute
   Windows, OneDrive, `/Users`, or `/home` paths.
@@ -42,17 +63,10 @@ author-side recomputation.
 
 ## Checks in progress
 
-- The NBI/Clayton n=500, T=4, R=100 production run is completing from fixed
-  seeds and append-only checkpoints. Its completed checkpoints have one source
-  hash and settings hash, no duplicate method/replicate keys, and all completed
-  attempts are successful, converged, and descriptively complete.
-- After NBI/Clayton finishes, the automatic finalizer will build the 26-file
-  CSV-only main-recovery bundle and rerun the lean optimizer exporter.
-- The final bundle must then be promoted, validated, and exercised through a
-  clean `paper` build, a final clean smoke build, publisher dry-run/apply in a
-  disposable paper clone, and an asset-staged manuscript compile/visual check.
-- A context-free independent audit will run after those checks and every
-  in-scope defect it finds will be fixed before this ledger is closed.
+- Run the complete ordinary package suite after the documentation boundary fix.
+- Run strict smoke from the final clean checkout and record its runtime.
+- Give a context-free independent reviewer only `paper/REVIEWER.md`; fix every
+  in-scope ambiguity or failure before closing Phase 2.
 
 ## Separate Phase 3 manuscript work
 

@@ -1,7 +1,7 @@
 # Simplified Phase 2 acceptance ledger
 
-Status: in progress. Final main-recovery promotion and clean-room verification
-remain outstanding.
+Status: technical gates complete. The final context-free reviewer audit is the
+only remaining close-out check.
 
 ## Accepted scope
 
@@ -23,16 +23,17 @@ a routine reviewer or submission gate.
 | Gate | Status | Evidence |
 |---|---|---|
 | Phase 1 prerequisite | Pass | `reviews/2026-08-27-jss-round-1/phase1-acceptance-ledger.md` |
-| Main recovery | In progress | BCPE/t has 200 complete method attempts and a no-repeat resume pass; NBI/Clayton production is still running. |
+| Main recovery | Pass | BCPE/t and NBI/Clayton each contain 200/200 successful, converged, publication-retained method attempts (400 total). Exact-settings resume accepted every checkpoint with zero pending work and no hash or timestamp changes. The portable 26-CSV bundle passes all 31 evidence checks. |
 | Optimizer evidence | Pass | 3 scenarios, 97 paired replicates per scenario, 582/582 attempts converged and retained; producer and submission validators pass. |
 | Missingness evidence | Pass | 240 scenario/replicate tasks, 480 fits, 399 retained, 81 named failures, 298 expected warnings, and zero unexpected warnings. |
 | Copula misspecification | Pass | 2,400 registered paired candidate fits pass the submission schema and publication validator. |
 | Fit scaling | Pass | 62 registered attempts pass the submission schema and reconstruction checks; timing claims remain environment-specific. |
-| Package suite | Pass | All ordinary P0/P1/P2 tests pass; only two explicitly opt-in extended SRR stress tests are skipped. |
-| Reviewer profiles | In progress | Strict smoke is clean; the paper profile awaits final main-recovery promotion. |
+| Portable public boundary | Pass | Public-input scan finds no absolute host paths; public profiles have no private-data application dependency, and Module 09 is deferred. |
+| Package suite | Final rerun pending | The first final suite reached the repository privacy-boundary test after all P0/P1/P2 modules; it identified two documentation strings, which were corrected. A clean final rerun is required before close-out. |
+| Reviewer profiles | Pass | Strict paper completed with all 10 Phase 2 gates true, 83 exact public manifest paths, 17 verified claims, and no target warnings/errors. A final fresh-checkout smoke rerun is recorded during close-out. |
 | Manuscript asset classification | Pass | Read-only canonical audit classifies 40/40 assets with zero unclassified items. |
-| Publisher/compiled-paper isolation | Pending | Run after the final clean paper profile. |
-| Independent final audit | Pending | Run after all evidence, tests, and documentation are final. |
+| Publisher/compiled-paper isolation | Pass | Dry-run and apply staged exactly 17 renderable assets, all under `charts/` or `tables/`, with no commit or push. A disposable canonical clone compiled to 47 nonblank pages after three already-documented manuscript-source fixes; the remaining 2 unresolved references and 8 citation occurrences are Phase 3 work. |
+| Independent final audit | Pending | Run context-free from a clean checkout after the final suite and smoke profile pass. |
 
 ## Explicit non-gates
 

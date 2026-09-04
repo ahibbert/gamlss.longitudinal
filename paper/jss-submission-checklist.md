@@ -8,8 +8,8 @@ not ready until every `Blocking` item is resolved.
 - Phase 1 package correctness is complete; see
   `reviews/2026-08-27-jss-round-1/phase1-acceptance-ledger.md`.
 - The simplified Phase 2 scope contains five public evidence modules and no
-  multivariate Module 09 dependency. Final main-recovery promotion and the
-  clean `paper` build remain in progress.
+  multivariate Module 09 dependency. Main-recovery promotion, the strict
+  `paper` build, publisher isolation, and compiled-paper visual QA pass.
 - Phase 3 manuscript revision remains blocking. The canonical manuscript still
   contains obsolete designs/claims and has not yet received the documented
   public/private reproducibility wording.
@@ -19,8 +19,9 @@ not ready until every `Blocking` item is resolved.
 | Gate | Status | Required action |
 |---|---|---|
 | JSS manuscript style | Blocking | Convert the final manuscript to JSS LaTeX style and remove preprint formatting. |
-| Main-paper reproducibility | Phase 2 in progress | Finish the main-recovery promotion and clean `paper` build; then apply only allowlisted assets to the manuscript clone. |
+| Main-paper reproducibility | Phase 2 evidence ready | The strict `paper` profile passes and the publisher stages exactly 17 allowlisted renderable assets. Phase 3 must insert/update the corresponding manuscript references. |
 | Primary example data | Evidence ready; manuscript edit blocking | Use the fully simulated BCPE/t workflow as the reproducible primary example. |
+| Private data policy | Repository resolved; manuscript edit blocking | Keep the withdrawn clinical application outside the public repository and insert the approved reproducibility wording for any separately retained private-data example. |
 | Evidence modules | Resolved | Five public modules are active; Module 09 is explicitly deferred and no active item is a stub. |
 | Unresolved citations | Blocking | Fix all literal question-mark citation artifacts and missing bibliography entries. |
 | Main text balance | Blocking | Expand software workflow sections and reduce derivation/simulation dominance. |
@@ -42,12 +43,13 @@ not ready until every `Blocking` item is resolved.
 
 | Gate | Status | Required action |
 |---|---|---|
-| Smoke profile | Passed locally | Repeat once from the final clean commit and record cold/warm runtime. |
-| Paper profile | In progress | Complete after authoritative main-recovery inputs are promoted; require zero target warnings/errors. |
+| Smoke profile | Passed; final clean rerun pending | Repeat from the close-out commit and record runtime. |
+| Paper profile | Passed | All 10 Phase 2 gates pass, 83 exact public paths are registered, and `target-events.csv` reports no target warnings/errors. |
 | Full profile | Optional author QA | Retain the checkpointed command, but do not make a publication-scale rerun a routine reviewer or Phase 2 gate. |
 | Manifest coverage | Asset classification passed | The read-only canonical audit classifies all 40 current manuscript assets; Phase 3 must update obsolete empirical references. |
 | Output hashes | Implemented | Keep output, input, and provenance hashes in each generated replication run. |
-| Runtime notes | Pending final run | Record final clean smoke and paper runtimes; document full separately as optional. |
+| Runtime notes | Evidence recorded | The final cached strict paper pipeline completed in 1 minute 1.6 seconds; record the close-out fresh smoke runtime separately. Full remains optional. |
+| External data notes | Repository resolved; manuscript edit blocking | Public commands have no private-data dependency; state any private-data access exception in the paper. |
 
 ## Package-Facing Gates
 
