@@ -2,6 +2,7 @@ local_lean_env <- function() {
   env <- new.env(parent = globalenv())
   root <- normalizePath(test_path("..", ".."), winslash = "/", mustWork = TRUE)
   sys.source(file.path(root, "paper", "R", "replication-helpers.R"), envir = env)
+  sys.source(file.path(root, "paper", "R", "03-optimizer-publication-lean.R"), envir = env)
   sys.source(file.path(root, "paper", "R", "submission-replication.R"), envir = env)
   list(env = env, root = root)
 }
@@ -9,11 +10,22 @@ local_lean_env <- function() {
 test_that("submission registry names exactly the five active studies", {
   setup <- local_lean_env()
   registry <- setup$env$jss_submission_input_registry(setup$root)
-  expect_identical(registry$schema_version, rep("jss-submission-inputs-1", 5L))
+  expect_identical(registry$schema_version, rep("jss-submission-inputs-2", 5L))
   expect_identical(registry$study, c(
     "main-recovery", "optimizer-benchmark", "missingness",
     "copula-misspecification", "fit-scaling"
   ))
+})
+
+test_that("shipped lean optimizer bundle satisfies the submission registry", {
+  setup <- local_lean_env()
+  bundle <- file.path(setup$root, "paper", "data", "public-derived", "optimizer-benchmark")
+  schema <- setup$env$jss_submission_validate_optimizer(
+    file.path(bundle, "data"), file.path(bundle, "tables"),
+    file.path(bundle, "figures"), setup$root
+  )
+  expect_identical(schema$version, "jss-submission-inputs-2")
+  expect_identical(schema$rows, 582L)
 })
 
 test_that("registered inputs reject duplicate keys and invalid rates", {
