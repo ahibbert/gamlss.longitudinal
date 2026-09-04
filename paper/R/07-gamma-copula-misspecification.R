@@ -980,7 +980,7 @@ jss_misspec_fit_one_in_process <- function(dat, row, config) {
   fit <- withCallingHandlers(
     tryCatch(
       gamlss.longitudinal::gamlss_longitudinal(
-        dataset = dat,
+        data = dat,
         margin_dist = gamlss.dist::GA(mu.link = "log", sigma.link = "log"),
         copula_dist = row$fitted_copula,
         time_var = "time",

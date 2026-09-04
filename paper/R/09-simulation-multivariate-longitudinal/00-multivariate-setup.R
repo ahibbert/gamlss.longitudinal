@@ -2199,7 +2199,7 @@ mvt_fit_gamlss_longitudinal <- function(dat, spec, dep) {
   sigma_formula <- if (identical(spec$gamlss_family, "GG")) ~ time + z else ~1
   nu_formula <- if (identical(spec$gamlss_family, "GG")) ~ x else ~1
   gamlss.longitudinal::gamlss_longitudinal(
-    dataset = fit_dat,
+    data = fit_dat,
     margin_dist = spec$margin_dist(),
     copula_dist = "N",
     time_var = "time",
@@ -2210,14 +2210,18 @@ mvt_fit_gamlss_longitudinal <- function(dat, spec, dep) {
     tau.formula = ~1,
     theta.formula = dep$theta_formula,
     zeta.formula = ~1,
-    include_dlcopdpar = TRUE,
+    optimization = "joint",
     method = "RS",
-    start_from = NA,
-    warm_start_joint = TRUE,
+    start = NA,
     compute_vcov = mvt_env_flag("GAMLSS_LONGITUDINAL_MVT_COMPUTE_VCOV", TRUE),
-    max_elapsed_sec = mvt_env_num("GAMLSS_LONGITUDINAL_MVT_PRIMARY_MAX_ELAPSED_SEC", 180),
-    max_outer_iter = mvt_env_int("GAMLSS_LONGITUDINAL_MVT_MAX_OUTER_ITER", 60L),
-    max_inner_iter = mvt_env_int("GAMLSS_LONGITUDINAL_MVT_MAX_INNER_ITER", 60L),
+    optimizer_control = gamlss.longitudinal::gamlss_longitudinal_control(
+      max_elapsed_sec = mvt_env_num("GAMLSS_LONGITUDINAL_MVT_PRIMARY_MAX_ELAPSED_SEC", 180),
+      max_outer_iter = mvt_env_int("GAMLSS_LONGITUDINAL_MVT_MAX_OUTER_ITER", 60L),
+      rs = list(
+        max_inner_iter = mvt_env_int("GAMLSS_LONGITUDINAL_MVT_MAX_INNER_ITER", 60L),
+        warm_start_joint = TRUE
+      )
+    ),
     verbose = 0
   )
 }

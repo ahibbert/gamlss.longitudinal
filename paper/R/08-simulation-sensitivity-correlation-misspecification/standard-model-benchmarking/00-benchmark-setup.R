@@ -440,7 +440,7 @@ bmk_simulate_dataset <- function(spec, scenario, n, seed) {
 
 bmk_fit_rs_joint <- function(dat, spec, scenario, max_elapsed_sec = Inf, max_outer_iter = 100L, max_inner_iter = 100L) {
   gamlss.longitudinal::gamlss_longitudinal(
-    dataset = dat,
+    data = dat,
     margin_dist = spec$margin_dist(),
     copula_dist = "N",
     time_var = "time",
@@ -451,15 +451,16 @@ bmk_fit_rs_joint <- function(dat, spec, scenario, max_elapsed_sec = Inf, max_out
     tau.formula = ~1,
     theta.formula = scenario$theta_formula,
     zeta.formula = ~1,
-    include_dlcopdpar = TRUE,
+    optimization = "joint",
     method = "RS",
-    start_from = NA,
-    warm_start_joint = TRUE,
+    start = NA,
     compute_vcov = TRUE,
     vcov_method = "analytical",
-    max_elapsed_sec = max_elapsed_sec,
-    max_outer_iter = max_outer_iter,
-    max_inner_iter = max_inner_iter,
+    optimizer_control = gamlss.longitudinal::gamlss_longitudinal_control(
+      max_elapsed_sec = max_elapsed_sec,
+      max_outer_iter = max_outer_iter,
+      rs = list(max_inner_iter = max_inner_iter, warm_start_joint = TRUE)
+    ),
     verbose = 0
   )
 }

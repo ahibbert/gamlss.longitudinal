@@ -362,7 +362,7 @@ jss_fit_public_application <- function(
   )
 
   fit <- gamlss.longitudinal::gamlss_longitudinal(
-    dataset = data,
+    data = data,
     margin_dist = jss_margin_family(margin),
     copula_dist = copula,
     subject_var = spec$subject,
@@ -375,10 +375,12 @@ jss_fit_public_application <- function(
     theta.formula = formulas$theta,
     zeta.formula = formulas$zeta,
     method = "RS",
-    start_from = start_from,
+    start = start_from,
     optimizer_control = control,
     compute_vcov = compute_vcov,
-    vcov_method = if (identical(spec$missingness, "segment")) "sandwich" else "analytical",
+    # Fit-time covariance supports analytical or numerical Hessians. The
+    # segmented-analysis publication helper computes sandwich covariance later.
+    vcov_method = "analytical",
     verbose = verbose
   )
   fit$application_candidate <- spec$name
@@ -482,7 +484,7 @@ jss_public_application_outputs <- function(fit) {
     }),
     margin_diagnostics = capture_output(function() {
       gamlss.longitudinal::plot_dist(
-        dataset = diagnostic_data,
+        data = diagnostic_data,
         fit = fit_for_outputs
       )
     }),

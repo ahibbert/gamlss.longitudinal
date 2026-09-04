@@ -774,7 +774,7 @@ jss_joint_fit_model <- function(dat, case, include_dlcopdpar, cfg) {
       fit <- withCallingHandlers(
         tryCatch(
           gamlss.longitudinal::gamlss_longitudinal(
-            dataset = dat,
+            data = dat,
             margin_dist = margin_dist,
             copula_dist = case$copula[[1L]],
             time_var = "time_index",
@@ -782,7 +782,7 @@ jss_joint_fit_model <- function(dat, case, include_dlcopdpar, cfg) {
             mu.formula = response ~ x_cont + x_bin + time_effect,
             sigma.formula = ~ x_cont + x_bin + time_effect,
             theta.formula = ~ x_cont + x_bin + t_pair_effect,
-            include_dlcopdpar = include_dlcopdpar,
+            optimization = if (isTRUE(include_dlcopdpar)) "joint" else "separate",
             method = cfg$method %||% "RS",
             compute_vcov = FALSE,
             optimizer_control = gamlss.longitudinal::gamlss_longitudinal_control(
@@ -797,8 +797,7 @@ jss_joint_fit_model <- function(dat, case, include_dlcopdpar, cfg) {
                 discrete_score_method = cfg$discrete_score_method %||% "analytical"
               )
             ),
-            verbose = 0,
-            plot_results = FALSE
+            verbose = 0
           ),
           error = function(e) {
             err <<- conditionMessage(e)
