@@ -4,7 +4,7 @@ recovery-visits,main-recovery,sec:sim_recovery,p2_recovery_attempts,n_time,set,4
 recovery-replicates,main-recovery,sec:sim_recovery,p2_recovery_attempts,target_replicates,set,100,Replicates per design,public_manuscript
 recovery-margins,main-recovery,sec:sim_recovery,p2_recovery_attempts,margin_family,set,BCPE|NBI,Margin families,public_manuscript
 recovery-copulas,main-recovery,sec:sim_recovery,p2_recovery_attempts,copula_code,set,C|t,Copulas,public_manuscript
-recovery-methods,main-recovery,sec:sim_recovery,p2_recovery_attempts,method,unique_count,2,Fitted methods per design,public_manuscript
+recovery-methods,main-recovery,sec:sim_recovery,p2_recovery_attempts,method,unique_count_per_study,2,Fitted methods per design,public_manuscript
 optimizer-cases,optimizer-benchmark,sec:sim_jvs,p2_optimizer_design,case_id,set,JVS01|JVS02|JVS03,Scenarios,public_supplemental
 optimizer-factors,optimizer-benchmark,sec:sim_jvs,p2_optimizer_design,changed_factor,set,none|sigma_strength|theta_strength,Decision factors,public_supplemental
 optimizer-methods,optimizer-benchmark,sec:sim_jvs,p2_optimizer_attempts,method,set,rs_joint|rs_separate,Optimizers,public_supplemental

@@ -182,6 +182,24 @@ test_that("Phase 2 claim markers are unique, scoped, and mutation-sensitive", {
   expect_true(all(pending$manuscript_state == "pending_evidence"))
 })
 
+test_that("claim lifecycle excludes warm-ups without hiding genuine failures", {
+  env <- local_phase2_claim_env()
+  attempts <- data.frame(
+    attempted = TRUE,
+    converged = c(TRUE, TRUE, FALSE),
+    retained = c(FALSE, TRUE, FALSE),
+    exclusion_reason = c("warmup", "none", "none"),
+    failure_reason = c("none", "none", "optimizer_failure"),
+    stringsAsFactors = FALSE
+  )
+  lifecycle <- env$jss_phase2_claim_lifecycle(attempts, "fit-scaling")
+  expect_identical(lifecycle$attempted, 2L)
+  expect_identical(lifecycle$converged, 1L)
+  expect_identical(lifecycle$retained, 1L)
+  expect_identical(lifecycle$failed, 1L)
+  expect_identical(lifecycle$failure_reasons, "optimizer_failure:1")
+})
+
 test_that("Phase 2 empirical prose lint rejects unregistered numbers and directions", {
   env <- local_phase2_claim_env()
   root <- normalizePath(file.path("..", ".."), winslash = "/", mustWork = TRUE)

@@ -160,7 +160,8 @@ jss_phase2_validate_claim_sources <- function(settings) {
   optimizer <- jss_submission_validate_optimizer(settings$data_dir, settings$tables_dir,
     settings$figures_dir, settings$root)
   missingness_dir <- file.path(settings$data_dir, "missingness")
-  missingness <- jss_missingness_production_gate(missingness_dir, settings$root)
+  jss_missingness_production_gate(missingness_dir, settings$root)
+  missingness <- jss_submission_validate_missingness(missingness_dir, settings$root)
 
   module07 <- jss_submission_validate_copula(
     file.path(settings$public_data_dir, "copula-misspecification", "results.csv"), settings$root)
