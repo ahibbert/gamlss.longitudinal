@@ -22,6 +22,13 @@ test_that("manifest classifies every active artifact without stubs", {
   public <- x$access == "public" & x$publication_status == "active"
   expect_true(all(nzchar(x$producer[public])))
   expect_true(all(nzchar(x$generated_path[public])))
+  private <- x$access == "private" & x$publication_status == "active"
+  expect_identical(sum(private), 11L)
+  expect_true(all(x$profiles[private] == ""))
+  expect_true(all(x$generated_path[private] == ""))
+  expect_true(all(grepl("^private-static/", x$manuscript_path[private])))
+  expect_true(all(grepl("^private-label-sha256:[0-9a-f]{64}$", x$manuscript_label[private])))
+  expect_true(all(grepl("^[0-9a-f]{64}$", x$approved_sha256[private])))
 })
 
 test_that("private modules are absent from the public target graph", {
