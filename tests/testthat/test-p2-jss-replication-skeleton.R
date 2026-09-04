@@ -631,6 +631,32 @@ test_that("generated reviewer manifest is public-only and portable", {
   expect_false(any(grepl("^([A-Za-z]:|/)", manifest$output_path)))
 })
 
+test_that("manifest validation recomputes and enforces the output hash log", {
+  root <- local_jss_repo_root()
+  env <- new.env(parent = globalenv())
+  source(file.path(root, "paper", "R", "replication-helpers.R"), local = env)
+  out <- tempfile("reviewer-output-hash-"); dir.create(out); dir.create(file.path(out, "tables")); dir.create(file.path(out, "logs"))
+  artifact <- file.path(out, "tables", "example.csv")
+  writeLines(rep("public replication artifact", 10L), artifact, useBytes = TRUE)
+  manifest_path <- file.path(out, "manifest.csv")
+  utils::write.csv(data.frame(
+    artifact_id = "example", artifact_type = "table", output_path = "tables/example.csv",
+    access = "public", publication_status = "active", producer = "test",
+    verification = "canonical_sha256", approved_sha256 = "", stringsAsFactors = FALSE
+  ), manifest_path, row.names = FALSE)
+  hashes_path <- file.path(out, "logs", "output_hashes.csv")
+  hashes <- data.frame(
+    file = c("tables/example.csv", "manifest.csv"),
+    sha256 = vapply(c(artifact, manifest_path), env$jss_file_sha256, character(1)),
+    bytes = unname(file.info(c(artifact, manifest_path))$size), stringsAsFactors = FALSE
+  )
+  utils::write.csv(hashes, hashes_path, row.names = FALSE)
+  expect_true(env$jss_validate_manifest(manifest_path, hashes_path))
+  hashes$sha256[[1L]] <- paste(rep("0", 64L), collapse = "")
+  utils::write.csv(hashes, hashes_path, row.names = FALSE)
+  expect_error(env$jss_validate_manifest(manifest_path, hashes_path), "Output hash verification failed")
+})
+
 test_that("nonconverged smoke fits are structured events", {
   root <- local_jss_repo_root()
   env <- new.env(parent = globalenv())

@@ -436,6 +436,25 @@ jss_validate_manifest <- function(manifest_path, output_hashes_path) {
   if (!file.exists(output_hashes_path)) {
     stop("Missing output hash log: ", output_hashes_path, call. = FALSE)
   }
+  hashes <- utils::read.csv(output_hashes_path, stringsAsFactors = FALSE, check.names = FALSE)
+  required_hash_columns <- c("file", "sha256", "bytes")
+  if (!all(required_hash_columns %in% names(hashes)) || !nrow(hashes) ||
+      anyDuplicated(hashes$file) || any(!nzchar(hashes$file)) ||
+      any(grepl("^([A-Za-z]:[/\\\\]|/)|(^|[/\\\\])[.][.]([/\\\\]|$)", hashes$file))) {
+    stop("Malformed or nonportable output hash log.", call. = FALSE)
+  }
+  logged_paths <- file.path(dirname(manifest_path), hashes$file)
+  hash_ok <- file.exists(logged_paths)
+  hash_ok[hash_ok] <- hashes$sha256[hash_ok] == vapply(logged_paths[hash_ok], jss_file_sha256, character(1)) &
+    hashes$bytes[hash_ok] == unname(file.info(logged_paths[hash_ok])$size)
+  if (any(!hash_ok)) {
+    stop("Output hash verification failed: ", paste(hashes$file[!hash_ok], collapse = ", "), call. = FALSE)
+  }
+  expected_normalized <- normalizePath(expected, winslash = "/", mustWork = TRUE)
+  logged_normalized <- normalizePath(logged_paths, winslash = "/", mustWork = TRUE)
+  if (!all(expected_normalized %in% logged_normalized)) {
+    stop("Output hash log does not cover every active public manifest artifact.", call. = FALSE)
+  }
   too_small <- expected[file.info(expected)$size < 100L]
   if (length(too_small)) stop("Blank or truncated output(s): ", paste(too_small, collapse = ", "), call. = FALSE)
   figure_rows <- public & manifest$artifact_type == "figure"

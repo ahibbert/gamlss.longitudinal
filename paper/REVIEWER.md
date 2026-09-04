@@ -18,14 +18,16 @@ The first run restores the lockfile and installs this checkout into an isolated 
 
 The public workflow has no private-data application dependency. The fully simulated BCPE/t workflow reproduces the complete model-building, diagnostic, prediction, and visualization sequence.
 
-Every run writes session information, Git/dirty state, lockfile and actual-input
+Every successful run writes session information, Git/dirty state, lockfile and actual-input
 hashes, seeds, cores, target timings, structured target/fit events, artifact
 hashes, figure-reference comparisons, and provenance-log hashes beneath the
 profile's `logs/` directory. Platform startup messages emitted before the script
 runs (for example a host's invalid locale setting) cannot be captured there and
 do not count as target warnings.
 
-Start with `logs/reviewer-summary.md`. The two `target-graph-*.csv` files provide
+After a successful run, start with `logs/reviewer-summary.md`. A failed run may
+stop before the logging targets are reached, in which case use the command's
+terminal error and rerun after correcting it. The two `target-graph-*.csv` files provide
 a portable vertex/edge dependency graph, and `input-hashes.csv` covers the
 package R source, workflow definitions/configuration, and only the public data
 bundle actually read by the selected profile.
