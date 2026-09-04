@@ -5,26 +5,23 @@ not ready until every `Blocking` item is resolved.
 
 ## Current Status
 
-The repository already contains a strong package-review foundation:
-
-- `REVIEW.md` routes reviewers through model fitting, likelihood, diagnostics,
-  prediction, simulation, benchmarks, and replication.
-- `inst/standards/ropensci-srr-compliance.md` maps rOpenSci statistical
-  software standards to evidence.
-- `paper/replicate.R`, `paper/_targets.R`, and `paper/manifest.csv` define a
-  smoke/expanded replication workflow.
-- Several validation modules are current, but the draft manuscript still reads
-  like a methods preprint and includes private-data and stub-result risks.
+- Phase 1 package correctness is complete; see
+  `reviews/2026-08-27-jss-round-1/phase1-acceptance-ledger.md`.
+- The simplified Phase 2 scope contains five public evidence modules and no
+  multivariate Module 09 dependency. Final main-recovery promotion and the
+  clean `paper` build remain in progress.
+- Phase 3 manuscript revision remains blocking. The canonical manuscript still
+  contains obsolete designs/claims and has not yet received the documented
+  public/private reproducibility wording.
 
 ## Blocking Gates
 
 | Gate | Status | Required action |
 |---|---|---|
 | JSS manuscript style | Blocking | Convert the final manuscript to JSS LaTeX style and remove preprint formatting. |
-| Main-paper reproducibility | Blocking | Ensure every kept table and figure has a manifest row, generated output, session info, and hash. |
-| Primary example data | Blocking | Use public, package-shipped, or simulated data for the main worked example. |
-| Private data policy | Blocking | Keep private-data analyses outside the public workflow unless accepted reviewer access instructions are supplied. |
-| Stub modules | Blocking | Do not cite module 04 or 05 outputs as main-paper results while manifest rows are `stub`. |
+| Main-paper reproducibility | Phase 2 in progress | Finish the main-recovery promotion and clean `paper` build; then apply only allowlisted assets to the manuscript clone. |
+| Primary example data | Evidence ready; manuscript edit blocking | Use the fully simulated BCPE/t workflow as the reproducible primary example. |
+| Evidence modules | Resolved | Five public modules are active; Module 09 is explicitly deferred and no active item is a stub. |
 | Unresolved citations | Blocking | Fix all literal question-mark citation artifacts and missing bibliography entries. |
 | Main text balance | Blocking | Expand software workflow sections and reduce derivation/simulation dominance. |
 
@@ -45,12 +42,12 @@ The repository already contains a strong package-review foundation:
 
 | Gate | Status | Required action |
 |---|---|---|
-| Smoke profile | Existing | Run from a clean session and record runtime. |
-| Expanded profile | Existing | Run once before submission and record runtime, skipped modules, session info, and hashes. |
-| Manifest coverage | Partial | Confirm all main-paper outputs are `current`, not `stub`, and are not private-data dependent. |
-| Output hashes | Existing | Keep `logs/output_hashes.csv` in generated replication artifacts. |
-| Runtime notes | Needs documentation | Add expected smoke and expanded runtimes after final profile runs. |
-| External data notes | Needs documentation | State exact data availability for any non-shipped data. |
+| Smoke profile | Passed locally | Repeat once from the final clean commit and record cold/warm runtime. |
+| Paper profile | In progress | Complete after authoritative main-recovery inputs are promoted; require zero target warnings/errors. |
+| Full profile | Optional author QA | Retain the checkpointed command, but do not make a publication-scale rerun a routine reviewer or Phase 2 gate. |
+| Manifest coverage | Asset classification passed | The read-only canonical audit classifies all 40 current manuscript assets; Phase 3 must update obsolete empirical references. |
+| Output hashes | Implemented | Keep output, input, and provenance hashes in each generated replication run. |
+| Runtime notes | Pending final run | Record final clean smoke and paper runtimes; document full separately as optional. |
 
 ## Package-Facing Gates
 
@@ -82,13 +79,15 @@ Everything else should be supplementary, vignette material, or omitted.
 
 Run these from the repository root before creating the final submission bundle:
 
-```r
-devtools::document()
-devtools::test(reporter = "summary")
-devtools::check(args = "--as-cran")
-source("paper/replicate.R")
-Sys.setenv(GAMLSS_LONGITUDINAL_JSS_PROFILE = "expanded")
-source("paper/replicate.R")
+```text
+Rscript paper/replicate.R --profile smoke
+Rscript paper/replicate.R --profile paper
+Rscript paper/audit-manuscript.R --paper-repo <clean-paper-clone>
+Rscript paper/publish-assets.R --paper-repo <clean-paper-clone> --profile paper --dry-run
+
+Rscript -e "devtools::document(); devtools::test(reporter = 'summary')"
+R CMD build .
+R CMD check --as-cran <source-tarball>
 ```
 
 Record all warnings, skips, runtime, platform, and optional dependency state.
