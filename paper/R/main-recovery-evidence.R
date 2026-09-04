@@ -1599,10 +1599,15 @@ jss_build_main_recovery_evidence <- function(input_root, output_dir, resume = TR
     return(structure(expected_outputs, resumed = TRUE))
   }
 
-  read <- function(path) utils::read.csv(path, stringsAsFactors = FALSE, check.names = FALSE)
+  read <- function(path, ...) utils::read.csv(
+    path, stringsAsFactors = FALSE, check.names = FALSE, ...
+  )
   ledger <- jss_recovery_attempt_ledger(read(paths[["bcpe_log"]]), read(paths[["nbi_log"]]))
   identity_fields <- c("runner_settings_signature", "runner_settings_sha256", "runner_sha256", "package_source_path", "package_version", "package_source_sha256")
-  settings_by_margin <- lapply(c(BCPE = control_paths[["bcpe_settings"]], NBI = control_paths[["nbi_settings"]]), function(path) if (file.exists(path)) read(path) else data.frame())
+  settings_by_margin <- lapply(
+    c(BCPE = control_paths[["bcpe_settings"]], NBI = control_paths[["nbi_settings"]]),
+    function(path) if (file.exists(path)) read(path, colClasses = "character") else data.frame()
+  )
   settings_identity <- do.call(rbind, lapply(names(settings_by_margin), function(margin) {
     source <- settings_by_margin[[margin]]
     row <- data.frame(margin_family = margin, study_id = unique(ledger$study_id[ledger$margin_family == margin])[[1]], stringsAsFactors = FALSE)
