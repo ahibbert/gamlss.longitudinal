@@ -662,6 +662,14 @@ test_that("recovery builder preserves canonical decimal spelling in settings CSV
   expect_match(validator, 'colClasses = "character"', fixed = TRUE)
 })
 
+test_that("main-recovery manuscript tables escape method-name underscores", {
+  env <- local_main_recovery_env()
+  expect_identical(
+    env$jss_recovery_latex_text("ours_rs_joint"),
+    "ours\\_rs\\_joint"
+  )
+})
+
 test_that("recovery manuscript guards are local and do not capture unrelated figures or sections", {
   lines <- readLines(file.path(local_main_recovery_root(), "paper", "manuscript", "main.tex"), warn = FALSE)
   opens <- grep("^\\\\IfFileExists\\{charts/paper_simulation_", lines)

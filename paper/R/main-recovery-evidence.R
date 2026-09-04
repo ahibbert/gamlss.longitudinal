@@ -1986,6 +1986,10 @@ jss_main_recovery_validate_public_bundle <- function(path, conf.level = 0.95,
   invisible(required)
 }
 
+jss_recovery_latex_text <- function(x) {
+  gsub("_", "\\\\_", as.character(x), fixed = TRUE)
+}
+
 jss_recovery_write_manuscript_assets <- function(bundle_dir, settings) {
   status <- utils::read.csv(file.path(bundle_dir, "attempt_status_summary.csv"), stringsAsFactors = FALSE)
   fixed <- utils::read.csv(file.path(bundle_dir, "fixed_parameter_recovery.csv"), stringsAsFactors = FALSE)
@@ -1994,7 +1998,7 @@ jss_recovery_write_manuscript_assets <- function(bundle_dir, settings) {
   write_table <- function(margin, path, label) {
     study <- unique(status$study_id[grepl(tolower(margin), tolower(status$study_id), fixed = TRUE)])
     rows <- status[status$study_id %in% study, ]
-    body <- paste(sprintf("%s & %d & %d & %d & %.3f \\\\", rows$method, rows$planned_method_replicate_cells, rows$actual_attempt_rows, rows$retained, rows$retention_rate), collapse = "\n")
+    body <- paste(sprintf("%s & %d & %d & %d & %.3f \\\\", jss_recovery_latex_text(rows$method), rows$planned_method_replicate_cells, rows$actual_attempt_rows, rows$retained, rows$retention_rate), collapse = "\n")
     lines <- c("\\begin{table}[t]", "\\centering", "\\begin{tabular}{lrrrr}", "Method & Planned cells & Attempt rows & Retained & Retention rate \\\\ \\hline", body, "\\end{tabular}",
       paste0("\\caption{Main-recovery lifecycle counts derived from the authoritative attempt ledger for ", margin, ". Nonconverged and incomplete attempts are excluded from ordinary summaries and retained in failure sensitivity.}"), paste0("\\label{", label, "}"), "\\end{table}")
     writeLines(lines, path, useBytes = TRUE)
@@ -2003,7 +2007,7 @@ jss_recovery_write_manuscript_assets <- function(bundle_dir, settings) {
     study <- unique(status$study_id[grepl(tolower(margin), tolower(status$study_id), fixed = TRUE)])
     rows <- fixed[fixed$study_id %in% study, ]
     rows <- stats::aggregate(cbind(abs_bias = abs(bias), rmse = rmse, coverage = coverage) ~ method, rows, mean, na.rm = TRUE)
-    body <- paste(sprintf("%s & %.4f & %.4f & %.3f \\\\", rows$method, rows$abs_bias, rows$rmse, rows$coverage), collapse = "\n")
+    body <- paste(sprintf("%s & %.4f & %.4f & %.3f \\\\", jss_recovery_latex_text(rows$method), rows$abs_bias, rows$rmse, rows$coverage), collapse = "\n")
     lines <- c("\\begin{table}[t]", "\\centering", "\\begin{tabular}{lrrr}", "Method & Mean absolute bias & Mean RMSE & Mean coverage \\\\ \\hline", body, "\\end{tabular}",
       paste0("\\caption{Fixed-parameter recovery for ", margin, " from converged, complete, publication-retained attempts in the authoritative main-recovery bundle. Full estimand-specific MCSEs and intervals are in the public evidence table.}"), paste0("\\label{", label, "}"), "\\end{table}")
     writeLines(lines, path, useBytes = TRUE)
