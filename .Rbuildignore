@@ -18,6 +18,7 @@
 ^\.quarto($|/)
 ^\.vscode$
 ^\.github($|/)
+^\.git($|/)
 ^docs($|/)
 ^examples($|/)
 ^results($|/)
