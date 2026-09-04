@@ -55,6 +55,12 @@ author-side recomputation.
 - Terminal manifest validation now parses, constrains, covers, and recomputes
   every `output_hashes.csv` row. Failed target runs write available run/target
   metadata and a reviewer summary before returning the original error.
+- The final context-free reviewer repeated the paper profile from a new
+  detached checkout: 19/19 targets and 10/10 gates passed, with zero target or
+  fit events. Independent checks matched all 511 input, 88 output, and 11
+  provenance hashes. Original-resolution inspection confirmed the shortened
+  NBI term labels and missingness facet labels are legible and unclipped; the
+  zero-event paper run contains a schema-stable empty `fit-events.csv`.
 - Publisher dry-run/apply in a clean disposable manuscript clone staged exactly
   17 assets and changed only `charts/` and `tables/`. It did not edit, commit,
   or push manuscript source.
@@ -70,11 +76,10 @@ author-side recomputation.
 - Module 09 is absent from active claims, artifact contracts, manifests, and
   target graphs. Its source and tiny unit-test fixtures remain for future work.
 
-## Checks in progress
+## Close-out
 
-- Give a context-free independent reviewer only `paper/REVIEWER.md`; fix every
-  in-scope ambiguity or failure before closing Phase 2. The post-repair repeat
-  is the remaining audit step.
+The simplified Phase 2 evidence and independent reviewer gates are complete.
+Module 09 and publication-scale full recomputation remain explicitly optional.
 
 ## Separate Phase 3 manuscript work
 
