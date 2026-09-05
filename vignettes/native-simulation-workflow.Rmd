@@ -859,7 +859,11 @@ We see in both benchmark comparisons here that:
 - Coefficients are broadly in the same range in this example, but standard errors and 95% intervals differ materially because the models target different likelihoods and parameterizations. These differences should be interpreted as design-specific evidence; broader conditional-coverage work is required before making general inferential claims.
 
 <details>
-The selected final model does not include `time` on `mu`, while the benchmark mean model below does include a linear `time` term. To keep the selected final model unchanged while making the benchmark comparison like-for-like on the mean formula, we fit an additional comparison-only GAMLSS longitudinal model that adds `time` to `mu` and leaves the other final-model components unchanged.
+The selected model omits `time` from the GG `mu` predictor, whereas the
+benchmark mean models include time. For a directional comparison, we fit an
+additional GG model that adds `time` to `mu` while leaving the other components
+unchanged. This aligns one covariate set; it does not make GG `mu` a
+response-mean estimand or create an exact like-for-like mean model.
 
 ```{r fit-benchmark-mu-time, results='hide'}
 fit_benchmark_mu_time <- gamlss_longitudinal(
