@@ -16,10 +16,21 @@ as trailing arguments. ACTG currently requires the `bcmixed` package. TLC and
 skin-cancer data are read from the public Applied Longitudinal Analysis site;
 epilepsy data are supplied by `MASS`.
 
+The resulting comparison and recommendation are recorded in
+[`findings.md`](findings.md). Generated CSV and RDS files remain under the
+ignored `results/` directory.
+
 Missing ACTG follow-up counts remain `NA`. They are omitted only from the
 temporary marginal screens. Any later joint fit must use
 `missingness = "segment"` and report that explicit composite-likelihood
 assumption.
+
+The screening runner also compares prespecified `theta` formulas using the
+selected family and a fixed-margin pair likelihood. For discrete responses this
+is the same exact rectangle objective used by `select_copula()`; it is a rapid
+covariate screen, not a substitute for the final jointly re-estimated model.
+It also exports the coefficients from the AIC-preferred marginal model so that
+the direction and magnitude of non-mean effects can be reviewed.
 
 After screening, run a deliberately small, checkpointed joint-model grid with:
 
