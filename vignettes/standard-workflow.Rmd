@@ -11,7 +11,7 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  eval = FALSE
+  message = FALSE
 )
 ```
 
@@ -35,8 +35,11 @@ The key parts are:
 
 For now installation is available directly from the project's github repository. You may need to install the package 'remotes' through `install.packages("remotes")`.
 
-```{r installation}
+```{r installation, eval=FALSE}
 remotes::install_github("ahibbert/gamlss.longitudinal")
+```
+
+```{r packages}
 library(gamlss.longitudinal)
 library(gamlss.dist)
 ```
@@ -49,6 +52,13 @@ The dataset should be structured as one row per subject and timepoint. The datas
 - a subject identifier;
 - a visit, time, or occasion identifier;
 - any covariates for analysis.
+
+The ordered unique values of `time_var` define scheduled adjacency. Numeric
+spacing affects order only; a gap from day 1 to day 30 is not automatically
+given weaker dependence than a gap from day 1 to day 2. For factors, factor
+level order defines the schedule. Pair-level copula covariates are evaluated at
+the earlier (left) scheduled row. Encode elapsed-time effects explicitly in
+copula covariates when scientific time distance matters.
 
 This workflow is designed to be able to be used on a dataset of your choice (with the suggested structure). Alternatively, the small simulated dataset below has the required structure and can be used to run the workflow end to end.
 
@@ -112,7 +122,7 @@ by dropout. Intermittent gaps and leading unobserved scheduled visits error by
 default; use `missingness = "segment"` only when you intend the documented
 between-segment independence assumption.
 
-```{r missingness-check, eval = FALSE}
+```{r missingness-check}
 check_missingness(
   dat,
   response_var = "response",
@@ -129,7 +139,11 @@ family--copula combinations returned by
 `longitudinal_capabilities("routes")`. The presence of a family in
 **gamlss.dist** is not itself a support guarantee.
 
-For simplicity, we provide the function `select_margin()` which fits the available gamlss distributions and provides a sorted list of fits by AIC, and confirms if they are supported by `gamlss.longitudinal`. This can be limited to certain fits such as specific distributions, e.g. `families = c("PO", "GA")` or response types, e.g. `type = "realplus"`.
+For simplicity, `select_margin()` fits compatible candidate GAMLSS families and
+sorts them by AIC while recording longitudinal support. Candidate families
+should be prespecified from the response domain and subject-matter requirements;
+for example, use `families = c("PO", "NBI")` for a count shortlist or
+`type = "realplus"` for positive continuous candidates.
 
 In general, we would suggest using the top fitting distributions as a shortlist that can later be revisited once covariates are incorporated into the fit.
 
@@ -137,23 +151,21 @@ In general, we would suggest using the top fitting distributions as a shortlist 
 # Select best-fitting margin distribution
 margin_selection <- select_margin(
   data = dat,
-  response_var = "response"
+  response_var = "response",
+  families = c("GA", "GG", "LOGNO")
 )
 
 print(margin_selection)
 
-screened_margin_dist <- best_fit_family(margin_selection)
-
-# For this teaching simulation, retain the known generating family so that
-# coefficient recovery is not confounded with a data-driven family switch.
-margin_dist <- GG()
+margin_dist <- best_fit_family(margin_selection)
 ```
 
 In an applied analysis, retain several plausible screened families and compare
 their final covariate-adjusted fits and diagnostics. Here we deliberately carry
-forward the known generating `GG()` family: this keeps the example focused on a
-correctly specified model while still showing what the preliminary screen
-returns for this realization.
+forward the top family from a prespecified positive-continuous shortlist. This
+is one pragmatic search path, not an automatic guarantee that the selected
+family is correct; final conclusions should include sensitivity to plausible
+alternatives and acknowledge selection uncertainty.
 
 We then select a starting copula for the chosen marginal distribution. The
 capability registry supplies the copulas tested with that family; restricting
@@ -203,6 +215,13 @@ sensitivity mode that excludes that contribution from the marginal updates;
 it is not available for the CG optimizer. Advanced settings are supplied together through
 `optimizer_control = gamlss_longitudinal_control(...)`.
 
+For a separate fit, `logLik()`, AIC, and BIC evaluate the joint likelihood at
+the separately updated parameter estimates, which need not maximize that joint
+objective. Treat these values as descriptive sensitivity results, not as a
+standard optimized-likelihood basis for likelihood-ratio testing. Do not use an
+LR test to compare joint and separate optimization strategies; refit the models
+with joint optimization for final likelihood-based comparisons.
+
 For the included simulated example, the data-generating process has binary
 treatment and time effects on both `mu` and `sigma`, a smooth age effect on
 `mu`, and dependence that increases over time. The fitted formulas below match
@@ -231,7 +250,9 @@ You can then review a summary of the fit including covariate estimates, standard
 summary(fit)
 ```
 
-Other standard functions for outputs of regression models are also available, such as confidence intervals, wald tests, likelihood ratios and bootstrap inference.
+Other standard functions for outputs of regression models are also available,
+such as confidence intervals, Wald tests, likelihood comparisons, and bootstrap
+inference.
 
 ```{r final-postfit-tests}
 # Confidence intervals
@@ -253,10 +274,22 @@ fit_reduced <- gamlss_longitudinal(
   theta.formula = ~ time
 )
 likelihood_compare(fit_reduced, fit)
+```
 
-# Bootstrapped confidence intervals (WARNING: Can take a long time to run since it's refitting for each R)
-boot <- bootstrap_inference(fit, R = 20, seed = 1)
+Bootstrap inference refits the model repeatedly and is therefore disabled in
+this routine workflow build. The small value below is a computational smoke
+run only and must not be reported. For a reporting analysis, increase `R` until
+the interval limits are stable at the required scientific precision, assess
+Monte Carlo error, and report unsuccessful replicates.
+
+```{r bootstrap-smoke, eval=FALSE}
+boot <- bootstrap_inference(
+  fit,
+  R = 20, # smoke run only; not for reporting
+  seed = 1
+)
 print(boot)
+boot$failures
 ```
 
 See `vignette("inference-uncertainty", package = "gamlss.longitudinal")` for
@@ -404,7 +437,7 @@ sim_model <- simulate(fit, nsim = 100, seed = 1)
 
 Since we know most users would be considering a longitudinal gamlss model as an alternative to existing solutions using gees, gam or glmms we provide easy to use comparison tools to benchmark longitudinal gamlss models to existing methods.
 
-```{r comparator}
+```{r comparator, eval=FALSE}
 # Fit comparison models and summarise fits for a model with linear age term
 bench_nosmooth <- benchmark_standard_models(
   data = dat,

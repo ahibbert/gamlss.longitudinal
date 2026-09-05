@@ -50,11 +50,25 @@ fit <- gamlss_longitudinal(
   verbose = 0
 )
 
-head(predict(fit, type = "mean"))
-head(predict(fit, type = "quantile", probs = c(0.1, 0.5, 0.9)))
-head(predict(fit, type = "probability", q = 1, direction = "above"))
+mean_prediction <- predict(fit, type = "mean")
+quantile_prediction <- predict(
+  fit,
+  type = "quantile",
+  probs = c(0.1, 0.5, 0.9)
+)
+probability_prediction <- predict(
+  fit,
+  type = "probability",
+  q = 1,
+  direction = "above"
+)
+quantile_columns <- grep("^q[0-9]", names(quantile_prediction), value = TRUE)
 
-check_model(fit, include_vcov = FALSE)
+head(mean_prediction)
+head(quantile_prediction)
+head(probability_prediction)
+
+model_check <- check_model(fit, include_vcov = FALSE)
 copula_check <- suppressMessages(plot_copula_diagnostics(
   fit,
   type = "all",
@@ -62,13 +76,13 @@ copula_check <- suppressMessages(plot_copula_diagnostics(
   plot = FALSE
 ))
 names(copula_check$plots)
-reporting_table(fit, dat, by = "time", threshold = 1)
-model_spec(fit)
+report <- reporting_table(fit, dat, by = "time", threshold = 1)
+specification <- model_spec(fit)
 
 sim <- simulate(fit, nsim = 2, seed = 1)
 head(sim)
 
-benchmark_standard_models(
+benchmark <- benchmark_standard_models(
   data = dat,
   formula = response ~ time,
   subject_var = "subject",
@@ -76,4 +90,28 @@ benchmark_standard_models(
   comparators = "glm",
   fit = fit
 )
+
+stopifnot(
+  inherits(fit, "gamlss.longitudinal"),
+  isTRUE(fit$convergence$converged),
+  is.finite(as.numeric(logLik(fit))),
+  length(mean_prediction) == nrow(dat),
+  all(is.finite(mean_prediction)),
+  nrow(quantile_prediction) == nrow(dat),
+  length(quantile_columns) == 3L,
+  all(is.finite(as.matrix(quantile_prediction[quantile_columns]))),
+  nrow(probability_prediction) == nrow(dat),
+  all(is.finite(probability_prediction$probability)),
+  identical(dim(sim), c(nrow(dat), 2L)),
+  inherits(model_check, "gamlss_longitudinal_check"),
+  all(c(
+    "empirical_overlay", "rosenblatt_qq", "residual_lag_correlation"
+  ) %in% names(copula_check$plots)),
+  is.data.frame(report),
+  inherits(specification, "gamlss_longitudinal_model_spec"),
+  inherits(benchmark, "gamlss_longitudinal_benchmark"),
+  all(benchmark$model_status$success)
+)
+
+message("All installation workflow assertions passed.")
 ```

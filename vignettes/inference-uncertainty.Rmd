@@ -11,11 +11,70 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  eval = FALSE
+  message = FALSE
 )
 ```
 
 This article gives an overview of the outputs that can be generated from a `gamlss.longitudinal` fit for inference of various types. 
+
+The executable examples use a small known-truth fit:
+
+```{r inference-example-fit}
+library(gamlss.longitudinal)
+library(gamlss.dist)
+
+dat <- simulate_longitudinal_dataset(
+  n = 60,
+  times = 0:2,
+  margin_dist = NO(),
+  copula_dist = "N",
+  covariates = function(d) {
+    simulate_longitudinal_covariates(
+      d,
+      subject = list(
+        treatment = function(s) {
+          factor(
+            rep(c("control", "active"), length.out = nrow(s)),
+            levels = c("control", "active")
+          )
+        }
+      )
+    )
+  },
+  margin_params = list(
+    mu = function(d) 1 + 0.35 * (d$treatment == "active") + 0.2 * d$time,
+    sigma = 0.7
+  ),
+  copula_params = list(theta = 0.3),
+  seed = 2026
+)
+
+fit <- gamlss_longitudinal(
+  data = dat,
+  margin_dist = NO(),
+  copula_dist = "N",
+  time_var = "time",
+  subject_var = "subject",
+  optimization = "joint",
+  mu.formula = response ~ treatment + time,
+  sigma.formula = ~ 1,
+  theta.formula = ~ 1,
+  verbose = 0
+)
+
+fit_reduced <- gamlss_longitudinal(
+  data = dat,
+  margin_dist = NO(),
+  copula_dist = "N",
+  time_var = "time",
+  subject_var = "subject",
+  optimization = "joint",
+  mu.formula = response ~ time,
+  sigma.formula = ~ 1,
+  theta.formula = ~ 1,
+  verbose = 0
+)
+```
 
 The quick reference is:
 
@@ -74,7 +133,7 @@ Use `confint()` for coefficient-scale intervals.
 
 ```{r confint}
 confint(fit)
-confint(fit, parm = c("mu.treatment", "sigma.treatment"))
+confint(fit, parm = c("mu.treatmentactive", "mu.time_covariate"))
 ```
 
 If the fitted object reports convergence, Hessian, identifiability, or fallback
@@ -87,7 +146,7 @@ The `wald_test()` can be used to test coefficient estimates against an alternati
 ```{r wald-individual}
 wald_test(
   fit,
-  terms = c("mu.treatment", "sigma.treatment"),
+  terms = c("mu.treatmentactive", "mu.time_covariate"),
   method = "analytical"
 )
 ```
@@ -97,7 +156,7 @@ We also provide the option to test a group of coefficients together against a nu
 ```{r wald-joint}
 wald_test(
   fit,
-  terms = c("mu.treatment", "sigma.treatment"),
+  terms = c("mu.treatmentactive", "mu.time_covariate"),
   joint = TRUE,
   method = "analytical"
 )
@@ -127,6 +186,96 @@ used as a surrogate for nesting order.
 
 The comparison reports likelihood and likelihood ratio test results alongside other helpful details such as the change in degrees of freedom and other likelihood criteria that take into account effective degrees of freedom: AIC and BIC.
 
+## Cluster-sandwich inference and intermittent gaps
+
+`vcov(fit, method = "sandwich")` uses subject-level score clusters with a
+validated Hessian bread. It targets the covariance of the fitted fixed
+coefficients under the package's working likelihood. Like other sandwich
+estimators, it is a large-sample approximation; few subjects, influential
+clusters, boundary estimates, or an invalid bread can make it unreliable. The
+returned object records the method, finite-cluster adjustment, and validation
+diagnostics.
+
+```{r sandwich-vcov}
+vc_sandwich <- vcov(fit, method = "sandwich")
+attr(vc_sandwich, "method")
+attr(vc_sandwich, "inference_contract")$validity_status
+```
+
+The sandwich route is especially important for the explicit segmented
+missingness objective. The ordinary likelihood accepts complete panels and
+observed prefixes followed by dropout. An intermittent gap errors by default:
+
+```{r segmented-missingness}
+gap_dat <- dat
+gap_subjects <- levels(gap_dat$subject)[1:6]
+gap_dat$response[
+  gap_dat$subject %in% gap_subjects & gap_dat$time == 1
+] <- NA_real_
+
+fit_with_missingness <- function(data, missingness = "error") {
+  gamlss_longitudinal(
+    data = data,
+    margin_dist = NO(),
+    copula_dist = "N",
+    time_var = "time",
+    subject_var = "subject",
+    missingness = missingness,
+    optimization = "joint",
+    mu.formula = response ~ treatment + time,
+    sigma.formula = ~ 1,
+    theta.formula = ~ 1,
+    compute_vcov = FALSE,
+    verbose = 0
+  )
+}
+
+gap_error <- tryCatch(
+  fit_with_missingness(gap_dat),
+  error = identity
+)
+conditionMessage(gap_error)
+
+segment_warning <- NULL
+segmented_fit <- withCallingHandlers(
+  fit_with_missingness(gap_dat, missingness = "segment"),
+  warning = function(w) {
+    if (inherits(w, "gamlss.longitudinal_segment_warning")) {
+      segment_warning <<- conditionMessage(w)
+      invokeRestart("muffleWarning")
+    }
+  }
+)
+segment_warning
+segmented_fit$missingness[c(
+  "objective", "n_segments", "n_between_segment_transitions_omitted",
+  "between_segment_assumption", "criteria_status"
+)]
+c(AIC = AIC(segmented_fit), BIC = BIC(segmented_fit))
+```
+
+With `missingness = "segment"`, contiguous observed segments contribute as
+independent likelihood pieces and pairs crossing gaps are omitted. AIC and BIC
+remain available for that explicitly defined segmented likelihood; they should
+be reported with the independence assumption and compared only with fits using
+the same observed rows and segmented objective. Numerical integration of
+dependence across gaps is not implemented.
+
+The ordinary model-Hessian covariance is deliberately unavailable for this
+composite objective. Use subject-cluster sandwich covariance or bootstrap
+sensitivity instead:
+
+```{r segmented-inference}
+hessian_error <- tryCatch(
+  vcov(segmented_fit, method = "analytical"),
+  error = identity
+)
+conditionMessage(hessian_error)
+
+segmented_vcov <- vcov(segmented_fit, method = "sandwich")
+attr(segmented_vcov, "method")
+```
+
 ## Parametric bootstrap
 
 We provide a built-in helper for bootstrap simulations from fitted `gamlss.longitudinal` objects which can give an idea of sensitivity of the Hessian-based intervals. The parametric method simulates from the fitted model and refits the same specification; the cluster method resamples whole subjects. Both target only the selected fixed coefficients. Refit errors, explicit nonconvergence, and missing or nonfinite target coefficients count as failed replicates. Results report overall and per-term successful counts, and model-selection uncertainty is not included.
@@ -136,11 +285,17 @@ a finite sample standard deviation. They are not evidence that a bootstrap
 interval is inferentially adequate; reporting analyses need a substantively
 chosen larger replicate count and must report failures.
 
-```{r bootstrap-inference}
+The code below is a deliberately small **computational smoke run**, disabled
+during routine vignette builds. Its `R = 20` must not be used for reported
+intervals. For reporting, increase `R` until the estimates and interval limits
+are stable relative to the scientific precision required, assess Monte Carlo
+error, and disclose the total, successful, and failed replicates.
+
+```{r bootstrap-inference, eval=FALSE}
 boot <- bootstrap_inference(
   fit,
-  R = 200,
-  terms = c("mu.treatment", "sigma.treatment"),
+  R = 20, # smoke run only; not for reporting
+  terms = c("mu.treatmentactive", "mu.time_covariate"),
   seed = 1,
   fit_args = list(
     optimizer_control = gamlss_longitudinal_control(
@@ -152,6 +307,7 @@ boot <- bootstrap_inference(
 
 boot
 boot$summary
+boot$failures
 ```
 
 These fits are computationally expensive due to the refitting of the `gamlss.longitudinal` model so use with care.
