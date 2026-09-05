@@ -437,6 +437,11 @@ sim_model <- simulate(fit, nsim = 100, seed = 1)
 
 Since we know most users would be considering a longitudinal gamlss model as an alternative to existing solutions using gees, gam or glmms we provide easy to use comparison tools to benchmark longitudinal gamlss models to existing methods.
 
+The following optional benchmark fits several external models and is disabled
+during routine vignette builds because it requires suggested packages and
+additional runtime. Run the chunk interactively when the relevant comparator
+packages are installed.
+
 ```{r comparator, eval=FALSE}
 # Fit comparison models and summarise fits for a model with linear age term
 bench_nosmooth <- benchmark_standard_models(
