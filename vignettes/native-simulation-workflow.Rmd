@@ -611,11 +611,25 @@ nu_candidates <- list(
   age_smooth = fit_nuageonly,
   all_terms = fit_sigmalineartime
 )
+joint_criterion <- function(object, criterion) {
+  value <- criterion(object)
+  if (length(value) == 0L) {
+    return(NA_real_)
+  }
+  if (length(value) == 1L) {
+    return(as.numeric(value))
+  }
+  if (!is.null(names(value)) && "joint" %in% names(value)) {
+    return(as.numeric(value[["joint"]]))
+  }
+  # Multi-component package results are ordered marginal, copula, joint.
+  as.numeric(value[[length(value)]])
+}
 data.frame(
   model = names(nu_candidates),
-  logLik = vapply(nu_candidates, function(x) as.numeric(logLik(x)), numeric(1)),
-  AIC = vapply(nu_candidates, AIC, numeric(1)),
-  BIC = vapply(nu_candidates, BIC, numeric(1)),
+  logLik = vapply(nu_candidates, joint_criterion, numeric(1), criterion = logLik),
+  AIC = vapply(nu_candidates, joint_criterion, numeric(1), criterion = AIC),
+  BIC = vapply(nu_candidates, joint_criterion, numeric(1), criterion = BIC),
   row.names = NULL
 )
 ```
