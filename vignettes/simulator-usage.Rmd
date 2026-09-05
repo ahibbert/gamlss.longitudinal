@@ -11,7 +11,7 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  eval = FALSE
+  message = FALSE
 )
 ```
 
@@ -34,6 +34,13 @@ library(gamlss.dist)
 ### Creating a minimal longitudinal dataset
 
 `simulate_longitudinal_dataset()` returns one row per subject and time combination. We specify the number of subjects with `n=100` and the number of observations per timepoint with an ordered time variable, here `times = 0:4` which will result in a dataset with 500 observations total. 
+
+The order of `times` defines scheduled adjacency. Numeric distances do not by
+themselves weaken or strengthen the first-order copula: `c(1, 2, 30)` creates
+the adjacent pairs 1--2 and 2--30. If elapsed distance should affect dependence,
+encode it explicitly in the copula parameter function. For fitted models,
+numeric order or factor-level order defines the same schedule, and pair-level
+copula covariates are evaluated at the earlier (left) row.
 
 Simulation supports the tested family--copula combinations returned by
 `longitudinal_capabilities("routes")`; the presence of a family in
