@@ -264,7 +264,9 @@ jss_select_public_application_distributions <- function(
       ),
       margin_time_intercepts = TRUE,
       copula_time_intercepts = TRUE,
-      margin_n_cycles = spec$selection_cycles
+      margin_n_cycles = spec$selection_cycles,
+      copula_screen_version = attr(copula_selection, "screen_version"),
+      copula_screen_likelihood = attr(copula_selection, "screen_likelihood")
     )
   )
 }

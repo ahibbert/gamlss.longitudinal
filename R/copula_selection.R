@@ -1,7 +1,9 @@
 #' Select a bivariate copula family from pseudo-observation pairs
 #'
-#' Screens supported copula families by maximising their native copula
-#' log-likelihood on adjacent-time pseudo-observation pairs. Pseudo-observations
+#' Screens supported copula families on adjacent-time pairs. Continuous
+#' margins use the copula-density log-likelihood. Automatically constructed
+#' discrete margins use the exact copula rectangle likelihood, matching the
+#' likelihood used by [gamlss_longitudinal()]. Pseudo-observations
 #' can be supplied directly as `u1`/`u2`, supplied as a row-aligned uniform
 #' vector or column in `data`, or computed from a fitted
 #' `gamlss.longitudinal` object.
@@ -45,6 +47,9 @@
 #'   [select_margin()] if the marginal family is auto-selected.
 #' @param margin_n_cycles Positive integer maximum number of cycles used for
 #'   the temporary marginal GAMLSS fit that creates pseudo-observations.
+#' @param pit_seed Finite numeric seed used for randomized PIT values when
+#'   constructing descriptive diagnostics for a discrete margin. The seed does
+#'   not affect the exact rectangle likelihood used to rank copulas.
 #' @param copula_time_intercepts Logical; if `TRUE`, screen each copula family
 #'   with separate dependence parameters for each adjacent time-pair factor
 #'   level. This does not impose a linear time trend.
@@ -83,6 +88,7 @@ select_copula <- function(
     min_pairs = 10,
     time_intercepts = FALSE,
     margin_n_cycles = 100L,
+    pit_seed = 1L,
     copula_time_intercepts = FALSE,
     tail_thresholds = c(0.05, 0.10, 0.20)) {
   criterion <- match.arg(criterion)
@@ -96,6 +102,10 @@ select_copula <- function(
     stop("'margin_n_cycles' must be a positive integer.", call. = FALSE)
   }
   margin_n_cycles <- as.integer(margin_n_cycles)
+  if (length(pit_seed) != 1L || !is.finite(pit_seed)) {
+    stop("'pit_seed' must be one finite number.", call. = FALSE)
+  }
+  pit_seed <- as.integer(pit_seed)
 
   pairs <- .select_copula_pairs(
     data = data,
@@ -114,7 +124,8 @@ select_copula <- function(
     time_var = time_var,
     lags = lags,
     time_intercepts = time_intercepts,
-    margin_n_cycles = margin_n_cycles
+    margin_n_cycles = margin_n_cycles,
+    pit_seed = pit_seed
   )
   margin_family <- .select_copula_margin_family(
     margin_dist = margin_dist,
@@ -144,7 +155,22 @@ select_copula <- function(
       )
     }
   }
+  screen_likelihood <- attr(pairs, "screen_likelihood") %||% "copula_density"
+  randomized_pit <- isTRUE(attr(pairs, "randomized_pit"))
+  used_pit_seed <- attr(pairs, "pit_seed")
+  exact_discrete <- identical(screen_likelihood, "exact_discrete_rectangle")
+  if (exact_discrete && !all(c("upper1", "upper2", "lower1", "lower2") %in% names(pairs))) {
+    stop("Exact discrete copula selection requires upper and lower CDF bounds.", call. = FALSE)
+  }
   keep <- is.finite(pairs$u1) & is.finite(pairs$u2)
+  if (exact_discrete) {
+    keep <- keep & is.finite(pairs$upper1) & is.finite(pairs$upper2) &
+      is.finite(pairs$lower1) & is.finite(pairs$lower2) &
+      pairs$upper1 >= pairs$lower1 & pairs$upper2 >= pairs$lower2
+    if (all(c("log_mass1", "log_mass2") %in% names(pairs))) {
+      keep <- keep & is.finite(pairs$log_mass1) & is.finite(pairs$log_mass2)
+    }
+  }
   pairs <- pairs[keep, , drop = FALSE]
   if (nrow(pairs) < min_pairs) {
     stop("At least ", min_pairs, " complete pseudo-observation pairs are required.", call. = FALSE)
@@ -162,7 +188,15 @@ select_copula <- function(
       u2 = pairs$u2,
       family = family,
       t_df_grid = t_df_grid,
-      copula_time = if (isTRUE(copula_time_intercepts)) pairs$copula_time else NULL
+      copula_time = if (isTRUE(copula_time_intercepts)) pairs$copula_time else NULL,
+      upper1 = if (exact_discrete) pairs$upper1 else NULL,
+      upper2 = if (exact_discrete) pairs$upper2 else NULL,
+      lower1 = if (exact_discrete) pairs$lower1 else NULL,
+      lower2 = if (exact_discrete) pairs$lower2 else NULL,
+      log_mass1 = if (exact_discrete && "log_mass1" %in% names(pairs)) pairs$log_mass1 else NULL,
+      log_mass2 = if (exact_discrete && "log_mass2" %in% names(pairs)) pairs$log_mass2 else NULL,
+      log_survival1 = if (exact_discrete && "log_survival1" %in% names(pairs)) pairs$log_survival1 else NULL,
+      log_survival2 = if (exact_discrete && "log_survival2" %in% names(pairs)) pairs$log_survival2 else NULL
     )
   })
   tail_diagnostics <- .select_copula_tail_diagnostics(
@@ -174,6 +208,7 @@ select_copula <- function(
   out <- do.call(rbind, fits)
   out <- .select_copula_add_tail_summary(out, tail_diagnostics)
   out$n_pairs <- nrow(pairs)
+  out$screen_likelihood <- screen_likelihood
   out <- out[order(out[[criterion]], decreasing = identical(criterion, "logLik")), , drop = FALSE]
   rownames(out) <- NULL
   attr(out, "selected") <- out$family[1]
@@ -185,6 +220,10 @@ select_copula <- function(
   attr(out, "tail_thresholds") <- tail_thresholds
   attr(out, "margin_family") <- margin_family
   attr(out, "excluded_by_capability_registry") <- excluded_families
+  attr(out, "screen_likelihood") <- screen_likelihood
+  attr(out, "screen_version") <- "2026.1"
+  attr(out, "randomized_pit") <- randomized_pit
+  attr(out, "pit_seed") <- if (randomized_pit) as.integer(used_pit_seed) else NA_integer_
   attr(out, "tail_cooccurrence") <- tail_diagnostics$cooccurrence
   attr(out, "conditional_tail_exceedance") <- tail_diagnostics$conditional
   class(out) <- c("copula_selection", "data.frame")

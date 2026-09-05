@@ -105,11 +105,15 @@ load_or_run_distribution_selection <- function(name, directory, force = FALSE) {
     registry_version <- unique(
       gamlss.longitudinal::longitudinal_capabilities("routes")$registry_version
     )
-    if (identical(selection$contract$registry_version, registry_version)) {
+    current_screen_version <- "2026.1"
+    if (
+      identical(selection$contract$registry_version, registry_version) &&
+        identical(selection$contract$copula_screen_version, current_screen_version)
+    ) {
       message("Reusing ", path)
       return(selection)
     }
-    message("Refreshing stale distribution selection after registry change.")
+    message("Refreshing stale distribution selection after registry or screening-method change.")
   }
   selection <- jss_select_public_application_distributions(name)
   write_distribution_selection(selection, directory)
