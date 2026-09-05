@@ -14,7 +14,8 @@
     subject_var,
     time_var,
     lags,
-    time_intercepts = FALSE) {
+    time_intercepts = FALSE,
+    margin_n_cycles = 100L) {
   if (!is.null(u1) || !is.null(u2)) {
     if (is.null(u1) || is.null(u2)) {
       stop("Both u1 and u2 must be supplied for direct pseudo-observation pairs.", call. = FALSE)
@@ -62,7 +63,8 @@
         nu.formula = nu.formula,
         tau.formula = tau.formula,
         time_var = time_var,
-        time_intercepts = time_intercepts
+        time_intercepts = time_intercepts,
+        margin_n_cycles = margin_n_cycles
       )
       data <- auto$data
       u_var <- auto$u_var

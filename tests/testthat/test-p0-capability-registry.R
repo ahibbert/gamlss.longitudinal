@@ -24,7 +24,7 @@ test_that("capability registry is versioned, complete, and documentation-ready",
     margins$family[margins$status == "supported"],
     c("NO", "GA", "GG", "BCPE", "LOGNO", "PO", "NBI", "DEL", "ZIP", "ZAP", "ZINBI")
   )
-  expect_equal(nrow(routes), 19L)
+  expect_equal(nrow(routes), 21L)
   expect_equal(copulas$copula, c("N", "C", "F", "G", "J", "t"))
   expect_true(all(nzchar(margins$response_requirement)))
   expect_true(all(nzchar(margins$limitations)))
@@ -73,6 +73,12 @@ test_that("registered routes and likelihood routing agree", {
   ))
   expect_invisible(gamlss.longitudinal:::.gl_validate_capability_route(
     gamlss.dist::NBI(), "C", response = c(0, 2)
+  ))
+  expect_invisible(gamlss.longitudinal:::.gl_validate_capability_route(
+    gamlss.dist::NBI(), "G", response = c(0, 2)
+  ))
+  expect_invisible(gamlss.longitudinal:::.gl_validate_capability_route(
+    gamlss.dist::GG(), "F", response = c(1, 2)
   ))
   expect_identical(
     gamlss.longitudinal:::.gl_capability_likelihood_route(gamlss.dist::BCPE()),

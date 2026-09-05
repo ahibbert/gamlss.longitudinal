@@ -33,7 +33,8 @@
 #' @param subject_var,time_var Subject and time column names used when building
 #'   adjacent-time pairs from `data`.
 #' @param families Candidate copula family codes. Supported values are `"N"`,
-#'   `"C"`, `"F"`, `"G"`, `"J"`, and `"t"`.
+#'   `"C"`, `"F"`, `"G"`, `"J"`, and `"t"`. When the marginal family is
+#'   known, candidates without a registered margin-copula route are excluded.
 #' @param lags Positive integer lag(s) used when forming adjacent pairs.
 #' @param criterion Ranking criterion, one of `"AIC"`, `"BIC"`, or `"logLik"`.
 #' @param t_df_grid Degrees-of-freedom grid used for the t-copula screen.
@@ -42,6 +43,8 @@
 #'   pseudo-observations from `response_var`, use time-specific intercepts in
 #'   the temporary marginal model and pass this setting through to
 #'   [select_margin()] if the marginal family is auto-selected.
+#' @param margin_n_cycles Positive integer maximum number of cycles used for
+#'   the temporary marginal GAMLSS fit that creates pseudo-observations.
 #' @param copula_time_intercepts Logical; if `TRUE`, screen each copula family
 #'   with separate dependence parameters for each adjacent time-pair factor
 #'   level. This does not impose a linear time trend.
@@ -49,9 +52,10 @@
 #'   empirical-versus-fitted tail co-occurrence and conditional tail exceedance
 #'   summaries.
 #'
-#' @return A data frame with one row per family and class
+#' @return A data frame with one row per retained family and class
 #'   `copula_selection`. The selected family is stored in the `selected`
-#'   attribute. The main table includes fitted lower/upper tail co-occurrence
+#'   attribute. Families removed by the route registry are stored in the
+#'   `excluded_by_capability_registry` attribute. The main table includes fitted lower/upper tail co-occurrence
 #'   and conditional exceedance probabilities at the smallest requested
 #'   `tail_thresholds` value. Full empirical-versus-fitted tail diagnostic
 #'   tables are stored in the `tail_cooccurrence` and
@@ -78,6 +82,7 @@ select_copula <- function(
     t_df_grid = c(3, 4, 6, 8, 12, 20, 30),
     min_pairs = 10,
     time_intercepts = FALSE,
+    margin_n_cycles = 100L,
     copula_time_intercepts = FALSE,
     tail_thresholds = c(0.05, 0.10, 0.20)) {
   criterion <- match.arg(criterion)
@@ -87,6 +92,10 @@ select_copula <- function(
     stop("lags must contain positive integers.", call. = FALSE)
   }
   tail_thresholds <- .select_copula_tail_thresholds(tail_thresholds)
+  if (length(margin_n_cycles) != 1L || !is.finite(margin_n_cycles) || margin_n_cycles < 1) {
+    stop("'margin_n_cycles' must be a positive integer.", call. = FALSE)
+  }
+  margin_n_cycles <- as.integer(margin_n_cycles)
 
   pairs <- .select_copula_pairs(
     data = data,
@@ -104,8 +113,37 @@ select_copula <- function(
     subject_var = subject_var,
     time_var = time_var,
     lags = lags,
-    time_intercepts = time_intercepts
+    time_intercepts = time_intercepts,
+    margin_n_cycles = margin_n_cycles
   )
+  margin_family <- .select_copula_margin_family(
+    margin_dist = margin_dist,
+    object = object,
+    margin_selection = attr(pairs, "margin_selection")
+  )
+  excluded_families <- character()
+  if (!is.na(margin_family)) {
+    supported <- vapply(
+      families,
+      function(family) .gl_capability_route_supported(margin_family, family),
+      logical(1)
+    )
+    excluded_families <- families[!supported]
+    families <- families[supported]
+    if (!length(families)) {
+      .gl_capability_stop(
+        "gamlss_longitudinal_unsupported_route_error",
+        paste0(
+          "None of the requested copulas is a registered route for margin family '",
+          margin_family,
+          "'."
+        ),
+        margin_family = margin_family,
+        copulas = excluded_families,
+        context = "select_copula"
+      )
+    }
+  }
   keep <- is.finite(pairs$u1) & is.finite(pairs$u2)
   pairs <- pairs[keep, , drop = FALSE]
   if (nrow(pairs) < min_pairs) {
@@ -145,6 +183,8 @@ select_copula <- function(
   attr(out, "copula_time_intercepts") <- isTRUE(copula_time_intercepts)
   attr(out, "copula_time_levels") <- if (isTRUE(copula_time_intercepts)) unique(pairs$copula_time) else NULL
   attr(out, "tail_thresholds") <- tail_thresholds
+  attr(out, "margin_family") <- margin_family
+  attr(out, "excluded_by_capability_registry") <- excluded_families
   attr(out, "tail_cooccurrence") <- tail_diagnostics$cooccurrence
   attr(out, "conditional_tail_exceedance") <- tail_diagnostics$conditional
   class(out) <- c("copula_selection", "data.frame")

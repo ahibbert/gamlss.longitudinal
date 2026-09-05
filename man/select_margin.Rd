@@ -16,6 +16,7 @@ select_margin(
   families = NULL,
   time_intercepts = FALSE,
   time_var = NULL,
+  time_n_cycles = 100L,
   try.gamlss = FALSE,
   trace = FALSE,
   ...
@@ -34,7 +35,9 @@ is treated as \code{data}.}
 uses \code{"counts"} for non-negative integer responses, \code{"realplus"} for
 positive continuous responses, and \code{"realAll"} otherwise.}
 
-\item{families}{Optional character vector used to filter the returned table.}
+\item{families}{Optional character vector restricting which families are
+fitted. Restricting the shortlist avoids fitting every family registered
+for the response type.}
 
 \item{time_intercepts}{Logical; if \code{TRUE}, rank retained families by a
 GAMLSS fit with factor time intercepts for each distribution parameter.
@@ -45,6 +48,9 @@ the returned \code{converged} column before selecting a final marginal family.}
 
 \item{time_var}{Optional time column name in \code{data}, required when
 \code{time_intercepts = TRUE}.}
+
+\item{time_n_cycles}{Positive integer maximum number of cycles used for each
+temporary time-intercept GAMLSS fit.}
 
 \item{try.gamlss, trace, ...}{Passed to \code{\link[gamlss:fitDist]{gamlss::fitDist()}}.}
 }

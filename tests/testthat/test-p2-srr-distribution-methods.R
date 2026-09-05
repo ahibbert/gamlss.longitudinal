@@ -31,6 +31,12 @@ test_that("srr t-copula numerical integration returns stable probabilities", {
   expect_true(all(cdf > 0 & cdf < 1))
 })
 
+test_that("t-copula CDF rejects invalid trial parameters without throwing", {
+  expect_true(is.na(gamlss.longitudinal:::.copula_t_cdf_one(0.5, 0.5, NA, 4)))
+  expect_true(is.na(gamlss.longitudinal:::.copula_t_cdf_one(0.5, 0.5, 0.5, NA)))
+  expect_true(is.na(gamlss.longitudinal:::.copula_t_cdf_one(0.5, 0.5, 1, 4)))
+})
+
 test_that("srr count distribution tails use finite p/q/d family operations", {
   skip_if_not_installed("gamlss.dist")
 

@@ -61,6 +61,31 @@ test_that("select_copula accepts direct pseudo-observation pairs", {
   expect_equal(attr(selected, "selected"), "C")
 })
 
+test_that("select_copula restricts screens to registered margin-copula routes", {
+  u1 <- seq(0.05, 0.85, length.out = 30)
+  u2 <- pmin(0.95, u1 + 0.08)
+  selected <- select_copula(
+    u1 = u1,
+    u2 = u2,
+    margin_dist = gamlss.dist::NBI(),
+    families = c("N", "C", "G", "t")
+  )
+
+  expect_setequal(selected$family, c("C", "G"))
+  expect_setequal(
+    attr(selected, "excluded_by_capability_registry"),
+    c("N", "t")
+  )
+  expect_identical(attr(selected, "margin_family"), "NBI")
+})
+
+test_that("copula margin fit cycle control is validated", {
+  expect_error(
+    select_copula(u1 = 1:10 / 11, u2 = 1:10 / 11, margin_n_cycles = 0),
+    "positive integer"
+  )
+})
+
 test_that("select_copula reports tail cooccurrence and conditional tail diagnostics", {
   dat <- simulate_longitudinal_dataset(
     n = 80,
