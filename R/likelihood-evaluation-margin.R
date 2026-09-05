@@ -40,6 +40,14 @@
 
 #' @keywords internal
 #' @noRd
+.gl_likelihood_subset_row_input <- function(input, keep, n_obs) {
+  lapply(input, function(value) {
+    if (length(value) == n_obs) value[keep] else value
+  })
+}
+
+#' @keywords internal
+#' @noRd
 .gl_likelihood_evaluate_margin_derivatives <- function(
     margin_deriv_input,
     margin_eval_cache,
@@ -58,15 +66,21 @@
       )
     }
     for (deriv_info in margin_deriv_cache) {
-      FUN_args <- names(margin_deriv_input)[names(margin_deriv_input) %in% deriv_info$args]
-      deriv_val <- tryCatch(
-        do.call(deriv_info$FUN, args = margin_deriv_input[FUN_args]),
-        error = function(e) rep(0, n_obs)
+      observed_input <- .gl_likelihood_subset_row_input(
+        margin_deriv_input, obs_response, n_obs
       )
-      if (length(deriv_val) == n_obs) {
-        deriv_val[!obs_response] <- 0
-        deriv_val[!is.finite(deriv_val)] <- 0
+      FUN_args <- names(observed_input)[names(observed_input) %in% deriv_info$args]
+      observed_val <- tryCatch(
+        do.call(deriv_info$FUN, args = observed_input[FUN_args]),
+        error = function(e) rep(0, sum(obs_response))
+      )
+      if (length(observed_val) == sum(obs_response)) {
+        deriv_val <- rep(0, n_obs)
+        deriv_val[obs_response] <- observed_val
+      } else {
+        deriv_val <- observed_val
       }
+      deriv_val[!is.finite(deriv_val)] <- 0
       margin_deriv[[deriv_info$name]] <- deriv_val
     }
   }
@@ -134,19 +148,23 @@
     margin_deriv_names = margin_deriv_names
   )
 
-  FUN_args <- names(margin_deriv_input)[names(margin_deriv_input) %in% margin_eval_cache$margin_p_args]
-  margin_p <- .call_fast_count_family("p", margin_dist$family[1], margin_deriv_input)
-  if (is.null(margin_p)) {
-    margin_p <- .call_margin_family_cached(
-      margin_eval_cache$margin_pFUN,
-      margin_deriv_input,
-      FUN_args,
-      cacheable = discrete_margin,
-      cache_env = margin_eval_cache$family_call_cache,
-      cache_prefix = paste0(margin_dist$family[1], ":p:upper")
-    )
+  observed_input <- .gl_likelihood_subset_row_input(margin_deriv_input, obs_response, n_obs)
+  margin_p <- rep(NA_real_, n_obs)
+  if (any(obs_response)) {
+    FUN_args <- names(observed_input)[names(observed_input) %in% margin_eval_cache$margin_p_args]
+    observed_p <- .call_fast_count_family("p", margin_dist$family[1], observed_input)
+    if (is.null(observed_p)) {
+      observed_p <- .call_margin_family_cached(
+        margin_eval_cache$margin_pFUN,
+        observed_input,
+        FUN_args,
+        cacheable = discrete_margin,
+        cache_env = margin_eval_cache$family_call_cache,
+        cache_prefix = paste0(margin_dist$family[1], ":p:upper")
+      )
+    }
+    margin_p[obs_response] <- observed_p
   }
-  margin_p[!obs_response] <- NA
   margin_p[!is.finite(margin_p)] <- NA
 
   margin_p_lower <- NULL
@@ -163,9 +181,9 @@
     margin_p_lower[negative_lower] <- 0
     valid_lower <- obs_response & is.finite(lower_response) & lower_response >= 0
     if (any(valid_lower)) {
-      lower_call_args <- lapply(margin_deriv_input_lower, function(value) {
-        if (length(value) == n_obs) value[valid_lower] else value
-      })
+      lower_call_args <- .gl_likelihood_subset_row_input(
+        margin_deriv_input_lower, valid_lower, n_obs
+      )
       lower_eval <- .call_fast_count_family("p", margin_dist$family[1], lower_call_args)
       if (is.null(lower_eval)) {
         lower_eval <- .call_margin_family_cached(
@@ -183,10 +201,10 @@
     margin_p_lower[!is.finite(margin_p_lower)] <- NA
 
     if (all(c("lower.tail", "log.p") %in% margin_eval_cache$margin_p_args)) {
-      survival_input <- margin_deriv_input
+      survival_input <- observed_input
       survival_input$lower.tail <- FALSE
       survival_input$log.p <- TRUE
-      margin_log_survival <- .call_margin_family_cached(
+      observed_log_survival <- .call_margin_family_cached(
         margin_eval_cache$margin_pFUN,
         survival_input,
         names(survival_input)[names(survival_input) %in% margin_eval_cache$margin_p_args],
@@ -194,10 +212,12 @@
         cache_env = margin_eval_cache$family_call_cache,
         cache_prefix = paste0(margin_dist$family[1], ":log-survival:upper")
       )
-      lower_survival_input <- margin_deriv_input_lower
+      lower_survival_input <- .gl_likelihood_subset_row_input(
+        margin_deriv_input_lower, obs_response, n_obs
+      )
       lower_survival_input$lower.tail <- FALSE
       lower_survival_input$log.p <- TRUE
-      margin_log_survival_lower <- .call_margin_family_cached(
+      observed_log_survival_lower <- .call_margin_family_cached(
         margin_eval_cache$margin_pFUN,
         lower_survival_input,
         names(lower_survival_input)[names(lower_survival_input) %in% margin_eval_cache$margin_p_args],
@@ -205,33 +225,39 @@
         cache_env = margin_eval_cache$family_call_cache,
         cache_prefix = paste0(margin_dist$family[1], ":log-survival:lower")
       )
-      margin_log_survival[!obs_response] <- NA_real_
-      margin_log_survival_lower[!obs_response] <- NA_real_
+      margin_log_survival <- rep(NA_real_, n_obs)
+      margin_log_survival_lower <- rep(NA_real_, n_obs)
+      margin_log_survival[obs_response] <- observed_log_survival
+      margin_log_survival_lower[obs_response] <- observed_log_survival_lower
     }
     likelihood_type <- "discrete_rectangle"
   }
 
-  FUN_args <- names(margin_deriv_input)[names(margin_deriv_input) %in% margin_eval_cache$margin_d_args]
-  margin_d <- .call_fast_count_family("d", margin_dist$family[1], margin_deriv_input)
-  if (is.null(margin_d)) {
-    margin_d <- .call_margin_family_cached(
-      margin_eval_cache$margin_dFUN,
-      margin_deriv_input,
-      FUN_args,
-      cacheable = discrete_margin,
-      cache_env = margin_eval_cache$family_call_cache,
-      cache_prefix = paste0(margin_dist$family[1], ":d")
+  margin_d <- rep(NA_real_, n_obs)
+  margin_log_d <- rep(NA_real_, n_obs)
+  if (any(obs_response)) {
+    FUN_args <- names(observed_input)[names(observed_input) %in% margin_eval_cache$margin_d_args]
+    observed_d <- .call_fast_count_family("d", margin_dist$family[1], observed_input)
+    if (is.null(observed_d)) {
+      observed_d <- .call_margin_family_cached(
+        margin_eval_cache$margin_dFUN,
+        observed_input,
+        FUN_args,
+        cacheable = discrete_margin,
+        cache_env = margin_eval_cache$family_call_cache,
+        cache_prefix = paste0(margin_dist$family[1], ":d")
+      )
+    }
+    observed_log_d <- .gl_likelihood_evaluate_margin_log_density(
+      margin_deriv_input = observed_input,
+      margin_eval_cache = margin_eval_cache,
+      margin_dist = margin_dist,
+      margin_d = observed_d,
+      discrete_margin = discrete_margin
     )
+    margin_d[obs_response] <- observed_d
+    margin_log_d[obs_response] <- observed_log_d
   }
-  margin_log_d <- .gl_likelihood_evaluate_margin_log_density(
-    margin_deriv_input = margin_deriv_input,
-    margin_eval_cache = margin_eval_cache,
-    margin_dist = margin_dist,
-    margin_d = margin_d,
-    discrete_margin = discrete_margin
-  )
-  margin_d[!obs_response] <- NA
-  margin_log_d[!obs_response] <- NA
 
   list(
     margin_d = margin_d,
