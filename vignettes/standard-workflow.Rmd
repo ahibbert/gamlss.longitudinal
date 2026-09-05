@@ -81,11 +81,11 @@ table(dat$subject)
 table(dat$time)
 ```
 
-Missing responses are allowed but the missingness mechanism still needs to be
-reviewed as part of model assessment. Missingness at random is generally well
-managed by the model when the relevant observed predictors are included, but
-missingness not at random may affect results. Use `check_missingness()` as a
-first screen for observed-feature associations with response missingness.
+Missing responses are allowed, but the likelihood still relies on an
+appropriate ignorability assumption conditional on the modeled observed
+information. Use `check_missingness()` as a descriptive first screen for
+associations between observed features and response missingness; it cannot
+establish missing at random or rule out unobserved drivers.
 The ordinary likelihood accepts complete panels and observed prefixes followed
 by dropout. Intermittent gaps and leading unobserved scheduled visits error by
 default; use `missingness = "segment"` only when you intend the documented
@@ -102,16 +102,16 @@ check_missingness(
 
 ## Step 1: Select margin distribution and copula function
 
-First, we review the shape of the response distribution (margin) and choose the best fitting distribution. **gamlss_longitudinal** supports all non-mixed response types from the **gamlss.dist** library of distributions.
+First, we review the shape of the response distribution (margin) and choose the best fitting distribution. **gamlss.longitudinal** supports all non-mixed response types from the **gamlss.dist** library of distributions.
 
-For simplicity, we provide the function `select_margin()` which fits the available gamlss distributions and provides a sorted list of fits by AIC, and confirms if they are supported by gamlss_longitudinal. This can be limited to certain fits such as specific distributions, e.g. `families = c("PO", "GA")` or response types, e.g. `type=realplus`.
+For simplicity, we provide the function `select_margin()` which fits the available gamlss distributions and provides a sorted list of fits by AIC, and confirms if they are supported by `gamlss.longitudinal`. This can be limited to certain fits such as specific distributions, e.g. `families = c("PO", "GA")` or response types, e.g. `type = "realplus"`.
 
 In general, we would suggest using the top fitting distributions as a shortlist that can later be revisited once covariates are incorporated into the fit.
 
 ```{r margin-screen}
 # Select best-fitting margin distribution
 margin_selection <- select_margin(
-  dat,
+  data = dat,
   response_var = "response"
 )
 
@@ -146,8 +146,9 @@ Depending on the margin distribution selected and the copula function selected, 
 Other than the covariate formulas, the model requires the user specify the subject and time variables in the provided dataset through parameters `time_var` and `subject_var`. The user should also specify the chosen margin distribution in functional form (i.e. `GA()`) as well as the selected distributions for the margin and copula (initially based on screening in the previous step).
 
 By default, `optimization = "joint"` includes the copula contribution when
-updating marginal parameters. `optimization = "separate"` is an explicit,
-faster RS approximation. Advanced settings are supplied together through
+updating marginal parameters. `optimization = "separate"` is an explicit RS
+sensitivity mode that excludes that contribution from the marginal updates;
+it is not available for the CG optimizer. Advanced settings are supplied together through
 `optimizer_control = gamlss_longitudinal_control(...)`.
 
 For the included simulated example, we know there is a binary treatment effect and a time effect on both the mean, `mu.formula`, and the variance, `sigma.formula`. In addition, there is a smooth age-effect on the mean. There is also increasing correlation over time which we capture with a covariate in `theta.formula`.
@@ -160,6 +161,7 @@ fit <- gamlss_longitudinal(
   copula_dist = copula_dist,
   time_var = "time",
   subject_var = "subject",
+  optimization = "joint",
   mu.formula = response ~ treatment + time + s(age_scaled, bs = "ps"),
   sigma.formula = ~ treatment + time,
   theta.formula = ~ time
@@ -189,6 +191,7 @@ fit_reduced <- gamlss_longitudinal(
   copula_dist = copula_dist,
   time_var = "time",
   subject_var = "subject",
+  optimization = "joint",
   mu.formula = response ~ treatment + time,
   sigma.formula = ~ treatment + time,
   theta.formula = ~ time
@@ -196,7 +199,7 @@ fit_reduced <- gamlss_longitudinal(
 likelihood_compare(fit_reduced, fit)
 
 # Bootstrapped confidence intervals (WARNING: Can take a long time to run since it's refitting for each R)
-boot <- bootstrap_inference(fit, R = 20)
+boot <- bootstrap_inference(fit, R = 20, seed = 1)
 print(boot)
 ```
 
@@ -209,9 +212,11 @@ guidance on interpreting marginal, tail, dependence, and inference summaries.
 
 ## Step 3: Diagnostics
 
-The built-in `check_model()` function records convergence and presents PIT,
-tail, and residual-dependence summaries for review. These summaries are
-descriptive; the package does not turn them into a universal model-fit verdict.
+The fitted object and `summary()` report fit-time conditions such as
+non-convergence, segmented missingness assumptions, boundary behavior, and
+covariance availability. The optional `check_model()` helper additionally
+collects PIT, tail, and residual-dependence summaries for review. These
+summaries are descriptive; the package does not turn them into a universal model-fit verdict.
 An optional user-supplied dependence cutoff can add a review flag when an
 application has a justified tolerance; no cutoff is used by default.
 
@@ -233,12 +238,15 @@ To visually review the fits for both margin and the dependence copula we provide
 
 For the copula we include empirical copula v fitted density and correlation by quantile, Rosenblatt residuals and lag plot, ordered fitted versus observed density, tail co-occurrence and exceedance, and residual dependence by lag.
 
-```{r plot chekc}
+```{r plot-check}
 # View margin diagnostics
 plot(fit)
 
 # View dependence diagnostics
 plot_copula_diagnostics(fit)
+
+# View the complete nine-panel dependence dashboard
+plot_copula_diagnostics(fit, type = "all", ncol = 3)
 
 
 ```
@@ -359,8 +367,13 @@ print(bench_smooth)
 
 ```
 
-In general, note that the purpose of the gamlss.longitudinal model is to accurately capture the full joint distribution shape. If the item of interest is just the mean, then gamlss.longitudinal is unlikely to provide large gains except for where distributions are clearly non-standard. By modelling the whole joint outcome distribution we can more accurately answer questions such as whether quantiles, tail risks, or uncertainty (SEs, confidence intervals, prediction intervals) change in a meaningful way. In addition, note that the consumption of degrees of freedom for calculation of accurate conditional AICs for random effect models can be substantial compared to the small number of parameters needed to fit a copula-based dependence structure.
-
-##
+In general, the purpose of the `gamlss.longitudinal` model is to capture the
+full joint outcome distribution. If the scientific target is only the mean,
+the additional distributional structure may provide limited practical benefit.
+When quantiles, tail probabilities, or covariate-dependent distributional shape
+matter, the fitted margins and copula provide quantities that mean-only models
+do not. Fitted quantiles are plug-in descriptions of response variation, not
+future-observation prediction intervals or confidence intervals for the
+quantiles themselves.
 
 For a more detailed walk-through example, including interpretation of model fit and diagnostics, please review the [Detailed worked example](native-simulation-workflow.html).
