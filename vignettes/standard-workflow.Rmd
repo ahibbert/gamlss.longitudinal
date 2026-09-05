@@ -38,6 +38,7 @@ For now installation is available directly from the project's github repository.
 ```{r installation}
 remotes::install_github("ahibbert/gamlss.longitudinal")
 library(gamlss.longitudinal)
+library(gamlss.dist)
 ```
 
 ## Data Requirements
@@ -59,15 +60,35 @@ dat <- simulate_longitudinal_dataset(
   margin_dist = GG(),
   copula_dist = "N",
   margin_params = list(
-    mu = function(d) exp(1.6 + 0.35 * (d$treatment == "active") + 0.12 * d$time + d$subject_shift),
-    sigma = function(d) exp(-0.5 + 0.08 * d$time)
+    mu = function(d) {
+      age_effect <- sim_smooth_bump(
+        sim_rescale01(d$age_scaled),
+        amplitude = 0.25
+      )
+      exp(
+        1.6 +
+          0.35 * (d$treatment == "active") +
+          0.12 * d$time +
+          age_effect
+      )
+    },
+    sigma = function(d) {
+      exp(
+        -0.5 +
+          0.15 * (d$treatment == "active") +
+          0.08 * d$time
+      )
+    }
   ),
-  copula_params = list(theta = 0.4),
+  copula_params = list(
+    theta = function(e) 0.2 + 0.1 * e$time_left
+  ),
   covariates = function(d) {
     simulate_longitudinal_covariates(d, subject = list(
       treatment = function(s) factor(rep(c("control", "active"), length.out = nrow(s))),
-      age_scaled = function(s) as.numeric(scale(rnorm(nrow(s), mean = 55, sd = 10))),
-      subject_shift = function(s) rnorm(nrow(s), sd = 0.35)
+      age_scaled = function(s) {
+        as.numeric(scale(rnorm(nrow(s), mean = 55, sd = 10)))
+      }
     ))
   },
   seed = 1
@@ -102,7 +123,11 @@ check_missingness(
 
 ## Step 1: Select margin distribution and copula function
 
-First, we review the shape of the response distribution (margin) and choose the best fitting distribution. **gamlss.longitudinal** supports all non-mixed response types from the **gamlss.dist** library of distributions.
+First, we review the shape of the response distribution (margin) and choose a
+candidate family. Longitudinal fitting and simulation support the tested
+family--copula combinations returned by
+`longitudinal_capabilities("routes")`. The presence of a family in
+**gamlss.dist** is not itself a support guarantee.
 
 For simplicity, we provide the function `select_margin()` which fits the available gamlss distributions and provides a sorted list of fits by AIC, and confirms if they are supported by `gamlss.longitudinal`. This can be limited to certain fits such as specific distributions, e.g. `families = c("PO", "GA")` or response types, e.g. `type = "realplus"`.
 
@@ -117,19 +142,40 @@ margin_selection <- select_margin(
 
 print(margin_selection)
 
-margin_dist <- best_fit_family(margin_selection)
+screened_margin_dist <- best_fit_family(margin_selection)
+
+# For this teaching simulation, retain the known generating family so that
+# coefficient recovery is not confounded with a data-driven family switch.
+margin_dist <- GG()
 ```
 
-We then select our starting copula based on the chosen marginal distribution. The function `select_copula()` is used to compare dependence copula functions. When `response_var` and `margin_dist` are supplied, pseudo-observations are created automatically from a temporary marginal GAMLSS fit.
+In an applied analysis, retain several plausible screened families and compare
+their final covariate-adjusted fits and diagnostics. Here we deliberately carry
+forward the known generating `GG()` family: this keeps the example focused on a
+correctly specified model while still showing what the preliminary screen
+returns for this realization.
+
+We then select a starting copula for the chosen marginal distribution. The
+capability registry supplies the copulas tested with that family; restricting
+the screen to this set prevents an attractive but unsupported combination from
+being carried into the longitudinal fit. When `response_var` and `margin_dist`
+are supplied, `select_copula()` creates pseudo-observations from a temporary
+marginal GAMLSS fit.
 
 ```{r copula-screen}
 # Select best-fitting copula distribution
+routes <- longitudinal_capabilities("routes")
+copula_candidates <- unique(routes$copula[
+  routes$margin_family == margin_dist$family[[1L]]
+])
+
 copula_selection <- select_copula(
   data = dat,
   response_var = "response",
   margin_dist = margin_dist,
   subject_var = "subject",
-  time_var = "time"
+  time_var = "time",
+  families = copula_candidates
 )
 
 print(copula_selection)
@@ -141,7 +187,13 @@ The selected family is a starting point. Dependence diagnostics after the full f
 
 ## Step 2: Fit the longitudinal gamlss model and review key outputs
 
-Depending on the margin distribution selected and the copula function selected, it's possible to depend variables on any parameter for the margin: `mu.formula` which is generally the mean, `sigma.formula` which is generally the variance parameter, `nu.formula`, `tau.formula`, and for the copula: `theta.formula` and `zeta.formula`.
+Depending on the selected family and copula, covariates can enter the available
+margin parameters through `mu.formula`, `sigma.formula`, `nu.formula`, and
+`tau.formula`, and the copula parameters through `theta.formula` and
+`zeta.formula`. These are distribution-specific parameters: `mu` is not always
+the response mean and `sigma` is not always the response variance. Consult the
+selected **gamlss.dist** family documentation before interpreting coefficients,
+and use `predict(type = "mean")` when the estimand is the fitted response mean.
 
 Other than the covariate formulas, the model requires the user specify the subject and time variables in the provided dataset through parameters `time_var` and `subject_var`. The user should also specify the chosen margin distribution in functional form (i.e. `GA()`) as well as the selected distributions for the margin and copula (initially based on screening in the previous step).
 
@@ -151,7 +203,11 @@ sensitivity mode that excludes that contribution from the marginal updates;
 it is not available for the CG optimizer. Advanced settings are supplied together through
 `optimizer_control = gamlss_longitudinal_control(...)`.
 
-For the included simulated example, we know there is a binary treatment effect and a time effect on both the mean, `mu.formula`, and the variance, `sigma.formula`. In addition, there is a smooth age-effect on the mean. There is also increasing correlation over time which we capture with a covariate in `theta.formula`.
+For the included simulated example, the data-generating process has binary
+treatment and time effects on both `mu` and `sigma`, a smooth age effect on
+`mu`, and dependence that increases over time. The fitted formulas below match
+those known structural terms. Their response-scale interpretation still follows
+the selected marginal family's parameterization.
 
 ```{r fit}
 # Fit longitudinal gamlss model
@@ -322,7 +378,7 @@ predict(
   direction = "above"
 )
 
-# Calculate average response across a covariate for the margin
+# Standardize the fitted distribution-specific mu parameter by treatment
 marginal_effects(
   fit,
   newdata = dat,
@@ -331,6 +387,12 @@ marginal_effects(
   se.fit = TRUE
 )
 ```
+
+Here `marginal_effects(parameter = "mu")` averages the fitted
+distribution-specific `mu` parameter over counterfactual copies of `dat`. It is
+not automatically an average response or a causal marginal effect. For an
+average fitted response, construct the counterfactual datasets and standardize
+predictions from `predict(type = "mean")`.
 
 Simulate from the fitted model as desired, for a total of `nsim` replications. Note that simulation uses both copula and margin structure so dependence is maintained in simulations.
 

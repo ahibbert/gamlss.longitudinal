@@ -199,7 +199,14 @@ table(dataset$treatment)
 table(dataset$time)
 ```
 
-Since missingness and dropout in particular is common in longitudinal datasets, we include an internal helper to summarise overall missingness. `check_missingness()` summarises the missingness in the response overall then builds a simple logistic regression for the response against included predictors to screen for any strong trends. This can be treated as an indicator of whether missingness at random can be reasonably assumed based on the included features, however it cannot rule out other factors that may be driving missingness. In this case, time is considered as related to missingness (i.e. dropout) but no other factors are found to be significant at `p=0.05` which is the default for warnings. 
+Since missingness and dropout are common in longitudinal datasets, we include a
+helper to summarize overall response missingness and fit a simple logistic
+screen against recorded predictors. This descriptive screen identifies
+observed associations with missingness; it cannot establish missing at random
+or exclude missing not at random. Because observations are repeated within
+subjects, its default row-level logistic p-values should be treated as
+exploratory flags rather than confirmatory tests. In this simulated example,
+the screen detects the designed association with time.
 
 ```{r missingness-check}
 missingness_check <- check_missingness(
@@ -250,7 +257,12 @@ plot_dist(
 
 ## Choose a marginal distribution
 
-The response here is continuous and positive. For any distribution we can use the function `select_margin()` to fit an intercept-only model to the response distribution and provide a ranked list of fits by likelihood criteria (default is AIC).
+The response here is continuous and positive. Among supported candidate
+families, `select_margin()` can fit intercept-only models and rank them by a
+likelihood criterion (AIC by default). Use
+`longitudinal_capabilities("routes")` to inspect the tested family--copula
+combinations; availability in **gamlss.dist** alone does not imply longitudinal
+support.
 
 ```{r marginal-screen}
 margin_selection <- select_margin(
@@ -922,7 +934,11 @@ print(bench)
 
 ### Prediction and simulation
 
-All standard prediction options are available as part of the `predict()` method for `gamlss.longitudinal` fit objects, see `help("predict.gamlss.longitudinal")` for all options. We also provide a standard method to replicate the known method often used for mixed models `margins_effects` so that average predictions across a variable can be provided.
+The `predict()` method provides the supported fitted-parameter, mean, quantile,
+density, and probability summaries; see
+`help("predict.gamlss.longitudinal")`. The `marginal_effects()` helper
+standardizes a selected distribution-specific parameter over counterfactual
+copies of the supplied data.
 
 Note that the `NA` here for the response for row 4 and 6 are from the original data  
 
@@ -939,7 +955,7 @@ pred <- predict(
 )
 head(pred)
 
-# Calculate average response across a covariate for the margin
+# Standardize the fitted distribution-specific mu parameter by treatment
 meff <- marginal_effects(
   fit,
   newdata = dat,
@@ -950,6 +966,11 @@ meff <- marginal_effects(
 )
 head(meff)
 ```
+
+Because `parameter = "mu"`, `meff` summarizes fitted `mu`, which is not
+necessarily the response mean and should not be interpreted automatically as a
+causal marginal effect. Use counterfactual datasets with
+`predict(type = "mean")` when the target is an average fitted response.
 
 We also provide standard functionality for simulating from the fitted model which uses the copula structure to create margins which are correlated as would be expected based on the fitted copula.
 
