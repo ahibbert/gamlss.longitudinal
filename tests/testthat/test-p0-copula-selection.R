@@ -84,6 +84,50 @@ test_that("copula margin fit cycle control is validated", {
     select_copula(u1 = 1:10 / 11, u2 = 1:10 / 11, margin_n_cycles = 0),
     "positive integer"
   )
+  expect_error(
+    select_copula(u1 = 1:10 / 11, u2 = 1:10 / 11, pit_seed = Inf),
+    "pit_seed"
+  )
+})
+
+test_that("discrete copula selection uses exact rectangles despite tied outcomes", {
+  dat <- simulate_longitudinal_dataset(
+    n = 60,
+    times = 1:4,
+    margin_dist = gamlss.dist::NBI(),
+    margin_params = list(mu = 3, sigma = 0.7),
+    copula_dist = "C",
+    copula_params = list(theta = 3),
+    seed = 802
+  )
+
+  selected_1 <- suppressMessages(select_copula(
+    data = dat,
+    response_var = "response",
+    margin_dist = gamlss.dist::NBI(),
+    families = c("C", "G"),
+    time_intercepts = TRUE,
+    pit_seed = 11
+  ))
+  selected_2 <- suppressMessages(select_copula(
+    data = dat,
+    response_var = "response",
+    margin_dist = gamlss.dist::NBI(),
+    families = c("C", "G"),
+    time_intercepts = TRUE,
+    pit_seed = 29
+  ))
+
+  expect_identical(attr(selected_1, "screen_likelihood"), "exact_discrete_rectangle")
+  expect_true(isTRUE(attr(selected_1, "randomized_pit")))
+  expect_identical(attr(selected_1, "pit_seed"), 11L)
+  expect_true(all(selected_1$screen_likelihood == "exact_discrete_rectangle"))
+  expect_identical(best_fit_family(selected_1), "C")
+
+  by_family_1 <- selected_1[order(selected_1$family), ]
+  by_family_2 <- selected_2[order(selected_2$family), ]
+  expect_equal(by_family_1$logLik, by_family_2$logLik, tolerance = 1e-10)
+  expect_equal(by_family_1$par, by_family_2$par, tolerance = 1e-10)
 })
 
 test_that("select_copula reports tail cooccurrence and conditional tail diagnostics", {
