@@ -53,17 +53,21 @@ Rscript paper/run-public-application.R --dataset patents --stage fit --outputs
 Rscript paper/run-public-application.R --dataset patents --stage refine --outputs
 ```
 
-The `--outputs` command runs the full diagnostic and publication-output bundle.
-The `refine` stage runs the covariate-matched flexible-margin screen and the
-refined NBI/Clayton model; both are deliberately opt-in because they are more
-expensive than fitting and saving the base model.
+The `screen` stage follows the vignette workflow directly: `select_margin()`
+uses time-specific intercepts, then `select_copula()` screens registered routes
+conditional on the retained margin. Both complete selection tables, excluded
+routes, and the reason for retaining anything other than the first-ranked
+screening result are saved. The `--outputs` command runs the full diagnostic
+and publication-output bundle. The `refine` stage runs the covariate-matched
+flexible-margin screen and refined patents model; both are deliberately opt-in
+because they are more expensive than fitting and saving the base model.
 Final application fits compute covariance estimates and validate inference by
 default. `--no-vcov` is available only for exploratory timing runs whose saved
 fits are not suitable for reporting.
 
 ## Candidate ranking
 
-### 1. PatentsRDUS: primary workflow candidate
+### 1. PatentsRDUS: substantive count candidate
 
 `pglm::PatentsRDUS` contains 346 US firms observed annually from 1970 to 1979
 (3,460 observations). The outcome is the number of patent applications in a
@@ -78,8 +82,8 @@ Key audit results:
 - residual adjacent Spearman correlation 0.719 after adjustment for year,
   annual R&D expenditure, scientific-sector status, and 1972 capital;
 - residual correlation 0.575 below versus 0.874 above median baseline capital;
-- NBI strongly preferred to Poisson and constant-parameter Delaporte in the
-  independent-margin screen; and
+- Delaporte and NBI were retained by the standard `select_margin()` screen,
+  with Delaporte ranked first and NBI second; and
 - NBI dispersion depending on scientific-sector status and baseline capital
   strongly preferred to constant dispersion.
 
@@ -94,7 +98,7 @@ theta.formula = ~ capital_z
 where `capital_z` is standardized `log(capital72)`. `sumpat` must not be used as
 a predictor because it is derived from the repeated outcome.
 
-Independent-margin screening results:
+Earlier covariate-adjusted independent-margin screening results:
 
 | Model | AIC | BIC |
 |---|---:|---:|
@@ -110,6 +114,17 @@ tolerance, the accepted base joint NBI/Clayton model has log likelihood
 -10,417.32, AIC 20,870.65, and BIC 20,981.33. Analytical-Hessian inference is
 available; the curvature-standardized fitted score is 0.078.
 
+The standardized vignette screen gives Delaporte AIC 28,270.28 and NBI AIC
+28,428.51 after time-specific intercepts. However, the exact joint Delaporte
+rectangle fit did not complete an outer iteration inside the routine
+application budget. NBI is therefore explicitly retained from the selected
+shortlist. Conditional on NBI, `select_copula()` ranks Gumbel before Clayton,
+but the full NBI/Gumbel patents fit likewise remained in its initial expensive
+optimization phase after 12 minutes. The reproducible patents fit consequently
+retains Clayton as the second screened, computationally viable route. These
+choices are stored in `distribution-selection.rds`; neither is presented as an
+unqualified AIC winner.
+
 A second screen showed that log R&D belongs in the dispersion equation. The
 refined joint model
 
@@ -119,8 +134,8 @@ sigma.formula = ~ scientific + capital_z + log_rd
 
 has log likelihood -10,374.06, AIC 20,786.12, and BIC 20,902.95. The added
 log-R&D dispersion coefficient is -0.234, and inference validation passes with
-a standardized fitted score of 0.067. This refined model is the version to take
-forward for updated diagnostics and nested comparisons.
+a standardized fitted score of 0.067. This is the patents model to use if that
+application is retained, subject to the documented selection caveat above.
 
 In the covariate-matched independent-margin screen, Delaporte and NBI with
 R&D-dependent dispersion are effectively tied by AIC (23,328.96 versus
@@ -164,12 +179,13 @@ may be related to clinical deterioration. Any use must therefore distinguish
 actual follow-up day in the marginal model from sequential visit order in the
 copula and state the resulting first-order dependence assumption.
 
-The refined joint GG/Gaussian-copula fit converges and supports validated
-analytical-Hessian inference (standardized fitted score 0.037). Its log
-likelihood is -1,934.70, AIC 3,903.39, and BIC 3,996.53. The scale effect is
-strong, but the stage-dependent copula effect remains modest: AIC and its
-likelihood-ratio test favour varying association, whereas BIC slightly favours
-constant association.
+The standard workflow selects GG by a wide margin (time-intercept AIC 4,709.71;
+the next candidate, log-normal, has AIC 5,335.49), then selects Frank over the
+registered Gaussian alternative. The selected joint GG/Frank fit converges and
+supports validated analytical-Hessian inference after a tighter continuation
+(standardized fitted score 0.039). Its log likelihood is -1,874.48, AIC
+3,782.95, and BIC 3,876.09. This is currently the cleanest end-to-end example
+of the exact vignette selection and fitting workflow.
 
 Source: <https://stat.ethz.ch/R-manual/R-devel/library/survival/html/pbcseq.html>
 
@@ -191,10 +207,13 @@ This leaves 3,320 observed integer counts. Fit with
 workbook does not identify integer-valued imputations, so these cannot be
 removed reliably and must be acknowledged.
 
-NBI was overwhelmingly preferred to Poisson and residual dependence was high.
-Sex-dependent Clayton association was also supported. However, the best
+`select_margin()` ranks NBI first, ZINBI second with delta AIC 14, and Poisson a
+distant third. Conditional on NBI, the registered copula screen selects Gumbel
+over Clayton. The selected NBI/Gumbel joint fit converges with cluster-sandwich
+inference (standardized fitted score 0.060), log likelihood -31,033.83, AIC
+62,093.66, and BIC 62,173.07. However, the best
 non-location candidate, `sigma ~ sex`, was not supported after joint fitting
-with `theta ~ sex` (likelihood-ratio p = 0.267; AIC and BIC both favoured
+in the earlier analysis (likelihood-ratio p = 0.267; AIC and BIC both favoured
 constant dispersion). BMI and PAQ-C dispersion effects were weaker. The data
 are therefore useful for count/missingness demonstrations but do not satisfy
 the full dual-parameter criterion.
@@ -217,11 +236,12 @@ Sources:
 
 ## Decision rule
 
-1. Adopt `PatentsRDUS` as the primary workflow candidate: its joint model has
-   converged and both the dispersion and capital-dependent association survive
-   nested comparison by wide margins.
-2. Retain `pbcseq` as the preferred flexible continuous-margin option, but do
-   not put it in the paper until a prespecified joint fit converges and the
-   visit-order assumption is explained.
+1. Treat `pbcseq` as the strongest end-to-end workflow candidate: both selected
+   distributions carry through to a converged joint fit with valid inference.
+   Its visit-order and potentially informative follow-up limitations must be
+   explained clearly.
+2. Retain `PatentsRDUS` as the strongest substantive dual-parameter candidate,
+   but disclose that the routine joint fit uses the next viable choices from
+   both screens. Do not describe NBI/Clayton as the selection winner.
 3. Use the adolescent step data only if a balanced human example is more
    important than satisfying the beyond-mean marginal-parameter criterion.

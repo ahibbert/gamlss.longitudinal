@@ -82,6 +82,39 @@ write_workflow_outputs <- function(fit, directory) {
   invisible(outputs)
 }
 
+write_distribution_selection <- function(selection, directory) {
+  saveRDS(selection, file.path(directory, "distribution-selection.rds"))
+  write_capture(selection, file.path(directory, "distribution-selection.txt"))
+  utils::write.csv(
+    as.data.frame(selection$margin),
+    file.path(directory, "margin-selection.csv"),
+    row.names = FALSE
+  )
+  utils::write.csv(
+    as.data.frame(selection$copula),
+    file.path(directory, "copula-selection.csv"),
+    row.names = FALSE
+  )
+  invisible(selection)
+}
+
+load_or_run_distribution_selection <- function(name, directory, force = FALSE) {
+  path <- file.path(directory, "distribution-selection.rds")
+  if (!force && file.exists(path)) {
+    selection <- readRDS(path)
+    registry_version <- unique(
+      gamlss.longitudinal::longitudinal_capabilities("routes")$registry_version
+    )
+    if (identical(selection$contract$registry_version, registry_version)) {
+      message("Reusing ", path)
+      return(selection)
+    }
+    message("Refreshing stale distribution selection after registry change.")
+  }
+  selection <- jss_select_public_application_distributions(name)
+  write_distribution_selection(selection, directory)
+}
+
 for (name in candidates) {
   message("Public application candidate: ", name)
   directory <- file.path(output_root, name)
@@ -91,24 +124,36 @@ for (name in candidates) {
   saveRDS(contract, file.path(directory, "data-contract.rds"))
   write_capture(contract, file.path(directory, "data-contract.txt"))
 
+  selection <- NULL
   if (stage %in% c("screen", "all")) {
-    screen_path <- file.path(directory, "margin-screen.csv")
-    if (force || !file.exists(screen_path)) {
-      screen <- jss_screen_public_application_margins(name)
-      utils::write.csv(screen, screen_path, row.names = FALSE)
-    } else {
-      message("Reusing ", screen_path)
-    }
+    selection <- load_or_run_distribution_selection(name, directory, force = force)
   }
 
   if (stage %in% c("fit", "all")) {
+    if (is.null(selection)) {
+      selection <- load_or_run_distribution_selection(name, directory, force = FALSE)
+    }
     fit_path <- file.path(directory, "full-fit.rds")
-    if (force || !file.exists(fit_path)) {
-      fit <- jss_fit_public_application(name, compute_vcov = compute_vcov)
+    fit_is_selected <- FALSE
+    if (!force && file.exists(fit_path)) {
+      fit <- readRDS(fit_path)
+      fit_is_selected <- identical(
+        fit$margin_dist$family[[1L]], selection$selected_margin
+      ) && identical(fit$copula_dist, selection$selected_copula)
+    }
+    if (force || !file.exists(fit_path) || !fit_is_selected) {
+      if (file.exists(fit_path) && !force) {
+        message("Replacing stale fit whose distributions do not match the saved selection.")
+      }
+      fit <- jss_fit_public_application(
+        name,
+        margin = selection$selected_margin,
+        copula = selection$selected_copula,
+        compute_vcov = compute_vcov
+      )
       saveRDS(fit, fit_path)
     } else {
       message("Reusing ", fit_path)
-      fit <- readRDS(fit_path)
     }
 
     coefficient_estimates <- data.frame(
@@ -122,7 +167,10 @@ for (name in candidates) {
       row.names = FALSE
     )
     if (isTRUE(fit$vcov_meta$precomputed)) {
-      write_capture(summary(fit), file.path(directory, "full-fit-summary.txt"))
+      write_capture(
+        summary(fit, vcov_method = fit$vcov_meta$method),
+        file.path(directory, "full-fit-summary.txt")
+      )
     }
     write_capture(fit$convergence, file.path(directory, "convergence.txt"))
 
@@ -173,21 +221,39 @@ for (name in candidates) {
     if (!file.exists(base_path)) {
       stop("Run the patents fit stage before the refinement stage.", call. = FALSE)
     }
-    refined_path <- file.path(refinement_directory, "NBI_rd_dispersion-fit.rds")
+    if (is.null(selection)) {
+      selection <- load_or_run_distribution_selection(name, directory, force = FALSE)
+    }
+    base_fit <- readRDS(base_path)
+    if (!identical(base_fit$margin_dist$family[[1L]], selection$selected_margin) ||
+        !identical(base_fit$copula_dist, selection$selected_copula)) {
+      stop(
+        "The patents base fit predates the saved distribution selection; rerun the fit stage.",
+        call. = FALSE
+      )
+    }
+    refinement_name <- paste0(selection$selected_margin, "_rd_dispersion")
+    refined_spec <- jss_patents_joint_refinement_specs()[[refinement_name]]
+    if (is.null(refined_spec)) {
+      stop("No patents refinement is defined for ", refinement_name, ".", call. = FALSE)
+    }
+    refined_path <- file.path(
+      refinement_directory,
+      paste0(refinement_name, "-", selection$selected_copula, "-fit.rds")
+    )
     if (force || !file.exists(refined_path)) {
-      base_fit <- readRDS(base_path)
-      refined_spec <- jss_patents_joint_refinement_specs()$NBI_rd_dispersion
       refined_fit <- jss_fit_public_application(
         "patents",
         formulas = refined_spec$formulas,
         margin = refined_spec$margin,
+        copula = selection$selected_copula,
         compute_vcov = compute_vcov,
         outer_tol = 0.01,
         inner_tol = 1e-5,
         max_outer_iter = 60L,
         max_inner_iter = 150L,
         max_elapsed_sec = 1200,
-        start_from = jss_patents_nbi_rd_start(base_fit)
+        start_from = jss_patents_rd_dispersion_start(base_fit)
       )
       saveRDS(refined_fit, refined_path)
     } else {

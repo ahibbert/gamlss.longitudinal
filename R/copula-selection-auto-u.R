@@ -7,7 +7,8 @@
     nu.formula,
     tau.formula,
     time_var,
-    time_intercepts) {
+    time_intercepts,
+    margin_n_cycles = 100L) {
   if (is.null(response_var) || !is.character(response_var) || length(response_var) != 1L) {
     stop(
       "Provide u_var, u, u1/u2, object, or response_var so select_copula() can create pseudo-observations.",
@@ -43,6 +44,7 @@
         response_var = response_var,
         time_var = if (isTRUE(time_intercepts)) time_var else NULL,
         time_intercepts = time_intercepts,
+        time_n_cycles = margin_n_cycles,
         trace = FALSE
       )
     ))
@@ -79,7 +81,7 @@
     family = margin_dist,
     data = data,
     trace = FALSE,
-    control = gamlss::gamlss.control(n.cyc = 100, trace = FALSE)
+    control = gamlss::gamlss.control(n.cyc = margin_n_cycles, trace = FALSE)
   )
   parameter_names <- names(margin_dist$parameters)
   if ("sigma" %in% parameter_names) args$sigma.fo <- .select_copula_rhs_formula(sigma.formula)

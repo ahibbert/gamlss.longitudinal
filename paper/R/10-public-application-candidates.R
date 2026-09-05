@@ -39,7 +39,22 @@ jss_public_application_spec <- function(name = jss_public_application_names()) {
       copula = "C",
       missingness = "error",
       margin_candidates = c("PO", "NBI", "DEL"),
-      copula_candidates = "C",
+      copula_candidates = c("N", "C", "F", "G", "J", "t"),
+      selection_cycles = 200L,
+      margin_selection_note = paste(
+        "DEL ranks first in the lightweight margin screen, but its exact",
+        "joint rectangle fit does not complete within the routine application",
+        "budget. NBI is retained from the selected shortlist for full fitting."
+      ),
+      copula_selection_note = paste(
+        "Gumbel ranks first in the NBI copula screen, but the full exact",
+        "rectangle fit exceeds the routine application budget. Clayton is",
+        "retained from the selected shortlist for full fitting."
+      ),
+      fit_control = list(
+        outer_tol = 0.01, inner_tol = 1e-5, max_outer_iter = 60L,
+        max_inner_iter = 150L, max_elapsed_sec = 1200
+      ),
       formulas = list(
         mu = patents ~ year_factor + log_rd + scientific + capital_z,
         sigma = ~ scientific + capital_z,
@@ -58,10 +73,15 @@ jss_public_application_spec <- function(name = jss_public_application_names()) {
       subject = "subject",
       time = "visit",
       margin = "GG",
-      copula = "N",
+      copula = "F",
       missingness = "error",
       margin_candidates = c("GG", "LOGNO", "GA", "NO"),
-      copula_candidates = "N",
+      copula_candidates = c("N", "C", "F", "G", "J", "t"),
+      selection_cycles = 500L,
+      fit_control = list(
+        outer_tol = 1e-4, inner_tol = 1e-6, max_outer_iter = 80L,
+        max_inner_iter = 200L, max_elapsed_sec = 900
+      ),
       formulas = list(
         mu = prothrombin ~ splines::ns(years, df = 4) + baseline_stage +
           baseline_age_z + sex + treatment + baseline_log_bilirubin_z,
@@ -81,10 +101,15 @@ jss_public_application_spec <- function(name = jss_public_application_names()) {
       subject = "subject",
       time = "day",
       margin = "NBI",
-      copula = "C",
+      copula = "G",
       missingness = "segment",
       margin_candidates = c("PO", "NBI", "ZINBI"),
-      copula_candidates = "C",
+      copula_candidates = c("N", "C", "F", "G", "J", "t"),
+      selection_cycles = 200L,
+      fit_control = list(
+        outer_tol = 1e-3, inner_tol = 1e-4, max_outer_iter = 50L,
+        max_inner_iter = 100L, max_elapsed_sec = 1200
+      ),
       formulas = list(
         mu = steps ~ day_name + bmi_z + sex + paqc_z,
         sigma = ~ 1,
@@ -154,64 +179,111 @@ jss_margin_family <- function(code) {
   getExportedValue("gamlss.dist", code)()
 }
 
+jss_select_public_application_distributions <- function(
+    name = jss_public_application_names(),
+    data = NULL,
+    margin_families = NULL,
+    copula_families = NULL,
+    criterion = "AIC") {
+  spec <- jss_public_application_spec(name)
+  if (is.null(data)) data <- jss_prepare_public_application(name)
+  if (is.null(margin_families)) margin_families <- spec$margin_candidates
+  if (is.null(copula_families)) copula_families <- spec$copula_candidates
+
+  margin_selection <- gamlss.longitudinal::select_margin(
+    data,
+    response_var = spec$response,
+    time_var = spec$time,
+    time_intercepts = TRUE,
+    time_n_cycles = spec$selection_cycles,
+    families = margin_families,
+    trace = FALSE
+  )
+  if (!nrow(margin_selection) || !isTRUE(margin_selection$converged[[1L]])) {
+    stop(
+      "The selected marginal screen did not produce a converged best fit for ",
+      spec$name,
+      ".",
+      call. = FALSE
+    )
+  }
+
+  screen_selected_margin <- gamlss.longitudinal::best_fit(margin_selection)$family_name
+  selected_margin <- spec$margin
+  if (!selected_margin %in% margin_selection$family) {
+    stop(
+      "The analysis margin '", selected_margin,
+      "' was not retained by select_margin() for ", spec$name, ".",
+      call. = FALSE
+    )
+  }
+
+  copula_selection <- gamlss.longitudinal::select_copula(
+    data = data,
+    response_var = spec$response,
+    margin_dist = jss_margin_family(selected_margin),
+    subject_var = spec$subject,
+    time_var = spec$time,
+    families = copula_families,
+    criterion = criterion,
+    time_intercepts = TRUE,
+    margin_n_cycles = spec$selection_cycles,
+    copula_time_intercepts = TRUE
+  )
+  screen_selected_copula <- gamlss.longitudinal::best_fit_family(copula_selection)
+  selected_copula <- spec$copula
+  if (!selected_copula %in% copula_selection$family) {
+    stop(
+      "The analysis copula '", selected_copula,
+      "' was not retained by select_copula() for ", spec$name, ".",
+      call. = FALSE
+    )
+  }
+
+  list(
+    margin = margin_selection,
+    copula = copula_selection,
+    screen_selected_margin = screen_selected_margin,
+    selected_margin = selected_margin,
+    screen_selected_copula = screen_selected_copula,
+    selected_copula = selected_copula,
+    margin_selection_note = if (is.null(spec$margin_selection_note)) {
+      "Top-ranked margin retained."
+    } else {
+      spec$margin_selection_note
+    },
+    copula_selection_note = if (is.null(spec$copula_selection_note)) {
+      "Top-ranked registered copula retained."
+    } else {
+      spec$copula_selection_note
+    },
+    criterion = criterion,
+    contract = list(
+      registry_version = unique(
+        gamlss.longitudinal::longitudinal_capabilities("routes")$registry_version
+      ),
+      margin_time_intercepts = TRUE,
+      copula_time_intercepts = TRUE,
+      margin_n_cycles = spec$selection_cycles
+    )
+  )
+}
+
 jss_screen_public_application_margins <- function(
     name = jss_public_application_names(),
     data = NULL,
     n_cycles = 100L) {
   spec <- jss_public_application_spec(name)
   if (is.null(data)) data <- jss_prepare_public_application(name)
-  needed <- unique(all.vars(spec$formulas$mu))
-  data <- data[is.finite(data[[spec$response]]), needed, drop = FALSE]
-  data <- data[stats::complete.cases(data), , drop = FALSE]
-
-  rows <- lapply(spec$margin_candidates, function(code) {
-    family <- jss_margin_family(code)
-    arguments <- list(
-      formula = spec$formulas$mu,
-      family = family,
-      data = data,
-      control = gamlss::gamlss.control(n.cyc = as.integer(n_cycles), trace = FALSE)
-    )
-    if ("sigma" %in% family$parameters) arguments$sigma.formula <- ~ 1
-    if ("nu" %in% family$parameters) arguments$nu.formula <- ~ 1
-    if ("tau" %in% family$parameters) arguments$tau.formula <- ~ 1
-
-    warnings <- character()
-    started <- proc.time()[["elapsed"]]
-    fit <- tryCatch(
-      withCallingHandlers(
-        do.call(gamlss::gamlss, arguments),
-        warning = function(w) {
-          warnings <<- c(warnings, conditionMessage(w))
-          invokeRestart("muffleWarning")
-        }
-      ),
-      error = function(e) e
-    )
-    elapsed <- proc.time()[["elapsed"]] - started
-
-    if (inherits(fit, "error")) {
-      return(data.frame(
-        family = code, converged = FALSE, logLik = NA_real_, df = NA_real_,
-        AIC = NA_real_, BIC = NA_real_, elapsed_sec = elapsed,
-        warning = "", error = conditionMessage(fit)
-      ))
-    }
-    likelihood <- logLik(fit)
-    data.frame(
-      family = code,
-      converged = isTRUE(fit$converged),
-      logLik = as.numeric(likelihood),
-      df = attr(likelihood, "df"),
-      AIC = AIC(fit),
-      BIC = gamlss::GAIC(fit, k = log(nrow(data))),
-      elapsed_sec = elapsed,
-      warning = paste(unique(warnings), collapse = " | "),
-      error = ""
-    )
-  })
-  result <- do.call(rbind, rows)
-  result[order(result$AIC), ]
+  gamlss.longitudinal::select_margin(
+    data,
+    response_var = spec$response,
+    time_var = spec$time,
+    time_intercepts = TRUE,
+    time_n_cycles = max(as.integer(n_cycles), spec$selection_cycles),
+    families = spec$margin_candidates,
+    trace = FALSE
+  )
 }
 
 jss_patents_refined_margin_screen <- function(data = NULL, n_cycles = 200L) {
@@ -316,7 +388,7 @@ jss_patents_joint_refinement_specs <- function() {
   )
 }
 
-jss_patents_nbi_rd_start <- function(fit) {
+jss_patents_rd_dispersion_start <- function(fit) {
   coefficients <- stats::coef(fit)
   insertion <- match("sigma.capital_z", names(coefficients))
   if (is.na(insertion)) {
@@ -327,6 +399,8 @@ jss_patents_nbi_rd_start <- function(fit) {
   start
 }
 
+jss_patents_nbi_rd_start <- jss_patents_rd_dispersion_start
+
 jss_fit_public_application <- function(
     name = jss_public_application_names(),
     data = NULL,
@@ -334,11 +408,11 @@ jss_fit_public_application <- function(
     margin = NULL,
     copula = NULL,
     compute_vcov = FALSE,
-    outer_tol = 1e-3,
+    outer_tol = NULL,
     inner_tol = NULL,
-    max_outer_iter = 40L,
-    max_inner_iter = 50L,
-    max_elapsed_sec = 600,
+    max_outer_iter = NULL,
+    max_inner_iter = NULL,
+    max_elapsed_sec = NULL,
     start_from = NA,
     verbose = 0) {
   spec <- jss_public_application_spec(name)
@@ -346,8 +420,13 @@ jss_fit_public_application <- function(
   if (is.null(formulas)) formulas <- spec$formulas
   if (is.null(margin)) margin <- spec$margin
   if (is.null(copula)) copula <- spec$copula
+  if (is.null(outer_tol)) outer_tol <- spec$fit_control$outer_tol
+  if (is.null(max_outer_iter)) max_outer_iter <- spec$fit_control$max_outer_iter
+  if (is.null(max_inner_iter)) max_inner_iter <- spec$fit_control$max_inner_iter
+  if (is.null(max_elapsed_sec)) max_elapsed_sec <- spec$fit_control$max_elapsed_sec
   user_start <- !all(is.na(start_from))
-  if (is.null(inner_tol)) inner_tol <- min(1e-4, outer_tol / 10)
+  if (is.null(inner_tol)) inner_tol <- spec$fit_control$inner_tol
+  use_warm_start <- !user_start && !identical(copula, "t")
 
   control <- gamlss.longitudinal::gamlss_longitudinal_control(
     outer_tol = outer_tol,
@@ -356,10 +435,11 @@ jss_fit_public_application <- function(
     rs = list(
       inner_tol = inner_tol,
       max_inner_iter = as.integer(max_inner_iter),
-      warm_start_joint = !user_start,
-      warm_start_joint_iter = if (user_start) 0L else 5L
+      warm_start_joint = use_warm_start,
+      warm_start_joint_iter = if (use_warm_start) 5L else 0L
     )
   )
+  segmented <- identical(spec$missingness, "segment")
 
   fit <- gamlss.longitudinal::gamlss_longitudinal(
     dataset = data,
@@ -377,11 +457,28 @@ jss_fit_public_application <- function(
     method = "RS",
     start_from = start_from,
     optimizer_control = control,
-    compute_vcov = compute_vcov,
-    vcov_method = if (identical(spec$missingness, "segment")) "sandwich" else "analytical",
+    compute_vcov = compute_vcov && !segmented,
+    vcov_method = "analytical",
     verbose = verbose
   )
+  if (compute_vcov && segmented && isTRUE(fit$convergence$converged)) {
+    fit$vcov <- stats::vcov(
+      fit,
+      method = "sandwich",
+      details = TRUE,
+      sandwich_bread_method = "numderiv",
+      progress = FALSE
+    )
+    fit$vcov_meta$precomputed <- TRUE
+    fit$vcov_meta$numderiv <- FALSE
+    fit$vcov_meta$method <- "sandwich"
+    fit$vcov_meta$method_used <- fit$vcov$method
+  }
   fit$application_candidate <- spec$name
+  fit$application_selection <- list(
+    margin = margin,
+    copula = copula
+  )
   fit
 }
 
@@ -399,7 +496,13 @@ jss_fit_public_application_comparator <- function(
   if (is.null(formula)) stop("Comparator is not defined for this candidate.", call. = FALSE)
   formulas <- spec$formulas
   if (grepl("^theta", component)) formulas$theta <- formula else formulas$sigma <- formula
-  jss_fit_public_application(name, formulas = formulas, ...)
+  jss_fit_public_application(
+    name,
+    formulas = formulas,
+    margin = fit$margin_dist$family[[1L]],
+    copula = fit$copula_dist,
+    ...
+  )
 }
 
 jss_public_application_outputs <- function(fit) {

@@ -56,10 +56,10 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
     GG = list(
       status = "supported", family_type = "continuous", response_domain = "positive_real",
       response_requirement = "finite values strictly greater than zero", parameters = c("mu", "sigma", "nu"),
-      likelihood_route = "continuous_density", compatible_copulas = "N",
+      likelihood_route = "continuous_density", compatible_copulas = c("N", "F"),
       hessian_path = "analytical_and_numerical_implemented", randomized_pit = FALSE,
       diagnostics = "continuous_pit_and_pair_diagnostics",
-      limitations = "Validated with the Gaussian copula only.", paper_route = FALSE
+      limitations = "Validated with Gaussian and Frank copulas.", paper_route = FALSE
     ),
     BCPE = list(
       status = "supported", family_type = "continuous", response_domain = "positive_real",
@@ -88,10 +88,10 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
     NBI = list(
       status = "supported", family_type = "discrete", response_domain = "count",
       response_requirement = "finite non-negative integers", parameters = c("mu", "sigma"),
-      likelihood_route = "exact_discrete_rectangle", compatible_copulas = "C",
+      likelihood_route = "exact_discrete_rectangle", compatible_copulas = c("C", "G"),
       hessian_path = "analytical_and_numerical_implemented", randomized_pit = TRUE,
       diagnostics = "seeded_randomized_pit_and_descriptive_pair_diagnostics",
-      limitations = paste(count_note, "NBI/Clayton is the public paper route."), paper_route = TRUE
+      limitations = paste(count_note, "Validated with Clayton and Gumbel copulas; NBI/Clayton is the public paper route."), paper_route = TRUE
     ),
     DEL = list(
       status = "supported", family_type = "discrete", response_domain = "count",

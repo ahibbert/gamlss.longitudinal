@@ -26,7 +26,9 @@
 
 #'   positive continuous responses, and `"realAll"` otherwise.
 
-#' @param families Optional character vector used to filter the returned table.
+#' @param families Optional character vector restricting which families are
+#'   fitted. Restricting the shortlist avoids fitting every family registered
+#'   for the response type.
 
 #' @param time_intercepts Logical; if `TRUE`, rank retained families by a
 
@@ -43,6 +45,10 @@
 #' @param time_var Optional time column name in `data`, required when
 
 #'   `time_intercepts = TRUE`.
+
+#' @param time_n_cycles Positive integer maximum number of cycles used for each
+
+#'   temporary time-intercept GAMLSS fit.
 
 #' @param try.gamlss,trace,... Passed to [gamlss::fitDist()].
 
@@ -70,6 +76,7 @@ select_margin <- function(
     families = NULL,
     time_intercepts = FALSE,
     time_var = NULL,
+    time_n_cycles = 100L,
     try.gamlss = FALSE,
     trace = FALSE,
     ...) {
@@ -88,49 +95,61 @@ select_margin <- function(
   time_intercepts <- inputs$time_intercepts
   time_var <- inputs$time_var
 
-  fit <- NULL
+  if (length(time_n_cycles) != 1L || !is.finite(time_n_cycles) || time_n_cycles < 1) {
+    stop("'time_n_cycles' must be a positive integer.", call. = FALSE)
+  }
+  time_n_cycles <- as.integer(time_n_cycles)
 
-  if (isTRUE(trace)) {
-    fit <- gamlss::fitDist(
+  if (is.null(families)) {
+    fit <- NULL
+    if (isTRUE(trace)) {
+      fit <- gamlss::fitDist(
+        response,
+        type = type,
+        try.gamlss = try.gamlss,
+        trace = trace,
+        ...
+      )
+    } else {
+      invisible(utils::capture.output({
+        invisible(utils::capture.output({
+          fit <- suppressWarnings(suppressMessages(gamlss::fitDist(
+            response,
+            type = type,
+            try.gamlss = try.gamlss,
+            trace = trace,
+            ...
+          )))
+        }, type = "message"))
+      }))
+    }
 
-      response,
-      type = type,
+    if (is.null(fit$fits)) {
+      stop("gamlss::fitDist() did not return a fits table.", call. = FALSE)
+    }
+    fit_aic <- fit$fits
+  } else {
+    fit_aic <- .select_margin_restricted_fits(
+      response = response,
+      families = families,
       try.gamlss = try.gamlss,
       trace = trace,
       ...
     )
-  } else {
-    invisible(utils::capture.output({
-      invisible(utils::capture.output({
-        fit <- suppressWarnings(suppressMessages(gamlss::fitDist(
-
-          response,
-          type = type,
-          try.gamlss = try.gamlss,
-          trace = trace,
-          ...
-        )))
-      }, type = "message"))
-    }))
   }
-
-  if (is.null(fit$fits)) {
-    stop("gamlss::fitDist() did not return a fits table.", call. = FALSE)
+  if (!length(fit_aic)) {
+    stop("No requested marginal family produced a finite AIC.", call. = FALSE)
   }
 
   out <- data.frame(
-    family = names(fit$fits),
-    AIC = as.numeric(fit$fits),
+    family = names(fit_aic),
+    AIC = as.numeric(fit_aic),
     type = type,
     stringsAsFactors = FALSE,
     row.names = NULL
   )
 
   out <- out[is.finite(out$AIC), , drop = FALSE]
-
-  if (!is.null(families)) {
-    out <- out[out$family %in% families, , drop = FALSE]
-  }
 
   out$screen_model <- "pooled_intercept"
 
@@ -139,7 +158,8 @@ select_margin <- function(
       response = response_all,
       time = data[[time_var]],
       families = out$family,
-      trace = trace
+      trace = trace,
+      n_cycles = time_n_cycles
     )
 
     out$pooled_AIC <- out$AIC
