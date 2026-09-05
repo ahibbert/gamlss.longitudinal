@@ -17,7 +17,6 @@ knitr::opts_chunk$set(
   out.width = "92%",
   dpi = 180,
   fig.retina = 2,
-  warning = FALSE,
   message = FALSE,
   error = FALSE
 )
@@ -190,7 +189,13 @@ Our first check is to ensure the dataset is in the correct shape to ingest in th
 
 - one row per subject and time combination,
 - one column for each of the response, subject identifier and timepoint, and
-- timepoint should be an ordered factor (or will be automatically ordered using `order()`).
+- the numeric order or factor-level order of the time variable should match the
+  intended scheduled visit order.
+
+The ordered unique time values define adjacent copula pairs. Numeric spacing is
+not interpreted as elapsed-time distance, so irregular values affect ordering
+only unless elapsed distance is included explicitly as a copula covariate.
+Pair-level copula covariates are evaluated at the earlier (left) scheduled row.
 
 ```{r data-shape}
 # Check data columns / subject/time counts
@@ -348,7 +353,14 @@ plot_margin_fit(
 
 ## Choose a copula family
 
-Once we have a starting fit for the margin, we can select a copula distribution. The copula distribution depends on the shape of the margin so the margin must be selected first. We do provide the option for choosing both margin and copula jointly using `select_joint_distribution()` however this is quite a slow fit, and generally does not select differently to the much faster process using `select_margin()` followed by `select_copula()`. Instead we would suggest sensitivity / alternative testing for a final selection of margins or copulas, or for the final fitted model, rather than spending compute time at the early stage before covariates are selected.
+Once we have a starting marginal fit, we can screen copula distributions. The
+pseudo-observations used for this screen depend on the marginal model, so a
+different plausible margin can change the ranking. `select_joint_distribution()`
+offers a more computationally intensive joint screen. In this vignette we use a
+sequential screen as one pragmatic search path, then revisit plausible
+margin--copula alternatives after covariates are included. Agreement between
+the two screens in this realization is illustrative rather than a general
+result.
 
 `select_copula()` assesses available copula fits by likelihood criteria for the starting marginal model. The copula is fit on pseudo-observations which have been created using the marginal fit. The user can either pass in the best model from `select_margin()` using `margin_dist=margin_selection` or can specify a marginal fit with `margin_dist` and `time_intercepts=TRUE/FALSE`. If the user really wants, they can also fully specify a `gamlss.longitudinal` model with formulas for all the intercepts and select a copula that way, however we would suggest this as a final sensitivity test rather than at this stage since covariates are not yet reviewed.
 
@@ -450,15 +462,25 @@ plot_copula_fit(
 
 ## Fit The Longitudinal Model
 
-Model fitting for `gamlss.longitudinal` should always follow the parameter hierarchy for the margin, `mu -> sigma -> nu -> tau`, and for the copula `theta -> zeta`. There is not a strict hierarchy between marginal versus copula parameters as copula parameters can affect the standard errors for the margin, resulting in different parameters being significant in the margin, and marginal parameters can affect the copula fit so the process is necessarily iterative. However, in general it is reasonable to get a good fit for the margin with the most significant factors before iterating on covariate fits for the copula parameter. Following a strict margin before copula process will generally yield similar results, though may result in removing some previously significant factors (or adding previously insignificant factors) from the margin depending on the copula fit.
+The steps below illustrate one structured search, beginning with `mu` and then
+reviewing `sigma`, `nu`, and the copula predictor. This order is convenient, not
+a universal parameter hierarchy: margin and copula specifications interact, and
+repeated conditional testing after model selection understates selection
+uncertainty. Scientific requirements should determine terms that must remain,
+while AIC, likelihood comparisons for valid nested models, diagnostics, and
+sensitivity fits provide complementary evidence.
 
-We will use the `GG()` fit to start for the additional flexibility from its extra parameter, and if that parameter is not significant with an intercept or covariates then we can reduce the model to `GA()`. The selected supported copula was `N`, so we will use this.
+We carry `GG()` and the supported Gaussian copula forward for this illustrative
+search. A nonsignificant coefficient is not, by itself, evidence that one
+distribution family should be replaced by another; family comparisons should
+use valid likelihood criteria, diagnostics, scientific tail requirements, and
+sensitivity to plausible alternatives.
 
 The simulated missing values form observed prefixes followed by monotone
 dropout, which the default likelihood accepts without splitting a subject into
 independent observed segments. Intermittent gaps require the explicit
-`missingness = "segment"` sensitivity contract demonstrated in the separate
-missingness workflow.
+`missingness = "segment"` sensitivity contract demonstrated in the
+[Inference](inference-uncertainty.html) workflow.
 
 The default `optimization = "joint"` updates the marginal parameters against
 the joint margin-copula objective. Use `optimization = "separate"` only when
@@ -467,6 +489,12 @@ as a sensitivity analysis. Optimizer settings are grouped under
 `optimizer_control = gamlss_longitudinal_control(...)`; for example,
 `outer_tol` and `max_outer_iter` control the outer loop, while RS-specific
 settings belong in `rs = list(...)`.
+
+For separate optimization, the reported joint log likelihood, AIC, and BIC are
+evaluated at parameter estimates that need not maximize the joint objective.
+Treat them as descriptive sensitivity values, do not use an LR test to compare
+joint and separate strategies, and use joint fits for final likelihood-based
+model comparisons.
 
 Let's begin by inspecting a fully specified model with factor terms for `time` and `treatment`, and a smooth term for `age` on every covariate, including the copula parameter.
 
@@ -481,7 +509,8 @@ fit_fullyspecified <- gamlss_longitudinal(
   mu.formula = response ~ treatment + as.factor(time) + s(age),
   sigma.formula = ~ treatment + as.factor(time) + s(age),
   nu.formula = ~ treatment + as.factor(time) + s(age),
-  theta.formula = ~ treatment + as.factor(time) + s(age)
+  theta.formula = ~ treatment + as.factor(time) + s(age),
+  compute_vcov = FALSE
 )
 ```
 
@@ -489,9 +518,17 @@ fit_fullyspecified <- gamlss_longitudinal(
 summary(fit_fullyspecified, include_vcov = FALSE)
 ```
 
-This deliberately saturated starting model is used for likelihood-based model comparison rather than inference, so its summary reports point estimates, fit criteria, convergence metadata, and smooth effective degrees of freedom without computing a covariance matrix. The small effective degrees of freedom for the age smooths on `nu` and `theta` suggest that those terms may not materially improve the fit, so we review simpler specifications below.
+This deliberately rich starting model is used to organize an illustrative
+model search rather than to support final inference. Its summary reports point
+estimates, fit criteria, convergence metadata, and smooth effective degrees of
+freedom without computing a covariance matrix. Small effective degrees of
+freedom for the age smooths on `nu` and `theta` motivate reviewing simpler
+specifications; they do not constitute an automatic deletion rule.
 
-We start with `mu` and note the significant treatment effect but minimal effect due to time so we can test alternative forms or remove. 
+We start with `mu`. In this realization the treatment estimate is comparatively
+clear while the time contribution is small, so we compare prespecified simpler
+time forms. The resulting conditional p-values are descriptive after this model
+search.
 
 <details>
 ```{r fit-models-all, results='hide'}
@@ -504,7 +541,8 @@ fit_mulineartime <- gamlss_longitudinal(
   mu.formula = response ~ treatment + (time) + s(age),
   sigma.formula = ~ treatment + as.factor(time) + s(age),
   nu.formula = ~ treatment + as.factor(time) + s(age),
-  theta.formula = ~ treatment + as.factor(time) + s(age)
+  theta.formula = ~ treatment + as.factor(time) + s(age),
+  compute_vcov = FALSE
 )
 fit_munotime <- gamlss_longitudinal(
   data = dataset,
@@ -515,7 +553,8 @@ fit_munotime <- gamlss_longitudinal(
   mu.formula = response ~ treatment + s(age),
   sigma.formula = ~ treatment + as.factor(time) + s(age),
   nu.formula = ~ treatment + as.factor(time) + s(age),
-  theta.formula = ~ treatment + as.factor(time) + s(age)
+  theta.formula = ~ treatment + as.factor(time) + s(age),
+  compute_vcov = FALSE
 )
 fit_sigmalineartime <- gamlss_longitudinal(
   data = dataset,
@@ -526,7 +565,8 @@ fit_sigmalineartime <- gamlss_longitudinal(
   mu.formula = response ~ treatment + s(age),
   sigma.formula = ~ treatment + (time) + s(age),
   nu.formula = ~ treatment + as.factor(time) + s(age),
-  theta.formula = ~ treatment + as.factor(time) + s(age)
+  theta.formula = ~ treatment + as.factor(time) + s(age),
+  compute_vcov = FALSE
 )
 fit_nutimeonly <- gamlss_longitudinal(
   data = dataset,
@@ -537,7 +577,8 @@ fit_nutimeonly <- gamlss_longitudinal(
   mu.formula = response ~ treatment + s(age),
   sigma.formula = ~ treatment + (time) + s(age),
   nu.formula = ~ as.factor(time),
-  theta.formula = ~ treatment + as.factor(time) + s(age)
+  theta.formula = ~ treatment + as.factor(time) + s(age),
+  compute_vcov = FALSE
 )
 fit_nutrtonly <- gamlss_longitudinal(
   data = dataset,
@@ -548,7 +589,8 @@ fit_nutrtonly <- gamlss_longitudinal(
   mu.formula = response ~ treatment + s(age),
   sigma.formula = ~ treatment + (time) + s(age),
   nu.formula = ~ treatment,
-  theta.formula = ~ treatment + as.factor(time) + s(age)
+  theta.formula = ~ treatment + as.factor(time) + s(age),
+  compute_vcov = FALSE
 )
 fit_nuageonly <- gamlss_longitudinal(
   data = dataset,
@@ -559,7 +601,8 @@ fit_nuageonly <- gamlss_longitudinal(
   mu.formula = response ~ treatment + s(age),
   sigma.formula = ~ treatment + (time) + s(age),
   nu.formula = ~ s(age),
-  theta.formula = ~ treatment + as.factor(time) + s(age)
+  theta.formula = ~ treatment + as.factor(time) + s(age),
+  compute_vcov = FALSE
 )
 fit_nuinterceptonly <- gamlss_longitudinal(
   data = dataset,
@@ -570,7 +613,8 @@ fit_nuinterceptonly <- gamlss_longitudinal(
   mu.formula = response ~ treatment + s(age),
   sigma.formula = ~ treatment + (time) + s(age),
   nu.formula = ~ 1,
-  theta.formula = ~ treatment + as.factor(time) + s(age)
+  theta.formula = ~ treatment + as.factor(time) + s(age),
+  compute_vcov = FALSE
 )
 fit_thetalineartime <- gamlss_longitudinal(
   data = dataset,
@@ -581,7 +625,8 @@ fit_thetalineartime <- gamlss_longitudinal(
   mu.formula = response ~ treatment + s(age),
   sigma.formula = ~ treatment + (time) + s(age),
   nu.formula = ~ 1,
-  theta.formula = ~ treatment + (time) + s(age)
+  theta.formula = ~ treatment + (time) + s(age),
+  compute_vcov = FALSE
 )
 fit_thetalineartime_notrt <- gamlss_longitudinal(
   data = dataset,
@@ -592,7 +637,8 @@ fit_thetalineartime_notrt <- gamlss_longitudinal(
   mu.formula = response ~ treatment + s(age),
   sigma.formula = ~ treatment + (time) + s(age),
   nu.formula = ~ 1,
-  theta.formula = ~ (time) + s(age)
+  theta.formula = ~ (time) + s(age),
+  compute_vcov = FALSE
 )
 fit_thetalineartime_notrt_noage <- gamlss_longitudinal(
   data = dataset,
@@ -603,7 +649,8 @@ fit_thetalineartime_notrt_noage <- gamlss_longitudinal(
   mu.formula = response ~ treatment + s(age),
   sigma.formula = ~ treatment + (time) + s(age),
   nu.formula = ~ 1,
-  theta.formula = ~ (time)
+  theta.formula = ~ (time),
+  compute_vcov = FALSE
 )
 ```
 </details>
@@ -612,17 +659,27 @@ fit_thetalineartime_notrt_noage <- gamlss_longitudinal(
 likelihood_compare(fit_munotime, fit_mulineartime, fit_fullyspecified)
 ```
 
-Fits for `mu` with linear and non-linear time both return non-significant effects at `p=0.05`. `mu` with linear or no time are comparable on likelihood so we select the model without time for simplicity and by AIC/BIC, with the option to recheck in final steps.
+For this simulated realization, the linear, factor-coded, and omitted time
+terms on `mu` give similar likelihood values. We choose the simpler model for
+the remainder of the illustration and retain time-in-`mu` as a sensitivity fit;
+this is not a universal significance-based selection rule.
 
-Now let's compare models for `sigma`. Treatment effect is strongly significant so we will just test a linear instead of factor time effect for `sigma`. 
+We next compare a prespecified linear time effect with the factor-coded visit
+effect for `sigma`, retaining treatment because it is part of the simulated
+data-generating structure.
 
 ```{r fit-sigma-compare}
 likelihood_compare(fit_sigmalineartime, fit_munotime)
 ```
 
-Linear time for `sigma` removes three degrees of freedom and provides better AIC and BIC so we select it as the improved model. The covariate is highly significant.
+In this realization, linear time for `sigma` uses fewer degrees of freedom and
+has lower AIC and BIC, so we use it in the working model. This comparison does
+not account for the preceding selection steps.
 
-Now for `nu`. The time covariate and treatment effect for `nu` are non-significant still after fitting `sigma`, and we should review if the smooth is providing sufficient information as the degrees of freedom are very low. We fit models for `nu` with each of the factors individually and compare against an intercept-only model. 
+For `nu`, we compare the working covariate forms with an intercept-only model.
+The comparison is exploratory because the candidates were informed by earlier
+fits and because smooth-term and family comparisons require more than a single
+post-selection p-value.
 
 ```{r fit-nucompare}
 nu_candidates <- list(
@@ -655,7 +712,10 @@ data.frame(
 )
 ```
 
-There's not much difference between the models on likelihood, with the covariate fits providing minimal extra information and the best model by AIC being the intercept-only model for `nu`, so we select intercept-only.
+The likelihood values are similar in this realization and AIC favors the
+intercept-only `nu` model, which we use as the working specification. Plausible
+covariate-dependent alternatives should be retained for sensitivity analysis
+when `nu` has substantive importance.
 
 We now review `theta`, and test removing treatment effect and collapse the time factor to linear as well. We should also test the removal of the age smooth to check if it's needed.
 
@@ -668,9 +728,15 @@ likelihood_compare(
 )
 ```
 
-The best model by AIC and BIC selects a linear time effect for `theta`, and strongly prefers keeping the age smooth term so we retain it.
+For this candidate set, AIC and BIC favor a linear time effect for `theta` while
+retaining the age smooth, so that becomes the working dependence specification.
+The result is conditional on the candidate set and preceding marginal choices.
 
-So the final selected model has smooth effects for age for `mu`, `sigma` and `theta`, a linear time effect for `sigma` and `theta`, and an intercept for `nu`.
+The resulting illustrative working model has smooth effects for age on `mu`,
+`sigma`, and `theta`, linear time effects on `sigma` and `theta`, and an
+intercept-only `nu`. Final reporting should describe the candidate set and
+include sensitivity to scientifically plausible alternatives rather than
+treating this path as selection-certainty-free.
 
 ## Review the fit
 
@@ -698,7 +764,7 @@ For discrete margins the PIT is randomized reproducibly using the recorded `pit_
 
 ```{r fit-review-check}
 fit <- fit_thetalineartime_notrt
-check = check_model(fit)
+check <- check_model(fit, include_vcov = FALSE)
 print(check)
 ```
 
@@ -709,11 +775,27 @@ inference, the vignette reports that result and continues with the point-fit
 summary instead of silently relaxing the validation threshold.
 
 ```{r fit-review-summary}
-fit_summary <- tryCatch(
-  summary(fit, vcov_method = "sandwich"),
-  error = function(e) e
+fit_inference_warnings <- character()
+fit_summary <- withCallingHandlers(
+  tryCatch(
+    summary(fit, vcov_method = "sandwich"),
+    error = function(e) e
+  ),
+  warning = function(w) {
+    fit_inference_warnings <<- c(
+      fit_inference_warnings,
+      conditionMessage(w)
+    )
+    invokeRestart("muffleWarning")
+  }
 )
 inference_ready <- !inherits(fit_summary, "error")
+
+if (length(fit_inference_warnings)) {
+  cat("Recorded inference warnings:\n")
+  cat(paste0("- ", unique(fit_inference_warnings)), sep = "\n")
+  cat("\n\n")
+}
 
 if (inference_ready) {
   print(fit_summary)
@@ -739,14 +821,18 @@ plot(fit)
 ```
 
 
-We will briefly comment on each of the marginal diagnostics and expected shape, though broadly they appear reasonable except some deviation in fit in the lower tail of the distribution.  
+We briefly describe patterns in this particular simulated realization. These
+plots are descriptive checks: systematic departures may motivate a revised
+family or predictor, whereas isolated deviations can reflect sampling
+variation.
 
 Marginal diagnostics:
 
-- PIT appears reasonably close to uniform, with small deviation in the lower tail; the PIT KS value is treated as a descriptive summary
-- QQ plot is very close to diagonal except in very low tail, though deviation is small
-- Worm plot should be close to centre line without deviation, but we do see some deviation in the lower tail more clearly than we could see in the QQ plot
-- Rootogram seems generally centred around zero with no major trends or deviation spikes
+- The PIT appears reasonably close to uniform, with a small lower-tail
+  departure; its KS value is treated as a descriptive summary.
+- The QQ plot is close to the diagonal except in the lowest tail.
+- The worm plot makes the same lower-tail pattern more visible.
+- The rootogram is broadly centered around zero without a persistent trend.
 
 The default copula diagnostic is a compact four-panel overview containing the
 empirical copula overlay, Kendall-function calibration, Rosenblatt normal QQ
@@ -794,19 +880,27 @@ plot_copula_diagnostics(
 )
 ```
 
-All trends for fitted versus observed dependence appear close. There is one small deviation between the fit and the data in the lower tail that can be seen in the Rosenblatt normal QQ plot and the tail co-occurrence / exceedance plots for the lower plot where we are slightly underfitting it appears.
+Fitted and observed dependence summaries are broadly similar in this
+realization. A small lower-tail departure appears in the Rosenblatt QQ and tail
+panels and may warrant sensitivity to alternative marginal or copula tails.
 
 We will briefly comment on each diagnostic for illustration purposes from left to right, then top to bottom:
 
-- Empirical copula overlay appears to broadly capture the shape of the 2d histogram, we can also plot the final fitted distributions against the original data using `plot_margin_fit(fit, by_time=TRUE)` and `plot_copula_fit(fit, by_time=TRUE)` if desired which will show the captured changing shape more clearly.
-- Deciles of fitted versus observed correlation follow the same trend indicating we are capturing the extremes and the centre of the correlation distribution (i.e. we are at least covering the range of correlation correctly)
-- Rosenblatt scores take into account correlation structure in estimating residuals resulting in conditional estimates for margins, meaning they will tell us if the joint distribution (margin or copula) is misspecified. We provide multiple views:
-  - Rosenblatt z-scores by margin, which should be normally distributed at each time point (and are), a specific time point being non-normal indicates a specific set of copulas before it or the given margin is incorrectly specified
-  - Overall Rosenblatt Normal QQ plot indicates overall normality of the conditional residuals which look reasonable with small deviation in both tails
-  - Rosenblatt lag plot compares scores at a given time point with the lagged time point, which if correlation is correctly specified then these should be uncorrelated (and the are)
-- Kendall's function diagnostic compares fitted copula probabilities across the dataset (sorted) against the empirical sorted copula probabilities and should follow the centre line without systematic deviation. In this case there is a small systematic deviation in the centre which may be worth investigating to improve the fit
-- Tail co-occurrence and exceedance compare empirical versus fitted probability of observations being in the upper and lower tails of the dependence structure and are broadly in line with some deviation in the lower tail, potentially due to the deviation in fit for the margin in the lower tail. This would indicate incorrectly specified tails either in the margin or the copula.
-- Residual dependence by lag should be close to zero if the copula is accurately capturing the dependence which it is here
+- The empirical-copula overlay broadly follows the two-dimensional histogram.
+  `plot_margin_fit(fit, by_time = TRUE)` and
+  `plot_copula_fit(fit, by_time = TRUE)` provide time-specific views.
+- Fitted and observed Kendall summaries follow similar trends across bins. This
+  supports, but does not prove, adequate dependence calibration.
+- Rosenblatt diagnostics condition on the fitted first-order dependence and may
+  reveal joint margin or copula misspecification. Here the time-specific and
+  overall QQ patterns are broadly compatible with Normal scores, with small
+  tail deviations. The lag plot shows little residual association.
+- The Kendall-function diagnostic has a small central departure that may merit
+  sensitivity analysis.
+- Tail co-occurrence and exceedance are broadly aligned, with a lower-tail
+  difference that could arise from either the margin or copula specification.
+- Residual dependence near zero is a necessary check for the fitted first-order
+  structure, not proof that the selected copula is correct.
 
 Overall this appears to provide a reasonable fit to the joint distribution, with some small deviations in the tails for both the copula and margin which may warrant additional investigation.
 
@@ -824,18 +918,23 @@ if (inference_ready) {
   cat("Confidence intervals and Wald tests skipped: fitted-score validation failed.\n")
 }
 ```
-It's also possible to produce bootstrap confidence intervals from the fitted model though it is computationally quite intensive as it refits the longitudinal model for each repetition (`R=`).
+Bootstrap inference repeatedly refits the model and can be computationally
+intensive. The `R = 5` call below is deliberately a smoke test of the code path,
+not an inferentially adequate reporting run. For reporting, increase `R` until
+the estimates and interval limits are stable at the required precision, assess
+Monte Carlo error, and report failed as well as successful replicates.
 
 ```{r bootstrap-run, results='hide', eval=TRUE}
 boot <- bootstrap_inference(
   fit,
-  R = 5,
+  R = 5, # smoke run only; not for reporting
   seed = 20260521
 )
 ```
 
 ```{r bootstrap-output}
 print(boot)
+boot$failures
 ```
 
 ### Benchmarking against standard models; gee, glmm, gam
@@ -875,20 +974,33 @@ fit_benchmark_mu_time <- gamlss_longitudinal(
   mu.formula = response ~ treatment + time + s(age),
   sigma.formula = ~ treatment + time + s(age),
   nu.formula = ~ 1,
-  theta.formula = ~ time + s(age)
+  theta.formula = ~ time + s(age),
+  compute_vcov = FALSE
 )
 ```
 </details>
 
 ```{r benchmarking-models}
-bench <- benchmark_standard_models(
-  data = dataset,
-  formula = response ~ treatment + time + s(age),
-  subject_var = "subject",
-  family = "gamma",
-  fit = fit_benchmark_mu_time,
-  fit_name = "gamlss_long"
+benchmark_warnings <- character()
+bench <- withCallingHandlers(
+  benchmark_standard_models(
+    data = dataset,
+    formula = response ~ treatment + time + s(age),
+    subject_var = "subject",
+    family = "gamma",
+    fit = fit_benchmark_mu_time,
+    fit_name = "gamlss_long"
+  ),
+  warning = function(w) {
+    benchmark_warnings <<- c(benchmark_warnings, conditionMessage(w))
+    invokeRestart("muffleWarning")
+  }
 )
+if (length(benchmark_warnings)) {
+  cat("Recorded benchmark warnings:\n")
+  cat(paste0("- ", unique(benchmark_warnings)), sep = "\n")
+  cat("\n\n")
+}
 print(bench)
 ```
 
@@ -905,7 +1017,8 @@ fit_reduced <- gamlss_longitudinal(
   mu.formula = response ~ treatment,
   sigma.formula = ~ treatment + (time),
   nu.formula = ~ 1,
-  theta.formula = ~ (time)
+  theta.formula = ~ (time),
+  compute_vcov = FALSE
 )
 
 fit_reduced_mu_time <- gamlss_longitudinal(
@@ -917,22 +1030,34 @@ fit_reduced_mu_time <- gamlss_longitudinal(
   mu.formula = response ~ treatment + time,
   sigma.formula = ~ treatment + (time),
   nu.formula = ~ 1,
-  theta.formula = ~ (time)
+  theta.formula = ~ (time),
+  compute_vcov = FALSE
 )
 ```
 </details>
 
 
 ```{r benchmarking-models-centred}
-
-bench <- benchmark_standard_models(
-  data = dataset,
-  formula = response ~ treatment + time,
-  subject_var = "subject",
-  family = "gamma",
-  fit = fit_reduced_mu_time,
-  fit_name = "gamlss_long"
+benchmark_warnings <- character()
+bench <- withCallingHandlers(
+  benchmark_standard_models(
+    data = dataset,
+    formula = response ~ treatment + time,
+    subject_var = "subject",
+    family = "gamma",
+    fit = fit_reduced_mu_time,
+    fit_name = "gamlss_long"
+  ),
+  warning = function(w) {
+    benchmark_warnings <<- c(benchmark_warnings, conditionMessage(w))
+    invokeRestart("muffleWarning")
+  }
 )
+if (length(benchmark_warnings)) {
+  cat("Recorded benchmark warnings:\n")
+  cat(paste0("- ", unique(benchmark_warnings)), sep = "\n")
+  cat("\n\n")
+}
 print(bench)
 ```
 

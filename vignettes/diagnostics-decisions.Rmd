@@ -11,7 +11,9 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  eval = FALSE
+  fig.width = 8,
+  fig.height = 6,
+  message = FALSE
 )
 ```
 
@@ -19,6 +21,52 @@ We provide a range of diagnostics for reviewing `gamlss.longitudinal` fits,
 grouped into marginal diagnostics and diagnostics for the joint dependence fit.
 
 We provide an example review of key diagnostics for an example dataset as a part of the detailed workflow here: [Detailed worked example](native-simulation-workflow.html). The goal of this page is as a reference to outline the available methods and provide brief details on how they operate.
+
+The examples below use this small reproducible fit:
+
+```{r diagnostic-example-fit}
+library(gamlss.longitudinal)
+library(gamlss.dist)
+
+dat <- simulate_longitudinal_dataset(
+  n = 60,
+  times = 0:2,
+  margin_dist = NO(),
+  copula_dist = "N",
+  covariates = function(d) {
+    simulate_longitudinal_covariates(
+      d,
+      subject = list(
+        treatment = function(s) {
+          factor(
+            rep(c("control", "active"), length.out = nrow(s)),
+            levels = c("control", "active")
+          )
+        }
+      )
+    )
+  },
+  margin_params = list(
+    mu = function(d) 1 + 0.35 * (d$treatment == "active") + 0.2 * d$time,
+    sigma = 0.7
+  ),
+  copula_params = list(theta = 0.3),
+  seed = 2026
+)
+
+fit <- gamlss_longitudinal(
+  data = dat,
+  margin_dist = NO(),
+  copula_dist = "N",
+  time_var = "time",
+  subject_var = "subject",
+  optimization = "joint",
+  mu.formula = response ~ treatment + time,
+  sigma.formula = ~ 1,
+  theta.formula = ~ 1,
+  verbose = 0
+)
+```
 
 In general we suggest the following checks for any model:
 
@@ -53,7 +101,7 @@ into pass/fail decisions.
 For discrete margins, `check_model()` uses randomized PIT values with a recorded seed and preserves the caller's random-number state. Dependence lags without usable pairs are retained with an explicit `scope_status`. A user may supply `dependence_cor_cutoff`, but any resulting `flagged` status is a user-defined review flag, not a formal test or a package verdict.
 
 ```{r check}
-check <- check_model(fit)
+check <- check_model(fit, include_vcov = FALSE)
 
 check
 check$basic_checks
@@ -73,9 +121,18 @@ The marginal fit affects both the margin and the copula, as the copula relies on
 - Wormplot, which can be viewed as a 'higher resolution' version of a QQ-plot which includes reference ranges and should have points within the reference ranges, ideally without persistent trends away from the centre line 
 - Rootogram, showing the difference in the binned distribution for the observed versus fitted distribution (these should centre on zero without significant trending deviation)
 
-The default `plot()` function plots the diagnostics over the whole distribution, but there is the option to facet the plots by time to assess fit across the longitudinal timepoints to review any issues over repeated observations.
+The default dashboard displays all four marginal diagnostics and is executable
+here:
 
-```{r marginal-diagnostics-bytime}
+```{r marginal-dashboard}
+plot(fit)
+```
+
+Systematic departures can motivate review of the marginal family or formulas;
+isolated points or sampling variation are not automatic evidence that the model
+must be changed. The individual helpers can also facet diagnostics by time.
+
+```{r marginal-diagnostics-bytime, eval=FALSE}
 rootogram(fit, by_time = TRUE)
 pithist(fit, by_time = TRUE)
 qqrplot(fit, by_time = TRUE)
@@ -84,20 +141,25 @@ wormplot(fit, by_time = TRUE)
 
 We also provide the option to facet each of the diagnostics by a covariate using `by="covariate_name"`. Note that when including a variable to facet by, it's required to provide the original dataset as we don't expose all covariates as part of the fitted object.
 
-```{r marginal-diagnostics-bycovariate}
+```{r marginal-diagnostics-bycovariate, eval=FALSE}
 pithist(fit, by = "treatment", data = dat)
 qqrplot(fit, by = "treatment", data = dat)
 wormplot(fit, by = "treatment", data = dat)
 rootogram(fit, by = "treatment", data = dat)
 ```
 
-If any of the above diagnostics are of concern then marginal fit needs to be adjusted. Review options for `margin_dist` or coefficient fits for available parameters `mu.formula`, `sigma.formula`, `nu.formula` and/or `tau.formula`.
+Persistent, substantively important patterns may motivate sensitivity analyses
+with alternative `margin_dist` families or formulas for `mu`, `sigma`, `nu`,
+or `tau`. Diagnostics are evidence to interpret, not a universal adjustment
+rule.
 
 ## Dependence structure diagnostics
 
 The copula structure specified by `copula_dist` should capture the shape of the dependence after the marginal shape is removed, with `theta.formula` and `zeta.formula` allowing the shape to vary with time or other covariates.
 
-In the same way as a margin, we expect the residual trends remaining in our dependence structure after imposing our dependence fit to be essentially random,
+After a well-specified dependence fit, systematic residual dependence should be
+limited. Near-zero residual correlations are a useful necessary check, but they
+do not prove that the copula is correct.
 
 `plot_copula_diagnostics(fit)` provides a compact four-panel overview. The
 complete dashboard is requested with `type = "all"` and includes:
@@ -105,13 +167,19 @@ complete dashboard is requested with `type = "all"` and includes:
 - Fitted copula overlaid on a histogram of the dependence (fitted contours should follow density of the histogram)
 - Quantiles (deciles) of fitted Kendall's tau (correlation) for the fitted versus observed copula (observed and fitted should broadly be in line)
 - Rosenblatt z-scores by timepoint and overall Rosenblatt normal QQ which should be normally distributed (these take into account the correlation structure for timepoints beyond the first)
-- Rosenblatt lag plot showing Rosenblatt z-scores for each time point against the lagged timepoint which should should zero correlation, as well as residual dependence by lag which should show close to zero residual correlation
+- Rosenblatt lag plot and residual-dependence summaries, where systematic
+  remaining association may indicate an incomplete dependence specification
 - Sorted empirical versus fitted copula probabilities scatterplot which should closely track the centre line
 - Tail co-occurrence and exceedance, essentially the fitted versus observed probability of observations landing in the upper and lower tails of the dependence structure
 
 ```{r dependence}
-plot_copula_diagnostics(fit)
-plot_copula_diagnostics(fit, type = "all", ncol = 3)
+plot_copula_diagnostics(fit, residual_lags = 1:2)
+plot_copula_diagnostics(
+  fit,
+  type = "all",
+  residual_lags = 1:2,
+  ncol = 3
+)
 ```
 
 Focused dashboards are also available through `type = "calibration"`,
