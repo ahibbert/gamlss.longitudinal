@@ -2078,8 +2078,59 @@ jss_recovery_write_manuscript_assets <- function(bundle_dir, settings) {
     study <- unique(status$study_id[grepl(tolower(margin), tolower(status$study_id), fixed = TRUE)])
     fx <- fixed[fixed$study_id %in% study, ]
     sm <- smooth[smooth$study_id %in% study, ]
-    p_fixed <- ggplot2::ggplot(fx, ggplot2::aes(x = term, y = bias, colour = method, shape = method)) + ggplot2::geom_hline(yintercept = 0, linetype = 2) + ggplot2::geom_point(position = ggplot2::position_dodge(width = 0.4)) + ggplot2::facet_wrap(~parameter, scales = "free_y") + ggplot2::scale_x_discrete(labels = function(x) sub("_scaled$", "", x)) + ggplot2::theme_bw() + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 30, hjust = 1)) + ggplot2::labs(x = NULL, y = "Bias", subtitle = "Converged, complete, publication-retained attempts only")
-    p_smooth <- ggplot2::ggplot(sm, ggplot2::aes(x = parameter, y = irmse, fill = method)) + ggplot2::geom_col(position = "dodge") + ggplot2::theme_bw() + ggplot2::labs(x = NULL, y = "Integrated RMSE", subtitle = "Authoritative main-recovery attempt set")
+    methods <- unique(as.character(c(fx$method, sm$method)))
+    package_method <- methods %in% c("gamlss.longitudinal", "ours_rs_joint")
+    method_colours <- stats::setNames(
+      ifelse(package_method, "#0072B2", "#3C4858"),
+      methods
+    )
+    method_shapes <- stats::setNames(ifelse(package_method, 17, 16), methods)
+    method_labels <- c(
+      gamlss.longitudinal = "gamlss.longitudinal",
+      ours_rs_joint = "gamlss.longitudinal",
+      gamlss2 = "gamlss2",
+      gamlss = "gamlss"
+    )
+    p_fixed <- ggplot2::ggplot(
+      fx,
+      ggplot2::aes(x = term, y = bias, colour = method, shape = method)
+    ) +
+      ggplot2::geom_hline(
+        yintercept = 0,
+        linetype = "dashed",
+        colour = "#D55E00",
+        linewidth = 0.45
+      ) +
+      ggplot2::geom_point(position = ggplot2::position_dodge(width = 0.4), size = 2) +
+      ggplot2::facet_wrap(~parameter, scales = "free_y") +
+      ggplot2::scale_x_discrete(labels = function(x) sub("_scaled$", "", x)) +
+      ggplot2::scale_colour_manual(values = method_colours, labels = method_labels) +
+      ggplot2::scale_shape_manual(
+        values = method_shapes,
+        labels = method_labels
+      ) +
+      gamlss.longitudinal::theme_gamlss_longitudinal(base_size = 10) +
+      ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 30, hjust = 1)) +
+      ggplot2::labs(
+        x = NULL,
+        y = "Bias",
+        colour = NULL,
+        shape = NULL,
+        subtitle = "Converged, complete, publication-retained attempts only"
+      )
+    p_smooth <- ggplot2::ggplot(
+      sm,
+      ggplot2::aes(x = parameter, y = irmse, fill = method)
+    ) +
+      ggplot2::geom_col(position = "dodge") +
+      ggplot2::scale_fill_manual(values = method_colours, labels = method_labels) +
+      gamlss.longitudinal::theme_gamlss_longitudinal(base_size = 10) +
+      ggplot2::labs(
+        x = NULL,
+        y = "Integrated RMSE",
+        fill = NULL,
+        subtitle = "Authoritative main-recovery attempt set"
+      )
     index <- if (margin == "BCPE") 1:2 else 3:4
     ggplot2::ggsave(figure_paths[index[[1]]], p_fixed, width = 9, height = 5.5, dpi = 180)
     ggplot2::ggsave(figure_paths[index[[2]]], p_smooth, width = 8, height = 5, dpi = 180)

@@ -1,22 +1,33 @@
 jss_run_public_workflow_figures <- function(settings) {
   set.seed(settings$seed + 1L)
   intro <- file.path(settings$figures_dir, "intro - copula examples.png")
-  grDevices::png(intro, width = 2400, height = 650, res = 220, bg = "white")
-  old <- graphics::par(mfrow = c(1, 4), mar = c(3, 3, 2, 1))
-  on.exit(graphics::par(old), add = TRUE)
   examples <- list(
     list(name = "Gaussian", family = 1, par = sin(pi / 4), par2 = 0),
     list(name = "Student t (df = 4)", family = 2, par = sin(pi / 4), par2 = 4),
     list(name = "Clayton", family = 3, par = 2, par2 = 0),
     list(name = "Gumbel", family = 4, par = 2, par2 = 0)
   )
-  for (example in examples) {
+  intro_data <- do.call(rbind, lapply(examples, function(example) {
     uv <- VineCopula::BiCopSim(450, family = example$family, par = example$par, par2 = example$par2)
-    graphics::plot(uv[, 1], uv[, 2], pch = 16, cex = 0.35,
-      col = grDevices::adjustcolor("#0072B2", 0.45), xlab = "u", ylab = "v",
-      main = example$name)
-  }
-  grDevices::dev.off()
+    data.frame(u_t = uv[, 1], u_next = uv[, 2], copula = example$name)
+  }))
+  intro_data$copula <- factor(intro_data$copula, levels = vapply(examples, `[[`, character(1), "name"))
+  intro_plot <- ggplot2::ggplot(intro_data, ggplot2::aes(.data$u_t, .data$u_next)) +
+    ggplot2::geom_point(colour = "#0072B2", alpha = 0.42, size = 0.55) +
+    ggplot2::facet_wrap(~copula, nrow = 1) +
+    ggplot2::coord_equal(xlim = c(0, 1), ylim = c(0, 1), expand = FALSE) +
+    ggplot2::scale_x_continuous(
+      breaks = c(0, 0.5, 1),
+      labels = c("0", ".5", "1")
+    ) +
+    ggplot2::scale_y_continuous(
+      breaks = c(0, 0.5, 1),
+      labels = c("0", ".5", "1")
+    ) +
+    ggplot2::labs(x = expression(U[t]), y = expression(U[t + 1])) +
+    gamlss.longitudinal::theme_gamlss_longitudinal(base_size = 10) +
+    ggplot2::theme(panel.spacing.x = grid::unit(8, "pt"))
+  ggplot2::ggsave(intro, intro_plot, width = 10.8, height = 3.1, dpi = 220, bg = "white")
 
   set.seed(settings$seed + 2L)
   dat <- gamlss.longitudinal::simulate_longitudinal_dataset(

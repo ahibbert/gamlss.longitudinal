@@ -96,7 +96,23 @@ print.gamlss_longitudinal_model_spec <- function(x, digits = max(3, getOption("d
 
   if (!is.null(x$formulas) && length(x$formulas) > 0L) {
     cat("\nFormulas\n")
-    print(vapply(x$formulas, function(f) paste(deparse(f), collapse = " "), character(1)))
+    formula_text <- vapply(
+      x$formulas,
+      function(f) {
+        if (is.character(f) && length(f) == 1L) {
+          f
+        } else {
+          paste(deparse(f), collapse = " ")
+        }
+      },
+      character(1)
+    )
+    formula_table <- data.frame(
+      parameter = names(formula_text),
+      formula = unname(formula_text),
+      stringsAsFactors = FALSE
+    )
+    print(formula_table, row.names = FALSE, right = FALSE, quote = FALSE)
   }
   if (!is.null(x$margin_links) && nrow(x$margin_links) > 0L) {
     cat("\nMargin links\n")

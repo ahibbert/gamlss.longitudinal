@@ -47,6 +47,14 @@ test_that("model_spec builds printable fitted-model audit metadata", {
   expect_identical(spec$missingness$n_nonfinite_response, 1L)
   expect_equal(spec$margin_links$parameter, c("mu", "sigma"))
   expect_true(any(grepl("<Model specification>", printed, fixed = TRUE)))
+  expect_true(any(grepl("mu.*y ~ x", printed)))
+  expect_false(any(grepl('"y ~ x"', printed, fixed = TRUE)))
+
+  character_formula_spec <- spec
+  character_formula_spec$formulas <- list(mu = "y ~ x", sigma = "~ 1")
+  character_printed <- capture.output(print(character_formula_spec))
+  expect_true(any(grepl("mu.*y ~ x", character_printed)))
+  expect_false(any(grepl('"y ~ x"', character_printed, fixed = TRUE)))
 
   old_spec <- spec
   old_spec$optimisation <- old_spec$optimization

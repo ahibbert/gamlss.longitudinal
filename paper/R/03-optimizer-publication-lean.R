@@ -443,28 +443,47 @@ jss_optimizer_lean_validate <- function(data_dir, tables_dir, figures_dir) {
 }
 
 jss_optimizer_lean_write_figure <- function(uncertainty, path) {
+  colours <- c(observed = "#3C4858", fitted = "#0072B2", reference = "#D55E00")
   selected <- uncertainty[
     uncertainty$comparison_type == "paired_optimizer_difference" &
       uncertainty$metric %in% c("train_joint_loglik", "test_log_score_per_obs",
         "heldout_variogram_score_p05", "train_rmse_theta"), , drop = FALSE]
+  metric_labels <- c(
+    train_joint_loglik = "Training joint log-likelihood",
+    test_log_score_per_obs = "Test log score per observation",
+    heldout_variogram_score_p05 = "Held-out variogram score (p = 0.5)",
+    train_rmse_theta = "Training dependence-parameter RMSE"
+  )
+  selected$metric <- factor(selected$metric, levels = names(metric_labels), labels = metric_labels)
+  selected$focal_case_id <- factor(
+    selected$focal_case_id,
+    levels = unique(selected$focal_case_id)
+  )
+  p <- ggplot2::ggplot(
+    selected,
+    ggplot2::aes(.data$focal_case_id, .data$estimate)
+  ) +
+    ggplot2::geom_hline(
+      yintercept = 0,
+      linetype = "dashed",
+      colour = colours[["reference"]],
+      linewidth = 0.45
+    ) +
+    ggplot2::geom_errorbar(
+      ggplot2::aes(ymin = .data$conf_low, ymax = .data$conf_high),
+      width = 0.12,
+      colour = colours[["observed"]]
+    ) +
+    ggplot2::geom_point(colour = colours[["fitted"]], size = 2.3) +
+    ggplot2::facet_wrap(~metric, scales = "free_y", ncol = 2) +
+    ggplot2::labs(
+      x = "Scenario",
+      y = "RS joint - RS separate",
+      subtitle = "Points are paired mean differences; bars are 95% intervals"
+    ) +
+    gamlss.longitudinal::theme_gamlss_longitudinal(base_size = 10)
   dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-  grDevices::png(path, width = 2400, height = 1800, res = 300)
-  on.exit(grDevices::dev.off(), add = TRUE)
-  old <- graphics::par(mfrow = c(2, 2), mar = c(4, 4, 3, 1))
-  on.exit(graphics::par(old), add = TRUE)
-  for (metric in unique(selected$metric)) {
-    x <- selected[selected$metric == metric, , drop = FALSE]
-    y_range <- range(c(x$conf_low, x$conf_high, 0), finite = TRUE)
-    graphics::plot(seq_len(nrow(x)), x$estimate, ylim = y_range, xaxt = "n",
-      xlab = "Scenario", ylab = "RS joint - RS separate", main = metric, pch = 19)
-    graphics::axis(1, at = seq_len(nrow(x)), labels = x$focal_case_id)
-    graphics::abline(h = 0, lty = 2, col = "grey40")
-    interval <- is.finite(x$conf_low) & is.finite(x$conf_high) & x$conf_low != x$conf_high
-    if (any(interval)) {
-      graphics::arrows(which(interval), x$conf_low[interval], which(interval), x$conf_high[interval],
-        angle = 90, code = 3, length = 0.04)
-    }
-  }
+  ggplot2::ggsave(path, p, width = 8, height = 6, dpi = 300, bg = "white")
   invisible(path)
 }
 
