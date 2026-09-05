@@ -19,7 +19,9 @@ This article gives an overview of the outputs that can be generated from a `gaml
 
 The quick reference is:
 
-- (ideally) use `check_model()` first to make sure there aren't any major errors flagged in the fitted model that may effect inference
+- first review the fitted object's convergence, missingness objective, boundary,
+  and covariance messages; optionally use `check_model()` for additional
+  descriptive calibration and residual-dependence summaries
 - use `summary()` and `confint()` for fixed-coefficient estimates and conditional standard errors and intervals
 - use `wald_test()` for coefficient hypotheses
 - use `likelihood_compare()` for ordered, nested likelihood-ratio comparisons;
@@ -208,7 +210,9 @@ As noted previously, `predict()` provides marginal fitted quantities; its condit
 
 If the subject of interest is behaviour of dependence under new datasets or forecast trajectories into later timepoints, then a simulation-based approach may be more appropriate.
 
-We provide tooling to simulate directly from a fitted `gamlss.longitudinal` fit with `simulate(fit)` or `simulate(fit,type="copula")`.
+We provide tooling to simulate complete response trajectories directly from a
+fitted `gamlss.longitudinal` object with `simulate(fit)`. These simulations use
+both the fitted marginal distributions and copula dependence structure.
 
 ```{r simulate}
 sim <- simulate(
