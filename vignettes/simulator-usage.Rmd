@@ -15,7 +15,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-This article covers two simulation use cases:
+This article covers three simulation use cases:
 
 1. Simulation of a new dataset with gamlss margins and copula dependence
 2. Simulation from a fitted `gamlss.longitudinal` model for the fitted dataset
@@ -214,4 +214,16 @@ head(cbind(future_panel[c("subject", "time")], sim_future))
 
 ### Missing data / observations handling
 
-The `gamlss.longitudinal` model relies on first order copula dependence to generate adjacent time points. If there are missing adjacent observations then the link between observations for an individual before and after that missing timepoint will be broken (i.e. independent) as we do not model dependence beyond the first order, but remaining observations that are adjacent will respect the dependence structure. 
+The fitted model uses first-order copula dependence between consecutive
+scheduled observations. Complete panels and observed prefixes followed by
+dropout use the ordinary likelihood. Intermittent gaps or leading unobserved
+scheduled visits are rejected by default rather than silently changing the
+likelihood. With the explicit `missingness = "segment"` contract, separate
+contiguous observed segments are treated as independent during estimation.
+
+These rules govern estimation rather than missingness generation. `simulate()`
+returns model-implied complete response trajectories for the fitted or supplied
+panel; it does not reproduce the original missingness process unless the user
+reapplies one. Parameters from a segmented fit still inherit that estimation
+assumption. Numerical integration of dependence across gaps is not currently
+implemented.

@@ -15,22 +15,32 @@ knitr::opts_chunk$set(
 )
 ```
 
-We provide a range of diagnostics for assessing the validity of `gamlss.longitudinal` fits, generally grouped by whether they are marginal diagnostics (which are similar to many other marginal modelling package) or diagnostics for the joint fit which includes dependence.
+We provide a range of diagnostics for reviewing `gamlss.longitudinal` fits,
+grouped into marginal diagnostics and diagnostics for the joint dependence fit.
 
 We provide an example review of key diagnostics for an example dataset as a part of the detailed workflow here: [Detailed worked example](native-simulation-workflow.html). The goal of this page is as a reference to outline the available methods and provide brief details on how they operate.
 
 In general we suggest the following checks for any model:
 
-- `check_model(fit)` provides descriptive numerical summaries of the marginal and dependence fit and is a good starting point for review
-- `summary(fit)` naturally is an important starting point for reviewing fit likelihood, coefficients and their significance to them model
+- the fitted object and `summary(fit)` report convergence, likelihood,
+  coefficients, covariance provenance, and fit-time warning conditions
+- `check_model(fit)` optionally collects descriptive numerical summaries of
+  marginal calibration and residual dependence in a structured report
 - `plot_terms(fit)` provides a visual assessment of the fitted model coefficients and their confidence intervals
 - `plot(fit)` provides a faceted plot of visual marginal fit diagnostics
 - `plot_copula_diagnostics(fit)` provides a plot of visual joint distribution and dependence fit diagnostics
 
 
-## Basic checks
+## Fit-time status and optional numerical diagnostics
 
-We provide a brief diagnostic summary using `check_model()`. It is deliberately descriptive and should be used alongside graphical diagnostics and subject-matter review. The package does not convert PIT or tail summaries into pass/fail decisions.
+Non-convergence, segmented missingness assumptions, boundary behavior, and
+unavailable covariance calculations are reported by the fit itself. They do
+not require `check_model()` to be detected.
+
+Use `check_model()` when a compact numerical diagnostic report is useful. It
+is deliberately descriptive and should be used alongside graphical diagnostics
+and subject-matter review. The package does not convert PIT or tail summaries
+into pass/fail decisions.
 
 | Area | Quantity reported | Default interpretation | Status |
 |---|---|---|---|
@@ -75,10 +85,10 @@ wormplot(fit, by_time = TRUE)
 We also provide the option to facet each of the diagnostics by a covariate using `by="covariate_name"`. Note that when including a variable to facet by, it's required to provide the original dataset as we don't expose all covariates as part of the fitted object.
 
 ```{r marginal-diagnostics-bycovariate}
-pithist(fit, by="treatment", data=dataset)
-qqrplot(fit, by="treatment", data=dataset)
-wormplot(fit, by="treatment", data=dataset)
-rootogram(fit, by="treatment", data=dataset)
+pithist(fit, by = "treatment", data = dat)
+qqrplot(fit, by = "treatment", data = dat)
+wormplot(fit, by = "treatment", data = dat)
+rootogram(fit, by = "treatment", data = dat)
 ```
 
 If any of the above diagnostics are of concern then marginal fit needs to be adjusted. Review options for `margin_dist` or coefficient fits for available parameters `mu.formula`, `sigma.formula`, `nu.formula` and/or `tau.formula`.
@@ -89,9 +99,10 @@ The copula structure specified by `copula_dist` should capture the shape of the 
 
 In the same way as a margin, we expect the residual trends remaining in our dependence structure after imposing our dependence fit to be essentially random,
 
-`plot_copula_diagnostics(fit)` provides a detailed set of diagnostics for the dependence structure, including:
+`plot_copula_diagnostics(fit)` provides a compact four-panel overview. The
+complete dashboard is requested with `type = "all"` and includes:
 
-- Fitted copula overlayed on a histogram of the dependence (fitted contours should follow density of the histogram)
+- Fitted copula overlaid on a histogram of the dependence (fitted contours should follow density of the histogram)
 - Quantiles (deciles) of fitted Kendall's tau (correlation) for the fitted versus observed copula (observed and fitted should broadly be in line)
 - Rosenblatt z-scores by timepoint and overall Rosenblatt normal QQ which should be normally distributed (these take into account the correlation structure for timepoints beyond the first)
 - Rosenblatt lag plot showing Rosenblatt z-scores for each time point against the lagged timepoint which should should zero correlation, as well as residual dependence by lag which should show close to zero residual correlation
@@ -99,7 +110,16 @@ In the same way as a margin, we expect the residual trends remaining in our depe
 - Tail co-occurrence and exceedance, essentially the fitted versus observed probability of observations landing in the upper and lower tails of the dependence structure
 
 ```{r dependence}
-plot_copula_diagnostics(fit, data = dat)
+plot_copula_diagnostics(fit)
+plot_copula_diagnostics(fit, type = "all", ncol = 3)
 ```
 
-Any concerns in these diagnostics indicate lack of fit for the dependence, or potentially, the margin fit affecting the dependence fit. If marginal checks are reasonable, then adjustments to copula should include assessing alternative copula shapes, i.e. `copula_dist`, or adjusting parameter covariates for `theta.formula` or `zeta.formula`.
+Focused dashboards are also available through `type = "calibration"`,
+`type = "residuals"`, or `type = "tails"`. The returned object contains the
+individual plots and their data summaries. Use `time_stratified = TRUE` or
+`by = "covariate"` with `data = dat` when a stratified assessment is needed.
+
+Concerns in these diagnostics may indicate lack of fit for the dependence, or
+an aspect of marginal fit affecting the dependence assessment. If marginal
+checks are reasonable, consider alternative copula shapes through
+`copula_dist`, or different covariates for `theta.formula` or `zeta.formula`.
