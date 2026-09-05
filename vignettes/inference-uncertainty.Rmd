@@ -31,7 +31,8 @@ The quick reference is:
 - use `predict(..., se.fit = TRUE, interval = "confidence")` for conditional,
   fixed-`mu` confidence limits, and use fitted quantiles for plug-in descriptions
   of response variation; these are different from future-observation prediction intervals
-- use `marginal_effects(..., se.fit = TRUE)` for averaged response against covariates
+- use `marginal_effects(..., se.fit = TRUE)` to standardize a selected
+  distribution-specific parameter across covariate scenarios
 - use `simulate()` for simulating replicates from the fitted model
 
 ## Variance-covariance and standard errors
@@ -191,7 +192,15 @@ predict(fit, newdata = dat, type = "probability", q = 10, direction = "above")
 
 ## Averaged predictions (marginal effects)
 
-`marginal_effects()` reports averaged fitted values across supplied counterfactual rows. With `se.fit = TRUE`, its uncertainty is an exploratory aggregation of rowwise fixed-`mu` delta-method standard errors. It omits cross-row covariance as well as non-`mu`, smooth, fixed-smooth, and smoothing-parameter uncertainty, so it should not be presented as unconditional all-parameter inference.
+`marginal_effects()` reports averages of a selected distribution-specific
+parameter across supplied counterfactual rows. In the example below it
+standardizes fitted `mu`; `mu` is not necessarily the response mean, and this
+contrast is not automatically causal. Use counterfactual datasets with
+`predict(type = "mean")` when the target is an average fitted response. With
+`se.fit = TRUE`, the reported uncertainty is an exploratory aggregation of
+rowwise fixed-`mu` delta-method standard errors. It omits cross-row covariance
+as well as non-`mu`, smooth, fixed-smooth, and smoothing-parameter uncertainty,
+so it should not be presented as unconditional all-parameter inference.
 
 ```{r marginal-effects}
 eff <- marginal_effects(
@@ -208,11 +217,15 @@ eff
 
 As noted previously, `predict()` provides marginal fitted quantities; its conditional fixed-`mu` confidence limits do not preserve dependence for new trajectories.
 
-If the subject of interest is behaviour of dependence under new datasets or forecast trajectories into later timepoints, then a simulation-based approach may be more appropriate.
+If the quantity of interest is the behavior of dependence in new model-implied
+datasets or under supplied covariate scenarios, simulation may be appropriate.
 
 We provide tooling to simulate complete response trajectories directly from a
 fitted `gamlss.longitudinal` object with `simulate(fit)`. These simulations use
-both the fitted marginal distributions and copula dependence structure.
+both the fitted marginal distributions and copula dependence structure. With
+`newdata`, they remain unconditional scenario trajectories: they do not
+condition later outcomes on a subject's earlier observed responses and are not
+subject-specific forecasts.
 
 ```{r simulate}
 sim <- simulate(
