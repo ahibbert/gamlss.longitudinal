@@ -897,6 +897,8 @@ sim_model <- simulate(fit, nsim = 5, seed = 1)
 head(sim_model)
 ```
 
+\newpage
+
 ## Final remarks
 
 Thanks for reviewing our detailed worked example. 
