@@ -177,6 +177,14 @@ test_that("RS inner-loop continuation helper preserves first-run and tolerance l
     inner_run_counter = 6L,
     max_inner_iter = 5L
   ))
+
+  expect_false(gamlss.longitudinal:::.gl_should_continue_rs_inner_loop(
+    first_inner_run = FALSE,
+    change_log_lik = NaN,
+    inner_stop_crit = 0.1,
+    inner_run_counter = 2L,
+    max_inner_iter = 5L
+  ))
 })
 
 test_that("RS outer-loop continuation helper preserves first-run and tolerance logic", {

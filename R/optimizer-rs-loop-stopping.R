@@ -45,7 +45,7 @@
     inner_stop_crit,
     inner_run_counter,
     max_inner_iter) {
-  (isTRUE(first_inner_run) || abs(change_log_lik) > inner_stop_crit) &&
+  (isTRUE(first_inner_run) || isTRUE(abs(change_log_lik) > inner_stop_crit)) &&
     inner_run_counter <= max_inner_iter
 }
 
