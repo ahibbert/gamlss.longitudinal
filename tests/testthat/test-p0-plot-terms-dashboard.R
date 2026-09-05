@@ -61,3 +61,8 @@ test_that("plot term dashboard helpers preserve plot order and layout metadata",
   expect_true(paginated_layout$paginate)
   expect_null(.plot_terms_dashboard_layout(list()))
 })
+
+test_that("plot_terms uses a balanced three-column dashboard by default", {
+  expect_identical(formals(plot_terms)$ncol, 3)
+  expect_identical(formals(gamlss.longitudinal:::.plot_terms_gamlss_longitudinal)$ncol, 3)
+})

@@ -645,6 +645,8 @@ jss_missingness_production_gate <- function(input, root = getwd())
   jss_missingness_validate_public_bundle(input, root = root)
 
 jss_run_04_missingness_from_public_inputs <- function(settings) {
+  method_colours <- c(gamlss2 = "#3C4858", gamlss.longitudinal = "#0072B2")
+  method_labels <- c(gamlss2 = "gamlss2", gamlss.longitudinal = "gamlss.longitudinal")
   input <- file.path(settings$public_data_dir, "missingness")
   validated <- jss_missingness_validate_public_bundle(input, settings$root)
   fixed <- validated$tables[["fixed_term_summary_by_missingness.csv"]]
@@ -663,9 +665,15 @@ jss_run_04_missingness_from_public_inputs <- function(settings) {
     ggplot2::geom_line(linewidth = .7) + ggplot2::geom_point(size = 1.9) +
     ggplot2::facet_grid(parameter ~ mechanism_panel, scales = "free_y") +
     ggplot2::scale_x_continuous(breaks = seq(0, 50, 10)) +
+    ggplot2::scale_colour_manual(
+      values = method_colours,
+      labels = method_labels
+    ) +
+    ggplot2::scale_shape_manual(values = c(gamlss2 = 16, gamlss.longitudinal = 17)) +
     ggplot2::labs(x = "Target missingness (%)", y = "Conditional fixed-effect RMSE",
       colour = NULL, shape = NULL) +
-    ggplot2::theme_bw(base_size = 10) + ggplot2::theme(legend.position = "top")
+    ggplot2::guides(shape = "none") +
+    gamlss.longitudinal::theme_gamlss_longitudinal(base_size = 10)
   dir.create(settings$figures_dir, recursive = TRUE, showWarnings = FALSE)
   f1 <- file.path(settings$figures_dir, "fixed_margin_rmse_by_missingness.png")
   ggplot2::ggsave(f1, p1, width = 8.5, height = 5.5, dpi = 180, bg = "white")
@@ -678,12 +686,20 @@ jss_run_04_missingness_from_public_inputs <- function(settings) {
   )[smooth$missing_mechanism])
   smooth_plot <- smooth[is.finite(smooth$smooth_true) & is.finite(smooth$smooth_median), , drop = FALSE]
   p2 <- ggplot2::ggplot(smooth_plot, ggplot2::aes(s1)) +
-    ggplot2::geom_line(ggplot2::aes(y = smooth_true), colour = "black", linewidth = .75) +
+    ggplot2::geom_line(
+      ggplot2::aes(y = smooth_true),
+      colour = "#3C4858",
+      linewidth = .75
+    ) +
     ggplot2::geom_line(ggplot2::aes(y = smooth_median, colour = model),
       linewidth = .75, linetype = "dashed") +
     ggplot2::facet_grid(parameter + mechanism_panel ~ missing_label, scales = "free_y") +
+    ggplot2::scale_colour_manual(
+      values = method_colours,
+      labels = method_labels
+    ) +
     ggplot2::labs(x = "s1", y = "Centered smooth", colour = NULL) +
-    ggplot2::theme_bw(base_size = 10) + ggplot2::theme(legend.position = "top")
+    gamlss.longitudinal::theme_gamlss_longitudinal(base_size = 10)
   f2 <- file.path(settings$figures_dir, "smooth_selected_recovery_curves.png")
   ggplot2::ggsave(f2, p2, width = 8.5, height = 7, dpi = 180, bg = "white")
   staged <- jss_stage_04_missingness_data(input, settings)

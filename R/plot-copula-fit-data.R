@@ -124,9 +124,14 @@
       linewidth = 0.8,
       bins = contour_bins
     ) +
-    ggplot2::scale_fill_gradient(low = "#F7F9FB", high = .gl_plot_colours()[["observed"]], name = "Empirical") +
+    ggplot2::scale_fill_gradient(
+      low = "#F7F9FB",
+      high = .gl_plot_colours()[["observed"]],
+      guide = "none"
+    ) +
     ggplot2::labs(
       title = paste0("Copula Overlay: ", spec$family),
+      subtitle = "Darker bins show empirical density; blue contours show the fitted copula",
       x = x_label,
       y = y_label
     ) +
