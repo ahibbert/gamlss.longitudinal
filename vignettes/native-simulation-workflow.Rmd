@@ -448,6 +448,14 @@ independent observed segments. Intermittent gaps require the explicit
 `missingness = "segment"` sensitivity contract demonstrated in the separate
 missingness workflow.
 
+The default `optimization = "joint"` updates the marginal parameters against
+the joint margin-copula objective. Use `optimization = "separate"` only when
+you deliberately want the RS margin updates to exclude the copula contribution
+as a sensitivity analysis. Optimizer settings are grouped under
+`optimizer_control = gamlss_longitudinal_control(...)`; for example,
+`outer_tol` and `max_outer_iter` control the outer loop, while RS-specific
+settings belong in `rs = list(...)`.
+
 Let's begin by inspecting a fully specified model with factor terms for `time` and `treatment`, and a smooth term for `age` on every covariate, including the copula parameter.
 
 ```{r fit-model-factortime, results='hide'}
@@ -457,6 +465,7 @@ fit_fullyspecified <- gamlss_longitudinal(
   copula_dist = "N",
   time_var = "time",
   subject_var = "subject",
+  optimization = "joint",
   mu.formula = response ~ treatment + as.factor(time) + s(age),
   sigma.formula = ~ treatment + as.factor(time) + s(age),
   nu.formula = ~ treatment + as.factor(time) + s(age),
@@ -653,7 +662,17 @@ So the final selected model has smooth effects for age for `mu`, `sigma` and `th
 
 ## Review the fit
 
-We provide a brief descriptive diagnostic summary using `check_model()`. It should be used alongside graphical diagnostics and subject-matter review; calibration statistics are not package pass/fail verdicts.
+Conditions known while fitting are reported by the fit itself: for example,
+non-convergence, a segmented missingness objective, boundary behavior, or an
+unavailable covariance calculation. Those conditions belong in fit-time
+messages and warnings.
+
+`check_model()` has a narrower, optional post-fit role. It collects numerical
+fit summaries, PIT and tail calibration quantities, and residual dependence in
+one structured object. It does not refit the model, and its calibration
+statistics are not package pass/fail verdicts. Use it when a compact numerical
+report is helpful; it is not a prerequisite for calling the graphical
+diagnostics directly.
 
 | Area | Quantity reported | Default interpretation | Status |
 |---|---|---|---|
@@ -717,8 +736,50 @@ Marginal diagnostics:
 - Worm plot should be close to centre line without deviation, but we do see some deviation in the lower tail more clearly than we could see in the QQ plot
 - Rootogram seems generally centred around zero with no major trends or deviation spikes
 
-```{r fit-diagnostics-dependence, fig.width = 14, fig.height = 14, out.width = "95%"}
+The default copula diagnostic is a compact four-panel overview containing the
+empirical copula overlay, Kendall-function calibration, Rosenblatt normal QQ
+plot, and residual dependence by lag.
+
+```{r fit-diagnostics-dependence, fig.width = 11, fig.height = 9, out.width = "95%"}
 plot_copula_diagnostics(fit)
+```
+
+The remaining diagnostics have not been removed. Use `type = "calibration"`
+for the fitted-versus-observed dependence panels, `type = "residuals"` for the
+Rosenblatt diagnostics, `type = "tails"` for tail co-occurrence and conditional
+tail exceedance, or `type = "all"` for the complete nine-panel dashboard.
+
+```{r fit-diagnostics-dependence-all, fig.width = 14, fig.height = 14, out.width = "95%"}
+copula_diagnostics <- plot_copula_diagnostics(
+  fit,
+  type = "all",
+  ncol = 3
+)
+```
+
+The returned object also provides each component and its underlying summaries,
+so diagnostics can be composed or reported separately without recomputation.
+
+```{r fit-diagnostics-dependence-access}
+names(copula_diagnostics$plots)
+head(copula_diagnostics$tail_summary)
+head(copula_diagnostics$residual_lag_summary)
+```
+
+For focused review, the equivalent calls are:
+
+```{r fit-diagnostics-dependence-focused, eval=FALSE}
+plot_copula_diagnostics(fit, type = "calibration", ncol = 3)
+plot_copula_diagnostics(fit, type = "residuals", ncol = 2)
+plot_copula_diagnostics(fit, type = "tails", ncol = 2)
+
+# Stratify supported panels by consecutive time pair.
+plot_copula_diagnostics(
+  fit,
+  type = "calibration",
+  time_stratified = TRUE,
+  ncol = 1
+)
 ```
 
 All trends for fitted versus observed dependence appear close. There is one small deviation between the fit and the data in the lower tail that can be seen in the Rosenblatt normal QQ plot and the tail co-occurrence / exceedance plots for the lower plot where we are slightly underfitting it appears.
