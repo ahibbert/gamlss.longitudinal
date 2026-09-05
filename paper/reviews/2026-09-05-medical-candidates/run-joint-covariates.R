@@ -72,8 +72,8 @@ fit_one <- function(name, model, force = FALSE) {
     rs = list(
       inner_tol = 1e-5,
       max_inner_iter = 150L,
-      warm_start_joint = !identical(joint_spec$missingness, "segment"),
-      warm_start_joint_iter = if (identical(joint_spec$missingness, "segment")) 0L else 5L
+      warm_start_joint = TRUE,
+      warm_start_joint_iter = 5L
     )
   )
   attempt <- capture_fit(gamlss.longitudinal::gamlss_longitudinal(
