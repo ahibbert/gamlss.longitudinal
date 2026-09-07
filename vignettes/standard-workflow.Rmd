@@ -53,12 +53,11 @@ The dataset should be structured as one row per subject and timepoint. The datas
 - a visit, time, or occasion identifier;
 - any covariates for analysis.
 
-The ordered unique values of `time_var` define scheduled adjacency. Numeric
-spacing affects order only; a gap from day 1 to day 30 is not automatically
-given weaker dependence than a gap from day 1 to day 2. For factors, factor
-level order defines the schedule. Pair-level copula covariates are evaluated at
-the earlier (left) scheduled row. Encode elapsed-time effects explicitly in
-copula covariates when scientific time distance matters.
+The time variable tells the package which visit comes next. Numeric times are
+sorted, while factors use their level order. The model links each visit to the
+next scheduled visit; it does not automatically treat a 30-day gap as weaker
+than a 2-day gap. If the length of time between visits matters, include it in
+the copula model. Copula covariates for a pair are taken from the earlier visit.
 
 This workflow is designed to be able to be used on a dataset of your choice (with the suggested structure). Alternatively, the small simulated dataset below has the required structure and can be used to run the workflow end to end.
 
@@ -107,8 +106,12 @@ dat <- simulate_longitudinal_dataset(
 
 ```{r data-shape}
 # Review data completeness / counts by time, subject
-str(dat)
-table(dat$subject)
+head(dat, 10)
+c(
+  rows = nrow(dat),
+  subjects = length(unique(dat$subject)),
+  timepoints = length(unique(dat$time))
+)
 table(dat$time)
 ```
 
@@ -327,17 +330,19 @@ To visually review the fits for both margin and the dependence copula we provide
 
 For the copula we include empirical copula v fitted density and correlation by quantile, Rosenblatt residuals and lag plot, ordered fitted versus observed density, tail co-occurrence and exceedance, and residual dependence by lag.
 
-```{r plot-check}
+```{r plot-margin-check, fig.width=10, fig.height=8, out.width="100%"}
 # View margin diagnostics
 plot(fit)
+```
 
+```{r plot-copula-check, fig.width=11, fig.height=8, out.width="100%"}
 # View dependence diagnostics
 plot_copula_diagnostics(fit)
+```
 
+```{r plot-copula-all, fig.width=14, fig.height=13, out.width="100%"}
 # View the complete nine-panel dependence dashboard
 plot_copula_diagnostics(fit, type = "all", ncol = 3)
-
-
 ```
 
 Treat the output as a decision aid:
@@ -356,69 +361,69 @@ Multiple options are provided for prediction including on response and parameter
 
 ```{r applied-answers}
 # Predict the fitted response mean with confidence interval
-predict(
+head(predict(
   fit,
   newdata = dat,
   type = "mean",
   se.fit = TRUE,
   interval = "confidence"
-)
+), 10)
 
 # Predict the estimated GAMLSS parameter values for mu, sigma etc.
-predict(
+head(predict(
   fit,
   newdata = dat,
   type = "parameters"
-)
+), 10)
 
 # Predict the fitted GAMLSS mu parameter explicitly
-predict(
+head(predict(
   fit,
   newdata = dat,
   type = "mu"
-)
+), 10)
 
 # Predict specified quantiles
-predict(
+head(predict(
   fit,
   newdata = dat,
   type = "quantile",
   probs = c(0.1, 0.5, 0.9)
-)
+), 10)
 
 # Predict cdf
-predict(
+head(predict(
   fit,
   newdata = dat,
   type = "cdf",
   q = 10
-)
+), 10)
 
 # Predict probability density
-predict(
+head(predict(
   fit,
   newdata = dat,
   type = "density",
   y = 10
-)
+), 10)
 
 # Predict observation probability (either above or below response value)
-predict(
+head(predict(
   fit,
   newdata = dat,
   type = "probability",
   q = 10,
   direction = "above"
-)
+), 10)
 
 # Standardize the fitted distribution-specific mu parameter by treatment
-marginal_effects(
+head(marginal_effects(
   fit,
   newdata = dat,
   variable = "treatment",
   parameter = "mu",
   se.fit = TRUE
-)
+), 10)
 ```
 
 Here `marginal_effects(parameter = "mu")` averages the fitted
@@ -431,40 +436,7 @@ Simulate from the fitted model as desired, for a total of `nsim` replications. N
 
 ```{r simulation}
 sim_model <- simulate(fit, nsim = 100, seed = 1)
-```
-
-## Optional: Compare/benchmark to familiar models: gee (geepack), glmm (lme4), gam (mgcv)
-
-Since we know most users would be considering a longitudinal gamlss model as an alternative to existing solutions using gees, gam or glmms we provide easy to use comparison tools to benchmark longitudinal gamlss models to existing methods.
-
-The following optional benchmark fits several external models and is disabled
-during routine vignette builds because it requires suggested packages and
-additional runtime. Run the chunk interactively when the relevant comparator
-packages are installed.
-
-```{r comparator, eval=FALSE}
-# Fit comparison models and summarise fits for a model with linear age term
-bench_nosmooth <- benchmark_standard_models(
-  data = dat,
-  formula = response ~ treatment + time + age_scaled,
-  subject_var = "subject",
-  family = "gamma",
-  fit = fit_reduced
-)
-
-print(bench_nosmooth)
-
-# Fit comparison models and summarise fits for a model with smooth age term
-bench_smooth <- benchmark_standard_models(
-  data = dat,
-  formula = response ~ treatment + time + s(age_scaled),
-  subject_var = "subject",
-  family = "gamma",
-  fit = fit
-)
-
-print(bench_smooth)
-
+head(sim_model[, 1:3], 10)
 ```
 
 In general, the purpose of the `gamlss.longitudinal` model is to capture the
