@@ -325,12 +325,13 @@ p <- predict(
   interval = "confidence",
   level = 0.95
 )
-head(p)
+head(p, 10)
 ```
 
 `predict()` returns a marginal fit and does not condition on a subject's other responses or preserve a simulated trajectory. The fitted dependence model affects the estimated coefficients and their fixed-coefficient covariance, but the returned confidence limits do not represent trajectory dependence.
 
-If the quantity of interest is the dependence structure then simulation from the fitted object via `simulate(fit)` may provide the required functionality.
+If the question concerns complete model-implied trajectories rather than a
+row-level fitted summary, use `simulate(fit)`.
 
 ## Prediction of quantiles or tail probabilities
 
@@ -340,10 +341,28 @@ More flexible distributional models such as GAMLSS provide fitted marginal quant
 These distributional predictions are plug-in point summaries: they hold every fitted parameter fixed and do not include parameter, smooth, or model-selection uncertainty. A pair of fitted quantiles describes model-implied response variation; it is not a confidence interval for an estimated quantile.
 
 ```{r predict-distribution}
-predict(fit, newdata = dat, type = "quantile", probs = c(0.1, 0.5, 0.9))
-predict(fit, newdata = dat, type = "cdf", q = 10)
-predict(fit, newdata = dat, type = "density", y = 10)
-predict(fit, newdata = dat, type = "probability", q = 10, direction = "above")
+quantile_predictions <- predict(
+  fit,
+  newdata = dat,
+  type = "quantile",
+  probs = c(0.1, 0.5, 0.9)
+)
+head(quantile_predictions, 10)
+
+cdf_predictions <- predict(fit, newdata = dat, type = "cdf", q = 10)
+head(cdf_predictions, 10)
+
+density_predictions <- predict(fit, newdata = dat, type = "density", y = 10)
+head(density_predictions, 10)
+
+tail_predictions <- predict(
+  fit,
+  newdata = dat,
+  type = "probability",
+  q = 10,
+  direction = "above"
+)
+head(tail_predictions, 10)
 ```
 
 ## Averaged predictions (marginal effects)
@@ -366,7 +385,7 @@ eff <- marginal_effects(
   parameter = "mu",
   se.fit = TRUE
 )
-eff
+head(eff, 10)
 ```
 
 ## Dependence predictions
@@ -389,6 +408,68 @@ sim <- simulate(
   nsim = 100,
   seed = 1
 )
+head(sim[, 1:3], 10)
 ```
+
+The difference is easiest to see in this Normal-margin, Gaussian-copula
+example. `predict(type = "mean")` gives one fitted marginal mean for each row.
+By contrast, each column returned by `simulate()` is a complete random
+trajectory. The first value for a subject is drawn from its fitted margin, each
+following value is drawn from the fitted conditional copula, and the resulting
+uniform value is transformed through that row's fitted marginal distribution.
+
+For this intercept-only Gaussian copula, the fitted correlation can also be
+compared with the dependence seen across repeated simulations:
+
+```{r simulate-dependence-check}
+fitted_parameters <- predict(fit, newdata = dat, type = "parameters")
+simulated_uniforms <- vapply(
+  sim,
+  function(y) {
+    gamlss.dist::pNO(
+      y,
+      mu = fitted_parameters$mu,
+      sigma = fitted_parameters$sigma
+    )
+  },
+  numeric(nrow(dat))
+)
+
+ordered_rows <- order(dat$subject, dat$time)
+dat_ordered <- dat[ordered_rows, ]
+uniforms_ordered <- simulated_uniforms[ordered_rows, , drop = FALSE]
+
+# Adjacent rows that belong to the same subject
+left <- which(
+  as.character(dat_ordered$subject[-nrow(dat_ordered)]) ==
+    as.character(dat_ordered$subject[-1])
+)
+
+simulated_tau <- vapply(
+  seq_len(ncol(uniforms_ordered)),
+  function(j) {
+    cor(
+      uniforms_ordered[left, j],
+      uniforms_ordered[left + 1, j],
+      method = "kendall"
+    )
+  },
+  numeric(1)
+)
+
+fitted_rho <- tanh(coef(fit)[["theta.intercept"]])
+data.frame(
+  fitted_rho = fitted_rho,
+  model_implied_kendall_tau = 2 / pi * asin(fitted_rho),
+  mean_simulated_kendall_tau = mean(simulated_tau)
+)
+```
+
+The marginal CDF transform above removes the fitted row-level location and scale
+before calculating Kendall's tau. The simulated value will not match exactly in
+a finite sample, but it should be close to the dependence implied by the fitted
+copula. This checks adjacent visits. The current first-order model does not claim
+a separate unrestricted higher-order dependence structure, and simulation
+restarts independently after a gap in the scheduled visits.
 
 More details on simulation is available in the reference guide for [Simulator usage](simulator-usage.html).

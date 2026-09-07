@@ -172,8 +172,11 @@ complete dashboard is requested with `type = "all"` and includes:
 - Sorted empirical versus fitted copula probabilities scatterplot which should closely track the centre line
 - Tail co-occurrence and exceedance, essentially the fitted versus observed probability of observations landing in the upper and lower tails of the dependence structure
 
-```{r dependence}
+```{r dependence-compact, fig.width=11, fig.height=8, out.width="100%"}
 plot_copula_diagnostics(fit, residual_lags = 1:2)
+```
+
+```{r dependence-all, fig.width=14, fig.height=13, out.width="100%"}
 plot_copula_diagnostics(
   fit,
   type = "all",
