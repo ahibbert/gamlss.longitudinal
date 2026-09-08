@@ -64,10 +64,11 @@ calc_F_x <- function(eta_inv, mm, margin_dist, response) {
 
       FUN_args <- names(call_input)[names(call_input) %in% formalArgs(margin_pFUN)]
 
-      margin_p[valid_response] <- tryCatch(
-
-        do.call(margin_pFUN, args = call_input[FUN_args]),
-        error = function(e) rep(NA_real_, sum(valid_response))
+      margin_p[valid_response] <- .call_margin_family_cached(
+        margin_pFUN,
+        call_input,
+        FUN_args,
+        force_scalar = .gl_margin_requires_scalar_calls(margin_dist$family[1])
       )
     }
 
@@ -86,10 +87,11 @@ calc_F_x <- function(eta_inv, mm, margin_dist, response) {
 
   FUN_args <- names(margin_deriv_input)[names(margin_deriv_input) %in% formalArgs(FUN)]
 
-  margin_p <- tryCatch(
-
-    do.call(FUN, args = margin_deriv_input[FUN_args]),
-    error = function(e) rep(NA_real_, length(response))
+  margin_p <- .call_margin_family_cached(
+    FUN,
+    margin_deriv_input,
+    FUN_args,
+    force_scalar = .gl_margin_requires_scalar_calls(margin_dist$family[1])
   )
 
   return(margin_p)
