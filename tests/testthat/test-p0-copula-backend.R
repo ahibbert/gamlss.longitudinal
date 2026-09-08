@@ -110,6 +110,26 @@ test_that("Gaussian rectangle probabilities match VineCopula corner differences"
   expect_equal(.copula_rectangle_prob(u1, u2, l1, l2, "N", rho), pmax(expected, 1e-300), tolerance = 1e-10)
 })
 
+test_that("vectorized Gaussian CDF matches the bivariate-normal oracle", {
+  skip_if_not_installed("mvtnorm")
+
+  u1 <- c(1e-8, 0.05, 0.35, 0.8, 1 - 1e-8)
+  u2 <- c(0.7, 1e-7, 0.55, 0.99, 1 - 1e-7)
+  rho <- c(-0.75, -0.2, 0.1, 0.6, 0.9)
+  expected <- vapply(seq_along(u1), function(ii) {
+    as.numeric(mvtnorm::pmvnorm(
+      upper = c(stats::qnorm(u1[[ii]]), stats::qnorm(u2[[ii]])),
+      corr = matrix(c(1, rho[[ii]], rho[[ii]], 1), 2, 2)
+    ))
+  }, numeric(1))
+
+  expect_equal(
+    .copula_gaussian_cdf_cached(u1, u2, rho),
+    expected,
+    tolerance = 1e-12
+  )
+})
+
 test_that("fast Poisson family shortcuts match gamlss.dist calls", {
   skip_if_not_installed("gamlss.dist")
 
@@ -125,6 +145,97 @@ test_that("fast Poisson family shortcuts match gamlss.dist calls", {
     gamlss.dist::pPO(args$q, mu = args$mu),
     tolerance = 1e-14
   )
+})
+
+test_that("fast Delaporte CDF matches gamlss.dist across its parameter space", {
+  skip_if_not_installed("gamlss.dist")
+
+  grid <- expand.grid(
+    q = c(0, 1, 5, 20, 100, 500),
+    mu = c(0.1, 3, 50, 500),
+    sigma = c(0.01, 0.2, 1, 5),
+    nu = c(0.01, 0.25, 0.7, 0.99)
+  )
+  expected <- with(grid, gamlss.dist::pDEL(q, mu, sigma, nu))
+  actual <- with(
+    grid,
+    .call_fast_count_family("p", "DEL", list(
+      q = q, mu = mu, sigma = sigma, nu = nu
+    ))
+  )
+  expect_equal(actual, expected, tolerance = 1e-10)
+
+  log_survival <- with(
+    grid,
+    .call_fast_count_family("p", "DEL", list(
+      q = q, mu = mu, sigma = sigma, nu = nu,
+      lower.tail = FALSE, log.p = TRUE
+    ))
+  )
+  complement_stable <- expected < 1 - 1e-8
+  expect_equal(
+    exp(log_survival[complement_stable]),
+    1 - expected[complement_stable],
+    tolerance = 1e-10
+  )
+  expect_true(all(is.finite(log_survival)))
+})
+
+test_that("fast count-family paths cover every supported standard count margin", {
+  skip_if_not_installed("gamlss.dist")
+
+  cases <- list(
+    NBI = list(mu = seq(0.8, 5, length.out = 9), sigma = rep(c(1e-5, 0.4, 2), 3)),
+    ZIP = list(mu = seq(0.8, 5, length.out = 9), sigma = seq(0.05, 0.8, length.out = 9)),
+    ZAP = list(mu = seq(0.8, 5, length.out = 9), sigma = seq(0.05, 0.8, length.out = 9)),
+    ZINBI = list(
+      mu = seq(0.8, 5, length.out = 9),
+      sigma = rep(c(1e-5, 0.4, 2), 3),
+      nu = seq(0.05, 0.8, length.out = 9)
+    )
+  )
+  for (family in names(cases)) {
+    args <- c(list(x = 0:8, q = 0:8), cases[[family]])
+    density_args <- args[names(args) != "q"]
+    cdf_args <- args[names(args) != "x"]
+    density_fun <- get(paste0("d", family), envir = asNamespace("gamlss.dist"))
+    cdf_fun <- get(paste0("p", family), envir = asNamespace("gamlss.dist"))
+    scalar_density <- function(log = FALSE) {
+      vapply(seq_along(args$x), function(ii) {
+        row_args <- lapply(density_args, function(value) {
+          if (length(value) == 1L) value else value[[ii]]
+        })
+        do.call(density_fun, c(row_args, log = log))
+      }, numeric(1))
+    }
+
+    expect_equal(
+      .call_fast_count_family("d", family, args),
+      scalar_density(),
+      tolerance = 1e-12,
+      info = paste(family, "density")
+    )
+    expect_equal(
+      .call_fast_count_family("logd", family, args),
+      scalar_density(log = TRUE),
+      tolerance = 1e-12,
+      info = paste(family, "log density")
+    )
+    expect_equal(
+      .call_fast_count_family("p", family, args),
+      do.call(cdf_fun, cdf_args),
+      tolerance = 1e-12,
+      info = paste(family, "CDF")
+    )
+    expect_equal(
+      .call_fast_count_family(
+        "p", family, c(args, lower.tail = FALSE, log.p = TRUE)
+      ),
+      do.call(cdf_fun, c(cdf_args, lower.tail = FALSE, log.p = TRUE)),
+      tolerance = 1e-10,
+      info = paste(family, "log survival")
+    )
+  }
 })
 
 test_that("native Clayton backend matches VineCopula for implemented operations", {

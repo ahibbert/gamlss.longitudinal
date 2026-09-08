@@ -46,6 +46,64 @@
   })
 }
 
+#' Derive discrete CDF companions from one upper CDF and the point mass
+#'
+#' Uses F(y - 1) = F(y) - P(Y = y) and
+#' S(y - 1) = S(y) + P(Y = y). A directly evaluated upper-tail probability can
+#' be supplied for observations where subtracting the CDF from one is unstable.
+#'
+#' @noRd
+.gl_discrete_cdf_companions <- function(
+    upper,
+    mass,
+    log_mass = log(mass),
+    direct_log_survival = NULL,
+    tolerance = 1e-12) {
+  upper <- as.numeric(upper)
+  mass <- as.numeric(mass)
+  log_mass <- as.numeric(log_mass)
+  valid <- is.finite(upper) & is.finite(mass) &
+    upper >= -tolerance & upper <= 1 + tolerance & mass >= -tolerance
+  lower <- rep(NA_real_, length(upper))
+  lower[valid] <- upper[valid] - mass[valid]
+  lower[valid & lower > -tolerance & lower < 0] <- 0
+  lower[valid & lower > 1 & lower < 1 + tolerance] <- 1
+  valid_lower <- valid & lower >= 0 & lower <= 1
+
+  log_survival <- rep(NA_real_, length(upper))
+  log_survival_lower <- rep(NA_real_, length(upper))
+  valid_upper <- valid & upper >= 0 & upper <= 1
+  log_survival[valid_upper] <- log1p(-upper[valid_upper])
+  if (!is.null(direct_log_survival)) {
+    direct_log_survival <- as.numeric(direct_log_survival)
+    use_direct <- valid & !is.na(direct_log_survival) & direct_log_survival <= 0
+    log_survival[use_direct] <- direct_log_survival[use_direct]
+  }
+
+  valid_survival_lower <- valid_lower & !is.na(log_survival) &
+    !is.na(log_mass) & log_mass <= 0
+  if (any(valid_survival_lower)) {
+    maximum <- pmax(
+      log_survival[valid_survival_lower],
+      log_mass[valid_survival_lower]
+    )
+    both_zero <- is.infinite(maximum) & maximum < 0
+    combined <- rep(-Inf, length(maximum))
+    if (any(!both_zero)) {
+      combined[!both_zero] <- maximum[!both_zero] + log(
+        exp(log_survival[valid_survival_lower][!both_zero] - maximum[!both_zero]) +
+          exp(log_mass[valid_survival_lower][!both_zero] - maximum[!both_zero])
+      )
+    }
+    log_survival_lower[valid_survival_lower] <- combined
+  }
+  list(
+    lower = lower,
+    log_survival = log_survival,
+    log_survival_lower = log_survival_lower
+  )
+}
+
 #' @keywords internal
 #' @noRd
 .gl_likelihood_evaluate_margin_derivatives <- function(
@@ -167,72 +225,6 @@
   }
   margin_p[!is.finite(margin_p)] <- NA
 
-  margin_p_lower <- NULL
-  margin_log_survival <- NULL
-  margin_log_survival_lower <- NULL
-  likelihood_type <- "continuous_density"
-  if (discrete_margin) {
-    margin_deriv_input_lower <- margin_deriv_input
-    lower_response <- response - 1
-    margin_deriv_input_lower[["q"]] <- lower_response
-    margin_deriv_input_lower[["x"]] <- lower_response
-    margin_p_lower <- rep(NA_real_, length(response))
-    negative_lower <- obs_response & is.finite(lower_response) & lower_response < 0
-    margin_p_lower[negative_lower] <- 0
-    valid_lower <- obs_response & is.finite(lower_response) & lower_response >= 0
-    if (any(valid_lower)) {
-      lower_call_args <- .gl_likelihood_subset_row_input(
-        margin_deriv_input_lower, valid_lower, n_obs
-      )
-      lower_eval <- .call_fast_count_family("p", margin_dist$family[1], lower_call_args)
-      if (is.null(lower_eval)) {
-        lower_eval <- .call_margin_family_cached(
-          margin_eval_cache$margin_pFUN,
-          lower_call_args,
-          names(lower_call_args)[names(lower_call_args) %in% margin_eval_cache$margin_p_args],
-          cacheable = TRUE,
-          cache_env = margin_eval_cache$family_call_cache,
-          cache_prefix = paste0(margin_dist$family[1], ":p:lower")
-        )
-      }
-      margin_p_lower[valid_lower] <- lower_eval
-    }
-    margin_p_lower[!obs_response] <- NA
-    margin_p_lower[!is.finite(margin_p_lower)] <- NA
-
-    if (all(c("lower.tail", "log.p") %in% margin_eval_cache$margin_p_args)) {
-      survival_input <- observed_input
-      survival_input$lower.tail <- FALSE
-      survival_input$log.p <- TRUE
-      observed_log_survival <- .call_margin_family_cached(
-        margin_eval_cache$margin_pFUN,
-        survival_input,
-        names(survival_input)[names(survival_input) %in% margin_eval_cache$margin_p_args],
-        cacheable = FALSE,
-        cache_env = margin_eval_cache$family_call_cache,
-        cache_prefix = paste0(margin_dist$family[1], ":log-survival:upper")
-      )
-      lower_survival_input <- .gl_likelihood_subset_row_input(
-        margin_deriv_input_lower, obs_response, n_obs
-      )
-      lower_survival_input$lower.tail <- FALSE
-      lower_survival_input$log.p <- TRUE
-      observed_log_survival_lower <- .call_margin_family_cached(
-        margin_eval_cache$margin_pFUN,
-        lower_survival_input,
-        names(lower_survival_input)[names(lower_survival_input) %in% margin_eval_cache$margin_p_args],
-        cacheable = FALSE,
-        cache_env = margin_eval_cache$family_call_cache,
-        cache_prefix = paste0(margin_dist$family[1], ":log-survival:lower")
-      )
-      margin_log_survival <- rep(NA_real_, n_obs)
-      margin_log_survival_lower <- rep(NA_real_, n_obs)
-      margin_log_survival[obs_response] <- observed_log_survival
-      margin_log_survival_lower[obs_response] <- observed_log_survival_lower
-    }
-    likelihood_type <- "discrete_rectangle"
-  }
-
   margin_d <- rep(NA_real_, n_obs)
   margin_log_d <- rep(NA_real_, n_obs)
   if (any(obs_response)) {
@@ -257,6 +249,50 @@
     )
     margin_d[obs_response] <- observed_d
     margin_log_d[obs_response] <- observed_log_d
+  }
+
+  margin_p_lower <- NULL
+  margin_log_survival <- NULL
+  margin_log_survival_lower <- NULL
+  likelihood_type <- "continuous_density"
+  if (discrete_margin) {
+    direct_log_survival <- rep(NA_real_, n_obs)
+    stable_tail <- obs_response & is.finite(margin_p) & margin_p > 0.9
+    if (any(stable_tail) &&
+        all(c("lower.tail", "log.p") %in% margin_eval_cache$margin_p_args)) {
+      survival_input <- .gl_likelihood_subset_row_input(
+        margin_deriv_input, stable_tail, n_obs
+      )
+      survival_input$lower.tail <- FALSE
+      survival_input$log.p <- TRUE
+      survival_args <- names(survival_input)[
+        names(survival_input) %in% margin_eval_cache$margin_p_args
+      ]
+      evaluated_survival <- .call_fast_count_family(
+        "p", margin_dist$family[1], survival_input
+      )
+      if (is.null(evaluated_survival)) {
+        evaluated_survival <- .call_margin_family_cached(
+          margin_eval_cache$margin_pFUN,
+          survival_input,
+          survival_args,
+          cacheable = FALSE,
+          cache_env = margin_eval_cache$family_call_cache,
+          cache_prefix = paste0(margin_dist$family[1], ":log-survival:upper")
+        )
+      }
+      direct_log_survival[stable_tail] <- evaluated_survival
+    }
+    companions <- .gl_discrete_cdf_companions(
+      margin_p,
+      margin_d,
+      log_mass = margin_log_d,
+      direct_log_survival = direct_log_survival
+    )
+    margin_p_lower <- companions$lower
+    margin_log_survival <- companions$log_survival
+    margin_log_survival_lower <- companions$log_survival_lower
+    likelihood_type <- "discrete_rectangle"
   }
 
   list(
