@@ -13,10 +13,10 @@ missingness-rates,missingness,sec:sim_sensitivity_missingness,p2_missing_attempt
 missingness-subjects,missingness,sec:sim_sensitivity_missingness,p2_missing_attempts,n,set,500,Subjects,public_manuscript
 missingness-visits,missingness,sec:sim_sensitivity_missingness,p2_missing_attempts,d,set,4,Visits,public_manuscript
 missingness-replicates,missingness,sec:sim_sensitivity_missingness,p2_missing_attempts,rep,integer_range,1:20,Replicates per scenario,public_manuscript
-copula-generators,copula-misspecification,sec:sim_sensitivity_copula,p2_copula_results,generating_copula,set,C|N,Generating copulas,public_manuscript
-copula-fits,copula-misspecification,sec:sim_sensitivity_copula,p2_copula_results,fitted_copula,set,C|N,Fitted copulas,public_manuscript
-copula-tau-labels,copula-misspecification,sec:sim_sensitivity_copula,p2_copula_results,tau_label,set,high|moderate,Kendall tau levels,public_manuscript
-copula-subjects,copula-misspecification,sec:sim_sensitivity_copula,p2_copula_results,n_subject,set,50|150|500,Subjects,public_manuscript
+copula-generators,copula-misspecification,sec:sim_sensitivity_copula,p2_copula_results,generating_copula,set,C|F|G|J|N|t,Generating copulas,public_manuscript
+copula-fits,copula-misspecification,sec:sim_sensitivity_copula,p2_copula_results,fitted_copula,set,C|F|G|J|N|t,Fitted copulas,public_manuscript
+copula-tau-labels,copula-misspecification,sec:sim_sensitivity_copula,p2_copula_results,tau_label,set,moderate,Kendall tau level,public_manuscript
+copula-subjects,copula-misspecification,sec:sim_sensitivity_copula,p2_copula_results,n_subject,set,150,Subjects,public_manuscript
 copula-visits,copula-misspecification,sec:sim_sensitivity_copula,p2_copula_results,n_time,set,4,Visits,public_manuscript
 copula-replicates,copula-misspecification,sec:sim_sensitivity_copula,p2_copula_results,rep,integer_range,1:100,Replicates per generating scenario,public_manuscript
 scaling-subjects,fit-scaling,sec:discussion,p2_scaling_scenarios,n_subjects,set,100|250,Measured subject counts,public_supplemental

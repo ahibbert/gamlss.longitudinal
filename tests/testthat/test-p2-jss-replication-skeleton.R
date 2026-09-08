@@ -57,7 +57,22 @@ test_that("checkpoint resumption excludes completed fits", {
     )
   )
   env$jss_misspec_write_csv_atomic(result, env$jss_misspec_checkpoint_path(checkpoint_dir, grid$fit_id[[1]]))
-  expect_equal(nrow(env$jss_misspec_pending_grid(grid, checkpoint_dir, config)), nrow(grid) - 1L)
+  frank_index <- which(grid$fitted_copula == "F")[[1L]]
+  frank_result <- cbind(
+    grid[frank_index, , drop = FALSE],
+    data.frame(
+      stage = config$stage,
+      correctly_specified = grid$generating_copula[[frank_index]] == "F",
+      attempted = TRUE, success = TRUE, converged = TRUE, retained = TRUE,
+      stop_reason = "converged", failure_type = "none", error = NA_character_,
+      warnings = NA_character_, elapsed_sec = 0.1, stringsAsFactors = FALSE
+    )
+  )
+  env$jss_misspec_write_csv_atomic(
+    frank_result,
+    env$jss_misspec_checkpoint_path(checkpoint_dir, grid$fit_id[[frank_index]])
+  )
+  expect_equal(nrow(env$jss_misspec_pending_grid(grid, checkpoint_dir, config)), nrow(grid) - 2L)
 })
 
 test_that("copula misspecification checkpoints are atomic and worker-aware", {
@@ -175,32 +190,32 @@ test_that("Module 07 full design is immutable R=100 and public input is full-onl
   withr::local_envvar(GAMLSS_LONGITUDINAL_JSS_MISSPEC_REPS = NA_character_)
   config <- env$jss_misspec_config(settings, stage = "full")
   grid <- env$jss_misspec_grid(config)
-  expect_equal(nrow(grid), 2400L)
+  expect_equal(nrow(grid), 3600L)
   registered_routes <- gamlss.longitudinal::longitudinal_capabilities("routes")
   expect_true(
     all(env$jss_misspec_copulas() %in%
       as.character(registered_routes$copula[registered_routes$margin_family == "GA"]))
   )
-  expect_identical(config$capability_registry_version, "2026.2")
+  expect_identical(config$capability_registry_version, "2026.5")
   expect_identical(
     env$jss_misspec_capability_contract(root)$current_registry_version,
     gamlss.longitudinal:::.gl_capability_registry_version()
   )
-  expect_identical(length(unique(grid$fit_id)), 2400L)
-  expect_identical(length(unique(grid$seed)), 2400L)
-  expect_identical(length(unique(grid$dataset_seed)), 1200L)
-  expect_true(all(table(grid$dataset_seed) == 2L))
-  expect_identical(sum(grid$generating_copula == grid$fitted_copula), 1200L)
-  expect_identical(sum(grid$generating_copula != grid$fitted_copula), 1200L)
+  expect_identical(length(unique(grid$fit_id)), 3600L)
+  expect_identical(length(unique(grid$seed)), 3600L)
+  expect_identical(length(unique(grid$dataset_seed)), 600L)
+  expect_true(all(table(grid$dataset_seed) == 6L))
+  expect_identical(sum(grid$generating_copula == grid$fitted_copula), 600L)
+  expect_identical(sum(grid$generating_copula != grid$fitted_copula), 3000L)
 
   paths <- env$jss_misspec_paths(list(
     data_dir = tempfile("m07-data-"), tables_dir = tempfile("m07-tables-"),
     figures_dir = tempfile("m07-figures-")
   ))
-  expect_identical(basename(paths$checkpoints), "07-gamma-copula-misspecification-checkpoints-ga-nc-v2")
+  expect_identical(basename(paths$checkpoints), "07-gamma-copula-misspecification-checkpoints-ga-six-v1")
 
   unsupported_config <- config
-  unsupported_config$copulas <- c(unsupported_config$copulas, "F")
+  unsupported_config$copulas <- c(unsupported_config$copulas, "unsupported")
   expect_error(
     env$jss_misspec_validate_config(unsupported_config),
     "diverges from the locked Gamma capability contract"
@@ -231,7 +246,7 @@ test_that("Module 07 full design is immutable R=100 and public input is full-onl
   )
   expect_true(env$jss_misspec_validate_public_full_bundle(results, grid, config))
   unsupported_result <- results
-  unsupported_result$fitted_copula[[1L]] <- "F"
+  unsupported_result$fitted_copula[[1L]] <- "unsupported"
   expect_error(
     env$jss_misspec_validate_public_full_bundle(unsupported_result, grid, config),
     "outside the registered grid"
@@ -383,11 +398,11 @@ test_that("Module 07 full design is immutable R=100 and public input is full-onl
   )
   tracked <- utils::read.csv(tracked_path, stringsAsFactors = FALSE)
   tracked <- env$jss_misspec_upgrade_result_contract(tracked)
-  expect_identical(nrow(tracked), 2400L)
+  expect_identical(nrow(tracked), 3600L)
   expect_identical(unique(as.character(tracked$stage)), "full")
   env$jss_misspec_git_identity <- function(...) list(sha = "test-clean-checkout", state = "clean")
   tracked_bundle <- expect_silent(env$jss_misspec_validate_evidence_bundle(tracked_path, config))
-  expect_identical(nrow(tracked_bundle$results), 2400L)
+  expect_identical(nrow(tracked_bundle$results), 3600L)
   expect_identical(unique(as.character(tracked_bundle$results$stage)), "full")
   env$jss_misspec_git_identity <- original_git_identity
 
@@ -407,7 +422,7 @@ test_that("Module 07 full design is immutable R=100 and public input is full-onl
   selection_attempts <- env$jss_misspec_selection_attempts(selection_results)
   fit_summary <- env$jss_misspec_summary(env$jss_misspec_add_deltas(selection_results))
   expect_identical(nrow(fit_summary), 24L)
-  expect_identical(nrow(selection_attempts), 1200L)
+  expect_identical(nrow(selection_attempts), 600L)
   expect_identical(nrow(env$jss_misspec_selection(selection_results)), 12L)
   expect_identical(nrow(env$jss_misspec_selection_confusion(selection_attempts)), 36L)
   expect_identical(nrow(env$jss_misspec_selection_failures(selection_attempts)), 12L)

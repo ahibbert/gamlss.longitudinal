@@ -7,5 +7,5 @@ main-recovery-summary-bootstrap,20260901,metric-keyed deterministic bootstrap st
 optimizer-benchmark,20260528,base_seed + 3000 + 100*rep,"Paired optimizer seed; covariates +17; test response +500000; variogram 900000 + 10*rep"
 missingness-data,100000,base_seed + rep,Shared complete-data simulation stream
 missingness-mechanism,100000,data seed plus registered mechanism and rate offsets,Separate streams for subject-level monotone dropout and time-dependent intermittent MAR
-copula-misspecification,20960528,settings seed 20260528 + 700000 followed by deterministic family/tau/n/rep offsets,Immutable full R=100 Gamma/Gaussian-versus-Clayton grid: 1200 dataset seeds each reused for exactly two candidate fits (2400 fit attempts); public use requires an independently approved exact bundle
+copula-misspecification,20960528,settings seed 20260528 + 700000 followed by deterministic family/tau/n/rep offsets,Immutable focused full R=100 Gamma six-by-six copula grid at n=150 and Kendall tau=0.25: 600 dataset seeds each reused for six candidate fits (3600 fit attempts); public use requires an independently approved exact bundle
 fit-scaling,20260528,scenario-key-v1 keyed by scenario/attempt/stream,Separate fit warmup order precision and contrast streams
