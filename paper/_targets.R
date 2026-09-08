@@ -82,9 +82,15 @@ modules <- if (identical(profile, "smoke")) {
 }
 
 output_target <- if (identical(profile, "smoke")) {
-  tar_target(public_outputs, list(public_workflow_figures, coverage_summary_csv, convergence_summary_csv, fit_events))
+  tar_target(public_outputs, list(
+    public_workflow_figures,
+    coverage_summary_csv,
+    convergence_summary_csv,
+    fit_events
+  ))
 } else {
-  tar_target(public_outputs, list(public_workflow_figures, module_phase2_main_recovery, module_03_joint_vs_separate, module_04_missingness,
+  tar_target(public_outputs, list(public_workflow_figures,
+    module_phase2_main_recovery, module_03_joint_vs_separate, module_04_missingness,
     module_07_copula_misspecification, module_09_multivariate_benchmark,
     module_10_fit_scaling, phase2_claim_evidence, phase2_gate_audit))
 }
