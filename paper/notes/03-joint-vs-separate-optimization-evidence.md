@@ -2,11 +2,11 @@
 
 ## Reviewed Sources
 
-- Scripts moved to `R (testing)/03-joint-vs-separate-optimization/`.
-- Latest retained results live under
-  `results/jss-exploratory/03-joint-vs-separate-optimization/`.
-- Smoke directories and cell-level raw files archived under
-  `results/_archive/testing-cleanup-20260612/results/rs_joint_*`.
+- The active producer is `paper/R/03-optimizer-publication-lean.R`.
+- The reviewer-ready inputs are versioned under
+  `paper/data/public-derived/optimizer-benchmark/`.
+- Earlier exploratory scripts remain recoverable from the annotated Git tag
+  `archive/pre-submission-exploratory-2026-09-08`.
 
 ## Retained Evidence
 
@@ -32,5 +32,5 @@
 
 ## Archive Decision
 
-Keep current summary/candidate/report artifacts active. Raw cell files and smoke
-runs are archived, not deleted, until the review set is accepted.
+Keep only the compact reviewer-ready input bundle active. Exploratory scripts,
+raw cell files, and smoke runs are outside the submission tree.

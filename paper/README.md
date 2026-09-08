@@ -59,6 +59,11 @@ Generated files are written under `results/jss-replication/<profile>/`:
   metric tolerance audit.
 - `manifest.csv`: mapping from paper result IDs to generated artifacts.
 
+`paper/data/public-derived/` is deliberately tracked: it contains the compact,
+approved analysis-ready inputs used by the reviewer workflow. In contrast,
+`results/` contains rebuildable run outputs and is deliberately ignored. These
+directories therefore have different roles and should not be merged.
+
 The source manifest template is `paper/manifest.csv`. Treat this file as the
 authoritative map from manuscript result IDs to workflow targets and generated
 artifacts. The generated manifest is validated at the end of the workflow, and

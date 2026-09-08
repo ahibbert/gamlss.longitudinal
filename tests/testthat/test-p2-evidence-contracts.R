@@ -126,22 +126,6 @@ local_phase2_design_fixture <- function(root, out) {
     stringsAsFactors = FALSE)
   copula$n_time <- 4L
   write_artifact("p2_copula_results", copula)
-  benchmark_grid <- expand.grid(
-    family_name = c("binomial", "gamma", "gaussian", "poisson"),
-    dependence_name = c("external_ar1", "external_exchangeable",
-      "native_covariate_dependent_adjacent", "native_time_varying_adjacent"),
-    rep = 1:100, n_time = 20L, stringsAsFactors = FALSE)
-  benchmark_grid$scenario <- paste0(benchmark_grid$dependence_name, "_t20")
-  benchmark_grid$case_id <- sprintf("MVT%04d", seq_len(nrow(benchmark_grid)))
-  write_artifact("p2_mvt_scenario_grid", benchmark_grid)
-  benchmark_status <- expand.grid(case_id = benchmark_grid$case_id,
-    method = c("glm", "glmm", "gee_independence", "gee_exchangeable", "gee_ar1",
-      "gee_unstructured", "gamlss.longitudinal", "gamCopula_markov", "gamCopula_vine_simplified"),
-    stringsAsFactors = FALSE)
-  benchmark_status$rep <- benchmark_grid$rep[match(benchmark_status$case_id, benchmark_grid$case_id)]
-  benchmark_status$scenario <- benchmark_grid$scenario[match(benchmark_status$case_id, benchmark_grid$case_id)]
-  benchmark_status$family <- benchmark_grid$family_name[match(benchmark_status$case_id, benchmark_grid$case_id)]
-  write_artifact("p2_mvt_fit_status", benchmark_status)
   scaling <- data.frame(
     scenario_id = c("continuous-base", "continuous-subjects", "continuous-visits", "continuous-smooth_basis",
       "discrete-base", "discrete-subjects", "discrete-visits", "discrete-smooth_basis"),
@@ -384,9 +368,7 @@ test_that("Phase 2 manifest retires superseded evidence and registers current ar
     "p2_missing_warning_events", "p2_missing_warning_audit",
     "p2_scaling_attempts", "p2_scaling_hardware"
   ) %in% active))
-  deferred <- grepl("^p2_mvt_", manifest$artifact_id)
-  expect_true(all(manifest$publication_status[deferred] == "deferred"))
-  expect_true(all(manifest$profiles[deferred] == ""))
+  expect_false(any(grepl("^p2_mvt_", manifest$artifact_id)))
   claims <- utils::read.csv(file.path(root, "paper", "phase2-claims.csv"), stringsAsFactors = FALSE)
   pending_claims <- utils::read.csv(file.path(root, "paper", "phase2-pending-claims.csv"), stringsAsFactors = FALSE)
   expect_true(all(claims$attempt_artifact_id %in% active))

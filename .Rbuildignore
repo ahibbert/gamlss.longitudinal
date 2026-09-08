@@ -42,7 +42,6 @@
 ^tests/testthat/test-p2-lean-submission\.R$
 ^tests/testthat/test-p2-main-recovery-evidence\.R$
 ^tests/testthat/test-p2-missingness-publication-lean\.R$
-^tests/testthat/test-p2-multivariate-longitudinal-module\.R$
 ^tests/testthat/test-p2-optimizer-missingness-evidence\.R$
 ^tests/testthat/test-p2-optimizer-publication-lean\.R$
 ^tests/testthat/test-p2-public-approvals\.R$

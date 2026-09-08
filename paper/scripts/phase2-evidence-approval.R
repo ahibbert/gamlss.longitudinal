@@ -137,32 +137,6 @@ phase2_sign <- function(study, bundle_dir, root, approver, private_path,
     return(phase2_write_signed_attestation(attestation, private_key, public_key,
       attestation_path, signature_path))
   }
-  if (identical(study, "multivariate-benchmark")) {
-    source(file.path(root, "paper", "R", "09-simulation-multivariate-longitudinal", "00-multivariate-setup.R"), local = .GlobalEnv)
-    snapshot <- mvt_validate_committed_snapshot(bundle_dir, require_production = TRUE)
-    audit <- mvt_phase2_audit_from_committed_snapshot(snapshot)
-    if (!mvt_phase2_production_eligible(audit)) stop("Module 09 candidate fails its exact production audit.", call. = FALSE)
-    snapshot_sha <- mvt_phase2_snapshot_trust_sha256(bundle_dir)
-    attestation <- list(
-      schema_version = 2L, study = study, snapshot_sha256 = snapshot_sha,
-      snapshot_schema_version = snapshot$schema_version,
-      producer_id = snapshot$producer_id, producer_version = snapshot$producer_version,
-      configuration_fingerprint = snapshot$configuration_fingerprint,
-      audit_sha256 = mvt_hash_object(audit),
-      artifact_manifest_sha256 = mvt_hash_object(snapshot$artifacts),
-      checkpoint_manifest_sha256 = mvt_hash_object(snapshot$checkpoint_manifest),
-      approved_at_utc = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
-      approver = approver
-    )
-    after <- mvt_validate_committed_snapshot(bundle_dir, require_production = TRUE)
-    if (!identical(snapshot_sha, mvt_phase2_snapshot_trust_sha256(bundle_dir)) ||
-        !identical(mvt_hash_object(snapshot$artifacts), mvt_hash_object(after$artifacts)) ||
-        !identical(mvt_hash_object(snapshot$checkpoint_manifest), mvt_hash_object(after$checkpoint_manifest))) {
-      stop("Module 09 snapshot changed during independent approval.", call. = FALSE)
-    }
-    return(phase2_write_signed_attestation(attestation, private_key, public_key,
-      attestation_path, signature_path))
-  }
   if (identical(study, "missingness")) {
     source(file.path(root, "paper", "R", "missingness-study-helpers.R"), local = .GlobalEnv)
     source(file.path(root, "paper", "R", "04-missingness-dropout-sensitivity.R"), local = .GlobalEnv)
@@ -182,7 +156,7 @@ phase2_sign <- function(study, bundle_dir, root, approver, private_path,
     producer_sha <- jss_missing_producer_sha256(c(file.path(root, "paper", "R", "missingness-study-helpers.R"),
       file.path(root, "paper", "scripts", "final-simulations", "missingness", "run_missingness_study.R")))
     file_sha <- jss_missing_sha256_file
-  } else stop("study must be main-recovery, missingness, copula-misspecification, or multivariate-benchmark.", call. = FALSE)
+  } else stop("study must be main-recovery, missingness, or copula-misspecification.", call. = FALSE)
   manifest <- paste(sort(paste(basename(required), vapply(required, file_sha, character(1)), sep = "\t")), collapse = "\n")
   approved_at <- format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
   if (identical(study, "missingness")) {

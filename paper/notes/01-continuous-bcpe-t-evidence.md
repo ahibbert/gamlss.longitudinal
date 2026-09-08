@@ -3,14 +3,16 @@
 ## Reviewed Sources
 
 - Final reproduction scripts promoted to `paper/scripts/final-simulations/bcpe-t/`.
-- Compact results retained under `results/jss-exploratory/01-continuous-bcpe-t/`.
-- Raw per-replicate `.rds` files archived under `results/_archive/testing-cleanup-20260612/results/bcpe_t_current_defaults_rep100_*`.
+- Compact reviewer inputs are versioned under
+  `paper/data/public-derived/main-recovery/` and `paper/data/public-derived/bcpe-t/`.
+- Earlier raw exploratory results remain outside the submission tree.
 
 ## Retained Evidence
 
 - Current defaults 100-replicate summaries for CG, RS joint, and RS separate.
 - Comparison tables and figures from `bcpe_t_current_defaults_rep100_comparison`.
-- Root-level BCPE summary CSVs and retained preview plots moved to `loose-root-results`.
+- The public workflow rebuilds the paper tables and figures from the compact
+  versioned inputs.
 
 ## Captured Insights
 
@@ -22,5 +24,6 @@
 
 ## Archive Decision
 
-Keep summaries active for paper review; use the archive only if an unpublished
-diagnostic needs raw fit objects.
+Keep the public-derived inputs active for paper review. Earlier exploratory
+scripts are recoverable from the annotated Git tag
+`archive/pre-submission-exploratory-2026-09-08`.

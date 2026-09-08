@@ -3,9 +3,9 @@
 ## Reviewed Sources
 
 - Final reproduction scripts promoted to `paper/scripts/final-simulations/nbi-clayton/`.
-- Current Clayton showcase report retained under
-  `results/jss-exploratory/02-discrete-delaporte-clayton/rs_clayton_showcase_fit_quality`.
-- Duplicate timestamped `fit_quality_summary_*` files archived.
+- Compact reviewer inputs are versioned under
+  `paper/data/public-derived/main-recovery/` and
+  `paper/data/public-derived/nbi-clayton/`.
 
 ## Retained Evidence
 
@@ -24,5 +24,6 @@
 
 ## Archive Decision
 
-Keep current report outputs active; consult archive only for run-history
-comparisons.
+Keep the public-derived inputs active for paper review. Earlier exploratory
+scripts are recoverable from the annotated Git tag
+`archive/pre-submission-exploratory-2026-09-08`.
