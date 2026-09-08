@@ -55,11 +55,15 @@
   vcov_method <- extra_args$method %||% if (isTRUE(numderiv)) "numderiv" else "analytical"
 
   stored_unavailable <- identical(object$vcov_meta$inference_status, "unavailable")
+  stored_diagnostics <- object$vcov_meta$hessian_diagnostics %||% list()
+  stored_codes <- stored_diagnostics$failure_codes %||% character()
+  stored_is_advisory <- length(stored_codes) > 0L &&
+    length(.gl_hessian_blocking_failure_codes(stored_codes)) == 0L
   stored_method <- object$vcov_meta$method %||% "analytical"
   explicit_revalidation <- !is.null(extra_args$inference) ||
     !identical(as.character(vcov_method)[1], as.character(stored_method)[1])
-  if (stored_unavailable && !explicit_revalidation) {
-    stop(.gl_inference_unavailable(object$vcov_meta$hessian_diagnostics))
+  if (stored_unavailable && !stored_is_advisory && !explicit_revalidation) {
+    stop(.gl_inference_unavailable(stored_diagnostics))
   }
 
   if (.can_use_cached_vcov(object, numderiv = numderiv, method = vcov_method, extra_args = extra_args)) {

@@ -20,7 +20,8 @@
 #'
 #' @noRd
 .gl_inference_warning <- function(diagnostics) {
-  codes <- diagnostics$failure_codes %||% "unknown_inference_warning"
+  codes <- diagnostics$warning_codes %||% diagnostics$failure_codes %||%
+    "unknown_inference_warning"
   message <- diagnostics$message %||% paste0(
     "Hessian-based inference diagnostics raised a warning (",
     paste(codes, collapse = ", "), "). Calculated covariance, standard errors, ",
@@ -33,6 +34,17 @@
       "warning", "condition"
     )
   )
+}
+
+#' Identify diagnostics that mean no usable Hessian inference was calculated
+#'
+#' @noRd
+.gl_hessian_blocking_failure_codes <- function(codes) {
+  intersect(codes %||% character(), c(
+    "hessian_not_square", "hessian_nonfinite", "hessian_not_conformable",
+    "hessian_names_invalid", "covariance_nonfinite",
+    "covariance_diagonal_nonpositive"
+  ))
 }
 
 #' Curvature-scaled finite-difference score at the fitted coefficients
@@ -218,10 +230,7 @@
     add_failure("hessian_agreement_not_checked")
   }
 
-  blocking_failures <- intersect(failures, c(
-    "hessian_not_square", "hessian_nonfinite", "hessian_not_conformable",
-    "hessian_names_invalid"
-  ))
+  blocking_failures <- .gl_hessian_blocking_failure_codes(failures)
 
   vc <- NULL
   covariance_diagonal <- numeric()
@@ -238,9 +247,7 @@
     }
   }
 
-  blocking_failures <- intersect(failures, c(
-    blocking_failures, "covariance_nonfinite", "covariance_diagonal_nonpositive"
-  ))
+  blocking_failures <- .gl_hessian_blocking_failure_codes(failures)
 
   diagnostics <- list(
     status = if (length(blocking_failures)) {

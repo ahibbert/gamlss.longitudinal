@@ -190,6 +190,30 @@ test_that("high fitted score and Hessian disagreement warn without discarding in
   expect_true(all(is.finite(disagreement$se)))
 })
 
+test_that("only genuinely uncalculable Hessian diagnostics remain blocking", {
+  advisory <- c(
+    "hessian_asymmetric", "information_not_positive_definite",
+    "information_eigen_failure", "information_rank_deficient",
+    "information_ill_conditioned", "information_nonpositive_diagonal",
+    "fitted_gradient_not_checked", "fitted_gradient_too_large",
+    "hessian_agreement_not_checked", "hessian_method_disagreement"
+  )
+  blocking <- c(
+    "hessian_not_square", "hessian_nonfinite", "hessian_not_conformable",
+    "hessian_names_invalid", "covariance_nonfinite",
+    "covariance_diagonal_nonpositive"
+  )
+
+  expect_identical(
+    gamlss.longitudinal:::.gl_hessian_blocking_failure_codes(advisory),
+    character()
+  )
+  expect_identical(
+    gamlss.longitudinal:::.gl_hessian_blocking_failure_codes(blocking),
+    blocking
+  )
+})
+
 test_that("inference validation has tested inclusive threshold boundaries", {
   H <- named_hessian(-diag(2))
   ctl <- inference_control("standard", condition_max = 1, gradient_tol = 0.25)
@@ -366,7 +390,7 @@ test_that("classed inference failure propagates through all inference consumers"
   )
   unavailable <- list(
     status = "unavailable",
-    failure_codes = "information_not_positive_definite",
+    failure_codes = "covariance_nonfinite",
     validation_profile = "standard",
     validation_defaults_version = "0.1.0-provisional"
   )
@@ -412,7 +436,7 @@ test_that("classed inference failure propagates through all inference consumers"
     )
     expect_identical(
       err$diagnostics$failure_codes,
-      "information_not_positive_definite"
+      "covariance_nonfinite"
     )
   }
 })
