@@ -44,9 +44,9 @@ same sequence, and pair-level copula covariates are evaluated at the earlier
 row.
 
 Pure continuous and discrete marginal distributions from **gamlss.dist** are
-supported through the generic Gaussian-copula route (for example, `NO()`,
-`GA()`, `GG()`, and `SICHEL()`). Additional copulas are available for the
-combinations returned by `longitudinal_capabilities("routes")`. Multinomial,
+supported with every registered copula through the shared likelihood backend
+(for example, `NO()`, `GA()`, `GG()`, and `SICHEL()`). Available combinations
+are returned by `longitudinal_capabilities("routes")`. Multinomial,
 logarithmic-series, and mixed discrete-continuous families are excluded.
 Binomial simulation supplies its denominator as `bd` in `margin_params`, and
 fitting supplies the same values through `margin_args`. The registered copula
