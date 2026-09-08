@@ -21,12 +21,21 @@ jss_submission_split_fields <- function(x) {
   strsplit(x, "|", fixed = TRUE)[[1L]]
 }
 
-jss_submission_read_registered_input <- function(study, path, root = getwd()) {
+jss_submission_read_registered_input <- function(study, path, root = getwd(),
+    character_columns = character()) {
   registry <- jss_submission_input_registry(root)
   row <- registry[registry$study == study, , drop = FALSE]
   if (nrow(row) != 1L) stop("No unique submission schema is registered for study: ", study, call. = FALSE)
   if (!file.exists(path)) stop("Registered submission input is missing: ", path, call. = FALSE)
-  x <- utils::read.csv(path, stringsAsFactors = FALSE, check.names = FALSE)
+  header <- names(utils::read.csv(
+    path, nrows = 0L, stringsAsFactors = FALSE, check.names = FALSE
+  ))
+  col_classes <- stats::setNames(rep(NA_character_, length(header)), header)
+  col_classes[intersect(character_columns, header)] <- "character"
+  x <- utils::read.csv(
+    path, stringsAsFactors = FALSE, check.names = FALSE,
+    colClasses = col_classes
+  )
   required <- jss_submission_split_fields(row$required_columns)
   keys <- jss_submission_split_fields(row$key_columns)
   numeric <- jss_submission_split_fields(row$numeric_columns)
@@ -179,9 +188,18 @@ jss_submission_validate_missingness <- function(path, root = getwd()) {
 }
 
 jss_submission_validate_copula <- function(path, root = getwd()) {
-  results <- jss_submission_read_registered_input("copula-misspecification", path, root)
-  if (!setequal(unique(results$fitted_copula), c("C", "N")) ||
-      !setequal(unique(results$generating_copula), c("C", "N")) ||
+  results <- jss_submission_read_registered_input(
+    "copula-misspecification", path, root,
+    character_columns = c(
+      "fit_id", "margin_family", "capability_registry_version",
+      "producer_sha256", "package_source_sha256", "configuration_sha256",
+      "stage", "generating_copula", "fitted_copula", "tau_label",
+      "stop_reason", "failure_type", "error", "warnings"
+    )
+  )
+  copulas <- c("N", "C", "F", "G", "J", "t")
+  if (!setequal(unique(results$fitted_copula), copulas) ||
+      !setequal(unique(results$generating_copula), copulas) ||
       any(as.integer(results$n_time) != 4L)) {
     stop("Copula-misspecification inputs do not match the registered fit grid.", call. = FALSE)
   }
@@ -189,8 +207,8 @@ jss_submission_validate_copula <- function(path, root = getwd()) {
     "generating_copula", "tau_label", "n_subject", "rep"
   )], drop = TRUE, lex.order = TRUE, sep = "\r")
   if (any(vapply(split(seq_len(nrow(results)), dataset, drop = TRUE), function(i)
-      length(i) != 2L || !setequal(results$fitted_copula[i], c("C", "N")), logical(1L)))) {
-    stop("Copula-misspecification rows do not reconcile into paired candidate fits.", call. = FALSE)
+      length(i) != length(copulas) || !setequal(results$fitted_copula[i], copulas), logical(1L)))) {
+    stop("Copula-misspecification rows do not reconcile into complete candidate-fit sets.", call. = FALSE)
   }
   results
 }

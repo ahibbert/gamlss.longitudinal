@@ -116,10 +116,10 @@ test_that("Module 07 claim mappings and visible figure metadata are explicit", {
   expect_gte(sum(claims$claim_type == "selection_rate"), 2L)
   expect_true(all(claims$effect_artifact_id[claims$claim_type == "paired_effect"] == "p2_copula_paired_effects"))
   metadata <- env$jss_misspec_figure_metadata(data.frame(
-    n_subject = 500L, tau_label = "high", target_tau = 0.55
+    n_subject = 150L, tau_label = "moderate", target_tau = 0.25
   ))
-  expect_match(metadata$visible_label, "n = 500", fixed = TRUE)
-  expect_match(metadata$visible_label, "tau = 0.55", fixed = TRUE)
+  expect_match(metadata$visible_label, "n = 150", fixed = TRUE)
+  expect_match(metadata$visible_label, "tau = 0.25", fixed = TRUE)
   expect_match(metadata$visible_label, "R = 100", fixed = TRUE)
   expect_identical(metadata$tau_panel_title, "Mean absolute Kendall tau error")
   figure_code <- paste(deparse(body(env$jss_misspec_write_paper_summary_heatmap)), collapse = "\n")

@@ -121,8 +121,9 @@ local_phase2_design_fixture <- function(root, out) {
     model = c("gamlss.longitudinal", "gamlss2"), stringsAsFactors = FALSE)
   missing$n <- 500L; missing$d <- 4L
   write_artifact("p2_missing_attempts", missing)
-  copula <- expand.grid(generating_copula = c("C", "N"), fitted_copula = c("C", "N"),
-    tau_label = c("high", "moderate"), n_subject = c(50L, 150L, 500L), rep = 1:100,
+  copulas <- c("N", "C", "F", "G", "J", "t")
+  copula <- expand.grid(generating_copula = copulas, fitted_copula = copulas,
+    tau_label = "moderate", n_subject = 150L, rep = 1:100,
     stringsAsFactors = FALSE)
   copula$n_time <- 4L
   write_artifact("p2_copula_results", copula)

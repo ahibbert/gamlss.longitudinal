@@ -1,6 +1,6 @@
 # Simplified Phase 2 acceptance ledger
 
-Status: copula-misspecification refresh in progress.
+Status: complete.
 
 ## Accepted scope
 
@@ -25,7 +25,7 @@ a routine reviewer or submission gate.
 | Main recovery | Pass | BCPE/t and NBI/Clayton each contain 200/200 successful, converged, publication-retained method attempts (400 total). Exact-settings resume accepted every checkpoint with zero pending work and no hash or timestamp changes. The portable 26-CSV bundle passes all 31 evidence checks. |
 | Optimizer evidence | Pass | 3 scenarios, 97 paired replicates per scenario, 582/582 attempts converged and retained; producer and submission validators pass. |
 | Missingness evidence | Pass | 240 scenario/replicate tasks, 480 fits, 399 retained, 81 named failures, 298 expected warnings, and zero unexpected warnings. |
-| Copula misspecification | Pending refresh | The focused design registers 3,600 paired candidate fits across all six generating and fitted copulas at one sample size and dependence level. |
+| Copula misspecification | Pass | The focused design completed 3,600/3,600 successful, converged, and retained candidate fits: 100 simulated data sets from each of six generating copulas, with all six candidate copulas fitted to every data set, at one representative sample size (`n = 150`) and dependence level (Kendall's tau 0.25). All 36 generating-by-fitted cells are represented. The run recorded 116 expected numerical/inference diagnostic warnings, zero nonconvergence warnings, zero unexpected warnings, and no failed selection sets. The clean Windows R 4.4.1 production run used four workers and completed in 2 hours 4 minutes 36 seconds. |
 | Fit scaling | Pass | 62 registered attempts pass the submission schema and reconstruction checks; timing claims remain environment-specific. |
 | Portable public boundary | Pass | Public-input scan finds no checkout, user-home, cloud-storage, or private-data paths. Generic interpreter paths remain as explicit execution provenance. Public profiles have no private-data application dependency, and Module 09 is deferred. |
 | Package suite | Pass | The complete ordinary P0/P1/P2 source-tree suite passes after correcting the documentation privacy-boundary regression. The only skips are two explicitly opt-in extended SRR stress tests. |

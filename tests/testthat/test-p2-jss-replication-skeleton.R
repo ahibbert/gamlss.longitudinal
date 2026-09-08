@@ -421,11 +421,11 @@ test_that("Module 07 full design is immutable R=100 and public input is full-onl
   )
   selection_attempts <- env$jss_misspec_selection_attempts(selection_results)
   fit_summary <- env$jss_misspec_summary(env$jss_misspec_add_deltas(selection_results))
-  expect_identical(nrow(fit_summary), 24L)
+  expect_identical(nrow(fit_summary), 36L)
   expect_identical(nrow(selection_attempts), 600L)
-  expect_identical(nrow(env$jss_misspec_selection(selection_results)), 12L)
-  expect_identical(nrow(env$jss_misspec_selection_confusion(selection_attempts)), 36L)
-  expect_identical(nrow(env$jss_misspec_selection_failures(selection_attempts)), 12L)
+  expect_identical(nrow(env$jss_misspec_selection(selection_results)), 6L)
+  expect_identical(nrow(env$jss_misspec_selection_confusion(selection_attempts)), 42L)
+  expect_identical(nrow(env$jss_misspec_selection_failures(selection_attempts)), 6L)
 })
 
 test_that("malformed Module 07 resume checkpoints are quarantined and rerun", {
