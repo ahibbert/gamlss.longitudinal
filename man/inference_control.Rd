@@ -36,8 +36,9 @@ and numerical Hessians when agreement is checked.}
 An object of class \code{gamlss_longitudinal_inference_control}.
 }
 \description{
-\code{inference_control()} defines scale-aware checks applied before standard
-errors, Wald tests, or confidence intervals are made available. It is
+\code{inference_control()} defines scale-aware checks applied to standard errors,
+Wald tests, and confidence intervals. Diagnostic threshold violations emit
+warnings but do not discard successfully calculated inference. It is
 deliberately separate from optimizer controls: changing these thresholds
 cannot change the fitted coefficients.
 }
@@ -45,7 +46,9 @@ cannot change the fitted coefficients.
 The standard and strict thresholds are versioned provisional
 defaults (\verb{0.1.0-provisional}) pending Phase-gate simulation calibration;
 they are not claimed to be empirically calibrated. \code{gradient_tol} checks a
-post-fit score standardized by observed curvature. It is unrelated to the
+post-fit score standardized by observed curvature. Exceeding the threshold
+is reported as a warning while the calculated inference remains available.
+It is unrelated to the
 CG optimizer stopping tolerance commonly called \code{cg_grad_tol}. The minimum
 signed information eigenvalue is registered as zero and is not user
 adjustable: every eigenvalue must be strictly greater than zero.

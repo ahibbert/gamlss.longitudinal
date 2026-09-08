@@ -32,10 +32,10 @@ mixed continuous-discrete, logarithmic-series, and families that do not meet
 the generic interface contract are rejected before optimization.
 
 The public paper routes are BCPE margins with a Student-t copula and NBI
-margins with a Clayton copula. The \code{limitations} and diagnostic columns
-qualify the support available for other registered routes. Dynamically
-discovered families use the Gaussian copula compatibility route; additional
-copulas are listed only where that combination has explicit coverage.
+margins with a Clayton copula. All six supported copula families are available
+for every supported homogeneous marginal family through the shared continuous
+density or exact discrete rectangle likelihood backend. The \code{limitations}
+and diagnostic columns qualify the support available for registered routes.
 
 The \code{hessian_path} column records an implemented analytical/numerical
 computation path. It is not a guarantee of valid inference: the fitted Hessian

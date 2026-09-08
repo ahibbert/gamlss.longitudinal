@@ -63,6 +63,7 @@ test_that("capability tables are direct projections of the registry specs", {
     expected <- supported_specs[[family]]$compatible_copulas
     observed <- routes$copula[routes$margin_family == family]
     expect_equal(observed, expected, info = family)
+    expect_identical(expected, gamlss.longitudinal:::.gl_capability_all_copulas(), info = family)
   }
 
   rd_path <- test_path("..", "..", "man", "longitudinal_capabilities.Rd")
@@ -92,17 +93,23 @@ test_that("registered routes and likelihood routing agree", {
   )
 })
 
-test_that("compatible pure gamlss.dist families use the generic Gaussian route", {
+test_that("compatible pure gamlss.dist families use every copula route", {
   skip_if_not_installed("gamlss.dist")
 
   for (family in c("SICHEL", "ZISICHEL", "NBII", "PIG", "JSU", "SHASH")) {
     object <- do.call(get(family, envir = asNamespace("gamlss.dist")), list())
     spec <- gamlss.longitudinal:::.gl_capability_margin_spec(family)
     expect_identical(spec$status, "supported", info = family)
-    expect_identical(spec$compatible_copulas, "N", info = family)
-    expect_invisible(gamlss.longitudinal:::.gl_validate_capability_route(
-      object, "N"
-    ))
+    expect_identical(
+      spec$compatible_copulas,
+      gamlss.longitudinal:::.gl_capability_all_copulas(),
+      info = family
+    )
+    for (copula in gamlss.longitudinal:::.gl_capability_all_copulas()) {
+      expect_invisible(gamlss.longitudinal:::.gl_validate_capability_route(
+        object, copula
+      ))
+    }
   }
 
   expect_invisible(gamlss.longitudinal:::.gl_validate_capability_route(
@@ -149,9 +156,8 @@ test_that("missing family arguments, mixed routes, and invalid domains fail clea
     gamlss.longitudinal:::.gl_validate_capability_route(gamlss.dist::BI(), "N"),
     NA
   )
-  expect_error(
-    gamlss.longitudinal:::.gl_validate_capability_route(gamlss.dist::BCPE(), "C"),
-    "tested allowlist", class = "gamlss_longitudinal_unsupported_route_error"
+  expect_invisible(
+    gamlss.longitudinal:::.gl_validate_capability_route(gamlss.dist::BCPE(), "C")
   )
   expect_error(
     gamlss.longitudinal:::.gl_validate_capability_route(list(gamlss.dist::NO(), gamlss.dist::PO()), "N"),

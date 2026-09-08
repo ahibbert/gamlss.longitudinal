@@ -24,11 +24,16 @@
       return(1)
     }
 
+    upper <- 100
+    if (tau_i >= .copula_joe_par_to_tau(upper)) {
+      return(upper)
+    }
+
     stats::uniroot(
 
       function(th) .copula_joe_par_to_tau(th) - tau_i,
       lower = 1 + 1e-8,
-      upper = 100,
+      upper = upper,
       tol = 1e-8
     )$root
   }, numeric(1), USE.NAMES = FALSE)

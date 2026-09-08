@@ -15,12 +15,13 @@ jss_misspec_capability_contract <- function(repo_root) {
   registry <- new.env(parent = baseenv())
   sys.source(registry_path, envir = registry)
   version <- registry$.gl_capability_registry_version()
-  gamma_copulas <- as.character(
+  registered_gamma_copulas <- as.character(
     registry$.gl_capability_margin_specs()$GA$compatible_copulas
   )
-  if (!identical(gamma_copulas, jss_misspec_copulas())) {
+  gamma_copulas <- jss_misspec_copulas()
+  if (!all(gamma_copulas %in% registered_gamma_copulas)) {
     stop(
-      "Module 07's Gamma copula-selection design no longer matches the current capability registry; review and version the evidence design before running.",
+      "Module 07's frozen Gamma copula-selection design is no longer supported by the current capability registry; review and version the evidence design before running.",
       call. = FALSE
     )
   }

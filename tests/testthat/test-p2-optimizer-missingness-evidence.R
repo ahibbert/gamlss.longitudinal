@@ -120,18 +120,18 @@ test_that("optimizer evidence uses registered paired one-factor contrasts", {
   expect_error(env$jss_joint_validate_case_definitions(invalid_truth), "registered family truth")
 })
 
-test_that("optimizer route preflight rejects unsupported registered routes synchronously", {
+test_that("optimizer route preflight rejects unknown copulas synchronously", {
   root <- local_phase2_repo_root()
   env <- new.env(parent = globalenv())
   source(file.path(root, "paper", "R", "03-joint-vs-separate-optimization.R"), local = env)
 
   cases <- env$jss_joint_case_definitions()
   invalid_route <- cases
-  invalid_route$copula <- "C"
+  invalid_route$copula <- "unknown"
   expect_error(
     env$jss_joint_validate_registered_routes(invalid_route),
-    "tested allowlist",
-    class = "gamlss_longitudinal_unsupported_route_error"
+    "unsupported",
+    class = "gamlss_longitudinal_unsupported_copula_error"
   )
 
   out <- tempfile("jvs-route-preflight-")
@@ -145,8 +145,8 @@ test_that("optimizer route preflight rejects unsupported registered routes synch
     env$jss_joint_run_simulation(
       settings, invalid_route, list(reps = 1L, resume = TRUE), mock_run
     ),
-    "tested allowlist",
-    class = "gamlss_longitudinal_unsupported_route_error"
+    "unsupported",
+    class = "gamlss_longitudinal_unsupported_copula_error"
   )
   expect_identical(calls, 0L)
   expect_false(dir.exists(paste0(env$jss_joint_checkpoint_dir(settings), ".run-lock")))
@@ -156,8 +156,8 @@ test_that("optimizer route preflight rejects unsupported registered routes synch
       settings, invalid_route, list(reps = 1L, resume = TRUE), mock_run,
       acquire_lock = FALSE, validate_design = FALSE
     ),
-    "tested allowlist",
-    class = "gamlss_longitudinal_unsupported_route_error"
+    "unsupported",
+    class = "gamlss_longitudinal_unsupported_copula_error"
   )
   expect_identical(calls, 0L)
 })

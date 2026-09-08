@@ -313,6 +313,17 @@ test_that("native non-derivative backend matches VineCopula for remaining famili
   }
 })
 
+test_that("native Archimedean tau conversions cap values outside numerical brackets", {
+  old_backend <- getOption("gamlss.longitudinal.copula_backend")
+  on.exit(options(gamlss.longitudinal.copula_backend = old_backend), add = TRUE)
+  options(gamlss.longitudinal.copula_backend = "native")
+
+  expect_equal(.copula_tau_to_par("F", c(-1, 1)), c(-50, 50))
+  expect_true(all(is.finite(.copula_tau_to_par("F", c(-0.999, 0.999)))))
+  expect_equal(.copula_tau_to_par("J", 1), 100)
+  expect_true(is.finite(.copula_tau_to_par("J", 0.999)))
+})
+
 test_that("native Gumbel first derivatives match VineCopula", {
   skip_if_no_vinecopula()
 

@@ -177,14 +177,14 @@ test_that("Module 07 full design is immutable R=100 and public input is full-onl
   grid <- env$jss_misspec_grid(config)
   expect_equal(nrow(grid), 2400L)
   registered_routes <- gamlss.longitudinal::longitudinal_capabilities("routes")
-  expect_identical(
-    env$jss_misspec_copulas(),
-    as.character(registered_routes$copula[registered_routes$margin_family == "GA"])
+  expect_true(
+    all(env$jss_misspec_copulas() %in%
+      as.character(registered_routes$copula[registered_routes$margin_family == "GA"]))
   )
   expect_identical(config$capability_registry_version, "2026.2")
   expect_identical(
     env$jss_misspec_capability_contract(root)$current_registry_version,
-    "2026.3"
+    gamlss.longitudinal:::.gl_capability_registry_version()
   )
   expect_identical(length(unique(grid$fit_id)), 2400L)
   expect_identical(length(unique(grid$seed)), 2400L)
@@ -210,15 +210,15 @@ test_that("Module 07 full design is immutable R=100 and public input is full-onl
   dir.create(file.path(drift_root, "R"), recursive = TRUE)
   registry_lines <- readLines(file.path(root, "R", "capability-registry.R"), warn = FALSE)
   registry_lines <- sub(
-    'compatible_copulas = c("N", "C")',
-    'compatible_copulas = c("N", "C", "F")',
+    '.gl_capability_all_copulas <- function() c("N", "C", "F", "G", "J", "t")',
+    '.gl_capability_all_copulas <- function() c("N", "F", "G", "J", "t")',
     registry_lines,
     fixed = TRUE
   )
   writeLines(registry_lines, file.path(drift_root, "R", "capability-registry.R"))
   expect_error(
     env$jss_misspec_capability_contract(drift_root),
-    "no longer matches the current capability registry"
+    "no longer supported by the current capability registry"
   )
   results <- cbind(
     grid,

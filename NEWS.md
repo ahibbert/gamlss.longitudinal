@@ -1,5 +1,18 @@
 # gamlss.longitudinal 0.1.0
 
+## Inference diagnostics
+
+- Hessian validation concerns no longer discard covariance estimates that were
+  successfully calculated. The covariance, standard errors, and downstream
+  inference are returned with a classed warning and recorded diagnostic codes;
+  errors are reserved for cases where usable inference cannot be calculated.
+
+## Copula compatibility
+
+- All six supported copulas (`N`, `C`, `F`, `G`, `J`, and `t`) are now
+  available for every supported homogeneous marginal family, including
+  dynamically discovered `gamlss.dist` families.
+
 ## Interface consistency
 
 - `gamlss_longitudinal()` now uses `data`, `optimization = "joint"` or

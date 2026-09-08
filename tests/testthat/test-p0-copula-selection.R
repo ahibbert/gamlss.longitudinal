@@ -61,22 +61,18 @@ test_that("select_copula accepts direct pseudo-observation pairs", {
   expect_equal(attr(selected, "selected"), "C")
 })
 
-test_that("select_copula restricts screens to registered margin-copula routes", {
+test_that("select_copula retains every default copula for a DEL margin", {
   u1 <- seq(0.05, 0.85, length.out = 30)
   u2 <- pmin(0.95, u1 + 0.08)
   selected <- select_copula(
     u1 = u1,
     u2 = u2,
-    margin_dist = gamlss.dist::NBI(),
-    families = c("N", "C", "G", "t")
+    margin_dist = gamlss.dist::DEL()
   )
 
-  expect_setequal(selected$family, c("C", "G"))
-  expect_setequal(
-    attr(selected, "excluded_by_capability_registry"),
-    c("N", "t")
-  )
-  expect_identical(attr(selected, "margin_family"), "NBI")
+  expect_setequal(selected$family, c("N", "C", "F", "G", "J", "t"))
+  expect_identical(attr(selected, "excluded_by_capability_registry"), character())
+  expect_identical(attr(selected, "margin_family"), "DEL")
 })
 
 test_that("copula margin fit cycle control is validated", {
