@@ -82,6 +82,11 @@
 #'   `0` to `3` remain available for advanced tracing.
 #' @param ... Deprecated argument aliases retained for compatibility. New code
 #'   should use `data`, `optimization`, `start`, and `optimizer_control`.
+#' @param margin_args Named list of fixed marginal-distribution arguments.
+#'   Binomial families require `list(bd = ...)`, where `bd` is either one
+#'   positive integer used for every row or the name of a data column containing
+#'   row-specific trial counts. Other fixed family arguments are not currently
+#'   supported.
 #'
 #' @details
 #' The ordered unique values of `time_var` define the scheduled visit order.
@@ -117,6 +122,7 @@ gamlss_longitudinal <- function(data = NULL,
                                 start = NULL,
                                 compute_vcov = TRUE,
                                 vcov_method = c("analytical", "numderiv"),
+                                margin_args = list(),
                                 verbose = FALSE,
                                 ...) {
   data_supplied <- !missing(data)
@@ -127,6 +133,9 @@ gamlss_longitudinal <- function(data = NULL,
   start_from <- .gl_resolve_fit_start_alias(start, start_supplied, legacy)
   verbose <- .gl_normalize_verbose(verbose)
   missingness <- match.arg(missingness)
+  if (!missing(margin_args) || is.null(attr(margin_dist, "margin_args_spec", exact = TRUE))) {
+    margin_dist <- .gl_attach_margin_args_spec(margin_dist, margin_args)
+  }
   optimizer_legacy_names <- unique(c(
     names(.gl_legacy_optimizer_map()),
     "use_backtracking", "backtracking_max_halves"

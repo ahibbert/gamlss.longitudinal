@@ -6,7 +6,7 @@ test_that("primary fitting interface is compact and uses clear names", {
       "missingness", "mu.formula", "sigma.formula", "nu.formula",
       "tau.formula", "theta.formula", "zeta.formula", "method",
       "optimization", "optimizer_control", "start", "compute_vcov",
-      "vcov_method", "verbose", "..."
+      "vcov_method", "margin_args", "verbose", "..."
     )
   )
 })

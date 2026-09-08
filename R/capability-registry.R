@@ -1,10 +1,9 @@
 #' Supported longitudinal model capabilities
 #'
-#' Return the versioned, conservative capability registry used by
+#' Return the versioned capability registry used by
 #' [gamlss_longitudinal()] and the distribution-selection helpers. The registry
-#' describes capabilities that are exercised by end-to-end package or paper
-#' workflows. The presence of a family in `gamlss.dist`, or of `d`, `p`, and `q`
-#' functions, is not by itself a support promise.
+#' combines explicitly validated paper routes with a generic compatibility
+#' contract for pure continuous and pure discrete `gamlss.dist` families.
 #'
 #' @param component Registry component to return: supported margin/copula
 #'   combinations (`"routes"`), marginal families (`"margins"`), or copulas
@@ -26,7 +25,9 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
   )
 }
 
-.gl_capability_registry_version <- function() "2026.2"
+.gl_capability_registry_version <- function() "2026.3"
+
+.gl_capability_cache <- new.env(parent = emptyenv())
 
 .gl_capability_all_copulas <- function() c("N", "C", "F", "G", "J", "t")
 
@@ -129,21 +130,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
 }
 
 .gl_capability_denied_margin_specs <- function() {
-  binomial_reason <- paste(
-    "Bounded/binomial responses require an explicit denominator contract;",
-    "the longitudinal likelihood must not assume Bernoulli denominators."
-  )
   multinomial_reason <- "ordinal and multinomial outcomes require a family-specific response and likelihood route."
-  specs <- lapply(c("BI", "BB", "DBI", "ZABB", "ZABI", "ZIBB", "ZIBI"), function(family) {
-    list(
-      status = "unsupported", family_type = "bounded_binomial", response_domain = "bounded_count",
-      response_requirement = "response plus an explicit denominator", parameters = character(),
-      likelihood_route = "unsupported", compatible_copulas = character(), hessian_path = "not_available",
-      randomized_pit = FALSE, diagnostics = "not_available", limitations = binomial_reason,
-      paper_route = FALSE
-    )
-  })
-  names(specs) <- c("BI", "BB", "DBI", "ZABB", "ZABI", "ZIBB", "ZIBI")
   ordinal <- lapply(c("MN3", "MN4", "MN5"), function(family) {
     list(
       status = "unsupported", family_type = "ordinal_multinomial", response_domain = "category",
@@ -154,15 +141,16 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
     )
   })
   names(ordinal) <- c("MN3", "MN4", "MN5")
-  logarithmic <- list(LG = list(
-    status = "unsupported", family_type = "discrete", response_domain = "count",
+  logarithmic <- lapply(c("LG", "ZALG"), function(family) list(
+    status = "unsupported", family_type = "discrete", response_domain = "positive_count",
     response_requirement = "finite positive integers with family-specific initialization",
-    parameters = "mu", likelihood_route = "unsupported", compatible_copulas = character(),
+    parameters = character(), likelihood_route = "unsupported", compatible_copulas = character(),
     hessian_path = "not_available", randomized_pit = FALSE, diagnostics = "not_available",
-    limitations = "The logarithmic-series family needs family-specific starting and support handling before longitudinal fitting.",
+    limitations = "logarithmic-series families need family-specific starting and support handling before longitudinal fitting.",
     paper_route = FALSE
   ))
-  c(specs, ordinal, logarithmic)
+  names(logarithmic) <- c("LG", "ZALG")
+  c(ordinal, logarithmic)
 }
 
 .gl_capability_copula_specs <- function() {
@@ -227,7 +215,138 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
   if (!is.na(family) && family %in% names(supported)) return(supported[[family]])
   denied <- .gl_capability_denied_margin_specs()
   if (!is.na(family) && family %in% names(denied)) return(denied[[family]])
-  NULL
+  .gl_capability_dynamic_margin_spec(family)
+}
+
+.gl_capability_dynamic_margin_spec <- function(family) {
+  if (length(family) != 1L || is.na(family) || !nzchar(family)) return(NULL)
+  object <- .gl_capability_family_object(family)
+  if (is.null(object)) return(NULL)
+  type <- tolower(paste(as.character(object$type), collapse = " "))
+  parameters <- names(object$parameters)
+
+  if (family %in% c("MN3", "MN4", "MN5", "MULTIN")) {
+    return(list(
+      status = "unsupported", family_type = "ordinal_multinomial",
+      response_domain = "category",
+      response_requirement = "a family-specific categorical response",
+      parameters = parameters, likelihood_route = "unsupported",
+      compatible_copulas = character(), hessian_path = "not_available",
+      randomized_pit = FALSE, diagnostics = "not_available",
+      limitations = "Ordinal and multinomial outcomes require a family-specific likelihood route.",
+      paper_route = FALSE, source = "dynamic"
+    ))
+  }
+  if (family %in% c("LG", "ZALG")) {
+    return(list(
+      status = "unsupported", family_type = "discrete",
+      response_domain = "positive_count",
+      response_requirement = "family-specific logarithmic-series support",
+      parameters = parameters, likelihood_route = "unsupported",
+      compatible_copulas = character(), hessian_path = "not_available",
+      randomized_pit = FALSE, diagnostics = "not_available",
+      limitations = "Logarithmic-series families need family-specific initialization and support handling.",
+      paper_route = FALSE, source = "dynamic"
+    ))
+  }
+  if (grepl("mixed", type, fixed = TRUE)) {
+    return(list(
+      status = "unsupported", family_type = "mixed",
+      response_domain = "mixed_measure",
+      response_requirement = "a mixed discrete-continuous likelihood route",
+      parameters = parameters, likelihood_route = "unsupported",
+      compatible_copulas = character(), hessian_path = "not_available",
+      randomized_pit = FALSE, diagnostics = "not_available",
+      limitations = paste(
+        "Mixed discrete-continuous margins require separate atom-atom,",
+        "atom-continuous, and continuous-continuous copula contributions."
+      ),
+      paper_route = FALSE, source = "dynamic"
+    ))
+  }
+  if (family %in% .gl_binomial_families()) {
+    normalized <- .normalise_margin_dist_links(object)
+    return(list(
+      status = "supported", family_type = "bounded_binomial",
+      response_domain = "bounded_count",
+      response_requirement = paste(
+        "finite non-negative integer successes not exceeding explicit binomial",
+        "trials supplied with margin_args = list(bd = ...)"
+      ),
+      parameters = names(normalized$parameters),
+      likelihood_route = "exact_discrete_rectangle",
+      compatible_copulas = "N",
+      hessian_path = "analytical_and_numerical_implemented",
+      randomized_pit = TRUE,
+      diagnostics = "seeded_randomized_pit_and_descriptive_pair_diagnostics",
+      limitations = paste(
+        "Requires margin_args = list(bd = positive_integer_or_column_name);",
+        "generic Gaussian-copula compatibility route."
+      ),
+      paper_route = FALSE, source = "dynamic"
+    ))
+  }
+  family_type <- if (grepl("continuous", type, fixed = TRUE)) {
+    "continuous"
+  } else if (grepl("discrete", type, fixed = TRUE)) {
+    "discrete"
+  } else {
+    return(NULL)
+  }
+  required_functions <- paste0(c("d", "p", "q"), family)
+  if (!all(vapply(required_functions, exists, logical(1), envir = asNamespace("gamlss.dist"),
+      mode = "function", inherits = FALSE))) {
+    return(NULL)
+  }
+  normalized <- .normalise_margin_dist_links(object)
+  fixed_values <- attr(normalized, "fixed_unlinked_values")
+  if (length(fixed_values) &&
+      any(!vapply(fixed_values, function(value) {
+        is.numeric(value) && length(value) == 1L && is.finite(value)
+      }, logical(1)))) {
+    return(list(
+      status = "unsupported", family_type = family_type,
+      response_domain = "family_defined",
+      response_requirement = "finite fixed values for unlinked family parameters",
+      parameters = parameters, likelihood_route = "unsupported",
+      compatible_copulas = character(), hessian_path = "not_available",
+      randomized_pit = FALSE, diagnostics = "not_available",
+      limitations = "At least one unlinked family parameter has no finite default.",
+      paper_route = FALSE, source = "dynamic"
+    ))
+  }
+  parameters <- names(normalized$parameters)
+  if (!all(parameters %in% c("mu", "sigma", "nu", "tau"))) return(NULL)
+  if (!all(vapply(parameters, .margin_parameter_has_link, logical(1),
+      margin_dist = normalized))) return(NULL)
+
+  list(
+    status = "supported", family_type = family_type,
+    response_domain = "family_defined",
+    response_requirement = paste0(
+      "finite values satisfying gamlss.dist::", family, "()$y.valid()"
+    ),
+    parameters = parameters,
+    likelihood_route = if (identical(family_type, "discrete")) {
+      "exact_discrete_rectangle"
+    } else {
+      "continuous_density"
+    },
+    compatible_copulas = "N",
+    hessian_path = "analytical_and_numerical_implemented",
+    randomized_pit = identical(family_type, "discrete"),
+    diagnostics = if (identical(family_type, "discrete")) {
+      "seeded_randomized_pit_and_descriptive_pair_diagnostics"
+    } else {
+      "continuous_pit_and_pair_diagnostics"
+    },
+    limitations = paste(
+      "Generic gamlss.dist compatibility route; Gaussian copula validated by",
+      "the family-interface contract and fit-level checks."
+    ),
+    paper_route = FALSE,
+    source = "dynamic"
+  )
 }
 
 .gl_capability_copula_spec <- function(copula) {
@@ -242,7 +361,39 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
     error = function(e) NULL
   )
   if (is.null(family_fun)) return(NULL)
-  tryCatch(do.call(family_fun, list()), error = function(e) NULL)
+  output <- utils::capture.output(
+    object <- suppressMessages(withCallingHandlers(
+      tryCatch(do.call(family_fun, list()), error = function(e) NULL),
+      warning = function(w) invokeRestart("muffleWarning")
+    ))
+  )
+  object
+}
+
+.gl_capability_available_families <- function(refresh = FALSE) {
+  cache_key <- paste0("gamlss.dist-", as.character(utils::packageVersion("gamlss.dist")))
+  if (!isTRUE(refresh) && exists(cache_key, envir = .gl_capability_cache, inherits = FALSE)) {
+    return(get(cache_key, envir = .gl_capability_cache, inherits = FALSE))
+  }
+
+  exports <- getNamespaceExports("gamlss.dist")
+  constructors <- sort(exports[grepl("^[A-Z][A-Z0-9.]*$", exports)])
+  families <- vapply(constructors, function(constructor) {
+    object <- .gl_capability_family_object(constructor)
+    if (!inherits(object, "gamlss.family") || is.null(object$family)) return(NA_character_)
+    as.character(object$family[[1L]])
+  }, character(1))
+  families <- sort(unique(families[!is.na(families) & nzchar(families)]))
+  assign(cache_key, families, envir = .gl_capability_cache)
+  families
+}
+
+.gl_capability_all_margin_specs <- function() {
+  explicit <- c(.gl_capability_margin_specs(), .gl_capability_denied_margin_specs())
+  families <- unique(c(names(explicit), .gl_capability_available_families()))
+  specs <- lapply(families, .gl_capability_margin_spec)
+  names(specs) <- families
+  specs[!vapply(specs, is.null, logical(1))]
 }
 
 .gl_capability_default_link_metadata <- function(family, parameters) {
@@ -268,7 +419,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
 }
 
 .gl_capability_margin_table <- function() {
-  specs <- c(.gl_capability_margin_specs(), .gl_capability_denied_margin_specs())
+  specs <- .gl_capability_all_margin_specs()
   rows <- lapply(names(specs), function(family) {
     spec <- specs[[family]]
     parameters <- spec$parameters
@@ -331,7 +482,10 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
 }
 
 .gl_capability_route_table <- function() {
-  margin_specs <- .gl_capability_margin_specs()
+  margin_specs <- Filter(
+    function(spec) identical(spec$status, "supported"),
+    .gl_capability_all_margin_specs()
+  )
   copula_specs <- .gl_capability_copula_specs()
   rows <- list()
   for (family in names(margin_specs)) {
@@ -354,7 +508,11 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
         diagnostics = margin$diagnostics,
         paper_route = (identical(family, "BCPE") && identical(copula, "t")) ||
           (identical(family, "NBI") && identical(copula, "C")),
-        route_evidence = "test-p1-coverage-simulations.R::coverage harness fits every registered route",
+        route_evidence = if (identical(margin$source, "dynamic")) {
+          "test-p0-capability-registry.R::generic family interface and bounded fit probes"
+        } else {
+          "test-p1-coverage-simulations.R::coverage harness fits every explicitly validated route"
+        },
         diagnostic_evidence = "test-p0-model-check-thresholds.R;test-p1-adoption-workflow.R",
         limitations = paste(
           margin$limitations,
@@ -382,7 +540,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
     all(vapply(margin_dist, function(x) is.list(x) && !is.null(x$family), logical(1)))
 }
 
-.gl_validate_capability_response <- function(response, family, spec) {
+.gl_validate_capability_response <- function(response, family, spec, margin_dist = NULL) {
   observed <- response[!is.na(response)]
   if (length(observed) == 0L) return(invisible(TRUE))
   if (any(!is.finite(observed))) {
@@ -396,7 +554,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
       response_domain = spec$response_domain
     )
   }
-  valid <- .gl_capability_response_matches(response, spec)
+  valid <- .gl_capability_response_matches(response, spec, family, margin_dist)
   if (!isTRUE(valid)) {
     .gl_capability_stop(
       "gamlss_longitudinal_response_domain_error",
@@ -411,15 +569,46 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
   invisible(TRUE)
 }
 
-.gl_capability_response_matches <- function(response, spec) {
+.gl_capability_response_matches <- function(response, spec, family = NULL, margin_dist = NULL) {
   observed <- response[!is.na(response)]
   if (length(observed) == 0L || any(!is.finite(observed))) return(FALSE)
   switch(spec$response_domain,
     real = TRUE,
     positive_real = all(observed > 0),
     count = all(observed >= 0) && all(abs(observed - round(observed)) <= sqrt(.Machine$double.eps)),
+    bounded_count = all(observed >= 0) && all(abs(observed - round(observed)) <= sqrt(.Machine$double.eps)),
+    family_defined = .gl_capability_family_response_matches(
+      observed, family = family, margin_dist = margin_dist
+    ),
     FALSE
   )
+}
+
+.gl_capability_family_response_matches <- function(response, family, margin_dist = NULL) {
+  object <- margin_dist
+  if (!is.list(object) || !inherits(object, "gamlss.family")) {
+    object <- .gl_capability_family_object(family)
+  }
+  if (is.null(object) || !is.function(object$y.valid)) return(FALSE)
+  y_args <- list(y = response)
+  needed <- setdiff(names(formals(object$y.valid)), "y")
+  if (length(needed)) {
+    qfun <- tryCatch(
+      get(paste0("q", family), envir = asNamespace("gamlss.dist"),
+          mode = "function", inherits = FALSE),
+      error = function(e) NULL
+    )
+    if (is.null(qfun)) return(FALSE)
+    for (parameter in needed) {
+      value <- tryCatch(eval(formals(qfun)[[parameter]], envir = baseenv()),
+        error = function(e) NA_real_)
+      if (!is.numeric(value) || length(value) != 1L || !is.finite(value)) {
+        return(FALSE)
+      }
+      y_args[[parameter]] <- value
+    }
+  }
+  isTRUE(tryCatch(do.call(object$y.valid, y_args), error = function(e) FALSE))
 }
 
 .gl_validate_capability_route <- function(margin_dist, copula_dist, response = NULL, context = "fit") {
@@ -462,7 +651,12 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
     )
   }
   if (is.list(margin_dist)) {
-    supplied_parameters <- names(margin_dist$parameters)
+    validated_margin_dist <- if (identical(spec$source, "dynamic")) {
+      .normalise_margin_dist_links(margin_dist)
+    } else {
+      margin_dist
+    }
+    supplied_parameters <- names(validated_margin_dist$parameters)
     if (!setequal(supplied_parameters, spec$parameters)) {
       .gl_capability_stop(
         "gamlss_longitudinal_unsupported_margin_parameter_error",
@@ -473,7 +667,12 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
         margin_family = family
       )
     }
-    linked <- vapply(spec$parameters, .margin_parameter_has_link, logical(1), margin_dist = margin_dist)
+    linked <- vapply(
+      spec$parameters,
+      .margin_parameter_has_link,
+      logical(1),
+      margin_dist = validated_margin_dist
+    )
     if (!all(linked)) {
       .gl_capability_stop(
         "gamlss_longitudinal_unsupported_link_error",
@@ -519,7 +718,9 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
       )
     }
   }
-  if (!is.null(response)) .gl_validate_capability_response(response, family, spec)
+  if (!is.null(response)) {
+    .gl_validate_capability_response(response, family, spec, margin_dist = margin_dist)
+  }
   invisible(list(
     registry_version = .gl_capability_registry_version(),
     margin_family = family,
@@ -536,12 +737,18 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
   if (length(response_vars) > 0L && is.data.frame(dataset) && response_vars[[1L]] %in% names(dataset)) {
     response <- dataset[[response_vars[[1L]]]]
   }
-  .gl_validate_capability_route(
+  out <- .gl_validate_capability_route(
     margin_dist = margin_dist,
     copula_dist = copula_dist,
     response = response,
     context = "fit"
   )
+  .gl_validate_margin_args_contract(
+    margin_dist = margin_dist,
+    dataset = dataset,
+    response = response
+  )
+  invisible(out)
 }
 
 .gl_capability_likelihood_route <- function(margin_dist) {
@@ -559,5 +766,5 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
 .gl_capability_margin_supported_for_response <- function(family, response) {
   spec <- .gl_capability_margin_spec(family)
   !is.null(spec) && identical(spec$status, "supported") &&
-    .gl_capability_response_matches(response, spec)
+    .gl_capability_response_matches(response, spec, family = family)
 }
