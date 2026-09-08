@@ -209,7 +209,7 @@ test_that("segmented fits warn and retain an auditable likelihood contract", {
 
   expect_length(warnings, 1L)
   expect_match(warnings, "treated as independent", fixed = TRUE)
-  expect_match(warnings, "model-Hessian inference is unavailable", fixed = TRUE)
+  expect_match(warnings, "model-Hessian inference is not used", fixed = TRUE)
   expect_identical(fit$missingness$objective, "segmented")
   expect_identical(fit$missingness$n_subjects_with_gaps, 2L)
   expect_identical(fit$missingness$n_segments, 18L)
