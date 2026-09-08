@@ -104,11 +104,71 @@
   )
 }
 
+.gl_numerical_margin_log_density_derivative <- function(
+    par_name,
+    margin_deriv_input,
+    margin_eval_cache,
+    margin_dist,
+    response,
+    h = 1e-5) {
+  n_obs <- length(response)
+  observed <- !is.na(response)
+  out <- numeric(n_obs)
+  if (!any(observed) || !par_name %in% names(margin_deriv_input)) return(out)
+
+  input <- .gl_likelihood_subset_row_input(
+    margin_deriv_input, observed, n_obs
+  )
+  value <- input[[par_name]]
+  linkfun <- margin_dist[[paste0(par_name, ".linkfun")]]
+  linkinv <- margin_dist[[paste0(par_name, ".linkinv")]]
+  if (!is.function(linkfun) || !is.function(linkinv)) {
+    out[observed] <- NA_real_
+    return(out)
+  }
+  eta <- tryCatch(as.numeric(linkfun(value)), error = function(e) rep(NA_real_, length(value)))
+  step <- h * pmax(1, abs(eta))
+  plus_value <- tryCatch(as.numeric(linkinv(eta + step)), error = function(e) rep(NA_real_, length(value)))
+  minus_value <- tryCatch(as.numeric(linkinv(eta - step)), error = function(e) rep(NA_real_, length(value)))
+
+  evaluate_log_density <- function(call_input) {
+    if ("log" %in% margin_eval_cache$margin_d_args) {
+      call_input$log <- TRUE
+      fast <- .call_fast_count_family("logd", margin_dist$family[1], call_input)
+      if (!is.null(fast)) return(as.numeric(fast))
+    }
+    args <- names(call_input)[names(call_input) %in% margin_eval_cache$margin_d_args]
+    density <- .call_margin_family_cached(
+      margin_eval_cache$margin_dFUN,
+      call_input,
+      args,
+      cacheable = FALSE,
+      cache_env = margin_eval_cache$family_call_cache,
+      cache_prefix = paste0(margin_dist$family[1], ":numerical-logd"),
+      force_scalar = margin_eval_cache$force_scalar_family
+    )
+    if ("log" %in% margin_eval_cache$margin_d_args) density else log(density)
+  }
+
+  plus_input <- input
+  minus_input <- input
+  plus_input[[par_name]] <- plus_value
+  minus_input[[par_name]] <- minus_value
+  log_plus <- evaluate_log_density(plus_input)
+  log_minus <- evaluate_log_density(minus_input)
+  derivative <- (log_plus - log_minus) / (plus_value - minus_value)
+  derivative[!is.finite(derivative)] <- NA_real_
+  out[observed] <- derivative
+  out
+}
+
 #' @keywords internal
 #' @noRd
 .gl_likelihood_evaluate_margin_derivatives <- function(
     margin_deriv_input,
     margin_eval_cache,
+    margin_dist,
+    mm,
     response,
     calc_margin_deriv = TRUE,
     margin_deriv_names = NULL) {
@@ -128,18 +188,54 @@
         margin_deriv_input, obs_response, n_obs
       )
       FUN_args <- names(observed_input)[names(observed_input) %in% deriv_info$args]
-      observed_val <- tryCatch(
-        do.call(deriv_info$FUN, args = observed_input[FUN_args]),
-        error = function(e) rep(0, sum(obs_response))
+      observed_val <- .call_margin_family_cached(
+        deriv_info$FUN,
+        observed_input,
+        FUN_args,
+        cacheable = FALSE,
+        cache_env = margin_eval_cache$family_call_cache,
+        cache_prefix = paste0(margin_dist$family[1], ":", deriv_info$name),
+        force_scalar = margin_eval_cache$force_scalar_family
       )
-      if (length(observed_val) == sum(obs_response)) {
-        deriv_val <- rep(0, n_obs)
-        deriv_val[obs_response] <- observed_val
-      } else {
-        deriv_val <- observed_val
+      if (length(observed_val) == 1L) {
+        observed_val <- rep(observed_val, sum(obs_response))
       }
-      deriv_val[!is.finite(deriv_val)] <- 0
+      deriv_val <- rep(NA_real_, n_obs)
+      if (length(observed_val) == sum(obs_response)) {
+        deriv_val[obs_response] <- observed_val
+      }
+      deriv_val[!obs_response] <- 0
       margin_deriv[[deriv_info$name]] <- deriv_val
+    }
+
+    suffix <- c(mu = "m", sigma = "d", nu = "v", tau = "t")
+    parameters <- intersect(names(mm), names(suffix))
+    expected_names <- paste0("dld", suffix[parameters])
+    if (!is.null(margin_deriv_names)) {
+      keep <- expected_names %in% margin_deriv_names
+      parameters <- parameters[keep]
+      expected_names <- expected_names[keep]
+    }
+    for (ii in seq_along(parameters)) {
+      name <- expected_names[[ii]]
+      current <- margin_deriv[[name]]
+      if (is.null(current) || length(current) != n_obs) {
+        current <- rep(NA_real_, n_obs)
+        current[!obs_response] <- 0
+      }
+      failed <- obs_response & !is.finite(current)
+      if (any(failed)) {
+        numerical <- .gl_numerical_margin_log_density_derivative(
+          par_name = parameters[[ii]],
+          margin_deriv_input = margin_deriv_input,
+          margin_eval_cache = margin_eval_cache,
+          margin_dist = margin_dist,
+          response = response
+        )
+        current[failed] <- numerical[failed]
+      }
+      current[!is.finite(current)] <- 0
+      margin_deriv[[name]] <- current
     }
   }
   margin_deriv
@@ -170,7 +266,8 @@
       # row-cache expands scalar arguments, which is not safe for this flag.
       cacheable = FALSE,
       cache_env = margin_eval_cache$family_call_cache,
-      cache_prefix = paste0(margin_dist$family[1], ":logd")
+      cache_prefix = paste0(margin_dist$family[1], ":logd"),
+      force_scalar = margin_eval_cache$force_scalar_family
     )
   }
   margin_log_d
@@ -201,6 +298,8 @@
   margin_deriv <- .gl_likelihood_evaluate_margin_derivatives(
     margin_deriv_input = margin_deriv_input,
     margin_eval_cache = margin_eval_cache,
+    margin_dist = margin_dist,
+    mm = mm,
     response = response,
     calc_margin_deriv = calc_margin_deriv,
     margin_deriv_names = margin_deriv_names
@@ -218,7 +317,8 @@
         FUN_args,
         cacheable = discrete_margin,
         cache_env = margin_eval_cache$family_call_cache,
-        cache_prefix = paste0(margin_dist$family[1], ":p:upper")
+        cache_prefix = paste0(margin_dist$family[1], ":p:upper"),
+        force_scalar = margin_eval_cache$force_scalar_family
       )
     }
     margin_p[obs_response] <- observed_p
@@ -237,7 +337,8 @@
         FUN_args,
         cacheable = discrete_margin,
         cache_env = margin_eval_cache$family_call_cache,
-        cache_prefix = paste0(margin_dist$family[1], ":d")
+        cache_prefix = paste0(margin_dist$family[1], ":d"),
+        force_scalar = margin_eval_cache$force_scalar_family
       )
     }
     observed_log_d <- .gl_likelihood_evaluate_margin_log_density(
@@ -278,7 +379,8 @@
           survival_args,
           cacheable = FALSE,
           cache_env = margin_eval_cache$family_call_cache,
-          cache_prefix = paste0(margin_dist$family[1], ":log-survival:upper")
+          cache_prefix = paste0(margin_dist$family[1], ":log-survival:upper"),
+          force_scalar = margin_eval_cache$force_scalar_family
         )
       }
       direct_log_survival[stable_tail] <- evaluated_survival

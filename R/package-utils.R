@@ -124,19 +124,99 @@ utils::globalVariables(c(
 #'
 #' @noRd
 .gl_margin_fixed_family_args <- function(margin_dist, n) {
-  family <- if (is.character(margin_dist)) {
-    margin_dist[[1L]]
+  out <- attr(margin_dist, "fixed_family_args", exact = TRUE)
+  if (is.null(out)) return(list())
+  lapply(out, function(value) {
+    if (length(value) == 1L) return(rep(value, n))
+    if (length(value) != n) {
+      stop("Stored marginal family arguments do not match the evaluation rows.", call. = FALSE)
+    }
+    value
+  })
+}
+
+.gl_binomial_families <- function() {
+  c("BI", "BB", "DBI", "ZABB", "ZABI", "ZIBB", "ZIBI")
+}
+
+.gl_attach_margin_args_spec <- function(margin_dist, margin_args = list()) {
+  if (is.null(margin_args)) margin_args <- list()
+  if (!is.list(margin_args) || (length(margin_args) && (
+      is.null(names(margin_args)) || any(!nzchar(names(margin_args))) ||
+        anyDuplicated(names(margin_args))))) {
+    stop("'margin_args' must be a named list.", call. = FALSE)
+  }
+  unknown <- setdiff(names(margin_args), "bd")
+  if (length(unknown)) {
+    stop("Unsupported 'margin_args': ", paste(unknown, collapse = ", "), ".", call. = FALSE)
+  }
+  attr(margin_dist, "margin_args_spec") <- margin_args
+  attr(margin_dist, "fixed_family_args") <- NULL
+  margin_dist
+}
+
+.gl_resolve_margin_args <- function(margin_dist, dataset, response = NULL) {
+  family <- .gl_capability_margin_code(margin_dist)
+  spec <- attr(margin_dist, "margin_args_spec", exact = TRUE) %||% list()
+  is_binomial <- family %in% .gl_binomial_families()
+  if (!is_binomial && length(spec)) {
+    stop("'margin_args' is currently available only for binomial GAMLSS families.", call. = FALSE)
+  }
+  if (!is_binomial) return(list())
+  if (!"bd" %in% names(spec)) {
+    .gl_capability_stop(
+      "gamlss_longitudinal_missing_margin_argument_error",
+      paste0(
+        "Margin family '", family, "' requires explicit binomial trials. ",
+        "Supply margin_args = list(bd = 10) for a constant denominator or ",
+        "margin_args = list(bd = 'trials_column') for row-specific denominators."
+      ),
+      margin_family = family, margin_argument = "bd"
+    )
+  }
+  bd_spec <- spec$bd
+  if (is.character(bd_spec) && length(bd_spec) == 1L && !is.na(bd_spec)) {
+    if (!is.data.frame(dataset) || !bd_spec %in% names(dataset)) {
+      stop("Binomial trials column '", bd_spec, "' was not found in the data.", call. = FALSE)
+    }
+    bd <- dataset[[bd_spec]]
+  } else if (is.numeric(bd_spec) && length(bd_spec) == 1L && is.finite(bd_spec)) {
+    bd <- rep(as.numeric(bd_spec), nrow(dataset))
   } else {
-    margin_dist$family[[1L]]
+    stop("'margin_args$bd' must be one positive integer or one data-column name.", call. = FALSE)
   }
-  family <- as.character(family)
-  out <- list()
-
-  if (identical(family, "BI")) {
-    out$bd <- rep(1, n)
+  if (!is.numeric(bd) && !is.integer(bd)) {
+    stop("Binomial trials must be numeric integers.", call. = FALSE)
   }
+  observed <- if (is.null(response)) rep(TRUE, length(bd)) else !is.na(response)
+  invalid_bd <- observed & (!is.finite(bd) | bd <= 0 | abs(bd - round(bd)) > sqrt(.Machine$double.eps))
+  if (any(invalid_bd)) {
+    stop("Binomial trials must be finite positive integers for every observed response.", call. = FALSE)
+  }
+  if (!is.null(response)) {
+    invalid_y <- observed & (response < 0 | abs(response - round(response)) > sqrt(.Machine$double.eps) |
+      response > bd)
+    if (any(invalid_y)) {
+      .gl_capability_stop(
+        "gamlss_longitudinal_response_domain_error",
+        "Binomial responses must be non-negative integer successes no greater than their row-specific trials.",
+        margin_family = family, response_domain = "bounded_count"
+      )
+    }
+  }
+  list(bd = as.numeric(bd))
+}
 
-  out
+.gl_validate_margin_args_contract <- function(margin_dist, dataset, response = NULL) {
+  invisible(.gl_resolve_margin_args(margin_dist, dataset, response))
+}
+
+.gl_bind_margin_args <- function(margin_dist, dataset) {
+  response <- if (is.data.frame(dataset) && "response" %in% names(dataset)) dataset$response else NULL
+  attr(margin_dist, "fixed_family_args") <- .gl_resolve_margin_args(
+    margin_dist, dataset, response
+  )
+  margin_dist
 }
 
 #' Check whether a GAMLSS margin parameter has complete link metadata
