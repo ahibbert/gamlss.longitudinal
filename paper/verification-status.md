@@ -1,6 +1,6 @@
 # Replication verification status
 
-Last updated: 2026-09-05 (Australia/Sydney).
+Last updated: 2026-09-08 (Australia/Sydney).
 
 ## Gate definition
 
@@ -32,8 +32,15 @@ author-side recomputation.
   399 retained, 81 named failures, 298 expected warnings, and zero unexpected
   warnings. Monotone dropout is the headline and intermittent MAR is a
   sensitivity analysis.
-- The focused 3,600-fit six-by-six copula-misspecification refresh is pending;
-  the 62-attempt fit-scaling bundle passes its submission schema and reconstruction checks.
+- The focused six-by-six copula-misspecification study completed all 3,600
+  candidate fits: 100 data sets from each of six generating copulas, with all
+  six candidates fitted to every data set, at `n = 150` and Kendall's tau
+  0.25. All fits succeeded, converged, and were retained. The run recorded 116
+  expected numerical/inference diagnostic warnings, zero nonconvergence
+  warnings, zero unexpected warnings, and no failed selection sets. The clean
+  Windows R 4.4.1 production run used four workers and completed in 2 hours 4
+  minutes 36 seconds. The 62-attempt fit-scaling bundle also passes its
+  submission schema and reconstruction checks.
 - BCPE/t completed all 200 method attempts successfully and converged. Its
   exact-settings resume accepted 200/200 checkpoints, found zero pending, and
   changed no checkpoint timestamp or hash.

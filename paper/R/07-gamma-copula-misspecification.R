@@ -1960,7 +1960,7 @@ jss_misspec_summary_panel <- function(plot_data, metric, title, fill_label, scal
     ))
 }
 
-jss_misspec_figure_metadata <- function(summary, n_subject = 500L, tau_label = "high", reps = 100L) {
+jss_misspec_figure_metadata <- function(summary, n_subject = 150L, tau_label = "moderate", reps = 100L) {
   selected <- summary[summary$n_subject == n_subject & summary$tau_label == tau_label, , drop = FALSE]
   tau <- unique(as.numeric(selected$target_tau))
   if (length(tau) != 1L || !is.finite(tau)) {
@@ -1974,7 +1974,7 @@ jss_misspec_figure_metadata <- function(summary, n_subject = 500L, tau_label = "
   )
 }
 
-jss_misspec_write_paper_summary_heatmap <- function(summary, path, n_subject = 500L, tau_label = "high", reps = 100L) {
+jss_misspec_write_paper_summary_heatmap <- function(summary, path, n_subject = 150L, tau_label = "moderate", reps = 100L) {
   metadata <- jss_misspec_figure_metadata(summary, n_subject, tau_label, reps)
   title <- metadata$visible_label
   if (!nrow(summary)) {

@@ -255,6 +255,17 @@ jss_run_07_from_public_results <- function(settings) {
   selection_failures <- jss_misspec_selection_failures(selection_attempts)
   paired_effects <- jss_misspec_paired_effects(results)
   warning_audit <- jss_misspec_warning_audit(results)
+  paper_cells <- summary[
+    summary$n_subject == 150L & summary$tau_label == "moderate",
+    c("generating_copula", "fitted_copula"),
+    drop = FALSE
+  ]
+  expected_cells <- length(jss_misspec_copulas()) ^ 2L
+  if (nrow(paper_cells) != expected_cells || anyDuplicated(paper_cells) ||
+      !setequal(unique(paper_cells$generating_copula), jss_misspec_copulas()) ||
+      !setequal(unique(paper_cells$fitted_copula), jss_misspec_copulas())) {
+    stop("Module 07 paper heatmap requires the complete registered six-by-six design.", call. = FALSE)
+  }
   jss_misspec_write_csv_atomic(evidence_grid, paths$grid)
   jss_misspec_write_csv_atomic(results, paths$results)
   jss_misspec_write_csv_atomic(summary, paths$summary)
