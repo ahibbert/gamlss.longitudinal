@@ -101,7 +101,7 @@
     }
   }
 
-  if (verbose > 0) {
+  if (verbose > 1) {
     cat("Missingness Summary (by time):\n")
     print(miss_by_time)
     cat("\nConsecutive Pair Completeness:\n")
@@ -127,7 +127,7 @@
   if (any(margin_all_missing)) {
     bad_times <- miss_by_time$time[margin_all_missing]
     stop(
-      "ERROR: 100% missing response values detected for margin time point(s): ",
+      "All response values are missing at time point(s): ",
       paste(bad_times, collapse = ", "),
       "\nModel fitting stopped because at least one margin has no observed outcomes."
     )
@@ -141,7 +141,7 @@
         paste0("(", x[1], ",", x[2], ")")
       })
       stop(
-        "ERROR: 100% missing complete copula pairs detected for consecutive time pair(s): ",
+        "No complete copula pairs are available for consecutive time pair(s): ",
         paste(bad_pairs, collapse = ", "),
         "\nModel fitting stopped because at least one copula pair contributes no complete observations."
       )

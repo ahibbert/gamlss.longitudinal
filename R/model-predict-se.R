@@ -32,7 +32,11 @@
   mm_use <- .gl_prediction_model_matrix(object, newdata = newdata)
 
   if (is.null(mm_use$x$mu) || ncol(mm_use$x$mu) == 0L) {
-    return(rep(NA_real_, length(predict(object, newdata = newdata, type = "response"))))
+    stop(.gl_inference_unavailable(list(
+      status = "unavailable",
+      failure_codes = "prediction_mu_design_unavailable",
+      message = "Prediction inference is unavailable because the mu fixed-effect design is absent."
+    )))
   }
 
   X <- as.matrix(mm_use$x$mu)
@@ -42,6 +46,7 @@
   beta_names <- ifelse(startsWith(beta_names, "mu."), beta_names, paste0("mu.", beta_names))
 
   vc <- .resolve_vcov(object, extra_args = list(method = method, ...))
+  .gl_require_available_inference(vc)
 
   V <- vc$vcov$overall
 
@@ -50,12 +55,23 @@
   idx <- match(beta_names, V_names)
 
   if (any(is.na(idx))) {
-    return(rep(NA_real_, nrow(X)))
+    stop(.gl_inference_unavailable(list(
+      status = "unavailable",
+      failure_codes = "prediction_covariance_columns_unmatched",
+      message = paste0(
+        "Prediction inference is unavailable because mu design columns are missing ",
+        "from the fixed-effect covariance matrix: ",
+        paste(beta_names[is.na(idx)], collapse = ", "), "."
+      ),
+      unmatched_columns = beta_names[is.na(idx)]
+    )))
   }
 
   V_mu <- V[idx, idx, drop = FALSE]
 
-  se_eta <- sqrt(pmax(0, rowSums((X %*% V_mu) * X)))
+  se_eta <- .gl_sqrt_derived_variance(
+    rowSums((X %*% V_mu) * X), "prediction covariance", allow_zero = TRUE
+  )
 
   copula_link <- get_copula_dist(object$copula_dist)$copula_link
 
@@ -69,5 +85,16 @@
 
   mu_dr <- eta_out$eta_dr$mu %||% rep(1, length(se_eta))
 
-  as.numeric(abs(mu_dr[seq_along(se_eta)]) * se_eta)
+  out <- as.numeric(abs(mu_dr[seq_along(se_eta)]) * se_eta)
+  if (!any(is.finite(out))) {
+    stop(.gl_inference_unavailable(list(
+      status = "unavailable",
+      failure_codes = "prediction_standard_errors_nonfinite",
+      message = "Prediction inference is unavailable because no finite standard errors were produced."
+    )))
+  }
+  covariance_contract <- vc$inference_contract %||%
+    .gl_fixed_inference_contract(vc, coefficient_names = beta_names)
+  attr(out, "inference_contract") <- covariance_contract
+  out
 }

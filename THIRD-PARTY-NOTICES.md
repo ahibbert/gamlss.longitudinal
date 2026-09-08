@@ -73,3 +73,16 @@ The package implementation delegates to and tests against public R packages
 such as `gamlss`, `gamlss.dist`, `VineCopula`, `geepack`, `lme4`, `mgcv`, and
 `MASS`, but those dependencies are not vendored into the package source. Public
 R package dependencies and optional packages are declared in `DESCRIPTION`.
+
+## Public Analysis Data
+
+The installed package includes three attributed, analysis-ready public
+datasets. Full source, license, checksum, and transformation notices are in
+`inst/DATA-LICENSES.md` and the reproducible preparation code is in
+`data-raw/build-public-candidate-data.R`.
+
+- `patents_panel` is derived from `pglm::PatentsRDUS` (GPL >= 2), based on Hall,
+  Griliches, and Hausman (1986).
+- `pbc_prothrombin` is derived from `survival::pbcseq` (LGPL >= 2), copyright
+  Mayo Foundation for Medical Education and Research.
+- `vietnam_steps` is adapted from Truong, Huynh, and To (2025) under CC BY 4.0.

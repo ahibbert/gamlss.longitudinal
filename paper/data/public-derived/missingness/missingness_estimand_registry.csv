@@ -1,0 +1,4 @@
+"component","estimand","observed_data_projection","reference_distribution"
+"fixed_intercept","population coefficient plus smooth mean under Uniform(0,1) s1",FALSE,"s1 ~ Uniform(0,1)"
+"fixed_nonintercept","full-data population generating coefficient",FALSE,"generating model"
+"smooth_curve","population smooth centered under the fixed Uniform(0,1) s1 reference grid",FALSE,"fixed 10001-point s1 grid over [0,1]"

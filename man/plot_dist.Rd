@@ -8,7 +8,7 @@
 plotDist(...)
 
 plot_dist(
-  dataset = NULL,
+  data = NULL,
   margin_dist = NULL,
   subject_var = NULL,
   time_var = NULL,
@@ -25,10 +25,9 @@ plot_dist(
 )
 }
 \arguments{
-\item{...}{Compatibility arguments passed from \code{plotDist()} to
-\code{plot_dist()}.}
+\item{...}{The deprecated \code{dataset} alias is accepted temporarily.}
 
-\item{dataset}{Optional long-format data frame. Required unless \code{fit}
+\item{data}{Optional long-format data frame. Required unless \code{fit}
 contains stored data.}
 
 \item{margin_dist}{Optional \code{gamlss.dist} family object used for diagonal

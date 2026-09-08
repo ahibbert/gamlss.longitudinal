@@ -92,6 +92,8 @@ fit_fixture_model <- function(
   outer_stop_crit = 1,
   inner_stop_crit = 1,
   method = "RS",
+  missingness = "error",
+  muffle_segment_warning = TRUE,
   use_backtracking = TRUE,
   compute_vcov = FALSE,
   verbose = 0
@@ -103,35 +105,143 @@ fit_fixture_model <- function(
 
   withCallingHandlers(
     gamlss.longitudinal::gamlss_longitudinal(
-      dataset = dataset,
+      data = dataset,
       margin_dist = gamlss.dist::NO(),
       copula_dist = "N",
       time_var = time_var,
       subject_var = subject_var,
+      missingness = missingness,
       mu.formula = mu_formula,
       sigma.formula = sigma_formula,
       nu.formula = nu_formula,
       tau.formula = tau_formula,
       theta.formula = theta_formula,
       zeta.formula = zeta_formula,
-      start_from = start_from,
-      include_dlcopdpar = include_dlcopdpar,
+      start = start_from,
+      optimization = if (isTRUE(include_dlcopdpar)) "joint" else "separate",
       method = method,
-      use_backtracking = use_backtracking,
+      optimizer_control = if (identical(toupper(method), "RS")) {
+        gamlss.longitudinal::gamlss_longitudinal_control(
+          outer_tol = outer_stop_crit,
+          max_outer_iter = max_outer_iter,
+          rs = list(
+            inner_tol = inner_stop_crit,
+            max_inner_iter = max_inner_iter,
+            use_backtracking = use_backtracking
+          )
+        )
+      } else {
+        gamlss.longitudinal::gamlss_longitudinal_control(
+          outer_tol = outer_stop_crit,
+          max_outer_iter = max_outer_iter,
+          cg = list(use_backtracking = use_backtracking)
+        )
+      },
       compute_vcov = compute_vcov,
-      verbose = verbose,
-      max_outer_iter = max_outer_iter,
-      max_inner_iter = max_inner_iter,
-      outer_stop_crit = outer_stop_crit,
-      inner_stop_crit = inner_stop_crit
+      verbose = verbose
     ),
     warning = function(w) {
-      if (grepl("Model stopped at max_outer_iter", conditionMessage(w), fixed = TRUE)) {
+      if (
+        inherits(w, "gamlss.longitudinal_nonconvergence_warning") ||
+          (isTRUE(muffle_segment_warning) && inherits(w, "gamlss.longitudinal_segment_warning")) ||
+          grepl("Model stopped at max_outer_iter", conditionMessage(w), fixed = TRUE)
+      ) {
         invokeRestart("muffleWarning")
       }
     }
   )
 }
+
+get_valid_inference_fixture <- local({
+  fixture <- NULL
+
+  function() {
+    if (is.null(fixture)) {
+      dat <- make_fixture_factor_time_interaction(n_subject = 50L)
+      fit <- fit_fixture_model(
+        dat,
+        include_dlcopdpar = FALSE,
+        mu_formula = "y ~ time_raw + gender + age",
+        sigma_formula = "~ 1",
+        theta_formula = "~ 1",
+        max_outer_iter = 25L,
+        max_inner_iter = 25L,
+        outer_stop_crit = 1e-5,
+        inner_stop_crit = 1e-5
+      )
+      vcov_out <- stats::vcov(fit, method = "analytical")
+
+      stopifnot(
+        isTRUE(fit$convergence$converged),
+        identical(vcov_out$hessian_diagnostics$status, "available")
+      )
+      fixture <- list(data = dat, fit = fit, vcov = vcov_out)
+    }
+
+    fixture
+  }
+})
+
+get_valid_plot_fixture <- local({
+  fixtures <- list()
+
+  function(ordered = TRUE) {
+    key <- if (isTRUE(ordered)) "ordered" else "unordered"
+    if (is.null(fixtures[[key]])) {
+      dat <- make_fixture_factor_time_interaction(n_subject = 50L)
+      dat$time_raw <- factor(
+        as.character(dat$time_raw),
+        levels = levels(dat$time_raw),
+        ordered = ordered
+      )
+      fit <- fit_fixture_model(
+        dat,
+        include_dlcopdpar = TRUE,
+        max_outer_iter = 25L,
+        max_inner_iter = 25L,
+        outer_stop_crit = 1e-5,
+        inner_stop_crit = 1e-5
+      )
+      vcov_out <- stats::vcov(fit, method = "analytical")
+
+      stopifnot(
+        isTRUE(fit$convergence$converged),
+        identical(vcov_out$hessian_diagnostics$status, "available")
+      )
+      fixtures[[key]] <- list(data = dat, fit = fit, vcov = vcov_out)
+    }
+
+    fixtures[[key]]
+  }
+})
+
+get_valid_smooth_plot_fixture <- local({
+  fixture <- NULL
+
+  function() {
+    if (is.null(fixture)) {
+      dat <- make_fixture_factor_time_interaction(n_subject = 50L)
+      fit <- fit_fixture_model(
+        dat,
+        include_dlcopdpar = TRUE,
+        mu_formula = "y ~ time_raw * gender + s(log(age), bs = 'ps')",
+        max_outer_iter = 25L,
+        max_inner_iter = 25L,
+        outer_stop_crit = 1e-5,
+        inner_stop_crit = 1e-5
+      )
+      vcov_out <- stats::vcov(fit, method = "analytical")
+
+      stopifnot(
+        isTRUE(fit$convergence$converged),
+        identical(vcov_out$hessian_diagnostics$status, "available")
+      )
+      fixture <- list(data = dat, fit = fit, vcov = vcov_out)
+    }
+
+    fixture
+  }
+})
 
 capture_warnings <- function(expr) {
   warnings <- character(0)
@@ -144,3 +254,4 @@ capture_warnings <- function(expr) {
   )
   list(value = value, warnings = warnings)
 }
+options(gamlss.longitudinal.lifecycle_verbosity = "quiet")

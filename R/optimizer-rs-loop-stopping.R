@@ -12,12 +12,24 @@
     msg <- paste0(
       "Optimization stopped after ", max_negative_outer_streak, " consecutive negative outer log-likelihood changes. ",
       "We believe the model may be misspecified and the likelihood may be malformed. ",
-      "Try different starting parameters or covariate combinations. Other options include switching between joint and separate optimisation. In general, joint optimisation provides more stable convergence.",
-      "Alternatively, you can increase the max_negative_outer_streak parameter to allow more negative changes before stopping, but we recommend investigating the cause of the consecutive negative changes in likelihood."
+      "Try different starting parameters or covariate combinations. You can also switch between joint and separate optimization; joint optimization is generally more stable. ",
+      "To allow a longer streak, set `optimizer_control = gamlss_longitudinal_control(rs = list(max_negative_outer_streak = ...))`, but investigate why the likelihood decreases consecutively."
     )
 
-    warning(msg, call. = FALSE)
-    stop(msg, call. = FALSE)
+    stop(structure(
+      list(
+        message = msg,
+        call = NULL,
+        stop_reason = "objective_deterioration",
+        outer_negative_streak = outer_negative_streak,
+        max_negative_outer_streak = max_negative_outer_streak
+      ),
+      class = c(
+        "gamlss.longitudinal_objective_deterioration_error",
+        "error",
+        "condition"
+      )
+    ))
   }
 
   outer_negative_streak
@@ -34,7 +46,7 @@
     inner_run_counter,
     max_inner_iter) {
   (isTRUE(first_inner_run) || abs(change_log_lik) > inner_stop_crit) &&
-    inner_run_counter < max_inner_iter
+    inner_run_counter <= max_inner_iter
 }
 
 #' Determine whether the RS outer loop should continue
@@ -46,9 +58,10 @@
     outer_log_lik_change,
     outer_stop_crit,
     outer_only_run_counter,
-    max_outer_iter) {
-  (isTRUE(first_outer_run) || abs(outer_log_lik_change) > outer_stop_crit) &&
-    outer_only_run_counter < max_outer_iter
+    max_outer_iter,
+    stop_on_convergence = TRUE) {
+  (!isTRUE(stop_on_convergence) || isTRUE(first_outer_run) || abs(outer_log_lik_change) > outer_stop_crit) &&
+    outer_only_run_counter <= max_outer_iter
 }
 
 .gl_update_rs_outer_iteration_state <- function(

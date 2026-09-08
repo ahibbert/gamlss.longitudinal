@@ -1,20 +1,32 @@
 library(targets)
 
 source(file.path("paper", "R", "replication-helpers.R"))
+source(file.path("paper", "R", "phase2-evidence-contracts.R"))
+source(file.path("paper", "R", "main-recovery-evidence.R"))
 source(file.path("paper", "R", "01-simulation-bcpe-t.R"))
 source(file.path("paper", "R", "02-simulation-delaporte-clayton.R"))
 source(file.path("paper", "R", "03-joint-vs-separate-optimization.R"))
+source(file.path("paper", "R", "missingness-study-helpers.R"))
 source(file.path("paper", "R", "04-missingness-dropout-sensitivity.R"))
+source(file.path("paper", "R", "04-missingness-publication-lean.R"))
 source(file.path("paper", "R", "07-gamma-copula-misspecification.R"))
-source(file.path("paper", "R", "08-simulation-sensitivity-correlation-misspecification.R"))
+source(file.path("paper", "R", "10-fit-scaling.R"))
+source(file.path("paper", "R", "phase2-central-integration.R"))
+source(file.path("paper", "R", "phase2-paper-evidence.R"))
+source(file.path("paper", "R", "03-optimizer-publication-lean.R"))
 source(file.path("paper", "R", "public-paper-producers.R"))
+source(file.path("paper", "R", "submission-replication.R"))
 
 tar_option_set(packages = c("gamlss.longitudinal", "gamlss.dist", "ggplot2"), format = "rds")
 profile <- Sys.getenv("GAMLSS_LONGITUDINAL_JSS_PROFILE", "smoke")
 if (identical(profile, "expanded")) profile <- "paper"
 
 common <- list(
-  tar_target(settings, jss_settings(), cue = tar_cue(mode = "always")),
+  tar_target(settings, {
+    value <- jss_settings()
+    value$target_integrated <- TRUE
+    value
+  }, cue = tar_cue(mode = "always")),
   tar_target(public_workflow_figures, jss_run_public_workflow_figures(settings)),
   tar_target(
     session_info,
@@ -24,11 +36,25 @@ common <- list(
   )
 )
 if (!identical(profile, "smoke")) {
-  common <- c(common, list(tar_target(
-    public_input_files,
-    list.files(settings$public_data_dir, full.names = TRUE, recursive = TRUE, pattern = "[.](csv|tex|md)$"),
-    format = "file"
-  )))
+  common <- c(common, list(
+    tar_target(
+      public_input_files,
+      list.files(settings$public_data_dir, full.names = TRUE, recursive = TRUE, pattern = "[.](csv|tex|md|png)$"),
+      format = "file"
+    ),
+    tar_target(
+      phase2_evidence_registry_files,
+      file.path(settings$root, "paper", c(
+        "phase2-claims.csv", "phase2-design-contract.csv", "phase2-manuscript-scope.csv",
+        "phase2-pending-claims.csv", "phase2-design-joint-contract.csv", "phase2-prose-allowlist.csv",
+        "phase2-manuscript-artifacts.csv", "canonical-phase2-manuscript-audit.csv",
+        "phase2-canonical-source.csv", "phase2-artifact-contract.csv", "manifest.csv",
+        "submission-input-schemas.csv", "DEFERRED-MULTIVARIATE-STUDY.md",
+        file.path("manuscript", "main.tex")
+      )),
+      format = "file"
+    )
+  ))
 }
 
 modules <- if (identical(profile, "smoke")) {
@@ -40,24 +66,42 @@ modules <- if (identical(profile, "smoke")) {
   )
 } else {
   list(
-    tar_target(module_01_bcpe_t, { public_input_files; jss_run_01_bcpe_t(settings) }),
-    tar_target(module_02_nbi_clayton, { public_input_files; jss_run_02_delaporte_clayton(settings) }),
-    tar_target(module_03_joint_vs_separate, { public_input_files; jss_run_03_joint_vs_separate(settings) }),
+    tar_target(module_phase2_main_recovery, { public_input_files; jss_run_phase2_main_recovery(settings) }),
+    tar_target(module_03_joint_vs_separate, { public_input_files; jss_run_phase2_optimizer(settings) }),
     tar_target(module_04_missingness, { public_input_files; jss_run_04_missingness_dropout(settings) }),
     tar_target(module_07_copula_misspecification, {
       public_input_files
-      if (identical(settings$profile, "full")) jss_run_07_gamma_copula_misspecification(settings, stage = "full") else jss_run_07_from_public_results(settings)
+      jss_run_07_from_public_results(settings)
     }),
-    tar_target(module_08_correlation_misspecification, { public_input_files; jss_run_08_public(settings) })
+    tar_target(module_10_fit_scaling, { public_input_files; jss_run_10_fit_scaling(settings) }),
+    tar_target(phase2_production_modules, {
+      registered <- list(
+        main_recovery = module_phase2_main_recovery,
+        optimizer = module_03_joint_vs_separate,
+        missingness = module_04_missingness,
+        copula_selection = module_07_copula_misspecification,
+        fit_scaling = module_10_fit_scaling
+      )
+      jss_phase2_validate_production_modules(settings, registered)
+      registered
+    }),
+    tar_target(phase2_claim_evidence, {
+      phase2_production_modules
+      phase2_evidence_registry_files
+      jss_write_phase2_claim_evidence(settings)
+    }, format = "file"),
+    tar_target(phase2_gate_audit, jss_write_phase2_gate_audit(
+      settings, phase2_production_modules, phase2_claim_evidence
+    ), format = "file")
   )
 }
 
 output_target <- if (identical(profile, "smoke")) {
   tar_target(public_outputs, list(public_workflow_figures, coverage_summary_csv, convergence_summary_csv, fit_events))
 } else {
-  tar_target(public_outputs, list(public_workflow_figures, module_01_bcpe_t, module_02_nbi_clayton,
-    module_03_joint_vs_separate, module_04_missingness,
-    module_07_copula_misspecification, module_08_correlation_misspecification))
+  tar_target(public_outputs, list(public_workflow_figures, module_phase2_main_recovery, module_03_joint_vs_separate, module_04_missingness,
+    module_07_copula_misspecification,
+    module_10_fit_scaling, phase2_claim_evidence, phase2_gate_audit))
 }
 
 tolerance_target <- if (identical(profile, "full")) {

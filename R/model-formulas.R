@@ -7,7 +7,7 @@
   }
 
   if (!is.character(fml) || length(fml) != 1 || is.na(fml) || nchar(trimws(fml)) == 0) {
-    stop("ERROR: Invalid formula input: ", deparse(fml))
+    stop("Invalid formula input: ", deparse(fml), call. = FALSE)
   }
 
   txt <- trimws(fml)

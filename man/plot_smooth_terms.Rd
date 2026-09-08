@@ -10,8 +10,8 @@ plot_smooth_terms(
   data = NULL,
   ci_level = 0.95,
   ncol = NULL,
-  ci_col = "red",
-  fit_col = "black",
+  ci_col = .gl_plot_colours()[["interval"]],
+  fit_col = .gl_plot_colours()[["fitted"]],
   ci_lty = 2,
   fit_lwd = 2,
   sort_x = TRUE,
@@ -60,7 +60,9 @@ this function. Set FALSE when caller configures layout.}
 }
 \value{
 Invisibly returns a nested list with x, fitted values, standard
-errors, and confidence limits for each smooth term.
+errors, and approximate conditional pointwise confidence limits for each
+smooth term. The bands omit fixed-smooth, between-smooth, and
+smoothing-parameter uncertainty; the returned object records this contract.
 }
 \description{
 This utility plots every smooth term in a fitted \code{gamlss.longitudinal} object

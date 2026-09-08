@@ -1,9 +1,7 @@
 #' @export
 
 print.copula_time_summary <- function(x, digits = max(3, getOption("digits") - 3), ...) {
-  cat("\nCopula Dependence Summary\n")
-
-  cat("-------------------------\n")
+  cat("\n<Copula dependence summary>\n")
 
   if (!is.null(x$time_summary)) {
     cat("\nFitted dependence by time:\n")

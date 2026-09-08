@@ -22,6 +22,7 @@ plot_copula_overlay <- function(
     max_pairs_overlay = 300,
     plot = TRUE,
     ...) {
+  .Deprecated("plot_copula_fit", package = "gamlss.longitudinal")
   .plot_reject_old_call_args(sys.call(), old_args = c("copula", "selected_fit"))
   plot_copula_fit(
     data = data,

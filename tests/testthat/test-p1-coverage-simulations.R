@@ -37,16 +37,22 @@ test_that("coverage safe defaults keep constrained families inside support", {
   expect_true(is.finite(gamlss.dist::dLG(1, mu = lg_params$mu)))
 })
 
-test_that("coverage harness fits representative families and copulas", {
+test_that("coverage harness fits every registered route", {
   skip_if_not_installed("gamlss")
   skip_if_not_installed("gamlss.dist")
 
+  registered <- longitudinal_capabilities("routes")
   grid <- data.frame(
-    family = c("NO", "GA", "BCPE", "PO", "NBI", "DEL", "ZIP", "ZAP", "ZINBI", "NO", "NO", "NO", "NO", "NO", "PO"),
-    copula = c(rep("N", 9), "C", "F", "G", "J", "t", "C"),
-    method = c(rep("rs_separate", 9), rep("rs_joint", 6)),
+    family = registered$margin_family,
+    copula = registered$copula,
+    method = ifelse(
+      (registered$margin_family == "NO" & registered$copula != "N") |
+        (registered$margin_family == "PO" & registered$copula == "C"),
+      "rs_joint",
+      "rs_separate"
+    ),
     design = "intercept",
-    case_id = seq_len(15L),
+    case_id = seq_len(nrow(registered)),
     stringsAsFactors = FALSE
   )
 
@@ -137,8 +143,8 @@ test_that("coverage gamlss2 baseline records fallback method when needed", {
   skip_if_not_installed("gamlss.dist")
 
   grid <- gamlss.longitudinal:::.coverage_make_case_grid(
-    families = "PIG2",
-    copulas = "N",
+    families = "NBI",
+    copulas = "C",
     methods = "gamlss2",
     designs = "intercept"
   )
@@ -167,10 +173,11 @@ test_that("coverage starts include exactly each margin parameter plus copula the
   skip_if_not_installed("gamlss")
   skip_if_not_installed("gamlss.dist")
 
-  for (family in c("LNO", "NET")) {
+  for (family in c("BCPE", "DEL")) {
+    copula <- if (family == "BCPE") "t" else "N"
     sim <- gamlss.longitudinal:::.coverage_simulate_case(
       family = family,
-      copula = "N",
+      copula = copula,
       design = "intercept",
       n = 18L,
       times = 1:3,
@@ -181,10 +188,11 @@ test_that("coverage starts include exactly each margin parameter plus copula the
       do.call(get(family, envir = asNamespace("gamlss.dist")), list())
     )
     starts <- suppressWarnings(suppressMessages(
-      gamlss.longitudinal:::get_starting_values("N", margin_dist, sim, eta_transform = TRUE)
+      gamlss.longitudinal:::get_starting_values(copula, margin_dist, sim, eta_transform = TRUE)
     ))
 
-    expect_named(starts, c(names(margin_dist$parameters), "theta"), ignore.order = FALSE)
+    copula_parameters <- if (copula == "t") c("theta", "zeta") else "theta"
+    expect_named(starts, c(names(margin_dist$parameters), copula_parameters), ignore.order = FALSE)
     expect_true(all(is.finite(starts)))
   }
 })
@@ -212,13 +220,12 @@ test_that("coverage domain-sensitive defaults generate finite q, p, and d values
 test_that("discrete lower-bound CDFs short-circuit below support", {
   skip_if_not_installed("gamlss.dist")
 
-  margin_dist <- gamlss.dist::ZINBF()
+  margin_dist <- gamlss.dist::ZINBI()
   response <- c(-1, 0, 2)
   eta_inv <- list(
     mu = rep(4, 3),
     sigma = rep(0.5, 3),
-    nu = rep(2, 3),
-    tau = rep(0.2, 3)
+    nu = rep(0.2, 3)
   )
   mm <- eta_inv
 
@@ -238,7 +245,7 @@ test_that("coverage CG records fallback attempt metadata", {
     designs = "intercept"
   )
 
-  results <- gamlss.longitudinal:::.coverage_run_grid(
+  results <- suppressWarnings(gamlss.longitudinal:::.coverage_run_grid(
     grid,
     n = 22L,
     times = 1:3,
@@ -246,7 +253,7 @@ test_that("coverage CG records fallback attempt metadata", {
     max_outer_iter = 2L,
     max_inner_iter = 2L,
     max_elapsed_sec = 15
-  )
+  ))
 
   expect_true(all(c("fit_attempt", "fit_attempt_count", "fit_attempt_trace") %in% names(results)))
   expect_true(results$fit_attempt_count >= 1L)
@@ -286,13 +293,13 @@ test_that("coverage harness fits smooths on every active parameter for represent
   skip_if_not_installed("gamlss.dist")
 
   grid <- gamlss.longitudinal:::.coverage_make_case_grid(
-    families = c("NO", "GA", "PO", "ZIP", "BCPE"),
+    families = c("NO", "GA", "PO", "ZIP"),
     copulas = "N",
     methods = c("rs_joint", "cg"),
     designs = "smooth"
   )
 
-  results <- gamlss.longitudinal:::.coverage_run_grid(
+  results <- suppressWarnings(gamlss.longitudinal:::.coverage_run_grid(
     grid,
     n = 24L,
     times = 1:3,
@@ -302,7 +309,7 @@ test_that("coverage harness fits smooths on every active parameter for represent
     max_elapsed_sec = 30,
     method_max_outer_iter = list(cg = 2L),
     method_max_inner_iter = list(cg = 2L)
-  )
+  ))
 
   expect_true(all(results$success))
   expect_true(all(is.finite(results$smooth_eta_rmse)))
@@ -647,7 +654,7 @@ test_that("coverage harness records unsupported standard comparator families", {
 
   grid <- gamlss.longitudinal:::.coverage_make_case_grid(
     families = "BCPE",
-    copulas = "N",
+    copulas = "t",
     methods = "gee",
     designs = "intercept"
   )

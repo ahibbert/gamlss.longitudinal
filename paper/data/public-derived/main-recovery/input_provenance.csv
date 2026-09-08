@@ -1,0 +1,9 @@
+"schema_version","input_id","path","sha256","bytes"
+"2026-09-05.1","attempt_metadata","attempt_metadata.csv","a10dcd0dc6e9a7e25df02d3933c278e0f6560330e172cf757ec3c33794867373",1061705
+"2026-09-05.1","fixed_by_attempt","fixed_by_attempt.csv","4be2a9828d3fd12b10e137e897af6a6745aad2895535979fe329169569941420",1107787
+"2026-09-05.1","smooth_by_attempt","smooth_by_attempt.csv","a0a5f6889b4bf922e90370f5e74a1656117c3017b5445e9f0e9d9fcc7a21b8e1",175533
+"2026-09-05.1","predictive_by_attempt","predictive_by_attempt.csv","c3a7106d4d5a1f2e32c1e222180c4c777ea99ff41b73d3efd0b979d8b0816ee6",177780
+"2026-09-05.1","diagnostic_by_attempt","diagnostic_by_attempt.csv","6cfcd4a30402b040c36a6628bcab7d35784ff9b1582d1c1a4ddb4cf6818d482f",128400
+"2026-09-05.1","runner_settings_identity","runner_settings_identity.csv","6b3ed20a5dfeb3c662dfef9929b235ae3bb0fcee19f9ae42167b7b1371ece521",3757
+"2026-09-05.1","runner_settings_bcpe","runner_settings_bcpe.csv","60091021d99527435afa7f7420a42f1a34d373851d3c59586e7c32418d01791d",6305
+"2026-09-05.1","runner_settings_nbi","runner_settings_nbi.csv","19d90a9045d9b1e84b637dd8d8463be6e9590c83781d250357333e568b3d250d",2273

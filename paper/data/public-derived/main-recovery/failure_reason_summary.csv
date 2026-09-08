@@ -1,0 +1,5 @@
+"study_id","scenario_id","method","failure_reason","count","attempt_row_denominator","proportion_of_attempts","rate_mcse","rate_ci_low","rate_ci_high"
+"bcpe_t_main_recovery","n500_d4","gamlss.longitudinal","none",100,100,1,0,0.963006501793014,1
+"bcpe_t_main_recovery","n500_d4","gamlss2","none",100,100,1,0,0.963006501793014,1
+"nbi_clayton_main_recovery","n500_d4_nbi_signal2","gamlss","none",100,100,1,0,0.963006501793014,1
+"nbi_clayton_main_recovery","n500_d4_nbi_signal2","ours_rs_joint","none",100,100,1,0,0.963006501793014,1

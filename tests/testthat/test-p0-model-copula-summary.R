@@ -8,7 +8,7 @@ test_that("copula time summary print method displays both summary sections", {
   printed <- utils::capture.output(out <- print(x))
 
   expect_identical(out, x)
-  expect_true(any(grepl("Copula Dependence Summary", printed)))
+  expect_true(any(grepl("<Copula dependence summary>", printed, fixed = TRUE)))
   expect_true(any(grepl("Fitted dependence by time", printed)))
   expect_true(any(grepl("Adjacent-pair dependence", printed)))
 })

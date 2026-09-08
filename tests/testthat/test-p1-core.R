@@ -3,19 +3,19 @@ test_that("T101 required-input validation errors are explicit", {
 
   expect_error(
     fit_fixture_model(dat, time_var = "not_a_col"),
-    "time_var='not_a_col' not found",
+    "`time_var = \"not_a_col\"` was not found in `data`.",
     fixed = TRUE
   )
 
   expect_error(
     fit_fixture_model(dat, subject_var = "not_a_col"),
-    "subject_var='not_a_col' not found",
+    "`subject_var = \"not_a_col\"` was not found in `data`.",
     fixed = TRUE
   )
 
   expect_error(
     fit_fixture_model(dat, mu_formula = "response_not_present ~ time_raw + gender"),
-    "response variable 'response_not_present' not found",
+    "Response variable `response_not_present` was not found in `data`.",
     fixed = TRUE
   )
 })
@@ -25,7 +25,7 @@ test_that("T102 duplicate subject-time combinations are rejected", {
 
   expect_error(
     fit_fixture_model(dat),
-    "Duplicate subject/time combinations found",
+    "Duplicate subject/time combinations were found.",
     fixed = TRUE
   )
 })
@@ -40,6 +40,7 @@ test_that("T103 full-grid expansion restores structural missing rows", {
 
   fit <- fit_fixture_model(
     dat,
+    missingness = "segment",
     include_dlcopdpar = TRUE,
     start_from = fit_full$par
   )
@@ -52,14 +53,14 @@ test_that("T104 missingness hard stops trigger for margin and pair failures", {
   dat_margin_missing <- make_fixture_missingness_margin_all_missing()
   expect_error(
     fit_fixture_model(dat_margin_missing),
-    "100% missing response values detected",
+    "All response values are missing at time point(s): 3",
     fixed = TRUE
   )
 
   dat_pair_missing <- make_fixture_missingness_zero_complete_pairs()
   expect_error(
     fit_fixture_model(dat_pair_missing),
-    "100% missing complete copula pairs detected",
+    "No complete copula pairs are available",
     fixed = TRUE
   )
 })

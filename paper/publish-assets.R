@@ -18,7 +18,15 @@ if (length(status)) stop("Paper repository must be clean before publishing asset
 manifest_path <- file.path(root, "results", "jss-replication", profile, "manifest.csv")
 if (!file.exists(manifest_path)) stop("Run the requested replication profile first: ", manifest_path, call. = FALSE)
 manifest <- utils::read.csv(manifest_path, stringsAsFactors = FALSE)
-rows <- manifest$access == "public" & manifest$publication_status == "active" & nzchar(manifest$output_path)
+destinations <- gsub("\\\\", "/", manifest$manuscript_path)
+asset_destination <- grepl("^(charts|tables)/[^/].+", destinations) &
+  !grepl("(^|/)\\.\\.(/|$)", destinations)
+output_extension <- tolower(tools::file_ext(manifest$output_path))
+publishable_format <-
+  (manifest$artifact_type == "figure" & output_extension %in% c("png", "pdf", "svg")) |
+  (manifest$artifact_type == "table" & output_extension == "tex")
+rows <- manifest$access == "public" & manifest$publication_status == "active" &
+  nzchar(manifest$output_path) & asset_destination & publishable_format
 publish <- manifest[rows, , drop = FALSE]
 
 actions <- lapply(seq_len(nrow(publish)), function(i) {

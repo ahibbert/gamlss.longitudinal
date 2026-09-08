@@ -8,7 +8,7 @@
   out_temp <- c(outer_start_log_lik, outer_end_log_lik, outer_log_lik_change)
   names(out_temp) <- c("Start LogLik", "End LogLik", "Change")
 
-  if (verbose > 0) {
+  if (verbose > 1) {
     cat_fn("\n")
     print_fn(out_temp)
   }
@@ -27,9 +27,9 @@
     print_fn = print) {
   converged <- abs(outer_log_lik_change) <= outer_stop_crit
 
-  if (isTRUE(converged) && verbose > 0) {
+  if (isTRUE(converged) && verbose > 1) {
     print_fn(c(outer_log_lik_change))
-    cat_fn("\nOUTER CONVERGED")
+    cat_fn("\nOuter optimizer converged")
   }
 
   invisible(converged)

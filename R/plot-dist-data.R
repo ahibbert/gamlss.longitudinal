@@ -40,7 +40,7 @@
     if (!is.null(fit) && !is.null(fit$dataset)) {
       dataset <- fit$dataset
     } else {
-      stop("Supply 'dataset', or supply a fitted 'fit' with stored data.", call. = FALSE)
+      stop("Supply `data`, or supply a fitted `fit` with stored data.", call. = FALSE)
     }
   }
   dataset <- as.data.frame(dataset, stringsAsFactors = FALSE)
@@ -65,7 +65,7 @@
 
   missing_cols <- setdiff(c(subject_var, time_var, response_var), names(dataset))
   if (length(missing_cols) > 0L) {
-    stop("Column(s) not found in 'dataset': ", paste(missing_cols, collapse = ", "), call. = FALSE)
+    stop("Column(s) not found in `data`: ", paste(missing_cols, collapse = ", "), call. = FALSE)
   }
 
   data.frame(

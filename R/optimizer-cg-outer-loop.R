@@ -52,15 +52,16 @@
     df_s,
     cg_has_smooths,
     cg_converged,
+    stop_on_convergence,
     outer_iteration_step_fn,
     iteration_start_fn,
     curvature_line_search_fn,
     line_search_diagnostics_fn,
     stop_request_state_fn) {
-  while (!cg_converged && outer_only_run_counter < max_outer_iter) {
+  while (!cg_converged && outer_only_run_counter <= max_outer_iter) {
     check_elapsed_budget("CG outer iteration")
 
-    if (verbose > 0) cat(paste("\nOUTER ITERATION:", outer_only_run_counter))
+    if (verbose > 1) cat(paste("\nOuter iteration:", outer_only_run_counter))
 
     cg_outer_iteration <- outer_iteration_step_fn(
       dataset = dataset,
@@ -110,6 +111,7 @@
       cg_grad_tol_eff = cg_grad_tol_eff,
       df_s = df_s,
       cg_has_smooths = cg_has_smooths,
+      stop_on_convergence = stop_on_convergence,
       iteration_start_fn = iteration_start_fn,
       curvature_line_search_fn = curvature_line_search_fn,
       line_search_diagnostics_fn = line_search_diagnostics_fn,

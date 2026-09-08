@@ -86,11 +86,11 @@ plot.gamlss.longitudinal <- function(
   dashboard <- .plot_method_arrange_dashboard(dashboard_plots)
   print(dashboard)
 
-  invisible(list(
+  invisible(.gl_new_plot_result(list(
     diagnostics = diagnostic_plots,
     forecasts = list(fitted_quantiles = p_fit_quant, newdata_quantiles = p_new_quant),
     fitted_data = fc_fit_q,
     newdata_data = fc_new_q,
     dashboard = dashboard
-  ))
+  )))
 }

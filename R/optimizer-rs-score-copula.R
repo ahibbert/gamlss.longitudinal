@@ -9,7 +9,7 @@
     derivative <- copula_derivatives$dldz
     col_name <- "dldzeta"
   } else {
-    stop("Unexpected copula parameter in optimisation: ", par_name)
+    stop("Unexpected copula parameter in optimization: ", par_name, call. = FALSE)
   }
 
   n_par <- length(eta[[par_name]])

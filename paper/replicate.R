@@ -29,18 +29,22 @@ Sys.setenv(
   GAMLSS_LONGITUDINAL_JSS_ROOT = root,
   GAMLSS_LONGITUDINAL_JSS_WORKERS = workers
 )
+source(file.path("paper", "R", "replication-helpers.R"))
 store <- file.path("paper", "_targets", profile)
 message("Running public JSS replication profile '", profile, "' with ", workers, " worker(s).")
 started <- Sys.time()
-if (workers > 1L && "tar_make_future" %in% getNamespaceExports("targets")) {
-  targets::tar_make_future(script = file.path("paper", "_targets.R"), store = store, workers = workers)
-} else {
-  targets::tar_make(script = file.path("paper", "_targets.R"), store = store)
-}
+run_error <- tryCatch({
+  if (workers > 1L && "tar_make_future" %in% getNamespaceExports("targets")) {
+    targets::tar_make_future(script = file.path("paper", "_targets.R"), store = store, workers = workers)
+  } else {
+    targets::tar_make(script = file.path("paper", "_targets.R"), store = store)
+  }
+  NULL
+}, error = identity)
 
-source(file.path("paper", "R", "replication-helpers.R"))
 settings <- jss_settings(create = TRUE)
-jss_write_run_metadata(settings, started, bootstrap, store)
-jss_check_target_warnings(store, strict = identical(tolower(Sys.getenv("GAMLSS_LONGITUDINAL_JSS_STRICT_WARNINGS")), "true"))
+jss_write_run_metadata(settings, started, bootstrap, store, run_error = run_error)
 invisible(jss_write_provenance_hashes(settings))
+if (!is.null(run_error)) stop(conditionMessage(run_error), call. = FALSE)
+jss_check_target_warnings(store, strict = identical(tolower(Sys.getenv("GAMLSS_LONGITUDINAL_JSS_STRICT_WARNINGS")), "true"))
 message("Replication complete. Outputs: ", settings$out_dir)

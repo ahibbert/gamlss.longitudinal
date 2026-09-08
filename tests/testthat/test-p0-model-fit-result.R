@@ -14,12 +14,13 @@ test_that("convergence metadata preserves RS and CG stopping semantics", {
     cg_raw_loglik_drop_tol = NA_real_,
     cg_gradient_method = "forward",
     cg_zeta_hessian = "analytical",
-    cg_hessian_method = "analytical"
+    cg_hessian_method = "analytical",
+    objective = -10
   )
 
   expect_true(rs_info$converged)
   expect_false(rs_info$hit_outer_limit)
-  expect_identical(rs_info$stop_reason, "tolerance")
+  expect_identical(rs_info$stop_reason, "converged")
   expect_identical(rs_info$method, "RS")
   expect_true(is.na(rs_info$cg_gradient_method))
 
@@ -38,7 +39,10 @@ test_that("convergence metadata preserves RS and CG stopping semantics", {
     cg_raw_loglik_drop_tol = 10,
     cg_gradient_method = "central",
     cg_zeta_hessian = "finite",
-    cg_hessian_method = "auto"
+    cg_hessian_method = "auto",
+    objective = -10,
+    cg_grad_tol = 0.1,
+    cg_step_tol = 0.001
   )
 
   expect_false(cg_info$converged)
@@ -62,7 +66,7 @@ test_that("information criteria partition marginal and copula effective degrees 
     zeta = list()
   )
   calc_lik <- list(log_lik = c(marginal = -10, copula = -5, joint = -15))
-  dataset <- data.frame(response = c(1, 2, 3, 4), time = c(1, 1, 2, 2), subject = c(1, 2, 1, 2))
+  dataset <- data.frame(response = c(1, 2, 3, NA), time = c(1, 1, 2, 2), subject = c(1, 2, 1, 2))
 
   aics <- gamlss.longitudinal:::.gl_fit_information_criteria(
     par_cov = par_cov,
@@ -75,6 +79,7 @@ test_that("information criteria partition marginal and copula effective degrees 
   expect_identical(rownames(aics), c("LogLik", "AIC", "BIC", "EDF"))
   expect_equal(unname(aics["LogLik", ]), c(-10, -5, -15))
   expect_equal(unname(aics["AIC", ]), c(25, 15, 40))
+  expect_equal(unname(aics["BIC", ]), c(20, 10, 30) + log(3) * c(2.5, 2.5, 5))
   expect_equal(unname(aics["EDF", ]), c(2.5, 2.5, 5))
 })
 
@@ -98,6 +103,10 @@ test_that("core fit object fields are assembled with stable names", {
     response_var = "response",
     time_var = "time",
     subject_var = "subject",
+    missingness_contract = list(
+      objective = "ordinary", between_segment_assumption = "not_applicable",
+      criteria_status = "available", statement = "ordinary", future_support = NA_character_
+    ),
     formulas = list(mu = response ~ 1),
     formulas_int = list(mu = response ~ 1),
     var_map = list(response = "response"),
@@ -115,8 +124,10 @@ test_that("core fit object fields are assembled with stable names", {
     "model_matrix", "margin_dist", "copula_dist", "include_dlcopdpar",
     "response", "response_margin", "response_subject", "par_s",
     "lambda_s", "df_s", "weights", "dataset", "dataset_original",
-    "response_var", "time_var", "subject_var", "formulas", "formulas_int",
-    "var_map", "optim_method", "warm_start_joint", "convergence"
+    "response_var", "time_var", "subject_var", "missingness", "likelihood_contract",
+    "formulas", "formulas_int",
+    "var_map", "optim_method", "capability_registry_version",
+    "capability_route", "warm_start_joint", "convergence"
   ))
   expect_equal(out$par, c(`mu.(Intercept)` = 1))
   expect_identical(out$response, dataset$response)
@@ -201,6 +212,10 @@ test_that("final fit object assembly preserves fitted object fields and traces",
     response_var = "response",
     time_var = "time",
     subject_var = "subject",
+    missingness_contract = list(
+      objective = "ordinary", between_segment_assumption = "not_applicable",
+      criteria_status = "available", statement = "ordinary", future_support = NA_character_
+    ),
     formulas = list(mu = response ~ 1),
     formulas_int = list(mu = response ~ 1),
     var_map = list(response = "response"),
@@ -261,7 +276,8 @@ test_that("final fit workflow builds convergence metadata before final object as
     dataset_original = data.frame(y = c(1, 2), t = c(1, 2), id = c(1, 1)),
     response_var = "y",
     formulas_int = list(mu = response ~ 1),
-    var_map = list(y = "response")
+    var_map = list(y = "response"),
+    missingness_contract = list(objective = "ordinary")
   )
   mm <- list(x = list(mu = matrix(1, nrow = 2, ncol = 1)), s = list(mu = list()))
   matrix_bundle <- list(mm = mm, copula_link = "identity")
@@ -308,6 +324,7 @@ test_that("final fit workflow builds convergence metadata before final object as
   expect_identical(captured$finalize$mm, mm)
   expect_identical(captured$finalize$dataset, fit_data$dataset)
   expect_identical(captured$finalize$dataset_original, fit_data$dataset_original)
+  expect_identical(captured$finalize$missingness_contract, fit_data$missingness_contract)
   expect_identical(captured$finalize$formulas, list(mu = y ~ 1))
   expect_identical(captured$finalize$formulas_int, fit_data$formulas_int)
   expect_identical(captured$finalize$convergence_info, convergence_info)

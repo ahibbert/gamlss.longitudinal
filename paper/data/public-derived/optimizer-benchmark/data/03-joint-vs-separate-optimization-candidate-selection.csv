@@ -1,0 +1,4 @@
+"case_id","reference_case_id","case_role","family","copula","n_subject","n_time","changed_factor","theta_strength","sigma_strength","publication_scope"
+"JVS01","JVS01","base","NO","N",120,8,"none",1.5,1.5,"supplementary"
+"JVS02","JVS01","dependence_strength","NO","N",120,8,"theta_strength",3.5,1.5,"supplementary"
+"JVS03","JVS01","scale_complexity","NO","N",120,8,"sigma_strength",1.5,0.5,"supplementary"

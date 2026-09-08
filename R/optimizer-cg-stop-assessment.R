@@ -13,7 +13,8 @@
     prevented_deterioration,
     outer_stop_crit,
     grad_tol,
-    step_tol) {
+    step_tol,
+    stop_on_convergence = TRUE) {
   tolerance_met <- abs(outer_log_lik_change) <= outer_stop_crit &&
     is.finite(grad_inf) && grad_inf <= grad_tol &&
     is.finite(step_l2) && step_l2 <= step_tol
@@ -23,7 +24,7 @@
     is.finite(raw_loglik_drop_from_best) &&
     raw_loglik_drop_from_best >= raw_loglik_drop_tol
   deterioration_hit <- isTRUE(deterioration_hit) || isTRUE(prevented_deterioration)
-  stop_requested <- max_stall_hit || tolerance_met || deterioration_hit
+  stop_requested <- max_stall_hit || (isTRUE(stop_on_convergence) && tolerance_met) || deterioration_hit
 
   list(
     tolerance_met = isTRUE(tolerance_met),

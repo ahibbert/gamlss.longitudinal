@@ -15,6 +15,7 @@
     response_var,
     time_var,
     subject_var,
+    missingness_contract,
     formulas,
     formulas_int,
     var_map,
@@ -24,7 +25,9 @@
     weights_final,
     method,
     warm_start_info,
-    convergence_info) {
+    convergence_info,
+    optimizer_control_requested = NULL,
+    optimizer_control_effective = NULL) {
   return_list <- list(
     par_cov,
     log_lik_history,
@@ -65,12 +68,33 @@
   return_list$response_var <- response_var
   return_list$time_var <- time_var
   return_list$subject_var <- subject_var
+  return_list$missingness <- missingness_contract
+  return_list$likelihood_contract <- list(
+    objective = missingness_contract$objective %||% "ordinary",
+    between_segment_assumption = missingness_contract$between_segment_assumption %||% "not_applicable",
+    criteria_status = missingness_contract$criteria_status %||% "available",
+    statement = missingness_contract$statement %||% NA_character_,
+    future_support = missingness_contract$future_support %||% NA_character_
+  )
   return_list$formulas <- formulas
   return_list$formulas_int <- formulas_int
   return_list$var_map <- var_map
   return_list$optim_method <- method
+  family <- .gl_capability_margin_code(margin_dist)
+  capability <- .gl_capability_margin_spec(family)
+  return_list$capability_registry_version <- .gl_capability_registry_version()
+  return_list$capability_route <- list(
+    registry_version = .gl_capability_registry_version(),
+    margin_family = family,
+    copula = copula_dist,
+    family_type = capability$family_type %||% NA_character_,
+    likelihood_route = capability$likelihood_route %||% NA_character_,
+    diagnostics = capability$diagnostics %||% NA_character_
+  )
   return_list$warm_start_joint <- warm_start_info
   return_list$convergence <- convergence_info
+  return_list$optimizer_control_requested <- optimizer_control_requested
+  return_list$optimizer_control_effective <- optimizer_control_effective
 
   return_list
 }

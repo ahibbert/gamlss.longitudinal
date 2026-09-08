@@ -5,10 +5,11 @@
 #' @noRd
 .gl_check_status_severity <- function(status) {
   switch(status,
-    FAIL = "concern",
-    REVIEW = "review",
-    PASS = "ok",
-    "ok"
+    not_converged = "concern",
+    flagged = "review",
+    review = "review",
+    unavailable = "review",
+    "information"
   )
 }
 

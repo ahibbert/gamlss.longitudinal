@@ -32,12 +32,14 @@
 #'   with elapsed time and an estimated remaining runtime.
 #' @param fit_args Optional named list of arguments overriding the default
 #'   [gamlss_longitudinal()] screening fit settings.
-#' @param keep_fits Logical; if `TRUE`, attach successful fitted models in the
+#' @param keep_fits Logical; if `TRUE`, attach retained fitted models in the
 #'   `"fits"` attribute.
 #'
 #' @return A data frame with one row per margin-copula combination and class
 #'   `joint_distribution_selection`. Failed fits are retained with an `error`
-#'   message and missing fit metrics.
+#'   message and missing fit metrics. Nonconverged fits retain their provisional
+#'   metrics and stop reason for audit, but have `selection_eligible = FALSE`,
+#'   receive no rank, and can never be returned by [best_fit()].
 #' @export
 select_joint_distribution <- function(
     data,
@@ -121,6 +123,20 @@ select_joint_distribution <- function(
     copula_family = copula_families,
     stringsAsFactors = FALSE
   )
+  route_supported <- mapply(
+    .gl_capability_route_supported,
+    combinations$margin_family,
+    combinations$copula_family,
+    USE.NAMES = FALSE
+  )
+  excluded_routes <- combinations[!route_supported, , drop = FALSE]
+  combinations <- combinations[route_supported, , drop = FALSE]
+  if (nrow(combinations) < 1L) {
+    .gl_capability_stop(
+      "gamlss_longitudinal_unsupported_route_error",
+      "No requested margin-copula combinations are present in the tested capability registry."
+    )
+  }
 
   candidate_fits <- .joint_selection_fit_candidates(
     combinations = combinations,
@@ -136,7 +152,7 @@ select_joint_distribution <- function(
     keep_fits = keep_fits
   )
 
-  .joint_selection_finalize_result(
+  out <- .joint_selection_finalize_result(
     rows = candidate_fits$rows,
     fit_store = candidate_fits$fit_store,
     n_pairs = n_pairs,
@@ -147,4 +163,6 @@ select_joint_distribution <- function(
     copula_time_intercepts = copula_time_intercepts,
     keep_fits = keep_fits
   )
+  attr(out, "excluded_by_capability_registry") <- excluded_routes
+  out
 }

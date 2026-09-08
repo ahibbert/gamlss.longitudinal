@@ -38,7 +38,11 @@
 
 #'   predictor contribution. For non-`mu` response means this is a first-order
 
-#'   approximation and should be treated as exploratory.
+#'   approximation and should be treated as exploratory. These standard errors
+
+#'   use only the fixed `mu` coefficient block, conditional on fitted smooths
+
+#'   and all other parameters.
 
 #' @param interval Interval type. `"confidence"` adds response-scale confidence
 
@@ -64,7 +68,15 @@
 
 #' estimated by the joint copula likelihood, and through `se.fit`/confidence
 
-#' intervals when the covariance matrix is computed from the joint model. Use
+#' intervals when the fixed-coefficient covariance is computed from the joint
+
+#' model. The intervals omit non-`mu`, smooth, fixed-smooth, and
+
+#' smoothing-parameter uncertainty and are not future-observation prediction
+
+#' intervals. Quantiles and other distributional outputs are plug-in fitted
+
+#' distribution summaries without parameter-uncertainty intervals. Use
 
 #' [simulate.gamlss.longitudinal()] for fitted-data trajectory simulation that
 
@@ -115,6 +127,12 @@ predict.gamlss.longitudinal <- function(
 
   if (!inherits(object, "gamlss.longitudinal")) {
     stop("'object' must be a fitted 'gamlss.longitudinal' object.", call. = FALSE)
+  }
+
+  if (isTRUE(se.fit) || !identical(interval, "none")) {
+    .gl_require_converged_fit(object, "prediction uncertainty intervals")
+  } else {
+    .gl_warn_nonconverged_prediction(object)
   }
 
   require_response <- (type == "cdf" && is.null(q)) || (type == "density" && is.null(y))

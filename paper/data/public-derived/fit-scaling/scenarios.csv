@@ -1,0 +1,9 @@
+"scenario_id","model_class","family","copula","changed_factor","n_subjects","n_visits","smooth_k","profile_design","primary_comparison"
+"continuous-base","continuous","NO","N","none",100,4,5,"authoritative",FALSE
+"discrete-base","discrete","NBI","C","none",100,4,5,"authoritative",FALSE
+"continuous-subjects","continuous","NO","N","n_subjects",250,4,5,"authoritative",TRUE
+"discrete-subjects","discrete","NBI","C","n_subjects",250,4,5,"authoritative",TRUE
+"continuous-visits","continuous","NO","N","n_visits",100,8,5,"authoritative",TRUE
+"discrete-visits","discrete","NBI","C","n_visits",100,8,5,"authoritative",TRUE
+"continuous-smooth_basis","continuous","NO","N","smooth_k",100,4,10,"authoritative",TRUE
+"discrete-smooth_basis","discrete","NBI","C","smooth_k",100,4,10,"authoritative",TRUE

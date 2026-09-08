@@ -27,14 +27,14 @@ rootogram.gamlss.longitudinal <- function(object, bins = 20, plot = TRUE, by_tim
   midpoint <- root_diff <- NULL
 
   p <- ggplot2::ggplot(root_df, ggplot2::aes(x = midpoint, y = root_diff)) +
-    ggplot2::geom_hline(yintercept = 0, color = "#666666") +
-    ggplot2::geom_col(fill = "#2c7fb8", alpha = 0.8, width = diff(range(root_df$midpoint)) / max(length(root_df$midpoint), 1)) +
+    ggplot2::geom_hline(yintercept = 0, color = .gl_plot_colours()[["reference"]]) +
+    ggplot2::geom_col(fill = .gl_plot_colours()[["fitted"]], alpha = 0.8, width = diff(range(root_df$midpoint)) / max(length(root_df$midpoint), 1)) +
     ggplot2::labs(
       x = "Response",
       y = expression(sqrt(O) - sqrt(E)),
       title = if (split_info$split_by) paste0("Rootogram by ", split_info$by) else "Rootogram"
     ) +
-    ggplot2::theme_minimal()
+    theme_gamlss_longitudinal()
 
   if (split_info$split_by) {
     p <- p + ggplot2::facet_wrap(~split_group, scales = "free_y")

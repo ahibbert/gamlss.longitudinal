@@ -35,7 +35,7 @@ time-series forecasting engine beyond prediction on supplied new panels.
 
 After installing the package, run the smoke test:
 
-```{r smoke-test}
+```{r smoke-test, eval=TRUE}
 source(system.file("smoke-tests", "new-user-smoke.R",
   package = "gamlss.longitudinal"
 ))
@@ -75,16 +75,51 @@ fit <- gamlss_longitudinal(
   mu.formula = response ~ time + group + s(baseline),
   sigma.formula = ~ time + group,
   theta.formula = ~ time + group,
-  dataset = dat,
+  data = dat,
   time_var = "time",
   subject_var = "id",
   margin_dist = GA(),
-  copula_dist = "t"
+  copula_dist = "N",
+  optimization = "joint"
 )
 summary(fit)
 ```
 
+The default `optimization = "joint"` updates marginal parameters against the
+joint margin-copula objective. For an explicit RS sensitivity fit that excludes
+the copula contribution from marginal updates, request
+`optimization = "separate"`. Optimizer tuning is grouped in one
+validated control object rather than spread across the fit call:
+
+Separate optimization does not generally maximize the joint likelihood.
+Consequently, its reported joint log likelihood, AIC, and BIC are descriptive
+values at the separate estimates; do not use them for a standard likelihood-
+ratio comparison with a joint fit. Use joint optimization for final
+likelihood-based comparisons.
+
+```{r optimizer-controls, eval=FALSE}
+control <- gamlss_longitudinal_control(
+  outer_tol = 1e-4,
+  max_outer_iter = 100,
+  rs = list(inner_tol = 1e-5, max_inner_iter = 50)
+)
+fit <- gamlss_longitudinal(
+  data = dat,
+  margin_dist = GA(),
+  copula_dist = "t",
+  time_var = "time",
+  subject_var = "id",
+  optimization = "joint",
+  optimizer_control = control
+)
+```
+
 Use the final JSS paper example for the exact family, copula, and covariates.
+
+The ordered unique values of `time_var` define scheduled adjacency. Numeric
+spacing is not treated as elapsed-time distance, factor-level order defines the
+schedule for factors, and pair-level copula covariates are evaluated at the
+earlier scheduled row. Model elapsed-time effects explicitly when required.
 
 ## Standard methods to inspect
 
@@ -106,22 +141,30 @@ model.frame(fit)
 Prediction and simulation use standard generics:
 
 ```{r predict-simulate}
-predict(fit, newdata = newdat, type = "response")
+predict(fit, newdata = newdat, type = "mean")
 simulate(fit, nsim = 10)
 ```
 
 ## Diagnostics
 
-Marginal diagnostics and dependence diagnostics are both required for this
-model class:
+Marginal and dependence diagnostics should both be reviewed for this model
+class. Fit-time warnings report objective conditions such as non-convergence or
+unavailable covariance; `check_model()` is an optional descriptive numerical
+report rather than a prerequisite:
 
 ```{r diagnostics}
 plot(fit)
 plot_terms(fit)
 plot_margin_fit(fit)
 plot_copula_diagnostics(fit)
+plot_copula_diagnostics(fit, type = "all", ncol = 3)
 check_model(fit)
-check_missingness(dat, subject_var = "id", time_var = "time")
+check_missingness(
+  dat,
+  response_var = "response",
+  subject_var = "id",
+  time_var = "time"
+)
 ```
 
 See the diagnostics guide for interpretation:
@@ -145,15 +188,20 @@ The repository version of the paper uses `paper/replicate.R` as the
 authoritative replication entry point. From the repository root:
 
 ```{r paper-smoke}
-source("paper/replicate.R")
+system2("Rscript", c("paper/replicate.R", "--profile", "smoke"))
 ```
 
-The smoke profile is intended as a fast reviewer check. The expanded profile is
-the full paper regeneration:
+The smoke profile is intended as a fast reviewer check. The paper profile
+regenerates every public manuscript artifact from versioned analysis-ready
+inputs. The optional full profile reruns the public Monte Carlo studies before
+rebuilding the paper outputs:
 
-```{r paper-expanded}
-Sys.setenv(GAMLSS_LONGITUDINAL_JSS_PROFILE = "expanded")
-source("paper/replicate.R")
+```{r paper-profiles}
+system2("Rscript", c("paper/replicate.R", "--profile", "paper"))
+system2(
+  "Rscript",
+  c("paper/replicate.R", "--profile", "full", "--workers", "4")
+)
 ```
 
 Generated outputs are written under `results/jss-replication/<profile>/`.

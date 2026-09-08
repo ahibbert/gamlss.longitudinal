@@ -19,13 +19,16 @@
   coef_tbl$.param_rank[is.na(coef_tbl$.param_rank)] <- length(param_order) + 1L
 
   if (!is.null(vcov_out) && !is.null(vcov_out$vcov) && !is.null(vcov_out$vcov$overall)) {
+    .gl_require_available_inference(vcov_out)
     V <- vcov_out$vcov$overall
     se <- NULL
     if (!is.null(vcov_out$se) && !is.null(vcov_out$se$overall)) {
       se <- as.numeric(vcov_out$se$overall)
       se_names <- names(vcov_out$se$overall)
     } else {
-      se <- sqrt(pmax(0, diag(V)))
+      se <- .gl_sqrt_derived_variance(
+        diag(V), "summary coefficient covariance", allow_zero = FALSE
+      )
       se_names <- names(diag(V))
     }
 
@@ -62,10 +65,15 @@
   coef_tbl <- coef_tbl[order(coef_tbl$.param_rank, coef_tbl$.original_order), , drop = FALSE]
   rownames(coef_tbl) <- NULL
 
-  within(coef_tbl, {
+  coef_tbl <- within(coef_tbl, {
     .original_order <- NULL
     .param_rank <- NULL
   })
+  if (!is.null(vcov_out)) {
+    attr(coef_tbl, "inference_contract") <- vcov_out$inference_contract %||%
+      .gl_fixed_inference_contract(vcov_out, coefficient_names = coef_tbl$term)
+  }
+  coef_tbl
 }
 
 #' Build the smooth-term table for summary output

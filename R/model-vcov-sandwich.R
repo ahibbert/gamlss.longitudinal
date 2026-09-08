@@ -53,9 +53,23 @@
   out <- stats::setNames(rep(0, length(cluster_levels)), cluster_levels)
 
   margin_log <- rep(0, length(response))
-  margin_ok <- !is.na(calc_lik$margin_d) & calc_lik$margin_d > 0
+  margin_included <- !is.na(response)
+  margin_ok <- margin_included & is.finite(calc_lik$margin_d) & calc_lik$margin_d > 0
+  margin_bad <- margin_included & !margin_ok
+  if (any(margin_bad)) {
+    stop(.gl_inference_unavailable(list(
+      status = "unavailable",
+      failure_codes = "sandwich_invalid_margin_contribution",
+      message = paste0(
+        "Sandwich inference is unavailable because an included marginal ",
+        "likelihood contribution is nonfinite or nonpositive."
+      ),
+      component = "margin",
+      rows = which(margin_bad),
+      density = calc_lik$margin_d[margin_bad]
+    )))
+  }
   margin_log[margin_ok] <- log(calc_lik$margin_d[margin_ok])
-  margin_log[!is.finite(margin_log)] <- 0
   margin_sum <- rowsum(margin_log, cluster, reorder = FALSE)
   out[rownames(margin_sum)] <- out[rownames(margin_sum)] + margin_sum[, 1]
 
@@ -74,9 +88,22 @@
     }
 
     copula_log <- rep(0, length(row_id1))
-    copula_ok <- pair_ok & calc_lik$copula_d > 0
+    copula_ok <- pair_ok & is.finite(calc_lik$copula_d) & calc_lik$copula_d > 0
+    copula_bad <- pair_ok & !copula_ok
+    if (any(copula_bad)) {
+      stop(.gl_inference_unavailable(list(
+        status = "unavailable",
+        failure_codes = "sandwich_invalid_copula_contribution",
+        message = paste0(
+          "Sandwich inference is unavailable because an included copula ",
+          "likelihood contribution is nonfinite or nonpositive."
+        ),
+        component = "copula",
+        pairs = which(copula_bad),
+        density = calc_lik$copula_d[copula_bad]
+      )))
+    }
     copula_log[copula_ok] <- log(calc_lik$copula_d[copula_ok])
-    copula_log[!is.finite(copula_log)] <- 0
     copula_sum <- rowsum(copula_log, pair_cluster_1, reorder = FALSE)
     out[rownames(copula_sum)] <- out[rownames(copula_sum)] + copula_sum[, 1]
   }
@@ -170,6 +197,7 @@
                                       bread_h = 1e-4,
                                       adjust = TRUE,
                                       bread_method = c("analytical", "numderiv", "analytical_only"),
+                                      inference = inference_control("standard"),
                                       progress = interactive()) {
   bread_method <- match.arg(bread_method)
 
@@ -215,7 +243,8 @@
     response_subject = response_subject,
     method = bread_method,
     progress = progress,
-    h = bread_h
+    h = bread_h,
+    inference = inference
   )
 
   H <- bread_path$hessian_nd
@@ -235,7 +264,19 @@
     H <- H[colnames(scores), colnames(scores), drop = FALSE]
   }
 
-  bread_inv <- solve(-H)
+  gradient <- .gl_vcov_fitted_gradient(
+    object_eval, par_cov, H, inference$gradient_step
+  )
+  bread_valid <- .gl_solve_hessian_vcov(
+    H,
+    parameter_names = names(par_cov),
+    inference = inference,
+    source = paste0("sandwich_bread:", bread_path$method_used),
+    fallback = bread_path$hessian_fallback %||% NULL,
+    gradient = gradient,
+    reference_hessian = bread_path$reference_hessian %||% NULL
+  )
+  bread_inv <- bread_valid$vcov
   correction <- .gl_sandwich_correction(
     n_obs = length(response),
     n_clusters = nrow(scores),
@@ -245,25 +286,32 @@
   meat <- crossprod(scores) * correction
   vc <- bread_inv %*% meat %*% bread_inv
   rownames(vc) <- colnames(vc) <- colnames(scores)
-  se <- sqrt(pmax(0, diag(vc)))
+  covariance_diagonal <- diag(vc)
+  if (any(!is.finite(vc)) || any(!is.finite(covariance_diagonal)) ||
+      any(covariance_diagonal <= 0)) {
+    diagnostics <- bread_valid$hessian_diagnostics
+    diagnostics$status <- "unavailable"
+    diagnostics$failure_codes <- unique(c(
+      diagnostics$failure_codes, "sandwich_covariance_diagonal_nonpositive"
+    ))
+    diagnostics$covariance_diagonal <- covariance_diagonal
+    stop(.gl_inference_unavailable(diagnostics))
+  }
+  se <- sqrt(covariance_diagonal)
   names(se) <- colnames(scores)
 
-  eig <- tryCatch(eigen((H + t(H)) / 2, symmetric = TRUE, only.values = TRUE)$values, error = function(e) NA_real_)
-  diagnostics <- list(
-    condition_number = tryCatch(kappa(H), error = function(e) NA_real_),
-    min_abs_eigen = if (any(is.finite(eig))) min(abs(eig[is.finite(eig)])) else NA_real_,
-    max_abs_eigen = if (any(is.finite(eig))) max(abs(eig[is.finite(eig)])) else NA_real_,
-    bread_method = bread_path$method_used,
-    n_clusters = nrow(scores),
-    n_observations = length(response),
-    n_parameters = ncol(scores),
-    score_step = score_h,
-    bread_step = bread_h,
-    small_sample_correction = correction,
-    max_abs_cluster_score_sum = max(abs(colSums(scores)), na.rm = TRUE),
-    joint_loglik_from_clusters = sum(attr(scores, "base_contributions")),
-    joint_loglik = attr(scores, "joint_loglik")
-  )
+  diagnostics <- bread_valid$hessian_diagnostics
+  diagnostics$bread_method <- bread_path$method_used
+  diagnostics$n_clusters <- nrow(scores)
+  diagnostics$n_observations <- length(response)
+  diagnostics$n_parameters <- ncol(scores)
+  diagnostics$score_step <- score_h
+  diagnostics$bread_step <- bread_h
+  diagnostics$small_sample_correction <- correction
+  diagnostics$max_abs_cluster_score_sum <- max(abs(colSums(scores)), na.rm = TRUE)
+  diagnostics$joint_loglik_from_clusters <- sum(attr(scores, "base_contributions"))
+  diagnostics$joint_loglik <- attr(scores, "joint_loglik")
+  diagnostics$covariance_diagonal <- covariance_diagonal
 
   list(
     vcov_final = vc,
