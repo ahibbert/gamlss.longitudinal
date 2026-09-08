@@ -25,7 +25,8 @@
     "x"
   )
 
-  args <- c(stats::setNames(list(x), arg_name), extra_args, params)
+  family_args <- attr(params, "family_args", exact = TRUE) %||% list()
+  args <- c(stats::setNames(list(x), arg_name), extra_args, family_args, params)
 
   args <- args[names(args) %in% formalArgs(fun)]
 

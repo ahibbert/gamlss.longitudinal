@@ -23,6 +23,7 @@ gamlss_longitudinal(
   start = NULL,
   compute_vcov = TRUE,
   vcov_method = c("analytical", "numderiv"),
+  margin_args = list(),
   verbose = FALSE,
   ...
 )
@@ -91,6 +92,12 @@ model variance-covariance output at the end of fitting.}
 One of \code{"analytical"} or \code{"numderiv"}. Analytical vcov covers continuous
 margins and supported exact-discrete rectangle likelihoods, and falls back
 to the numerical reference path if the analytical Hessian cannot be inverted.}
+
+\item{margin_args}{Named list of fixed marginal-distribution arguments.
+Binomial families require \code{list(bd = ...)}, where \code{bd} is either one
+positive integer used for every row or the name of a data column containing
+row-specific trial counts. Other fixed family arguments are not currently
+supported.}
 
 \item{verbose}{Logical; print optimizer progress when \code{TRUE}. Integer levels
 \code{0} to \code{3} remain available for advanced tracing.}
