@@ -645,7 +645,8 @@ jss_missingness_production_gate <- function(input, root = getwd())
   jss_missingness_validate_public_bundle(input, root = root)
 
 jss_run_04_missingness_from_public_inputs <- function(settings) {
-  method_colours <- c(gamlss2 = "#3C4858", gamlss.longitudinal = "#0072B2")
+  method_colours <- jss_method_colours()[c("gamlss2", "gamlss.longitudinal")]
+  colours <- jss_plot_colours()
   method_labels <- c(gamlss2 = "gamlss2", gamlss.longitudinal = "gamlss.longitudinal")
   input <- file.path(settings$public_data_dir, "missingness")
   validated <- jss_missingness_validate_public_bundle(input, settings$root)
@@ -673,10 +674,10 @@ jss_run_04_missingness_from_public_inputs <- function(settings) {
     ggplot2::labs(x = "Target missingness (%)", y = "Conditional fixed-effect RMSE",
       colour = NULL, shape = NULL) +
     ggplot2::guides(shape = "none") +
-    gamlss.longitudinal::theme_gamlss_longitudinal(base_size = 10)
+    theme_jss_paper(base_size = 9, legend_position = "top")
   dir.create(settings$figures_dir, recursive = TRUE, showWarnings = FALSE)
   f1 <- file.path(settings$figures_dir, "fixed_margin_rmse_by_missingness.png")
-  ggplot2::ggsave(f1, p1, width = 8.5, height = 5.5, dpi = 180, bg = "white")
+  jss_save_figure(f1, p1, size = "standard")
 
   smooth$missing_label <- factor(smooth$missing_label, levels = c("0%", "30%", "50%"))
   smooth$model <- factor(smooth$model, levels = c("gamlss2", "gamlss.longitudinal"))
@@ -688,7 +689,7 @@ jss_run_04_missingness_from_public_inputs <- function(settings) {
   p2 <- ggplot2::ggplot(smooth_plot, ggplot2::aes(s1)) +
     ggplot2::geom_line(
       ggplot2::aes(y = smooth_true),
-      colour = "#3C4858",
+      colour = colours[["truth"]],
       linewidth = .75
     ) +
     ggplot2::geom_line(ggplot2::aes(y = smooth_median, colour = model),
@@ -699,9 +700,9 @@ jss_run_04_missingness_from_public_inputs <- function(settings) {
       labels = method_labels
     ) +
     ggplot2::labs(x = "s1", y = "Centered smooth", colour = NULL) +
-    gamlss.longitudinal::theme_gamlss_longitudinal(base_size = 10)
+    theme_jss_paper(base_size = 8.5, legend_position = "top")
   f2 <- file.path(settings$figures_dir, "smooth_selected_recovery_curves.png")
-  ggplot2::ggsave(f2, p2, width = 8.5, height = 7, dpi = 180, bg = "white")
+  jss_save_figure(f2, p2, size = "tall")
   staged <- jss_stage_04_missingness_data(input, settings)
   list(module_id = "04-missingness-dropout-sensitivity", status = "regenerated",
     data = staged, tables = character(), figures = c(f1, f2),

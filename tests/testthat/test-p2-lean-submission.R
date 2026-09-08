@@ -2,6 +2,7 @@ local_lean_env <- function() {
   env <- new.env(parent = globalenv())
   root <- normalizePath(test_path("..", ".."), winslash = "/", mustWork = TRUE)
   sys.source(file.path(root, "paper", "R", "replication-helpers.R"), envir = env)
+  sys.source(file.path(root, "paper", "R", "paper-plot-style.R"), envir = env)
   sys.source(file.path(root, "paper", "R", "03-optimizer-publication-lean.R"), envir = env)
   sys.source(file.path(root, "paper", "R", "submission-replication.R"), envir = env)
   list(env = env, root = root)

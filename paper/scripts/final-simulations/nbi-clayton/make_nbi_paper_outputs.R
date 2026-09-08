@@ -8,6 +8,9 @@ suppressPackageStartupMessages({
 })
 
 root <- normalizePath(".", winslash = "/", mustWork = TRUE)
+if (!exists("theme_jss_paper", mode = "function", inherits = TRUE)) {
+  sys.source(file.path(root, "paper", "R", "paper-plot-style.R"), envir = environment())
+}
 input_dir_override <- Sys.getenv("NBI_PAPER_INPUT_DIR", unset = "")
 output_dir_override <- Sys.getenv("NBI_PAPER_OUTPUT_DIR", unset = "")
 comparison_dir_override <- Sys.getenv("NBI_PAPER_COMPARISON_DIR", unset = "")
@@ -54,14 +57,8 @@ model_labels <- c(
 )
 
 method_order <- unname(model_labels)
-method_colours <- c(
-  "gamlss2" = "#D55E00",
-  "gamlss.longitudinal" = "#009E73"
-)
-method_fills <- c(
-  "gamlss2" = "#E69F00",
-  "gamlss.longitudinal" = "#7CAE00"
-)
+method_colours <- jss_method_colours()[c("gamlss2", "gamlss.longitudinal")]
+method_fills <- jss_method_fills()[c("gamlss2", "gamlss.longitudinal")]
 
 parameter_order <- c("mu", "sigma", "theta")
 marginal_parameters <- c("mu", "sigma")
@@ -227,19 +224,9 @@ write_latex_table <- function(data, path, caption, label, align = NULL) {
 }
 
 theme_paper <- function(base_size = 11) {
-  theme_minimal(base_size = base_size) +
+  theme_jss_paper(base_size = base_size, legend_position = "top") +
     theme(
-      plot.background = element_rect(fill = "white", colour = NA),
-      panel.background = element_rect(fill = "white", colour = NA),
-      panel.grid.minor = element_blank(),
-      panel.grid.major.x = element_blank(),
-      panel.grid.major.y = element_blank(),
       axis.text.x = element_text(angle = 35, hjust = 1, vjust = 1),
-      legend.position = "top",
-      legend.title = element_blank(),
-      strip.text = element_text(face = "bold"),
-      strip.text.y = element_text(face = "bold", angle = 0),
-      strip.text.y.right = element_text(face = "bold", angle = 0),
       plot.title.position = "plot"
     )
 }
@@ -291,7 +278,7 @@ fixed_limits <- fixed_summary %>%
 
 fixed_plot <- ggplot(fixed_summary, aes(x = term_math, y = mean_error, colour = method)) +
   geom_blank(data = fixed_limits, aes(x = term_math, y = bias), inherit.aes = FALSE) +
-  geom_hline(yintercept = 0, linewidth = 0.35, colour = "grey30") +
+  geom_hline(yintercept = 0, linewidth = 0.35, colour = jss_plot_colours()[["truth"]], linetype = "dashed") +
   geom_pointrange(
     aes(ymin = lower_error, ymax = upper_error),
     position = position_dodge(width = 0.55),
@@ -304,13 +291,10 @@ fixed_plot <- ggplot(fixed_summary, aes(x = term_math, y = mean_error, colour = 
   labs(x = NULL, y = "Bias") +
   theme_paper()
 
-ggsave(
+jss_save_figure(
   file.path(comparison_dir, paste0(prefix, "_fixed_effect_recovery.png")),
   fixed_plot,
-  width = 12,
-  height = 3.8,
-  dpi = 320,
-  bg = "white"
+  size = "shallow"
 )
 
 smooth_by_rep <- read_result("smooth_estimates_by_rep.csv") %>%
@@ -348,7 +332,7 @@ smooth_plot <- ggplot(smooth_summary, aes(x = s1)) +
     data = truth_curves,
     aes(x = s1, y = true),
     inherit.aes = FALSE,
-    colour = "black",
+    colour = jss_plot_colours()[["truth"]],
     linewidth = 0.9,
     linetype = "dashed"
   ) +
@@ -364,13 +348,10 @@ smooth_plot <- ggplot(smooth_summary, aes(x = s1)) +
   theme_paper() +
   theme(strip.text.y = element_blank(), strip.text.y.right = element_blank())
 
-ggsave(
+jss_save_figure(
   file.path(comparison_dir, paste0(prefix, "_smooth_effect_recovery.png")),
   smooth_plot,
-  width = 11,
-  height = 6.5,
-  dpi = 320,
-  bg = "white"
+  size = "standard"
 )
 
 fixed_has_se <- "std_error" %in% names(fixed_by_rep)
@@ -615,13 +596,10 @@ runtime_plot <- ggplot(run_logs, aes(x = Method, y = elapsed_sec, fill = Method)
   theme_paper() +
   theme(legend.position = "none")
 
-ggsave(
+jss_save_figure(
   file.path(comparison_dir, paste0(prefix, "_runtime_comparison.png")),
   runtime_plot,
-  width = 7,
-  height = 4.2,
-  dpi = 320,
-  bg = "white"
+  size = "standard"
 )
 
 iteration_plot <- ggplot(run_logs, aes(x = Method, y = iter, fill = Method)) +
@@ -631,13 +609,10 @@ iteration_plot <- ggplot(run_logs, aes(x = Method, y = iter, fill = Method)) +
   theme_paper() +
   theme(legend.position = "none")
 
-ggsave(
+jss_save_figure(
   file.path(comparison_dir, paste0(prefix, "_iteration_comparison.png")),
   iteration_plot,
-  width = 7,
-  height = 4.2,
-  dpi = 320,
-  bg = "white"
+  size = "standard"
 )
 
 convergence_counts <- run_logs %>%

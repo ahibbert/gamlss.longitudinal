@@ -1,4 +1,5 @@
 jss_run_public_workflow_figures <- function(settings) {
+  colours <- jss_plot_colours()
   set.seed(settings$seed + 1L)
   intro <- file.path(settings$figures_dir, "intro - copula examples.png")
   examples <- list(
@@ -13,7 +14,7 @@ jss_run_public_workflow_figures <- function(settings) {
   }))
   intro_data$copula <- factor(intro_data$copula, levels = vapply(examples, `[[`, character(1), "name"))
   intro_plot <- ggplot2::ggplot(intro_data, ggplot2::aes(.data$u_t, .data$u_next)) +
-    ggplot2::geom_point(colour = "#0072B2", alpha = 0.42, size = 0.55) +
+    ggplot2::geom_point(colour = colours[["package"]], alpha = 0.42, size = 0.55) +
     ggplot2::facet_wrap(~copula, nrow = 1) +
     ggplot2::coord_equal(xlim = c(0, 1), ylim = c(0, 1), expand = FALSE) +
     ggplot2::scale_x_continuous(
@@ -25,9 +26,9 @@ jss_run_public_workflow_figures <- function(settings) {
       labels = c("0", ".5", "1")
     ) +
     ggplot2::labs(x = expression(U[t]), y = expression(U[t + 1])) +
-    gamlss.longitudinal::theme_gamlss_longitudinal(base_size = 10) +
+    theme_jss_paper(base_size = 9, legend_position = "none") +
     ggplot2::theme(panel.spacing.x = grid::unit(8, "pt"))
-  ggplot2::ggsave(intro, intro_plot, width = 10.8, height = 3.1, dpi = 220, bg = "white")
+  jss_save_figure(intro, intro_plot, size = "shallow")
 
   set.seed(settings$seed + 2L)
   dat <- gamlss.longitudinal::simulate_longitudinal_dataset(
@@ -42,7 +43,7 @@ jss_run_public_workflow_figures <- function(settings) {
     data = dist_dat, margin_dist = gamlss.dist::BCPE(),
     subject_var = "subject", time_var = "time", response_var = "response"
   )
-  ggplot2::ggsave(dist, p, width = 8.5, height = 7.0, dpi = 320, bg = "white")
+  jss_save_figure(dist, p, size = "dashboard")
 
   diag <- file.path(settings$figures_dir, "software - plot_copula_diagnostics.png")
   fit <- suppressWarnings(gamlss.longitudinal::gamlss_longitudinal(
@@ -57,32 +58,26 @@ jss_run_public_workflow_figures <- function(settings) {
     compute_vcov = FALSE, verbose = 0
   ))
   diagnostics <- suppressWarnings(gamlss.longitudinal::plot_copula_diagnostics(
-    fit, type = "all", residual_lags = 1:2, plot = FALSE
+    fit, type = "overview", dashboard_ncol = 2L,
+    residual_lags = 1:2, plot = FALSE
   ))
   wrap_label <- function(x, width) {
     if (is.null(x) || !length(x) || is.na(x)) return(x)
     paste(strwrap(x, width = width), collapse = "\n")
   }
-  paper_panels <- lapply(diagnostics$plots, function(panel) {
+  paper_panels <- lapply(diagnostics$displayed_plots, function(panel) {
     panel +
       ggplot2::labs(
-        title = wrap_label(panel$labels$title, 29L),
-        subtitle = wrap_label(panel$labels$subtitle, 48L)
+        title = wrap_label(panel$labels$title, 32L),
+        subtitle = NULL
       ) +
-      ggplot2::theme(
-        plot.title = ggplot2::element_text(size = 7.5, lineheight = 0.9),
-        plot.subtitle = ggplot2::element_text(size = 4.8, lineheight = 0.85),
-        axis.title = ggplot2::element_text(size = 6.5),
-        axis.text = ggplot2::element_text(size = 5.5),
-        legend.title = ggplot2::element_text(size = 5.5),
-        legend.text = ggplot2::element_text(size = 5.2)
-      )
+      theme_jss_paper(base_size = 8.5, legend_position = "bottom", show_title = TRUE)
   })
   paper_dashboard <- do.call(
     ggpubr::ggarrange,
-    c(paper_panels, list(ncol = 3L, nrow = 3L))
+    c(paper_panels, list(ncol = 2L, nrow = 2L))
   )
-  ggplot2::ggsave(diag, paper_dashboard, width = 10, height = 7, dpi = 320, bg = "white")
+  jss_save_figure(diag, paper_dashboard, size = "dashboard")
   diag_csv <- file.path(settings$data_dir, "software-copula-diagnostic-kendall.csv")
   utils::write.csv(diagnostics$kendall_summary, diag_csv, row.names = FALSE)
   list(module_id = "00-public-workflow", status = "regenerated", data = diag_csv, tables = character(), figures = c(intro, dist, diag))
