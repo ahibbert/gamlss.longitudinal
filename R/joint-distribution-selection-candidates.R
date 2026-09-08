@@ -6,7 +6,8 @@
     margin_families,
     time_intercepts,
     try.gamlss,
-    trace) {
+    trace,
+    margin_args = list()) {
   if (!is.null(margin_families)) {
     if (!is.character(margin_families) || any(is.na(margin_families)) || any(!nzchar(margin_families))) {
       stop("'margin_families' must be a character vector of gamlss.dist family names.", call. = FALSE)
@@ -42,6 +43,7 @@
     attr(out, "response_type") <- type
     attr(out, "time_intercepts") <- isTRUE(time_intercepts)
     attr(out, "time_var") <- if (isTRUE(time_intercepts)) time_var else NULL
+    attr(out, "margin_args") <- margin_args
     class(out) <- c("margin_selection", "margin_screen", "data.frame")
     return(out)
   }
@@ -54,7 +56,8 @@
     families = NULL,
     time_intercepts = time_intercepts,
     try.gamlss = try.gamlss,
-    trace = trace
+    trace = trace,
+    margin_args = margin_args
   ))
   if (isTRUE(trace)) {
     eval(margin_call)

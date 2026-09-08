@@ -16,7 +16,8 @@
     lags,
     time_intercepts = FALSE,
     margin_n_cycles = 100L,
-    pit_seed = 1L) {
+    pit_seed = 1L,
+    margin_args = list()) {
   upper_var <- NULL
   lower_var <- NULL
   log_mass_var <- NULL
@@ -85,7 +86,8 @@
         time_var = time_var,
         time_intercepts = time_intercepts,
         margin_n_cycles = margin_n_cycles,
-        pit_seed = pit_seed
+        pit_seed = pit_seed,
+        margin_args = margin_args
       )
       data <- auto$data
       u_var <- auto$u_var

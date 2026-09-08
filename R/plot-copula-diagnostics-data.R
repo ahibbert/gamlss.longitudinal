@@ -7,6 +7,8 @@
 
   copula_family_name <- .copula_family_code(copula_spec$copula_dist)
 
+  margin_dist_use <- object$margin_dist
+
   if (is.null(data)) {
     mm_use <- object$model_matrix
 
@@ -17,6 +19,7 @@
     time <- object$response_margin
   } else {
     nd <- .gl_prepare_newdata_internal(object, data, require_response = TRUE)
+    margin_dist_use <- .gl_bind_margin_args(object$margin_dist, nd)
 
     mm_use <- do.call(
       create_model_matrices,
@@ -64,6 +67,7 @@
       margin_params[[param_name]] <- eta_out$eta_inv[[param_name]]
     }
   }
+  family_args <- .gl_margin_fixed_family_args(margin_dist_use, length(response))
 
   theta_fit <- if ("theta" %in% names(eta_out$eta_inv)) eta_out$eta_inv$theta else numeric(0)
 
@@ -90,6 +94,7 @@
   time <- time[seq_len(common_n)]
 
   margin_params <- lapply(margin_params, function(x) x[seq_len(common_n)])
+  family_args <- lapply(family_args, function(x) x[seq_len(common_n)])
 
   align_copula_param <- function(param_vec) {
     n_resp <- common_n
@@ -142,6 +147,8 @@
   time <- time[keep]
 
   margin_params <- lapply(margin_params, function(x) x[keep])
+  family_args <- lapply(family_args, function(x) x[keep])
+  attr(margin_params, "family_args") <- family_args
 
   theta_fit <- theta_fit[keep]
 

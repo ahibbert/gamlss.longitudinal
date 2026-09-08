@@ -66,7 +66,8 @@
       }
     }
 
-    args <- c(list(p = u), diag_data$params)
+    family_args <- attr(diag_data$params, "family_args", exact = TRUE) %||% list()
+    args <- c(list(p = u), family_args, diag_data$params)
 
     args <- args[names(args) %in% formalArgs(qfun)]
 

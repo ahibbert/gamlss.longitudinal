@@ -40,8 +40,8 @@ copulas are listed only where that combination has explicit coverage.
 The \code{hessian_path} column records an implemented analytical/numerical
 computation path. It is not a guarantee of valid inference: the fitted Hessian
 must pass the package's fit-level curvature validation. Evidence identifiers in
-the route table name the tests that exercise each allowlisted route and the
-generic diagnostic and Hessian machinery.
+the route table distinguish explicitly validated routes from generic family
+interface and bounded-fit probes.
 }
 \examples{
 longitudinal_capabilities("routes")
