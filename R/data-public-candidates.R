@@ -1,3 +1,102 @@
+#' Treatment of Lead-Exposed Children trial
+#'
+#' Four blood lead measurements from a randomized, placebo-controlled trial of
+#' succimer in 100 children with baseline blood lead concentrations of 20--44
+#' micrograms per decilitre. The data are a documented subsample of the TLC
+#' trial and form a complete, balanced longitudinal panel.
+#'
+#' @format A data frame with 400 rows and 4 variables:
+#' \describe{
+#'   \item{subject}{Sequential participant identifier, 1--100.}
+#'   \item{treatment}{Randomized treatment arm: `succimer` or `placebo`.}
+#'   \item{week}{Scheduled measurement week: 0, 1, 4, or 6.}
+#'   \item{lead}{Blood lead concentration in micrograms per decilitre.}
+#' }
+#' @source Derived from `ALA::tlc`, ALA 1.0, distributed under GPL-3.
+#'   Treatment of Lead-exposed Children Trial Group (2000), "Safety and
+#'   Efficacy of Succimer in Toddlers with Blood Lead Levels of 20--44
+#'   micrograms/dL", *Pediatric Research*, 48, 593--599. See
+#'   \url{https://r-forge.r-project.org/projects/applong/}.
+#' @seealso [gamlss_longitudinal()]
+"tlc_lead"
+
+#' ACTG 193A CD4 cell counts
+#'
+#' Four post-baseline CD4 measurements for 1,177 participants in AIDS Clinical
+#' Trial Group Study 193A. Participants with advanced immune suppression were
+#' randomized to one of four reverse-transcriptase-inhibitor regimens. The
+#' source stores CD4 measurements with one added; this version restores the
+#' original non-negative counts. The scheduled panel is balanced, with 1,356
+#' post-baseline responses missing as in the source.
+#'
+#' @format A data frame with 4,708 rows and 7 variables:
+#' \describe{
+#'   \item{subject}{Participant identifier.}
+#'   \item{week}{Nominal visit week: 8, 16, 24, or 32.}
+#'   \item{treatment}{Randomized treatment regimen.}
+#'   \item{age}{Age in years.}
+#'   \item{sex}{Recorded sex: `female` or `male`.}
+#'   \item{baseline_cd4}{Baseline CD4 cell count.}
+#'   \item{cd4}{Post-baseline CD4 cell count; 1,356 values are missing.}
+#' }
+#' @source Derived from `bcmixed::aidscd4`, bcmixed 0.1.6, distributed under
+#'   GPL (>= 2). Henry et al. (1998), "A Randomized, Controlled, Double-Blind
+#'   Study Comparing the Survival Benefit of Four Different Reverse
+#'   Transcriptase Inhibitor Therapies", *Journal of Acquired Immune
+#'   Deficiency Syndromes and Human Retrovirology*, 19, 339--349.
+#'   \doi{10.1097/00042560-199812010-00004}.
+#' @seealso [gamlss_longitudinal()]
+"actg_cd4"
+
+#' Skin Cancer Prevention Study
+#'
+#' Annual counts of new non-melanoma skin cancers for 1,683 participants in a
+#' randomized trial of beta-carotene supplementation. Participants contribute
+#' between one and five annual observations.
+#'
+#' @format A data frame with 7,081 rows and 9 variables:
+#' \describe{
+#'   \item{subject}{Sequential participant identifier.}
+#'   \item{center}{Study center.}
+#'   \item{age}{Age in years at study entry.}
+#'   \item{skin_type}{Whether the participant's skin burns rather than tans.}
+#'   \item{sex}{Recorded sex: `female` or `male`.}
+#'   \item{exposure_count}{Number of previous skin cancers at study entry.}
+#'   \item{cancers}{Number of new skin cancers during the year.}
+#'   \item{treatment}{Randomized arm: `placebo` or `beta_carotene`.}
+#'   \item{year}{Follow-up year, 1--5.}
+#' }
+#' @source Derived from `ALA::skin`, ALA 1.0, distributed under GPL-3.
+#'   Greenberg et al. (1989), "A Clinical Trial of Beta Carotene to Prevent
+#'   Basal-Cell and Squamous-Cell Cancers of the Skin", *New England Journal
+#'   of Medicine*, 323, 789--795. See
+#'   \url{https://rdrr.io/rforge/ALA/man/skin.html}.
+#' @seealso [gamlss_longitudinal()]
+"skin_cancer"
+
+#' Seizure counts for participants with epilepsy
+#'
+#' Four two-week seizure counts for 59 participants randomized to progabide or
+#' placebo. Baseline eight-week seizure counts and age are repeated for each
+#' participant.
+#'
+#' @format A data frame with 236 rows and 7 variables:
+#' \describe{
+#'   \item{subject}{Participant identifier.}
+#'   \item{period}{Two-week follow-up period, 1--4.}
+#'   \item{seizures}{Seizure count during the period.}
+#'   \item{treatment}{Randomized arm: `placebo` or `progabide`.}
+#'   \item{baseline_seizures}{Seizure count during the eight-week baseline.}
+#'   \item{age}{Age in years.}
+#'   \item{fourth_visit}{Whether the row is the fourth follow-up period.}
+#' }
+#' @source Derived from `MASS::epil`, MASS 7.3-66, distributed under GPL-2 or
+#'   GPL-3. Thall and Vail (1990), "Some Covariance Models for Longitudinal
+#'   Count Data with Overdispersion", *Biometrics*, 46, 657--671. See
+#'   \url{https://stat.ethz.ch/R-manual/R-devel/library/MASS/html/epil.html}.
+#' @seealso [gamlss_longitudinal()]
+"epilepsy_counts"
+
 #' US patent and R&D longitudinal panel
 #'
 #' An analysis-ready, balanced panel of annual patent counts and R&D measures

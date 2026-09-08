@@ -75,6 +75,9 @@ print.summary.gamlss.longitudinal <- function(x, digits = max(3, getOption("digi
     )
     cat("Between-gap assumption: different observed segments are treated as independent.\n")
     cat("AIC and BIC are available under this explicit segmented-independence assumption.\n")
+    if (isTRUE(x$fit$vcov_included)) {
+      cat("Inference: subject-clustered sandwich covariance (model-Hessian inference is not used).\n")
+    }
     cat("Numerical integration of dependence across gaps is not currently implemented.\n")
   }
   cat(

@@ -117,13 +117,50 @@
 #' @noRd
 .plot_margin_fit_plot <- function(obs, density_grid, margin_dist, bins = 30, by_time = FALSE) {
   family_name <- .plot_margin_family_name(margin_dist)
+  is_discrete <- .plot_margin_is_discrete(margin_dist)
+  histogram_layer <- if (is_discrete) {
+    ggplot2::geom_histogram(
+      ggplot2::aes(y = ggplot2::after_stat(density)),
+      binwidth = 1,
+      boundary = -0.5,
+      fill = "#d9d9d9",
+      color = "white",
+      na.rm = TRUE
+    )
+  } else {
+    ggplot2::geom_histogram(
+      ggplot2::aes(y = ggplot2::after_stat(density)),
+      bins = bins,
+      fill = "#d9d9d9",
+      color = "white",
+      na.rm = TRUE
+    )
+  }
+  overlay_layer <- if (is_discrete) {
+    ggplot2::geom_step(
+      data = density_grid,
+      ggplot2::aes(x = .data$response, y = .data$density),
+      inherit.aes = FALSE,
+      direction = "mid",
+      color = "#e41a1c",
+      linewidth = 1
+    )
+  } else {
+    ggplot2::geom_line(
+      data = density_grid,
+      ggplot2::aes(x = .data$response, y = .data$density),
+      inherit.aes = FALSE,
+      color = "#e41a1c",
+      linewidth = 1
+    )
+  }
   p <- ggplot2::ggplot(obs, ggplot2::aes(x = .data$response)) +
-    ggplot2::geom_histogram(ggplot2::aes(y = ggplot2::after_stat(density)), bins = bins, fill = .gl_plot_colours()[["neutral"]], color = "white", na.rm = TRUE) +
-    ggplot2::geom_line(data = density_grid, ggplot2::aes(x = .data$response, y = .data$density), inherit.aes = FALSE, color = .gl_plot_colours()[["fitted"]], linewidth = 1) +
+    histogram_layer +
+    overlay_layer +
     ggplot2::labs(
       title = paste0("Marginal Fit: ", family_name),
       x = "Response",
-      y = "Density"
+      y = if (is_discrete) "Probability" else "Density"
     ) +
     theme_gamlss_longitudinal()
 

@@ -4,7 +4,7 @@
 
 #' @importFrom methods formalArgs
 
-#' @importFrom stats aggregate as.formula ave coef complete.cases contr.treatment contrasts "contrasts<-" cor effects fitted formula model.frame nobs optim qnorm rbeta residuals rgamma rnorm runif setNames terms var
+#' @importFrom stats aggregate as.formula ave BIC coef complete.cases contr.treatment contrasts "contrasts<-" cor effects fitted formula model.frame nobs optim qnorm rbeta residuals rgamma rnorm runif setNames terms var
 
 #' @importFrom utils capture.output head
 

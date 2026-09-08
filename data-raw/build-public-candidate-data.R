@@ -1,4 +1,4 @@
-# Build the three public candidate datasets used by the paper analyses.
+# Build the public datasets used by the paper analyses.
 #
 # This script is intentionally not run during package installation. It records
 # the exact upstream versions, checksums, and transformations used to create the
@@ -33,6 +33,194 @@ download_first <- function(urls, destination) {
 temporary_root <- tempfile("gamlss-longitudinal-public-data-")
 dir.create(temporary_root)
 on.exit(unlink(temporary_root, recursive = TRUE, force = TRUE), add = TRUE)
+
+# -------------------------------------------------------------------------
+# Treatment of Lead-Exposed Children trial, ALA 1.0, GPL-3
+# -------------------------------------------------------------------------
+
+ala_archive <- file.path(temporary_root, "ALA_1.0.tar.gz")
+download_first(
+  "https://r-forge.r-project.org/src/contrib/ALA_1.0.tar.gz",
+  ala_archive
+)
+ala_sha256 <- digest::digest(ala_archive, algo = "sha256", file = TRUE)
+assert_true(
+  identical(ala_sha256, "ac1b0afe0beda5eefbbf286ec4ddd87b854a1bf40bd813bf4c5c20b5bb1ab058"),
+  paste("Unexpected ALA source checksum:", ala_sha256)
+)
+
+ala_extract <- file.path(temporary_root, "ALA-source")
+dir.create(ala_extract)
+utils::untar(ala_archive, exdir = ala_extract)
+ala_environment <- new.env(parent = emptyenv())
+load(file.path(ala_extract, "ALA", "data", "tlc.rda"), envir = ala_environment)
+tlc_source <- ala_environment$tlc
+
+assert_true(nrow(tlc_source) == 400L, "ALA::tlc row count changed.")
+assert_true(length(unique(tlc_source$id)) == 100L, "ALA::tlc subject count changed.")
+assert_true(
+  identical(sort(unique(as.numeric(tlc_source$week))), c(0, 1, 4, 6)),
+  "ALA::tlc visit schedule changed."
+)
+
+tlc_lead <- data.frame(
+  subject = as.integer(as.character(tlc_source$id)),
+  treatment = factor(
+    as.character(tlc_source$treatment),
+    levels = c("succimer", "placebo")
+  ),
+  week = as.integer(tlc_source$week),
+  lead = as.numeric(tlc_source$lead)
+)
+tlc_lead <- tlc_lead[order(tlc_lead$subject, tlc_lead$week), ]
+rownames(tlc_lead) <- NULL
+
+assert_true(all(table(tlc_lead$subject) == 4L), "TLC panel is no longer balanced.")
+assert_true(!anyNA(tlc_lead), "Unexpected missing TLC values.")
+assert_true(all(tlc_lead$lead > 0), "TLC blood lead measurements must be positive.")
+
+# -------------------------------------------------------------------------
+# Skin Cancer Prevention Study, ALA 1.0, GPL-3
+# -------------------------------------------------------------------------
+
+load(file.path(ala_extract, "ALA", "data", "skin.rda"), envir = ala_environment)
+skin_source <- ala_environment$skin
+
+assert_true(nrow(skin_source) == 7081L, "ALA::skin row count changed.")
+assert_true(length(unique(skin_source$id)) == 1683L, "ALA::skin subject count changed.")
+
+skin_cancer <- data.frame(
+  subject = match(as.character(skin_source$id), unique(as.character(skin_source$id))),
+  center = factor(as.character(skin_source$center)),
+  age = as.integer(skin_source$age),
+  skin_type = factor(
+    as.character(skin_source$skin),
+    levels = c("otherwise", "burns")
+  ),
+  sex = factor(
+    as.character(skin_source$gender),
+    levels = c("F", "M"),
+    labels = c("female", "male")
+  ),
+  exposure_count = as.integer(skin_source$nExposure),
+  cancers = as.integer(skin_source$nCancers),
+  treatment = factor(
+    as.character(skin_source$treatment),
+    levels = c("placebo", "B-carotene"),
+    labels = c("placebo", "beta_carotene")
+  ),
+  year = as.integer(skin_source$year)
+)
+skin_cancer <- skin_cancer[order(skin_cancer$subject, skin_cancer$year), ]
+rownames(skin_cancer) <- NULL
+
+assert_true(!anyNA(skin_cancer), "Unexpected missing ALA::skin values.")
+assert_true(all(skin_cancer$cancers >= 0L), "Skin cancer counts must be non-negative.")
+assert_true(
+  all(skin_cancer$cancers == floor(skin_cancer$cancers)),
+  "Skin cancer outcomes must be integers."
+)
+
+# -------------------------------------------------------------------------
+# ACTG 193A CD4 trial, bcmixed 0.1.6, GPL >= 2
+# -------------------------------------------------------------------------
+
+bcmixed_archive <- file.path(temporary_root, "bcmixed_0.1.6.tar.gz")
+download_first(
+  c(
+    "https://cran.r-project.org/src/contrib/bcmixed_0.1.6.tar.gz",
+    "https://cran.r-project.org/src/contrib/Archive/bcmixed/bcmixed_0.1.6.tar.gz"
+  ),
+  bcmixed_archive
+)
+bcmixed_sha256 <- digest::digest(bcmixed_archive, algo = "sha256", file = TRUE)
+assert_true(
+  identical(bcmixed_sha256, "876d85c20e73eb6dacee32d7b165a31f386f8fec103371d1a1b4c60150c4e7ec"),
+  paste("Unexpected bcmixed source checksum:", bcmixed_sha256)
+)
+
+bcmixed_extract <- file.path(temporary_root, "bcmixed-source")
+dir.create(bcmixed_extract)
+utils::untar(bcmixed_archive, exdir = bcmixed_extract)
+bcmixed_environment <- new.env(parent = emptyenv())
+load(file.path(bcmixed_extract, "bcmixed", "data", "aidscd4.rda"), envir = bcmixed_environment)
+actg_source <- bcmixed_environment$aidscd4
+
+assert_true(nrow(actg_source) == 4708L, "bcmixed::aidscd4 row count changed.")
+assert_true(length(unique(actg_source$id)) == 1177L, "bcmixed::aidscd4 subject count changed.")
+
+actg_cd4 <- data.frame(
+  subject = as.integer(actg_source$id),
+  week = as.integer(actg_source$weekc),
+  treatment = factor(
+    actg_source$treatment,
+    levels = 1:4,
+    labels = c(
+      "alternating_zidovudine_didanosine",
+      "zidovudine_zalcitabine",
+      "zidovudine_didanosine",
+      "zidovudine_didanosine_nevirapine"
+    )
+  ),
+  age = as.numeric(actg_source$age),
+  sex = factor(actg_source$sex, levels = c(0, 1), labels = c("female", "male")),
+  baseline_cd4 = as.numeric(actg_source$cd4.bl) - 1,
+  cd4 = as.integer(actg_source$cd4) - 1L
+)
+actg_cd4 <- actg_cd4[order(actg_cd4$subject, actg_cd4$week), ]
+rownames(actg_cd4) <- NULL
+
+assert_true(all(table(actg_cd4$subject) == 4L), "ACTG CD4 panel is no longer balanced.")
+assert_true(sum(is.na(actg_cd4$cd4)) == 1356L, "ACTG CD4 missing-response pattern changed.")
+assert_true(
+  !anyNA(actg_cd4[setdiff(names(actg_cd4), "cd4")]),
+  "Unexpected missing ACTG covariate values."
+)
+assert_true(all(actg_cd4$cd4[!is.na(actg_cd4$cd4)] >= 0L), "ACTG CD4 counts must be non-negative.")
+
+# -------------------------------------------------------------------------
+# Epilepsy seizure trial, MASS 7.3-66, GPL-2 | GPL-3
+# -------------------------------------------------------------------------
+
+mass_archive <- file.path(temporary_root, "MASS_7.3-66.tar.gz")
+download_first(
+  c(
+    "https://cran.r-project.org/src/contrib/MASS_7.3-66.tar.gz",
+    "https://cran.r-project.org/src/contrib/Archive/MASS/MASS_7.3-66.tar.gz"
+  ),
+  mass_archive
+)
+mass_sha256 <- digest::digest(mass_archive, algo = "sha256", file = TRUE)
+assert_true(
+  identical(mass_sha256, "59c619c70bfca653f1c74aef880e69405daefd0134e716a1862ecc5334b4e155"),
+  paste("Unexpected MASS source checksum:", mass_sha256)
+)
+
+mass_extract <- file.path(temporary_root, "MASS-source")
+dir.create(mass_extract)
+utils::untar(mass_archive, exdir = mass_extract)
+mass_environment <- new.env(parent = emptyenv())
+load(file.path(mass_extract, "MASS", "data", "epil.rda"), envir = mass_environment)
+epilepsy_source <- mass_environment$epil
+
+assert_true(nrow(epilepsy_source) == 236L, "MASS::epil row count changed.")
+assert_true(length(unique(epilepsy_source$subject)) == 59L, "MASS::epil subject count changed.")
+
+epilepsy_counts <- data.frame(
+  subject = as.integer(epilepsy_source$subject),
+  period = as.integer(epilepsy_source$period),
+  seizures = as.integer(epilepsy_source$y),
+  treatment = factor(epilepsy_source$trt, levels = c("placebo", "progabide")),
+  baseline_seizures = as.integer(epilepsy_source$base),
+  age = as.integer(epilepsy_source$age),
+  fourth_visit = as.logical(epilepsy_source$V4)
+)
+epilepsy_counts <- epilepsy_counts[order(epilepsy_counts$subject, epilepsy_counts$period), ]
+rownames(epilepsy_counts) <- NULL
+
+assert_true(!anyNA(epilepsy_counts), "Unexpected missing epilepsy values.")
+assert_true(all(table(epilepsy_counts$subject) == 4L), "Epilepsy panel is no longer balanced.")
+assert_true(all(epilepsy_counts$seizures >= 0L), "Seizure counts must be non-negative.")
 
 # -------------------------------------------------------------------------
 # PatentsRDUS, pglm 0.2-4, GPL >= 2
@@ -227,6 +415,10 @@ assert_true(
   "Cleaned step outcomes must be integers."
 )
 
+save(tlc_lead, file = file.path("data", "tlc_lead.rda"), compress = "xz", version = 3)
+save(actg_cd4, file = file.path("data", "actg_cd4.rda"), compress = "xz", version = 3)
+save(skin_cancer, file = file.path("data", "skin_cancer.rda"), compress = "xz", version = 3)
+save(epilepsy_counts, file = file.path("data", "epilepsy_counts.rda"), compress = "xz", version = 3)
 save(patents_panel, file = file.path("data", "patents_panel.rda"), compress = "xz", version = 3)
 save(pbc_prothrombin, file = file.path("data", "pbc_prothrombin.rda"), compress = "xz", version = 3)
 save(vietnam_steps, file = file.path("data", "vietnam_steps.rda"), compress = "xz", version = 3)

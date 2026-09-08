@@ -421,6 +421,47 @@ test_that("T159 standard fit inspection plotting helpers are available", {
   )
   expect_gt(min(bct_density_grid$response, na.rm = TRUE), 0)
 
+  count_response <- c(0, 1, 2, 4, 8, 15)
+  nbi_params <- list(mu = rep(4, length(count_response)), sigma = rep(0.5, length(count_response)))
+  nbi_density_grid <- .plot_margin_density_grid(
+    count_response,
+    gamlss.dist::NBI(),
+    params = nbi_params,
+    grid_n = 5
+  )
+  expect_equal(nbi_density_grid$response, 0:15)
+  expect_equal(
+    nbi_density_grid$density,
+    gamlss.dist::dNBI(0:15, mu = 4, sigma = 0.5)
+  )
+
+  del_params <- list(
+    mu = rep(4, length(count_response)),
+    sigma = rep(0.5, length(count_response)),
+    nu = rep(0.4, length(count_response))
+  )
+  del_density_grid <- .plot_margin_density_grid(
+    count_response,
+    gamlss.dist::DEL(),
+    params = del_params,
+    grid_n = 5
+  )
+  expect_equal(del_density_grid$response, 0:15)
+  expect_equal(
+    del_density_grid$density,
+    gamlss.dist::dDEL(0:15, mu = 4, sigma = 0.5, nu = 0.4)
+  )
+
+  count_plot <- .plot_margin_fit_plot(
+    obs = data.frame(response = count_response, split_group = "All"),
+    density_grid = nbi_density_grid,
+    margin_dist = gamlss.dist::NBI(),
+    bins = 2
+  )
+  count_plot_data <- ggplot2::ggplot_build(count_plot)$data
+  expect_true(all(abs(count_plot_data[[1L]]$xmax - count_plot_data[[1L]]$xmin - 1) < 1e-12))
+  expect_equal(count_plot$labels$y, "Probability")
+
   set.seed(159)
   gg_time_response <- data.frame(time = rep(seq_len(5), each = 80))
   gg_time_response$response <- gamlss.dist::rGG(
