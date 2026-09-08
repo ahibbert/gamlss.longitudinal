@@ -158,6 +158,87 @@ test_that("dependent Gaussian tail rectangles match a direct bivariate-normal or
   expect_true(lik$valid)
 })
 
+test_that("vectorized stable rectangle quadrature matches a scalar reference", {
+  scalar_reference <- function(family, par, par2, upper, lower,
+                               log_mass1, log_mass2,
+                               log_survival1 = NULL, log_survival2 = NULL) {
+    nodes <- (c(
+      -0.9602898564975363, -0.7966664774136267,
+      -0.5255324099163290, -0.1834346424956498,
+       0.1834346424956498,  0.5255324099163290,
+       0.7966664774136267,  0.9602898564975363
+    ) + 1) / 2
+    weights <- c(
+      0.1012285362903763, 0.2223810344533745,
+      0.3137066458778873, 0.3626837833783620,
+      0.3626837833783620, 0.3137066458778873,
+      0.2223810344533745, 0.1012285362903763
+    ) / 2
+    grid <- expand.grid(i = seq_along(nodes), j = seq_along(nodes))
+    log_weights <- log(weights[grid$i]) + log(weights[grid$j])
+    logspace_add <- function(a, b) {
+      maximum <- pmax(a, b)
+      maximum + log(exp(a - maximum) + exp(b - maximum))
+    }
+    node_probability <- function(k, node, log_survival, log_mass, lo, hi) {
+      if (!is.null(log_survival) && is.finite(log_survival[[k]]) &&
+          is.finite(log_mass[[k]])) {
+        log_s <- logspace_add(log_survival[[k]], log1p(-node) + log_mass[[k]])
+        return(list(u = -expm1(log_s), log_survival = log_s))
+      }
+      list(u = lo + node * (hi - lo), log_survival = NA_real_)
+    }
+    vapply(seq_along(par), function(k) {
+      log_density <- vapply(seq_len(nrow(grid)), function(g) {
+        p1 <- node_probability(
+          k, nodes[grid$i[g]], log_survival1, log_mass1,
+          lower[k, 1], upper[k, 1]
+        )
+        p2 <- node_probability(
+          k, nodes[grid$j[g]], log_survival2, log_mass2,
+          lower[k, 2], upper[k, 2]
+        )
+        if (identical(family, "N") && is.finite(p1$log_survival) &&
+            is.finite(p2$log_survival)) {
+          z1 <- stats::qnorm(p1$log_survival, lower.tail = FALSE, log.p = TRUE)
+          z2 <- stats::qnorm(p2$log_survival, lower.tail = FALSE, log.p = TRUE)
+          rho <- .copula_gaussian_rho(par[[k]])
+          denominator <- 1 - rho^2
+          return((2 * rho * z1 * z2 - rho^2 * (z1^2 + z2^2)) /
+            (2 * denominator) - 0.5 * log(denominator))
+        }
+        .copula_logpdf(p1$u, p2$u, family, par[[k]], par2[[k]])
+      }, numeric(1))
+      maximum <- max(log_weights + log_density)
+      maximum + log(sum(exp(log_weights + log_density - maximum)))
+    }, numeric(1))
+  }
+
+  lower <- cbind(c(0.2, 0.9, 0.999999), c(0.3, 0.85, 0.99999))
+  upper <- cbind(c(0.4, 0.95, 0.9999999), c(0.55, 0.93, 0.999999))
+  log_mass1 <- log(upper[, 1] - lower[, 1])
+  log_mass2 <- log(upper[, 2] - lower[, 2])
+  log_survival1 <- log1p(-upper[, 1])
+  log_survival2 <- log1p(-upper[, 2])
+
+  for (family in c("N", "C")) {
+    par <- if (identical(family, "N")) c(0.2, 0.6, 0.8) else c(0.5, 1.5, 3)
+    expected <- scalar_reference(
+      family, par, rep(0, 3), upper, lower,
+      log_mass1, log_mass2,
+      if (identical(family, "N")) log_survival1 else NULL,
+      if (identical(family, "N")) log_survival2 else NULL
+    )
+    actual <- .gl_discrete_copula_log_ratio_quadrature(
+      family, par, rep(0, 3), upper, lower,
+      log_mass1, log_mass2,
+      if (identical(family, "N")) log_survival1 else NULL,
+      if (identical(family, "N")) log_survival2 else NULL
+    )
+    expect_equal(actual, expected, tolerance = 1e-12)
+  }
+})
+
 test_that("discrete rectangle analytical scores match finite differences", {
   skip_if_not_installed("gamlss.dist")
   suppressPackageStartupMessages(library(gamlss.dist))

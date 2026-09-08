@@ -114,4 +114,38 @@ test_that("likelihood margin evaluation builds lower CDFs for discrete rectangle
     gamlss.dist::dDEL(response[2], mu = 3, sigma = 0.8, nu = 0.5),
     tolerance = 1e-12
   )
+  expect_equal(
+    out$margin_log_survival,
+    gamlss.dist::pDEL(
+      response, mu = 3, sigma = 0.8, nu = 0.5,
+      lower.tail = FALSE, log.p = TRUE
+    ),
+    tolerance = 1e-12
+  )
+  expect_equal(
+    out$margin_log_survival_lower,
+    gamlss.dist::pDEL(
+      response - 1, mu = 3, sigma = 0.8, nu = 0.5,
+      lower.tail = FALSE, log.p = TRUE
+    ),
+    tolerance = 1e-12
+  )
+})
+
+test_that("discrete CDF companions retain directly evaluated extreme tails", {
+  upper <- c(0.2, 1, NA_real_)
+  mass <- c(0.1, 1e-30, NA_real_)
+  log_mass <- c(log(0.1), log(1e-30), NA_real_)
+  direct <- c(NA_real_, log(2e-30), NA_real_)
+
+  out <- gamlss.longitudinal:::.gl_discrete_cdf_companions(
+    upper, mass, log_mass, direct
+  )
+
+  expect_equal(out$lower[1:2], c(0.1, 1 - 1e-30))
+  expect_equal(out$log_survival[1], log(0.8))
+  expect_equal(out$log_survival[2], log(2e-30))
+  expect_equal(out$log_survival_lower[1], log(0.9))
+  expect_equal(out$log_survival_lower[2], log(3e-30), tolerance = 1e-12)
+  expect_true(all(vapply(out, function(x) is.na(x[3]), logical(1))))
 })
