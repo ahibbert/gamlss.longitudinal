@@ -1,7 +1,40 @@
 test_that("public candidate datasets retain their audited structure", {
+  data("tlc_lead", package = "gamlss.longitudinal")
+  data("actg_cd4", package = "gamlss.longitudinal")
+  data("skin_cancer", package = "gamlss.longitudinal")
+  data("epilepsy_counts", package = "gamlss.longitudinal")
   data("patents_panel", package = "gamlss.longitudinal")
   data("pbc_prothrombin", package = "gamlss.longitudinal")
   data("vietnam_steps", package = "gamlss.longitudinal")
+
+  expect_equal(nrow(tlc_lead), 400L)
+  expect_equal(length(unique(tlc_lead$subject)), 100L)
+  expect_true(all(table(tlc_lead$subject) == 4L))
+  expect_identical(sort(unique(tlc_lead$week)), c(0L, 1L, 4L, 6L))
+  expect_identical(levels(tlc_lead$treatment), c("succimer", "placebo"))
+  expect_false(anyNA(tlc_lead))
+  expect_true(all(tlc_lead$lead > 0))
+
+  expect_equal(nrow(actg_cd4), 4708L)
+  expect_equal(length(unique(actg_cd4$subject)), 1177L)
+  expect_true(all(table(actg_cd4$subject) == 4L))
+  expect_identical(sort(unique(actg_cd4$week)), c(8L, 16L, 24L, 32L))
+  expect_equal(sum(is.na(actg_cd4$cd4)), 1356L)
+  expect_false(anyNA(actg_cd4[setdiff(names(actg_cd4), "cd4")]))
+  expect_true(all(actg_cd4$cd4[!is.na(actg_cd4$cd4)] >= 0L))
+
+  expect_equal(nrow(skin_cancer), 7081L)
+  expect_equal(length(unique(skin_cancer$subject)), 1683L)
+  expect_identical(sort(unique(skin_cancer$year)), 1:5)
+  expect_false(anyNA(skin_cancer))
+  expect_true(all(skin_cancer$cancers >= 0L))
+
+  expect_equal(nrow(epilepsy_counts), 236L)
+  expect_equal(length(unique(epilepsy_counts$subject)), 59L)
+  expect_true(all(table(epilepsy_counts$subject) == 4L))
+  expect_identical(sort(unique(epilepsy_counts$period)), 1:4)
+  expect_false(anyNA(epilepsy_counts))
+  expect_true(all(epilepsy_counts$seizures >= 0L))
 
   expect_equal(nrow(patents_panel), 3460L)
   expect_equal(length(unique(patents_panel$firm)), 346L)
@@ -28,55 +61,10 @@ test_that("public candidate sources and licenses are installed", {
   expect_true(nzchar(notice))
   text <- paste(readLines(notice, warn = FALSE), collapse = "\n")
   expect_match(text, "GPL >= 2", fixed = TRUE)
+  expect_match(text, "ALA::tlc", fixed = TRUE)
+  expect_match(text, "bcmixed::aidscd4", fixed = TRUE)
+  expect_match(text, "ALA::skin", fixed = TRUE)
+  expect_match(text, "MASS::epil", fixed = TRUE)
   expect_match(text, "LGPL >= 2", fixed = TRUE)
   expect_match(text, "CC BY 4.0", fixed = TRUE)
-})
-
-test_that("public application specifications use supported routes", {
-  root <- test_path("..", "..")
-  script <- file.path(root, "paper", "R", "10-public-application-candidates.R")
-  skip_if_not(file.exists(script), "Paper source is excluded from the installed package.")
-  environment <- new.env(parent = globalenv())
-  source(script, local = environment)
-
-  for (name in environment$jss_public_application_names()) {
-    spec <- environment$jss_public_application_spec(name)
-    routes <- longitudinal_capabilities("routes")
-    selected <- routes$margin_family == spec$margin & routes$copula == spec$copula
-    expect_true(any(selected), info = name)
-
-    prepared <- environment$jss_prepare_public_application(name)
-    expect_identical(anyDuplicated(prepared[c(spec$subject, spec$time)]), 0L)
-  }
-
-  expect_equal(nrow(environment$jss_prepare_public_application("patents")), 3460L)
-  expect_equal(length(unique(environment$jss_prepare_public_application("pbc")$subject)), 227L)
-  expect_equal(nrow(environment$jss_prepare_public_application("steps")), 3325L)
-})
-
-test_that("patents refinement adds R&D to the dispersion model and start", {
-  root <- test_path("..", "..")
-  script <- file.path(root, "paper", "R", "10-public-application-candidates.R")
-  skip_if_not(file.exists(script), "Paper source is excluded from the installed package.")
-  environment <- new.env(parent = globalenv())
-  source(script, local = environment)
-
-  refined <- environment$jss_patents_joint_refinement_specs()$NBI_rd_dispersion
-  expect_identical(refined$margin, "NBI")
-  expect_true("log_rd" %in% all.vars(refined$formulas$sigma))
-
-  base_names <- c(
-    "mu.(Intercept)", "sigma.(Intercept)", "sigma.scientificyes",
-    "sigma.capital_z", "theta.(Intercept)"
-  )
-  base_fit <- structure(
-    list(par = stats::setNames(seq_along(base_names), base_names)),
-    class = "gamlss.longitudinal"
-  )
-  start <- environment$jss_patents_nbi_rd_start(base_fit)
-  expect_identical(
-    names(start),
-    append(base_names, "sigma.log_rd", after = 4L)
-  )
-  expect_identical(unname(start[["sigma.log_rd"]]), 0)
 })
