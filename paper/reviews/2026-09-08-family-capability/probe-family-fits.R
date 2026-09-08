@@ -66,6 +66,7 @@ probe <- function(constructor, family) {
       defaults$mu <- 5
       defaults$sigma <- 0.1
     }
+    if (identical(family, "BB")) defaults$sigma <- 0.1
     fixed <- attr(object, "fixed_unlinked_values")
     if (length(fixed)) defaults <- c(defaults, fixed)
 
