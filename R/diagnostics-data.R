@@ -24,6 +24,9 @@
   }
 
   margin_params <- lapply(margin_params, function(x) x[keep])
+  family_args <- .gl_margin_fixed_family_args(object$margin_dist, length(y))
+  family_args <- lapply(family_args, function(x) x[keep])
+  attr(margin_params, "family_args") <- family_args
 
   y <- y[keep]
 

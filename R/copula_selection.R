@@ -47,6 +47,9 @@
 #'   [select_margin()] if the marginal family is auto-selected.
 #' @param margin_n_cycles Positive integer maximum number of cycles used for
 #'   the temporary marginal GAMLSS fit that creates pseudo-observations.
+#' @param margin_args Named fixed marginal arguments passed to the temporary
+#'   marginal fit. Binomial families require `list(bd = ...)` as described in
+#'   [gamlss_longitudinal()].
 #' @param pit_seed Finite numeric seed used for randomized PIT values when
 #'   constructing descriptive diagnostics for a discrete margin. The seed does
 #'   not affect the exact rectangle likelihood used to rank copulas.
@@ -90,7 +93,8 @@ select_copula <- function(
     margin_n_cycles = 100L,
     pit_seed = 1L,
     copula_time_intercepts = FALSE,
-    tail_thresholds = c(0.05, 0.10, 0.20)) {
+    tail_thresholds = c(0.05, 0.10, 0.20),
+    margin_args = list()) {
   criterion <- match.arg(criterion)
   families <- vapply(families, .copula_family_code, character(1), USE.NAMES = FALSE)
   lags <- as.integer(lags)
@@ -125,7 +129,8 @@ select_copula <- function(
     lags = lags,
     time_intercepts = time_intercepts,
     margin_n_cycles = margin_n_cycles,
-    pit_seed = pit_seed
+    pit_seed = pit_seed,
+    margin_args = margin_args
   )
   margin_family <- .select_copula_margin_family(
     margin_dist = margin_dist,

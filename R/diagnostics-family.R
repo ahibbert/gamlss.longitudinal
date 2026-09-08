@@ -32,3 +32,11 @@
 
   do.call(fun, args)
 }
+
+.gl_subset_family_params <- function(params, index) {
+  family_args <- attr(params, "family_args", exact = TRUE) %||% list()
+  out <- lapply(params, function(value) value[index])
+  family_args <- lapply(family_args, function(value) value[index])
+  attr(out, "family_args") <- family_args
+  out
+}

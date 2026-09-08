@@ -42,6 +42,12 @@
       q_args[[par_name]] <- par_value
     }
   }
+  family_args <- attr(params, "family_args", exact = TRUE) %||% list()
+  for (arg_name in intersect(names(family_args), formalArgs(qfun))) {
+    values <- as.numeric(family_args[[arg_name]])
+    values <- values[is.finite(values)]
+    if (length(values)) q_args[[arg_name]] <- stats::median(values)
+  }
 
   bounds <- tryCatch(
     do.call(qfun, c(list(p = c(0, 1)), q_args)),

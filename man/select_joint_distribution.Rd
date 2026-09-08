@@ -20,7 +20,8 @@ select_joint_distribution(
   trace = FALSE,
   progress = TRUE,
   fit_args = list(),
-  keep_fits = FALSE
+  keep_fits = FALSE,
+  margin_args = list()
 )
 }
 \arguments{
@@ -65,6 +66,9 @@ with elapsed time and an estimated remaining runtime.}
 
 \item{keep_fits}{Logical; if \code{TRUE}, attach retained fitted models in the
 \code{"fits"} attribute.}
+
+\item{margin_args}{Named fixed marginal arguments. Binomial candidates
+require \code{list(bd = ...)} as described in \code{\link[=gamlss_longitudinal]{gamlss_longitudinal()}}.}
 }
 \value{
 A data frame with one row per margin-copula combination and class

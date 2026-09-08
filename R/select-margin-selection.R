@@ -49,6 +49,9 @@
 #' @param time_n_cycles Positive integer maximum number of cycles used for each
 
 #'   temporary time-intercept GAMLSS fit.
+#' @param margin_args Named fixed margin arguments. Supplying
+#'   `list(bd = ...)` screens binomial families using a success/failure response;
+#'   `bd` may be one positive integer or a column name in `data`.
 
 #' @param try.gamlss,trace,... Passed to [gamlss::fitDist()].
 
@@ -79,7 +82,9 @@ select_margin <- function(
     time_n_cycles = 100L,
     try.gamlss = FALSE,
     trace = FALSE,
+    margin_args = list(),
     ...) {
+  type_was_null <- is.null(type)
   inputs <- .select_margin_inputs(
     response = response,
     data = data,
@@ -94,6 +99,30 @@ select_margin <- function(
   type <- inputs$type
   time_intercepts <- inputs$time_intercepts
   time_var <- inputs$time_var
+
+  response_for_capability <- response
+  binomial_bd <- NULL
+  if (length(margin_args)) {
+    resolver <- .gl_attach_margin_args_spec(gamlss.dist::BI(), margin_args)
+    resolver_data <- if (is.null(data)) {
+      data.frame(.row = seq_along(response_all))
+    } else {
+      data
+    }
+    binomial_bd_all <- .gl_resolve_margin_args(
+      resolver, resolver_data, response_all
+    )$bd
+    keep_response <- is.finite(response_all)
+    binomial_bd <- binomial_bd_all[keep_response]
+    response <- cbind(
+      success = response_for_capability,
+      failure = binomial_bd - response_for_capability
+    )
+    if (isTRUE(type_was_null)) type <- "binom"
+    if (!identical(type, "binom")) {
+      stop("Supplying 'margin_args$bd' requires type = 'binom'.", call. = FALSE)
+    }
+  }
 
   if (length(time_n_cycles) != 1L || !is.finite(time_n_cycles) || time_n_cycles < 1) {
     stop("'time_n_cycles' must be a positive integer.", call. = FALSE)
@@ -159,7 +188,8 @@ select_margin <- function(
       time = data[[time_var]],
       families = out$family,
       trace = trace,
-      n_cycles = time_n_cycles
+      n_cycles = time_n_cycles,
+      bd = if (length(margin_args)) binomial_bd_all else NULL
     )
 
     out$pooled_AIC <- out$AIC
@@ -195,7 +225,7 @@ select_margin <- function(
     out$family,
     .gl_capability_margin_supported_for_response,
     logical(1),
-    response = response
+    response = response_for_capability
   )
 
   excluded <- out[!out$supported_by_longitudinal, , drop = FALSE]
@@ -213,6 +243,8 @@ select_margin <- function(
   attr(out, "time_intercepts") <- isTRUE(time_intercepts)
 
   attr(out, "time_var") <- if (isTRUE(time_intercepts)) time_var else NULL
+
+  attr(out, "margin_args") <- margin_args
 
   class(out) <- c("margin_selection", "margin_screen", class(out))
 
