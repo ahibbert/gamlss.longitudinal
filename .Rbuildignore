@@ -21,6 +21,7 @@
 ^docs($|/)
 ^examples($|/)
 ^results($|/)
+^temp($|/)
 ^_targets($|/)
 ^paper($|/)
 ^data-raw($|/)
@@ -33,6 +34,9 @@
 ^benchmark_standard_models_metrics\.(pdf|tex)$
 ^tests/REGRESSION_TEST_PLAN\.md$
 ^tests/testthat/Rplots\.pdf$
+^tests/testthat/test-p2-copula-misspecification-evidence\.R$
+^tests/testthat/test-p2-evidence-contracts\.R$
+^tests/testthat/test-p2-fit-scaling\.R$
 ^make_.*_paper_outputs\.R$
 ^analyze_results\.R$
 ^vignettes/.*\.html$
