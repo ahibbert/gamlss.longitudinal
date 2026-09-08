@@ -96,5 +96,8 @@ plot_margin_fit <- function(
     print(p)
   }
 
-  invisible(list(plot = p, data = plot_data$obs, density = plot_data$density_grid))
+  invisible(.gl_new_plot_result(
+    list(plot = p, data = plot_data$obs, density = plot_data$density_grid),
+    primary = "plot"
+  ))
 }

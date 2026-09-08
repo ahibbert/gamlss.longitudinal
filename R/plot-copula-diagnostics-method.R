@@ -4,12 +4,69 @@
 
 #' @export
 
-plot.copula <- function(x, lags = 1, grid_n = 35, max_pairs_overlay = 300, transform = "normal", plot1_style = "bins", contour_bins = 8, time_stratified = FALSE, by = NULL, data = NULL, tau_ylim = NULL, plot2_cuts = 10, tail_thresholds = c(0.05, 0.10, 0.20), residual_lags = 1:3, dashboard_ncol = 3, plot = TRUE, ...) {
+plot.copula <- function(
+    x,
+    lags = 1,
+    grid_n = 35,
+    max_pairs_overlay = 300,
+    transform = "normal",
+    plot1_style = NULL,
+    contour_bins = 8,
+    time_stratified = FALSE,
+    by = NULL,
+    data = NULL,
+    tau_ylim = NULL,
+    plot2_cuts = NULL,
+    tail_thresholds = c(0.05, 0.10, 0.20),
+    residual_lags = 1:3,
+    dashboard_ncol = NULL,
+    plot = TRUE,
+    type = c("overview", "calibration", "residuals", "tails", "all"),
+    empirical = c("bins", "points"),
+    n_bins = 10,
+    ncol = 2,
+    ...) {
   if (!inherits(x, "gamlss.longitudinal")) {
     stop("'x' must be a fitted 'gamlss.longitudinal' object.")
   }
 
   object <- x
+
+  empirical_supplied <- !missing(empirical)
+  n_bins_supplied <- !missing(n_bins)
+  ncol_supplied <- !missing(ncol)
+  if (!is.null(plot1_style)) {
+    if (empirical_supplied) stop("Supply only `empirical`; do not also supply deprecated `plot1_style`.", call. = FALSE)
+    .gl_warn_interface_deprecation(
+      "plot1_style_argument",
+      "`plot1_style` is deprecated; use `empirical = \"bins\"` or `empirical = \"points\"`.",
+      "gamlss.longitudinal_deprecated_plot_argument"
+    )
+    empirical <- if (identical(plot1_style, "scatter")) "points" else plot1_style
+  }
+  if (!is.null(plot2_cuts)) {
+    if (n_bins_supplied) stop("Supply only `n_bins`; do not also supply deprecated `plot2_cuts`.", call. = FALSE)
+    .gl_warn_interface_deprecation(
+      "plot2_cuts_argument",
+      "`plot2_cuts` is deprecated; use `n_bins`.",
+      "gamlss.longitudinal_deprecated_plot_argument"
+    )
+    n_bins <- plot2_cuts
+  }
+  if (!is.null(dashboard_ncol)) {
+    if (ncol_supplied) stop("Supply only `ncol`; do not also supply deprecated `dashboard_ncol`.", call. = FALSE)
+    .gl_warn_interface_deprecation(
+      "dashboard_ncol_argument",
+      "`dashboard_ncol` is deprecated; use `ncol`.",
+      "gamlss.longitudinal_deprecated_plot_argument"
+    )
+    ncol <- dashboard_ncol
+  }
+  type <- match.arg(type)
+  empirical <- match.arg(empirical)
+  plot1_style <- if (identical(empirical, "points")) "scatter" else "bins"
+  plot2_cuts <- n_bins
+  dashboard_ncol <- ncol
 
   controls <- .copula_v2_normalize_plot_controls(
     transform = transform,
@@ -169,7 +226,7 @@ plot.copula <- function(x, lags = 1, grid_n = 35, max_pairs_overlay = 300, trans
 
   p_lag_summary <- .copula_v2_residual_lag_panel(lag_summary_df)
 
-  dashboard_plots <- .copula_v2_dashboard_plot_list(
+  all_plots <- .copula_v2_dashboard_plot_list(
     empirical_overlay = p1,
     quartile_correlation = p2,
     rosenblatt_by_time = p_ros_time,
@@ -181,6 +238,7 @@ plot.copula <- function(x, lags = 1, grid_n = 35, max_pairs_overlay = 300, trans
     residual_lag_correlation = p_lag_summary
   )
 
+  dashboard_plots <- .copula_v2_select_dashboard_plots(all_plots, type = type)
   dashboard <- .copula_v2_arrange_dashboard(dashboard_plots, dashboard_ncol = dashboard_ncol)
 
   if (isTRUE(plot)) {
@@ -188,7 +246,9 @@ plot.copula <- function(x, lags = 1, grid_n = 35, max_pairs_overlay = 300, trans
   }
 
   invisible(.copula_v2_plot_result(
-    plots = dashboard_plots,
+    plots = all_plots,
+    displayed_plots = dashboard_plots,
+    type = type,
     dashboard = dashboard,
     fit_data = fit_data,
     pair_data = pair_data_plot,

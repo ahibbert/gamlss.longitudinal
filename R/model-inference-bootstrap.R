@@ -21,7 +21,7 @@
 
   args <- c(
     list(
-      dataset = dat,
+      data = dat,
       margin_dist = object$margin_dist,
       copula_dist = object$copula_dist,
       time_var = "time",
@@ -32,8 +32,8 @@
       tau.formula = object$formulas_int$tau,
       theta.formula = object$formulas_int$theta,
       zeta.formula = object$formulas_int$zeta,
-      start_from = object$par,
-      include_dlcopdpar = object$include_dlcopdpar,
+      start = object$par,
+      optimization = if (isTRUE(object$include_dlcopdpar)) "joint" else "separate",
       compute_vcov = FALSE,
       verbose = 0
     ),
@@ -53,7 +53,7 @@
 
   args <- c(
     list(
-      dataset = dat,
+      data = dat,
       margin_dist = object$margin_dist,
       copula_dist = object$copula_dist,
       time_var = "time",
@@ -64,8 +64,8 @@
       tau.formula = object$formulas_int$tau,
       theta.formula = object$formulas_int$theta,
       zeta.formula = object$formulas_int$zeta,
-      start_from = object$par,
-      include_dlcopdpar = object$include_dlcopdpar,
+      start = object$par,
+      optimization = if (isTRUE(object$include_dlcopdpar)) "joint" else "separate",
       compute_vcov = FALSE,
       verbose = 0
     ),
@@ -85,6 +85,8 @@
 #' refits the same model to each bootstrap dataset,
 
 #' and summarizes the bootstrap distribution of selected fixed coefficients.
+#' Errors, explicit nonconvergence, and missing/non-finite target coefficients
+#' are failed replicates; per-coefficient successful counts are reported.
 
 #' It is intended for opt-in applied uncertainty checks and should be run with
 
@@ -118,7 +120,10 @@
 
 #'
 
-#' @return An object of class `gamlss_longitudinal_bootstrap`.
+#' @return An object of class `gamlss_longitudinal_bootstrap` with an exact
+#'   fixed-coefficient target, replicate failures, successful counts, and
+#'   adequacy status in `inference_contract`. Two successful replicates are a
+#'   computational minimum only, not evidence of inferential adequacy.
 
 #' @export
 
@@ -132,6 +137,7 @@ bootstrap_inference <- function(
     keep_fits = FALSE,
     type = c("parametric", "cluster"),
     ...) {
+  .gl_require_converged_fit(object, "bootstrap inference")
   validated <- .gl_validate_bootstrap_args(object, R, fit_args)
 
   R <- validated$R
@@ -205,7 +211,17 @@ bootstrap_inference <- function(
       next
     }
 
+    if (identical(fit_b$convergence$converged, FALSE)) {
+      errors[[b]] <- "Bootstrap refit did not satisfy the model convergence contract."
+      next
+    }
+
     coef_b <- stats::coef(fit_b)
+
+    if (!all(terms_use %in% names(coef_b)) || any(!is.finite(coef_b[terms_use]))) {
+      errors[[b]] <- "Bootstrap refit returned missing or non-finite target fixed coefficients."
+      next
+    }
 
     boot_coef[b, ] <- coef_b[terms_use]
 
@@ -231,14 +247,12 @@ bootstrap_inference <- function(
 
 print.gamlss_longitudinal_bootstrap <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   title <- if (identical(x$simulation_type, "cluster")) {
-    "Cluster Bootstrap for gamlss.longitudinal"
+    "Cluster bootstrap"
   } else {
-    "Parametric Bootstrap for gamlss.longitudinal"
+    "Parametric bootstrap"
   }
 
-  cat("\n", title, "\n", sep = "")
-
-  cat(paste(rep("-", nchar(title)), collapse = ""), "\n", sep = "")
+  cat("\n<", title, ">\n", sep = "")
 
   cat("Replicates:", x$R, "\n")
 
@@ -251,6 +265,11 @@ print.gamlss_longitudinal_bootstrap <- function(x, digits = max(3, getOption("di
   cat("Simulation:", simulation_label, "\n")
 
   cat("Failed refits:", x$failed_replicates, "\n\n")
+
+  cat("Target: selected fixed coefficients:", paste(x$inference_contract$coefficient_names, collapse = ", "), "\n")
+  cat("Validity:", x$inference_contract$validity_status, "\n")
+  cat("Adequacy:", x$inference_contract$inferential_adequacy, "\n")
+  cat("Model-selection uncertainty is not included.\n\n")
 
   print(x$summary, digits = digits, row.names = FALSE)
 

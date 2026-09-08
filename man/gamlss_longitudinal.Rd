@@ -5,74 +5,56 @@
 \title{Fit a longitudinal joint regression model}
 \usage{
 gamlss_longitudinal(
-  dataset,
+  data = NULL,
   margin_dist,
   copula_dist,
   time_var = NA,
   subject_var = NA,
-  mu.formula = ("response ~ 1"),
-  sigma.formula = ("~ 1"),
-  nu.formula = ("~ 1"),
-  tau.formula = ("~ 1"),
-  theta.formula = ("~ 1"),
-  zeta.formula = ("~ 1"),
-  include_dlcopdpar = TRUE,
-  check_dlcopdpar_gradient = FALSE,
-  inner_stop_crit = NA,
-  outer_stop_crit = NA,
-  start_step_size = 0.5,
-  step_adjustment = NA,
-  max_steps = 5,
-  start_from = NA,
-  warm_start_joint = TRUE,
-  warm_start_joint_iter = 5,
-  verbose = 1,
-  plot_results = FALSE,
-  true_val = NA,
+  missingness = c("error", "segment"),
+  mu.formula = response ~ 1,
+  sigma.formula = ~1,
+  nu.formula = ~1,
+  tau.formula = ~1,
+  theta.formula = ~1,
+  zeta.formula = ~1,
   method = "RS",
-  max_outer_iter = 100,
-  max_inner_iter = 100,
-  max_negative_outer_streak = 10,
-  max_elapsed_sec = Inf,
-  use_backtracking = TRUE,
-  backtracking_max_halves = 50,
-  cg_max_stall = 5,
-  cg_max_delta = 0.5,
-  cg_armijo_c1 = 1e-04,
-  cg_grad_tol = NA,
-  cg_step_tol = NA,
-  cg_update_lambda = TRUE,
-  cg_lambda_update_every = 10,
-  cg_max_lambda_updates = NA,
-  cg_raw_loglik_drop_tol = 10,
-  cg_line_search = "best",
-  cg_max_line_search_evals = 60,
-  cg_gradient_method = "forward",
-  discrete_score_method = c("analytical", "finite"),
-  cg_zeta_hessian = "analytical",
-  cg_hessian_method = c("analytical", "finite", "auto"),
+  optimization = c("joint", "separate"),
+  optimizer_control = NULL,
+  start = NULL,
   compute_vcov = TRUE,
   vcov_method = c("analytical", "numderiv"),
-  vcov_numderiv = FALSE,
-  use_Rcpp = FALSE,
-  lambda_start = NA,
-  lambda_penalty_K = 2,
-  rs_update_lambda = TRUE,
-  rs_smooth_trust_radius = Inf
+  verbose = FALSE,
+  ...
 )
 }
 \arguments{
-\item{dataset}{Long-format data frame containing the response, subject, time,
+\item{data}{Long-format data frame containing the response, subject, time,
 and covariate columns.}
 
-\item{margin_dist}{Marginal distribution specified as a gamlss family object,
-e.g. GA(), NO(), PO(), NBI(), etc.}
+\item{margin_dist}{One registered \code{gamlss.dist} family object. A fit uses one
+homogeneous margin family; see \code{\link[=longitudinal_capabilities]{longitudinal_capabilities()}}.}
 
-\item{copula_dist}{Copula distribution code, one of "N", "C", "F", "G", "J", or "t".}
+\item{copula_dist}{Copula distribution code for a registered route; see
+\code{\link[=longitudinal_capabilities]{longitudinal_capabilities()}}.}
 
 \item{time_var}{Name of the time variable in \code{dataset}.}
 
 \item{subject_var}{Name of the subject identifier in \code{dataset}.}
+
+\item{missingness}{Handling of unsupported response patterns. The default,
+\code{"error"}, stops when a subject has an unobserved scheduled visit before
+their first observation or between observed visits and directs the user to
+opt in explicitly. The ordinary likelihood supports complete panels and
+observed prefixes ending in terminal dropout. With
+\code{"segment"}, the likelihood is evaluated within contiguous observed
+segments and different segments are treated as independent. The first
+observed visit after leading missing visits explicitly starts a segment.
+Terminal dropout does not require segmentation. AIC and
+BIC remain available for segmented fits under the stated independence
+assumption; ordinary model-Hessian inference is unavailable for this
+composite objective, so use cluster-sandwich or bootstrap sensitivity
+analysis. Numerical integration across gaps and a distinct delayed-entry
+likelihood are not yet implemented.}
 
 \item{mu.formula}{Formula for the mu parameter of the marginal distribution}
 
@@ -86,150 +68,33 @@ e.g. GA(), NO(), PO(), NBI(), etc.}
 
 \item{zeta.formula}{Formula for the zeta parameter of the copula distribution}
 
-\item{include_dlcopdpar}{Include the derivative of the copula likelihood with respect
-to the margin parameters in the joint likelihood. This is only relevant for method=\code{RS} fits
-and is \code{TRUE} by default. Setting this to \code{FALSE} can speed up fitting for most models
-due to separately optimised margin and copula fits at the expense of a slightly less optimal overall fit.
-For some models, including the dlcopdpar contribution can be important for good convergence and fit.}
+\item{method}{Optimization method: \code{"RS"} for Rigby-Stasinopoulos
+backfitting (the default) or \code{"CG"} for Cole-Green updates.}
 
-\item{check_dlcopdpar_gradient}{If \code{TRUE}, run an optional finite-difference
-diagnostic for the margin score contribution when \code{include_dlcopdpar = TRUE}.}
+\item{optimization}{Parameter-update strategy. \code{"joint"} includes the
+copula contribution when updating marginal parameters and is the default.
+\code{"separate"} uses separate margin and copula updates and is available only
+for \code{method = "RS"}.}
 
-\item{inner_stop_crit}{Stopping criterion for the inner loop. If \code{NA} or
-\code{NULL}, an automatic data-adaptive value is used. This is based on change in log
-likelihood in each iteration so \code{0.1} results in algorithm stopping in the inner loop
-if likelihood changes by less than 0.1 in that iteration.
-Setting this to \code{0} forces the inner loop to run for the full \code{max_inner_iter} iterations.
-Note inner iterations are only relevant for the RS algorithm as CG does not have an inner loop.}
+\item{optimizer_control}{Optimizer settings created by
+\code{\link[=gamlss_longitudinal_control]{gamlss_longitudinal_control()}}. \code{method} remains a top-level choice.}
 
-\item{outer_stop_crit}{Stopping criterion for the outer loop. If \code{NA} or
-\code{NULL}, an automatic data-adaptive value is used. This is based on change
-in log likelihood in each iteration so \code{0.1} results in algorithm stopping
-if likelihood changes by less than 0.1 in that outer iteration.
-Setting this to \code{0} forces the outer loop to run for the full \code{max_outer_iter} iterations.}
-
-\item{start_step_size}{Initial step size for the backfitting algorithm}
-
-\item{step_adjustment}{Step size adjustment factor}
-
-\item{max_steps}{Maximum number of times for reducing the step size}
-
-\item{start_from}{Starting values for the parameters if needed}
-
-\item{warm_start_joint}{Logical; if \code{TRUE} (default), RS joint fits started
-without explicit \code{start_from} first run a short separate RS stabilisation
-phase and use those coefficients as the joint starting values.}
-
-\item{warm_start_joint_iter}{Integer; number of separate RS outer iterations
-used for the default joint warm start.}
-
-\item{verbose}{Level of output to the console 3 = ALL, 0 = Minimal}
-
-\item{plot_results}{Plot the results of the optimisation (depreciated)}
-
-\item{true_val}{True values for the parameters if known for plotting (depreciated)}
-
-\item{method}{Optimisation method to use, 'RS' for Rigby and Stasinopoulis backfitting (default) or 'CG' for Cole and Green.}
-
-\item{max_outer_iter}{Maximum number of outer iterations for the optimisation algorithm (both RS and CG).}
-
-\item{max_inner_iter}{Maximum number of inner iterations for the RS backfitting algorithm.
-Not relevant for CG which does not have an inner loop.}
-
-\item{max_negative_outer_streak}{Maximum number of consecutive negative outer
-log-likelihood changes allowed before stopping.
-(This is a safeguard against very badly formed likelihood steps which can cause the algorithm to diverge and produce NaNs. Setting this to \code{Inf} disables this stopping criterion.)}
-
-\item{max_elapsed_sec}{Optional maximum elapsed fitting time in seconds.
-If finite, the optimiser stops with an error once this budget is exceeded.}
-
-\item{use_backtracking}{Logical; if \code{TRUE} (default), apply step-halving
-backtracking to reject downhill inner updates.}
-
-\item{backtracking_max_halves}{Integer; maximum number of consecutive
-step halvings attempted after a rejected update before taking no step.}
-
-\item{cg_max_stall}{Integer; for \code{method = "CG"} only. Maximum number of
-consecutive outer iterations where no improving step is found before CG stops.}
-
-\item{cg_max_delta}{Numeric; for \code{method = "CG"} only. Maximum absolute
-coefficient step size used to limit Newton/trust-region updates.}
-
-\item{cg_armijo_c1}{Numeric; for \code{method = "CG"} only. Minimum improvement
-threshold used by the line-search acceptance rule.}
-
-\item{cg_grad_tol}{Numeric; for \code{method = "CG"} only. Penalized-gradient
-infinity-norm convergence tolerance. If \code{NA}, selected from \code{outer_stop_crit}.}
-
-\item{cg_step_tol}{Numeric; for \code{method = "CG"} only. Accepted-step L2
-convergence tolerance. If \code{NA}, selected from \code{outer_stop_crit}.}
-
-\item{cg_update_lambda}{Logical; for \code{method = "CG"} only. If \code{TRUE}, update
-smoother penalties during CG iterations.}
-
-\item{cg_lambda_update_every}{Integer; for \code{method = "CG"} only. When
-\code{cg_update_lambda = TRUE}, update each smoother's lambda every this many
-outer iterations. Use \code{1} to update every CG iteration.}
-
-\item{cg_max_lambda_updates}{Integer; for \code{method = "CG"} only. Maximum
-number of smoother penalty update rounds. Use \code{NA} for no cap.}
-
-\item{cg_raw_loglik_drop_tol}{Numeric; for \code{method = "CG"} only. Stop CG as
-not converged if the raw joint log-likelihood drops this far below the best
-raw joint log-likelihood seen after at least one lambda update. Use \code{NA} to
-disable.}
-
-\item{cg_line_search}{Character; for \code{method = "CG"} only. \code{"best"} evaluates
-candidate steps up to \code{cg_max_line_search_evals} before taking the largest
-improvement, while \code{"first"} accepts the first improving candidate step.}
-
-\item{cg_max_line_search_evals}{Integer; for \code{method = "CG"} only. Optional
-cap on the number of candidate likelihood evaluations per outer iteration.}
-
-\item{cg_gradient_method}{Character; for \code{method = "CG"} only.
-\code{"analytical"} uses the same score components as RS, \code{"forward"} uses
-one-sided finite differences, and \code{"central"} uses two-sided finite
-differences.}
-
-\item{discrete_score_method}{Character. For discrete margins using exact
-rectangle likelihoods, choose \code{"analytical"} for vectorised rectangle-score
-assembly or \code{"finite"} for slow row-wise finite-difference scores.}
-
-\item{cg_zeta_hessian}{Character; for \code{method = "CG"} only. \code{"analytical"}
-uses the analytical Hessian for the zeta block, while \code{"finite"} replaces
-the zeta-zeta block with central finite differences of the raw joint
-log-likelihood.}
-
-\item{cg_hessian_method}{Character; for \code{method = "CG"} only. \code{"analytical"}
-uses the semi-analytical Hessian for Newton steps, \code{"finite"} uses a full
-finite-difference Hessian, and \code{"auto"} tries analytical then falls back to
-finite differences when needed.}
+\item{start}{Optional named starting coefficients. \code{NULL} uses automatic
+starting values.}
 
 \item{compute_vcov}{Logical; if \code{TRUE} (default), compute and store the
 model variance-covariance output at the end of fitting.}
 
 \item{vcov_method}{Character; fit-time vcov method when \code{compute_vcov = TRUE}.
 One of \code{"analytical"} or \code{"numderiv"}. Analytical vcov covers continuous
-margins and supported exact-discrete rectangle likelihoods, and falls back to
-the numerical reference path if the analytical Hessian cannot be inverted.}
+margins and supported exact-discrete rectangle likelihoods, and falls back
+to the numerical reference path if the analytical Hessian cannot be inverted.}
 
-\item{vcov_numderiv}{Logical; passed to \code{vcov.gamlss.longitudinal()} when
-\code{compute_vcov = TRUE}.}
+\item{verbose}{Logical; print optimizer progress when \code{TRUE}. Integer levels
+\code{0} to \code{3} remain available for advanced tracing.}
 
-\item{use_Rcpp}{Use Rcpp for matrix operations (depreciated)}
-
-\item{lambda_start}{Optional starting value for smooth-term penalties.}
-
-\item{lambda_penalty_K}{Penalty strength used when updating smooth-term
-smoothing parameters.}
-
-\item{rs_update_lambda}{Logical; for \code{method = "RS"} only. If \code{TRUE},
-update smoothing parameters by the RS GAIC step; if \code{FALSE}, keep
-\code{lambda_start} fixed.}
-
-\item{rs_smooth_trust_radius}{Numeric; for \code{method = "RS"} only. Optional
-L2 trust radius applied separately to each smooth coefficient block after
-the RS weighted least-squares proposal. Use \code{Inf} to disable.}
+\item{...}{Deprecated argument aliases retained for compatibility. New code
+should use \code{data}, \code{optimization}, \code{start}, and \code{optimizer_control}.}
 }
 \description{
 This function fits a longitudinal model to a dataset with gamlss margins
@@ -244,10 +109,10 @@ of the formula for the mu parameter and the right-hand side specifying the predi
 The sigma, nu, tau, theta, and zeta formulas may be specified with a left-hand side of \code{~} to indicate no response variable.
 e.g. \code{mu.formula = response ~ x1 + s(x2)}, \code{sigma.formula = ~ x3}, \code{theta.formula = ~ time}.
 
-The marginal distribution is specified by a gamlss family object, e.g. GA(), NO(), PO(), NBI(), etc.,
-while the copula distribution is specified by a character code for one of the implemented
-copula families: Gaussian ("N"), Clayton ("C"), Frank ("F"), Gumbel ("G"), Joe ("J"),
-or Student's t ("t"). The copula dependence structure is first-order, with
+The marginal distribution is specified by a registered \code{gamlss.dist} family
+object and the copula by a registered character code. Use
+\code{\link[=longitudinal_capabilities]{longitudinal_capabilities()}} to inspect the tested family/copula routes and
+their response-domain requirements. The copula dependence structure is first-order, with
 adjacent copula pairs linking the margins at each time point. The copula parameters
 are shared across all adjacent pairs but may vary with covariates including time.
 
@@ -256,12 +121,26 @@ The time variable is used to order the margins and adjacent copula pairs,
 and the subject identifier is used to link the repeated measurements for each subject.
 The response variable must be included in the \code{mu.formula} as the left-hand side.
 
-The model is fit using Rigby and Stasinopoulis (RS) optimisation against
+The model is fit using Rigby and Stasinopoulos (RS) optimization against
 the full joint likelihood by default, which iteratively updates the margin
 and copula parameters in turn until convergence. We provide alternative methods,
-including a separately optimised RS method which optimises margin and copula
+including a separately optimized RS method which optimizes margin and copula
 likelihood separately which is faster but slightly less optimal for overall fit,
 and the Cole and Green method (CG) which updates based on the full first
 and second derivative matrix updating all parameters at once which is generally the
 slowest method but may provide better fits for some models.
+
+The ordered unique values of \code{time_var} define the scheduled visit order.
+Adjacent copula pairs link globally adjacent scheduled visits, rather than
+the next observed record for a subject. Numeric spacing is not used as an
+elapsed-time distance, so irregularly spaced values affect ordering only.
+Duplicate subject-time rows are rejected. Pair-level dependence covariates
+and parameters are evaluated at the earlier (left) scheduled row. With
+\code{missingness = "segment"}, pairs crossing an intermittent gap are omitted
+and the resulting observed segments contribute independently.
+
+Legacy aliases, including \code{dataset}, \code{include_dlcopdpar}, \code{start_from}, and
+flat optimizer controls, are accepted temporarily through \code{...}. Supplying
+both an alias and its replacement is an error. Inactive optimizer sections
+in a new control object are also rejected.
 }

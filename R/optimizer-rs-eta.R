@@ -56,7 +56,7 @@
     }), collapse = ", ")
 
     stop(
-      "ERROR: Parameter vector lengths do not match response length. ",
+      "Parameter-vector lengths do not match the response length. ",
       detail,
       ".\nThis usually indicates model-matrix rows were dropped (often due to NA handling)."
     )

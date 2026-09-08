@@ -11,11 +11,11 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  eval = FALSE
+  message = FALSE
 )
 ```
 
-This article covers two simulation use cases:
+This article covers three simulation use cases:
 
 1. Simulation of a new dataset with gamlss margins and copula dependence
 2. Simulation from a fitted `gamlss.longitudinal` model for the fitted dataset
@@ -35,7 +35,17 @@ library(gamlss.dist)
 
 `simulate_longitudinal_dataset()` returns one row per subject and time combination. We specify the number of subjects with `n=100` and the number of observations per timepoint with an ordered time variable, here `times = 0:4` which will result in a dataset with 500 observations total. 
 
-Any non-mixed marginal distribution from `gamlss.dist` is supported (e.g. `NO()`, `GA()`, `GG()`), and copulas supported are the same as for the overall package:
+The order of `times` defines scheduled adjacency. Numeric distances do not by
+themselves weaken or strengthen the first-order copula: `c(1, 2, 30)` creates
+the adjacent pairs 1--2 and 2--30. If elapsed distance should affect dependence,
+encode it explicitly in the copula parameter function. For fitted models,
+numeric order or factor-level order defines the same schedule, and pair-level
+copula covariates are evaluated at the earlier (left) row.
+
+Simulation supports the tested family--copula combinations returned by
+`longitudinal_capabilities("routes")`; the presence of a family in
+**gamlss.dist** is not by itself a support guarantee. Common supported marginal
+families include `NO()`, `GA()`, and `GG()`. The registered copula codes are:
 
 - `"N"` Normal
 - `"C"` Clayton
@@ -150,7 +160,29 @@ head(dataset)
 
 ## Simulation from a fitted model
 
-The alternative simulation use case is for simulating from a fitted `gamlss.longitudinal` model which is supported through `simulate()`. This is often for inference or prediction/forecasting rather than generating new data for testing purposes. 
+The alternative simulation use case generates unconditional model-implied
+trajectories from a fitted `gamlss.longitudinal` object. This can support
+parametric simulation, scenario analysis, or model checking. It does not
+condition later responses on a subject's earlier observed outcomes and is not a
+subject-specific forecasting method.
+
+We first fit a compact model to the `dataset` created above. The fitted formulas
+capture its main treatment, time, age, scale, and dependence terms.
+
+```{r fit-simulated-data}
+fit <- gamlss_longitudinal(
+  data = dataset,
+  margin_dist = GA(),
+  copula_dist = "N",
+  time_var = "time",
+  subject_var = "subject",
+  optimization = "joint",
+  mu.formula = response ~ treatment + time_scaled + age,
+  sigma.formula = ~ time_scaled,
+  theta.formula = ~ time_scaled,
+  compute_vcov = FALSE
+)
+```
 
 ### Simulation from a fitted model (on the fitted dataset)
 
@@ -170,7 +202,7 @@ The output is a dataframe with one column for each simulation replicate with row
 We can pass `simulate()` a new dataset with the same timepoints but different subjects through `newdata = `. This will generate simulations which respect the dependence structure in the fitted model and apply it to the new simulated cohort.
 
 ```{r simulate-new-cohort}
-new_cohort <- dat[dat$subject %in% unique(dat$subject)[1:20], ]
+new_cohort <- dataset[dataset$subject %in% unique(dataset$subject)[1:20], ]
 new_cohort$subject <- paste0("new_", new_cohort$subject)
 new_cohort$response <- NA_real_
 
@@ -184,15 +216,22 @@ sim_new <- simulate(
 head(cbind(new_cohort[c("subject", "time")], sim_new))
 ```
 
-### Simulation from a fitted model (for new timepoints)
+### Unconditional scenarios for new scheduled timepoints
 
-Alternatively, we can pass a new dataset with the same set of subjects but new timepoints (as long as it makes sense to do this, e.g. for a factor time this won't make much sense, but for a linear fit time it does). To take advantage of this type of fit, time will need to be fit as a structure that extrapolates to the new timepoints cleanly.
+Alternatively, we can supply rows at new scheduled timepoints when the fitted
+covariate functions have a defensible extrapolation beyond the observed range.
+This example remains an unconditional scenario simulation: it does not update a
+subject-specific distribution using that subject's observed history. A
+factor-coded time effect generally cannot extrapolate to a new level.
 
 ```{r simulate-more-timepoints}
-subject_covariates <- dat[!duplicated(dat$subject), c("subject", "treatment", "age")]
+subject_covariates <- dataset[
+  !duplicated(dataset$subject),
+  c("subject", "treatment", "age")
+]
 future_grid <- expand.grid(
   subject = subject_covariates$subject[1:8],
-  time = c(sort(unique(dat$time)), 1.25),
+  time = c(sort(unique(dataset$time)), 1.25),
   KEEP.OUT.ATTRS = FALSE,
   stringsAsFactors = FALSE
 )
@@ -214,4 +253,16 @@ head(cbind(future_panel[c("subject", "time")], sim_future))
 
 ### Missing data / observations handling
 
-The `gamlss.longitudinal` model relies on first order copula dependence to generate adjacent time points. If there are missing adjacent observations then the link between observations for an individual before and after that missing timepoint will be broken (i.e. independent) as we do not model dependence beyond the first order, but remaining observations that are adjacent will respect the dependence structure. 
+The fitted model uses first-order copula dependence between consecutive
+scheduled observations. Complete panels and observed prefixes followed by
+dropout use the ordinary likelihood. Intermittent gaps or leading unobserved
+scheduled visits are rejected by default rather than silently changing the
+likelihood. With the explicit `missingness = "segment"` contract, separate
+contiguous observed segments are treated as independent during estimation.
+
+These rules govern estimation rather than missingness generation. `simulate()`
+returns model-implied complete response trajectories for the fitted or supplied
+panel; it does not reproduce the original missingness process unless the user
+reapplies one. Parameters from a segmented fit still inherit that estimation
+assumption. Numerical integration of dependence across gaps is not currently
+implemented.

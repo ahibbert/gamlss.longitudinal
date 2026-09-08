@@ -9,7 +9,7 @@
     cg_line_search,
     cg_gradient_method,
     cg_hessian_method) {
-  if (verbose > 0) {
+  if (verbose > 1) {
     cat("\nUsing optimization method: CG")
 
     cat(paste0(

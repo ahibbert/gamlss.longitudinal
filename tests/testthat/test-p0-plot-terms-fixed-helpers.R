@@ -54,14 +54,16 @@ test_that("fixed-term coefficient info returns estimate variance and guarded SE"
   rownames(V) <- colnames(V) <- names(object$par)
 
   age <- .plot_fixed_terms_coef_info("mu.age", object, V)
-  sex <- .plot_fixed_terms_coef_info("mu.sexB", object, V)
   missing <- .plot_fixed_terms_coef_info("mu.missing", object, V)
 
   expect_equal(age$estimate, 0.1)
   expect_equal(age$variance, 0.04)
   expect_equal(age$se, 0.2)
-  expect_equal(sex$variance, -0.09)
-  expect_equal(sex$se, 0)
+  expect_error(
+    .plot_fixed_terms_coef_info("mu.sexB", object, V),
+    "derived_variance_nonpositive",
+    class = "gamlss_longitudinal_inference_unavailable"
+  )
   expect_true(all(is.na(unlist(missing))))
 })
 

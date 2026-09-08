@@ -13,7 +13,7 @@
   p <- gg_add(p, ggplot2::geom_ribbon(ggplot2::aes(ymin = ci_lower, ymax = ci_upper), fill = ci_col, alpha = 0.16), "geom_ribbon")
   p <- gg_add(p, ggplot2::geom_line(color = fit_col, linewidth = fit_lwd), "geom_line")
   p <- gg_add(p, ggplot2::labs(title = main_title, x = term_data$xlab_text, y = ylab_text), "labs")
-  p <- gg_add(p, ggplot2::theme_minimal(), "theme_minimal")
+  p <- gg_add(p, theme_gamlss_longitudinal(), "theme_gamlss_longitudinal")
 
   if (!is.null(term_data$y_lim)) {
     p <- gg_add(p, ggplot2::coord_cartesian(ylim = term_data$y_lim), "coord_cartesian")

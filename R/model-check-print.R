@@ -9,21 +9,18 @@ print.gamlss_longitudinal_check <- function(x, digits = max(3, getOption("digits
   }
 
   section <- function(title) {
-    cat("\n", title, "\n", paste(rep("-", nchar(title)), collapse = ""), "\n", sep = "")
+    cat("\n", title, "\n", sep = "")
   }
 
-  cat("\n")
+  cat("\n<Model check>\n")
 
-  cat("GAMLSS Longitudinal Model Check\n")
+  cat("Margin: ", .gl_margin_display_label(.margin_family_object(x$model$margin_dist)),
+      " | Copula: ", .gl_copula_display_label(x$model$copula_dist), "\n", sep = "")
 
-  cat("===============================\n")
-
-  cat("Margin: ", x$model$margin_dist, "    Copula: ", x$model$copula_dist, "\n", sep = "")
-
-  cat("LogLik: ", fmt_num(x$fit$logLik), "    Converged: ", if (isTRUE(x$convergence$converged)) "yes" else "no", "\n", sep = "")
+  cat("logLik: ", fmt_num(x$fit$logLik), " | Converged: ", if (isTRUE(x$convergence$converged)) "yes" else "no", "\n", sep = "")
 
   if (!is.null(x$basic_checks)) {
-    section("Basic Checks")
+    section("Basic checks")
 
     basic_display <- x$basic_checks[, c("area", "status"), drop = FALSE]
 
@@ -31,9 +28,9 @@ print.gamlss_longitudinal_check <- function(x, digits = max(3, getOption("digits
 
     print(basic_display, row.names = FALSE, right = FALSE)
 
-    cat("\nResult: ", toupper(x$basic_checks_result), "\n", sep = "")
+    cat("\nSummary: ", x$diagnostic_summary, "\n", sep = "")
 
-    cat("Note: these are basic automated checks; broader model diagnostics should also be reviewed.\n")
+    cat("Note: calibration and dependence rows are descriptive; they are not package pass/fail verdicts.\n")
   }
 
   section("Scores")
@@ -45,16 +42,16 @@ print.gamlss_longitudinal_check <- function(x, digits = max(3, getOption("digits
   print(x$pit, digits = digits, row.names = FALSE)
 
   if (!is.null(x$tail)) {
-    section("Tail Calibration")
+    section("Tail calibration")
 
     print(x$tail, digits = digits, row.names = FALSE)
   }
 
-  section("Residual Dependence")
+  section("Residual dependence")
 
   print(x$residual_dependence, digits = digits, row.names = FALSE)
 
-  cat("\nUse check$checks for thresholds and check$warnings for failed-check details.\n")
+  cat("\nUse check$checks for interpretation and check$flags for convergence or user-threshold review items.\n")
 
   invisible(x)
 }

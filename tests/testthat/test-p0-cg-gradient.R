@@ -12,7 +12,7 @@ test_that("CG analytical gradient matches finite differences on a tiny model", {
   dat$x <- stats::rnorm(nrow(dat))
   dat$response <- 1 + 0.2 * dat$x + 0.1 * dat$time + stats::rnorm(nrow(dat), sd = 0.4)
 
-  fit <- withCallingHandlers(
+  fit <- suppressWarnings(
     gamlss_longitudinal(
       dat,
       gamlss.dist::NO(),
@@ -24,17 +24,14 @@ test_that("CG analytical gradient matches finite differences on a tiny model", {
       theta.formula = "~ 1",
       zeta.formula = "~ 1",
       method = "CG",
-      max_outer_iter = 2,
+      optimizer_control = gamlss_longitudinal_control(
+        max_outer_iter = 2L,
+        cg = list(gradient_method = "forward")
+      ),
       compute_vcov = FALSE,
       include_dlcopdpar = TRUE,
-      cg_gradient_method = "forward",
       verbose = 0
-    ),
-    warning = function(w) {
-      if (grepl("Model stopped at max_outer_iter", conditionMessage(w), fixed = TRUE)) {
-        invokeRestart("muffleWarning")
-      }
-    }
+    )
   )
 
   mm <- fit$model_matrix

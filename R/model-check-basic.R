@@ -3,13 +3,7 @@
 }
 
 .gl_basic_checks_result <- function(checks) {
-  if (any(checks$status == "FAIL", na.rm = TRUE)) {
-    return("failed")
-  }
-
-  if (any(checks$status == "REVIEW", na.rm = TRUE)) {
-    return("review")
-  }
-
-  "passed"
+  if (any(checks$status == "not_converged", na.rm = TRUE)) return("not_converged")
+  if (any(checks$status %in% c("flagged", "review", "unavailable"), na.rm = TRUE)) return("review")
+  "descriptive"
 }

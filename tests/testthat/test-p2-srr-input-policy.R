@@ -6,7 +6,7 @@ test_that("srr input policy rejects empty, list, and matrix-like data", {
 
   expect_error(
     fit_fixture_model(dat[0, , drop = FALSE]),
-    "dataset must contain at least one row",
+    "`data` must contain at least one row.",
     fixed = TRUE
   )
 
@@ -36,7 +36,7 @@ test_that("srr input policy rejects non-standard predictor classes", {
 
   expect_error(
     fit_fixture_model(dat),
-    "predictor column(s) have unsupported classes: age",
+    "Predictor column(s) have unsupported classes: age",
     fixed = TRUE
   )
 })
@@ -51,15 +51,15 @@ test_that("srr input policy distinguishes response and predictor missingness", {
   dat_resp_inf$y[1] <- Inf
   expect_error(
     fit_fixture_model(dat_resp_inf),
-    "response variable contains NaN or Inf",
-    fixed = TRUE
+    "requires finite real values",
+    class = "gamlss_longitudinal_response_domain_error"
   )
 
   dat_resp_nan <- dat
   dat_resp_nan$y[1] <- NaN
   expect_error(
     fit_fixture_model(dat_resp_nan),
-    "response variable contains NaN or Inf",
+    "The response variable contains NaN or Inf",
     fixed = TRUE
   )
 
@@ -67,7 +67,7 @@ test_that("srr input policy distinguishes response and predictor missingness", {
   dat_pred_na$age[1] <- NA_real_
   expect_error(
     fit_fixture_model(dat_pred_na),
-    "predictor column(s) contain missing values",
+    "Predictor column(s) contain missing values",
     fixed = TRUE
   )
 
@@ -75,13 +75,14 @@ test_that("srr input policy distinguishes response and predictor missingness", {
   dat_pred_inf$age[1] <- Inf
   expect_error(
     fit_fixture_model(dat_pred_inf),
-    "predictor column(s) contain NaN or Inf",
+    "Predictor column(s) contain NaN or Inf",
     fixed = TRUE
   )
 
   structural <- make_fixture_with_structural_missing_rows()
   fit <- fit_fixture_model(
     structural,
+    missingness = "segment",
     include_dlcopdpar = FALSE,
     max_outer_iter = 2,
     theta_formula = "~ 1"

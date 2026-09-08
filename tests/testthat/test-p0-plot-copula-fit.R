@@ -55,4 +55,6 @@ test_that("plot_copula_fit plot builder returns ggplot with optional facets", {
 
   expect_s3_class(p, "ggplot")
   expect_true(inherits(p$facet, "FacetWrap"))
+  expect_match(p$labels$subtitle, "Darker bins show empirical density", fixed = TRUE)
+  expect_identical(p$scales$get_scales("fill")$guide, "none")
 })

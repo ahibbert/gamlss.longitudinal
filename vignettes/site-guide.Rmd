@@ -15,7 +15,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-Welcome to the support page for **gamlss_longitudinal**.
+Welcome to the support page for **gamlss.longitudinal**.
 
 This package fits longitudinal regression models with GAMLSS marginal
 distributions and copulas for within-subject dependence.
@@ -28,7 +28,6 @@ For details on the mathematical framework, optimiser, or model performance,
 see:
 
 - https://arxiv.org/abs/2410.11892
-- https://arxiv.org/abs/2410.11892 (updated gamlss_longitudinal paper once available)
 
 ## Start here
 
@@ -53,7 +52,7 @@ workflow:
 | Article title | Access from R | Purpose |
 |---|---|---|
 | [Inference](inference-uncertainty.html) | `vignette("inference-uncertainty", package = "gamlss.longitudinal")` | Confidence intervals, Wald tests, likelihood comparisons, bootstrap inference, and uncertainty language. |
-| [Diagnostics](diagnostics-decisions.html) | `vignette("diagnostics-decisions", package = "gamlss.longitudinal")` | `check_model()`, basic check statuses, failed-check warnings, tail checks, and dependence diagnostics. |
+| [Diagnostics](diagnostics-decisions.html) | `vignette("diagnostics-decisions", package = "gamlss.longitudinal")` | Fit-time status, optional `check_model()` summaries, marginal diagnostics, and compact or complete copula dashboards. |
 | [Simulator usage](simulator-usage.html) | `vignette("simulator-usage", package = "gamlss.longitudinal")` | How to generate longitudinal datasets with GAMLSS margins, copula dependence, covariates, known truth, and missing responses. |
 | [Test working install](test-working-install.html) | `vignette("test-working-install", package = "gamlss.longitudinal")` | A short runnable check for installation and the end-to-end workflow. |
 

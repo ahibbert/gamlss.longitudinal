@@ -27,7 +27,7 @@ test_that("fit data preparation expands panels and preserves formula time covari
     x = c(30, 10, 20)
   )
 
-  prepared <- prepare_fit_data(
+  common <- list(
     dataset = dataset,
     time_var = "visit",
     subject_var = "subject_id",
@@ -39,6 +39,12 @@ test_that("fit data preparation expands panels and preserves formula time covari
     zeta.formula = ~ 1,
     verbose = 0
   )
+
+  expect_error(
+    do.call(prepare_fit_data, common),
+    class = "gamlss.longitudinal_gap_error"
+  )
+  prepared <- do.call(prepare_fit_data, c(common, list(missingness = "segment")))
 
   expect_equal(prepared$response_var, "y")
   expect_equal(prepared$var_map[["visit"]], "time")
@@ -57,6 +63,8 @@ test_that("fit data preparation expands panels and preserves formula time covari
   expect_false("visit" %in% all.vars(prepared$formulas_int$mu))
   expect_equal(prepared$miss_by_time$n_observed_response, c(1, 2))
   expect_equal(prepared$pair_summary$complete_pairs, 1)
+  expect_identical(prepared$missingness_contract$objective, "segmented")
+  expect_true(prepared$missingness_contract$has_delayed_entry)
 })
 
 test_that("fit data preparation keeps duplicate subject/time error contract", {
@@ -79,7 +87,7 @@ test_that("fit data preparation keeps duplicate subject/time error contract", {
       zeta.formula = ~ 1,
       verbose = 0
     ),
-    "Duplicate subject/time combinations found",
+    "Duplicate subject/time combinations were found.",
     fixed = TRUE
   )
 })
@@ -120,7 +128,7 @@ test_that("fit input column normalization keeps required-column error contracts"
       mu.formula = y ~ visit,
       verbose = 0
     ),
-    "time_var='missing_visit' not found",
+    "`time_var = \"missing_visit\"` was not found in `data`.",
     fixed = TRUE
   )
   expect_error(
@@ -131,7 +139,7 @@ test_that("fit input column normalization keeps required-column error contracts"
       mu.formula = y ~ visit,
       verbose = 0
     ),
-    "subject_var='missing_id' not found",
+    "`subject_var = \"missing_id\"` was not found in `data`.",
     fixed = TRUE
   )
   expect_error(
@@ -142,7 +150,7 @@ test_that("fit input column normalization keeps required-column error contracts"
       mu.formula = missing_y ~ visit,
       verbose = 0
     ),
-    "response variable 'missing_y' not found",
+    "Response variable `missing_y` was not found in `data`.",
     fixed = TRUE
   )
 })

@@ -23,7 +23,10 @@
 #' @param level Confidence level for prediction intervals.
 #' @param ... Additional arguments passed to downstream methods.
 #'
-#' @return A data frame.
+#' @return A data frame. Inferential outputs carry an `inference_contract`
+#'   attribute inherited from the fitted covariance result, including method,
+#'   target coefficient blocks, conditioning, fallback, diagnostics, and
+#'   validity status.
 #' @name gamlss_longitudinal_table_methods
 NULL
 
@@ -51,7 +54,14 @@ tidy.gamlss.longitudinal <- function(
 
   coef_tbl <- as.data.frame(s$coefficients, stringsAsFactors = FALSE)
   if (nrow(coef_tbl) == 0L) {
-    return(.gl_empty_tidy_table(conf.int = conf.int))
+    empty <- .gl_empty_tidy_table(conf.int = conf.int)
+    return(.gl_attach_inference_contract(
+      empty,
+      .gl_inference_contract(
+        .gl_vcov_contract_id(vcov_method), coefficient_names = character(),
+        method = vcov_method, validity_status = "not_applicable"
+      )
+    ))
   }
 
   split_terms <- .gl_split_coefficient_terms(coef_tbl$term)
@@ -80,6 +90,12 @@ tidy.gamlss.longitudinal <- function(
   }
 
   rownames(out) <- NULL
+  attr(out, "inference_contract") <- s$fit$inference_contract %||%
+    attr(s, "inference_contract") %||%
+    .gl_inference_contract(
+      .gl_vcov_contract_id(vcov_method), coefficient_names = out$coefficient,
+      method = vcov_method, validity_status = "not_computed"
+    )
   out
 }
 
@@ -180,6 +196,7 @@ augment.gamlss.longitudinal <- function(
   }
 
   rownames(out) <- NULL
+  attr(out, "inference_contract") <- attr(pred, "inference_contract")
   out
 }
 
@@ -188,7 +205,9 @@ augment.gamlss.longitudinal <- function(
 #' `publication_table()` formats the model summaries most often needed in
 #' papers and reports. Use `tidy()`, `glance()`, or `reporting_table()` when you
 #' need numeric columns for further calculation; use `publication_table()` when
-#' the next step is rendering.
+#' the next step is rendering. Coefficient tables inherit conditional fixed
+#' inference metadata; prediction tables are plug-in point summaries. See
+#' [inference_contracts()].
 #'
 #' @param object A fitted `gamlss.longitudinal` object.
 #' @param table Table to build: fixed coefficients, model fit statistics, or
@@ -211,7 +230,10 @@ augment.gamlss.longitudinal <- function(
 #' @param ... Additional arguments passed to the underlying table builder.
 #'
 #' @return A formatted data frame, LaTeX `knitr_kable`, `knitr_kable`,
-#'   `gt_tbl`, or `flextable` object depending on `output`.
+#'   `gt_tbl`, or `flextable` object depending on `output`. Coefficient and
+#'   prediction tables carry an `inference_contract` attribute describing the
+#'   estimand, covariance method (when applicable), conditioning, omitted
+#'   uncertainty, diagnostics, fallback, and validity status.
 #' @export
 publication_table <- function(
     object,
@@ -237,6 +259,8 @@ publication_table <- function(
   output <- match.arg(output)
   direction <- match.arg(direction)
 
+  table_contract <- NULL
+
   out <- switch(table,
     coefficients = {
       raw <- tidy.gamlss.longitudinal(
@@ -247,6 +271,13 @@ publication_table <- function(
         vcov_method = vcov_method,
         ...
       )
+      table_contract <- .gl_inference_contract(
+        "publication_coefficients",
+        coefficient_names = raw$coefficient,
+        method = vcov_method,
+        validity_status = attr(raw, "inference_contract")$validity_status %||% "not_recorded"
+      )
+      table_contract$covariance_contract <- attr(raw, "inference_contract")
       .gl_publication_coefficients(raw, conf.level, digits, p_digits)
     },
     model = {
@@ -270,16 +301,25 @@ publication_table <- function(
         threshold = threshold,
         direction = direction
       )
+      table_contract <- attr(raw, "inference_contract") %||%
+        .gl_inference_contract("publication_predictions_point", validity_status = "point_estimates_only")
       .gl_publication_predictions(raw, digits)
     }
   )
 
-  .gl_render_publication_table(out, output = output, caption = caption)
+  rendered <- .gl_render_publication_table(out, output = output, caption = caption)
+  attr(rendered, "inference_contract") <- table_contract
+  rendered
 }
 
 #' @export
 print.gamlss_longitudinal_publication_table <- function(x, ...) {
   print.data.frame(x, row.names = FALSE, ...)
+  contract <- attr(x, "inference_contract")
+  if (!is.null(contract)) {
+    cat("\nInference scope:", contract$approximation, "\n")
+    cat("Conditioning:", contract$conditioning, "\n")
+  }
   invisible(x)
 }
 

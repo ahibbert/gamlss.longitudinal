@@ -51,7 +51,7 @@ test_that("discrete endpoint evaluation supports count, zero-inflated, and binar
 test_that("bounded-binomial families beyond Bernoulli are not silently marked supported", {
   skip_if_not_installed("gamlss.dist")
 
-  expect_true(gamlss.longitudinal:::.is_discrete_margin(gamlss.dist::BI()))
+  expect_false(gamlss.longitudinal:::.is_discrete_margin(gamlss.dist::BI()))
   expect_false(gamlss.longitudinal:::.is_discrete_margin(gamlss.dist::BB()))
   expect_false(gamlss.longitudinal:::.is_discrete_margin(gamlss.dist::ZIBI()))
   expect_false(gamlss.longitudinal:::.is_discrete_margin(gamlss.dist::ZABB()))
@@ -112,7 +112,7 @@ test_that("discrete rectangle Hessian helper returns assembler-compatible shapes
   expect_true(all(is.finite(out$cop_d2l_theta)))
 })
 
-test_that("analytical discrete vcov succeeds for DEL and Bernoulli BI fixtures", {
+test_that("discrete validation covers DEL failure BI preflight and NBI Clayton inference", {
   skip_on_cran()
   skip_if_not_installed("gamlss")
   skip_if_not_installed("gamlss.dist")
@@ -144,57 +144,79 @@ test_that("analytical discrete vcov succeeds for DEL and Bernoulli BI fixtures",
     compute_vcov = FALSE,
     verbose = 0
   ))
-  vc_del <- vcov(fit_del, method = "analytical_only", progress = FALSE)
-  expect_equal(vc_del$method, "analytical")
-  expect_true(all(is.finite(vc_del$se$overall)))
+  expect_error(
+    vcov(fit_del, method = "analytical_only", progress = FALSE),
+    class = "gamlss_longitudinal_inference_unavailable"
+  )
 
-  set.seed(7302)
-  dat_bi <- expand.grid(id = seq_len(16L), time = seq_len(3L), KEEP.OUT.ATTRS = FALSE)
-  dat_bi <- dat_bi[order(dat_bi$id, dat_bi$time), ]
-  dat_bi$x <- stats::rnorm(nrow(dat_bi))
-  dat_bi$y <- stats::rbinom(nrow(dat_bi), size = 1, prob = stats::plogis(-0.1 + 0.4 * dat_bi$x))
+  dat_nbi <- simulate_longitudinal_dataset(
+    n = 40L,
+    times = 1:3,
+    margin_dist = gamlss.dist::NBI(),
+    copula_dist = "C",
+    margin_params = list(mu = 3, sigma = 0.4),
+    copula_params = list(theta = 1),
+    seed = 813
+  )
 
-  fit_bi <- suppressWarnings(gamlss.longitudinal::gamlss_longitudinal(
-    dataset = dat_bi,
-    margin_dist = gamlss.dist::BI(mu.link = "logit"),
-    copula_dist = "N",
+  dat_bi <- expand.grid(
+    id = seq_len(4L), time = seq_len(2L), KEEP.OUT.ATTRS = FALSE
+  )
+  dat_bi$y <- stats::rbinom(nrow(dat_bi), size = 1, prob = 0.5)
+  expect_error(
+    gamlss.longitudinal::gamlss_longitudinal(
+      dataset = dat_bi,
+      margin_dist = gamlss.dist::BI(mu.link = "logit"),
+      copula_dist = "N",
+      time_var = "time",
+      subject_var = "id",
+      mu.formula = "y ~ x"
+    ),
+    class = "gamlss_longitudinal_unsupported_margin_error"
+  )
+
+  fit_nbi <- suppressWarnings(gamlss.longitudinal::gamlss_longitudinal(
+    dataset = dat_nbi,
+    margin_dist = gamlss.dist::NBI(),
+    copula_dist = "C",
     time_var = "time",
-    subject_var = "id",
-    mu.formula = "y ~ x",
+    subject_var = "subject",
+    mu.formula = "response ~ 1",
+    sigma.formula = "~ 1",
     theta.formula = "~ 1",
     zeta.formula = "~ 1",
     include_dlcopdpar = TRUE,
     warm_start_joint = FALSE,
     method = "RS",
-    max_outer_iter = 2L,
-    max_inner_iter = 2L,
-    outer_stop_crit = 1,
-    inner_stop_crit = 1,
+    max_outer_iter = 8L,
+    max_inner_iter = 8L,
+    outer_stop_crit = 0.05,
+    inner_stop_crit = 0.05,
     compute_vcov = FALSE,
     verbose = 0
   ))
 
-  expect_identical(fit_bi$calc_lik_out_end$likelihood_type, "discrete_rectangle")
-  vc_bi <- suppressWarnings(vcov(fit_bi, method = "analytical_only", progress = FALSE))
-  expect_equal(vc_bi$method, "analytical")
-  expect_true(all(is.finite(vc_bi$se$overall)))
+  expect_identical(fit_nbi$calc_lik_out_end$likelihood_type, "discrete_rectangle")
+  vc_nbi <- suppressWarnings(vcov(fit_nbi, method = "analytical_only", progress = FALSE))
+  expect_equal(vc_nbi$method, "analytical")
+  expect_true(all(is.finite(vc_nbi$se$overall)))
 
-  s_bi <- suppressWarnings(summary(fit_bi, include_vcov = TRUE, vcov_method = "analytical"))
-  expect_equal(s_bi$fit$vcov_method, "analytical")
-  expect_equal(s_bi$fit$vcov_method_requested, "analytical")
-  expect_true(any(is.finite(s_bi$coefficients$std_error)))
+  s_nbi <- suppressWarnings(summary(fit_nbi, include_vcov = TRUE, vcov_method = "analytical"))
+  expect_equal(s_nbi$fit$vcov_method, "analytical")
+  expect_equal(s_nbi$fit$vcov_method_requested, "analytical")
+  expect_true(any(is.finite(s_nbi$coefficients$std_error)))
 
-  sw_bi <- suppressWarnings(vcov(
-    fit_bi,
+  sw_nbi <- suppressWarnings(vcov(
+    fit_nbi,
     method = "sandwich",
     sandwich_bread_method = "analytical",
     progress = FALSE
   ))
-  expect_equal(sw_bi$method, "sandwich_cluster")
-  expect_equal(sw_bi$hessian_diagnostics$bread_method, "analytical")
+  expect_equal(sw_nbi$method, "sandwich_cluster")
+  expect_equal(sw_nbi$hessian_diagnostics$bread_method, "analytical")
 })
 
-test_that("fit-time analytical discrete vcov is cached and reused", {
+test_that("fit-time PO analytical vcov is cached and reused", {
   skip_on_cran()
   skip_if_not_installed("gamlss")
   skip_if_not_installed("gamlss.dist")
@@ -203,11 +225,11 @@ test_that("fit-time analytical discrete vcov is cached and reused", {
   dat <- expand.grid(id = seq_len(12L), time = seq_len(2L), KEEP.OUT.ATTRS = FALSE)
   dat <- dat[order(dat$id, dat$time), ]
   dat$x <- stats::rnorm(nrow(dat))
-  dat$y <- stats::rbinom(nrow(dat), size = 1, prob = stats::plogis(0.1 + 0.35 * dat$x))
+  dat$y <- stats::rpois(nrow(dat), lambda = exp(1 + 0.1 * dat$x))
 
   fit <- suppressWarnings(gamlss.longitudinal::gamlss_longitudinal(
     dataset = dat,
-    margin_dist = gamlss.dist::BI(mu.link = "logit"),
+    margin_dist = gamlss.dist::PO(),
     copula_dist = "N",
     time_var = "time",
     subject_var = "id",
@@ -228,6 +250,8 @@ test_that("fit-time analytical discrete vcov is cached and reused", {
 
   expect_true(fit$vcov_meta$precomputed)
   expect_equal(fit$vcov_meta$method_used, "analytical")
-  resolved <- gamlss.longitudinal:::.resolve_vcov(fit, extra_args = list(method = "analytical"))
+  resolved <- gamlss.longitudinal:::.resolve_vcov(
+    fit, extra_args = list(method = "analytical")
+  )
   expect_identical(resolved, fit$vcov)
 })

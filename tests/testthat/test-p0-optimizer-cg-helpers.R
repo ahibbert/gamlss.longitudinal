@@ -340,7 +340,8 @@ test_that("CG curvature and line-search helper sequences Hessian lambda EDF cand
     line_search_fn = function(candidate_steps, beta_vec, mm_cg, penalty_current, obj_start,
                               trust_radius, max_delta, armijo_c1, line_search,
                               max_line_search_evals, use_backtracking,
-                              backtracking_max_halves, eval_fn, objective_fn, verbose) {
+                              backtracking_max_halves, eval_fn, objective_fn,
+                              gradient, verbose) {
       calls <<- c(calls, "line_search")
       captured$line_candidate_steps <<- candidate_steps
       captured$line_beta <<- beta_vec
@@ -353,6 +354,7 @@ test_that("CG curvature and line-search helper sequences Hessian lambda EDF cand
       captured$line_max_evals <<- max_line_search_evals
       captured$line_backtracking <<- use_backtracking
       captured$line_halves <<- backtracking_max_halves
+      captured$line_gradient <<- gradient
       captured$line_verbose <<- verbose
       list(best = line_best, line_eval_count = 4L)
     }
@@ -375,6 +377,7 @@ test_that("CG curvature and line-search helper sequences Hessian lambda EDF cand
   expect_equal(captured$line_obj_start, -10)
   expect_equal(captured$line_trust_radius, 0.25)
   expect_equal(captured$line_max_evals, 5L)
+  expect_equal(captured$line_gradient, grad - as.numeric(penalty_updated %*% beta))
   expect_true(captured$line_backtracking)
   expect_equal(out$tmp_obj, list(tmp = TRUE))
   expect_equal(out$H_obs, H_adjusted)
@@ -1352,6 +1355,28 @@ test_that("CG line-search evaluator chooses best improving step", {
   expect_true(out$best$improvement > 0)
 })
 
+test_that("CG Armijo threshold uses directional improvement, not objective magnitude", {
+  out <- gamlss.longitudinal:::.gl_evaluate_cg_line_search(
+    candidate_steps = list(c(x = 0.01)),
+    beta_vec = c(x = 0),
+    mm_cg = NULL,
+    penalty_current = matrix(0, nrow = 1, dimnames = list("x", "x")),
+    obj_start = -1e6,
+    trust_radius = Inf,
+    max_delta = Inf,
+    armijo_c1 = 1e-4,
+    line_search = "best",
+    max_line_search_evals = 1L,
+    max_backtrack = 0L,
+    eval_fn = function(beta_try, mm_cg) list(loglik = -1e6 + beta_try[["x"]]),
+    objective_fn = gamlss.longitudinal:::.gl_cg_objective,
+    gradient = c(x = 1)
+  )
+
+  expect_false(is.null(out$best))
+  expect_equal(out$best$improvement, 0.01, tolerance = 1e-8)
+})
+
 test_that("CG line-search candidate helper evaluates one limited step", {
   penalty <- matrix(0, nrow = 2, ncol = 2, dimnames = list(c("x", "y"), c("x", "y")))
   captured <- list()
@@ -1543,7 +1568,7 @@ test_that("CG line-search runner forwards backtracking controls", {
     line_search_fn = function(candidate_steps, beta_vec, mm_cg, penalty_current,
                               obj_start, trust_radius, max_delta, armijo_c1,
                               line_search, max_line_search_evals, max_backtrack,
-                              eval_fn, objective_fn) {
+                              eval_fn, objective_fn, gradient) {
       expect_equal(candidate_steps, list(c(x = 1)))
       expect_equal(beta_vec, c(x = 0))
       expect_equal(mm_cg, list(mm = TRUE))
@@ -1554,6 +1579,7 @@ test_that("CG line-search runner forwards backtracking controls", {
       expect_equal(line_search, "best")
       expect_equal(max_line_search_evals, 4L)
       expect_equal(max_backtrack, 5L)
+      expect_null(gradient)
       list(best = list(step_l2 = 1), line_eval_count = 9L)
     }
   )
@@ -1877,9 +1903,10 @@ test_that("CG line-search diagnostics helper sequences acceptance apply and diag
                               line_eval_count, lambda_update_count,
                               lambda_changed, stall_count,
                               prevented_deterioration,
-                              prevented_raw_loglik_drop, max_stall,
-                              raw_loglik_drop_tol, outer_stop_crit,
-                              grad_tol, step_tol, verbose) {
+                               prevented_raw_loglik_drop, max_stall,
+                               raw_loglik_drop_tol, outer_stop_crit,
+                               grad_tol, step_tol, verbose,
+                               stop_on_convergence) {
       calls <<- c(calls, "diagnostics")
       captured$diagnostics_best <<- best
       captured$diagnostics_outer_end <<- outer_end_log_lik
@@ -1891,6 +1918,7 @@ test_that("CG line-search diagnostics helper sequences acceptance apply and diag
       captured$diagnostics_prevented <<- prevented_deterioration
       captured$diagnostics_grad_tol <<- grad_tol
       captured$diagnostics_step_tol <<- step_tol
+      captured$diagnostics_stop_on_convergence <<- stop_on_convergence
       diagnostics
     },
     state_builder_fn = function(...) {
@@ -1913,6 +1941,7 @@ test_that("CG line-search diagnostics helper sequences acceptance apply and diag
   expect_equal(captured$diagnostics_accepted_improvement, 1.25)
   expect_equal(captured$diagnostics_trust_radius_end, 0.75)
   expect_true(captured$diagnostics_lambda_changed)
+  expect_true(captured$diagnostics_stop_on_convergence)
   expect_equal(captured$diagnostics_grad_tol, 0.2)
   expect_equal(captured$diagnostics_step_tol, 0.01)
   expect_identical(out$step_acceptance, step_acceptance)

@@ -7,7 +7,8 @@
     stop(
       "Separate RS warm-start phase failed: ",
       conditionMessage(warm_err),
-      "\nSet warm_start_joint = FALSE to force a cold-start joint fit.",
+      "\nTo force a cold-start joint fit, use `optimizer_control = ",
+      "gamlss_longitudinal_control(rs = list(warm_start_joint = FALSE))`.",
       call. = FALSE
     )
   }
@@ -15,7 +16,9 @@
   if (is.null(warm_fit) || is.null(warm_fit$par)) {
     stop(
       "Separate RS warm-start phase did not return coefficient starting values.\n",
-      "Set warm_start_joint = FALSE to force a cold-start joint fit or try method=\"CG\".",
+      "To force a cold-start joint fit, use `optimizer_control = ",
+      "gamlss_longitudinal_control(rs = list(warm_start_joint = FALSE))`; ",
+      "alternatively, try `method = \"CG\"`.",
       call. = FALSE
     )
   }

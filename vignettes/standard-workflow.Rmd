@@ -11,7 +11,7 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  eval = FALSE
+  message = FALSE
 )
 ```
 
@@ -35,9 +35,13 @@ The key parts are:
 
 For now installation is available directly from the project's github repository. You may need to install the package 'remotes' through `install.packages("remotes")`.
 
-```{r installation}
+```{r installation, eval=FALSE}
 remotes::install_github("ahibbert/gamlss.longitudinal")
+```
+
+```{r packages}
 library(gamlss.longitudinal)
+library(gamlss.dist)
 ```
 
 ## Data Requirements
@@ -49,6 +53,12 @@ The dataset should be structured as one row per subject and timepoint. The datas
 - a visit, time, or occasion identifier;
 - any covariates for analysis.
 
+The time variable tells the package which visit comes next. Numeric times are
+sorted, while factors use their level order. The model links each visit to the
+next scheduled visit; it does not automatically treat a 30-day gap as weaker
+than a 2-day gap. If the length of time between visits matters, include it in
+the copula model. Copula covariates for a pair are taken from the earlier visit.
+
 This workflow is designed to be able to be used on a dataset of your choice (with the suggested structure). Alternatively, the small simulated dataset below has the required structure and can be used to run the workflow end to end.
 
 ```{r simulated-data}
@@ -59,15 +69,35 @@ dat <- simulate_longitudinal_dataset(
   margin_dist = GG(),
   copula_dist = "N",
   margin_params = list(
-    mu = function(d) exp(1.6 + 0.35 * (d$treatment == "active") + 0.12 * d$time + d$subject_shift),
-    sigma = function(d) exp(-0.5 + 0.08 * d$time)
+    mu = function(d) {
+      age_effect <- sim_smooth_bump(
+        sim_rescale01(d$age_scaled),
+        amplitude = 0.25
+      )
+      exp(
+        1.6 +
+          0.35 * (d$treatment == "active") +
+          0.12 * d$time +
+          age_effect
+      )
+    },
+    sigma = function(d) {
+      exp(
+        -0.5 +
+          0.15 * (d$treatment == "active") +
+          0.08 * d$time
+      )
+    }
   ),
-  copula_params = list(theta = 0.4),
+  copula_params = list(
+    theta = function(e) 0.2 + 0.1 * e$time_left
+  ),
   covariates = function(d) {
     simulate_longitudinal_covariates(d, subject = list(
       treatment = function(s) factor(rep(c("control", "active"), length.out = nrow(s))),
-      age_scaled = function(s) as.numeric(scale(rnorm(nrow(s), mean = 55, sd = 10))),
-      subject_shift = function(s) rnorm(nrow(s), sd = 0.35)
+      age_scaled = function(s) {
+        as.numeric(scale(rnorm(nrow(s), mean = 55, sd = 10)))
+      }
     ))
   },
   seed = 1
@@ -76,18 +106,26 @@ dat <- simulate_longitudinal_dataset(
 
 ```{r data-shape}
 # Review data completeness / counts by time, subject
-str(dat)
-table(dat$subject)
+head(dat, 10)
+c(
+  rows = nrow(dat),
+  subjects = length(unique(dat$subject)),
+  timepoints = length(unique(dat$time))
+)
 table(dat$time)
 ```
 
-Missing responses are allowed but the missingness mechanism still needs to be
-reviewed as part of model assessment. Missingness at random is generally well
-managed by the model when the relevant observed predictors are included, but
-missingness not at random may affect results. Use `check_missingness()` as a
-first screen for observed-feature associations with response missingness.
+Missing responses are allowed, but the likelihood still relies on an
+appropriate ignorability assumption conditional on the modeled observed
+information. Use `check_missingness()` as a descriptive first screen for
+associations between observed features and response missingness; it cannot
+establish missing at random or rule out unobserved drivers.
+The ordinary likelihood accepts complete panels and observed prefixes followed
+by dropout. Intermittent gaps and leading unobserved scheduled visits error by
+default; use `missingness = "segment"` only when you intend the documented
+between-segment independence assumption.
 
-```{r missingness-check, eval = FALSE}
+```{r missingness-check}
 check_missingness(
   dat,
   response_var = "response",
@@ -98,17 +136,26 @@ check_missingness(
 
 ## Step 1: Select margin distribution and copula function
 
-First, we review the shape of the response distribution (margin) and choose the best fitting distribution. **gamlss_longitudinal** supports all non-mixed response types from the **gamlss.dist** library of distributions.
+First, we review the shape of the response distribution (margin) and choose a
+candidate family. Longitudinal fitting and simulation support the tested
+family--copula combinations returned by
+`longitudinal_capabilities("routes")`. The presence of a family in
+**gamlss.dist** is not itself a support guarantee.
 
-For simplicity, we provide the function `select_margin()` which fits the available gamlss distributions and provides a sorted list of fits by AIC, and confirms if they are supported by gamlss_longitudinal. This can be limited to certain fits such as specific distributions, e.g. `families = c("PO", "GA")` or response types, e.g. `type=realplus`.
+For simplicity, `select_margin()` fits compatible candidate GAMLSS families and
+sorts them by AIC while recording longitudinal support. Candidate families
+should be prespecified from the response domain and subject-matter requirements;
+for example, use `families = c("PO", "NBI")` for a count shortlist or
+`type = "realplus"` for positive continuous candidates.
 
 In general, we would suggest using the top fitting distributions as a shortlist that can later be revisited once covariates are incorporated into the fit.
 
 ```{r margin-screen}
 # Select best-fitting margin distribution
 margin_selection <- select_margin(
-  dat,
-  response_var = "response"
+  data = dat,
+  response_var = "response",
+  families = c("GA", "GG", "LOGNO")
 )
 
 print(margin_selection)
@@ -116,16 +163,34 @@ print(margin_selection)
 margin_dist <- best_fit_family(margin_selection)
 ```
 
-We then select our starting copula based on the chosen marginal distribution. The function `select_copula()` is used to compare dependence copula functions. When `response_var` and `margin_dist` are supplied, pseudo-observations are created automatically from a temporary marginal GAMLSS fit.
+In an applied analysis, retain several plausible screened families and compare
+their final covariate-adjusted fits and diagnostics. Here we deliberately carry
+forward the top family from a prespecified positive-continuous shortlist. This
+is one pragmatic search path, not an automatic guarantee that the selected
+family is correct; final conclusions should include sensitivity to plausible
+alternatives and acknowledge selection uncertainty.
+
+We then select a starting copula for the chosen marginal distribution. The
+capability registry supplies the copulas tested with that family; restricting
+the screen to this set prevents an attractive but unsupported combination from
+being carried into the longitudinal fit. When `response_var` and `margin_dist`
+are supplied, `select_copula()` creates pseudo-observations from a temporary
+marginal GAMLSS fit.
 
 ```{r copula-screen}
 # Select best-fitting copula distribution
+routes <- longitudinal_capabilities("routes")
+copula_candidates <- unique(routes$copula[
+  routes$margin_family == margin_dist$family[[1L]]
+])
+
 copula_selection <- select_copula(
   data = dat,
   response_var = "response",
   margin_dist = margin_dist,
   subject_var = "subject",
-  time_var = "time"
+  time_var = "time",
+  families = copula_candidates
 )
 
 print(copula_selection)
@@ -137,20 +202,44 @@ The selected family is a starting point. Dependence diagnostics after the full f
 
 ## Step 2: Fit the longitudinal gamlss model and review key outputs
 
-Depending on the margin distribution selected and the copula function selected, it's possible to depend variables on any parameter for the margin: `mu.formula` which is generally the mean, `sigma.formula` which is generally the variance parameter, `nu.formula`, `tau.formula`, and for the copula: `theta.formula` and `zeta.formula`.
+Depending on the selected family and copula, covariates can enter the available
+margin parameters through `mu.formula`, `sigma.formula`, `nu.formula`, and
+`tau.formula`, and the copula parameters through `theta.formula` and
+`zeta.formula`. These are distribution-specific parameters: `mu` is not always
+the response mean and `sigma` is not always the response variance. Consult the
+selected **gamlss.dist** family documentation before interpreting coefficients,
+and use `predict(type = "mean")` when the estimand is the fitted response mean.
 
 Other than the covariate formulas, the model requires the user specify the subject and time variables in the provided dataset through parameters `time_var` and `subject_var`. The user should also specify the chosen margin distribution in functional form (i.e. `GA()`) as well as the selected distributions for the margin and copula (initially based on screening in the previous step).
 
-For the included simulated example, we know there is a binary treatment effect and a time effect on both the mean, `mu.formula`, and the variance, `sigma.formula`. In addition, there is a smooth age-effect on the mean. There is also increasing correlation over time which we capture with a covariate in `theta.formula`.
+By default, `optimization = "joint"` includes the copula contribution when
+updating marginal parameters. `optimization = "separate"` is an explicit RS
+sensitivity mode that excludes that contribution from the marginal updates;
+it is not available for the CG optimizer. Advanced settings are supplied together through
+`optimizer_control = gamlss_longitudinal_control(...)`.
+
+For a separate fit, `logLik()`, AIC, and BIC evaluate the joint likelihood at
+the separately updated parameter estimates, which need not maximize that joint
+objective. Treat these values as descriptive sensitivity results, not as a
+standard optimized-likelihood basis for likelihood-ratio testing. Do not use an
+LR test to compare joint and separate optimization strategies; refit the models
+with joint optimization for final likelihood-based comparisons.
+
+For the included simulated example, the data-generating process has binary
+treatment and time effects on both `mu` and `sigma`, a smooth age effect on
+`mu`, and dependence that increases over time. The fitted formulas below match
+those known structural terms. Their response-scale interpretation still follows
+the selected marginal family's parameterization.
 
 ```{r fit}
 # Fit longitudinal gamlss model
 fit <- gamlss_longitudinal(
-  dataset = dat,
+  data = dat,
   margin_dist = margin_dist,
   copula_dist = copula_dist,
   time_var = "time",
   subject_var = "subject",
+  optimization = "joint",
   mu.formula = response ~ treatment + time + s(age_scaled, bs = "ps"),
   sigma.formula = ~ treatment + time,
   theta.formula = ~ time
@@ -164,7 +253,9 @@ You can then review a summary of the fit including covariate estimates, standard
 summary(fit)
 ```
 
-Other standard functions for outputs of regression models are also available, such as confidence intervals, wald tests, likelihood ratios and bootstrap inference.
+Other standard functions for outputs of regression models are also available,
+such as confidence intervals, Wald tests, likelihood comparisons, and bootstrap
+inference.
 
 ```{r final-postfit-tests}
 # Confidence intervals
@@ -175,20 +266,33 @@ wald_test(fit)
 
 # Likelihood ratio test
 fit_reduced <- gamlss_longitudinal(
-  dataset = dat,
+  data = dat,
   margin_dist = margin_dist,
   copula_dist = copula_dist,
   time_var = "time",
   subject_var = "subject",
+  optimization = "joint",
   mu.formula = response ~ treatment + time,
   sigma.formula = ~ treatment + time,
   theta.formula = ~ time
 )
 likelihood_compare(fit_reduced, fit)
+```
 
-# Bootstrapped confidence intervals (WARNING: Can take a long time to run since it's refitting for each R)
-boot <- bootstrap_inference(fit, R = 20)
+Bootstrap inference refits the model repeatedly and is therefore disabled in
+this routine workflow build. The small value below is a computational smoke
+run only and must not be reported. For a reporting analysis, increase `R` until
+the interval limits are stable at the required scientific precision, assess
+Monte Carlo error, and report unsuccessful replicates.
+
+```{r bootstrap-smoke, eval=FALSE}
+boot <- bootstrap_inference(
+  fit,
+  R = 20, # smoke run only; not for reporting
+  seed = 1
+)
 print(boot)
+boot$failures
 ```
 
 See `vignette("inference-uncertainty", package = "gamlss.longitudinal")` for
@@ -196,19 +300,25 @@ the reporting language around Hessian, numerical-Hessian, delta-method, and
 simulation-based uncertainty.
 
 See `vignette("diagnostics-decisions", package = "gamlss.longitudinal")` for
-the decision language around marginal, tail, dependence, and inference warnings.
+guidance on interpreting marginal, tail, dependence, and inference summaries.
 
 ## Step 3: Diagnostics
 
-We provide a built-in check_model() function which highlights basic automated check statuses and failed-check warnings in plain language from the fit diagnostics including convergence errors or unusual looking fit statistics.
+The fitted object and `summary()` report fit-time conditions such as
+non-convergence, segmented missingness assumptions, boundary behavior, and
+covariance availability. The optional `check_model()` helper additionally
+collects PIT, tail, and residual-dependence summaries for review. These
+summaries are descriptive; the package does not turn them into a universal model-fit verdict.
+An optional user-supplied dependence cutoff can add a review flag when an
+application has a justified tolerance; no cutoff is used by default.
 
 ```{r check}
 # Model checks
-check <- check_model(fit, include_vcov = TRUE, dependence_cor_cutoff = 0.25)
+check <- check_model(fit, include_vcov = TRUE)
 check
 check$basic_checks
-check$basic_checks_result
-check$warnings
+check$diagnostic_summary
+check$flags
 ```
 
 To visually review the fits for both margin and the dependence copula we provide plotting functions directly on the fit object: `plot(fit)` and `plot_copula_diagnostics(fit)`. For the margin plots, we include standard margin diagnostics:
@@ -220,23 +330,30 @@ To visually review the fits for both margin and the dependence copula we provide
 
 For the copula we include empirical copula v fitted density and correlation by quantile, Rosenblatt residuals and lag plot, ordered fitted versus observed density, tail co-occurrence and exceedance, and residual dependence by lag.
 
-```{r plot chekc}
+```{r plot-margin-check, fig.width=10, fig.height=8, out.width="100%"}
 # View margin diagnostics
 plot(fit)
+```
 
+```{r plot-copula-check, fig.width=11, fig.height=8, out.width="100%"}
 # View dependence diagnostics
 plot_copula_diagnostics(fit)
+```
 
-
+```{r plot-copula-all, fig.width=14, fig.height=13, out.width="100%"}
+# View the complete nine-panel dependence dashboard
+plot_copula_diagnostics(fit, type = "all", ncol = 3)
 ```
 
 Treat the output as a decision aid:
-- if the model is not converging, for a highly complex model more iterations may be needed which can be specified by `max_outer_iter=N`. Usually, however, iteration warnings are either due to a model which is not ideally specified (e.g. incorrect copula or margin shape) or covariates which are adding complexity to the model without adding fit resulting in optimizer issues
-- lack of fit in the marginal diagnostics, `plot(fit)` or marginal warnings, generally indicate a poor selection of marginal distribution or marginal covariates
-- lack of fit in the copula diagnostics, `plot_copula_diagnostics(fit)` or residual dependence warnings, could either be choice of copula or copula covariates, or marginal distributions which are not fully accounting for pre-correlation margin effects resulting in a misshapen copula. The residual-dependence warning uses a practical correlation cutoff, not a formal test, so small remaining correlations should be reviewed visually
-- tail fit warnings mean quantile or probability claims may not be reliable
 
-Ideally all warnings should be rectified and diagnostics accepted as satisfactory prior to moving to reporting.
+- Nonconvergence requires optimizer and model-specification review before inference.
+- Patterns in marginal plots or PIT summaries can motivate reviewing the marginal family or covariates; they are not a package-defined failure test.
+- Residual dependence summaries can motivate reviewing the copula, copula covariates, or marginal specification. Interpret their magnitude in the scientific context.
+- Tail summaries should be considered directly when the intended claim concerns quantiles or probabilities.
+
+Resolve convergence or inference failures and document the substantive judgment
+used to interpret descriptive diagnostics before reporting results.
 
 ## Optional: Simulation and prediction
 
@@ -244,108 +361,91 @@ Multiple options are provided for prediction including on response and parameter
 
 ```{r applied-answers}
 # Predict the fitted response mean with confidence interval
-predict(
+head(predict(
   fit,
   newdata = dat,
   type = "mean",
   se.fit = TRUE,
   interval = "confidence"
-)
+), 10)
 
 # Predict the estimated GAMLSS parameter values for mu, sigma etc.
-predict(
+head(predict(
   fit,
   newdata = dat,
   type = "parameters"
-)
+), 10)
 
 # Predict the fitted GAMLSS mu parameter explicitly
-predict(
+head(predict(
   fit,
   newdata = dat,
   type = "mu"
-)
+), 10)
 
 # Predict specified quantiles
-predict(
+head(predict(
   fit,
   newdata = dat,
   type = "quantile",
   probs = c(0.1, 0.5, 0.9)
-)
+), 10)
 
 # Predict cdf
-predict(
+head(predict(
   fit,
   newdata = dat,
   type = "cdf",
   q = 10
-)
+), 10)
 
 # Predict probability density
-predict(
+head(predict(
   fit,
   newdata = dat,
   type = "density",
   y = 10
-)
+), 10)
 
 # Predict observation probability (either above or below response value)
-predict(
+head(predict(
   fit,
   newdata = dat,
   type = "probability",
   q = 10,
   direction = "above"
-)
+), 10)
 
-# Calculate average response across a covariate for the margin
-marginal_effects(
+# Standardize the fitted distribution-specific mu parameter by treatment
+head(marginal_effects(
   fit,
   newdata = dat,
   variable = "treatment",
   parameter = "mu",
   se.fit = TRUE
-)
+), 10)
 ```
+
+Here `marginal_effects(parameter = "mu")` averages the fitted
+distribution-specific `mu` parameter over counterfactual copies of `dat`. It is
+not automatically an average response or a causal marginal effect. For an
+average fitted response, construct the counterfactual datasets and standardize
+predictions from `predict(type = "mean")`.
 
 Simulate from the fitted model as desired, for a total of `nsim` replications. Note that simulation uses both copula and margin structure so dependence is maintained in simulations.
 
 ```{r simulation}
 sim_model <- simulate(fit, nsim = 100, seed = 1)
+head(sim_model[, 1:3], 10)
 ```
 
-## Optional: Compare/benchmark to familiar models: gee (geepack), glmm (lme4), gam (mgcv)
-
-Since we know most users would be considering a longitudinal gamlss model as an alternative to existing solutions using gees, gam or glmms we provide easy to use comparison tools to benchmark longitudinal gamlss models to existing methods.
-
-```{r comparator}
-# Fit comparison models and summarise fits for a model with linear age term
-bench_nosmooth <- benchmark_standard_models(
-  data = dat,
-  formula = response ~ treatment + time + age_scaled,
-  subject_var = "subject",
-  family = "gamma",
-  fit = fit_reduced
-)
-
-print(bench_nosmooth)
-
-# Fit comparison models and summarise fits for a model with smooth age term
-bench_smooth <- benchmark_standard_models(
-  data = dat,
-  formula = response ~ treatment + time + s(age_scaled),
-  subject_var = "subject",
-  family = "gamma",
-  fit = fit
-)
-
-print(bench_smooth)
-
-```
-
-In general, note that the purpose of the gamlss.longitudinal model is to accurately capture the full joint distribution shape. If the item of interest is just the mean, then gamlss.longitudinal is unlikely to provide large gains except for where distributions are clearly non-standard. By modelling the whole joint outcome distribution we can more accurately answer questions such as whether quantiles, tail risks, or uncertainty (SEs, confidence intervals, prediction intervals) change in a meaningful way. In addition, note that the consumption of degrees of freedom for calculation of accurate conditional AICs for random effect models can be substantial compared to the small number of parameters needed to fit a copula-based dependence structure.
-
-##
+In general, the purpose of the `gamlss.longitudinal` model is to capture the
+full joint outcome distribution. If the scientific target is only the mean,
+the additional distributional structure may provide limited practical benefit.
+When quantiles, tail probabilities, or covariate-dependent distributional shape
+matter, the fitted margins and copula provide quantities that mean-only models
+do not. Fitted quantiles are plug-in descriptions of response variation, not
+future-observation prediction intervals or confidence intervals for the
+quantiles themselves.
 
 For a more detailed walk-through example, including interpretation of model fit and diagnostics, please review the [Detailed worked example](native-simulation-workflow.html).

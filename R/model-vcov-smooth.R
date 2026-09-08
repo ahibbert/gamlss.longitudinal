@@ -97,7 +97,10 @@
           {
             smooth_vcov <- solve(penalized_precision) * sigma2_par
 
-            smooth_se <- sqrt((diag(smooth_vcov)))
+            smooth_se <- .gl_sqrt_derived_variance(
+              diag(smooth_vcov), "smooth coefficient covariance",
+              allow_zero = FALSE
+            )
 
             # Store results
 
@@ -111,26 +114,12 @@
 
             smoother_matrix <- B %*% solve(penalized_precision) %*% t(B) %*% W
 
-            fitted_se <- sqrt(abs(as.vector(diag(smoother_matrix))) * sigma2_par)
+            fitted_se <- .gl_sqrt_derived_variance(
+              as.vector(diag(smoother_matrix)) * sigma2_par,
+              "smooth fitted covariance",
+              allow_zero = FALSE
+            )
 
-            cat(sprintf("\nSmooth term variance estimates for %s:%s\n", par_name, s_name))
-
-            cat(sprintf(
-              "  Basis coefficients SE: min=%.4f, max=%.4f, mean=%.4f\n",
-              min(smooth_se), max(smooth_se), mean(smooth_se)
-            ))
-
-            cat(sprintf(
-              "  Fitted values SE: min=%.4f, max=%.4f, mean=%.4f\n",
-              min(fitted_se), max(fitted_se), mean(fitted_se)
-            ))
-
-            cat(sprintf(
-              "  Effective DF: %.2f (trace of smoother matrix)\n",
-              sum(diag(smoother_matrix))
-            ))
-
-            cat(sprintf("  Smoothing parameter lambda: %.4f\n", lambda))
           },
           error = function(e) {
             warning(sprintf(
