@@ -1196,7 +1196,7 @@ test_that("RS copula parameter score preserves unexpected parameter error", {
       calc_lik_out = list(copula_row_id1 = 1),
       copula_derivatives = list(dldth = 1)
     ),
-    "Unexpected copula parameter in optimisation: rho",
+    "Unexpected copula parameter in optimization: rho",
     fixed = TRUE
   )
 })
@@ -1308,7 +1308,7 @@ test_that("RS margin parameter score preserves dlcopdpar gradient warning hook",
       pair_cache = list(),
       check_dlcopdpar_gradient = TRUE,
       outer_only_run_counter = 1L,
-      verbose = 0,
+      verbose = 2,
       fx_deriv_fn = function(...) list(mu = c(1, 1)),
       dlcopdpar_fn = function(...) matrix(c(0, 0), ncol = 1),
       gradient_check_fn = function(...) list(warned = TRUE, message = "gradient check warning")
@@ -2513,7 +2513,7 @@ test_that("RS lambda helper updates active smooths with optimizer results", {
       step_size = 0.5,
       rs_update_lambda = TRUE,
       inner_run_counter = 1L,
-      verbose = 0,
+      verbose = 2,
       backfitting_fn = backfitting_fn,
       optim_fn = optim_fn
     )
@@ -2530,8 +2530,8 @@ test_that("RS lambda helper updates active smooths with optimizer results", {
   expect_equal(length(backfitting_lambdas), 2L)
   expect_equal(backfitting_lambdas[[1]]$`s(x)`, 2.5)
   expect_equal(backfitting_lambdas[[2]]$`s(z)`, 4.5)
-  expect_true(any(grepl("Optimising smoothing parameter for mu - s\\(x\\)", output)))
-  expect_true(any(grepl("Optimising smoothing parameter for mu - s\\(z\\)", output)))
+  expect_true(any(grepl("Optimizing smoothing parameter for mu - s\\(x\\)", output)))
+  expect_true(any(grepl("Optimizing smoothing parameter for mu - s\\(z\\)", output)))
 })
 
 test_that("RS lambda helper skips updates when disabled or not first inner iteration", {

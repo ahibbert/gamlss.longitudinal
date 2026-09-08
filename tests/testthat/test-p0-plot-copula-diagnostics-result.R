@@ -61,6 +61,8 @@ test_that("copula diagnostics result bundle preserves returned names", {
     names(result),
     c(
       "plots",
+      "displayed_plots",
+      "type",
       "dashboard",
       "fit_data",
       "pair_data",
@@ -74,6 +76,9 @@ test_that("copula diagnostics result bundle preserves returned names", {
       "residual_lag_summary"
     )
   )
+  expect_s3_class(result, "gamlss_longitudinal_plot")
   expect_identical(result$plots, list(a = "plot"))
+  expect_identical(result$displayed_plots, result$plots)
+  expect_identical(result$type, "all")
   expect_identical(result$dashboard, "dashboard")
 })

@@ -1,58 +1,90 @@
 # Replication verification status
 
-Last updated: 2026-08-27 (Australia/Sydney).
+Last updated: 2026-09-05 (Australia/Sydney).
 
-## Completed locally
+## Gate definition
 
-- Windows, R 4.4.1: clean-snapshot `smoke` run with lockfile restore and
-  checked-out source installation; no manual intervention.
-- Windows: strict-warning `smoke` recomputation from invalidated simulation
-  targets and strict-warning `paper` build.
-- Manifest audit against the canonical paper clone: 41 of 41 manuscript assets
-  classified, zero unclassified.
-- Asset publisher dry-run and apply in disposable clean paper clones; only
-  allowlisted `charts/` and `tables/` assets changed and no commit/push occurred.
-- Asset-staged 47-page manuscript compile and visual inspection. Three existing
-  TeX/BibTeX blockers were fixed only in the disposable QA clone; the manual
-  fixes and remaining undefined citations are listed in
-  `overleaf-manuscript-fixes.md`.
-- Missingness checkpoint resume test: a completed checkpoint set resumed with
-  zero repeated fits.
-- Four context-free reviewer smoke passes, with each reported defect or
-  ambiguity fixed before the next clean-snapshot run. The final clean run
-  completed without intervention in 2 minutes 27.6 seconds: 12 of 12 targets,
-  zero target warnings/errors, 24 explicitly reported optimizer-limit events,
-  zero execution failures, and an independently matching raw manifest hash.
-- The committed snapshot `fd2ffc1` was checked in a detached clean worktree.
-  Lockfile restore and checked-out source installation succeeded; `smoke`
-  completed 13 of 13 targets and `paper` completed 16 of 16 targets, both with
-  zero target warnings/errors and a clean Git provenance record.
-- Module 08 checkpoint replacement and restart behavior was exercised with a
-  temporary one-case benchmark. The second invocation reused the same run
-  directory, skipped the completed case, retained one status row, and created
-  no duplicate run directory.
+The simplified Phase 2 gate is the portable public `paper` profile built from
+five versioned evidence modules. A fresh publication-scale `full` rerun,
+Module 09, detached signatures, and author-held approval keys are not reviewer
+or submission gates. The optional `full` command remains available for future
+author-side recomputation.
 
-## Submission gates not yet executed
+## Completed checks
 
-- The `full` public Monte Carlo profile was started from an empty store and
-  checkpoint set on 2026-08-27 and is currently running. The first restart was
-  an intentional worker-scaling check; valid atomic checkpoints were retained.
-  The published 20-replicate missingness study completed in 51 minutes 22
-  seconds. The active run is continuing as a hidden 12-worker process with
-  stdout/stderr under `results/jss-replication/full/logs/`. End-to-end
-  completion and the subsequent no-repeat resume run remain required. During
-  this gate, module 08 exposed a restart defect in its legacy driver; the driver
-  now reads its completed/checkpoint tables, validates the scenario and family
-  grids, skips synchronized completed cases, and uses replace-safe CSV writes.
-  The active run directory is recorded so its existing progress remains usable.
-- The metric-level comparison is now wired into the full graph and its complete
-  mirrored-layout test passed 2,275 comparisons. Acceptance against freshly
-  recomputed results remains pending completion of the active full run.
-- The Windows/Ubuntu CI matrix is defined in
-  `.github/workflows/paper-replication.yaml` for both R 4.4.1 and current R. The
-  generic `replication-gates` branch is pushed, but GitHub cannot manually
-  dispatch a workflow that is not yet present on the default branch. A pull
-  request or merge is therefore required to register and trigger this matrix.
-- The exact live Overleaf source has not been modified. Authors must apply the
-  documented source/checklist edits and run the publisher against a clean live
-  clone before submission.
+- Phase 1 passed independently; see
+  `reviews/2026-08-27-jss-round-1/phase1-acceptance-ledger.md`.
+- The complete close-out source-tree suite passes all ordinary P0/P1/P2 tests.
+  An initial run found one repository-boundary failure caused by two
+  documentation strings; those strings were corrected and the full suite then
+  passed. The only intentional skips are two opt-in extended SRR stress tests.
+- A full local Windows R 4.4.1 source-package check completed with status OK:
+  zero errors, zero warnings, and zero notes. The later Phase 2 changes affect
+  CRAN-excluded paper files and tests, not packaged R code.
+- Strict-warning smoke recomputation from a detached clean checkout completed
+  in 1 minute 4 seconds with no target warnings/errors. Nine deliberately short
+  nonconverged fits are retained as structured `fit-events.csv` rows rather
+  than leaked target warnings.
+- The optimizer bundle contains three scenarios and 97 paired replicates per
+  scenario: 582/582 attempts converged and were retained. Both producer and
+  submission validators pass, including the cross-checkout checkpoint test.
+- The missingness bundle contains 240 scenario/replicate tasks and 480 fits:
+  399 retained, 81 named failures, 298 expected warnings, and zero unexpected
+  warnings. Monotone dropout is the headline and intermittent MAR is a
+  sensitivity analysis.
+- The 2,400-fit copula-misspecification bundle and 62-attempt fit-scaling bundle
+  pass their submission schemas and reconstruction checks.
+- BCPE/t completed all 200 method attempts successfully and converged. Its
+  exact-settings resume accepted 200/200 checkpoints, found zero pending, and
+  changed no checkpoint timestamp or hash.
+- NBI/Clayton completed all 200 method attempts successfully and converged. Its
+  exact-settings resume also accepted 200/200 checkpoints, found zero pending,
+  and changed no checkpoint timestamp or hash.
+- The promoted main-recovery bundle contains 26 CSV files and 400/400
+  successful, converged, retained attempts. All 31 evidence checks pass; the
+  public bundle contains no RDS, fitted object, residual, or private asset.
+- The strict `paper` profile passes all 10 Phase 2 gates with 83 exact public
+  manifest paths and 17 verified claims. `target-events.csv` reports no target
+  warnings/errors; the final cached pipeline took 1 minute 1.6 seconds and a
+  detached clean-checkout pipeline took 3 minutes 50.6 seconds.
+- The first context-free audit exposed main-recovery hashes recorded against
+  CRLF working-tree bytes while Git enforces LF. The repaired bundle uses
+  newline/BOM-canonicalized text hashes and canonical byte counts. A regression
+  converts the complete bundle to LF before validating it, and a newly detached
+  checkout passes the ordinary `paper` command.
+- Terminal manifest validation now parses, constrains, covers, and recomputes
+  every `output_hashes.csv` row. Failed target runs write available run/target
+  metadata and a reviewer summary before returning the original error.
+- The final context-free reviewer repeated the paper profile from a new
+  detached checkout: 19/19 targets and 10/10 gates passed, with zero target or
+  fit events. Independent checks matched all 511 input, 88 output, and 11
+  provenance hashes. Original-resolution inspection confirmed the shortened
+  NBI term labels and missingness facet labels are legible and unclipped; the
+  zero-event paper run contains a schema-stable empty `fit-events.csv`.
+- Publisher dry-run/apply in a clean disposable manuscript clone staged exactly
+  17 assets and changed only `charts/` and `tables/`. It did not edit, commit,
+  or push manuscript source.
+- After applying three known manuscript-only compile fixes in that disposable
+  clone, the staged paper compiled to a visually inspected 47-page PDF. The
+  generated recovery tables and figures are nonblank and unclipped. Two
+  unresolved references and eight citation occurrences remain assigned to
+  Phase 3.
+- The read-only canonical manuscript audit classified 40/40 assets with zero
+  unclassified items. A scan of public-derived text inputs found no checkout,
+  user-home, OneDrive, `/Users`, or private-data paths. Generic R interpreter
+  paths are retained as execution provenance and are not input dependencies.
+- Module 09 is absent from active claims, artifact contracts, manifests, and
+  target graphs. Its source and tiny unit-test fixtures remain for future work.
+
+## Close-out
+
+The simplified Phase 2 evidence and independent reviewer gates are complete.
+Module 09 and publication-scale full recomputation remain explicitly optional.
+
+## Separate Phase 3 manuscript work
+
+The canonical Phase 2 manuscript audit is expected to fail until authoring is
+updated. At the latest run it found nine pending claim markers, three
+pending/missing scope anchors, three pending artifacts, and eight known stale
+empirical blocks. These are Phase 3 wording, structure, citation, and asset-use
+tasks; they do not invalidate the underlying Phase 2 public evidence gate.

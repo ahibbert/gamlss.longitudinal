@@ -41,11 +41,26 @@ test_that("model_spec builds printable fitted-model audit metadata", {
   expect_identical(out, spec)
   expect_identical(spec$variables$response, "y")
   expect_identical(spec$distributions$margin, "NO")
-  expect_identical(spec$optimisation$method, "RS")
+  expect_identical(spec$optimization$method, "RS")
+  expect_identical(spec$optimisation, spec$optimization)
   expect_identical(spec$missingness$n_missing_response, 1L)
   expect_identical(spec$missingness$n_nonfinite_response, 1L)
   expect_equal(spec$margin_links$parameter, c("mu", "sigma"))
-  expect_true(any(grepl("GAMLSS Longitudinal Model Specification", printed)))
+  expect_true(any(grepl("<Model specification>", printed, fixed = TRUE)))
+  expect_true(any(grepl("mu.*y ~ x", printed)))
+  expect_false(any(grepl('"y ~ x"', printed, fixed = TRUE)))
+
+  character_formula_spec <- spec
+  character_formula_spec$formulas <- list(mu = "y ~ x", sigma = "~ 1")
+  character_printed <- capture.output(print(character_formula_spec))
+  expect_true(any(grepl("mu.*y ~ x", character_printed)))
+  expect_false(any(grepl('"y ~ x"', character_printed, fixed = TRUE)))
+
+  old_spec <- spec
+  old_spec$optimisation <- old_spec$optimization
+  old_spec$optimization <- NULL
+  old_printed <- capture.output(print(old_spec))
+  expect_true(any(grepl("Optimizer: RS, separate", old_printed, fixed = TRUE)))
 })
 
 test_that("model_spec rejects non-fitted inputs", {
@@ -119,7 +134,11 @@ make_publication_helper_object <- function() {
     method = "analytical",
     method_requested = "analytical"
   )
-  object$vcov_meta <- list(numderiv = FALSE, method = "analytical")
+  object$vcov_meta <- list(
+    numderiv = FALSE,
+    method = "analytical",
+    cache_version = gamlss.longitudinal:::.gl_vcov_cache_version()
+  )
   object$convergence <- list(converged = TRUE, outer_iterations = 2L)
   object
 }
@@ -181,6 +200,12 @@ test_that("publication_table formats coefficient and model summaries", {
   expect_equal(coefs$Estimate[1], "1.00")
   expect_match(coefs$`90% CI`[1], "[0.51, 1.49]", fixed = TRUE)
   expect_equal(coefs$Component, c("Margin", "Margin", "Copula"))
+  coefficient_contract <- attr(coefs, "inference_contract")
+  expect_identical(coefficient_contract$contract_id, "publication_coefficients")
+  expect_identical(
+    coefficient_contract$covariance_contract$contract_id,
+    "fixed_hessian_analytical"
+  )
 
   expect_s3_class(model, "gamlss_longitudinal_publication_table")
   expect_equal(model$Value[model$Statistic == "Observed rows"], "2")

@@ -11,36 +11,25 @@ make_warm_start_args <- function(...) {
     copula_dist = "N",
     time_var = "time",
     subject_var = "subject",
+    missingness = "error",
     mu.formula = response ~ 1,
     sigma.formula = ~ 1,
     nu.formula = ~ 1,
     tau.formula = ~ 1,
     theta.formula = ~ 1,
     zeta.formula = ~ 1,
-    inner_stop_crit = 1e-6,
-    outer_stop_crit = 1e-6,
-    start_step_size = 0.5,
-    step_adjustment = 1,
-    max_steps = 5L,
+    optimizer_control = gamlss_longitudinal_control(
+      outer_tol = 1e-6,
+      rs = list(
+        inner_tol = 1e-6,
+        start_step_size = 0.5,
+        step_adjustment = 1,
+        max_steps = 5L,
+        max_inner_iter = 3L,
+        max_negative_outer_streak = 10L
+      )
+    ),
     true_val = NA,
-    max_inner_iter = 3L,
-    max_negative_outer_streak = 10L,
-    max_elapsed_sec = Inf,
-    use_backtracking = TRUE,
-    backtracking_max_halves = 50L,
-    cg_max_stall = 5L,
-    cg_max_delta = 0.5,
-    cg_armijo_c1 = 1e-4,
-    cg_grad_tol = NA,
-    cg_step_tol = NA,
-    cg_update_lambda = TRUE,
-    cg_lambda_update_every = 10L,
-    cg_line_search = "best",
-    cg_max_line_search_evals = Inf,
-    cg_gradient_method = "forward",
-    discrete_score_method = "analytical",
-    cg_zeta_hessian = "analytical",
-    cg_hessian_method = "analytical",
     vcov_method = "analytical",
     vcov_numderiv = FALSE,
     use_Rcpp = FALSE,
@@ -68,6 +57,19 @@ run_warm_start_fit_call <- function(...) {
   args <- args[intersect(names(args), formals_needed)]
   do.call(gamlss.longitudinal:::.gl_call_joint_warm_start_fit, args)
 }
+
+test_that("warm-start failures teach the structured optimizer control", {
+  err <- tryCatch(
+    gamlss.longitudinal:::.gl_validate_joint_warm_start_fit(
+      NULL,
+      simpleError("example failure")
+    ),
+    error = identity
+  )
+  expect_match(conditionMessage(err), "optimizer_control =", fixed = TRUE)
+  expect_match(conditionMessage(err), "rs = list(warm_start_joint = FALSE)", fixed = TRUE)
+  expect_false(grepl("Set warm_start_joint = FALSE", conditionMessage(err), fixed = TRUE))
+})
 
 test_that("warm-start policy preserves the previous joint RS conditions", {
   expect_true(gamlss.longitudinal:::.gl_should_run_joint_warm_start(
@@ -126,11 +128,11 @@ test_that("warm-start helper captures fit output warnings and starts", {
   expect_match(paste(top_output, collapse = "\n"), "Running separate RS warm-start phase", fixed = TRUE)
   expect_match(paste(top_output, collapse = "\n"), "warm output line", fixed = TRUE)
 
-  expect_false(fit_args$include_dlcopdpar)
-  expect_false(fit_args$check_dlcopdpar_gradient)
-  expect_false(fit_args$warm_start_joint)
-  expect_equal(fit_args$warm_start_joint_iter, 0L)
-  expect_equal(fit_args$max_outer_iter, 2L)
+  expect_identical(fit_args$optimization, "separate")
+  expect_false("check_dlcopdpar_gradient" %in% names(fit_args))
+  expect_false(fit_args$optimizer_control$rs$warm_start_joint)
+  expect_equal(fit_args$optimizer_control$rs$warm_start_joint_iter, 0L)
+  expect_equal(fit_args$optimizer_control$shared$max_outer_iter, 2L)
   expect_false(fit_args$compute_vcov)
 })
 
@@ -180,11 +182,11 @@ test_that("warm-start fit-call helper captures output warnings and cold-start ar
   expect_match(out$output, "fit call output")
   expect_equal(out$warnings, "fit call warning")
   expect_null(out$error)
-  expect_false(fit_args$include_dlcopdpar)
-  expect_false(fit_args$check_dlcopdpar_gradient)
-  expect_false(fit_args$warm_start_joint)
-  expect_equal(fit_args$warm_start_joint_iter, 0L)
-  expect_equal(fit_args$max_outer_iter, 2L)
+  expect_identical(fit_args$optimization, "separate")
+  expect_false("check_dlcopdpar_gradient" %in% names(fit_args))
+  expect_false(fit_args$optimizer_control$rs$warm_start_joint)
+  expect_equal(fit_args$optimizer_control$rs$warm_start_joint_iter, 0L)
+  expect_equal(fit_args$optimizer_control$shared$max_outer_iter, 2L)
   expect_false(fit_args$compute_vcov)
 })
 

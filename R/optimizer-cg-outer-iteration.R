@@ -49,6 +49,7 @@
     cg_grad_tol_eff,
     df_s,
     cg_has_smooths,
+    stop_on_convergence,
     iteration_start_fn,
     curvature_line_search_fn,
     line_search_diagnostics_fn,
@@ -154,7 +155,8 @@
     lambda_update_count = cg_lambda_update_count,
     lambda_changed = lambda_changed,
     outer_stop_crit = outer_stop_crit,
-    grad_tol = cg_grad_tol_eff
+    grad_tol = cg_grad_tol_eff,
+    stop_on_convergence = stop_on_convergence
   )
   beta_all <- cg_line_search_diagnostics$beta
   par_cov <- cg_line_search_diagnostics$par_cov

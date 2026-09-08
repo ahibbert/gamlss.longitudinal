@@ -120,17 +120,22 @@
       data = density_grid,
       ggplot2::aes(x = .data$u1, y = .data$u2, z = .data$density),
       inherit.aes = FALSE,
-      color = "#e41a1c",
+      color = .gl_plot_colours()[["fitted"]],
       linewidth = 0.8,
       bins = contour_bins
     ) +
-    ggplot2::scale_fill_gradient(low = "#f7f7f7", high = "#4d4d4d", name = "Empirical") +
+    ggplot2::scale_fill_gradient(
+      low = "#F7F9FB",
+      high = .gl_plot_colours()[["observed"]],
+      guide = "none"
+    ) +
     ggplot2::labs(
       title = paste0("Copula Overlay: ", spec$family),
+      subtitle = "Darker bins show empirical density; blue contours show the fitted copula",
       x = x_label,
       y = y_label
     ) +
-    ggplot2::theme_minimal()
+    theme_gamlss_longitudinal()
 
   if (isTRUE(by_time)) {
     p <- p + ggplot2::facet_wrap(~split_group)

@@ -49,12 +49,20 @@ reporting_table <- function(
   if (length(by) == 0L) {
     out <- as.data.frame(as.list(colMeans(pred[setdiff(names(pred), ".row")], na.rm = TRUE)), stringsAsFactors = FALSE)
     out$n <- nrow(newdata)
-    return(out[c("n", setdiff(names(out), "n"))])
+    out <- out[c("n", setdiff(names(out), "n"))]
+    return(.gl_attach_inference_contract(
+      out,
+      .gl_inference_contract("publication_predictions_point", validity_status = "point_estimates_only")
+    ))
   }
 
   group_data <- newdata[by]
   agg <- stats::aggregate(pred[setdiff(names(pred), ".row")], group_data, mean, na.rm = TRUE)
   counts <- stats::aggregate(pred$.row, group_data, length)
   names(counts)[ncol(counts)] <- "n"
-  merge(counts, agg, by = by, sort = FALSE)
+  out <- merge(counts, agg, by = by, sort = FALSE)
+  .gl_attach_inference_contract(
+    out,
+    .gl_inference_contract("publication_predictions_point", validity_status = "point_estimates_only")
+  )
 }

@@ -510,16 +510,17 @@ In this case the likelihood is expanded to a penalized likelihood if required by
 
 The gamlss.longitudinal package includes two optimizer options. 
 
-First, the Rigby and Stasinopoulis method (RS)\citep{Rigby2005} iteratively loops through IRLS and backfitting steps for each parameter one at a time in the order of the parameter \jsschange{hierarchy}, mirroring the method incorporated in \pkg{gamlss} but with the addition of the copula parameters: \begin{equation*}
+First, the Rigby and Stasinopoulos method (RS)\citep{Rigby2005} iteratively loops through IRLS and backfitting steps for each parameter one at a time in the order of the parameter \jsschange{hierarchy}, mirroring the method incorporated in \pkg{gamlss} but with the addition of the copula parameters: \begin{equation*}
 \mu \rightarrow \sigma \rightarrow \nu \rightarrow \tau \rightarrow \theta \rightarrow \zeta,
-\end{equation*} for only included parameters in a given fit. The optimization stops when \begin{equation*}
-\left|\ell^{(m+1)} - \ell^{(m)}\right| \le \texttt{outer\_stop\_crit}.
-\end{equation*} 
+\end{equation*} for only included parameters in a given fit. With \texttt{stop\_on\_convergence = TRUE}, the optimization stops when \begin{equation*}
+\left|\ell^{(m+1)} - \ell^{(m)}\right| \le \texttt{outer\_tol}.
+\end{equation*}
+The tolerance is supplied through \texttt{optimizer\_control = gamlss\_longitudinal\_control(outer\_tol = ...)}.
 The RS method uses first derivatives and updates included parameter blocks sequentially.
 
 The second method is Cole and Green (CG)\cite{cole_smoothing_1992}, which uses a full Hessian to update all included parameter blocks within a trust region.
 
-Both methods are directly extended to include copula parameters from the work of Rigby and Stasinopoulis which are discussed in detail in the provided detailed appendices of their foundational paper\cite{Rigby2005}. Small adjustments are made to the implementation of trust regions for both methods for a balance between stability and speed. More detail on the CG and RS methods that have been implemented are included in Appendix \ref{sec:app_algorithms}.
+Both methods are directly extended to include copula parameters from the work of Rigby and Stasinopoulos which are discussed in detail in the provided detailed appendices of their foundational paper\cite{Rigby2005}. Small adjustments are made to the implementation of trust regions for both methods for a balance between stability and speed. More detail on the CG and RS methods that have been implemented are included in Appendix \ref{sec:app_algorithms}.
 
 Note that for the inclusion of the penalisation in the likelihood there is a \jsschange{slightly} different implementation between the methods. For the CG method the penalized likelihood in equation \ref{eqn:pen_likelihood} is used directly as the objective function while for RS the penalty is applied in the weighted least squares step to optimize GAIC with regards to lambda and prespecified smoother penalty $K$ for each individual parameter in each loop.
 
@@ -831,7 +832,7 @@ The \texttt{mu.formula} must be supplied as it specifies the response, however a
 
 \begin{lstlisting}[language=R]
 fit <- gamlss_longitudinal(
-  dataset = dat,
+  data = dat,
   time_var = "time",
   subject_var = "id",
   margin_dist = BCPE(),
@@ -846,17 +847,18 @@ fit <- gamlss_longitudinal(
   compute_vcov = TRUE
 )
 summary(fit)
-# GAMLSS Longitudinal Model Summary
-# --------------------------------
-# Margin distribution: BCPE 
-# Copula distribution: t 
-# Observations: 2000  | Subjects: 500  | Time points: 4 
+# <gamlss_longitudinal summary>
+# Margin: Box-Cox Power Exponential (BCPE) | Copula: Student t (t)
+# Optimizer: RS, joint
+# Convergence: converged
+# Observed responses: 2000 | Subjects: 500 | Time points: 4
 # Fixed coefficients: 24  | Smooth terms: 3  | Smooth EDF: 12.2515 
 # VCOV: analytical  | Requested: analytical 
-# Hessian condition number:  8309 
+# Scaled information condition number: 8309 | Validation: standard
+# Inference target: fixed coefficients conditional on fitted smooth structure.
+# Omitted uncertainty: fixed-smooth covariance and smoothing-parameter uncertainty.
 # 
-# Fixed coefficients:
-# --------------------
+# Fixed coefficients
 #   [mu]
 #     term             estimate  std_error   p_value  signif
 #     mu.intercept       2.2569     0.0312   0.00000  ***   
@@ -868,24 +870,21 @@ summary(fit)
 #   Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 # 
 # Smooth terms:
-# --------------------
 #  parameter   smooth_term    edf
 #         mu s(s1, k = 10) 6.2397
 #      sigma s(s1, k = 10) 3.4249
 #      theta s(s1, k = 10) 2.5870
-# Use plot(object) to visualize smooth and fixed terms with confidence bands.
+# Use plot(object) to visualize conditional fixed-term and approximate smooth-term bands.
 # 
 # Model Selection Criteria:
-# --------------------
 #          marginal     copula      joint
 # LogLik -2283.2898   802.6515 -1480.6384
 # AIC     4617.9088 -1584.1290  3033.7798
 # BIC     4761.6534 -1524.8325  3236.8210
 # EDF       25.6646    10.5870    36.2515
-# --------------------------------
 \end{lstlisting}
 
-The fitted object stores the formulas, fitted coefficients, convergence metadata, likelihood components, parameter transforms, and covariance information needed for post-fit inference. The user can easily inspect and report the model without manually reconstructing the design matrices or re-running the optimizer. All key optimizer inputs such as optimization approach, step sizes and stopping criteria can all be updated through \jsschange{control arguments}.
+The fitted object stores the formulas, fitted coefficients, convergence metadata, likelihood components, parameter transforms, and covariance information needed for post-fit inference. The user can easily inspect and report the model without manually reconstructing the design matrices or re-running the optimizer. Key optimizer inputs such as the optimization strategy, step sizes, and stopping criteria are updated through \texttt{optimization} and \texttt{optimizer\_control}.
 
 \subsubsection{Model selection helpers}
 
@@ -1236,6 +1235,11 @@ One potential option for increasing fit and parameter recovery in the presence o
 \jssplaceholder{Insert the selected public, package-shipped longitudinal application and its fully reproducible analysis.}
 
 \section{\jsschange{Reproducibility}}\label{sec:reproducibility}
+
+The private clinical data cannot be redistributed; its results are
+treated as static private-data artifacts and are excluded from the public
+replication workflow. Sanitized analysis code remains available, while the
+public BCPE/t workflow exercises the same model-building and diagnostic path.
 
 \jssrevisionnote{JSS requires replication materials for the paper. This section should briefly describe exactly how reviewers regenerate the manuscript results and what is excluded because of private data.}
 \jsssuggestion{This should be the next section to make non-placeholder. Even provisional replication details are better than blank notes here because JSS reviewers will check whether every main table and figure maps to code, data, seed, output files, and session information.}

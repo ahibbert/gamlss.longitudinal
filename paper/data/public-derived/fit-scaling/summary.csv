@@ -1,0 +1,9 @@
+"scenario_id","model_class","family","copula","changed_factor","n_subjects","n_visits","smooth_k","n_observations","warmup_attempted","attempted","converged","retained","failed","failure_reasons","median_elapsed_sec","q1_elapsed_sec","q3_elapsed_sec","median_mcse_sec","median_ci_lower_sec","median_ci_upper_sec","target_relative_mcse","initial_attempt_cap","absolute_attempt_cap","extension_used","precision_met","cell_eligible"
+"continuous-base","continuous","NO","N","none",100,4,5,400,1,8,8,8,0,"",1.06499999999999,0.872499999999988,1.15999999999999,0.102958894715004,0.819999999999993,1.22,0.1,15,45,FALSE,TRUE,TRUE
+"continuous-smooth_basis","continuous","NO","N","smooth_k",100,4,10,400,1,5,5,5,0,"",1.02000000000001,1,1.03,0.042523831107787,0.920000000000016,1.16,0.1,15,45,FALSE,TRUE,TRUE
+"continuous-subjects","continuous","NO","N","n_subjects",250,4,5,1000,1,6,6,6,0,"",1.875,1.6225,2.03750000000001,0.157097548708284,1.575,2.07500000000001,0.1,15,45,FALSE,TRUE,TRUE
+"continuous-visits","continuous","NO","N","n_visits",100,8,5,800,1,8,8,8,0,"",1.44499999999999,1.31250000000001,1.54999999999998,0.106015226293965,1.14000000000001,1.60999999999999,0.1,15,45,FALSE,TRUE,TRUE
+"discrete-base","discrete","NBI","C","none",100,4,5,400,1,5,5,5,0,"",3.88,3.66,4.13,0.35285928641411,2.78,4.61000000000001,0.1,15,45,FALSE,TRUE,TRUE
+"discrete-smooth_basis","discrete","NBI","C","smooth_k",100,4,10,400,1,10,10,10,0,"",4.28500000000003,3.8825,4.9675,0.376910427007556,3.735,5.06,0.1,15,45,FALSE,TRUE,TRUE
+"discrete-subjects","discrete","NBI","C","n_subjects",250,4,5,1000,1,6,6,6,0,"",7.84999999999999,7.21249999999998,8.5475,0.779621424235028,6.39499999999999,9.97,0.1,15,45,FALSE,TRUE,TRUE
+"discrete-visits","discrete","NBI","C","n_visits",100,8,5,800,1,6,6,6,0,"",6.90999999999999,6.04999999999999,7.55999999999999,0.642827295111337,5.45999999999999,8.10999999999999,0.1,15,45,FALSE,TRUE,TRUE

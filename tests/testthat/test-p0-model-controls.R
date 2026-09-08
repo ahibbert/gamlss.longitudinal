@@ -62,36 +62,40 @@ test_that("fit control normalization preserves compatibility switches", {
   expect_true(controls$vcov_numderiv)
 })
 
-test_that("fit control normalization preserves existing validation messages", {
+test_that("fit control normalization uses concise validation messages", {
   expect_error(
     normalize_fit_controls(backtracking_max_halves = -1),
-    "backtracking_max_halves must be a single non-negative integer",
+    "`backtracking_max_halves` must be a single non-negative integer.",
     fixed = TRUE
   )
   expect_error(
     normalize_fit_controls(method = "bad"),
-    "method must be one of 'RS' or 'CG'",
+    "`method` must be one of \"RS\" or \"CG\".",
     fixed = TRUE
   )
   expect_error(
     normalize_fit_controls(warm_start_joint = NA),
-    "warm_start_joint must be TRUE or FALSE",
+    "`rs$warm_start_joint` must be TRUE or FALSE.",
     fixed = TRUE
   )
 })
 
 test_that("fit-control scalar normalizers preserve validation contracts", {
-  expect_equal(gamlss.longitudinal:::.gl_normalize_backtracking_halves(2.9), 2L)
+  expect_error(
+    gamlss.longitudinal:::.gl_normalize_backtracking_halves(2.9),
+    "`backtracking_max_halves` must be a single non-negative integer.",
+    fixed = TRUE
+  )
   expect_error(
     gamlss.longitudinal:::.gl_normalize_backtracking_halves(NA_real_),
-    "backtracking_max_halves must be a single non-negative integer",
+    "`backtracking_max_halves` must be a single non-negative integer.",
     fixed = TRUE
   )
 
   expect_equal(gamlss.longitudinal:::.gl_validate_rs_smooth_trust_radius(Inf), Inf)
   expect_error(
     gamlss.longitudinal:::.gl_validate_rs_smooth_trust_radius(0),
-    "rs_smooth_trust_radius must be a single positive numeric value or Inf",
+    "`rs$smooth_trust_radius` must be a single positive number or Inf.",
     fixed = TRUE
   )
 
@@ -106,15 +110,28 @@ test_that("fit-control scalar normalizers preserve validation contracts", {
 
 test_that("CG fit-control normalizers preserve NA-as-Inf and fallback policies", {
   expect_equal(gamlss.longitudinal:::.gl_normalize_cg_line_search_evals(NA), Inf)
-  expect_equal(gamlss.longitudinal:::.gl_normalize_cg_line_search_evals(4.9), 4L)
+  expect_error(
+    gamlss.longitudinal:::.gl_normalize_cg_line_search_evals(4.9),
+    "`cg$max_line_search_evals` must be a single non-negative integer or NA.",
+    fixed = TRUE
+  )
   expect_error(
     gamlss.longitudinal:::.gl_normalize_cg_line_search_evals(-1),
-    "cg_max_line_search_evals must be a single non-negative integer or NA",
+    "`cg$max_line_search_evals` must be a single non-negative integer or NA.",
     fixed = TRUE
   )
 
+  expect_error(
+    gamlss.longitudinal:::.gl_normalize_cg_lambda_controls(
+      cg_lambda_update_every = 2.8,
+      cg_max_lambda_updates = NA,
+      cg_raw_loglik_drop_tol = NA
+    ),
+    "cg_lambda_update_every must be a positive integer",
+    fixed = TRUE
+  )
   lambda <- gamlss.longitudinal:::.gl_normalize_cg_lambda_controls(
-    cg_lambda_update_every = 2.8,
+    cg_lambda_update_every = 2L,
     cg_max_lambda_updates = NA,
     cg_raw_loglik_drop_tol = NA
   )
@@ -130,7 +147,7 @@ test_that("CG fit-control normalizers preserve NA-as-Inf and fallback policies",
   expect_equal(fallback$cg_max_delta, 0.5)
 })
 
-test_that("step control normalization preserves defaults and automatic messages", {
+test_that("step control normalization is quiet by default and detailed on request", {
   joint_msg <- capture.output(
     joint_controls <- gamlss.longitudinal:::.gl_normalize_step_controls(
       method = "RS",
@@ -144,7 +161,7 @@ test_that("step control normalization preserves defaults and automatic messages"
   expect_equal(joint_controls$start_step_size, 0.5)
   expect_equal(joint_controls$max_steps, 5L)
   expect_equal(joint_controls$step_adjustment, 1)
-  expect_match(paste(joint_msg, collapse = "\n"), "automatic step_adjustment=1 for joint RS", fixed = TRUE)
+  expect_identical(joint_msg, character())
 
   separate_msg <- capture.output(
     separate_controls <- gamlss.longitudinal:::.gl_normalize_step_controls(
@@ -157,7 +174,7 @@ test_that("step control normalization preserves defaults and automatic messages"
     )
   )
   expect_equal(separate_controls$step_adjustment, 1)
-  expect_match(paste(separate_msg, collapse = "\n"), "automatic step_adjustment=1 for separate RS", fixed = TRUE)
+  expect_identical(separate_msg, character())
 
   cg_msg <- capture.output(
     cg_controls <- gamlss.longitudinal:::.gl_normalize_step_controls(
@@ -166,11 +183,11 @@ test_that("step control normalization preserves defaults and automatic messages"
       start_step_size = 0.5,
       max_steps = 5,
       step_adjustment = NA,
-      verbose = 1
+      verbose = 2
     )
   )
   expect_equal(cg_controls$step_adjustment, 1)
-  expect_match(paste(cg_msg, collapse = "\n"), "automatic step_adjustment=1 for CG", fixed = TRUE)
+  expect_match(paste(cg_msg, collapse = "\n"), "Using automatic step adjustment 1 for CG.", fixed = TRUE)
 })
 
 test_that("step control normalization preserves explicit values and validation messages", {
@@ -195,7 +212,7 @@ test_that("step control normalization preserves explicit values and validation m
       step_adjustment = NA,
       verbose = 0
     ),
-    "start_step_size must be a single positive finite numeric value",
+    "`rs$start_step_size` must be a single positive finite number.",
     fixed = TRUE
   )
   expect_error(
@@ -207,7 +224,7 @@ test_that("step control normalization preserves explicit values and validation m
       step_adjustment = NA,
       verbose = 0
     ),
-    "max_steps must be a single non-negative integer",
+    "`rs$max_steps` must be a single non-negative integer.",
     fixed = TRUE
   )
   expect_error(
@@ -219,7 +236,7 @@ test_that("step control normalization preserves explicit values and validation m
       step_adjustment = 0,
       verbose = 0
     ),
-    "step_adjustment must be a single positive numeric value, or NA for the method-specific default",
+    "`rs$step_adjustment` must be a single positive number, or NA for the method-specific default.",
     fixed = TRUE
   )
 })

@@ -13,8 +13,12 @@
 #'   are grouped into one point-and-interval plot per model term and parameter.
 
 #' @param ci_level Confidence level for pointwise intervals.
+#' @param vcov_method Variance-covariance method passed to
+#'   [vcov.gamlss.longitudinal()]. Use `"sandwich"` for a fit created with
+#'   `missingness = "segment"`.
 
-#' @param ncol Number of columns in the combined dashboard.
+#' @param ncol Number of columns in the combined dashboard. The default of
+#'   three is designed to remain legible in package documentation and reports.
 
 #' @param include_intercept Logical; include intercept terms in fixed-effect
 
@@ -47,11 +51,12 @@ plot_terms <- function(
     y = NULL,
     data = NULL,
     ci_level = 0.95,
-    ncol = 4,
+    vcov_method = c("analytical", "numderiv", "analytical_only", "sandwich"),
+    ncol = 3,
     include_intercept = FALSE,
     plot_interactions = FALSE,
-    ci_col = "red",
-    fit_col = "black",
+    ci_col = .gl_plot_colours()[["interval"]],
+    fit_col = .gl_plot_colours()[["fitted"]],
     show_legend = TRUE,
     smooth_even_grid = TRUE,
     smooth_grid_n = 200,
@@ -62,6 +67,7 @@ plot_terms <- function(
     y = y,
     data = data,
     ci_level = ci_level,
+    vcov_method = vcov_method,
     ncol = ncol,
     include_intercept = include_intercept,
     plot_interactions = plot_interactions,
@@ -92,11 +98,12 @@ plot.terms <- function(x, ...) {
     y = NULL,
     data = NULL,
     ci_level = 0.95,
-    ncol = 4,
+    vcov_method = c("analytical", "numderiv", "analytical_only", "sandwich"),
+    ncol = 3,
     include_intercept = FALSE,
     plot_interactions = FALSE,
-    ci_col = "red",
-    fit_col = "black",
+    ci_col = .gl_plot_colours()[["interval"]],
+    fit_col = .gl_plot_colours()[["fitted"]],
     show_legend = TRUE,
     smooth_even_grid = TRUE,
     smooth_grid_n = 200,
@@ -105,8 +112,7 @@ plot.terms <- function(x, ...) {
   if (!inherits(x, "gamlss.longitudinal")) {
     stop("'x' must be a fitted 'gamlss.longitudinal' object.")
   }
-
-  cat("\n=== Plotting term effects for gamlss.longitudinal object ===\n")
+  vcov_method <- match.arg(vcov_method)
 
   counts <- .plot_terms_count(
     x,
@@ -115,18 +121,15 @@ plot.terms <- function(x, ...) {
     plot_interactions = plot_interactions
   )
 
-  cat(sprintf(
-    "Found %d smooth terms and %d fixed terms (total: %d plots).\n\n",
-    counts$smooth, counts$fixed, counts$total
-  ))
-
   if (counts$total == 0) {
     warning("No term plots to display.")
 
-    return(invisible(list(smooth_terms = list(), fixed_terms = list())))
+    return(invisible(.gl_new_plot_result(list(
+      smooth_terms = list(), fixed_terms = list(), dashboard = NULL
+    ))))
   }
 
-  vcov_obj <- .resolve_vcov(x, numderiv = FALSE, extra_args = list(method = "analytical"))
+  vcov_obj <- .resolve_vcov(x, numderiv = FALSE, extra_args = list(method = vcov_method))
 
   smooth_results <- list()
 
@@ -168,9 +171,14 @@ plot.terms <- function(x, ...) {
 
   dashboard <- .plot_terms_render_dashboard(plot_objects, ncol = ncol, paginate = paginate)
 
-  invisible(list(
+  out <- list(
     smooth_terms = smooth_results,
     fixed_terms = fixed_results,
     dashboard = dashboard
-  ))
+  )
+  attr(out, "inference_contract") <- list(
+    fixed = attr(fixed_results, "inference_contract"),
+    smooth = attr(smooth_results, "inference_contract")
+  )
+  invisible(.gl_new_plot_result(out))
 }

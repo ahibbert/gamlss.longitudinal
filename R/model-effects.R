@@ -20,7 +20,11 @@
 
 #' @param se.fit Logical; when `TRUE` and `parameter = "mu"`, attach
 
-#'   approximate delta-method standard errors for response-scale averages.
+#'   exploratory delta-method standard errors for response-scale averages.
+
+#'   They use only the fixed `mu` coefficient block and omit cross-row,
+
+#'   smooth, fixed-smooth, and smoothing-parameter uncertainty.
 
 #' @param level Confidence level used when `se.fit = TRUE`.
 
@@ -31,6 +35,10 @@
 #'
 
 #' @return A data frame with average fitted parameter values and contrasts.
+
+#'   When `se.fit = TRUE`, an `inference_contract` attribute records the exact
+
+#'   conditional approximation and omitted uncertainty.
 
 #' @importFrom stats predict
 
@@ -88,10 +96,31 @@ marginal_effects <- function(
     )
   })
 
-  .gl_finalize_marginal_effects(
+  out <- .gl_finalize_marginal_effects(
     rows = rows,
     reference = reference,
     se.fit = se.fit,
     level = level
   )
+  if (isTRUE(se.fit)) {
+    prediction_contracts <- attr(out, "prediction_inference_contracts")
+    available_contracts <- Filter(Negate(is.null), prediction_contracts)
+    prediction_contract <- if (length(available_contracts)) available_contracts[[1L]] else NULL
+    covariance_contract <- prediction_contract$covariance_contract %||% NULL
+    contract <- .gl_inference_contract(
+      "marginal_effect_mu_delta",
+      coefficient_names = names(object$par)[startsWith(names(object$par), "mu.")],
+      method = prediction_contract$method_used %||% vcov_method,
+      validity_status = prediction_contract$validity_status %||% "unverified_prediction_covariance",
+      failure_states = prediction_contract$observed_failures %||% character()
+    )
+    contract$prediction_contract <- prediction_contract
+    contract$covariance_contract <- covariance_contract
+    contract$method_requested <- prediction_contract$method_requested %||% vcov_method
+    contract$method_used <- prediction_contract$method_used %||% vcov_method
+    contract$fallback_used <- prediction_contract$fallback_used %||% FALSE
+    contract$diagnostics <- prediction_contract$diagnostics %||% NULL
+    out <- .gl_attach_inference_contract(out, contract)
+  }
+  out
 }

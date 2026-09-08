@@ -117,20 +117,7 @@ utils::globalVariables(c(
 #' @noRd
 
 .is_discrete_margin <- function(margin_dist) {
-  family <- as.character(margin_dist$family[1])
-
-  type <- tolower(paste(as.character(margin_dist$type), collapse = " "))
-
-  unsupported_bounded <- c("BB", "DBI", "ZABB", "ZABI", "ZIBB", "ZIBI")
-
-  family %in% c(
-    "PO", "PIG", "NBI", "NBII", "DEL", "SICHEL", "SI",
-    "ZIP", "ZIP2", "ZAP", "DPO", "DNO",
-    "ZINBI", "ZINBII", "ZINBF",
-    "BI"
-  ) ||
-
-    (grepl("discrete|count", type) && !(family %in% unsupported_bounded))
+  identical(.gl_capability_likelihood_route(margin_dist), "exact_discrete_rectangle")
 }
 
 #' Fixed distribution arguments supplied by the longitudinal likelihood

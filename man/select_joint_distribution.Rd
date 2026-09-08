@@ -63,13 +63,15 @@ with elapsed time and an estimated remaining runtime.}
 \item{fit_args}{Optional named list of arguments overriding the default
 \code{\link[=gamlss_longitudinal]{gamlss_longitudinal()}} screening fit settings.}
 
-\item{keep_fits}{Logical; if \code{TRUE}, attach successful fitted models in the
+\item{keep_fits}{Logical; if \code{TRUE}, attach retained fitted models in the
 \code{"fits"} attribute.}
 }
 \value{
 A data frame with one row per margin-copula combination and class
 \code{joint_distribution_selection}. Failed fits are retained with an \code{error}
-message and missing fit metrics.
+message and missing fit metrics. Nonconverged fits retain their provisional
+metrics and stop reason for audit, but have \code{selection_eligible = FALSE},
+receive no rank, and can never be returned by \code{\link[=best_fit]{best_fit()}}.
 }
 \description{
 \code{select_joint_distribution()} screens marginal distribution and copula

@@ -10,6 +10,8 @@ test_that("public profiles and isolated stores are declared", {
   expect_true(any(grepl('c\\("smoke", "paper", "full"\\)', replicate)))
   expect_true(any(grepl('file.path\\("paper", "_targets", profile\\)', replicate)))
   expect_true(any(grepl("expanded.*deprecated", replicate, ignore.case = TRUE)))
+  expect_true(any(grepl("run_error <- tryCatch", replicate, fixed = TRUE)))
+  expect_true(any(grepl("run_error = run_error", replicate, fixed = TRUE)))
 })
 
 test_that("manifest classifies every active artifact without stubs", {
@@ -22,6 +24,13 @@ test_that("manifest classifies every active artifact without stubs", {
   public <- x$access == "public" & x$publication_status == "active"
   expect_true(all(nzchar(x$producer[public])))
   expect_true(all(nzchar(x$generated_path[public])))
+  private <- x$access == "private" & x$publication_status == "active"
+  expect_identical(sum(private), 11L)
+  expect_true(all(x$profiles[private] == ""))
+  expect_true(all(x$generated_path[private] == ""))
+  expect_true(all(grepl("^private-static/", x$manuscript_path[private])))
+  expect_true(all(grepl("^private-label-sha256:[0-9a-f]{64}$", x$manuscript_label[private])))
+  expect_true(all(grepl("^[0-9a-f]{64}$", x$approved_sha256[private])))
 })
 
 test_that("private modules are absent from the public target graph", {
@@ -603,9 +612,24 @@ test_that("publisher is allowlist-only and never commits or edits TeX", {
   root <- local_jss_repo_root()
   code <- paste(readLines(file.path(root, "paper", "publish-assets.R"), warn = FALSE), collapse = "\n")
   expect_true(grepl('access == "public"', code, fixed = TRUE))
+  expect_true(grepl('asset_destination', code, fixed = TRUE))
+  expect_true(grepl('^(charts|tables)/', code, fixed = TRUE))
+  expect_true(grepl('output_extension == "tex"', code, fixed = TRUE))
   expect_false(grepl("main.tex", code, fixed = TRUE))
   expect_false(grepl("git commit", code, fixed = TRUE))
   expect_false(grepl("git push", code, fixed = TRUE))
+})
+
+test_that("paper figure labels and zero-event logs remain publication-readable", {
+  root <- local_jss_repo_root()
+  missingness <- paste(readLines(file.path(root, "paper", "R", "04-missingness-publication-lean.R"), warn = FALSE), collapse = "\n")
+  recovery <- paste(readLines(file.path(root, "paper", "R", "main-recovery-evidence.R"), warn = FALSE), collapse = "\n")
+  helpers <- paste(readLines(file.path(root, "paper", "R", "replication-helpers.R"), warn = FALSE), collapse = "\n")
+  expect_true(grepl("Dropout headline", missingness, fixed = TRUE))
+  expect_true(grepl("MAR sensitivity", missingness, fixed = TRUE))
+  expect_true(grepl('sub("_scaled$", "", x)', recovery, fixed = TRUE))
+  expect_true(grepl("empty_fit_events", helpers, fixed = TRUE))
+  expect_true(grepl("utils::write.csv(empty_fit_events, fit_path", helpers, fixed = TRUE))
 })
 
 test_that("generated reviewer manifest is public-only and portable", {
@@ -619,6 +643,44 @@ test_that("generated reviewer manifest is public-only and portable", {
   expect_true(all(manifest$access == "public"))
   expect_false(any(grepl("rand", manifest$artifact_id, ignore.case = TRUE)))
   expect_false(any(grepl("^([A-Za-z]:|/)", manifest$output_path)))
+})
+
+test_that("manifest validation recomputes and enforces the output hash log", {
+  root <- local_jss_repo_root()
+  env <- new.env(parent = globalenv())
+  source(file.path(root, "paper", "R", "replication-helpers.R"), local = env)
+  out <- tempfile("reviewer-output-hash-"); dir.create(out); dir.create(file.path(out, "tables")); dir.create(file.path(out, "logs"))
+  artifact <- file.path(out, "tables", "example.csv")
+  writeLines(rep("public replication artifact", 10L), artifact, useBytes = TRUE)
+  manifest_path <- file.path(out, "manifest.csv")
+  utils::write.csv(data.frame(
+    artifact_id = "example", artifact_type = "table", output_path = "tables/example.csv",
+    access = "public", publication_status = "active", producer = "test",
+    verification = "canonical_sha256", approved_sha256 = "", stringsAsFactors = FALSE
+  ), manifest_path, row.names = FALSE)
+  hashes_path <- file.path(out, "logs", "output_hashes.csv")
+  hashes <- data.frame(
+    file = c("tables/example.csv", "manifest.csv"),
+    sha256 = vapply(c(artifact, manifest_path), env$jss_file_sha256, character(1)),
+    bytes = unname(file.info(c(artifact, manifest_path))$size), stringsAsFactors = FALSE
+  )
+  utils::write.csv(hashes, hashes_path, row.names = FALSE)
+  expect_true(env$jss_validate_manifest(manifest_path, hashes_path))
+  hashes$sha256[[1L]] <- paste(rep("0", 64L), collapse = "")
+  utils::write.csv(hashes, hashes_path, row.names = FALSE)
+  expect_error(env$jss_validate_manifest(manifest_path, hashes_path), "Output hash verification failed")
+})
+
+test_that("text provenance canonicalizes source and lockfile line endings", {
+  root <- local_jss_repo_root()
+  env <- new.env(parent = globalenv())
+  source(file.path(root, "paper", "R", "replication-helpers.R"), local = env)
+  expect_true(all(env$jss_is_text_path(c("DESCRIPTION", "NAMESPACE", "analysis.R", "renv.lock", "config.yml", "table.csv"))))
+  lf <- tempfile(fileext = ".R"); crlf <- tempfile(fileext = ".R")
+  writeBin(charToRaw("x <- 1\ny <- 2\n"), lf)
+  writeBin(charToRaw("x <- 1\r\ny <- 2\r\n"), crlf)
+  expect_identical(env$jss_file_sha256(lf), env$jss_file_sha256(crlf))
+  expect_false(identical(env$jss_file_sha256(lf, FALSE), env$jss_file_sha256(crlf, FALSE)))
 })
 
 test_that("nonconverged smoke fits are structured events", {
@@ -635,6 +697,21 @@ test_that("nonconverged smoke fits are structured events", {
   audit <- utils::read.csv(path, stringsAsFactors = FALSE)
   expect_equal(nrow(audit), 1L)
   expect_identical(audit$event_type, "optimizer_nonconvergence")
+})
+
+test_that("coverage workflow muffles only recognized convergence warnings", {
+  root <- local_jss_repo_root()
+  env <- new.env(parent = globalenv())
+  source(file.path(root, "paper", "R", "replication-helpers.R"), local = env)
+  typed <- structure(
+    list(message = "new wording", call = NULL),
+    class = c("gamlss.longitudinal_nonconvergence_warning", "warning", "condition")
+  )
+  legacy <- simpleWarning("Model did not converge within max_outer_iter")
+  unrelated <- simpleWarning("input file is missing")
+  expect_true(env$jss_is_expected_coverage_warning(typed))
+  expect_true(env$jss_is_expected_coverage_warning(legacy))
+  expect_false(env$jss_is_expected_coverage_warning(unrelated))
 })
 
 test_that("full-profile tolerance comparisons enforce registered bounds", {

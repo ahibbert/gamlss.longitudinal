@@ -145,8 +145,8 @@ test_that("vcov setup preserves legacy numderiv and parameter override behavior"
   expect_equal(unname(out$eta$theta), 0.25)
 })
 
-test_that("current vcov solve methods do not require legacy derivative matrix", {
-  hessian <- diag(c(2, 4))
+test_that("current vcov solve methods require valid signed likelihood curvature", {
+  hessian <- -diag(c(2, 4))
   dimnames(hessian) <- list(c("a", "b"), c("a", "b"))
 
   out <- gamlss.longitudinal:::.gl_vcov_solve_if_needed(
@@ -158,10 +158,15 @@ test_that("current vcov solve methods do not require legacy derivative matrix", 
     ),
     method = "numderiv",
     d2_mat = NULL,
-    response = c(1, 2, 3)
+    response = c(1, 2, 3),
+    gradient = list(
+      gradient = c(a = 0, b = 0),
+      steps = c(1e-4, 1e-4),
+      scaled_max = 0
+    )
   )
 
-  expect_equal(out$vcov_final, -solve(hessian))
-  expect_equal(out$se_final, sqrt(diag(solve(hessian))))
+  expect_equal(out$vcov_final, solve(-hessian))
+  expect_equal(out$se_final, sqrt(diag(solve(-hessian))))
   expect_true(is.list(out$hessian_diagnostics))
 })

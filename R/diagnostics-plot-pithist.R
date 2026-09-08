@@ -1,6 +1,6 @@
 #' @export
-pithist.gamlss.longitudinal <- function(object, bins = 20, randomize = FALSE, plot = TRUE, by_time = FALSE, by = NULL, data = NULL, ...) {
-  pit_out <- .gl_pit(object, randomize = randomize)
+pithist.gamlss.longitudinal <- function(object, bins = 20, randomize = NULL, seed = 1L, plot = TRUE, by_time = FALSE, by = NULL, data = NULL, ...) {
+  pit_out <- .gl_pit(object, randomize = randomize, seed = seed)
 
   pit <- pit_out$pit
 
@@ -23,11 +23,11 @@ pithist.gamlss.longitudinal <- function(object, bins = 20, randomize = FALSE, pl
 
     return(
       ggplot2::ggplot(pit_df, ggplot2::aes(x = pit)) +
-        ggplot2::geom_histogram(breaks = seq(0, 1, length.out = bins + 1L), closed = "right", fill = "#2c7fb8", color = "white") +
-        ggplot2::geom_hline(yintercept = expected, linetype = "dashed", linewidth = 0.4, color = "#444444") +
+        ggplot2::geom_histogram(breaks = seq(0, 1, length.out = bins + 1L), closed = "right", fill = .gl_plot_colours()[["fitted"]], color = "white") +
+        ggplot2::geom_hline(yintercept = expected, linetype = "dashed", linewidth = 0.4, color = .gl_plot_colours()[["reference"]]) +
         ggplot2::scale_x_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.25), expand = c(0, 0)) +
         ggplot2::labs(x = "PIT", y = "Count", title = "PIT Histogram") +
-        ggplot2::theme_minimal()
+        theme_gamlss_longitudinal()
     )
   }
 
@@ -36,10 +36,10 @@ pithist.gamlss.longitudinal <- function(object, bins = 20, randomize = FALSE, pl
   names(expected_df)[2] <- "expected"
 
   ggplot2::ggplot(pit_df, ggplot2::aes(x = pit)) +
-    ggplot2::geom_histogram(breaks = seq(0, 1, length.out = bins + 1L), closed = "right", fill = "#2c7fb8", color = "white") +
-    ggplot2::geom_hline(data = expected_df, ggplot2::aes(yintercept = expected), linetype = "dashed", linewidth = 0.4, color = "#444444") +
+    ggplot2::geom_histogram(breaks = seq(0, 1, length.out = bins + 1L), closed = "right", fill = .gl_plot_colours()[["fitted"]], color = "white") +
+    ggplot2::geom_hline(data = expected_df, ggplot2::aes(yintercept = expected), linetype = "dashed", linewidth = 0.4, color = .gl_plot_colours()[["reference"]]) +
     ggplot2::facet_wrap(~split_group, scales = "free_y") +
     ggplot2::scale_x_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.25), expand = c(0, 0)) +
     ggplot2::labs(x = "PIT", y = "Count", title = paste0("PIT Histogram by ", split_info$by)) +
-    ggplot2::theme_minimal()
+    theme_gamlss_longitudinal()
 }

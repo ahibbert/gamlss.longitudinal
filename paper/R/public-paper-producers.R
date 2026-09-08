@@ -1,22 +1,33 @@
 jss_run_public_workflow_figures <- function(settings) {
   set.seed(settings$seed + 1L)
   intro <- file.path(settings$figures_dir, "intro - copula examples.png")
-  grDevices::png(intro, width = 2400, height = 650, res = 220, bg = "white")
-  old <- graphics::par(mfrow = c(1, 4), mar = c(3, 3, 2, 1))
-  on.exit(graphics::par(old), add = TRUE)
   examples <- list(
     list(name = "Gaussian", family = 1, par = sin(pi / 4), par2 = 0),
     list(name = "Student t (df = 4)", family = 2, par = sin(pi / 4), par2 = 4),
     list(name = "Clayton", family = 3, par = 2, par2 = 0),
     list(name = "Gumbel", family = 4, par = 2, par2 = 0)
   )
-  for (example in examples) {
+  intro_data <- do.call(rbind, lapply(examples, function(example) {
     uv <- VineCopula::BiCopSim(450, family = example$family, par = example$par, par2 = example$par2)
-    graphics::plot(uv[, 1], uv[, 2], pch = 16, cex = 0.35,
-      col = grDevices::adjustcolor("#0072B2", 0.45), xlab = "u", ylab = "v",
-      main = example$name)
-  }
-  grDevices::dev.off()
+    data.frame(u_t = uv[, 1], u_next = uv[, 2], copula = example$name)
+  }))
+  intro_data$copula <- factor(intro_data$copula, levels = vapply(examples, `[[`, character(1), "name"))
+  intro_plot <- ggplot2::ggplot(intro_data, ggplot2::aes(.data$u_t, .data$u_next)) +
+    ggplot2::geom_point(colour = "#0072B2", alpha = 0.42, size = 0.55) +
+    ggplot2::facet_wrap(~copula, nrow = 1) +
+    ggplot2::coord_equal(xlim = c(0, 1), ylim = c(0, 1), expand = FALSE) +
+    ggplot2::scale_x_continuous(
+      breaks = c(0, 0.5, 1),
+      labels = c("0", ".5", "1")
+    ) +
+    ggplot2::scale_y_continuous(
+      breaks = c(0, 0.5, 1),
+      labels = c("0", ".5", "1")
+    ) +
+    ggplot2::labs(x = expression(U[t]), y = expression(U[t + 1])) +
+    gamlss.longitudinal::theme_gamlss_longitudinal(base_size = 10) +
+    ggplot2::theme(panel.spacing.x = grid::unit(8, "pt"))
+  ggplot2::ggsave(intro, intro_plot, width = 10.8, height = 3.1, dpi = 220, bg = "white")
 
   set.seed(settings$seed + 2L)
   dat <- gamlss.longitudinal::simulate_longitudinal_dataset(
@@ -28,21 +39,25 @@ jss_run_public_workflow_figures <- function(settings) {
   dist <- file.path(settings$figures_dir, "software - plot_dist.png")
   dist_dat <- dat[dat$time %in% sort(unique(dat$time))[1:2], , drop = FALSE]
   p <- gamlss.longitudinal::plot_dist(
-    dataset = dist_dat, margin_dist = gamlss.dist::BCPE(),
+    data = dist_dat, margin_dist = gamlss.dist::BCPE(),
     subject_var = "subject", time_var = "time", response_var = "response"
   )
   ggplot2::ggsave(dist, p, width = 8.5, height = 7.0, dpi = 320, bg = "white")
 
   diag <- file.path(settings$figures_dir, "software - plot_copula_diagnostics.png")
   fit <- suppressWarnings(gamlss.longitudinal::gamlss_longitudinal(
-    dataset = dat, margin_dist = gamlss.dist::BCPE(), copula_dist = "t",
+    data = dat, margin_dist = gamlss.dist::BCPE(), copula_dist = "t",
     time_var = "time", subject_var = "subject", mu.formula = response ~ 1,
     sigma.formula = ~1, nu.formula = ~1, tau.formula = ~1,
-    theta.formula = ~1, zeta.formula = ~1, max_outer_iter = 4L,
-    max_inner_iter = 4L, max_elapsed_sec = 30, compute_vcov = FALSE, verbose = 0
+    theta.formula = ~1, zeta.formula = ~1,
+    optimizer_control = gamlss.longitudinal::gamlss_longitudinal_control(
+      max_outer_iter = 4L, max_elapsed_sec = 30,
+      rs = list(max_inner_iter = 4L)
+    ),
+    compute_vcov = FALSE, verbose = 0
   ))
   diagnostics <- suppressWarnings(gamlss.longitudinal::plot_copula_diagnostics(
-    fit, residual_lags = 1:2, plot = TRUE
+    fit, type = "all", residual_lags = 1:2, plot = FALSE
   ))
   wrap_label <- function(x, width) {
     if (is.null(x) || !length(x) || is.na(x)) return(x)
@@ -191,7 +206,7 @@ jss_run_03_full_bundle <- function(settings, bundle, reps = NULL) {
   )
 }
 
-jss_run_03_joint_vs_separate_full <- function(settings) {
+jss_legacy_run_03_joint_vs_separate_full <- function(settings) {
   specs <- jss_jvs_full_bundle_specs()
   runs <- lapply(specs$bundle, function(bundle) jss_run_03_full_bundle(settings, bundle))
   list(
@@ -201,8 +216,8 @@ jss_run_03_joint_vs_separate_full <- function(settings) {
   )
 }
 
-jss_run_03_joint_vs_separate <- function(settings) {
-  if (identical(settings$profile, "full")) return(jss_run_03_joint_vs_separate_full(settings))
+jss_legacy_run_03_joint_vs_separate <- function(settings) {
+  if (identical(settings$profile, "full")) return(jss_legacy_run_03_joint_vs_separate_full(settings))
   src <- file.path(settings$public_data_dir, "joint-vs-separate")
   names <- c("normal-joint-vs-separate-six-case-median-iqr-table.tex", "gamma-joint-vs-separate-six-case-median-iqr-table.tex", "negative-binomial-joint-vs-separate-six-case-median-iqr-table.tex")
   out <- file.path(settings$tables_dir, names)
@@ -222,27 +237,104 @@ jss_run_03_joint_vs_separate <- function(settings) {
 
 jss_run_07_from_public_results <- function(settings) {
   paths <- jss_misspec_paths(settings)
-  results <- utils::read.csv(file.path(settings$public_data_dir, "copula-misspecification", "results.csv"), stringsAsFactors = FALSE)
+  config <- jss_misspec_config(settings, stage = "full")
+  public_results <- file.path(settings$public_data_dir, "copula-misspecification", "results.csv")
+  results <- jss_submission_validate_copula(public_results, settings$root)
+  source_manifest <- jss_misspec_evidence_paths(public_results)[["execution_manifest"]]
+  manifest <- utils::read.csv(source_manifest, stringsAsFactors = FALSE, check.names = FALSE)
+  identity_fields <- c("producer_sha256", "package_source_sha256", "configuration_sha256")
+  if (nrow(manifest) != 1L || !all(identity_fields %in% names(manifest)) ||
+      any(!grepl("^[0-9a-f]{64}$", unlist(manifest[identity_fields], use.names = FALSE)))) {
+    stop("Module 07 public input lacks its generation-time source identity.", call. = FALSE)
+  }
+  evidence_config <- config
+  for (field in identity_fields) evidence_config[[field]] <- manifest[[field]][[1L]]
+  jss_misspec_validate_config(evidence_config, require_callr = FALSE, verify_source = FALSE)
+  evidence_grid <- jss_misspec_grid(evidence_config)
+  jss_misspec_validate_public_full_bundle(results, evidence_grid, evidence_config)
   results <- jss_misspec_add_deltas(results)
   summary <- jss_misspec_summary(results)
+  selection_attempts <- jss_misspec_selection_attempts(results)
   selection <- jss_misspec_selection(results)
-  utils::write.csv(results, paths$results, row.names = FALSE)
-  utils::write.csv(summary, paths$summary, row.names = FALSE)
-  utils::write.csv(selection, paths$selection, row.names = FALSE)
+  selection_confusion <- jss_misspec_selection_confusion(selection_attempts, criterion = "aic")
+  selection_failures <- jss_misspec_selection_failures(selection_attempts)
+  paired_effects <- jss_misspec_paired_effects(results)
+  warning_audit <- jss_misspec_warning_audit(results)
+  jss_misspec_write_csv_atomic(evidence_grid, paths$grid)
+  jss_misspec_write_csv_atomic(results, paths$results)
+  jss_misspec_write_csv_atomic(summary, paths$summary)
+  jss_misspec_write_csv_atomic(selection, paths$selection)
+  jss_misspec_write_csv_atomic(selection_attempts, paths$selection_attempts)
+  jss_misspec_write_csv_atomic(selection_confusion, paths$selection_confusion)
+  jss_misspec_write_csv_atomic(selection_failures, paths$selection_failures)
+  jss_misspec_write_csv_atomic(paired_effects, paths$paired_effects)
+  jss_misspec_write_csv_atomic(warning_audit, paths$warning_audit)
+  jss_misspec_write_csv_atomic(manifest, paths$execution_manifest)
   jss_misspec_write_paper_summary_heatmap(summary, paths$paper_summary_heatmap)
-  list(module_id = "07-gamma-copula-misspecification", status = "regenerated", data = paths$results,
-    tables = c(paths$summary, paths$selection), figures = paths$paper_summary_heatmap)
+  installed_results <- utils::read.csv(paths$results, stringsAsFactors = FALSE, check.names = FALSE)
+  review <- jss_misspec_binding_review_gate(
+    installed_results, grid = evidence_grid, paths = paths,
+    context = "paper-public-derived", config = evidence_config
+  )
+  jss_misspec_write_csv_atomic(review[c("check", "status", "detail")], paths$review)
+  list(module_id = "07-gamma-copula-misspecification", status = "regenerated",
+    data = c(paths$grid, paths$results, paths$selection_attempts, paths$execution_manifest),
+    tables = c(paths$summary, paths$selection, paths$selection_confusion, paths$selection_failures,
+      paths$paired_effects, paths$warning_audit, paths$review),
+    figures = paths$paper_summary_heatmap)
 }
 
-jss_run_08_public <- function(settings) {
-  if (identical(settings$profile, "full")) return(jss_run_08_full(settings))
+# Deferred from the current submission target graph. Retained for future work;
+# see paper/DEFERRED-MULTIVARIATE-STUDY.md.
+jss_run_phase2_multivariate_benchmark <- function(settings) {
+  configured <- Sys.getenv("GAMLSS_LONGITUDINAL_MVT_APPROVED_RUN_DIR", unset = "")
+  source <- if (nzchar(configured)) configured else
+    file.path(settings$public_data_dir, "multivariate-benchmark")
+  if (!dir.exists(source)) {
+    stop("Approved Module 09 snapshot bundle is missing: ", source, call. = FALSE)
+  }
+  attestation <- if (!is.null(settings$multivariate_benchmark_attestation)) {
+    settings$multivariate_benchmark_attestation
+  } else {
+    mvt_phase2_snapshot_attestation_path()
+  }
+  signature <- if (!is.null(settings$multivariate_benchmark_signature)) {
+    settings$multivariate_benchmark_signature
+  } else mvt_phase2_snapshot_signature_path()
+  source_identity <- mvt_validate_phase2_claim_evidence(source, attestation, signature)
+  destination <- file.path(settings$data_dir, "multivariate-benchmark")
+  if (dir.exists(destination)) {
+    installed_identity <- mvt_validate_phase2_claim_evidence(destination, attestation, signature)
+    if (!identical(source_identity, installed_identity)) {
+      stop("Existing Module 09 public integration does not match the approved source snapshot.", call. = FALSE)
+    }
+    integration <- c(installed_identity, list(integration_dir = destination))
+  } else {
+    integration <- mvt_integrate_approved_phase2_snapshot(source, destination, attestation, signature)
+  }
+  allowlist <- mvt_phase2_public_output_allowlist()
+  attempt <- file.path(destination, allowlist$attempt_artifacts)
+  evidence <- file.path(destination, allowlist$evidence_artifacts)
+  if (!all(file.exists(c(attempt, evidence)))) {
+    stop("Approved Module 09 integration is missing an exact allowlisted artifact.", call. = FALSE)
+  }
+  list(
+    module_id = "09-simulation-multivariate-longitudinal", status = "current",
+    data = attempt, tables = evidence, figures = character(),
+    approved_identity = integration,
+    notes = "Exact approved t20 x four-family x four-dependence x R=100 benchmark snapshot."
+  )
+}
+
+jss_legacy_run_08_public <- function(settings) {
+  if (identical(settings$profile, "full")) return(jss_legacy_run_08_full(settings))
   old <- Sys.getenv("GAMLSS_LONGITUDINAL_JSS_CORR_MISSPEC_RUN_DIR", unset = NA_character_)
   on.exit(if (is.na(old)) Sys.unsetenv("GAMLSS_LONGITUDINAL_JSS_CORR_MISSPEC_RUN_DIR") else Sys.setenv(GAMLSS_LONGITUDINAL_JSS_CORR_MISSPEC_RUN_DIR = old), add = TRUE)
   Sys.setenv(GAMLSS_LONGITUDINAL_JSS_CORR_MISSPEC_RUN_DIR = file.path(settings$public_data_dir, "correlation-misspecification"))
   jss_run_08_simulation_sensitivity_correlation_misspecification(settings)
 }
 
-jss_run_08_full <- function(settings) {
+jss_legacy_run_08_full <- function(settings) {
   scripts <- file.path(settings$root, "paper", "R", "08-simulation-sensitivity-correlation-misspecification", "standard-model-benchmarking")
   output_root <- file.path(settings$data_dir, "correlation-misspecification-full")
   base_env <- c(

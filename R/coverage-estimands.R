@@ -50,7 +50,24 @@
     KEEP.OUT.ATTRS = FALSE
   )
 
+  route_supported <- mapply(
+    .gl_capability_route_supported,
+    grid$family,
+    grid$copula,
+    USE.NAMES = FALSE
+  )
+  excluded_routes <- grid[!route_supported, c("family", "copula"), drop = FALSE]
+  grid <- grid[route_supported, , drop = FALSE]
+  if (nrow(grid) == 0L) {
+    .gl_capability_stop(
+      "gamlss_longitudinal_unsupported_route_error",
+      "No requested coverage family-copula combinations are registered as supported."
+    )
+  }
+
   grid$case_id <- seq_len(nrow(grid))
+
+  attr(grid, "excluded_by_capability_registry") <- unique(excluded_routes)
 
   grid
 }
@@ -62,7 +79,7 @@
 #' @noRd
 
 .coverage_supported_copulas <- function() {
-  c("N", "C", "F", "G", "J", "t")
+  .gl_capability_all_copulas()
 }
 
 #' @keywords internal
@@ -105,27 +122,6 @@
 
 #' @noRd
 
-.coverage_family_overrides <- function() {
-  data.frame(
-    family = c(
-      "BI", "BB", "DBI", "ZABB", "ZABI", "ZIBB", "ZIBI",
-      "LG",
-      "MN3", "MN4", "MN5"
-    ),
-    supported = FALSE,
-    unsupported_reason = c(
-      rep("requires denominator/bounded-binomial response support not yet represented in the coverage likelihood calls", 7L),
-      "logarithmic-series family needs family-specific starting/support handling before it can be all-method comparable",
-      rep("ordinal/multinomial response support needs a family-specific simulation and likelihood path", 3L)
-    ),
-    stringsAsFactors = FALSE
-  )
-}
-
-#' @keywords internal
-
-#' @noRd
-
 .coverage_family_catalog <- function(include_mixed = FALSE) {
   requireNamespace("gamlss.dist", quietly = TRUE)
 
@@ -156,12 +152,20 @@
 
     mixed <- grepl("mixed", type, ignore.case = TRUE)
 
-    supported <- has_qpd && (!mixed || isTRUE(include_mixed))
+    registry_spec <- .gl_capability_margin_spec(family_name)
+
+    registered <- !is.null(registry_spec) && identical(registry_spec$status, "supported")
+
+    supported <- has_qpd && registered && !mixed
 
     unsupported_reason <- if (!has_qpd) {
       "missing q/p/d function"
-    } else if (mixed && !isTRUE(include_mixed)) {
-      "mixed support families are excluded from the default coverage grid"
+    } else if (mixed) {
+      "mixed continuous-discrete families have no registered longitudinal pair likelihood"
+    } else if (!registered && !is.null(registry_spec)) {
+      registry_spec$limitations
+    } else if (!registered) {
+      "not in the conservative end-to-end capability registry"
     } else {
       NA_character_
     }
@@ -170,6 +174,7 @@
       family = family_name,
       type = type,
       parameters = paste(names(family_obj$parameters), collapse = ","),
+      registry_version = .gl_capability_registry_version(),
       supported = supported,
       unsupported_reason = unsupported_reason,
       stringsAsFactors = FALSE
@@ -179,20 +184,6 @@
   out <- do.call(rbind, rows[!vapply(rows, is.null, logical(1))])
 
   out <- out[!duplicated(out$family), , drop = FALSE]
-
-  overrides <- .coverage_family_overrides()
-
-  override_idx <- match(overrides$family, out$family)
-
-  override_idx <- override_idx[!is.na(override_idx)]
-
-  if (length(override_idx) > 0L) {
-    matched <- match(out$family[override_idx], overrides$family)
-
-    out$supported[override_idx] <- overrides$supported[matched]
-
-    out$unsupported_reason[override_idx] <- overrides$unsupported_reason[matched]
-  }
 
   out[order(out$family), , drop = FALSE]
 }

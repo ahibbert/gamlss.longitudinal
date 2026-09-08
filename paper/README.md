@@ -14,6 +14,8 @@ the authoring front door before changing the manuscript:
   JSS article.
 - `jss-submission-checklist.md`: blocking gates for manuscript, package,
   replication, and submission packaging readiness.
+- `phase2-acceptance-ledger.md`: the simplified public-evidence gate and its
+  executed acceptance checks.
 - `manuscript/jss-skeleton.tex`: JSS-style manuscript source skeleton.
 
 The main-paper example must be public, package-shipped, or fully simulated.
@@ -66,28 +68,40 @@ files), while `logs/provenance-hashes.csv` hashes the completed run logs.
 ## Public analysis modules
 
 The public graph contains the introductory and BCPE/t software-workflow figures
-plus six analysis modules:
+plus five evidence modules:
 
-1. BCPE/t recovery from tracked replicate-level public inputs (`paper`) or a
-   checkpointed 100-replicate rerun (`full`).
-2. NBI/Clayton recovery from tracked replicate-level public inputs (`paper`) or
-   a checkpointed 100-replicate rerun (`full`).
-3. Joint-versus-separate tables rebuilt from tracked per-replicate deltas, with
-   the published 10/100/100 replicate designs rerun with checkpoints in `full`.
-4. Missingness/dropout figures rebuilt from tracked aggregate simulation inputs,
-   with the published 20-replicate checkpointed study rerun in `full`.
-5. Gamma-margin copula-family misspecification summaries and heatmap.
-6. Correlation-structure misspecification and standard-model benchmarking.
+1. Main recovery: BCPE/t and NBI/Clayton results from tracked replicate-level
+   public inputs (`paper`), based on 100 data-generating replicates per study.
+2. Joint-versus-separate optimization: a supplementary three-scenario paired
+   RS benchmark with 97 retained pairs per scenario.
+3. Missingness/dropout: monotone dropout as the headline analysis and
+   time-dependent intermittent MAR as a sensitivity analysis.
+4. Gamma-margin copula-family misspecification summaries and heatmap.
+5. Fit-scaling evidence, with runtimes explicitly limited to the recorded
+   execution environment.
 
 `smoke` instead runs small new public simulations and representative workflow
-figures. `paper` never reads ignored local results. `full` uses fixed seeds and
-resumable checkpoints before rebuilding the same publication interfaces. Its
-final validation compares 2,000+ grouped estimands against the approved public
-inputs using `paper/tolerances.csv`; missing comparison rows and values outside
-the registered absolute-plus-relative bounds fail the pipeline.
+figures. `paper` never reads ignored local results and is the portable Phase 2
+acceptance build. `full` remains available as an optional, checkpointed
+author-side recomputation; it is not required for an ordinary reviewer pass.
+Reviewer-facing validation checks versioned schemas, complete scenario and
+replicate keys, lifecycle denominators, finite numeric fields, and reconstruction
+of the reported summaries from their analysis-ready inputs. It does not require
+an author-held signing key or compare thousands of incidental intermediate
+quantities. The deferred multivariate comparison is documented in
+`DEFERRED-MULTIVARIATE-STUDY.md` and is not part of the submission gate.
+For approved main-recovery results, the `paper` profile validates the recorded
+source manifest and internal provenance carried by the bundle. The stricter
+`source_policy = "current"` check is reserved for production and approval: it
+requires the bundle to match the exact current producer and package source tree.
+This distinction keeps historical results verifiable after interface-only
+package releases without representing them as newly computed results.
+Manuscript claim wording and exact display selectors are tracked in the generated
+Phase 3 checklist but do not block the Phase 2 evidence gate; the separate
+manuscript audit continues to fail until those authoring tasks are resolved.
 
 The manifest records which artifact belongs to each module, its input bundle,
-verification policy, approved paper hash, and publication status. Public inline
+verification policy, optional reference hash, and publication status. Public inline
 tables that still need conversion to generated `\\input{tables/...}` assets are
 listed in `overleaf-inline-table-checklist.md`.
 

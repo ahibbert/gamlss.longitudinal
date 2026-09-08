@@ -1,6 +1,9 @@
 #' Check whether a fitted object can reuse its stored vcov output
 #'
 #' @noRd
+.gl_vcov_cache_version <- function() 1L
+
+#' @noRd
 .can_use_cached_vcov <- function(object, numderiv = FALSE, method = NULL, extra_args = list()) {
   if (!inherits(object, "gamlss.longitudinal")) {
     return(FALSE)
@@ -15,6 +18,14 @@
   }
 
   if (is.null(object$vcov) || !is.list(object$vcov)) {
+    return(FALSE)
+  }
+
+  if (!identical(object$vcov_meta$cache_version, .gl_vcov_cache_version())) {
+    return(FALSE)
+  }
+
+  if (identical(object$vcov$hessian_diagnostics$status, "unavailable")) {
     return(FALSE)
   }
 
@@ -43,8 +54,16 @@
 .resolve_vcov <- function(object, numderiv = FALSE, extra_args = list()) {
   vcov_method <- extra_args$method %||% if (isTRUE(numderiv)) "numderiv" else "analytical"
 
+  stored_unavailable <- identical(object$vcov_meta$inference_status, "unavailable")
+  stored_method <- object$vcov_meta$method %||% "analytical"
+  explicit_revalidation <- !is.null(extra_args$inference) ||
+    !identical(as.character(vcov_method)[1], as.character(stored_method)[1])
+  if (stored_unavailable && !explicit_revalidation) {
+    stop(.gl_inference_unavailable(object$vcov_meta$hessian_diagnostics))
+  }
+
   if (.can_use_cached_vcov(object, numderiv = numderiv, method = vcov_method, extra_args = extra_args)) {
-    return(object$vcov)
+    return(.gl_enrich_vcov_contract(object$vcov, object))
   }
 
   if (is.null(extra_args$method)) {
@@ -53,6 +72,6 @@
 
   do.call(
     vcov.gamlss.longitudinal,
-    c(list(object = object, numderiv = numderiv), extra_args)
+    c(list(object = object, numderiv = numderiv, details = TRUE), extra_args)
   )
 }

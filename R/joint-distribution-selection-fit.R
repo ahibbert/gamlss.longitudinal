@@ -25,7 +25,7 @@
       copula_time_intercepts = copula_time_intercepts
     )
     default_args <- list(
-      dataset = data,
+      data = data,
       margin_dist = margin_dist,
       copula_dist = copula_family,
       time_var = time_var,
@@ -36,11 +36,21 @@
       tau.formula = formulas$par_formula,
       theta.formula = formulas$theta_formula,
       zeta.formula = ~1,
-      include_dlcopdpar = TRUE,
+      optimization = "joint",
       compute_vcov = FALSE,
-      warm_start_joint = FALSE,
+      optimizer_control = gamlss_longitudinal_control(
+        rs = list(warm_start_joint = FALSE)
+      ),
       verbose = 0
     )
+    legacy_optimizer_names <- c(
+      names(.gl_legacy_optimizer_map()),
+      "use_backtracking", "backtracking_max_halves"
+    )
+    if (any(names(fit_args) %in% legacy_optimizer_names)) {
+      default_args$optimizer_control <- NULL
+      default_args$warm_start_joint <- FALSE
+    }
     args <- utils::modifyList(default_args, fit_args)
     fit <- tryCatch(
       withCallingHandlers(

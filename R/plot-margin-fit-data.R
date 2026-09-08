@@ -118,14 +118,14 @@
 .plot_margin_fit_plot <- function(obs, density_grid, margin_dist, bins = 30, by_time = FALSE) {
   family_name <- .plot_margin_family_name(margin_dist)
   p <- ggplot2::ggplot(obs, ggplot2::aes(x = .data$response)) +
-    ggplot2::geom_histogram(ggplot2::aes(y = ggplot2::after_stat(density)), bins = bins, fill = "#d9d9d9", color = "white", na.rm = TRUE) +
-    ggplot2::geom_line(data = density_grid, ggplot2::aes(x = .data$response, y = .data$density), inherit.aes = FALSE, color = "#e41a1c", linewidth = 1) +
+    ggplot2::geom_histogram(ggplot2::aes(y = ggplot2::after_stat(density)), bins = bins, fill = .gl_plot_colours()[["neutral"]], color = "white", na.rm = TRUE) +
+    ggplot2::geom_line(data = density_grid, ggplot2::aes(x = .data$response, y = .data$density), inherit.aes = FALSE, color = .gl_plot_colours()[["fitted"]], linewidth = 1) +
     ggplot2::labs(
       title = paste0("Marginal Fit: ", family_name),
       x = "Response",
       y = "Density"
     ) +
-    ggplot2::theme_minimal()
+    theme_gamlss_longitudinal()
 
   if (isTRUE(by_time)) {
     p <- p + ggplot2::facet_wrap(~split_group, scales = "free_y")

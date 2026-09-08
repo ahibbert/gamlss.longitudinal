@@ -1,6 +1,6 @@
 #' Plot marginal and pairwise distribution diagnostics
 #'
-#' @param dataset Optional long-format data frame. Required unless `fit`
+#' @param data Optional long-format data frame. Required unless `fit`
 #'   contains stored data.
 #' @param margin_dist Optional `gamlss.dist` family object used for diagonal
 #'   marginal overlays.
@@ -23,13 +23,12 @@
 #'   used when `overlay = "copula"`.
 #' @param grid_n Grid size used for density overlays.
 #' @param contour_bins Number of copula contour levels.
-#' @param ... Compatibility arguments passed from `plotDist()` to
-#'   `plot_dist()`.
+#' @param ... The deprecated `dataset` alias is accepted temporarily.
 #'
 #' @return A `ggpubr` arranged plot object.
 #' @export
 plot_dist <- function(
-    dataset = NULL,
+    data = NULL,
     margin_dist = NULL,
     subject_var = NULL,
     time_var = NULL,
@@ -43,8 +42,32 @@ plot_dist <- function(
     grid_n = 80,
     contour_bins = 8,
     ...) {
+  data_supplied <- !missing(data)
+  dots <- list(...)
   .plot_reject_old_call_args(sys.call(), old_args = c("dist", "family", "copula"))
-  .plot_reject_old_args(list(...), old_args = c("dist", "family", "copula"))
+  dot_names <- names(dots)
+  if (length(dots) && (is.null(dot_names) || anyNA(dot_names) || any(!nzchar(dot_names)))) {
+    stop("All arguments supplied through `...` must be named.", call. = FALSE)
+  }
+  if (anyDuplicated(dot_names)) {
+    stop("Arguments supplied through `...` must not be duplicated.", call. = FALSE)
+  }
+  old_args <- c("dist", "family", "copula")
+  .plot_reject_old_args(dots[intersect(dot_names, old_args)], old_args = old_args)
+  unknown <- setdiff(dot_names, c("dataset", old_args))
+  if (length(unknown)) {
+    stop("Unused argument", if (length(unknown) > 1L) "s" else "", ": ",
+         paste0("`", unknown, "`", collapse = ", "), ".", call. = FALSE)
+  }
+  if ("dataset" %in% names(dots)) {
+    if (data_supplied) stop("Supply only `data`; do not also supply deprecated `dataset`.", call. = FALSE)
+    .gl_warn_interface_deprecation(
+      "plot_dist_dataset_argument",
+      "`dataset` is deprecated in `plot_dist()`; use `data` instead.",
+      "gamlss.longitudinal_deprecated_dataset_argument"
+    )
+    data <- dots$dataset
+  }
   controls <- .plot_dist_resolve_controls(
     fit = fit,
     offdiag_scale = offdiag_scale,
@@ -58,7 +81,7 @@ plot_dist <- function(
   overlay <- controls$overlay
 
   plot_data <- .plot_dist_normalise_data(
-    dataset = dataset,
+    dataset = data,
     fit = fit,
     subject_var = subject_var,
     time_var = time_var,
@@ -77,7 +100,7 @@ plot_dist <- function(
 
   overlay_state <- .plot_dist_overlay_state(
     fit = fit,
-    dataset = dataset,
+    dataset = data,
     num_margins = num_margins,
     copula_dist = copula_dist
   )

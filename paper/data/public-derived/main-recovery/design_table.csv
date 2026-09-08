@@ -1,0 +1,3 @@
+"schema_version","evidence_status","study_id","scenario_id","margin_family","copula_family","copula_code","n_subjects","n_time","target_replicates","attempted_replicates","replicate_min","replicate_max","data_seed_min","data_seed_max","seed_source","methods","attempted_method_fits"
+"2026-09-05.1","post_phase1_production","bcpe_t_main_recovery","n500_d4","BCPE","t","t",500,4,100,100,1,100,110112,120012,"runner_metadata","gamlss.longitudinal|gamlss2",200
+"2026-09-05.1","post_phase1_production","nbi_clayton_main_recovery","n500_d4_nbi_signal2","NBI","Clayton","C",500,4,100,100,1,100,20261541,20360541,"runner_metadata","gamlss|ours_rs_joint",200

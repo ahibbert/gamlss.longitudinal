@@ -1,0 +1,7 @@
+"schema_version","case_id","case_role","method","failure_reason","failure_count","publication_scope"
+"optimizer-publication-lean-v1","JVS01","base","rs_separate","none",0,"supplementary"
+"optimizer-publication-lean-v1","JVS01","base","rs_joint","none",0,"supplementary"
+"optimizer-publication-lean-v1","JVS02","dependence_strength","rs_separate","none",0,"supplementary"
+"optimizer-publication-lean-v1","JVS02","dependence_strength","rs_joint","none",0,"supplementary"
+"optimizer-publication-lean-v1","JVS03","scale_complexity","rs_separate","none",0,"supplementary"
+"optimizer-publication-lean-v1","JVS03","scale_complexity","rs_joint","none",0,"supplementary"

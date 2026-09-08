@@ -34,7 +34,11 @@ matrices supplied through \code{L} are always tested jointly.}
 \item{...}{Additional arguments passed to \code{\link[=vcov.gamlss.longitudinal]{vcov.gamlss.longitudinal()}}.}
 }
 \value{
-An object of class \code{gamlss_longitudinal_wald_test}.
+An object of class \code{gamlss_longitudinal_wald_test}. Its
+\code{inference_contract} attribute records the contrast coefficient block,
+covariance method (including fallback), conditioning, diagnostics, and
+validity status. Unidentified or singular contrast covariance raises a
+classed \code{gamlss_longitudinal_inference_unavailable} condition.
 }
 \description{
 \code{wald_test()} provides a small reporting-friendly hypothesis-test surface for

@@ -1,7 +1,6 @@
 #' @export
 print.gamlss_longitudinal_missingness_check <- function(x, digits = max(3, getOption("digits") - 3), ...) {
-  cat("\nResponse Missingness Check\n")
-  cat("--------------------------\n")
+  cat("\n<Response missingness check>\n")
   print(x$response, digits = digits, row.names = FALSE)
   cat("\nAssessment:", x$assessment, "\n")
   cat(x$message, "\n", sep = "")
