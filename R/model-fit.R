@@ -171,6 +171,11 @@
 #' @param rs_smooth_trust_radius Numeric; for `method = "RS"` only. Optional
 #' L2 trust radius applied separately to each smooth coefficient block after
 #' the RS weighted least-squares proposal. Use `Inf` to disable.
+#' @param margin_args Named list of fixed marginal-distribution arguments.
+#'   Binomial families require `list(bd = ...)`, where `bd` is either one
+#'   positive integer used for every row or the name of a data column containing
+#'   row-specific trial counts. Other fixed family arguments are not currently
+#'   supported.
 #'
 #' @details
 #' The ordered unique values of `time_var` define the scheduled visit order.
@@ -246,8 +251,12 @@ gamlss_longitudinal <- function(dataset,
                                 lambda_start = NA,
                                 lambda_penalty_K = 2,
                                 rs_update_lambda = TRUE,
-                                rs_smooth_trust_radius = Inf) {
+                                rs_smooth_trust_radius = Inf,
+                                margin_args = list()) {
   missingness <- match.arg(missingness)
+  if (!missing(margin_args) || is.null(attr(margin_dist, "margin_args_spec", exact = TRUE))) {
+    margin_dist <- .gl_attach_margin_args_spec(margin_dist, margin_args)
+  }
   legacy_values <- list(
     inner_stop_crit = inner_stop_crit, outer_stop_crit = outer_stop_crit,
     start_step_size = start_step_size, step_adjustment = step_adjustment,

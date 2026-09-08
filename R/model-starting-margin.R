@@ -1,5 +1,6 @@
 .starting_margin_parameter_values <- function(margin_dist, finite_response, dataset) {
   margin_par_already_eta <- FALSE
+  family <- as.character(margin_dist$family[1])
 
   # Method of moments method for starting values where it's simple, otherwise a brief GAMLSS starting fit. 
   if (margin_dist$family[1] == "GA" | margin_dist$family[1] == "EXP") {
@@ -23,6 +24,20 @@
       mean(finite_response),
       stats::sd(finite_response) / mean(finite_response)
     )
+  } else if (family %in% .gl_binomial_families()) {
+    fixed <- .gl_margin_fixed_family_args(margin_dist, nrow(dataset))
+    observed <- is.finite(dataset$response) & is.finite(fixed$bd)
+    mu_start <- (sum(dataset$response[observed]) + 0.5) /
+      (sum(fixed$bd[observed]) + 1)
+    qfun <- get(paste0("q", family), envir = asNamespace("gamlss.dist"), inherits = FALSE)
+    margin_par <- vapply(names(margin_dist$parameters), function(parameter) {
+      value <- if (identical(parameter, "mu")) mu_start else tryCatch(
+        eval(formals(qfun)[[parameter]], envir = baseenv()), error = function(e) NA_real_
+      )
+      linkfun <- margin_dist[[paste0(parameter, ".linkfun")]]
+      as.numeric(linkfun(value))[1L]
+    }, numeric(1))
+    margin_par_already_eta <- TRUE
   } else {
     cat("Fitting initial GAMLSS model for margin to obtain starting values...\n")
 

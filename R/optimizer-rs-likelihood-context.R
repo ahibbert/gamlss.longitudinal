@@ -39,6 +39,8 @@
     margin_deriv <- .gl_likelihood_evaluate_margin_derivatives(
       margin_deriv_input = margin_deriv_input,
       margin_eval_cache = margin_eval_cache,
+      margin_dist = margin_dist,
+      mm = mm$x,
       response = dataset$response,
       calc_margin_deriv = TRUE,
       margin_deriv_names = margin_deriv_names

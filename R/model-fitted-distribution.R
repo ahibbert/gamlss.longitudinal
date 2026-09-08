@@ -11,6 +11,8 @@
 
   copula_link <- get_copula_dist(object$copula_dist)$copula_link
 
+  margin_dist_use <- object$margin_dist
+
   if (is.null(newdata)) {
     mm_use <- object$model_matrix
 
@@ -21,6 +23,7 @@
     response_subject <- object$response_subject
   } else {
     nd <- .gl_prepare_newdata_internal(object, newdata, require_response = require_response)
+    margin_dist_use <- .gl_bind_margin_args(object$margin_dist, nd)
 
     mm_use <- do.call(
       create_model_matrices,
@@ -58,6 +61,7 @@
   )
 
   margin_params <- eta_out$eta_inv[names(object$margin_dist$parameters)]
+  family_args <- .gl_margin_fixed_family_args(margin_dist_use, length(response))
 
   keep <- rep(TRUE, length(response))
 
@@ -87,10 +91,13 @@
   response_subject <- response_subject[seq_len(common_n)]
 
   margin_params <- lapply(margin_params, function(x) x[seq_len(common_n)])
+  family_args <- lapply(family_args, function(x) x[seq_len(common_n)])
 
   keep <- keep[seq_len(common_n)]
 
   margin_params <- lapply(margin_params, function(x) x[keep])
+  family_args <- lapply(family_args, function(x) x[keep])
+  attr(margin_params, "family_args") <- family_args
 
   response <- response[keep]
 
