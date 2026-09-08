@@ -87,9 +87,11 @@ managed by the model when the relevant observed predictors are included, but
 missingness not at random may affect results. Use `check_missingness()` as a
 first screen for observed-feature associations with response missingness.
 The ordinary likelihood accepts complete panels and observed prefixes followed
-by dropout. Intermittent gaps and leading unobserved scheduled visits error by
-default; use `missingness = "segment"` only when you intend the documented
-between-segment independence assumption.
+by dropout. When intermittent gaps or leading unobserved scheduled visits are
+detected, the default `missingness = "auto"` switches to a segmented likelihood
+and warns about its between-segment independence assumption. Use
+`missingness = "error"` when you want these patterns to stop the fit, or
+`missingness = "segment"` to permit segmentation explicitly.
 
 ```{r missingness-check, eval = FALSE}
 check_missingness(

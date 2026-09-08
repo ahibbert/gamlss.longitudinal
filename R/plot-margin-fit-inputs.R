@@ -68,6 +68,16 @@
 
 #' @keywords internal
 #' @noRd
+.plot_margin_is_discrete <- function(family) {
+  family_type <- as.character(family$type %||% "")[1L]
+  if (nzchar(family_type)) {
+    return(identical(tolower(family_type), "discrete"))
+  }
+  .is_discrete_margin(family)
+}
+
+#' @keywords internal
+#' @noRd
 .plot_margin_response <- function(x = NULL, data = NULL, response_var = "response") {
   if (!is.null(data)) {
     data <- as.data.frame(data, stringsAsFactors = FALSE)
