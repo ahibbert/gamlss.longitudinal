@@ -19,7 +19,9 @@ the authoring front door before changing the manuscript:
 - `manuscript/jss-skeleton.tex`: JSS-style manuscript source skeleton.
 
 The main-paper example must be public, package-shipped, or fully simulated.
-The RAND data module remains outside the public workflow.
+The retired RAND analysis module is not kept in the live submission tree; it
+can be recovered from the
+`archive/pre-submission-exploratory-2026-09-08` tag if it is ever needed.
 
 ## Quick Start
 
