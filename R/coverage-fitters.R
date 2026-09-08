@@ -20,6 +20,7 @@
   .coverage_attach_namespace("gamlss.dist")
 
   margin_dist <- do.call(get(family, envir = asNamespace("gamlss.dist")), list())
+  margin_args <- if (family %in% .gl_binomial_families()) list(bd = 10L) else list()
 
   formulas <- .coverage_fit_formulas(design)
 
@@ -54,7 +55,8 @@
         )
       ),
       compute_vcov = FALSE,
-      verbose = 0
+      verbose = 0,
+      margin_args = margin_args
     )
   }))
 
@@ -86,6 +88,7 @@
   .coverage_attach_namespace("gamlss.dist")
 
   margin_dist <- do.call(get(family, envir = asNamespace("gamlss.dist")), list())
+  margin_args <- if (family %in% .gl_binomial_families()) list(bd = 10L) else list()
 
   formulas <- .coverage_fit_formulas(design)
 
@@ -138,7 +141,8 @@
         start = start_from,
         optimizer_control = optimizer_control,
         compute_vcov = FALSE,
-        verbose = 0
+        verbose = 0,
+        margin_args = margin_args
       )
     }))
 
