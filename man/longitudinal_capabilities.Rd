@@ -16,22 +16,26 @@ A documentation-ready data frame. Every row contains the registry version so
 exported tables retain their provenance.
 }
 \description{
-Returns the versioned, conservative capability registry used by
-\code{gamlss_longitudinal()} and the distribution-selection helpers. The
-presence of a family in \pkg{gamlss.dist}, or of density, distribution, and
-quantile functions, is not by itself a support promise.
+Returns the versioned capability registry used by
+\code{gamlss_longitudinal()} and the distribution-selection helpers. It
+combines explicitly validated paper routes with dynamically discovered pure
+continuous and pure discrete \pkg{gamlss.dist} families that satisfy the
+package's generic family-interface contract.
 }
 \details{
 Each fitted model uses one homogeneous marginal family across visits.
 Continuous routes use a density-times-copula-density likelihood. Supported
 count routes use exact discrete-discrete copula rectangle probabilities.
-Bounded/binomial families without an explicit denominator contract,
-ordinal/multinomial families, mixed continuous-discrete families, and unlisted
-routes are rejected before optimization.
+Bounded/binomial families are supported when the number of trials is supplied
+explicitly with \code{margin_args = list(bd = ...)}. Ordinal/multinomial,
+mixed continuous-discrete, logarithmic-series, and families that do not meet
+the generic interface contract are rejected before optimization.
 
 The public paper routes are BCPE margins with a Student-t copula and NBI
 margins with a Clayton copula. The \code{limitations} and diagnostic columns
-qualify the support available for other registered routes.
+qualify the support available for other registered routes. Dynamically
+discovered families use the Gaussian copula compatibility route; additional
+copulas are listed only where that combination has explicit coverage.
 
 The \code{hessian_path} column records an implemented analytical/numerical
 computation path. It is not a guarantee of valid inference: the fitted Hessian
