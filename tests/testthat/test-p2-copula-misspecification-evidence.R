@@ -5,13 +5,13 @@ local_module07_env <- function() {
   list(root = root, env = env)
 }
 
-test_that("Module 07 uses supported controls and an isolated v2 checkpoint namespace", {
+test_that("Module 07 uses supported controls and an isolated six-family checkpoint namespace", {
   module <- local_module07_env()
   code <- paste(readLines(file.path(module$root, "paper", "R", "07-gamma-copula-misspecification.R"), warn = FALSE), collapse = "\n")
   expect_match(code, "optimizer_control = gamlss.longitudinal::gamlss_longitudinal_control", fixed = TRUE)
   expect_false(grepl("        max_outer_iter = config$max_outer_iter,\n        max_inner_iter", code, fixed = TRUE))
   paths <- module$env$jss_misspec_paths(list(data_dir = "data", tables_dir = "tables", figures_dir = "figures"))
-  expect_identical(basename(paths$checkpoints), "07-gamma-copula-misspecification-checkpoints-ga-nc-v2")
+  expect_identical(basename(paths$checkpoints), "07-gamma-copula-misspecification-checkpoints-ga-six-v1")
 })
 
 test_that("Module 07 paired effects reconstruct analytic same-dataset uncertainty", {
@@ -42,6 +42,12 @@ test_that("Module 07 paired effects reconstruct analytic same-dataset uncertaint
 
 test_that("Module 07 warning audit distinguishes disclosed fallback from fatal unexpected events", {
   env <- local_module07_env()$env
+  expect_identical(
+    env$jss_misspec_warning_class(
+      "Hessian-based inference diagnostics raised a warning (fitted_gradient_too_large)."
+    ),
+    "expected_numerical_fallback"
+  )
   clean <- data.frame(
     fit_id = c("a", "b", "c"), retained = c(TRUE, TRUE, FALSE),
     warnings = c(NA, "Analytical Hessian unavailable; falling back to numerical Hessian.",

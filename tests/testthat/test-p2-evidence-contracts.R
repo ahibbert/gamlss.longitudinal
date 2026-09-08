@@ -378,7 +378,7 @@ test_that("Phase 2 manifest retires superseded evidence and registers current ar
   copula_claim <- claims[claims$claim_id == "p2-copula-selection-attempts", , drop = FALSE]
   expect_identical(nrow(copula_claim), 1L)
   expect_identical(copula_claim$wording_strength, "exact")
-  expect_identical(copula_claim$expected_value, 2400L)
+  expect_identical(copula_claim$expected_value, 3600L)
   expect_false(any(claims$expected_value == 21600L, na.rm = TRUE))
 })
 
@@ -521,8 +521,8 @@ test_that("protected manuscript contains no retired Phase 2 counts or table inpu
   expect_identical(hits, character())
   expect_match(manuscript, "subject-level monotone dropout", fixed = TRUE)
   expect_match(manuscript, "time-dependent intermittent MAR", fixed = TRUE)
-  expect_match(manuscript, "Gaussian and Clayton copulas", fixed = TRUE)
-  expect_match(manuscript, "100 replicates per generating scenario", fixed = TRUE)
+  expect_match(manuscript, "six supported copula families", fixed = TRUE)
+  expect_match(manuscript, "100 replicates per generating family", fixed = TRUE)
 })
 
 test_that("replication output override is explicit and scoped", {

@@ -32,8 +32,8 @@ author-side recomputation.
   399 retained, 81 named failures, 298 expected warnings, and zero unexpected
   warnings. Monotone dropout is the headline and intermittent MAR is a
   sensitivity analysis.
-- The 2,400-fit copula-misspecification bundle and 62-attempt fit-scaling bundle
-  pass their submission schemas and reconstruction checks.
+- The focused 3,600-fit six-by-six copula-misspecification refresh is pending;
+  the 62-attempt fit-scaling bundle passes its submission schema and reconstruction checks.
 - BCPE/t completed all 200 method attempts successfully and converged. Its
   exact-settings resume accepted 200/200 checkpoints, found zero pending, and
   changed no checkpoint timestamp or hash.

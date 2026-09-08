@@ -1,11 +1,10 @@
 jss_misspec_copulas <- function() {
-  # Keep the evidence design inside the study-specific capability contract.
-  # The Gamma study was approved with Gaussian and Clayton copulas only; later
-  # additive changes to unrelated package routes must not rewrite its identity.
-  c("N", "C")
+  # The focused publication study crosses every package copula family while
+  # holding sample size and dependence strength fixed.
+  c("N", "C", "F", "G", "J", "t")
 }
 
-jss_misspec_capability_design_version <- function() "2026.2"
+jss_misspec_capability_design_version <- function() "2026.5"
 
 jss_misspec_capability_contract <- function(repo_root) {
   registry_path <- file.path(repo_root, "R", "capability-registry.R")
@@ -26,9 +25,8 @@ jss_misspec_capability_contract <- function(repo_root) {
     )
   }
   list(
-    # This is a provenance label for the frozen study design, not the version
-    # of the entire live package registry. The current registry may gain
-    # unrelated routes while this Gamma N/C design remains unchanged.
+    # This is a provenance label for the registered study design, not the
+    # version of the entire live package registry.
     registry_version = jss_misspec_capability_design_version(),
     current_registry_version = version,
     copulas = gamma_copulas
@@ -95,12 +93,8 @@ jss_misspec_config <- function(settings, stage = jss_misspec_stage(settings$prof
     margin_family = "GA",
     copulas = capability$copulas,
     capability_registry_version = capability$registry_version,
-    tau_levels = if (identical(stage, "smoke")) {
-      jss_misspec_tau_levels()[1L, , drop = FALSE]
-    } else {
-      jss_misspec_tau_levels()
-    },
-    sample_sizes = if (identical(stage, "smoke")) 20L else c(50L, 150L, 500L),
+    tau_levels = jss_misspec_tau_levels()[1L, , drop = FALSE],
+    sample_sizes = if (identical(stage, "smoke")) 20L else 150L,
     times = 1:4,
     reps = reps,
     margin_mu = 2,
@@ -207,7 +201,7 @@ jss_misspec_paths <- function(settings) {
     tau_error_heatmap = file.path(settings$figures_dir, paste0(module_id, "-tau-error-heatmap.png")),
     paper_summary_heatmap = file.path(settings$figures_dir, paste0(module_id, "-paper-summary-heatmap.png")),
     convergence = file.path(settings$figures_dir, paste0(module_id, "-convergence.png")),
-    checkpoints = file.path(settings$data_dir, paste0(module_id, "-checkpoints-ga-nc-v2")),
+    checkpoints = file.path(settings$data_dir, paste0(module_id, "-checkpoints-ga-six-v1")),
     smoke_checkpoints = file.path(settings$data_dir, paste0(module_id, "-smoke-checkpoints"))
   )
 }
@@ -835,7 +829,7 @@ jss_misspec_result_contract_issues <- function(results, grid = NULL, config = NU
   }
   if (any(is.na(results$margin_family)) || any(as.character(results$margin_family) != "GA") ||
       any(is.na(results$capability_registry_version)) ||
-      any(as.character(results$capability_registry_version) != "2026.2")) {
+      any(as.character(results$capability_registry_version) != jss_misspec_capability_design_version())) {
     issues <- c(issues, "margin family or capability-registry version is outside the registered design")
   }
   if (!is.null(config) && (
@@ -926,10 +920,26 @@ jss_misspec_result_contract_issues <- function(results, grid = NULL, config = NU
 jss_misspec_checkpoint_issues <- function(path, grid_row, config = NULL) {
   if (!file.exists(path)) return("missing")
   if (jss_misspec_is_png(path)) return("PNG bytes in CSV checkpoint")
-  row <- tryCatch(utils::read.csv(path, stringsAsFactors = FALSE, check.names = FALSE), error = function(e) e)
+  row <- tryCatch(jss_misspec_read_checkpoint_csv(path), error = function(e) e)
   if (inherits(row, "error")) return(paste0("read_error: ", conditionMessage(row)))
   if (nrow(row) != 1L) return(paste0("expected one row, found ", nrow(row)))
   jss_misspec_result_contract_issues(row, grid = grid_row, config = config)
+}
+
+jss_misspec_read_checkpoint_csv <- function(path) {
+  header <- names(utils::read.csv(path, nrows = 0L, stringsAsFactors = FALSE, check.names = FALSE))
+  classes <- stats::setNames(rep(NA_character_, length(header)), header)
+  character_cols <- c(
+    "fit_id", "margin_family", "capability_registry_version", "producer_sha256",
+    "package_source_sha256", "configuration_sha256", "stage",
+    "generating_copula", "fitted_copula", "tau_label", "stop_reason",
+    "failure_type", "error", "warnings"
+  )
+  classes[intersect(character_cols, header)] <- "character"
+  utils::read.csv(
+    path, stringsAsFactors = FALSE, check.names = FALSE,
+    colClasses = classes
+  )
 }
 
 jss_misspec_checkpoint_valid <- function(path, grid_row, config = NULL) {
@@ -939,7 +949,7 @@ jss_misspec_checkpoint_valid <- function(path, grid_row, config = NULL) {
 jss_misspec_binding_review_gate <- function(results, grid = NULL, paths, context, config = NULL) {
   results <- jss_misspec_upgrade_result_contract(results)
   required <- jss_misspec_required_result_fields()
-  installed <- tryCatch(suppressWarnings(utils::read.csv(paths$results, stringsAsFactors = FALSE, check.names = FALSE)), error = function(e) e)
+  installed <- tryCatch(suppressWarnings(jss_misspec_read_checkpoint_csv(paths$results)), error = function(e) e)
   semantic_issues <- jss_misspec_result_contract_issues(results, grid = grid, config = config)
   rows <- list(
     data.frame(check = "results_schema", status = if (nrow(results) > 0L && all(required %in% names(results))) "pass" else "fail", detail = paste("rows", nrow(results)), stringsAsFactors = FALSE),
@@ -1313,16 +1323,7 @@ jss_misspec_read_checkpoints <- function(checkpoint_dir, grid = NULL, config = N
   if (!length(files)) {
     return(data.frame())
   }
-  character_cols <- c(
-    "fit_id", "stage", "generating_copula", "fitted_copula", "tau_label",
-    "failure_type", "error", "warnings"
-  )
-  rows <- lapply(files, function(path) {
-    header <- names(utils::read.csv(path, nrows = 0, stringsAsFactors = FALSE))
-    classes <- stats::setNames(rep(NA_character_, length(header)), header)
-    classes[intersect(character_cols, header)] <- "character"
-    utils::read.csv(path, stringsAsFactors = FALSE, colClasses = classes)
-  })
+  rows <- lapply(files, jss_misspec_read_checkpoint_csv)
   out <- jss_misspec_row_bind(rows)
   if (!is.null(grid)) {
     expected_paths <- jss_misspec_checkpoint_path(checkpoint_dir, grid$fit_id)
@@ -1449,7 +1450,8 @@ jss_misspec_warning_class <- function(message) {
       "(analytical|analytic).*(hessian|derivative).*(unavailable|failed|singular|invert)",
       "(hessian|information matrix).*(singular|not positive definite|could not be inverted)",
       "variance[- ]covariance.*(unavailable|could not be computed)",
-      "could not precompute variance[- ]covariance"
+      "could not precompute variance[- ]covariance",
+      "hessian-based inference diagnostics raised a warning"
     ), collapse = "|"),
     message, ignore.case = TRUE, perl = TRUE
   )
@@ -1501,7 +1503,7 @@ jss_misspec_warning_audit <- function(results, level = 0.95) {
       } else if (classification == "expected_nonconvergence_signal") {
         "The warning is disclosed and the associated nonconverged fit must be excluded from effect estimation."
       } else {
-        "Numerical fallback is disclosed; the fit contributes only when its ordinary convergence/retention contract passes."
+        "Numerical or inference diagnostics are disclosed; the fit contributes only when its ordinary convergence/retention contract passes."
       },
       messages = if (nrow(sub)) paste(sort(unique(sub$message)), collapse = " || ") else "<none>",
       stringsAsFactors = FALSE
@@ -2093,7 +2095,7 @@ jss_run_07_gamma_copula_misspecification <- function(settings, stage = jss_missp
   warning_audit <- jss_misspec_warning_audit(results)
 
   jss_misspec_write_csv_atomic(results, paths$results)
-  installed_results <- utils::read.csv(paths$results, stringsAsFactors = FALSE, check.names = FALSE)
+  installed_results <- jss_misspec_read_checkpoint_csv(paths$results)
   if (!identical(names(installed_results), names(results)) || nrow(installed_results) != nrow(results) ||
       !identical(jss_misspec_sha256_file(paths$results), local({
         tmp <- tempfile(fileext = ".csv"); on.exit(unlink(tmp), add = TRUE)

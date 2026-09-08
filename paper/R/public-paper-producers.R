@@ -266,7 +266,7 @@ jss_run_07_from_public_results <- function(settings) {
   jss_misspec_write_csv_atomic(warning_audit, paths$warning_audit)
   jss_misspec_write_csv_atomic(manifest, paths$execution_manifest)
   jss_misspec_write_paper_summary_heatmap(summary, paths$paper_summary_heatmap)
-  installed_results <- utils::read.csv(paths$results, stringsAsFactors = FALSE, check.names = FALSE)
+  installed_results <- jss_misspec_read_checkpoint_csv(paths$results)
   review <- jss_misspec_binding_review_gate(
     installed_results, grid = evidence_grid, paths = paths,
     context = "paper-public-derived", config = evidence_config

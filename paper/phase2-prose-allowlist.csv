@@ -4,8 +4,8 @@ recovery,500 subjects,Registered recovery subject count.
 recovery,400 planned method--replicate cells,Generated recovery design count.
 recovery,100 replicate seeds,Registered recovery replicate count restated.
 recovery,50 percent range bands,Registered recovery figure display interval.
-copula,500 subjects,Registered displayed copula scenario.
-copula,100 replicates per generating scenario,Registered copula replicate count.
+copula,150 subjects,Registered displayed copula scenario.
+copula,100 replicates per generating family,Registered copula replicate count.
 copula,100 datasets per generating copula,Registered figure-caption replicate count.
 copula,95\% confidence intervals,Registered uncertainty level.
 copula,50 percent range bands,Registered copula figure display interval.
