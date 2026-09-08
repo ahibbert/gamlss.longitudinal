@@ -104,7 +104,7 @@ check_missingness(
 
 ## Step 1: Select margin distribution and copula function
 
-First, we review the shape of the response distribution (margin) and choose the best fitting distribution. **gamlss_longitudinal** supports all non-mixed response types from the **gamlss.dist** library of distributions.
+First, we review the shape of the response distribution (margin) and choose the best fitting distribution. **gamlss.longitudinal** supports pure continuous and discrete **gamlss.dist** families through the generic Gaussian-copula route, while retaining additional validated copulas for established families. Multinomial, logarithmic-series, and mixed discrete-continuous families are excluded because they require distinct likelihood machinery.
 
 For simplicity, we provide the function `select_margin()` which fits the available gamlss distributions and provides a sorted list of fits by AIC, and confirms if they are supported by gamlss_longitudinal. This can be limited to certain fits such as specific distributions, e.g. `families = c("PO", "GA")` or response types, e.g. `type=realplus`.
 
@@ -120,6 +120,30 @@ margin_selection <- select_margin(
 print(margin_selection)
 
 margin_dist <- best_fit_family(margin_selection)
+```
+
+For binomial families, provide the number of trials explicitly and use the
+same contract throughout selection and fitting. The value may be a constant or
+a column name:
+
+```{r binomial-contract, eval = FALSE}
+margin_selection <- select_margin(
+  trial_data,
+  response_var = "successes",
+  type = "binom",
+  families = c("BI", "BB", "ZIBI", "ZIBB"),
+  margin_args = list(bd = "trials")
+)
+
+fit <- gamlss_longitudinal(
+  trial_data,
+  margin_dist = best_fit_family(margin_selection),
+  copula_dist = "N",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = successes ~ time,
+  margin_args = list(bd = "trials")
+)
 ```
 
 We then select our starting copula based on the chosen marginal distribution. The function `select_copula()` is used to compare dependence copula functions. When `response_var` and `margin_dist` are supplied, pseudo-observations are created automatically from a temporary marginal GAMLSS fit.

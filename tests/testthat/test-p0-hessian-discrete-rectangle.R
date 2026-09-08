@@ -48,13 +48,13 @@ test_that("discrete endpoint evaluation supports count, zero-inflated, and binar
   }
 })
 
-test_that("bounded-binomial families beyond Bernoulli are not silently marked supported", {
+test_that("bounded-binomial families use the exact discrete route", {
   skip_if_not_installed("gamlss.dist")
 
-  expect_false(gamlss.longitudinal:::.is_discrete_margin(gamlss.dist::BI()))
-  expect_false(gamlss.longitudinal:::.is_discrete_margin(gamlss.dist::BB()))
-  expect_false(gamlss.longitudinal:::.is_discrete_margin(gamlss.dist::ZIBI()))
-  expect_false(gamlss.longitudinal:::.is_discrete_margin(gamlss.dist::ZABB()))
+  expect_true(gamlss.longitudinal:::.is_discrete_margin(gamlss.dist::BI()))
+  expect_true(gamlss.longitudinal:::.is_discrete_margin(gamlss.dist::BB()))
+  expect_true(gamlss.longitudinal:::.is_discrete_margin(gamlss.dist::ZIBI()))
+  expect_true(gamlss.longitudinal:::.is_discrete_margin(gamlss.dist::ZABB()))
 })
 
 test_that("discrete rectangle Hessian helper returns assembler-compatible shapes", {
@@ -172,7 +172,7 @@ test_that("discrete validation covers DEL failure BI preflight and NBI Clayton i
       subject_var = "id",
       mu.formula = "y ~ x"
     ),
-    class = "gamlss_longitudinal_unsupported_margin_error"
+    class = "gamlss_longitudinal_missing_margin_argument_error"
   )
 
   fit_nbi <- suppressWarnings(gamlss.longitudinal::gamlss_longitudinal(

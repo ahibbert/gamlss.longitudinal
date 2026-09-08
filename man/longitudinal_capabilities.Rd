@@ -16,18 +16,19 @@ A documentation-ready data frame. Every row contains the registry version so
 exported tables retain their provenance.
 }
 \description{
-Returns the versioned, conservative capability registry used by
-\code{gamlss_longitudinal()} and the distribution-selection helpers. The
-presence of a family in \pkg{gamlss.dist}, or of density, distribution, and
-quantile functions, is not by itself a support promise.
+Returns the versioned capability registry used by
+\code{gamlss_longitudinal()} and the distribution-selection helpers. It
+combines explicitly validated paper routes with a generic compatibility
+contract for pure continuous and pure discrete \pkg{gamlss.dist} families.
 }
 \details{
 Each fitted model uses one homogeneous marginal family across visits.
-Continuous routes use a density-times-copula-density likelihood. Supported
-count routes use exact discrete-discrete copula rectangle probabilities.
-Bounded/binomial families without an explicit denominator contract,
-ordinal/multinomial families, mixed continuous-discrete families, and unlisted
-routes are rejected before optimization.
+Continuous routes use a density-times-copula-density likelihood. Discrete
+routes use exact discrete-discrete copula rectangle probabilities. Binomial
+families require explicit trial counts through
+\code{margin_args = list(bd = ...)}. Ordinal/multinomial,
+logarithmic-series, and mixed continuous-discrete families are rejected before
+optimization because they require different response or likelihood machinery.
 
 The public paper routes are BCPE margins with a Student-t copula and NBI
 margins with a Clayton copula. The \code{limitations} and diagnostic columns
@@ -36,8 +37,8 @@ qualify the support available for other registered routes.
 The \code{hessian_path} column records an implemented analytical/numerical
 computation path. It is not a guarantee of valid inference: the fitted Hessian
 must pass the package's fit-level curvature validation. Evidence identifiers in
-the route table name the tests that exercise each allowlisted route and the
-generic diagnostic and Hessian machinery.
+the route table distinguish explicitly validated routes from generic family
+interface and bounded-fit probes.
 }
 \examples{
 longitudinal_capabilities("routes")

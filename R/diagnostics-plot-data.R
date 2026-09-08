@@ -96,7 +96,7 @@
   root_groups <- unique(as.character(group[!is.na(group)]))
   root_list <- lapply(root_groups, function(grp) {
     idx <- group == grp
-    params_i <- lapply(params, function(x) x[idx])
+    params_i <- .gl_subset_family_params(params, idx)
     .gl_rootogram_frame(y[idx], params_i, breaks, family, split_group = grp)
   })
   do.call(rbind, root_list)
