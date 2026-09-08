@@ -60,6 +60,33 @@ test_that("plot_margin_fit plot builder returns ggplot with optional facets", {
 
   expect_s3_class(p, "ggplot")
   expect_true(inherits(p$facet, "FacetWrap"))
+  expect_equal(p$layers[[1L]]$aes_params$fill, .gl_plot_colours()[["neutral"]])
+  expect_true(is.na(p$layers[[1L]]$aes_params$colour))
+  expect_equal(p$layers[[2L]]$aes_params$colour, .gl_plot_colours()[["fitted"]])
+})
+
+test_that("plot_margin_fit preserves the supplied time-panel order", {
+  obs <- data.frame(
+    response = 1:4,
+    split_group = c("8", "16", "24", "32"),
+    stringsAsFactors = FALSE
+  )
+  density <- data.frame(
+    response = 1:4,
+    density = rep(0.25, 4),
+    split_group = c("8", "16", "24", "32"),
+    stringsAsFactors = FALSE
+  )
+
+  p <- gamlss.longitudinal:::.plot_margin_fit_plot(
+    obs = obs,
+    density_grid = density,
+    margin_dist = gamlss.dist::NO(),
+    by_time = TRUE
+  )
+
+  built <- ggplot2::ggplot_build(p)
+  expect_equal(as.character(built$layout$layout$split_group), c("8", "16", "24", "32"))
 })
 
 test_that("plot_margin_fit raw helper requires time column for time overlays", {
