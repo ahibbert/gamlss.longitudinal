@@ -462,6 +462,10 @@ test_that("T205 select_margin and screen_margin return ordered candidate tables 
     select_margin(dat_time, response_var = "response", time_intercepts = TRUE, type = "realAll"),
     "time_var"
   )
+  expect_error(
+    select_margin(y, type = "realAll", time_n_cycles = 0),
+    "positive integer"
+  )
 })
 
 test_that("T206 gamlss_longitudinal is the single public fitter", {

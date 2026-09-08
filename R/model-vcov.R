@@ -11,7 +11,9 @@
 #'   slower reference path. `"sandwich"` uses a cluster-robust sandwich estimator
 #'   for fixed coefficients, with clusters defaulting to subjects. The legacy
 #'   `numderiv` logical argument is still accepted and maps to `method = "numderiv"`
-#'   when `TRUE`.
+#'   when `TRUE`. For a segmented likelihood, requests for model-Hessian
+#'   inference are replaced by `"sandwich"` with a warning because different
+#'   observed segments are treated as independent.
 #' @param progress Logical; show progress bars for slow Hessian calculations.
 #' @param h Numeric finite-difference step used by the analytical Hessian
 #'   helper.
@@ -51,7 +53,10 @@ vcov.gamlss.longitudinal <- function(object, par = NA, sep_d2 = TRUE, numderiv =
   .gl_require_converged_fit(object, "variance-covariance inference")
 
   method <- match.arg(method)
-  .gl_require_supported_missingness_inference(object, method)
+  if (isTRUE(numderiv)) method <- "numderiv"
+  method_requested_for_missingness <- method
+  method <- .gl_require_supported_missingness_inference(object, method)
+  if (identical(method, "sandwich")) numderiv <- FALSE
 
   inference <- .gl_normalize_inference_control(inference)
   vcov_setup <- .gl_prepare_vcov_evaluation(
@@ -101,16 +106,21 @@ vcov.gamlss.longitudinal <- function(object, par = NA, sep_d2 = TRUE, numderiv =
       progress = progress
     )
 
-    return(.gl_vcov_format_result(.gl_vcov_build_result(
+    sandwich_result <- .gl_vcov_build_result(
       object = object,
       eta_inv = eta_inv,
       response = response,
       vcov_final = sandwich_path$vcov_final,
       se_final = sandwich_path$se_final,
       method_used = sandwich_path$method_used,
-      method_requested = method_requested,
+      method_requested = method_requested_for_missingness,
       hessian_diagnostics = sandwich_path$hessian_diagnostics
-    ), return_details = details))
+    )
+    sandwich_result$hessian_diagnostics$missingness_inference_fallback <-
+      !identical(method_requested_for_missingness, "sandwich")
+    sandwich_result$hessian_diagnostics$method_requested_before_missingness_fallback <-
+      method_requested_for_missingness
+    return(.gl_vcov_format_result(sandwich_result, return_details = details))
   }
 
   method_info <- .gl_vcov_apply_margin_preflight(method, method_used, margin_dist, eta_inv)

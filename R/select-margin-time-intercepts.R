@@ -1,4 +1,9 @@
-.select_margin_time_intercept_fits <- function(response, time, families, trace = FALSE) {
+.select_margin_time_intercept_fits <- function(
+    response,
+    time,
+    families,
+    trace = FALSE,
+    n_cycles = 100L) {
   response <- as.numeric(response)
 
   time <- as.character(time)
@@ -46,7 +51,7 @@
       family = family,
       data = fit_data,
       trace = trace,
-      control = gamlss::gamlss.control(n.cyc = 100, trace = trace)
+      control = gamlss::gamlss.control(n.cyc = as.integer(n_cycles), trace = trace)
     )
 
     for (par_name in setdiff(names(family$parameters), "mu")) {

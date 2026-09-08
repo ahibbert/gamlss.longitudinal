@@ -15,7 +15,7 @@
     tau.formula,
     theta.formula,
     zeta.formula,
-    missingness = c("error", "segment"),
+    missingness = c("auto", "segment", "error"),
     verbose = 1) {
 
   missingness <- match.arg(missingness)

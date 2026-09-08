@@ -695,6 +695,26 @@ test_that("main-recovery manuscript tables escape method-name underscores", {
   )
 })
 
+test_that("BCPE canonical settings signature survives CSV numeric type inference", {
+  env <- local_main_recovery_env()
+  fields <- env$jss_recovery_bcpe_settings_fields()
+  settings <- as.data.frame(
+    setNames(as.list(rep("registered_value", length(fields))), fields),
+    stringsAsFactors = FALSE,
+    check.names = FALSE
+  )
+  settings$n_fits <- "100"
+  settings$cg_armijo_c1 <- "0.0001"
+  settings$dgp_uniform_clip <- "0.00000001"
+  expected <- env$jss_recovery_settings_signature(settings, "BCPE")
+  path <- tempfile(fileext = ".csv")
+  utils::write.csv(settings, path, row.names = FALSE)
+  reloaded <- utils::read.csv(path, stringsAsFactors = FALSE, check.names = FALSE)
+  expect_true(is.numeric(reloaded$cg_armijo_c1))
+  expect_true(is.numeric(reloaded$dgp_uniform_clip))
+  expect_identical(env$jss_recovery_settings_signature(reloaded, "BCPE"), expected)
+})
+
 test_that("recovery manuscript guards are local and do not capture unrelated figures or sections", {
   lines <- readLines(file.path(local_main_recovery_root(), "paper", "manuscript", "main.tex"), warn = FALSE)
   opens <- grep("^\\\\IfFileExists\\{charts/paper_simulation_", lines)

@@ -256,6 +256,7 @@ jss_missing_warning_policy <- function() {
   data.frame(
     classification = c(
       "segmented_likelihood_assumption", "optimizer_nonconvergence",
+      "hessian_inference_unavailable", "numerical_hessian_fallback",
       "numerical_domain", "optimizer_step"
     ),
     pattern = c(
@@ -264,6 +265,15 @@ jss_missing_warning_policy <- function() {
         "[\"']segment[\"'].*different contiguous segments.*treated as independent"
       ),
       "(algorithm|fitting algorithm).*(has not (yet )?converged|did not converge|failed to converge)",
+      paste0(
+        "^Hessian-based inference is unavailable \\([^)]*\\)\\. ",
+        "The fitted model is unchanged\\.$"
+      ),
+      paste0(
+        "^Analytical Hessian vcov failed; falling back to numerical Hessian\\. Reason: ",
+        "Hessian-based inference is unavailable \\([^)]*\\)\\. ",
+        "The fitted model is unchanged\\.$"
+      ),
       "(NaNs produced|NAs produced|non-finite (function|finite-difference) value)",
       "step size.*(truncated|halved|reduced)"
     ),

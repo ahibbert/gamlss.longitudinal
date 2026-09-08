@@ -73,9 +73,13 @@
 }
 
 .copula_t_cdf_one <- function(u1, u2, rho, df) {
+  if (!all(is.finite(c(u1, u2, rho, df))) || df <= 2 || abs(rho) >= 1) {
+    return(NA_real_)
+  }
   x <- stats::qt(u1, df = df)
 
   y <- stats::qt(u2, df = df)
+  if (!is.finite(x) || !is.finite(y)) return(NA_real_)
 
   integrand <- function(z) {
     scale <- sqrt((df + z^2) * (1 - rho^2) / (df + 1))
@@ -83,7 +87,10 @@
     stats::dt(z, df = df) * stats::pt((y - rho * z) / scale, df = df + 1)
   }
 
-  stats::integrate(integrand, lower = -Inf, upper = x, rel.tol = 1e-7)$value
+  tryCatch(
+    stats::integrate(integrand, lower = -Inf, upper = x, rel.tol = 1e-7)$value,
+    error = function(e) NA_real_
+  )
 }
 
 .copula_t_cdf <- function(u1, u2, par, par2) {

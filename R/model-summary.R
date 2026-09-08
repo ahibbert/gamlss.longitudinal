@@ -19,6 +19,9 @@
 #'   For a fit created with `missingness = "segment"`, the summary records the
 #'   number of gaps and segments and labels AIC and BIC as available under the
 #'   explicit assumption that different observed segments are independent.
+#'   When coefficient uncertainty is requested for such a fit, model-Hessian
+#'   inference is replaced by subject-clustered sandwich covariance with a
+#'   warning rather than preventing the summary from being produced.
 #'   `fit$inference_contract`, `fit$smooth_inference_contract`, and the object
 #'   `inference_contract` attribute record methods, coefficient blocks,
 #'   conditioning, omitted uncertainty, diagnostics, fallback, and validity.

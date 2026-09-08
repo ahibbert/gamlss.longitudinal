@@ -120,8 +120,15 @@
         family = copula_dist, par = par1_eval[dependent], par2 = par2_eval[dependent],
         floor_probability = FALSE
       )
-      copula_log_d[dependent] <- log(copula_rect_prob[dependent]) -
-        margin_log_d[row_id1[dependent]] - margin_log_d[row_id2[dependent]]
+      dependent_rows <- which(dependent)
+      valid_rect <- is.finite(copula_rect_prob[dependent]) &
+        copula_rect_prob[dependent] > 0
+      copula_log_d[dependent_rows] <- -Inf
+      if (any(valid_rect)) {
+        valid_rows <- dependent_rows[valid_rect]
+        copula_log_d[valid_rows] <- log(copula_rect_prob[valid_rows]) -
+          margin_log_d[row_id1[valid_rows]] - margin_log_d[row_id2[valid_rows]]
+      }
 
       unstable <- dependent & (
         !is.finite(copula_log_d) |
