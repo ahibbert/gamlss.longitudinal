@@ -5,9 +5,9 @@
 - Paper-facing runner scripts promoted to
   `paper/R/08-simulation-sensitivity-correlation-misspecification/standard-model-benchmarking/`.
 - Package implementation lives in `R/benchmark-*.R`.
-- Extended benchmark outputs retained under
-  `results/jss-exploratory/05-standard-model-benchmarking/rs-joint-standard-model-grid`.
-- Pilot benchmark output archived.
+- Compact inputs that may support later non-submission work are versioned under
+  `paper/data/public-derived/correlation-misspecification/`.
+- Rebuildable run output remains outside the submission tree.
 
 ## Retained Evidence
 
@@ -25,5 +25,5 @@
 
 ## Archive Decision
 
-Keep RS-joint standard-model benchmark summaries active; use older adoption
-benchmark outputs only for historical comparison.
+Keep the compact public-derived bundle for potential later work. It is not part
+of the active five-study submission gate.
