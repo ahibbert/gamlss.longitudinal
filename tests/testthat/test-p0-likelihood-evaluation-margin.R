@@ -71,6 +71,78 @@ test_that("likelihood margin evaluation can restrict marginal derivatives", {
   expect_identical(none$margin_deriv, list())
 })
 
+test_that("non-finite family scores fall back to numerical log-density derivatives", {
+  skip_if_not_installed("gamlss.dist")
+
+  margin_dist <- gamlss.dist::NO()
+  margin_dist$dldm <- function(y, mu, sigma) rep(NA_real_, length(y))
+  response <- c(-1, 0.5, 2)
+  mu <- c(0, 0.1, 0.2)
+  sigma <- c(1, 1.2, 0.8)
+  out <- gamlss.longitudinal:::.gl_likelihood_evaluate_margins(
+    eta_inv = list(mu = mu, sigma = sigma),
+    mm = list(mu = matrix(1, 3, 1), sigma = matrix(1, 3, 1)),
+    margin_dist = margin_dist,
+    margin_eval_cache = gamlss.longitudinal:::.build_margin_eval_cache(
+      margin_dist, calc_d2 = FALSE
+    ),
+    response = response,
+    discrete_margin = FALSE,
+    calc_margin_deriv = TRUE,
+    margin_deriv_names = "dldm"
+  )
+
+  expect_equal(
+    out$margin_deriv$dldm,
+    (response - mu) / sigma^2,
+    tolerance = 1e-8
+  )
+})
+
+test_that("known non-vector-safe GAMLSS kernels are evaluated row by row", {
+  skip_if_not_installed("gamlss.dist")
+
+  cases <- list(
+    ZANBI = list(mu = c(1, 2, 3), sigma = c(0.5, 0.8, 1.1), nu = c(0.2, 0.3, 0.4)),
+    ZAP = list(mu = c(1, 2, 3), sigma = c(0.1, 0.2, 0.3)),
+    ZAPIG = list(mu = c(1, 2, 3), sigma = c(0.5, 0.8, 1.1), nu = c(0.2, 0.3, 0.4)),
+    ZABI = list(mu = c(0.2, 0.4, 0.6), sigma = c(0.1, 0.2, 0.3))
+  )
+  response <- c(0, 1, 3)
+
+  for (family in names(cases)) {
+    object <- do.call(get(family, envir = asNamespace("gamlss.dist")), list())
+    parameters <- cases[[family]]
+    fixed <- if (identical(family, "ZABI")) list(bd = c(10, 10, 10)) else list()
+    attr(object, "fixed_family_args") <- fixed
+    mm <- lapply(parameters, function(value) matrix(1, length(value), 1L))
+    out <- gamlss.longitudinal:::.gl_likelihood_evaluate_margins(
+      eta_inv = parameters,
+      mm = mm,
+      margin_dist = object,
+      margin_eval_cache = gamlss.longitudinal:::.build_margin_eval_cache(
+        object, calc_d2 = FALSE
+      ),
+      response = response,
+      discrete_margin = TRUE,
+      calc_margin_deriv = FALSE
+    )
+    dfun <- get(paste0("d", family), envir = asNamespace("gamlss.dist"))
+    pfun <- get(paste0("p", family), envir = asNamespace("gamlss.dist"))
+    scalar_density <- vapply(seq_along(response), function(ii) {
+      args <- c(list(x = response[[ii]]), lapply(parameters, `[`, ii), lapply(fixed, `[`, ii))
+      do.call(dfun, args)
+    }, numeric(1))
+    scalar_probability <- vapply(seq_along(response), function(ii) {
+      args <- c(list(q = response[[ii]]), lapply(parameters, `[`, ii), lapply(fixed, `[`, ii))
+      do.call(pfun, args)
+    }, numeric(1))
+
+    expect_equal(out$margin_d, scalar_density, tolerance = 1e-12, info = family)
+    expect_equal(out$margin_p, scalar_probability, tolerance = 1e-12, info = family)
+  }
+})
+
 test_that("likelihood margin evaluation builds lower CDFs for discrete rectangles", {
   skip_if_not_installed("gamlss.dist")
   suppressPackageStartupMessages(library(gamlss.dist))

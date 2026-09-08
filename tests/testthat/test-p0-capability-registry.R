@@ -20,11 +20,14 @@ test_that("capability registry is versioned, complete, and documentation-ready",
     "registry_version", "copula", "status", "parameters", "links",
     "inverse_links", "parameter_domain", "limitations"
   ))
+  expect_true(all(c(
+    "NO", "GA", "GG", "BCPE", "LOGNO", "PO", "NBI", "DEL", "ZIP", "ZAP", "ZINBI",
+    "SICHEL", "ZISICHEL", "NBII", "PIG", "JSU", "SHASH"
+  ) %in% margins$family[margins$status == "supported"]))
   expect_equal(
-    margins$family[margins$status == "supported"],
-    c("NO", "GA", "GG", "BCPE", "LOGNO", "PO", "NBI", "DEL", "ZIP", "ZAP", "ZINBI")
+    sort(unique(routes$margin_family)),
+    sort(margins$family[margins$status == "supported"])
   )
-  expect_equal(nrow(routes), 21L)
   expect_equal(copulas$copula, c("N", "C", "F", "G", "J", "t"))
   expect_true(all(nzchar(margins$response_requirement)))
   expect_true(all(nzchar(margins$limitations)))
@@ -50,7 +53,10 @@ test_that("registry identifies both mandatory public paper routes", {
 test_that("capability tables are direct projections of the registry specs", {
   margins <- longitudinal_capabilities("margins")
   routes <- longitudinal_capabilities("routes")
-  supported_specs <- gamlss.longitudinal:::.gl_capability_margin_specs()
+  supported_specs <- Filter(
+    function(spec) identical(spec$status, "supported"),
+    gamlss.longitudinal:::.gl_capability_all_margin_specs()
+  )
 
   expect_equal(sort(margins$family[margins$status == "supported"]), sort(names(supported_specs)))
   for (family in names(supported_specs)) {
@@ -92,12 +98,62 @@ test_that("registered routes and likelihood routing agree", {
   )
 })
 
-test_that("unsupported, mixed, and invalid-domain inputs fail with named conditions", {
+test_that("compatible pure gamlss.dist families use the generic Gaussian route", {
+  skip_if_not_installed("gamlss.dist")
+
+  for (family in c("SICHEL", "ZISICHEL", "NBII", "PIG", "JSU", "SHASH")) {
+    object <- do.call(get(family, envir = asNamespace("gamlss.dist")), list())
+    spec <- gamlss.longitudinal:::.gl_capability_margin_spec(family)
+    expect_identical(spec$status, "supported", info = family)
+    expect_identical(spec$compatible_copulas, "N", info = family)
+    expect_invisible(gamlss.longitudinal:::.gl_validate_capability_route(
+      object, "N"
+    ))
+  }
+
+  expect_invisible(gamlss.longitudinal:::.gl_validate_capability_route(
+    gamlss.dist::LNO(), "N"
+  ))
+  expect_error(
+    gamlss.longitudinal:::.gl_validate_capability_route(
+      gamlss.dist::SICHEL(), "N", response = c(0, -1)
+    ),
+    class = "gamlss_longitudinal_response_domain_error"
+  )
+})
+
+test_that("mixed-measure and logarithmic-series families remain excluded", {
+  skip_if_not_installed("gamlss.dist")
+
+  expect_error(
+    gamlss.longitudinal:::.gl_validate_capability_route(
+      gamlss.dist::BEINF(), "N"
+    ),
+    "mixed continuous/discrete",
+    class = "gamlss_longitudinal_mixed_margin_error"
+  )
+  expect_error(
+    gamlss.longitudinal:::.gl_validate_capability_route(
+      gamlss.dist::ZAGA(), "N"
+    ),
+    "mixed continuous/discrete",
+    class = "gamlss_longitudinal_mixed_margin_error"
+  )
+  expect_error(
+    gamlss.longitudinal:::.gl_validate_capability_route(
+      gamlss.dist::LG(), "N"
+    ),
+    "logarithmic-series",
+    class = "gamlss_longitudinal_unsupported_margin_error"
+  )
+})
+
+test_that("missing family arguments, mixed routes, and invalid domains fail clearly", {
   skip_if_not_installed("gamlss.dist")
 
   expect_error(
     gamlss.longitudinal:::.gl_validate_capability_route(gamlss.dist::BI(), "N"),
-    "denominator", class = "gamlss_longitudinal_unsupported_margin_error"
+    NA
   )
   expect_error(
     gamlss.longitudinal:::.gl_validate_capability_route(gamlss.dist::BCPE(), "C"),
@@ -128,7 +184,7 @@ test_that("unsupported, mixed, and invalid-domain inputs fail with named conditi
   )
 })
 
-test_that("fit preflight rejects unsupported margins before the workflow", {
+test_that("fit preflight enforces binomial trials before the workflow", {
   skip_if_not_installed("gamlss.dist")
 
   dat <- data.frame(id = c(1, 1), time = c(1, 2), y = c(0, 1))
@@ -136,7 +192,20 @@ test_that("fit preflight rejects unsupported margins before the workflow", {
     gamlss.longitudinal:::.gl_preflight_fit_capabilities(
       dat, gamlss.dist::BI(), "N", y ~ 1
     ),
-    class = "gamlss_longitudinal_unsupported_margin_error"
+    "explicit binomial trials",
+    class = "gamlss_longitudinal_missing_margin_argument_error"
+  )
+  binomial <- gamlss.longitudinal:::.gl_attach_margin_args_spec(
+    gamlss.dist::BI(), list(bd = "trials")
+  )
+  expect_invisible(gamlss.longitudinal:::.gl_preflight_fit_capabilities(
+    transform(dat, trials = 2L), binomial, "N", y ~ 1
+  ))
+  expect_error(
+    gamlss.longitudinal:::.gl_preflight_fit_capabilities(
+      transform(dat, trials = c(1L, 0L)), binomial, "N", y ~ 1
+    ),
+    "positive integers"
   )
   expect_error(
     gamlss.longitudinal:::.gl_preflight_fit_capabilities(
@@ -155,5 +224,59 @@ test_that("coverage catalog is audit evidence constrained by the registry", {
     longitudinal_capabilities("margins")$status == "supported"
   ])
   expect_true(all(supported %in% registered))
-  expect_false(catalog$supported[match("BI", catalog$family)])
+  expect_true(catalog$supported[match("BI", catalog$family)])
+})
+
+test_that("binomial margins use explicit constant or row-specific trials", {
+  skip_if_not_installed("gamlss.dist")
+
+  set.seed(842L)
+  dat <- expand.grid(time = seq_len(4L), subject = seq_len(20L))
+  dat$trials <- 5L + dat$subject %% 4L
+  dat$y <- stats::rbinom(
+    nrow(dat), dat$trials, stats::plogis(-0.5 + 0.15 * dat$time)
+  )
+  control <- gamlss_longitudinal_control(
+    max_outer_iter = 1L,
+    stop_on_convergence = FALSE,
+    rs = list(
+      max_inner_iter = 1L,
+      warm_start_joint = FALSE,
+      update_lambda = FALSE
+    )
+  )
+
+  fit <- suppressWarnings(gamlss_longitudinal(
+    dataset = dat,
+    margin_dist = gamlss.dist::BI(),
+    copula_dist = "N",
+    time_var = "time",
+    subject_var = "subject",
+    mu.formula = y ~ time,
+    optimizer_control = control,
+    compute_vcov = FALSE,
+    verbose = 0,
+    margin_args = list(bd = "trials")
+  ))
+
+  expect_s3_class(fit, "gamlss.longitudinal")
+  expect_true(is.finite(fit$convergence$logLik))
+  expect_equal(
+    attr(fit$margin_dist, "fixed_family_args")$bd,
+    fit$dataset$trials
+  )
+  expected_density <- gamlss.dist::dBI(
+    fit$response,
+    bd = fit$dataset$trials,
+    mu = fitted(fit, parameter = "mu")
+  )
+  predicted_density <- suppressWarnings(predict(fit, type = "density"))
+  expect_equal(predicted_density$density, expected_density, tolerance = 1e-10)
+
+  constant <- gamlss.longitudinal:::.gl_attach_margin_args_spec(
+    gamlss.dist::BI(), list(bd = 8L)
+  )
+  expect_invisible(gamlss.longitudinal:::.gl_preflight_fit_capabilities(
+    transform(dat, y = pmin(y, 8L)), constant, "N", y ~ time
+  ))
 })

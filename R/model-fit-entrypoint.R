@@ -82,6 +82,8 @@
     lambda_penalty_K = lambda_penalty_K
   )
 
+  margin_dist <- fit_workflow$margin_dist %||% margin_dist
+
   .gl_warn_segmented_missingness(fit_workflow$fit_data$missingness_contract)
 
   optimizer_state <- optimizer_fn(

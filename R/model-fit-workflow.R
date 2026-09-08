@@ -74,6 +74,8 @@
     verbose = verbose
   )
 
+  margin_dist <- .gl_bind_margin_args(margin_dist, fit_data$dataset)
+
   matrix_bundle <- matrix_fn(
     formulas_int = fit_data$formulas_int,
     margin_dist = margin_dist,
@@ -138,6 +140,7 @@
   )
 
   list(
+    margin_dist = margin_dist,
     controls = fit_controls,
     optimizer_control_requested = optimizer_control,
     optimizer_control_effective = .gl_effective_optimizer_control(

@@ -31,15 +31,37 @@
     margin_p_args = formalArgs(margin_pFUN),
     margin_dFUN = margin_dFUN,
     margin_d_args = formalArgs(margin_dFUN),
+    force_scalar_family = .gl_margin_requires_scalar_calls(margin_dist$family[1]),
     family_call_cache = new.env(parent = emptyenv())
   )
 }
 
-.call_margin_family_cached <- function(FUN, args, FUN_args, cacheable = FALSE, cache_env = NULL, cache_prefix = "") {
+.gl_margin_requires_scalar_calls <- function(family) {
+  as.character(family)[1L] %in% c("ZANBI", "ZAP", "ZAPIG", "ZABI")
+}
+
+.call_margin_family_cached <- function(
+    FUN,
+    args,
+    FUN_args,
+    cacheable = FALSE,
+    cache_env = NULL,
+    cache_prefix = "",
+    force_scalar = FALSE) {
   call_args <- args[FUN_args]
   safe_call <- function(call_args, fallback_n = NULL) {
     if (is.null(fallback_n)) {
       fallback_n <- max(c(1L, vapply(call_args, length, integer(1))), na.rm = TRUE)
+    }
+    if (isTRUE(force_scalar) && fallback_n > 1L) {
+      lengths <- vapply(call_args, length, integer(1))
+      if (!all(lengths %in% c(1L, fallback_n))) return(rep(NA_real_, fallback_n))
+      expanded <- lapply(call_args, rep, length.out = fallback_n)
+      return(vapply(seq_len(fallback_n), function(ii) {
+        scalar_args <- lapply(expanded, `[`, ii)
+        value <- tryCatch(do.call(FUN, args = scalar_args), error = function(e) NA_real_)
+        as.numeric(value)[1L]
+      }, numeric(1)))
     }
     tryCatch(
       do.call(FUN, args = call_args),

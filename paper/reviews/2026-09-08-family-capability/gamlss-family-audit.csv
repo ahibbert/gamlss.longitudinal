@@ -1,0 +1,107 @@
+"gamlss_dist_version","constructor","family","description","type","parameters","linked_parameters","has_density","has_probability","has_quantile","density_extra_args","probability_extra_args","quantile_extra_args","required_extra_args","proposed_route","is_alias"
+"6.1.1","BCCG","BCCG","Box-Cox-Cole-Green","Continuous","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","BCPE","BCPE","Box-Cox Power Exponential","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","BCT","BCT","Box-Cox t","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","BE","BE","Beta","Continuous","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","EGB2","EGB2","Exponential generalized beta 2 (i.e. of the second kind)","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","EXP","EXP","Exponential","Continuous","mu","mu",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","GA","GA","Gamma","Continuous","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","GAF","GAF","gamma family","Continuous","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","GB1","GB1","Generalized beta type 1","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","GB2","GB2","Generalized beta 2 (i.e. of the second kind)","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","GG","GG","generalised Gamma Lopatatsidis-Green","Continuous","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","GIG","GIG","Generalised Inverse Gaussian","Continuous","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","GP","GP","Generalized Pareto","Continuous","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","GT","GT","Generalized t","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","GU","GU","Gumbel","Continuous","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","IG","IG","Inverse Gaussian","Continuous","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","IGAMMA","IGAMMA","Inverse Gamma","Continuous","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","JSU","JSU","Johnson SU","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","LNO","LNO","Box-Cox","Continuous","mu,sigma,nu","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","LO","LO","Logistic","Continuous","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","LOGITNO","LOGITNO","Logit Normal","Continuous","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","LOGNO","LOGNO","Log Normal","Continuous","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","LOGNO2","LOGNO2","Log Normal 2","Continuous","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","LQNO","LQNO","Normal with Linear Quadratic relationship between mean and variance","Continuous","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","NET","NET","Normal Exponential t","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","NO","NO","Normal","Continuous","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","NO2","NO2","Normal with variance","Continuous","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","NOF","NOF","normal Family","Continuous","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","PARETO","PARETO","Pareto 1 Y>1","Continuous","mu","mu",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","PARETO1","PARETO1","Pareto one Y>0","Continuous","mu","mu",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","PARETO2","PARETO2","Pareto Type 2","Continuous","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","PE","PE","Power Exponential","Continuous","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","PE2","PE2","Power Exponential type 2","Continuous","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","RG","RG","Reverse Gumbel","Continuous","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","RGE","RGE","Reverse-Generalized-Extreme","Continuous","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","SEP","SEP","Skew Exponential Power","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","lower.limit,upper.limit","","candidate_continuous",FALSE
+"6.1.1","SEP1","SEP1","Skew exponential power (Azzalini type 1)","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","SEP2","SEP2","Skew Exponential Power type 2","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","SEP3","SEP3","skew exponential power type 3","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","SEP4","SEP4","skew exponential power type 4","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","SHASH","SHASH","Sinh-Arcsinh","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","SIMPLEX","SIMPLEX","Simplex","Continuous","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","SN1","SN1","Skew normal type 1 (Azzalini type 1)","Continuous","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","SN2","SN2","skew normal type 2","Continuous","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","SST","SST","SST","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","ST1","ST1","Skew t (Azzalini type 1)","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","ST2","ST2","Skew t (Azzalini type 2)","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","ST3","ST3","skew t type 3","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_continuous",TRUE
+"6.1.1","ST3C","ST3","skew t type 3","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_continuous",TRUE
+"6.1.1","ST4","ST4","skew t type 4","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","ST5","ST5","Skew t, type 5","Continuous","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","TF","TF","t Family","Continuous","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","TF2","TF2","t Family 2","Continuous","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","WEI","WEI","Weibull","Continuous","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","WEI2","WEI2","Weibull type 2","Continuous","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","WEI3","WEI3","Weibull type 3","Continuous","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_continuous",FALSE
+"6.1.1","BNB","BNB","Beta Negative Binomial","Discrete","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","max.value","","candidate_discrete",FALSE
+"6.1.1","DBURR12","DBURR12","Discrete Burr XII","Discrete","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","candidate_discrete",FALSE
+"6.1.1","DEL","DEL","Delaporte","Discrete","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","max.value","","candidate_discrete",FALSE
+"6.1.1","DPO","DPO","Double Poisson","Discrete","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","max.value","","candidate_discrete",FALSE
+"6.1.1","GEOM","GEOM","Geometric","Discrete","mu","mu",TRUE,TRUE,TRUE,"","","","","candidate_discrete",FALSE
+"6.1.1","GPO","GPO","Generalised Poisson","Discrete","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","max.value","","candidate_discrete",FALSE
+"6.1.1","NBF","NBF","NB Family","Discrete","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","candidate_discrete",FALSE
+"6.1.1","NBI","NBI","Negative Binomial type I","Discrete","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_discrete",FALSE
+"6.1.1","NBII","NBII","Negative Binomial type II","Discrete","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_discrete",FALSE
+"6.1.1","PIG","PIG","Poisson.Inverse.Gaussian","Discrete","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","max.value","","candidate_discrete",FALSE
+"6.1.1","PIG2","PIG2","Poisson.Inverse.Gaussian.2","Discrete","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","max.value","","candidate_discrete",FALSE
+"6.1.1","PO","PO","Poisson","Discrete","mu","mu",TRUE,TRUE,TRUE,"","","","","candidate_discrete",FALSE
+"6.1.1","SI","SI","Sichel","Discrete","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","max.value","","candidate_discrete",FALSE
+"6.1.1","SICHEL","SICHEL","Sichel","Discrete","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","max.value","","candidate_discrete",FALSE
+"6.1.1","WARING","WARING","Waring","Discrete","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","max.value","","candidate_discrete",FALSE
+"6.1.1","YULE","YULE","Yule","Discrete","mu","mu",TRUE,TRUE,TRUE,"","","max.value","","candidate_discrete",FALSE
+"6.1.1","ZABNB","ZABNB","Zero Adjusted BNB","Discrete","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","max.value","","candidate_discrete",FALSE
+"6.1.1","ZANBI","ZANBI","Zero Altered Negative binomial type I","Discrete","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","candidate_discrete",FALSE
+"6.1.1","ZAP","ZAP","Zero Adjusted Poisson","Discrete","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_discrete",FALSE
+"6.1.1","ZAPIG","ZAPIG","Zero altered Poisson inv. Gaussian","Discrete","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","max.value","","candidate_discrete",FALSE
+"6.1.1","ZASICHEL","ZASICHEL","zero adjusted Sichel","Discrete","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","max.value","","candidate_discrete",FALSE
+"6.1.1","ZAZIPF","ZAZIPF","Zero Adjusted ZIPF","Discrete","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","max.value","","candidate_discrete",FALSE
+"6.1.1","ZIBNB","ZIBNB","","Discrete","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","max.value","","candidate_discrete",FALSE
+"6.1.1","ZINBF","ZINBF","","Discrete","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","candidate_discrete",FALSE
+"6.1.1","ZINBI","ZINBI","Zero inflated negative binomial type I","Discrete","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","candidate_discrete",FALSE
+"6.1.1","ZIP","ZIP","Poisson Zero Inflated","Discrete","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_discrete",FALSE
+"6.1.1","ZIP2","ZIP2","Zero Inflated Poisson 2","Discrete","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","candidate_discrete",FALSE
+"6.1.1","ZIPF","ZIPF","zipf distribution","Discrete","mu","mu",TRUE,TRUE,TRUE,"","","max.value","","candidate_discrete",FALSE
+"6.1.1","ZIPIG","ZIPIG","Zero inflated Poisson inverse Gaussian","Discrete","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","max.value","","candidate_discrete",FALSE
+"6.1.1","ZISICHEL","ZISICHEL","Zero inflated Sichel","Discrete","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","max.value","","candidate_discrete",FALSE
+"6.1.1","LG","LG","Logarithmic","Discrete","mu","mu",TRUE,TRUE,TRUE,"","","max.value","","exclude_logarithmic_series",FALSE
+"6.1.1","ZALG","ZALG","Zero Adjusted Logarithmic","Discrete","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","exclude_logarithmic_series",FALSE
+"6.1.1","BEINF","BEINF","Beta Inflated","Mixed","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","exclude_mixed_measure",FALSE
+"6.1.1","BEINF0","BEINF0","Beta Inflated zero","Mixed","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","tau","","exclude_mixed_measure",FALSE
+"6.1.1","BEINF1","BEINF1","Beta Inflated one","Mixed","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","exclude_mixed_measure",FALSE
+"6.1.1","BEOI","BEOI","One Inflated Beta","Mixed","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","exclude_mixed_measure",FALSE
+"6.1.1","BEZI","BEZI","Zero Inflated Beta","Mixed","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","exclude_mixed_measure",FALSE
+"6.1.1","ZAGA","ZAGA","Zero Adjusted GA","Mixed","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","exclude_mixed_measure",FALSE
+"6.1.1","ZAIG","ZAIG","Zero adjusted IG","Mixed","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","exclude_mixed_measure",FALSE
+"6.1.1","MN3","MN3","Multinomial 3 levels","Discrete","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","exclude_multinomial",TRUE
+"6.1.1","MULTIN","MN3","Multinomial 3 levels","Discrete","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"","","","","exclude_multinomial",TRUE
+"6.1.1","MN4","MN4","Multinomial 4 levels","Discrete","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"","","","","exclude_multinomial",FALSE
+"6.1.1","MN5","MN5","Multinomial 5 levels","Discrete","mu,sigma,nu,tau","mu,sigma,nu,tau",TRUE,TRUE,TRUE,"","","","","exclude_multinomial",FALSE
+"6.1.1","BB","BB","Beta Binomial","Discrete","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"bd","bd","bd,fast","","requires_binomial_denominator",FALSE
+"6.1.1","BI","BI","Binomial","Discrete","mu","mu",TRUE,TRUE,TRUE,"bd","bd","bd","","requires_binomial_denominator",FALSE
+"6.1.1","DBI","DBI","Double Binomial","Discrete","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"bd","bd","bd","","requires_binomial_denominator",FALSE
+"6.1.1","ZABB","ZABB","Zero Adjusted Beta Binomial","Discrete","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"bd","bd","bd","","requires_binomial_denominator",FALSE
+"6.1.1","ZABI","ZABI","Zero Adjusted Binomial","Discrete","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"bd","bd","bd","","requires_binomial_denominator",FALSE
+"6.1.1","ZIBB","ZIBB","Zero Inflated Beta Binomial","Discrete","mu,sigma,nu","mu,sigma,nu",TRUE,TRUE,TRUE,"bd","bd","bd","","requires_binomial_denominator",FALSE
+"6.1.1","ZIBI","ZIBI","Binomial Zero Inflated","Discrete","mu,sigma","mu,sigma",TRUE,TRUE,TRUE,"bd","bd","bd","","requires_binomial_denominator",FALSE
