@@ -182,6 +182,10 @@ test_that("Module 07 full design is immutable R=100 and public input is full-onl
     as.character(registered_routes$copula[registered_routes$margin_family == "GA"])
   )
   expect_identical(config$capability_registry_version, "2026.2")
+  expect_identical(
+    env$jss_misspec_capability_contract(root)$current_registry_version,
+    "2026.3"
+  )
   expect_identical(length(unique(grid$fit_id)), 2400L)
   expect_identical(length(unique(grid$seed)), 2400L)
   expect_identical(length(unique(grid$dataset_seed)), 1200L)
@@ -214,7 +218,7 @@ test_that("Module 07 full design is immutable R=100 and public input is full-onl
   writeLines(registry_lines, file.path(drift_root, "R", "capability-registry.R"))
   expect_error(
     env$jss_misspec_capability_contract(drift_root),
-    "no longer matches the locked Phase 1 capability registry"
+    "no longer matches the current capability registry"
   )
   results <- cbind(
     grid,
