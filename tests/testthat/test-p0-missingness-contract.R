@@ -1,15 +1,33 @@
-test_that("intermittent gaps error by default with an explicit remedy", {
-  dat <- make_fixture_with_structural_missing_rows()
+test_that("intermittent gaps select segmentation by default with a strict error option", {
+  expect_identical(
+    eval(formals(gamlss.longitudinal::gamlss_longitudinal)$missingness),
+    c("auto", "segment", "error")
+  )
+  contract_data <- data.frame(
+    response = c(1, NA, 3, 4, 5, 6),
+    time = rep(1:3, 2),
+    subject = rep(c("a", "b"), each = 3)
+  )
+
+  contract <- gamlss.longitudinal:::.gl_missingness_contract(contract_data)
+  expect_identical(contract$requested, "auto")
+  expect_identical(contract$objective, "segmented")
+  expect_true(contract$auto_selected)
+  expect_warning(
+    gamlss.longitudinal:::.gl_warn_segmented_missingness(contract),
+    "Automatically switching to the segmented likelihood",
+    class = "gamlss.longitudinal_segment_warning"
+  )
 
   err <- tryCatch(
-    fit_fixture_model(dat, include_dlcopdpar = FALSE),
+    gamlss.longitudinal:::.gl_missingness_contract(contract_data, missingness = "error"),
     error = identity
   )
 
   expect_s3_class(err, "gamlss.longitudinal_gap_error")
   expect_match(conditionMessage(err), 'missingness = "segment"', fixed = TRUE)
-  expect_identical(err$n_subjects_with_gaps, 2L)
-  expect_identical(err$n_gap_runs, 2L)
+  expect_identical(err$n_subjects_with_gaps, 1L)
+  expect_identical(err$n_gap_runs, 1L)
 })
 
 test_that("complete data and monotone dropout use the ordinary objective", {
@@ -30,7 +48,7 @@ test_that("complete data and monotone dropout use the ordinary objective", {
   expect_identical(dropout_contract$n_segments, 2L)
 })
 
-test_that("leading unobserved visits require an explicit segmented contract", {
+test_that("leading unobserved visits use the requested missingness contract", {
   delayed <- data.frame(
     response = c(NA, 2, 3, 4, 5, 6),
     time = rep(1:3, 2),
@@ -38,7 +56,7 @@ test_that("leading unobserved visits require an explicit segmented contract", {
   )
 
   err <- tryCatch(
-    gamlss.longitudinal:::.gl_missingness_contract(delayed),
+    gamlss.longitudinal:::.gl_missingness_contract(delayed, "error"),
     error = identity
   )
   expect_s3_class(err, "gamlss.longitudinal_gap_error")
@@ -47,6 +65,7 @@ test_that("leading unobserved visits require an explicit segmented contract", {
   contract <- gamlss.longitudinal:::.gl_missingness_contract(delayed, "segment")
   expect_true(contract$has_delayed_entry)
   expect_false(contract$has_intermittent_gaps)
+  expect_false(contract$auto_selected)
   expect_identical(contract$n_subjects_with_delayed_entry, 1L)
   expect_identical(contract$n_leading_missing, 1L)
   expect_identical(contract$objective, "segmented")

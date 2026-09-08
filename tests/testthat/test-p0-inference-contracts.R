@@ -204,6 +204,10 @@ test_that("user-facing inference documentation names material omissions", {
     "R/inference-contracts.R", "R/model-predict.R", "R/model-vcov.R",
     "R/model-effects.R", "vignettes/inference-uncertainty.Rmd"
   )
+  skip_if_not(
+    all(file.exists(file.path(root, files))),
+    "Raw source documentation is unavailable in installed-package tests."
+  )
   text <- paste(unlist(lapply(file.path(root, files), readLines, warn = FALSE)), collapse = "\n")
 
   expect_match(text, "fixed-smooth")
