@@ -77,5 +77,14 @@ test_that("Module 09 is deferred from every submission interface", {
   expect_false(any(grepl("^p2_mvt_", contract$artifact_id)))
   expect_false(grepl("module_09_multivariate", target_code, fixed = TRUE))
   expect_true(file.exists(file.path(setup$root, "paper", "DEFERRED-MULTIVARIATE-STUDY.md")))
-  expect_false(dir.exists(file.path(setup$root, "paper", "R", "09-simulation-multivariate-longitudinal")))
+  module_09_path <- file.path(setup$root, "paper", "R", "09-simulation-multivariate-longitudinal")
+  module_09_files <- if (dir.exists(module_09_path)) {
+    list.files(module_09_path, all.files = TRUE, no.. = TRUE, recursive = TRUE)
+  } else {
+    character()
+  }
+  # Cloud-sync clients may retain an empty directory placeholder after the
+  # tracked module is removed. The submission contract is that no source or
+  # generated artifacts remain in that path.
+  expect_length(module_09_files, 0L)
 })
