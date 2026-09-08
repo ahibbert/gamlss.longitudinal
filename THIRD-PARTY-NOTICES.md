@@ -76,11 +76,19 @@ R package dependencies and optional packages are declared in `DESCRIPTION`.
 
 ## Public Analysis Data
 
-The installed package includes three attributed, analysis-ready public
+The installed package includes seven attributed, analysis-ready public
 datasets. Full source, license, checksum, and transformation notices are in
 `inst/DATA-LICENSES.md` and the reproducible preparation code is in
 `data-raw/build-public-candidate-data.R`.
 
+- `tlc_lead` is derived from `ALA::tlc` (GPL-3), based on the Treatment of
+  Lead-exposed Children Trial Group (2000).
+- `actg_cd4` is derived from `bcmixed::aidscd4` (GPL >= 2), based on AIDS
+  Clinical Trial Group Study 193A.
+- `skin_cancer` is derived from `ALA::skin` (GPL-3), based on the Skin Cancer
+  Prevention Study.
+- `epilepsy_counts` is derived from `MASS::epil` (GPL-2 | GPL-3), based on the
+  progabide epilepsy trial reported by Thall and Vail (1990).
 - `patents_panel` is derived from `pglm::PatentsRDUS` (GPL >= 2), based on Hall,
   Griliches, and Hausman (1986).
 - `pbc_prothrombin` is derived from `survival::pbcseq` (LGPL >= 2), copyright

@@ -1217,6 +1217,15 @@ test_that("missingness fit warnings are classified, captured, and fail closed", 
       "segments are treated as independent."
     ))
     warning("Algorithm RS has not yet converged")
+    warning(paste(
+      "Hessian-based inference is unavailable (fitted_gradient_too_large).",
+      "The fitted model is unchanged."
+    ))
+    warning(paste(
+      "Analytical Hessian vcov failed; falling back to numerical Hessian. Reason:",
+      "Hessian-based inference is unavailable (fitted_gradient_too_large).",
+      "The fitted model is unchanged."
+    ))
     warning("NaNs produced")
     42L
   })
@@ -1224,7 +1233,8 @@ test_that("missingness fit warnings are classified, captured, and fail closed", 
   events <- env$jss_missing_warning_events(captured, "scenario", 500L, 4L, 1L,
     "monotone_dropout", 0.3, "gamlss.longitudinal")
   expect_identical(events$classification,
-    c("segmented_likelihood_assumption", "optimizer_nonconvergence", "numerical_domain"))
+    c("segmented_likelihood_assumption", "optimizer_nonconvergence",
+      "hessian_inference_unavailable", "numerical_hessian_fallback", "numerical_domain"))
   expect_true(all(events$expected))
   expect_silent(env$jss_missing_assert_warning_policy(events))
 

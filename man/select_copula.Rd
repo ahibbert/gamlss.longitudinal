@@ -25,6 +25,8 @@ select_copula(
   t_df_grid = c(3, 4, 6, 8, 12, 20, 30),
   min_pairs = 10,
   time_intercepts = FALSE,
+  margin_n_cycles = 100L,
+  pit_seed = 1L,
   copula_time_intercepts = FALSE,
   tail_thresholds = c(0.05, 0.1, 0.2)
 )
@@ -59,7 +61,8 @@ time-intercept \code{\link[=select_margin]{select_margin()}} result.}
 adjacent-time pairs from \code{data}.}
 
 \item{families}{Candidate copula family codes. Supported values are \code{"N"},
-\code{"C"}, \code{"F"}, \code{"G"}, \code{"J"}, and \code{"t"}.}
+\code{"C"}, \code{"F"}, \code{"G"}, \code{"J"}, and \code{"t"}. When the marginal family is
+known, candidates without a registered margin-copula route are excluded.}
 
 \item{lags}{Positive integer lag(s) used when forming adjacent pairs.}
 
@@ -74,6 +77,13 @@ pseudo-observations from \code{response_var}, use time-specific intercepts in
 the temporary marginal model and pass this setting through to
 \code{\link[=select_margin]{select_margin()}} if the marginal family is auto-selected.}
 
+\item{margin_n_cycles}{Positive integer maximum number of cycles used for
+the temporary marginal GAMLSS fit that creates pseudo-observations.}
+
+\item{pit_seed}{Finite numeric seed used for randomized PIT values when
+constructing descriptive diagnostics for a discrete margin. The seed does
+not affect the exact rectangle likelihood used to rank copulas.}
+
 \item{copula_time_intercepts}{Logical; if \code{TRUE}, screen each copula family
 with separate dependence parameters for each adjacent time-pair factor
 level. This does not impose a linear time trend.}
@@ -83,17 +93,20 @@ empirical-versus-fitted tail co-occurrence and conditional tail exceedance
 summaries.}
 }
 \value{
-A data frame with one row per family and class
+A data frame with one row per retained family and class
 \code{copula_selection}. The selected family is stored in the \code{selected}
-attribute. The main table includes fitted lower/upper tail co-occurrence
+attribute. Families removed by the route registry are stored in the
+\code{excluded_by_capability_registry} attribute. The main table includes fitted lower/upper tail co-occurrence
 and conditional exceedance probabilities at the smallest requested
 \code{tail_thresholds} value. Full empirical-versus-fitted tail diagnostic
 tables are stored in the \code{tail_cooccurrence} and
 \code{conditional_tail_exceedance} attributes.
 }
 \description{
-Screens supported copula families by maximising their native copula
-log-likelihood on adjacent-time pseudo-observation pairs. Pseudo-observations
+Screens supported copula families on adjacent-time pairs. Continuous
+margins use the copula-density log-likelihood. Automatically constructed
+discrete margins use the exact copula rectangle likelihood, matching the
+likelihood used by \code{\link[=gamlss_longitudinal]{gamlss_longitudinal()}}. Pseudo-observations
 can be supplied directly as \code{u1}/\code{u2}, supplied as a row-aligned uniform
 vector or column in \code{data}, or computed from a fitted
 \code{gamlss.longitudinal} object.

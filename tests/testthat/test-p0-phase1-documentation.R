@@ -1,5 +1,9 @@
 test_that("Phase 1 documentation retains the inference and diagnostic contracts", {
   root <- testthat::test_path("..", "..")
+  skip_if_not(
+    file.exists(file.path(root, "paper", "manuscript", "main.tex")),
+    "Paper and raw source documentation are unavailable in installed-package tests."
+  )
   manuscript <- paste(readLines(
     file.path(root, "paper", "manuscript", "main.tex"),
     warn = FALSE

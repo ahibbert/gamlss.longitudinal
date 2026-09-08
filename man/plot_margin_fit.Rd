@@ -36,9 +36,12 @@ row-specific fitted parameters.}
 
 \item{response_var}{Response column name when \code{x} or \code{data} is a data frame.}
 
-\item{bins}{Number of histogram bins.}
+\item{bins}{Number of histogram bins for continuous margins. Discrete margins
+use unit-width bins centred on the integers.}
 
-\item{grid_n}{Number of grid points used for the fitted density.}
+\item{grid_n}{Number of grid points used for a fitted continuous density.
+Discrete probability masses are evaluated at every integer in the observed
+response range.}
 
 \item{response_scale}{Plot the density on the original response scale or,
 for positive responses, on the log-response scale.}

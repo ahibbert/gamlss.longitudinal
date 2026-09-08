@@ -15,8 +15,11 @@
 #'   fitted marginal density is overlaid using the model distribution and
 #'   row-specific fitted parameters.
 #' @param response_var Response column name when `x` or `data` is a data frame.
-#' @param bins Number of histogram bins.
-#' @param grid_n Number of grid points used for the fitted density.
+#' @param bins Number of histogram bins for continuous margins. Discrete margins
+#'   use unit-width bins centred on the integers.
+#' @param grid_n Number of grid points used for a fitted continuous density.
+#'   Discrete probability masses are evaluated at every integer in the observed
+#'   response range.
 #' @param response_scale Plot the density on the original response scale or,
 #'   for positive responses, on the log-response scale.
 #' @param time_intercepts Logical; for raw data, fit time-specific intercepts

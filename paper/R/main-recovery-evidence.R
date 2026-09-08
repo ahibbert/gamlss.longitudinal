@@ -1437,7 +1437,19 @@ jss_recovery_settings_signature <- function(settings, margin_family) {
   if (margin_family == "BCPE") {
     fields <- jss_recovery_bcpe_settings_fields()
     if (!all(fields %in% names(settings))) stop("BCPE canonical settings row is incomplete.", call. = FALSE)
-    return(paste(fields, vapply(fields, one, character(1)), sep = "=", collapse = "\n"))
+    # The BCPE runner signs values after bcpe_config_value() has rendered
+    # numerics with non-scientific, 17-digit formatting. read.csv() infers
+    # numeric columns and can otherwise rewrite values such as 0.0001 as
+    # 1e-04, breaking a valid signature solely because of CSV round-tripping.
+    one_bcpe <- function(name) {
+      value <- settings[[name]][[1]]
+      if (is.numeric(value)) {
+        format(value, digits = 17, scientific = FALSE, trim = TRUE)
+      } else {
+        as.character(value)
+      }
+    }
+    return(paste(fields, vapply(fields, one_bcpe, character(1)), sep = "=", collapse = "\n"))
   } else if (margin_family == "NBI") {
     values <- c(one("runner_contract_version"), one("phase1_contract_version"), one("n_subject"),
       gsub("[|]", ",", one("times")), one("reps"), one("base_seed"), one("sigma_signal_multiplier"),

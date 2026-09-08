@@ -254,3 +254,33 @@ test_that("RS discrete rectangle score modes both fit finite tiny DEL models", {
   expect_true(all(is.finite(fit_analytical$calc_lik_out_end$log_lik)))
   expect_true(all(is.finite(fit_finite$calc_lik_out_end$log_lik)))
 })
+
+test_that("discrete likelihood evaluates observed rows when responses contain gaps", {
+  response <- c(2, NA, 4, 3, 1, 2, NA, 5)
+  time <- rep(1:4, 2)
+  subject <- rep(1:2, each = 4)
+  eta_inv <- list(
+    mu = rep(3, length(response)),
+    sigma = rep(0.7, length(response)),
+    nu = rep(0.4, length(response)),
+    theta = rep(0.25, length(response))
+  )
+  mm <- list(mu = NULL, sigma = NULL, nu = NULL, theta = NULL)
+
+  out <- gamlss.longitudinal:::calc_likelihood_minimal(
+    eta_inv = eta_inv,
+    mm = mm,
+    margin_dist = gamlss.dist::DEL(),
+    copula_dist = "N",
+    response = response,
+    response_margin = time,
+    response_subject = subject
+  )
+
+  expect_true(isTRUE(out$valid))
+  expect_true(all(is.finite(out$margin_log_d[!is.na(response)])))
+  expect_true(all(is.na(out$margin_log_d[is.na(response)])))
+  expect_true(is.finite(unname(out$log_lik["joint"])))
+  expect_identical(out$contribution_counts[["marginal_included"]], 6L)
+  expect_identical(out$contribution_counts[["pair_included"]], 2L)
+})

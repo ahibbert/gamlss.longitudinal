@@ -69,7 +69,7 @@
 #' Build and enforce the intermittent-gap likelihood contract
 #'
 #' @noRd
-.gl_missingness_contract <- function(dataset, missingness = c("error", "segment")) {
+.gl_missingness_contract <- function(dataset, missingness = c("auto", "segment", "error")) {
   missingness <- match.arg(missingness)
   segments <- .gl_observation_segments(
     response = dataset$response,
@@ -87,6 +87,7 @@
   out <- list(
     requested = missingness,
     objective = if (requires_segment) "segmented" else "ordinary",
+    auto_selected = requires_segment && identical(missingness, "auto"),
     has_intermittent_gaps = has_gaps,
     has_delayed_entry = has_delayed_entry,
     n_subjects = nrow(subject_summary),
@@ -144,11 +145,21 @@
   out
 }
 
-#' Warn when a segmented likelihood has been explicitly requested
+#' Warn when a segmented likelihood is selected
 #'
 #' @noRd
 .gl_warn_segmented_missingness <- function(contract) {
   if (!identical(contract$objective, "segmented")) return(invisible(FALSE))
+
+  selection_message <- if (isTRUE(contract$auto_selected)) {
+    "Automatically switching to the segmented likelihood: "
+  } else {
+    paste0(
+      "Using the segmented likelihood requested by missingness = \"",
+      contract$requested,
+      "\": "
+    )
+  }
 
   warning(structure(
     c(
@@ -156,11 +167,13 @@
         message = paste0(
           "Intermittent observation gaps or leading unobserved scheduled visits were detected for ",
           length(contract$affected_subjects),
-          " subject(s). Using the segmented likelihood requested by ",
-          "missingness = \"segment\": observations in different contiguous segments ",
-          "are treated as independent. AIC and BIC remain available under this explicit assumption. ",
-          "Ordinary model-Hessian inference is unavailable for this composite objective; ",
-          "use cluster-sandwich or bootstrap sensitivity analyses. ",
+          " subject(s). ",
+          selection_message,
+          "observations in different contiguous segments ",
+          "are treated as independent. AIC and BIC remain available under this stated assumption. ",
+          "Ordinary model-Hessian inference is not used for this composite objective; ",
+          "standard inference methods use subject-clustered sandwich covariance and ",
+          "bootstrap sensitivity analyses remain advisable. ",
           "Numerical integration of dependence across gaps and a distinct delayed-entry likelihood are not implemented; ",
           "a future integration engine may add this support."
         ),
@@ -180,24 +193,27 @@
   objective <- object$likelihood_contract$objective %||%
     object$missingness$objective %||% "ordinary"
   if (!identical(objective, "segmented") || identical(method, "sandwich")) {
-    return(invisible(TRUE))
+    return(method)
   }
 
-  stop(structure(
+  warning(structure(
     list(
       message = paste0(
-        "Model-Hessian inference is unavailable for a segmented likelihood. ",
-        "Different observed segments were treated as independent. Use ",
-        "vcov(object, method = \"sandwich\") or bootstrap sensitivity analysis."
+        "A segmented likelihood was used, with different observed segments treated ",
+        "as independent. Switching inference from method = \"", method,
+        "\" to subject-clustered sandwich covariance. Bootstrap sensitivity analysis ",
+        "remains advisable."
       ),
       call = NULL,
-      method = method,
+      method_requested = method,
+      method_used = "sandwich",
       objective = objective
     ),
     class = c(
-      "gamlss_longitudinal_segmented_inference_error",
-      "error",
+      "gamlss_longitudinal_segmented_inference_warning",
+      "warning",
       "condition"
     )
   ))
+  "sandwich"
 }

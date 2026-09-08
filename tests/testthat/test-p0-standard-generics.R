@@ -60,15 +60,22 @@ test_that("standard vcov output is a coefficient-aligned matrix", {
   expect_identical(out$vcov$overall, mat)
 })
 
-test_that("model-Hessian inference is blocked for segmented objectives", {
+test_that("model-Hessian inference routes to sandwich for segmented objectives", {
   fit <- make_standard_generic_object(objective = "segmented")
-  err <- tryCatch(
-    stats::vcov(fit, method = "analytical"),
-    gamlss_longitudinal_segmented_inference_error = identity
+  warning_seen <- FALSE
+  method <- withCallingHandlers(
+    gamlss.longitudinal:::.gl_require_supported_missingness_inference(fit, "analytical"),
+    gamlss_longitudinal_segmented_inference_warning = function(w) {
+      warning_seen <<- TRUE
+      invokeRestart("muffleWarning")
+    }
   )
-  expect_s3_class(err, "gamlss_longitudinal_segmented_inference_error")
-  expect_match(conditionMessage(err), 'method = "sandwich"', fixed = TRUE)
-  expect_silent(gamlss.longitudinal:::.gl_require_supported_missingness_inference(fit, "sandwich"))
+  expect_true(warning_seen)
+  expect_identical(method, "sandwich")
+  expect_identical(
+    gamlss.longitudinal:::.gl_require_supported_missingness_inference(fit, "sandwich"),
+    "sandwich"
+  )
 })
 
 test_that("legacy unversioned vcov caches are not reused", {

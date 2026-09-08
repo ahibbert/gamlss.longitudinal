@@ -7,7 +7,9 @@
     nu.formula,
     tau.formula,
     time_var,
-    time_intercepts) {
+    time_intercepts,
+    margin_n_cycles = 100L,
+    pit_seed = 1L) {
   if (is.null(response_var) || !is.character(response_var) || length(response_var) != 1L) {
     stop(
       "Provide u_var, u, u1/u2, object, or response_var so select_copula() can create pseudo-observations.",
@@ -43,6 +45,7 @@
         response_var = response_var,
         time_var = if (isTRUE(time_intercepts)) time_var else NULL,
         time_intercepts = time_intercepts,
+        time_n_cycles = margin_n_cycles,
         trace = FALSE
       )
     ))
@@ -79,7 +82,7 @@
     family = margin_dist,
     data = data,
     trace = FALSE,
-    control = gamlss::gamlss.control(n.cyc = 100, trace = FALSE)
+    control = gamlss::gamlss.control(n.cyc = margin_n_cycles, trace = FALSE)
   )
   parameter_names <- names(margin_dist$parameters)
   if ("sigma" %in% parameter_names) args$sigma.fo <- .select_copula_rhs_formula(sigma.formula)
@@ -136,19 +139,83 @@
     }
   }
   cdf_args <- cdf_args[names(cdf_args) %in% formalArgs(pfun)]
-  u <- tryCatch(
+  upper <- tryCatch(
     do.call(pfun, cdf_args),
     error = function(e) {
       stop("Could not compute pseudo-observations from the temporary marginal model: ", conditionMessage(e), call. = FALSE)
     }
   )
-  u_full <- rep(NA_real_, nrow(data))
-  u_full[keep] <- .copula_clamp01(u)
-  data[[".u_auto"]] <- u_full
+  upper <- pmin(pmax(as.numeric(upper), 0), 1)
+
+  route <- .gl_capability_likelihood_route(margin_dist)
+  discrete <- identical(route, "exact_discrete_rectangle")
+  lower <- upper
+  pit <- upper
+  log_mass <- NULL
+  log_survival <- NULL
+  if (discrete) {
+    lower_args <- cdf_args
+    lower_response <- data_fit[[response_var]] - 1
+    for (response_name in intersect(c("q", "y", "x"), names(lower_args))) {
+      lower_args[[response_name]] <- lower_response
+    }
+    lower <- tryCatch(
+      do.call(pfun, lower_args),
+      error = function(e) {
+        stop("Could not compute lower CDF bounds for discrete copula selection: ", conditionMessage(e), call. = FALSE)
+      }
+    )
+    lower <- pmin(pmax(as.numeric(lower), 0), 1)
+    density_args <- cdf_args
+    names(density_args)[names(density_args) %in% c("q", "y", "x")] <- "x"
+    density_args <- density_args[!duplicated(names(density_args))]
+    density_args$log <- TRUE
+    dfun <- .gl_get_family_fun(margin_dist$family[1], "d")
+    density_args <- density_args[names(density_args) %in% formalArgs(dfun)]
+    log_mass <- tryCatch(
+      as.numeric(do.call(dfun, density_args)),
+      error = function(e) {
+        stop("Could not compute marginal masses for discrete copula selection: ", conditionMessage(e), call. = FALSE)
+      }
+    )
+    survival_args <- cdf_args
+    survival_args$lower.tail <- FALSE
+    survival_args$log.p <- TRUE
+    survival_args <- survival_args[names(survival_args) %in% formalArgs(pfun)]
+    log_survival <- tryCatch(
+      as.numeric(do.call(pfun, survival_args)),
+      error = function(e) rep(NA_real_, length(upper))
+    )
+    interval_width <- pmax(upper - lower, 0)
+    pit <- .gl_with_preserved_rng(
+      pit_seed,
+      lower + stats::runif(length(upper)) * interval_width
+    )
+  }
+
+  add_aligned <- function(values, name) {
+    aligned <- rep(NA_real_, nrow(data))
+    aligned[keep] <- values
+    data[[name]] <<- aligned
+  }
+  add_aligned(.copula_clamp01(pit), ".u_auto")
+  if (discrete) {
+    add_aligned(upper, ".u_upper_auto")
+    add_aligned(lower, ".u_lower_auto")
+    add_aligned(log_mass, ".log_mass_auto")
+    add_aligned(log_survival, ".log_survival_auto")
+  }
   list(
     data = data,
     u_var = ".u_auto",
+    upper_var = if (discrete) ".u_upper_auto" else NULL,
+    lower_var = if (discrete) ".u_lower_auto" else NULL,
+    log_mass_var = if (discrete) ".log_mass_auto" else NULL,
+    log_survival_var = if (discrete) ".log_survival_auto" else NULL,
     margin_selection = margin_selection,
-    source = if (is.null(margin_selection)) "margin_dist" else "select_margin"
+    source = if (is.null(margin_selection)) "margin_dist" else "select_margin",
+    likelihood = if (discrete) "exact_discrete_rectangle" else "copula_density",
+    randomized = discrete,
+    pit_seed = if (discrete) as.integer(pit_seed) else NA_integer_
   )
 }
