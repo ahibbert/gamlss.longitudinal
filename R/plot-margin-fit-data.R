@@ -118,21 +118,34 @@
 .plot_margin_fit_plot <- function(obs, density_grid, margin_dist, bins = 30, by_time = FALSE) {
   family_name <- .plot_margin_family_name(margin_dist)
   is_discrete <- .plot_margin_is_discrete(margin_dist)
+  cols <- .gl_plot_colours()
+  if (isTRUE(by_time)) {
+    panel_levels <- if (is.factor(obs$split_group)) {
+      levels(obs$split_group)[levels(obs$split_group) %in% as.character(obs$split_group)]
+    } else {
+      unique(as.character(obs$split_group))
+    }
+    obs$split_group <- factor(as.character(obs$split_group), levels = panel_levels)
+    density_grid$split_group <- factor(
+      as.character(density_grid$split_group),
+      levels = panel_levels
+    )
+  }
   histogram_layer <- if (is_discrete) {
     ggplot2::geom_histogram(
       ggplot2::aes(y = ggplot2::after_stat(density)),
       binwidth = 1,
       boundary = -0.5,
-      fill = "#d9d9d9",
-      color = "white",
+      fill = cols[["neutral"]],
+      color = NA,
       na.rm = TRUE
     )
   } else {
     ggplot2::geom_histogram(
       ggplot2::aes(y = ggplot2::after_stat(density)),
       bins = bins,
-      fill = "#d9d9d9",
-      color = "white",
+      fill = cols[["neutral"]],
+      color = NA,
       na.rm = TRUE
     )
   }
@@ -142,7 +155,7 @@
       ggplot2::aes(x = .data$response, y = .data$density),
       inherit.aes = FALSE,
       direction = "mid",
-      color = "#e41a1c",
+      color = cols[["fitted"]],
       linewidth = 1
     )
   } else {
@@ -150,7 +163,7 @@
       data = density_grid,
       ggplot2::aes(x = .data$response, y = .data$density),
       inherit.aes = FALSE,
-      color = "#e41a1c",
+      color = cols[["fitted"]],
       linewidth = 1
     )
   }
