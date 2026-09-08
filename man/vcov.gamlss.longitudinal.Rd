@@ -37,7 +37,9 @@ uses the semi-analytical Hessian from \code{R/hessian-analytical.R}.
 slower reference path. \code{"sandwich"} uses a cluster-robust sandwich estimator
 for fixed coefficients, with clusters defaulting to subjects. The legacy
 \code{numderiv} logical argument is still accepted and maps to \code{method = "numderiv"}
-when \code{TRUE}.}
+when \code{TRUE}. For a segmented likelihood, requests for model-Hessian
+inference are replaced by \code{"sandwich"} with a warning because different
+observed segments are treated as independent.}
 
 \item{progress}{Logical; show progress bars for slow Hessian calculations.}
 

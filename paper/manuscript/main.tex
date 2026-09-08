@@ -1205,9 +1205,10 @@ stop, or explicitly select \texttt{missingness = "segment"}. The likelihood
 then starts at each admitted
 observed segment, retains only scheduled-adjacent within-segment pairs, and
 treats distinct segments as independent. AIC and BIC remain available for this
-likelihood. Ordinary model-Hessian inference is unavailable for the
-segmented objective, so cluster-sandwich or bootstrap sensitivity analyses are
-required. Numerical integration across gaps and a distinct delayed-entry
+likelihood. For the segmented objective, standard inference methods use
+subject-clustered sandwich covariance instead of ordinary model-Hessian
+inference; bootstrap sensitivity analysis remains advisable. Numerical
+integration across gaps and a distinct delayed-entry
 likelihood are not implemented.
 
 The headline sensitivity analysis uses genuine subject-level monotone dropout,
