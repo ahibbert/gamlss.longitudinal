@@ -139,10 +139,12 @@ check_missingness(
 ## Step 1: Select margin distribution and copula function
 
 First, we review the shape of the response distribution (margin) and choose a
-candidate family. Longitudinal fitting and simulation support the tested
-family--copula combinations returned by
-`longitudinal_capabilities("routes")`. The presence of a family in
-**gamlss.dist** is not itself a support guarantee.
+candidate family. **gamlss.longitudinal** supports pure continuous and discrete
+**gamlss.dist** families through the generic Gaussian-copula route, with
+additional validated copulas for established families. Multinomial,
+logarithmic-series, and mixed discrete-continuous families are excluded because
+they require different likelihood machinery. Use
+`longitudinal_capabilities("routes")` to inspect the available combinations.
 
 For simplicity, `select_margin()` fits compatible candidate GAMLSS families and
 sorts them by AIC while recording longitudinal support. Candidate families
@@ -172,12 +174,34 @@ is one pragmatic search path, not an automatic guarantee that the selected
 family is correct; final conclusions should include sensitivity to plausible
 alternatives and acknowledge selection uncertainty.
 
+For binomial families, provide the number of trials explicitly and use the
+same contract throughout selection and fitting. The value may be a constant or
+a column name:
+
+```{r binomial-contract, eval = FALSE}
+margin_selection <- select_margin(
+  trial_data,
+  response_var = "successes",
+  type = "binom",
+  families = c("BI", "BB", "ZIBI", "ZIBB"),
+  margin_args = list(bd = "trials")
+)
+
+fit <- gamlss_longitudinal(
+  trial_data,
+  margin_dist = best_fit_family(margin_selection),
+  copula_dist = "N",
+  time_var = "time",
+  subject_var = "subject",
+  mu.formula = successes ~ time,
+  margin_args = list(bd = "trials")
+)
+```
+
 We then select a starting copula for the chosen marginal distribution. The
-capability registry supplies the copulas tested with that family; restricting
-the screen to this set prevents an attractive but unsupported combination from
-being carried into the longitudinal fit. When `response_var` and `margin_dist`
-are supplied, `select_copula()` creates pseudo-observations from a temporary
-marginal GAMLSS fit.
+capability registry supplies the copulas available with that family. When
+`response_var` and `margin_dist` are supplied, `select_copula()` creates
+pseudo-observations from a temporary marginal GAMLSS fit.
 
 ```{r copula-screen}
 # Select best-fitting copula distribution

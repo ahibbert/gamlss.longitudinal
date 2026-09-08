@@ -28,7 +28,8 @@ select_copula(
   margin_n_cycles = 100L,
   pit_seed = 1L,
   copula_time_intercepts = FALSE,
-  tail_thresholds = c(0.05, 0.1, 0.2)
+  tail_thresholds = c(0.05, 0.1, 0.2),
+  margin_args = list()
 )
 }
 \arguments{
@@ -91,6 +92,10 @@ level. This does not impose a linear time trend.}
 \item{tail_thresholds}{Numeric vector of lower-tail probabilities used for
 empirical-versus-fitted tail co-occurrence and conditional tail exceedance
 summaries.}
+
+\item{margin_args}{Named fixed marginal arguments passed to the temporary
+marginal fit. Binomial families require \code{list(bd = ...)} as described in
+\code{\link[=gamlss_longitudinal]{gamlss_longitudinal()}}.}
 }
 \value{
 A data frame with one row per retained family and class

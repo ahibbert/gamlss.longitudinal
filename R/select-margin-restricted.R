@@ -12,14 +12,24 @@
   dots <- list(...)
   k <- if (!is.null(dots$k)) dots$k else 2
   dots$k <- NULL
-  fit_data <- data.frame(.response = response)
+  binomial <- is.matrix(response) && ncol(response) == 2L
+  fit_data <- if (binomial) {
+    data.frame(.success = response[, 1L], .failure = response[, 2L])
+  } else {
+    data.frame(.response = response)
+  }
+  fit_formula <- if (binomial) {
+    stats::as.formula("cbind(.success, .failure) ~ 1")
+  } else {
+    stats::as.formula(".response ~ 1")
+  }
 
   aic <- vapply(families, function(family) {
     fit_ml <- function() {
       do.call(
         gamlss::gamlssML,
         c(
-          list(formula = .response ~ 1, family = family, data = fit_data),
+          list(formula = fit_formula, family = family, data = fit_data),
           dots
         )
       )
@@ -36,7 +46,7 @@
           gamlss::gamlss,
           c(
             list(
-              formula = .response ~ 1,
+              formula = fit_formula,
               family = family,
               data = fit_data,
               trace = trace

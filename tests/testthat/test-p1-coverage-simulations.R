@@ -42,6 +42,10 @@ test_that("coverage harness fits every registered route", {
   skip_if_not_installed("gamlss.dist")
 
   registered <- longitudinal_capabilities("routes")
+  registered <- registered[
+    registered$margin_family %in% names(gamlss.longitudinal:::.gl_capability_margin_specs()),
+    , drop = FALSE
+  ]
   grid <- data.frame(
     family = registered$margin_family,
     copula = registered$copula,

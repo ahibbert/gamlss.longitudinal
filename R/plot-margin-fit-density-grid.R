@@ -4,6 +4,7 @@
   y <- as.numeric(y)
   keep <- is.finite(y)
   y <- y[keep]
+  family_args <- attr(params, "family_args", exact = TRUE) %||% list()
   params <- lapply(params, function(x) {
     x <- as.numeric(x)
     if (length(x) == length(keep)) {
@@ -12,6 +13,10 @@
       rep(x, length.out = length(y))
     }
   })
+  family_args <- lapply(family_args, function(x) {
+    if (length(x) == length(keep)) x[keep] else rep(x, length.out = length(y))
+  })
+  attr(params, "family_args") <- family_args
   if (!is.null(group)) {
     group <- as.character(group)[keep]
   }
@@ -71,7 +76,7 @@
       seq(x_min, x_max, length.out = grid_n)
     }
     density <- vapply(x_grid, function(x_value) {
-      par_i <- lapply(params, function(p) p[idx])
+      par_i <- .gl_subset_family_params(params, idx)
       d_value <- suppressWarnings(.gl_call_family_fun("d", family_name, rep(x_value, length(idx)), par_i))
       d_value[!is.finite(d_value)] <- NA_real_
       mean(d_value, na.rm = TRUE)

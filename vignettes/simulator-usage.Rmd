@@ -35,17 +35,22 @@ library(gamlss.dist)
 
 `simulate_longitudinal_dataset()` returns one row per subject and time combination. We specify the number of subjects with `n=100` and the number of observations per timepoint with an ordered time variable, here `times = 0:4` which will result in a dataset with 500 observations total. 
 
-The order of `times` defines scheduled adjacency. Numeric distances do not by
-themselves weaken or strengthen the first-order copula: `c(1, 2, 30)` creates
-the adjacent pairs 1--2 and 2--30. If elapsed distance should affect dependence,
-encode it explicitly in the copula parameter function. For fitted models,
-numeric order or factor-level order defines the same schedule, and pair-level
-copula covariates are evaluated at the earlier (left) row.
+The order of `times` defines which observations are neighbours. Numeric
+distances do not by themselves weaken or strengthen the first-order copula:
+`c(1, 2, 30)` creates the adjacent pairs 1--2 and 2--30. If elapsed distance
+should affect dependence, encode it explicitly in the copula parameter
+function. For fitted models, numeric order or factor-level order defines the
+same sequence, and pair-level copula covariates are evaluated at the earlier
+row.
 
-Simulation supports the tested family--copula combinations returned by
-`longitudinal_capabilities("routes")`; the presence of a family in
-**gamlss.dist** is not by itself a support guarantee. Common supported marginal
-families include `NO()`, `GA()`, and `GG()`. The registered copula codes are:
+Pure continuous and discrete marginal distributions from **gamlss.dist** are
+supported through the generic Gaussian-copula route (for example, `NO()`,
+`GA()`, `GG()`, and `SICHEL()`). Additional copulas are available for the
+combinations returned by `longitudinal_capabilities("routes")`. Multinomial,
+logarithmic-series, and mixed discrete-continuous families are excluded.
+Binomial simulation supplies its denominator as `bd` in `margin_params`, and
+fitting supplies the same values through `margin_args`. The registered copula
+codes are:
 
 - `"N"` Normal
 - `"C"` Clayton

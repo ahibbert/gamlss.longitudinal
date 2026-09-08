@@ -3,7 +3,8 @@
     time,
     families,
     trace = FALSE,
-    n_cycles = 100L) {
+    n_cycles = 100L,
+    bd = NULL) {
   response <- as.numeric(response)
 
   time <- as.character(time)
@@ -14,18 +15,25 @@
     stop("Need at least three finite response values with non-missing time values to screen time-intercept margins.", call. = FALSE)
   }
 
+  if (!is.null(bd)) {
+    bd <- as.numeric(bd)
+    keep <- keep & is.finite(bd)
+  }
   fit_data <- data.frame(
     response = response[keep],
     time_intercept = factor(time[keep], levels = unique(time[keep])),
     stringsAsFactors = FALSE
   )
+  if (!is.null(bd)) {
+    fit_data$failure <- bd[keep] - response[keep]
+  }
 
   has_time_contrast <- length(unique(fit_data$time_intercept)) > 1L
 
   mu_formula <- if (has_time_contrast) {
-    stats::as.formula("response ~ time_intercept")
+    stats::as.formula(if (is.null(bd)) "response ~ time_intercept" else "cbind(response, failure) ~ time_intercept")
   } else {
-    stats::as.formula("response ~ 1")
+    stats::as.formula(if (is.null(bd)) "response ~ 1" else "cbind(response, failure) ~ 1")
   }
 
   par_formula <- if (has_time_contrast) {
