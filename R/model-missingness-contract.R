@@ -69,7 +69,7 @@
 #' Build and enforce the intermittent-gap likelihood contract
 #'
 #' @noRd
-.gl_missingness_contract <- function(dataset, missingness = c("error", "segment")) {
+.gl_missingness_contract <- function(dataset, missingness = c("auto", "segment", "error")) {
   missingness <- match.arg(missingness)
   segments <- .gl_observation_segments(
     response = dataset$response,
@@ -87,6 +87,7 @@
   out <- list(
     requested = missingness,
     objective = if (requires_segment) "segmented" else "ordinary",
+    auto_selected = requires_segment && identical(missingness, "auto"),
     has_intermittent_gaps = has_gaps,
     has_delayed_entry = has_delayed_entry,
     n_subjects = nrow(subject_summary),
@@ -144,11 +145,21 @@
   out
 }
 
-#' Warn when a segmented likelihood has been explicitly requested
+#' Warn when a segmented likelihood is selected
 #'
 #' @noRd
 .gl_warn_segmented_missingness <- function(contract) {
   if (!identical(contract$objective, "segmented")) return(invisible(FALSE))
+
+  selection_message <- if (isTRUE(contract$auto_selected)) {
+    "Automatically switching to the segmented likelihood: "
+  } else {
+    paste0(
+      "Using the segmented likelihood requested by missingness = \"",
+      contract$requested,
+      "\": "
+    )
+  }
 
   warning(structure(
     c(
@@ -156,9 +167,10 @@
         message = paste0(
           "Intermittent observation gaps or leading unobserved scheduled visits were detected for ",
           length(contract$affected_subjects),
-          " subject(s). Using the segmented likelihood requested by ",
-          "missingness = \"segment\": observations in different contiguous segments ",
-          "are treated as independent. AIC and BIC remain available under this explicit assumption. ",
+          " subject(s). ",
+          selection_message,
+          "observations in different contiguous segments ",
+          "are treated as independent. AIC and BIC remain available under this stated assumption. ",
           "Ordinary model-Hessian inference is unavailable for this composite objective; ",
           "use cluster-sandwich or bootstrap sensitivity analyses. ",
           "Numerical integration of dependence across gaps and a distinct delayed-entry likelihood are not implemented; ",

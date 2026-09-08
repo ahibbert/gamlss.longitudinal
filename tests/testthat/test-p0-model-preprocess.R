@@ -40,11 +40,11 @@ test_that("fit data preparation expands panels and preserves formula time covari
     verbose = 0
   )
 
+  prepared <- do.call(prepare_fit_data, common)
   expect_error(
-    do.call(prepare_fit_data, common),
+    do.call(prepare_fit_data, c(common, list(missingness = "error"))),
     class = "gamlss.longitudinal_gap_error"
   )
-  prepared <- do.call(prepare_fit_data, c(common, list(missingness = "segment")))
 
   expect_equal(prepared$response_var, "y")
   expect_equal(prepared$var_map[["visit"]], "time")
@@ -64,6 +64,8 @@ test_that("fit data preparation expands panels and preserves formula time covari
   expect_equal(prepared$miss_by_time$n_observed_response, c(1, 2))
   expect_equal(prepared$pair_summary$complete_pairs, 1)
   expect_identical(prepared$missingness_contract$objective, "segmented")
+  expect_identical(prepared$missingness_contract$requested, "auto")
+  expect_true(prepared$missingness_contract$auto_selected)
   expect_true(prepared$missingness_contract$has_delayed_entry)
 })
 
