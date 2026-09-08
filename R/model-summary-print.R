@@ -99,6 +99,14 @@ print.summary.gamlss.longitudinal <- function(x, digits = max(3, getOption("digi
         " | Validation:", hd$validation_profile %||% "unknown", "\n"
       )
     }
+    if (identical(hd$status %||% NULL, "available_with_warnings")) {
+      cat(
+        "Inference diagnostics: WARNING (",
+        paste(hd$warning_codes %||% hd$failure_codes %||% "unspecified", collapse = ", "),
+        "). Results are reported; interpret them with caution.\n",
+        sep = ""
+      )
+    }
     contract <- x$fit$inference_contract %||% attr(x, "inference_contract")
     if (!is.null(contract)) {
       cat("Inference target: fixed coefficients conditional on fitted smooth structure.\n")

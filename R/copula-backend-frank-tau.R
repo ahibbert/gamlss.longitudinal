@@ -28,6 +28,14 @@
 
     upper <- if (tau_i < 0) -1e-8 else 50
 
+    endpoint_tau <- .copula_frank_par_to_tau(c(lower, upper))
+    if (tau_i <= endpoint_tau[[1L]]) {
+      return(lower)
+    }
+    if (tau_i >= endpoint_tau[[2L]]) {
+      return(upper)
+    }
+
     stats::uniroot(
 
       function(th) .copula_frank_par_to_tau(th) - tau_i,

@@ -35,8 +35,8 @@
 #' @param subject_var,time_var Subject and time column names used when building
 #'   adjacent-time pairs from `data`.
 #' @param families Candidate copula family codes. Supported values are `"N"`,
-#'   `"C"`, `"F"`, `"G"`, `"J"`, and `"t"`. When the marginal family is
-#'   known, candidates without a registered margin-copula route are excluded.
+#'   `"C"`, `"F"`, `"G"`, `"J"`, and `"t"`. All six are available for every
+#'   supported homogeneous marginal family.
 #' @param lags Positive integer lag(s) used when forming adjacent pairs.
 #' @param criterion Ranking criterion, one of `"AIC"`, `"BIC"`, or `"logLik"`.
 #' @param t_df_grid Degrees-of-freedom grid used for the t-copula screen.

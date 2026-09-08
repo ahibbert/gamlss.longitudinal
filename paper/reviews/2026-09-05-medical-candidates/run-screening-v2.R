@@ -21,8 +21,9 @@ if (!requireNamespace("devtools", quietly = TRUE)) {
   stop("Install devtools with install.packages('devtools').")
 }
 
-setwd(package_root)
-devtools::load_all(quiet = TRUE)
+devtools::load_all(
+  "C:/Users/Aydin/OneDrive - The University of Sydney (Students)/gamlss.longitudinal"
+)
 
 output_dir <- file.path("paper", "reviews", "2026-09-05-medical-candidates", "results")
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
@@ -81,25 +82,25 @@ sample_patients <- function(data, id_var, n = 10, seed = 1) {
 }
 
 actg_patient_sample <- sample_patients(actg_data, id_var = "subject", n = 300)
-print(actg_patient_sample)
 
+actg_data$cd4_orig=actg_data$cd4-1
 
 #tlc_mar   = select_margin(response_var="lead"   ,data=tlc_data  ,time_intercepts=TRUE ,time_var="week", type="realAll")
-actg_mar  = select_margin(response_var="cd4"    ,data=actg_patient_sample ,time_intercepts=TRUE ,time_var="week_factor", type="counts")
+actg_mar  = select_margin(response_var="cd4_orig"    ,data=actg_patient_sample ,time_intercepts=TRUE ,time_var="week_factor", type="counts")
 #skin_mar  = select_margin(response_var="cancers",data=skin_data ,time_intercepts=TRUE ,time_var="year_factor", type="counts")
 #epi_mar   = select_margin(response_var="seizures",data=epi_data,time_intercepts=TRUE,time_var="period_factor", type="counts")
 
 plot_margin_fit(response_var="cd4"    ,data=actg_patient_sample ,time_intercepts=TRUE ,time_var="week_factor",
 margin_dist=NBI())
-plot_margin_fit(response_var="cd4"    ,data=actg_patient_sample ,time_intercepts=TRUE ,time_var="week_factor",
+plot_margin_fit(response_var="cd4_orig"    ,data=actg_patient_sample ,time_intercepts=TRUE ,time_var="week_factor",
 margin_dist=DEL(),by_time=TRUE)
 
 #plot_dist(response_var="lead"   ,data=tlc_data  ,time_var="week", subject_var="subject")
-plot_dist(response_var="cd4"    ,data=actg_patient_sample ,time_var="week_factor",subject_var="subject")
+plot_dist(response_var="cd4_orig"    ,data=actg_patient_sample ,time_var="week_factor",subject_var="subject")
 #plot_dist(response_var="cancers",data=skin_data ,time_var="year_factor")
 #plot_dist(response_var="seizures",data=epi_data,time_var="period_factor",subject_var="subject")
 
-select_copula(response_var="cd4", data=actg_patient_sample, time_intercepts=TRUE, time_var="week_factor",
+select_copula(response_var="cd4_orig", data=actg_patient_sample, time_intercepts=TRUE, time_var="week_factor",
 margin_dist=DEL(), subject_var="subject")
 
 fit_actg=gamlss_longitudinal(data  = actg_patient_sample
@@ -107,6 +108,6 @@ fit_actg=gamlss_longitudinal(data  = actg_patient_sample
                     , subject_var = "subject"
                     , margin_dist = DEL()
                     , copula_dist= "N"
-                    , mu.formula = cd4 ~ treatment + s(age) + sex + baseline_cd4 + week_factor + treatment * week_factor
+                    , mu.formula = cd4_orig ~ treatment + s(age) + sex + baseline_cd4 + week_factor + treatment * week_factor
                     , missingness = "segment"
 )

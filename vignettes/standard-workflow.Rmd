@@ -140,8 +140,8 @@ check_missingness(
 
 First, we review the shape of the response distribution (margin) and choose a
 candidate family. **gamlss.longitudinal** supports pure continuous and discrete
-**gamlss.dist** families through the generic Gaussian-copula route, with
-additional validated copulas for established families. Multinomial,
+**gamlss.dist** families with every registered copula through the shared
+continuous-density or exact discrete-rectangle likelihood route. Multinomial,
 logarithmic-series, and mixed discrete-continuous families are excluded because
 they require different likelihood machinery. Use
 `longitudinal_capabilities("routes")` to inspect the available combinations.

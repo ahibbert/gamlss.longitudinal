@@ -16,6 +16,25 @@
   )
 }
 
+#' Construct a classed inference-diagnostics warning
+#'
+#' @noRd
+.gl_inference_warning <- function(diagnostics) {
+  codes <- diagnostics$failure_codes %||% "unknown_inference_warning"
+  message <- diagnostics$message %||% paste0(
+    "Hessian-based inference diagnostics raised a warning (",
+    paste(codes, collapse = ", "), "). Calculated covariance, standard errors, ",
+    "and downstream inference are being returned; interpret them with caution."
+  )
+  structure(
+    list(message = message, call = NULL, diagnostics = diagnostics),
+    class = c(
+      "gamlss_longitudinal_inference_warning",
+      "warning", "condition"
+    )
+  )
+}
+
 #' Curvature-scaled finite-difference score at the fitted coefficients
 #'
 #' @noRd
@@ -199,9 +218,14 @@
     add_failure("hessian_agreement_not_checked")
   }
 
+  blocking_failures <- intersect(failures, c(
+    "hessian_not_square", "hessian_nonfinite", "hessian_not_conformable",
+    "hessian_names_invalid"
+  ))
+
   vc <- NULL
   covariance_diagonal <- numeric()
-  if (length(failures) == 0L) {
+  if (length(blocking_failures) == 0L) {
     vc <- tryCatch(solve(info), error = function(e) NULL)
     if (is.null(vc) || any(!is.finite(vc))) {
       add_failure("covariance_nonfinite")
@@ -214,9 +238,21 @@
     }
   }
 
+  blocking_failures <- intersect(failures, c(
+    blocking_failures, "covariance_nonfinite", "covariance_diagonal_nonpositive"
+  ))
+
   diagnostics <- list(
-    status = if (length(failures)) "unavailable" else "available",
+    status = if (length(blocking_failures)) {
+      "unavailable"
+    } else if (length(failures)) {
+      "available_with_warnings"
+    } else {
+      "available"
+    },
     failure_codes = failures,
+    blocking_failure_codes = blocking_failures,
+    warning_codes = setdiff(failures, blocking_failures),
     validation_profile = control$profile,
     validation_defaults_version = control$defaults_version,
     effective_thresholds = unclass(control[c(
@@ -241,7 +277,8 @@
     hessian_agreement_relative = agreement_relative,
     covariance_diagonal = covariance_diagonal
   )
-  if (length(failures)) stop(.gl_inference_unavailable(diagnostics))
+  if (length(blocking_failures)) stop(.gl_inference_unavailable(diagnostics))
+  if (length(failures)) warning(.gl_inference_warning(diagnostics))
 
   list(vcov = vc, se = sqrt(covariance_diagonal), hessian_diagnostics = diagnostics)
 }

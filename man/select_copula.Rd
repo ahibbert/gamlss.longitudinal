@@ -62,8 +62,8 @@ time-intercept \code{\link[=select_margin]{select_margin()}} result.}
 adjacent-time pairs from \code{data}.}
 
 \item{families}{Candidate copula family codes. Supported values are \code{"N"},
-\code{"C"}, \code{"F"}, \code{"G"}, \code{"J"}, and \code{"t"}. When the marginal family is
-known, candidates without a registered margin-copula route are excluded.}
+\code{"C"}, \code{"F"}, \code{"G"}, \code{"J"}, and \code{"t"}. All six are available for every
+supported homogeneous marginal family.}
 
 \item{lags}{Positive integer lag(s) used when forming adjacent pairs.}
 
