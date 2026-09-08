@@ -18,8 +18,8 @@
 
 #' Cached Gaussian copula CDF
 #'
-#' Evaluates the Gaussian copula CDF with boundary shortcuts and duplicated-row
-#' caching. Uses `mvtnorm` when available, otherwise falls back to `VineCopula`.
+#' Evaluates the Gaussian copula CDF with boundary shortcuts and a vectorised
+#' bivariate-normal backend.
 #'
 #' @noRd
 .copula_gaussian_cdf_cached <- function(u1, u2, par) {
@@ -51,30 +51,11 @@
 
   remaining <- finite & !zero & !one1 & !one2 & !independent
   if (any(remaining)) {
-    key <- paste(signif(u1[remaining], 15), signif(u2[remaining], 15), signif(rho[remaining], 15), sep = "\r")
-    unique_key <- !duplicated(key)
-    u1_unique <- u1[remaining][unique_key]
-    u2_unique <- u2[remaining][unique_key]
-    rho_unique <- rho[remaining][unique_key]
-    if (requireNamespace("mvtnorm", quietly = TRUE)) {
-      z1 <- stats::qnorm(u1_unique)
-      z2 <- stats::qnorm(u2_unique)
-      unique_vals <- vapply(seq_along(rho_unique), function(ii) {
-        as.numeric(mvtnorm::pmvnorm(
-          upper = c(z1[[ii]], z2[[ii]]),
-          corr = matrix(c(1, rho_unique[[ii]], rho_unique[[ii]], 1), 2, 2)
-        ))
-      }, numeric(1))
-    } else {
-      .copula_require_vinecopula("the Gaussian copula CDF backend")
-      unique_vals <- VineCopula::BiCopCDF(
-        u1_unique,
-        u2_unique,
-        family = 1,
-        par = rho_unique
-      )
-    }
-    out[remaining] <- unique_vals[match(key, key[unique_key])]
+    out[remaining] <- pbivnorm::pbivnorm(
+      stats::qnorm(u1[remaining]),
+      stats::qnorm(u2[remaining]),
+      rho[remaining]
+    )
   }
 
   pmin(pmax(as.numeric(out), 0), 1)

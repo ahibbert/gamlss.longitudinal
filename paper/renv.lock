@@ -1199,6 +1199,11 @@
       ],
       "Hash": "1e127bc944e0c1ec7c0297d685917dfe"
     },
+    "pbivnorm": {
+      "Package": "pbivnorm",
+      "Version": "0.6.0",
+      "Source": "Repository"
+    },
     "pbkrtest": {
       "Package": "pbkrtest",
       "Version": "0.5.3",

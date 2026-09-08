@@ -34,52 +34,90 @@
   weights <- weights_raw / 2
   grid <- expand.grid(i = seq_along(nodes), j = seq_along(nodes))
   log_weights <- log(weights[grid$i]) + log(weights[grid$j])
+  n_rect <- length(par)
+  n_grid <- nrow(grid)
+  if (!n_rect) return(numeric(0))
 
-  logspace_add <- function(a, b) {
-    m <- pmax(a, b)
-    m + log(exp(a - m) + exp(b - m))
-  }
-  log_sum_exp <- function(x) {
-    m <- max(x)
-    if (!is.finite(m)) return(m)
-    m + log(sum(exp(x - m)))
-  }
-  node_probability <- function(k, node, log_survival, log_mass, lower_value, upper_value) {
-    if (!is.null(log_survival) && is.finite(log_survival[[k]]) && is.finite(log_mass[[k]])) {
-      log_s <- logspace_add(log_survival[[k]], log1p(-node) + log_mass[[k]])
-      return(list(u = -expm1(log_s), log_survival = log_s))
+  node_matrix <- function(node, lower_value, upper_value, log_survival, log_mass) {
+    node <- matrix(node, nrow = n_rect, ncol = n_grid, byrow = TRUE)
+    lower_value <- matrix(lower_value, nrow = n_rect, ncol = n_grid)
+    upper_value <- matrix(upper_value, nrow = n_rect, ncol = n_grid)
+    u <- lower_value + node * (upper_value - lower_value)
+    log_s <- matrix(NA_real_, nrow = n_rect, ncol = n_grid)
+    stable <- rep(FALSE, n_rect)
+    if (!is.null(log_survival) && !is.null(log_mass)) {
+      stable <- is.finite(log_survival) & is.finite(log_mass)
+      if (any(stable)) {
+        base <- matrix(log_survival[stable], nrow = sum(stable), ncol = n_grid)
+        increment <- matrix(log_mass[stable], nrow = sum(stable), ncol = n_grid) +
+          log1p(-node[stable, , drop = FALSE])
+        maximum <- pmax(base, increment)
+        stable_log_s <- maximum +
+          log(exp(base - maximum) + exp(increment - maximum))
+        log_s[stable, ] <- stable_log_s
+        u[stable, ] <- -expm1(stable_log_s)
+      }
     }
-    list(
-      u = lower_value + node * (upper_value - lower_value),
-      log_survival = NA_real_
+    list(u = u, log_survival = log_s, stable = stable)
+  }
+
+  p1 <- node_matrix(
+    nodes[grid$i], lower[, 1], upper[, 1], log_survival1, margin_log_d1
+  )
+  p2 <- node_matrix(
+    nodes[grid$j], lower[, 2], upper[, 2], log_survival2, margin_log_d2
+  )
+  log_density <- matrix(NA_real_, nrow = n_rect, ncol = n_grid)
+
+  gaussian_stable <- identical(family, "N") & p1$stable & p2$stable
+  if (any(gaussian_stable)) {
+    z1 <- matrix(
+      stats::qnorm(
+        p1$log_survival[gaussian_stable, , drop = FALSE],
+        lower.tail = FALSE,
+        log.p = TRUE
+      ),
+      nrow = sum(gaussian_stable),
+      ncol = n_grid
+    )
+    z2 <- matrix(
+      stats::qnorm(
+        p2$log_survival[gaussian_stable, , drop = FALSE],
+        lower.tail = FALSE,
+        log.p = TRUE
+      ),
+      nrow = sum(gaussian_stable),
+      ncol = n_grid
+    )
+    rho <- .copula_gaussian_rho(par[gaussian_stable])
+    denom <- 1 - rho^2
+    log_density[gaussian_stable, ] <- (
+      2 * rho * z1 * z2 - rho^2 * (z1^2 + z2^2)
+    ) / (2 * denom) - 0.5 * log(denom)
+  }
+
+  generic <- !gaussian_stable
+  if (any(generic)) {
+    log_density[generic, ] <- matrix(
+      .copula_logpdf(
+        as.numeric(p1$u[generic, , drop = FALSE]),
+        as.numeric(p2$u[generic, , drop = FALSE]),
+        family = family,
+        par = rep(par[generic], times = n_grid),
+        par2 = rep(par2[generic], times = n_grid)
+      ),
+      nrow = sum(generic),
+      ncol = n_grid
     )
   }
 
-  vapply(seq_along(par), function(k) {
-    log_density <- numeric(nrow(grid))
-    for (g in seq_len(nrow(grid))) {
-      p1 <- node_probability(
-        k, nodes[grid$i[g]], log_survival1, margin_log_d1,
-        lower[k, 1], upper[k, 1]
-      )
-      p2 <- node_probability(
-        k, nodes[grid$j[g]], log_survival2, margin_log_d2,
-        lower[k, 2], upper[k, 2]
-      )
-      if (identical(family, "N") && is.finite(p1$log_survival) && is.finite(p2$log_survival)) {
-        z1 <- stats::qnorm(p1$log_survival, lower.tail = FALSE, log.p = TRUE)
-        z2 <- stats::qnorm(p2$log_survival, lower.tail = FALSE, log.p = TRUE)
-        rho <- .copula_gaussian_rho(par[[k]])
-        denom <- 1 - rho^2
-        log_density[g] <- (
-          2 * rho * z1 * z2 - rho^2 * (z1^2 + z2^2)
-        ) / (2 * denom) - 0.5 * log(denom)
-      } else {
-        log_density[g] <- .copula_logpdf(
-          p1$u, p2$u, family = family, par = par[[k]], par2 = par2[[k]]
-        )
-      }
-    }
-    log_sum_exp(log_weights + log_density)
-  }, numeric(1))
+  weighted <- sweep(log_density, 2L, log_weights, "+")
+  maximum <- apply(weighted, 1L, max)
+  out <- maximum
+  finite <- is.finite(maximum)
+  if (any(finite)) {
+    centered <- weighted[finite, , drop = FALSE] - maximum[finite]
+    out[finite] <- maximum[finite] + log(rowSums(exp(centered)))
+  }
+  out
 }
