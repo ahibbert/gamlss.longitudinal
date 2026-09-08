@@ -88,9 +88,10 @@ segments and different segments are treated as independent. The first
 observed visit after leading missing visits explicitly starts a segment.
 Terminal dropout does not require segmentation. AIC and
 BIC remain available for segmented fits under the stated independence
-assumption; ordinary model-Hessian inference is unavailable for this
-composite objective, so use cluster-sandwich or bootstrap sensitivity
-analysis. Numerical integration across gaps and a distinct delayed-entry
+assumption. Standard inference methods automatically use subject-clustered
+sandwich covariance instead of ordinary model-Hessian inference for this
+composite objective; bootstrap sensitivity analysis remains advisable.
+Numerical integration across gaps and a distinct delayed-entry
 likelihood are not yet implemented.}
 
 \item{mu.formula}{Formula for the mu parameter of the marginal distribution}

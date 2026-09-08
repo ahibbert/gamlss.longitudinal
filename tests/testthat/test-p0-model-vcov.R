@@ -118,6 +118,31 @@ test_that("sandwich vcov is available through inference helpers", {
   wt <- wald_test(fit, terms = names(fit$par)[1], method = "sandwich", sandwich_h = 1e-4)
   expect_s3_class(wt, "gamlss_longitudinal_wald_test")
   expect_equal(wt$method, "sandwich_cluster")
+
+  fit$likelihood_contract <- list(objective = "segmented")
+  fit$missingness <- list(
+    objective = "segmented",
+    n_subjects_with_gaps = 1L,
+    n_segments = length(unique(fit$response_subject)) + 1L
+  )
+  warning_seen <- FALSE
+  segmented_summary <- withCallingHandlers(
+    summary(fit, sandwich_h = 1e-4),
+    gamlss_longitudinal_segmented_inference_warning = function(w) {
+      warning_seen <<- TRUE
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_true(warning_seen)
+  expect_s3_class(segmented_summary, "summary.gamlss.longitudinal")
+  expect_identical(segmented_summary$fit$vcov_method, "sandwich_cluster")
+  expect_identical(segmented_summary$fit$vcov_method_requested, "analytical")
+  expect_true(all(is.finite(segmented_summary$coefficients$std_error)))
+  expect_match(
+    paste(capture.output(print(segmented_summary)), collapse = "\n"),
+    "subject-clustered sandwich covariance",
+    fixed = TRUE
+  )
 })
 
 test_that("vcov setup preserves legacy numderiv and parameter override behavior", {
