@@ -385,6 +385,9 @@ run_coverage_simulations <- function(
   margin_dist <- do.call(get(family, envir = asNamespace("gamlss.dist")), list())
 
   margin_params <- .coverage_default_margin_params(margin_dist)
+  if (family %in% .gl_binomial_families()) {
+    margin_params$bd <- 10L
+  }
 
   covariates <- NULL
 
