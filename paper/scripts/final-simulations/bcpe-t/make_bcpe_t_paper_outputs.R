@@ -8,6 +8,9 @@ suppressPackageStartupMessages({
 })
 
 root <- normalizePath(".", winslash = "/", mustWork = TRUE)
+if (!exists("theme_jss_paper", mode = "function", inherits = TRUE)) {
+  sys.source(file.path(root, "paper", "R", "paper-plot-style.R"), envir = environment())
+}
 result_root <- file.path(root, "results", "jss-exploratory", "01-continuous-bcpe-t")
 if (!dir.exists(result_root)) {
   result_root <- file.path(root, "results")
@@ -27,15 +30,8 @@ model_labels <- c(
   "gamlss2" = "gamlss2"
 )
 
-method_colours <- c(
-  "gamlss.longitudinal" = "#0072B2",
-  "gamlss2" = "#D55E00"
-)
-
-method_fills <- c(
-  "gamlss.longitudinal" = "#56B4E9",
-  "gamlss2" = "#E69F00"
-)
+method_colours <- jss_method_colours()[c("gamlss.longitudinal", "gamlss2")]
+method_fills <- jss_method_fills()[c("gamlss.longitudinal", "gamlss2")]
 
 param_labels <- c(
   "mu" = "mu",
@@ -207,19 +203,9 @@ write_paper_latex_files <- function(recovery_table_latex, fit_table_csv, compari
 }
 
 theme_paper <- function(base_size = 11) {
-  theme_minimal(base_size = base_size) +
+  theme_jss_paper(base_size = base_size, legend_position = "top") +
     theme(
-      plot.background = element_rect(fill = "white", colour = NA),
-      panel.background = element_rect(fill = "white", colour = NA),
-      panel.grid.minor = element_blank(),
-      panel.grid.major.x = element_blank(),
-      panel.grid.major.y = element_blank(),
       axis.text.x = element_text(angle = 35, hjust = 1, vjust = 1),
-      legend.position = "top",
-      legend.title = element_blank(),
-      strip.text = element_text(face = "bold"),
-      strip.text.y = element_text(face = "bold", angle = 0),
-      strip.text.y.right = element_text(face = "bold", angle = 0),
       plot.title.position = "plot"
     )
 }
@@ -284,7 +270,7 @@ fixed_plot <- ggplot(
   aes(x = term_math, y = mean_error, colour = method)
 ) +
   geom_blank(data = fixed_limits, aes(x = term_math, y = bias), inherit.aes = FALSE) +
-  geom_hline(yintercept = 0, linewidth = 0.35, colour = "grey30") +
+  geom_hline(yintercept = 0, linewidth = 0.35, colour = jss_plot_colours()[["truth"]], linetype = "dashed") +
   geom_pointrange(
     aes(ymin = lower_error, ymax = upper_error),
     position = position_dodge(width = 0.5),
@@ -300,13 +286,10 @@ fixed_plot <- ggplot(
   ) +
   theme_paper()
 
-ggsave(
+jss_save_figure(
   file.path(comparison_dir, paste0(prefix, "_fixed_effect_recovery.png")),
   fixed_plot,
-  width = 12,
-  height = 3.8,
-  dpi = 320,
-  bg = "white"
+  size = "shallow"
 )
 
 smooth_parameters <- c("mu", "sigma", "theta")
@@ -341,7 +324,7 @@ smooth_plot <- ggplot(smooth_summary, aes(x = s1)) +
     data = truth_curves,
     aes(x = s1, y = true),
     inherit.aes = FALSE,
-    colour = "black",
+    colour = jss_plot_colours()[["truth"]],
     linewidth = 0.75,
     linetype = "dashed"
   ) +
@@ -364,13 +347,10 @@ smooth_plot <- ggplot(smooth_summary, aes(x = s1)) +
     strip.text.y.right = element_blank()
   )
 
-ggsave(
+jss_save_figure(
   file.path(comparison_dir, paste0(prefix, "_smooth_effect_recovery.png")),
   smooth_plot,
-  width = 11,
-  height = 6.5,
-  dpi = 320,
-  bg = "white"
+  size = "standard"
 )
 unlink(file.path(comparison_dir, paste0(prefix, "_gamlss_smooth_effect_recovery.png")))
 unlink(file.path(comparison_dir, paste0(prefix, "_gamlss_longitudinal_smooth_effect_recovery.png")))

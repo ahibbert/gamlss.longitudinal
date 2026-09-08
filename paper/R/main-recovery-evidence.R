@@ -2092,10 +2092,11 @@ jss_recovery_write_manuscript_assets <- function(bundle_dir, settings) {
     sm <- smooth[smooth$study_id %in% study, ]
     methods <- unique(as.character(c(fx$method, sm$method)))
     package_method <- methods %in% c("gamlss.longitudinal", "ours_rs_joint")
-    method_colours <- stats::setNames(
-      ifelse(package_method, "#0072B2", "#3C4858"),
-      methods
-    )
+    colours <- jss_plot_colours()
+    method_colours <- jss_method_colours()[methods]
+    method_colours[is.na(method_colours)] <- colours[["comparator"]]
+    method_fills <- jss_method_fills()[methods]
+    method_fills[is.na(method_fills)] <- colours[["neutral"]]
     method_shapes <- stats::setNames(ifelse(package_method, 17, 16), methods)
     method_labels <- c(
       gamlss.longitudinal = "gamlss.longitudinal",
@@ -2110,7 +2111,7 @@ jss_recovery_write_manuscript_assets <- function(bundle_dir, settings) {
       ggplot2::geom_hline(
         yintercept = 0,
         linetype = "dashed",
-        colour = "#D55E00",
+        colour = colours[["reference"]],
         linewidth = 0.45
       ) +
       ggplot2::geom_point(position = ggplot2::position_dodge(width = 0.4), size = 2) +
@@ -2121,31 +2122,29 @@ jss_recovery_write_manuscript_assets <- function(bundle_dir, settings) {
         values = method_shapes,
         labels = method_labels
       ) +
-      gamlss.longitudinal::theme_gamlss_longitudinal(base_size = 10) +
+      theme_jss_paper(base_size = 9, legend_position = "top") +
       ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 30, hjust = 1)) +
       ggplot2::labs(
         x = NULL,
         y = "Bias",
         colour = NULL,
-        shape = NULL,
-        subtitle = "Converged, complete, publication-retained attempts only"
+        shape = NULL
       )
     p_smooth <- ggplot2::ggplot(
       sm,
       ggplot2::aes(x = parameter, y = irmse, fill = method)
     ) +
       ggplot2::geom_col(position = "dodge") +
-      ggplot2::scale_fill_manual(values = method_colours, labels = method_labels) +
-      gamlss.longitudinal::theme_gamlss_longitudinal(base_size = 10) +
+      ggplot2::scale_fill_manual(values = method_fills, labels = method_labels) +
+      theme_jss_paper(base_size = 9, legend_position = "top") +
       ggplot2::labs(
         x = NULL,
         y = "Integrated RMSE",
-        fill = NULL,
-        subtitle = "Authoritative main-recovery attempt set"
+        fill = NULL
       )
     index <- if (margin == "BCPE") 1:2 else 3:4
-    ggplot2::ggsave(figure_paths[index[[1]]], p_fixed, width = 9, height = 5.5, dpi = 180)
-    ggplot2::ggsave(figure_paths[index[[2]]], p_smooth, width = 8, height = 5, dpi = 180)
+    jss_save_figure(figure_paths[index[[1]]], p_fixed, size = "standard")
+    jss_save_figure(figure_paths[index[[2]]], p_smooth, size = "standard")
   }
   list(tables = table_paths, figures = figure_paths)
 }

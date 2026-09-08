@@ -443,7 +443,7 @@ jss_optimizer_lean_validate <- function(data_dir, tables_dir, figures_dir) {
 }
 
 jss_optimizer_lean_write_figure <- function(uncertainty, path) {
-  colours <- c(observed = "#3C4858", fitted = "#0072B2", reference = "#D55E00")
+  colours <- jss_plot_colours()
   selected <- uncertainty[
     uncertainty$comparison_type == "paired_optimizer_difference" &
       uncertainty$metric %in% c("train_joint_loglik", "test_log_score_per_obs",
@@ -478,12 +478,11 @@ jss_optimizer_lean_write_figure <- function(uncertainty, path) {
     ggplot2::facet_wrap(~metric, scales = "free_y", ncol = 2) +
     ggplot2::labs(
       x = "Scenario",
-      y = "RS joint - RS separate",
-      subtitle = "Points are paired mean differences; bars are 95% intervals"
+      y = "RS joint - RS separate"
     ) +
-    gamlss.longitudinal::theme_gamlss_longitudinal(base_size = 10)
+    theme_jss_paper(base_size = 9, legend_position = "none")
   dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-  ggplot2::ggsave(path, p, width = 8, height = 6, dpi = 300, bg = "white")
+  jss_save_figure(path, p, size = "standard")
   invisible(path)
 }
 
@@ -535,16 +534,20 @@ jss_run_phase2_optimizer <- function(settings) {
   }
   files <- jss_optimizer_lean_files()
   tracked <- file.path(settings$public_data_dir, "optimizer-benchmark")
-  source <- c(file.path(tracked, "data", files$data),
-    file.path(tracked, "tables", files$tables), file.path(tracked, "figures", files$figures))
-  destination <- c(file.path(settings$data_dir, files$data),
-    file.path(settings$tables_dir, files$tables), file.path(settings$figures_dir, files$figures))
+  source <- c(file.path(tracked, "data", files$data), file.path(tracked, "tables", files$tables))
+  destination <- c(file.path(settings$data_dir, files$data), file.path(settings$tables_dir, files$tables))
   jss_phase2_copy_exact(source, destination)
+  uncertainty <- utils::read.csv(
+    file.path(settings$tables_dir, files$tables[[3L]]),
+    stringsAsFactors = FALSE
+  )
+  figure <- file.path(settings$figures_dir, files$figures[[1L]])
+  jss_optimizer_lean_write_figure(uncertainty, figure)
   jss_optimizer_lean_validate(settings$data_dir, settings$tables_dir, settings$figures_dir)
   list(
     module_id = "03-joint-vs-separate-optimization", status = "current",
     data = file.path(settings$data_dir, files$data), tables = file.path(settings$tables_dir, files$tables),
-    figures = file.path(settings$figures_dir, files$figures),
+    figures = figure,
     notes = "Three-scenario paired RS benchmark; supplementary; runtime descriptive and order-confounded."
   )
 }

@@ -7,6 +7,7 @@ local_optimizer_lean_root <- function() {
 local_optimizer_lean_env <- function() {
   root <- local_optimizer_lean_root()
   env <- new.env(parent = globalenv())
+  source(file.path(root, "paper", "R", "paper-plot-style.R"), local = env)
   source(file.path(root, "paper", "R", "03-optimizer-publication-lean.R"), local = env)
   env
 }

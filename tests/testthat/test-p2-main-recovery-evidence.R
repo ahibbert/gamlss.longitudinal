@@ -7,6 +7,7 @@ local_main_recovery_root <- function() {
 local_main_recovery_env <- function() {
   root <- local_main_recovery_root()
   env <- new.env(parent = baseenv())
+  sys.source(file.path(root, "paper", "R", "paper-plot-style.R"), envir = env)
   sys.source(file.path(root, "paper", "R", "main-recovery-evidence.R"), envir = env)
   sys.source(file.path(root, "paper", "R", "submission-replication.R"), envir = env)
   env

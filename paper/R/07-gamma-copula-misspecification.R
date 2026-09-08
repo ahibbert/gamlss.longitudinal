@@ -1910,10 +1910,10 @@ jss_misspec_write_heatmap <- function(summary, path) {
   ) +
     ggplot2::geom_tile(color = "white", linewidth = 0.2) +
     ggplot2::facet_grid(tau_label ~ n_subject, labeller = ggplot2::label_both) +
-    ggplot2::scale_fill_gradient2(low = "#b2182b", mid = "white", high = "#2166ac", midpoint = 0, na.value = "grey85") +
+    ggplot2::scale_fill_gradient2(low = jss_plot_colours()[["negative"]], mid = "white", high = jss_plot_colours()[["positive"]], midpoint = 0, na.value = jss_plot_colours()[["neutral"]]) +
     ggplot2::labs(x = "Fitted copula", y = "Generating copula", fill = "Delta joint logLik") +
-    ggplot2::theme_minimal(base_size = 10)
-  ggplot2::ggsave(path, p, width = 10, height = 6, dpi = 320, bg = "white")
+    theme_jss_paper(base_size = 9, legend_position = "bottom")
+  jss_save_figure(path, p, size = "standard")
   path
 }
 
@@ -1927,10 +1927,10 @@ jss_misspec_write_metric_heatmap <- function(summary, path, metric, title, fill_
   ) +
     ggplot2::geom_tile(color = "white", linewidth = 0.2) +
     ggplot2::facet_grid(tau_label ~ n_subject, labeller = ggplot2::label_both) +
-    ggplot2::scale_fill_gradient(low = "#f7fbff", high = "#08519c", na.value = "grey85") +
+    ggplot2::scale_fill_gradient(low = jss_plot_colours()[["low"]], high = jss_plot_colours()[["positive"]], na.value = jss_plot_colours()[["neutral"]]) +
     ggplot2::labs(title = title, x = "Fitted copula", y = "Generating copula", fill = fill_label) +
-    ggplot2::theme_minimal(base_size = 10)
-  ggplot2::ggsave(path, p, width = 10, height = 6, dpi = 320, bg = "white")
+    theme_jss_paper(base_size = 9, legend_position = "bottom", show_title = TRUE)
+  jss_save_figure(path, p, size = "standard")
   path
 }
 
@@ -1943,13 +1943,19 @@ jss_misspec_summary_panel <- function(plot_data, metric, title, fill_label, scal
     scale +
     ggplot2::coord_equal() +
     ggplot2::labs(title = title, x = "Fitted copula", y = "Generating copula", fill = fill_label) +
-    ggplot2::theme_minimal(base_size = 9) +
+    theme_jss_paper(base_size = 8.5, legend_position = "bottom", show_title = TRUE) +
     ggplot2::theme(
-      plot.title = ggplot2::element_text(face = "bold", size = 10),
-      legend.position = "bottom",
-      legend.key.width = grid::unit(1.25, "cm"),
+      legend.key.width = grid::unit(0.9, "cm"),
+      legend.text = ggplot2::element_text(size = 6.5),
+      legend.title = ggplot2::element_text(size = 6.5),
       panel.grid = ggplot2::element_blank()
-    )
+    ) +
+    ggplot2::guides(fill = ggplot2::guide_colorbar(
+      barwidth = grid::unit(2.2, "cm"),
+      barheight = grid::unit(0.22, "cm"),
+      title.position = "top",
+      title.hjust = 0.5
+    ))
 }
 
 jss_misspec_figure_metadata <- function(summary, n_subject = 500L, tau_label = "high", reps = 100L) {
@@ -1992,11 +1998,12 @@ jss_misspec_write_paper_summary_heatmap <- function(summary, path, n_subject = 5
     title = "Delta joint log-likelihood",
     fill_label = "Delta logLik",
     scale = ggplot2::scale_fill_gradient2(
-      low = "#b2182b",
+      low = jss_plot_colours()[["negative"]],
       mid = "white",
-      high = "#2166ac",
+      high = jss_plot_colours()[["positive"]],
       midpoint = 0,
-      na.value = "grey85"
+      breaks = scales::breaks_pretty(n = 3),
+      na.value = jss_plot_colours()[["neutral"]]
     )
   )
   margin_panel <- jss_misspec_summary_panel(
@@ -2004,28 +2011,27 @@ jss_misspec_write_paper_summary_heatmap <- function(summary, path, n_subject = 5
     metric = "mean_margin_param_rmse",
     title = "Margin parameter RMSE",
     fill_label = "RMSE",
-    scale = ggplot2::scale_fill_gradient(low = "#f7fbff", high = "#08519c", na.value = "grey85")
+    scale = ggplot2::scale_fill_gradient(
+      low = jss_plot_colours()[["low"]], high = jss_plot_colours()[["positive"]],
+      breaks = scales::breaks_pretty(n = 3), na.value = jss_plot_colours()[["neutral"]]
+    )
   )
   tau_panel <- jss_misspec_summary_panel(
     plot_data,
     metric = "mean_tau_abs_error",
     title = metadata$tau_panel_title,
     fill_label = "Abs. error",
-    scale = ggplot2::scale_fill_gradient(low = "#f7fbff", high = "#08519c", na.value = "grey85")
+    scale = ggplot2::scale_fill_gradient(
+      low = jss_plot_colours()[["low"]], high = jss_plot_colours()[["positive"]],
+      breaks = scales::breaks_pretty(n = 3), na.value = jss_plot_colours()[["neutral"]]
+    )
   )
 
-  grDevices::png(path, width = 11, height = 4.6, units = "in", res = 320, bg = "white")
-  on.exit(grDevices::dev.off(), add = TRUE)
-  grid::grid.newpage()
-  grid::pushViewport(grid::viewport(layout = grid::grid.layout(
-    2, 3, heights = grid::unit(c(0.35, 4.25), "in")
-  )))
-  grid::grid.text(title, vp = grid::viewport(layout.pos.row = 1, layout.pos.col = 1:3),
-    gp = grid::gpar(fontface = "bold", fontsize = 11))
-  print(likelihood_panel, vp = grid::viewport(layout.pos.row = 2, layout.pos.col = 1))
-  print(margin_panel, vp = grid::viewport(layout.pos.row = 2, layout.pos.col = 2))
-  print(tau_panel, vp = grid::viewport(layout.pos.row = 2, layout.pos.col = 3))
-  grid::popViewport()
+  combined <- ggpubr::ggarrange(
+    likelihood_panel, margin_panel, tau_panel,
+    ncol = 3L, nrow = 1L, align = "hv"
+  )
+  jss_save_figure(path, combined, size = "shallow", height = 3.15)
   path
 }
 
@@ -2042,8 +2048,12 @@ jss_misspec_write_convergence_plot <- function(summary, path) {
     ggplot2::coord_cartesian(ylim = c(0, 1)) +
     ggplot2::scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
     ggplot2::labs(x = "Fitted copula", y = "Convergence rate") +
-    ggplot2::theme_minimal(base_size = 9)
-  ggplot2::ggsave(path, p, width = 11, height = 8, dpi = 320, bg = "white")
+    ggplot2::scale_fill_manual(values = stats::setNames(
+      rep(jss_plot_colours()[["package"]], length(unique(summary$fitted_copula))),
+      unique(summary$fitted_copula)
+    )) +
+    theme_jss_paper(base_size = 8.5, legend_position = "none")
+  jss_save_figure(path, p, size = "tall")
   path
 }
 

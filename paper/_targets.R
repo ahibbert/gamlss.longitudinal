@@ -1,6 +1,7 @@
 library(targets)
 
 source(file.path("paper", "R", "replication-helpers.R"))
+source(file.path("paper", "R", "paper-plot-style.R"))
 source(file.path("paper", "R", "phase2-evidence-contracts.R"))
 source(file.path("paper", "R", "main-recovery-evidence.R"))
 source(file.path("paper", "R", "01-simulation-bcpe-t.R"))

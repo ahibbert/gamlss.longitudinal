@@ -1,6 +1,7 @@
 local_lean_missingness_env <- function() {
   root <- normalizePath(testthat::test_path("..", ".."), winslash = "/", mustWork = TRUE)
   env <- new.env(parent = globalenv())
+  sys.source(file.path(root, "paper", "R", "paper-plot-style.R"), envir = env)
   sys.source(file.path(root, "paper", "R", "missingness-study-helpers.R"), envir = env)
   sys.source(file.path(root, "paper", "R", "04-missingness-dropout-sensitivity.R"), envir = env)
   sys.source(file.path(root, "paper", "R", "04-missingness-publication-lean.R"), envir = env)

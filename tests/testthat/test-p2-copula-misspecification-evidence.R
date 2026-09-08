@@ -117,5 +117,6 @@ test_that("Module 07 claim mappings and visible figure metadata are explicit", {
   expect_match(metadata$visible_label, "R = 100", fixed = TRUE)
   expect_identical(metadata$tau_panel_title, "Mean absolute Kendall tau error")
   figure_code <- paste(deparse(body(env$jss_misspec_write_paper_summary_heatmap)), collapse = "\n")
-  expect_match(figure_code, "grid::grid.text(title", fixed = TRUE)
+  expect_match(figure_code, "ggpubr::ggarrange", fixed = TRUE)
+  expect_match(figure_code, "jss_save_figure", fixed = TRUE)
 })
