@@ -1,10 +1,11 @@
 jss_misspec_copulas <- function() {
-  # Keep the evidence design inside the package's locked Phase 1 capability
-  # contract.  The Gamma margin is currently validated end to end with the
-  # Gaussian and Clayton copulas only; using the package-wide copula list here
-  # would turn unsupported preflight errors into purported selection evidence.
+  # Keep the evidence design inside the study-specific capability contract.
+  # The Gamma study was approved with Gaussian and Clayton copulas only; later
+  # additive changes to unrelated package routes must not rewrite its identity.
   c("N", "C")
 }
+
+jss_misspec_capability_design_version <- function() "2026.2"
 
 jss_misspec_capability_contract <- function(repo_root) {
   registry_path <- file.path(repo_root, "R", "capability-registry.R")
@@ -17,14 +18,20 @@ jss_misspec_capability_contract <- function(repo_root) {
   gamma_copulas <- as.character(
     registry$.gl_capability_margin_specs()$GA$compatible_copulas
   )
-  if (!identical(version, "2026.2") ||
-      !identical(gamma_copulas, jss_misspec_copulas())) {
+  if (!identical(gamma_copulas, jss_misspec_copulas())) {
     stop(
-      "Module 07's Gamma copula-selection design no longer matches the locked Phase 1 capability registry; review and version the evidence design before running.",
+      "Module 07's Gamma copula-selection design no longer matches the current capability registry; review and version the evidence design before running.",
       call. = FALSE
     )
   }
-  list(registry_version = version, copulas = gamma_copulas)
+  list(
+    # This is a provenance label for the frozen study design, not the version
+    # of the entire live package registry. The current registry may gain
+    # unrelated routes while this Gamma N/C design remains unchanged.
+    registry_version = jss_misspec_capability_design_version(),
+    current_registry_version = version,
+    copulas = gamma_copulas
+  )
 }
 
 jss_misspec_tau_levels <- function() {
