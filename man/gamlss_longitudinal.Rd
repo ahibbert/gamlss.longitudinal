@@ -10,7 +10,7 @@ gamlss_longitudinal(
   copula_dist,
   time_var = NA,
   subject_var = NA,
-  missingness = c("error", "segment"),
+  missingness = c("auto", "segment", "error"),
   mu.formula = response ~ 1,
   sigma.formula = ~1,
   nu.formula = ~1,
@@ -41,19 +41,21 @@ homogeneous margin family; see \code{\link[=longitudinal_capabilities]{longitudi
 
 \item{subject_var}{Name of the subject identifier in \code{dataset}.}
 
-\item{missingness}{Handling of unsupported response patterns. The default,
-\code{"error"}, stops when a subject has an unobserved scheduled visit before
-their first observation or between observed visits and directs the user to
-opt in explicitly. The ordinary likelihood supports complete panels and
-observed prefixes ending in terminal dropout. With
-\code{"segment"}, the likelihood is evaluated within contiguous observed
+\item{missingness}{Handling of response patterns outside complete panels and
+observed prefixes ending in terminal dropout. The default, \code{"auto"}, uses
+the ordinary likelihood where possible and automatically switches to the
+segmented likelihood when leading unobserved visits or intermittent gaps
+are detected. Use \code{"error"} to stop instead, or \code{"segment"} to explicitly
+permit segmentation. With a segmented objective, the likelihood is
+evaluated within contiguous observed
 segments and different segments are treated as independent. The first
 observed visit after leading missing visits explicitly starts a segment.
 Terminal dropout does not require segmentation. AIC and
 BIC remain available for segmented fits under the stated independence
-assumption; ordinary model-Hessian inference is unavailable for this
-composite objective, so use cluster-sandwich or bootstrap sensitivity
-analysis. Numerical integration across gaps and a distinct delayed-entry
+assumption. Standard inference methods automatically use subject-clustered
+sandwich covariance instead of ordinary model-Hessian inference for this
+composite objective; bootstrap sensitivity analysis remains advisable.
+Numerical integration across gaps and a distinct delayed-entry
 likelihood are not yet implemented.}
 
 \item{mu.formula}{Formula for the mu parameter of the marginal distribution}
@@ -135,9 +137,9 @@ Adjacent copula pairs link globally adjacent scheduled visits, rather than
 the next observed record for a subject. Numeric spacing is not used as an
 elapsed-time distance, so irregularly spaced values affect ordering only.
 Duplicate subject-time rows are rejected. Pair-level dependence covariates
-and parameters are evaluated at the earlier (left) scheduled row. With
-\code{missingness = "segment"}, pairs crossing an intermittent gap are omitted
-and the resulting observed segments contribute independently.
+and parameters are evaluated at the earlier (left) scheduled row. With a
+segmented objective, pairs crossing an intermittent gap are omitted and the
+resulting observed segments contribute independently.
 
 Legacy aliases, including \code{dataset}, \code{include_dlcopdpar}, \code{start_from}, and
 flat optimizer controls, are accepted temporarily through \code{...}. Supplying
