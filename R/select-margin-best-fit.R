@@ -69,10 +69,16 @@ best_fit.margin_selection <- function(x, ...) {
 
   row_meta$family <- NULL
 
+  family <- .margin_family_object(family_name)
+  margin_args <- attr(x, "margin_args", exact = TRUE) %||% list()
+  if (!is.null(family) && length(margin_args)) {
+    family <- .gl_attach_margin_args_spec(family, margin_args)
+  }
+
   c(
     list(
       family_name = family_name,
-      family = .margin_family_object(family_name)
+      family = family
     ),
     row_meta
   )

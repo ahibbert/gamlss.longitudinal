@@ -42,6 +42,13 @@
 .gl_distribution_mean <- function(params, family, probs = seq(0.001, 0.999, length.out = 199L)) {
   family <- as.character(family)[1L]
 
+  if (family %in% .gl_binomial_families() && "mu" %in% names(params)) {
+    family_args <- attr(params, "family_args", exact = TRUE) %||% list()
+    if (!is.null(family_args$bd)) {
+      return(as.numeric(family_args$bd) * as.numeric(params$mu))
+    }
+  }
+
   if (identical(family, "NO") && "mu" %in% names(params)) {
     return(as.numeric(params$mu))
   }

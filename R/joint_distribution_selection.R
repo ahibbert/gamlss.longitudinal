@@ -34,6 +34,8 @@
 #'   [gamlss_longitudinal()] screening fit settings.
 #' @param keep_fits Logical; if `TRUE`, attach retained fitted models in the
 #'   `"fits"` attribute.
+#' @param margin_args Named fixed marginal arguments. Binomial candidates
+#'   require `list(bd = ...)` as described in [gamlss_longitudinal()].
 #'
 #' @return A data frame with one row per margin-copula combination and class
 #'   `joint_distribution_selection`. Failed fits are retained with an `error`
@@ -57,7 +59,8 @@ select_joint_distribution <- function(
     trace = FALSE,
     progress = TRUE,
     fit_args = list(),
-    keep_fits = FALSE) {
+    keep_fits = FALSE,
+    margin_args = list()) {
   criterion <- match.arg(criterion)
   if (!is.data.frame(data)) {
     data <- as.data.frame(data, stringsAsFactors = FALSE)
@@ -70,6 +73,9 @@ select_joint_distribution <- function(
   if (!is.list(fit_args) ||
     (length(fit_args) > 0L && (is.null(names(fit_args)) || any(!nzchar(names(fit_args)))))) {
     stop("'fit_args' must be a named list.", call. = FALSE)
+  }
+  if (!is.list(margin_args)) {
+    stop("'margin_args' must be a named list.", call. = FALSE)
   }
   if (!is.logical(progress) || length(progress) != 1L || is.na(progress)) {
     stop("'progress' must be TRUE or FALSE.", call. = FALSE)
@@ -106,7 +112,8 @@ select_joint_distribution <- function(
     margin_families = margin_families,
     time_intercepts = time_intercepts,
     try.gamlss = try.gamlss,
-    trace = trace
+    trace = trace,
+    margin_args = margin_args
   )
   margin_candidates <- as.data.frame(margin_selection)
   margin_candidates <- margin_candidates[
@@ -138,6 +145,9 @@ select_joint_distribution <- function(
     )
   }
 
+  if (length(margin_args) && is.null(fit_args$margin_args)) {
+    fit_args$margin_args <- margin_args
+  }
   candidate_fits <- .joint_selection_fit_candidates(
     combinations = combinations,
     data = data,

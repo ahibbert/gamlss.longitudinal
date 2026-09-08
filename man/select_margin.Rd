@@ -19,6 +19,7 @@ select_margin(
   time_n_cycles = 100L,
   try.gamlss = FALSE,
   trace = FALSE,
+  margin_args = list(),
   ...
 )
 }
@@ -53,6 +54,10 @@ the returned \code{converged} column before selecting a final marginal family.}
 temporary time-intercept GAMLSS fit.}
 
 \item{try.gamlss, trace, ...}{Passed to \code{\link[gamlss:fitDist]{gamlss::fitDist()}}.}
+
+\item{margin_args}{Named fixed margin arguments. Supplying
+\code{list(bd = ...)} screens binomial families using a success/failure response;
+\code{bd} may be one positive integer or a column name in \code{data}.}
 }
 \value{
 A data frame ordered by AIC and class \code{margin_selection}. With

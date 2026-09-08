@@ -272,6 +272,26 @@ test_that("binomial margins use explicit constant or row-specific trials", {
   )
   predicted_density <- suppressWarnings(predict(fit, type = "density"))
   expect_equal(predicted_density$density, expected_density, tolerance = 1e-10)
+  expect_equal(
+    suppressWarnings(predict(fit, type = "mean")),
+    fit$dataset$trials * fitted(fit, parameter = "mu"),
+    tolerance = 1e-10
+  )
+  copula_data <- gamlss.longitudinal:::.copula_v2_fit_data(fit)
+  expect_equal(
+    copula_data$u,
+    gamlss.longitudinal:::.copula_v2_clamp01(gamlss.dist::pBI(
+      fit$response,
+      bd = fit$dataset$trials,
+      mu = fitted(fit, parameter = "mu")
+    )),
+    tolerance = 1e-10
+  )
+  simulated <- simulate(fit, nsim = 2L, seed = 844L)
+  expect_true(all(simulated$sim_1 >= 0 & simulated$sim_1 <= fit$dataset$trials))
+  expect_true(all(simulated$sim_2 >= 0 & simulated$sim_2 <= fit$dataset$trials))
+  simulated_new <- simulate(fit, nsim = 1L, seed = 845L, newdata = dat[1:8, ])
+  expect_true(all(simulated_new$sim_1 >= 0 & simulated_new$sim_1 <= dat$trials[1:8]))
 
   constant <- gamlss.longitudinal:::.gl_attach_margin_args_spec(
     gamlss.dist::BI(), list(bd = 8L)
@@ -279,4 +299,58 @@ test_that("binomial margins use explicit constant or row-specific trials", {
   expect_invisible(gamlss.longitudinal:::.gl_preflight_fit_capabilities(
     transform(dat, y = pmin(y, 8L)), constant, "N", y ~ time
   ))
+})
+
+test_that("native simulation passes binomial denominators to the GAMLSS quantile", {
+  skip_if_not_installed("gamlss.dist")
+
+  dat <- simulate_longitudinal_dataset(
+    n = 12L,
+    times = 1:4,
+    margin_dist = gamlss.dist::BI(),
+    copula_dist = "N",
+    margin_params = list(mu = 0.35, bd = 6L),
+    copula_params = list(theta = 0.3),
+    seed = 846L
+  )
+  expect_true(all(dat$response >= 0 & dat$response <= 6L))
+  expect_equal(unique(dat$true_bd), 6)
+})
+
+test_that("binomial margin and copula selection retain the trials contract", {
+  skip_if_not_installed("gamlss")
+  skip_if_not_installed("gamlss.dist")
+
+  set.seed(843L)
+  dat <- expand.grid(time = seq_len(4L), subject = seq_len(15L))
+  dat$trials <- 10L
+  subject_effect <- stats::rnorm(15L, sd = 0.7)
+  dat$y <- stats::rbinom(
+    nrow(dat), dat$trials,
+    stats::plogis(-0.8 + subject_effect[dat$subject])
+  )
+  margins <- suppressWarnings(suppressMessages(select_margin(
+    dat,
+    response_var = "y",
+    families = c("BI", "BB"),
+    margin_args = list(bd = "trials"),
+    trace = FALSE
+  )))
+  selected <- best_fit_family(margins)
+  expect_true(selected$family[1] %in% c("BI", "BB"))
+  expect_identical(attr(selected, "margin_args_spec")$bd, "trials")
+
+  copulas <- suppressWarnings(suppressMessages(select_copula(
+    data = dat,
+    response_var = "y",
+    margin_dist = margins,
+    subject_var = "subject",
+    time_var = "time",
+    families = "N",
+    margin_n_cycles = 10L,
+    min_pairs = 10L
+  )))
+  expect_identical(copulas$family, "N")
+  expect_true(all(is.finite(copulas$logLik)))
+  expect_true(all(copulas$screen_likelihood == "exact_discrete_rectangle"))
 })

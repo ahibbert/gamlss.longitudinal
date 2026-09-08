@@ -9,7 +9,8 @@
     time_var,
     time_intercepts,
     margin_n_cycles = 100L,
-    pit_seed = 1L) {
+    pit_seed = 1L,
+    margin_args = list()) {
   if (is.null(response_var) || !is.character(response_var) || length(response_var) != 1L) {
     stop(
       "Provide u_var, u, u1/u2, object, or response_var so select_copula() can create pseudo-observations.",
@@ -46,6 +47,7 @@
         time_var = if (isTRUE(time_intercepts)) time_var else NULL,
         time_intercepts = time_intercepts,
         time_n_cycles = margin_n_cycles,
+        margin_args = margin_args,
         trace = FALSE
       )
     ))
@@ -53,6 +55,9 @@
     if (is.null(margin_dist)) {
       stop("select_margin() did not return a usable marginal family.", call. = FALSE)
     }
+  }
+  if (!inherits(margin_dist, "margin_selection") && length(margin_args)) {
+    margin_dist <- .gl_attach_margin_args_spec(margin_dist, margin_args)
   }
 
   if (isTRUE(time_intercepts)) {
@@ -109,7 +114,20 @@
     stop("Need at least three complete response rows to create pseudo-observations.", call. = FALSE)
   }
   data_fit <- data[keep, , drop = FALSE]
-  args$data <- data_fit[, formula_vars, drop = FALSE]
+  margin_dist <- .gl_bind_margin_args(margin_dist, data_fit)
+  if (margin_dist$family[1] %in% .gl_binomial_families()) {
+    bd <- .gl_margin_fixed_family_args(margin_dist, nrow(data_fit))$bd
+    data_fit$.binomial_failure <- bd - data_fit[[response_var]]
+    rhs <- paste(deparse(args$formula[[3L]]), collapse = " ")
+    response_name <- .select_copula_formula_name(response_var)
+    args$formula <- stats::as.formula(paste0(
+      "cbind(", response_name, ", .binomial_failure) ~ ", rhs
+    ))
+    args$data <- data_fit[, unique(c(formula_vars, ".binomial_failure")), drop = FALSE]
+  } else {
+    args$data <- data_fit[, formula_vars, drop = FALSE]
+  }
+  args$family <- margin_dist
 
   margin_fit <- tryCatch(
     do.call(gamlss::gamlss, args),
@@ -138,6 +156,7 @@
       }
     }
   }
+  cdf_args <- c(cdf_args, .gl_margin_fixed_family_args(margin_dist, nrow(data_fit)))
   cdf_args <- cdf_args[names(cdf_args) %in% formalArgs(pfun)]
   upper <- tryCatch(
     do.call(pfun, cdf_args),

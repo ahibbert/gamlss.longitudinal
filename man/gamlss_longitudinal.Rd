@@ -60,7 +60,8 @@ gamlss_longitudinal(
   lambda_start = NA,
   lambda_penalty_K = 2,
   rs_update_lambda = TRUE,
-  rs_smooth_trust_radius = Inf
+  rs_smooth_trust_radius = Inf,
+  margin_args = list()
 )
 }
 \arguments{
@@ -258,6 +259,12 @@ update smoothing parameters by the RS GAIC step; if \code{FALSE}, keep
 \item{rs_smooth_trust_radius}{Numeric; for \code{method = "RS"} only. Optional
 L2 trust radius applied separately to each smooth coefficient block after
 the RS weighted least-squares proposal. Use \code{Inf} to disable.}
+
+\item{margin_args}{Named list of fixed marginal-distribution arguments.
+Binomial families require \code{list(bd = ...)}, where \code{bd} is either one
+positive integer used for every row or the name of a data column containing
+row-specific trial counts. Other fixed family arguments are not currently
+supported.}
 }
 \description{
 This function fits a longitudinal model to a dataset with gamlss margins
