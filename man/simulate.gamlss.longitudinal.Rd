@@ -4,7 +4,14 @@
 \alias{simulate.gamlss.longitudinal}
 \title{Simulate responses from a longitudinal GAMLSS-copula model}
 \usage{
-\method{simulate}{gamlss.longitudinal}(object, nsim = 1, seed = NULL, newdata = NULL, ...)
+\method{simulate}{gamlss.longitudinal}(
+  object,
+  nsim = 1,
+  seed = NULL,
+  newdata = NULL,
+  condition_on = NULL,
+  ...
+)
 }
 \arguments{
 \item{object}{A fitted \code{gamlss.longitudinal} object.}
@@ -13,16 +20,37 @@
 
 \item{seed}{Optional random seed.}
 
-\item{newdata}{Optional new data. When supplied, simulation is unconditional:
-subject identifiers define independent trajectory groups, and the fitted
-marginal and copula formulas are evaluated on the supplied rows. Responses
-may be missing.}
+\item{newdata}{Optional new data. With the default \code{condition_on = NULL},
+simulation is unconditional: subject identifiers define independent
+trajectory groups, and the fitted marginal and copula formulas are
+evaluated on the supplied rows. Responses may be missing.}
+
+\item{condition_on}{Conditioning history for forward simulation. The default,
+\code{NULL}, retains unconditional simulation. Use \code{"fitted"} to condition each
+subject's first immediately adjacent future visit on the most recent usable
+response in the fitted model, or supply a data frame containing custom
+response histories. Conditional simulation requires \code{newdata}, which must
+contain future rows only. A missing scheduled visit starts a new independent
+segment; subsequent contiguous future visits remain dependent recursively.}
 
 \item{...}{Additional arguments reserved for future methods.}
 }
 \value{
-A data frame with one column per simulation.
+A data frame with one column per simulation. Conditional simulations
+contain future rows only and have a \code{conditioning} attribute recording the
+history source and each conditioned or unconditional segment start.
 }
 \description{
 Simulate responses from a longitudinal GAMLSS-copula model
+}
+\details{
+Conditional simulation uses the package's global scheduled-visit
+ordering rather than numeric time distance. It conditions only on the most
+recent usable response under the fitted first-order adjacent-pair model; it
+is not a latent-state filter over an incomplete history. Continuous history
+responses are transformed by their fitted marginal CDF. For a discrete
+response, a latent uniform is randomized over its fitted CDF interval and
+retained while future values are generated. Marginal predictions remain the
+responsibility of \code{\link[=predict.gamlss.longitudinal]{predict.gamlss.longitudinal()}}; analytic conditional
+prediction is not performed here.
 }
