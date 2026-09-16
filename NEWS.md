@@ -1,5 +1,17 @@
 # gamlss.longitudinal 0.1.0
 
+## Conditional forward simulation
+
+- `simulate()` now accepts `condition_on = "fitted"` or a custom history data
+  frame to generate future trajectories conditional on each subject's most
+  recent usable response. Adjacent future visits retain the fitted copula
+  dependence recursively; omitted scheduled visits begin an explicitly
+  independent segment. Structured conditioning provenance is attached to the
+  result, and gap-induced segment starts produce one aggregate classed warning.
+- Existing unconditional simulation remains the default. Analytic conditional
+  prediction and integration of dependence across missing visits remain out of
+  scope.
+
 ## Inference diagnostics
 
 - Hessian validation concerns no longer discard covariance estimates that were
