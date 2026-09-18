@@ -59,6 +59,8 @@ test_that("summary helpers build coefficient and smooth-term tables", {
   expect_equal(coef_tbl$term, c("mu.intercept", "sigma.intercept", "theta.intercept"))
   expect_equal(coef_tbl$parameter, c("mu", "sigma", "theta"))
   expect_equal(coef_tbl$std_error, c(0.3, 0.4, 0.2))
+  expect_equal(coef_tbl$model_std_error, coef_tbl$std_error)
+  expect_true(all(is.na(coef_tbl$robust_std_error)))
   expect_true(all(is.finite(coef_tbl$p_value)))
   expect_false(any(c(".original_order", ".param_rank") %in% names(coef_tbl)))
 
@@ -124,9 +126,49 @@ test_that("summary coefficient display preserves print formatting rules", {
 
   expect_equal(out$estimate, c("1.235", "NA", "-0.123"))
   expect_equal(out$std_error, c("0.333", "0.444", "NA"))
+  expect_equal(out$model_std_error, c("NA", "NA", "NA"))
+  expect_equal(out$robust_std_error, c("NA", "NA", "NA"))
   expect_equal(out$p_value, c("<0.0001", "NA", "0.0499"))
   expect_equal(out$signif, c("***", "", "*"))
   expect_equal(out$parameter, c("mu", "theta", "sigma"))
+})
+
+test_that("sandwich summary tables retain both SEs but test with robust SEs", {
+  object <- make_summary_helper_object()
+  robust_vcov <- diag(c(0.04, 0.09, 0.16))
+  model_vcov <- diag(c(0.01, 0.0225, 0.0625))
+  dimnames(robust_vcov) <- dimnames(model_vcov) <-
+    list(names(object$par), names(object$par))
+  vcov_out <- list(
+    method = "sandwich_cluster",
+    vcov = list(overall = robust_vcov, model_based = model_vcov),
+    se = list(
+      overall = sqrt(diag(robust_vcov)),
+      model_based = sqrt(diag(model_vcov))
+    )
+  )
+
+  coef_tbl <- gamlss.longitudinal:::.gl_summary_coefficient_table(
+    object, vcov_out = vcov_out
+  )
+
+  expect_equal(coef_tbl$std_error, c(0.3, 0.4, 0.2))
+  expect_equal(coef_tbl$robust_std_error, coef_tbl$std_error)
+  expect_equal(coef_tbl$model_std_error, c(0.15, 0.25, 0.1))
+  expect_equal(
+    coef_tbl$p_value,
+    2 * stats::pnorm(abs(coef_tbl$estimate / coef_tbl$robust_std_error),
+      lower.tail = FALSE
+    )
+  )
+
+  display <- gamlss.longitudinal:::.gl_summary_coefficient_display(coef_tbl, digits = 3)
+  printed <- capture.output(
+    gamlss.longitudinal:::.gl_print_summary_coefficient_blocks(display)
+  )
+  expect_true(any(grepl("model_se", printed, fixed = TRUE)))
+  expect_true(any(grepl("robust_se", printed, fixed = TRUE)))
+  expect_false(any(grepl("std_error", printed, fixed = TRUE)))
 })
 
 test_that("summary coefficient printer groups parameters in model order", {
@@ -179,7 +221,11 @@ test_that("summary smooth-term section handles populated and empty tables", {
   expect_true(any(grepl("Smooth terms:", populated, fixed = TRUE)))
   expect_true(any(grepl("s(age)", populated, fixed = TRUE)))
   expect_true(any(grepl("1.23", populated, fixed = TRUE)))
-  expect_true(any(grepl("Use plot(object)", populated, fixed = TRUE)))
+  expect_true(any(grepl(
+    "Use plot_terms(object) to visualize smooth terms and their confidence bands.",
+    populated,
+    fixed = TRUE
+  )))
   expect_true(any(grepl("None", empty, fixed = TRUE)))
 })
 

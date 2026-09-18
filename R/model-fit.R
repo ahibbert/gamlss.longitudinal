@@ -53,7 +53,8 @@
 #'   BIC remain available for segmented fits under the stated independence
 #'   assumption. Standard inference methods automatically use subject-clustered
 #'   sandwich covariance instead of ordinary model-Hessian inference for this
-#'   composite objective; bootstrap sensitivity analysis remains advisable.
+#'   composite objective; model-based standard errors remain available for
+#'   comparison, and bootstrap sensitivity analysis remains advisable.
 #'   Numerical integration across gaps and a distinct delayed-entry
 #'   likelihood are not yet implemented.
 #' @param mu.formula Formula for the mu parameter of the marginal distribution
@@ -78,8 +79,9 @@
 #' One of `"analytical"` or `"numderiv"`. Analytical vcov covers continuous
 #' margins and supported exact-discrete rectangle likelihoods, and falls back
 #' to the numerical reference path if the analytical Hessian cannot be inverted.
-#' @param verbose Logical; print optimizer progress when `TRUE`. Integer levels
-#'   `0` to `3` remain available for advanced tracing.
+#' @param verbose Logical or integer verbosity level. The default, `1`, reports
+#'   fitting stages and outer iterations. Use `0` or `FALSE` for no progress
+#'   output; levels `2` and `3` add increasingly detailed optimizer tracing.
 #' @param ... Deprecated argument aliases retained for compatibility. New code
 #'   should use `data`, `optimization`, `start`, and `optimizer_control`.
 #' @param margin_args Named list of fixed marginal-distribution arguments.
@@ -123,7 +125,7 @@ gamlss_longitudinal <- function(data = NULL,
                                 compute_vcov = TRUE,
                                 vcov_method = c("analytical", "numderiv"),
                                 margin_args = list(),
-                                verbose = FALSE,
+                                verbose = 1,
                                 ...) {
   data_supplied <- !missing(data)
   optimization_supplied <- !missing(optimization)

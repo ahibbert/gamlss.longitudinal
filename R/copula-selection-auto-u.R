@@ -10,7 +10,8 @@
     time_intercepts,
     margin_n_cycles = 100L,
     pit_seed = 1L,
-    margin_args = list()) {
+    margin_args = list(),
+    verbose = 0) {
   if (is.null(response_var) || !is.character(response_var) || length(response_var) != 1L) {
     stop(
       "Provide u_var, u, u1/u2, object, or response_var so select_copula() can create pseudo-observations.",
@@ -48,7 +49,8 @@
         time_intercepts = time_intercepts,
         time_n_cycles = margin_n_cycles,
         margin_args = margin_args,
-        trace = FALSE
+        trace = FALSE,
+        verbose = verbose
       )
     ))
     margin_dist <- best_fit_family(margin_selection)
@@ -128,6 +130,12 @@
     args$data <- data_fit[, formula_vars, drop = FALSE]
   }
   args$family <- margin_dist
+
+  .gl_progress(
+    verbose,
+    "Fitting the temporary marginal model used to construct pseudo-observations.",
+    prefix = "select_copula"
+  )
 
   margin_fit <- tryCatch(
     do.call(gamlss::gamlss, args),

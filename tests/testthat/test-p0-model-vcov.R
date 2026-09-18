@@ -105,11 +105,25 @@ test_that("sandwich vcov is available through inference helpers", {
   expect_equal(vc$method, "sandwich_cluster")
   expect_equal(rownames(vc$vcov$overall), names(fit$par))
   expect_true(all(is.finite(vc$se$overall)))
+  expect_equal(vc$vcov$cluster_robust, vc$vcov$overall)
+  expect_equal(vc$se$cluster_robust, vc$se$overall)
+  expect_equal(rownames(vc$vcov$model_based), names(fit$par))
+  expect_equal(vc$se$model_based, sqrt(diag(vc$vcov$model_based)))
   expect_equal(vc$hessian_diagnostics$n_clusters, length(unique(fit$response_subject)))
 
   s <- summary(fit, include_vcov = TRUE, vcov_method = "sandwich", sandwich_h = 1e-4)
-  expect_true(all(c("std_error", "p_value") %in% names(s$coefficients)))
+  expect_true(all(c(
+    "std_error", "model_std_error", "robust_std_error", "p_value"
+  ) %in% names(s$coefficients)))
   expect_true(any(is.finite(s$coefficients$std_error)))
+  expect_equal(s$coefficients$std_error, s$coefficients$robust_std_error)
+  expect_true(all(is.finite(s$coefficients$model_std_error)))
+  expect_equal(
+    s$coefficients$p_value,
+    2 * stats::pnorm(abs(s$coefficients$estimate / s$coefficients$robust_std_error),
+      lower.tail = FALSE
+    )
+  )
 
   ci <- confint(fit, method = "sandwich", sandwich_h = 1e-4)
   expect_equal(nrow(ci), length(fit$par))
@@ -138,11 +152,65 @@ test_that("sandwich vcov is available through inference helpers", {
   expect_identical(segmented_summary$fit$vcov_method, "sandwich_cluster")
   expect_identical(segmented_summary$fit$vcov_method_requested, "analytical")
   expect_true(all(is.finite(segmented_summary$coefficients$std_error)))
+  segmented_print <- paste(capture.output(print(segmented_summary)), collapse = "\n")
   expect_match(
-    paste(capture.output(print(segmented_summary)), collapse = "\n"),
+    segmented_print,
     "subject-clustered sandwich covariance",
     fixed = TRUE
   )
+  expect_match(segmented_print, "model_se", fixed = TRUE)
+  expect_match(segmented_print, "robust_se", fixed = TRUE)
+  expect_match(
+    segmented_print,
+    "Tests and p-values use subject-clustered robust standard errors",
+    fixed = TRUE
+  )
+})
+
+test_that("summary reuses fit-time sandwich covariance for a segmented fit", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 40L)
+  gap_ids <- seq(5L, 40L, by = 10L)
+  keep <- !(dat$id %in% gap_ids & dat$time_raw == levels(dat$time_raw)[2L])
+  dat <- dat[keep, , drop = FALSE]
+
+  fit <- suppressWarnings(fit_fixture_model(
+    dat,
+    missingness = "segment",
+    include_dlcopdpar = FALSE,
+    mu_formula = "y ~ 1",
+    sigma_formula = "~ 1",
+    theta_formula = "~ 1",
+    compute_vcov = TRUE,
+    max_outer_iter = 4L,
+    max_inner_iter = 3L,
+    outer_stop_crit = 10,
+    inner_stop_crit = 10
+  ))
+
+  expect_true(fit$convergence$converged)
+  expect_true(fit$vcov_meta$precomputed)
+  expect_identical(fit$vcov_meta$method, "analytical")
+  expect_identical(fit$vcov_meta$method_used, "sandwich_cluster")
+
+  testthat::local_mocked_bindings(
+    vcov.gamlss.longitudinal = function(...) {
+      stop("summary recomputed covariance instead of using the fit-time cache")
+    },
+    .package = "gamlss.longitudinal"
+  )
+  summary_out <- summary(fit)
+  explicit_summary_out <- summary(fit, vcov_method = "sandwich")
+
+  expect_s3_class(summary_out, "summary.gamlss.longitudinal")
+  expect_s3_class(explicit_summary_out, "summary.gamlss.longitudinal")
+  expect_identical(summary_out$fit$vcov_method, "sandwich_cluster")
+  expect_identical(explicit_summary_out$fit$vcov_method, "sandwich_cluster")
+  expect_true(all(is.finite(summary_out$coefficients$std_error)))
+  expect_equal(
+    summary_out$coefficients$std_error,
+    summary_out$coefficients$robust_std_error
+  )
+  expect_true(all(is.finite(summary_out$coefficients$model_std_error)))
 })
 
 test_that("vcov setup preserves legacy numderiv and parameter override behavior", {

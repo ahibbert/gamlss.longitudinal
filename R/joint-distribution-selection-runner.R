@@ -9,7 +9,27 @@
     copula_time_intercepts,
     trace,
     progress,
-    keep_fits) {
+    keep_fits,
+    isolate_candidates = c("auto", "always", "never"),
+    candidate_timeout = Inf,
+    checkpoint_dir = NULL,
+    resume = TRUE) {
+  isolate <- .joint_selection_resolve_isolation(isolate_candidates)
+  checkpoint_signature <- if (!is.null(checkpoint_dir)) {
+    .joint_selection_checkpoint_signature(
+      data = data,
+      response_var = response_var,
+      time_var = time_var,
+      subject_var = subject_var,
+      combinations = combinations,
+      fit_args = fit_args,
+      time_intercepts = time_intercepts,
+      copula_time_intercepts = copula_time_intercepts,
+      keep_fits = keep_fits
+    )
+  } else {
+    NULL
+  }
   fit_store <- vector("list", nrow(combinations))
   rows <- vector("list", nrow(combinations))
   screen_start <- Sys.time()
@@ -32,20 +52,56 @@
     if (isTRUE(progress)) {
       message("[", ii, "/", n_combinations, "] Fitting ", candidate_label, "...")
     }
-    margin_dist <- .margin_family_object(margin_family)
-    fit_one <- .joint_selection_fit_one(
-      data = data,
-      response_var = response_var,
-      time_var = time_var,
-      subject_var = subject_var,
-      margin_family = margin_family,
-      margin_dist = margin_dist,
-      copula_family = copula_family,
-      fit_args = fit_args,
-      time_intercepts = time_intercepts,
-      copula_time_intercepts = copula_time_intercepts,
-      trace = trace
-    )
+    checkpoint_path <- if (!is.null(checkpoint_dir)) {
+      .joint_selection_checkpoint_path(
+        checkpoint_dir, ii, margin_family, copula_family
+      )
+    } else {
+      NULL
+    }
+    fit_one <- if (isTRUE(resume) && !is.null(checkpoint_path)) {
+      .joint_selection_read_checkpoint(checkpoint_path, checkpoint_signature)
+    } else {
+      NULL
+    }
+    from_checkpoint <- !is.null(fit_one)
+    if (is.null(fit_one)) {
+      fit_one <- if (isTRUE(isolate)) {
+        .joint_selection_fit_one_isolated(
+          data = data,
+          response_var = response_var,
+          time_var = time_var,
+          subject_var = subject_var,
+          margin_family = margin_family,
+          copula_family = copula_family,
+          fit_args = fit_args,
+          time_intercepts = time_intercepts,
+          copula_time_intercepts = copula_time_intercepts,
+          trace = trace,
+          keep_fit = keep_fits,
+          timeout = candidate_timeout
+        )
+      } else {
+        .joint_selection_fit_one(
+          data = data,
+          response_var = response_var,
+          time_var = time_var,
+          subject_var = subject_var,
+          margin_family = margin_family,
+          margin_dist = .margin_family_object(margin_family),
+          copula_family = copula_family,
+          fit_args = fit_args,
+          time_intercepts = time_intercepts,
+          copula_time_intercepts = copula_time_intercepts,
+          trace = trace
+        )
+      }
+      if (!is.null(checkpoint_path)) {
+        .joint_selection_write_checkpoint(
+          checkpoint_path, checkpoint_signature, fit_one
+        )
+      }
+    }
     rows[[ii]] <- fit_one$row
     if (isTRUE(keep_fits)) {
       fit_store[[ii]] <- fit_one$fit
@@ -72,7 +128,7 @@
         " in ", .joint_selection_format_seconds(elapsed_fit),
         ". Elapsed ", .joint_selection_format_seconds(elapsed_total),
         "; ETA ", .joint_selection_format_seconds(remaining),
-        "."
+        if (from_checkpoint) ". Restored from checkpoint." else "."
       )
     }
   }

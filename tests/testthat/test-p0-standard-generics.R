@@ -86,6 +86,62 @@ test_that("legacy unversioned vcov caches are not reused", {
 
   fit$vcov_meta$cache_version <- gamlss.longitudinal:::.gl_vcov_cache_version()
   expect_true(gamlss.longitudinal:::.can_use_cached_vcov(fit, method = "analytical"))
+
+  fit$vcov$method <- "sandwich_cluster"
+  fit$vcov_meta$method_used <- "sandwich_cluster"
+  expect_true(gamlss.longitudinal:::.can_use_cached_vcov(fit, method = "sandwich"))
+})
+
+test_that("fit finalization caches routed segmented inference for summary reuse", {
+  fit <- make_standard_generic_object(objective = "segmented")
+  fit$par_s <- list()
+  coefficient_names <- names(fit$par)
+  covariance <- diag(c(0.2, 0.3))
+  dimnames(covariance) <- list(coefficient_names, coefficient_names)
+  calls <- 0L
+
+  testthat::local_mocked_bindings(
+    vcov.gamlss.longitudinal = function(object, numderiv, method, details, progress, ...) {
+      calls <<- calls + 1L
+      warning(structure(
+        list(message = "routed", call = NULL),
+        class = c(
+          "gamlss_longitudinal_segmented_inference_warning",
+          "warning",
+          "condition"
+        )
+      ))
+      list(
+        vcov = list(overall = covariance, smooth_vcov = list(), smooth_se = list()),
+        se = list(overall = sqrt(diag(covariance)), smooth_se = list()),
+        method = "sandwich_cluster",
+        method_requested = "analytical",
+        hessian_diagnostics = list(status = "available")
+      )
+    },
+    .package = "gamlss.longitudinal"
+  )
+
+  expect_warning(
+    fit <- gamlss.longitudinal:::.gl_attach_fit_vcov(
+      return_list = fit,
+      compute_vcov = TRUE,
+      vcov_numderiv = FALSE,
+      vcov_method = "analytical",
+      verbose = 0
+    ),
+    NA
+  )
+  expect_equal(calls, 1L)
+  expect_true(fit$vcov_meta$precomputed)
+  expect_identical(fit$vcov_meta$method, "analytical")
+  expect_identical(fit$vcov_meta$method_used, "sandwich_cluster")
+
+  resolved <- gamlss.longitudinal:::.resolve_vcov(fit)
+  expect_equal(calls, 1L)
+  expect_equal(as.numeric(resolved$vcov$overall), as.numeric(covariance))
+  expect_identical(dimnames(resolved$vcov$overall), dimnames(covariance))
+  expect_identical(resolved$method, "sandwich_cluster")
 })
 
 test_that("stored, summary, and standard criteria agree on a fitted object", {

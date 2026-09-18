@@ -37,13 +37,30 @@ get_starting_values <- function(copula_dist, margin_dist, dataset, eta_transform
   margin_par <- margin_start$margin_par
   margin_par_already_eta <- margin_start$margin_par_already_eta
 
+  # The brief GAMLSS startup fit used by complex families returns coefficients
+  # on each parameter's link scale. The t-copula zeta grid evaluates the joint
+  # likelihood directly, which expects distribution-scale parameter values.
+  # Keep the original link-scale values for the eventual optimizer state, but
+  # invert them for the likelihood-based zeta screen.
+  margin_par_response <- margin_par
+  if (isTRUE(margin_par_already_eta)) {
+    for (par_name in names(margin_par_response)) {
+      linkinv <- margin_dist[[paste0(par_name, ".linkinv")]]
+      if (is.function(linkinv)) {
+        margin_par_response[[par_name]] <- as.numeric(
+          linkinv(margin_par_response[[par_name]])
+        )[1L]
+      }
+    }
+  }
+
   if ("zeta" %in% copula_spec$parameters) {
     # .copula_tau_to_par() returns only theta for t-copula; select zeta by a small grid search.
     zeta_start <- .select_t_copula_zeta_start(
       dataset = dataset,
       margin_dist = margin_dist,
       copula_dist = copula_dist,
-      margin_par = margin_par,
+      margin_par = margin_par_response,
       theta_start = theta_start
     )
     cop_par <- c(theta = as.numeric(theta_start)[1], zeta = as.numeric(zeta_start))

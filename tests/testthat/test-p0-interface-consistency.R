@@ -127,7 +127,7 @@ test_that("legacy fit aliases warn clearly and conflicting names error", {
   )
 })
 
-test_that("default fitting is quiet and fitted-model print is compact", {
+test_that("default fitting reports progress, verbose zero is quiet, and print is compact", {
   dat <- make_fixture_factor_time_interaction(n_subject = 10L)
   control <- gamlss_longitudinal_control(
     outer_tol = 1, max_outer_iter = 2L,
@@ -145,7 +145,20 @@ test_that("default fitting is quiet and fitted-model print is compact", {
       compute_vcov = FALSE
     ))
   )
-  expect_identical(fit_output, character())
+  expect_match(paste(fit_output, collapse = "\n"), "Starting RS fit", fixed = TRUE)
+  expect_match(paste(fit_output, collapse = "\n"), "Outer iteration", fixed = TRUE)
+  quiet_output <- capture.output(invisible(suppressWarnings(gamlss_longitudinal(
+    data = dat,
+    margin_dist = gamlss.dist::NO(),
+    copula_dist = "N",
+    time_var = "time_raw",
+    subject_var = "id",
+    mu.formula = y ~ 1,
+    optimizer_control = control,
+    compute_vcov = FALSE,
+    verbose = 0
+  ))))
+  expect_identical(quiet_output, character())
   verbose_output <- capture.output(suppressWarnings(gamlss_longitudinal(
     data = dat,
     margin_dist = gamlss.dist::NO(),

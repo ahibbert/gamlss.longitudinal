@@ -52,3 +52,10 @@
 .gl_row_as_plain_list <- function(x, row) {
   setNames(lapply(names(x), function(nm) x[[nm]][[row]]), names(x))
 }
+
+.gl_progress <- function(verbose, ..., prefix = NULL) {
+  if (verbose <= 0) return(invisible(FALSE))
+  if (!is.null(prefix)) cat("[", prefix, "] ", sep = "")
+  cat(..., "\n", sep = "")
+  invisible(TRUE)
+}

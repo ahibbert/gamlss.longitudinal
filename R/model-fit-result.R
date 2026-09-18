@@ -57,6 +57,15 @@
     cg_step_tol = optimizer_state$cg_step_tol_eff
   )
 
+  if (identical(method, "RS")) {
+    optimizer_state$df_s <- .gl_refresh_rs_smooth_edf(
+      df_s = optimizer_state$df_s,
+      mm_s = matrix_bundle$mm$s,
+      lambda_s = optimizer_state$lambda_s,
+      weights_final = optimizer_state$weights_final
+    )
+  }
+
   finalize_fn(
     par_cov = optimizer_state$par_cov,
     log_lik_history = optimizer_state$log_lik_history,

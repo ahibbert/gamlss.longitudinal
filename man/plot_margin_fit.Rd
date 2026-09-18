@@ -11,10 +11,12 @@ plot_margin_fit(
   fit = NULL,
   response_var = "response",
   bins = 30,
+  separate_zero = FALSE,
   grid_n = 200,
   response_scale = c("response", "log"),
   time_intercepts = FALSE,
   by_time = FALSE,
+  by = NULL,
   time_var = "time",
   fit_control = gamlss::gamlss.control(n.cyc = 50),
   plot = TRUE,
@@ -36,8 +38,14 @@ row-specific fitted parameters.}
 
 \item{response_var}{Response column name when \code{x} or \code{data} is a data frame.}
 
-\item{bins}{Number of histogram bins for continuous margins. Discrete margins
-use unit-width bins centred on the integers.}
+\item{bins}{Number of histogram bins for continuous margins and the maximum
+number of displayed bins for discrete margins. Discrete responses use
+unit-width bins while the observed integer support fits within this limit;
+wider supports are grouped into shared, equal-width integer ranges.}
+
+\item{separate_zero}{Logical; for discrete margins, keep zero in its own
+unit-width bin when a wide response range is grouped. This is useful for
+displaying the excess mass at zero in zero-inflated distributions.}
 
 \item{grid_n}{Number of grid points used for a fitted continuous density.
 Discrete probability masses are evaluated at every integer in the observed
@@ -51,6 +59,11 @@ for each marginal distribution parameter before drawing the overlay.}
 
 \item{by_time}{Logical; facet the plot by time. For fitted longitudinal
 models, fitted densities are averaged within each time point.}
+
+\item{by}{Optional name of a factor or other grouping column used to facet
+the plot. For fitted models, supply \code{data} when grouping by a column other
+than time. When both \code{by_time = TRUE} and \code{by} are supplied, \code{by} takes
+precedence.}
 
 \item{time_var}{Time column name used when \code{time_intercepts = TRUE} or
 \code{by_time = TRUE} for raw data.}

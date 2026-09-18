@@ -87,7 +87,11 @@
     # Check optional elapsed time budget (often used for debugging / stopping long runs proactively) 
     check_elapsed_budget("RS outer iteration")
 
-    if (verbose > 1) cat(paste("\nOuter iteration:", outer_only_run_counter))
+    .gl_progress(
+      verbose,
+      "Outer iteration ", outer_only_run_counter, ".",
+      prefix = "gamlss_longitudinal"
+    )
 
     #Per-outer-loop flag for the first iteration in the outer loop, 
     # used to control some logging and caching behavior

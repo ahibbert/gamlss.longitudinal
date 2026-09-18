@@ -47,6 +47,22 @@ test_that("select_joint_distribution ranks joint fits and exposes best-fit helpe
   expect_equal(selected$best_fit$copula_family, best$copula_family)
 })
 
+test_that("joint screening retains dynamically registered count margins", {
+  skip_if_not_installed("gamlss.dist")
+
+  response <- c(0, 1, 2, 4, 8, NA_real_)
+  families <- c("ZIBNB", "ZIPIG", "ZISICHEL")
+
+  retained <- vapply(
+    families,
+    gamlss.longitudinal:::.joint_selection_margin_supported,
+    logical(1),
+    response = response
+  )
+
+  expect_true(all(retained))
+})
+
 test_that("select_joint_distribution can screen with time-intercept margins", {
   skip_if_not_installed("gamlss")
 

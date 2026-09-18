@@ -459,7 +459,8 @@ test_that("T159 standard fit inspection plotting helpers are available", {
     bins = 2
   )
   count_plot_data <- ggplot2::ggplot_build(count_plot)$data
-  expect_true(all(abs(count_plot_data[[1L]]$xmax - count_plot_data[[1L]]$xmin - 1) < 1e-12))
+  expect_lte(nrow(count_plot_data[[1L]]), 2L)
+  expect_true(all(abs(count_plot_data[[1L]]$xmax - count_plot_data[[1L]]$xmin - 8) < 1e-12))
   expect_equal(count_plot$labels$y, "Probability")
 
   set.seed(159)
@@ -587,6 +588,8 @@ test_that("T159 standard fit inspection plotting helpers are available", {
   ))
   model_margin_plot <- suppressWarnings(plot_margin_fit(data = dat0, fit = fit, plot = FALSE))
   model_copula_plot <- suppressWarnings(plot_copula_fit(data = dat0, fit = fit, plot = FALSE))
+  model_margin_group_plot <- suppressWarnings(plot_margin_fit(data = dat0, fit = fit, by = "gender", plot = FALSE))
+  model_copula_group_plot <- suppressWarnings(plot_copula_fit(data = dat0, fit = fit, by = "gender", plot = FALSE))
   model_copula_overlay_plot <- suppressWarnings(plot_copula_overlay(data = dat0, fit = fit, plot = FALSE))
   model_grid_plot <- suppressWarnings(plot_dist(
     dat,
@@ -596,6 +599,10 @@ test_that("T159 standard fit inspection plotting helpers are available", {
   expect_false(is.null(raw_grid_plot))
   expect_s3_class(model_margin_plot$plot, "ggplot")
   expect_s3_class(model_copula_plot$plot, "ggplot")
+  expect_s3_class(model_margin_group_plot$plot, "ggplot")
+  expect_s3_class(model_copula_group_plot$plot, "ggplot")
+  expect_setequal(as.character(unique(model_margin_group_plot$data$split_group)), levels(dat0$gender))
+  expect_setequal(as.character(unique(model_copula_group_plot$pair_data$split_group)), levels(dat0$gender))
   expect_s3_class(model_copula_overlay_plot$plot, "ggplot")
   expect_false(is.null(model_grid_plot))
 

@@ -42,8 +42,12 @@
 
       pen_mat[idx, idx] <- S * lambda_s[[par_name]][[s_name]]
 
-      BtWB_s <- t(B) %*% (B * as.vector(w_k_vec))
-      df_s[[par_name]][[s_name]] <- sum(.solve_linear_system(BtWB_s + pen_mat[idx, idx]) * BtWB_s)
+      df_s[[par_name]][[s_name]] <- .gl_rs_smooth_term_edf(
+        B = B,
+        weights = w_k_vec,
+        penalty = S,
+        lambda = lambda_s[[par_name]][[s_name]]
+      )
     }
   }
 
