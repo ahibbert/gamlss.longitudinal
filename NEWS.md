@@ -1,4 +1,8 @@
-# gamlss.longitudinal 0.1.0
+# gamlss.longitudinal 0.2.0
+
+This release is the stable package baseline before the experimental joint
+missingness and full higher-order D-vine extension. Development of that method
+is isolated on `codex/experimental-missingness-higher-vine`.
 
 ## Count-margin and Student-t stability
 

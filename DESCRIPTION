@@ -1,7 +1,7 @@
 Package: gamlss.longitudinal
 Type: Package
 Title: Fit Longitudinal Data Using GAMLSS Margins and Copula Dependence Structures
-Version: 0.1.0
+Version: 0.2.0
 Author: Aydin Sareff-Hibbert
 Maintainer: Aydin Sareff-Hibbert <aydin.hibbert@sydney.edu.au>
 Description: Fits longitudinal generalized additive models for location, scale
