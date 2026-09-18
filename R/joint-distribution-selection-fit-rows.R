@@ -22,7 +22,9 @@
   )
 }
 
-.joint_selection_failed_row <- function(margin_family, copula_family, elapsed, warnings, error) {
+.joint_selection_failed_row <- function(
+    margin_family, copula_family, elapsed, warnings, error,
+    stop_reason = "fit_error") {
   data.frame(
     margin_family = margin_family,
     copula_family = copula_family,
@@ -31,7 +33,7 @@
     BIC = NA_real_,
     EDF = NA_real_,
     converged = FALSE,
-    stop_reason = "fit_error",
+    stop_reason = stop_reason,
     hit_outer_limit = NA,
     elapsed_sec = elapsed,
     warnings = paste(unique(warnings), collapse = "\n"),

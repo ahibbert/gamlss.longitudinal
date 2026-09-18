@@ -53,7 +53,11 @@
 #'   `list(bd = ...)` screens binomial families using a success/failure response;
 #'   `bd` may be one positive integer or a column name in `data`.
 
-#' @param try.gamlss,trace,... Passed to [gamlss::fitDist()].
+#' @param try.gamlss,trace,... Passed to [gamlss::fitDist()]. `trace` controls
+#'   detailed output from the underlying GAMLSS routines independently of the
+#'   package-level progress controlled by `verbose`.
+#' @param verbose Logical or integer verbosity level. The default, `1`, reports
+#'   the major screening stages. Use `0` or `FALSE` for no progress output.
 
 #'
 
@@ -83,7 +87,9 @@ select_margin <- function(
     try.gamlss = FALSE,
     trace = FALSE,
     margin_args = list(),
+    verbose = 1,
     ...) {
+  verbose <- .gl_normalize_verbose(verbose)
   type_was_null <- is.null(type)
   inputs <- .select_margin_inputs(
     response = response,
@@ -128,6 +134,16 @@ select_margin <- function(
     stop("'time_n_cycles' must be a positive integer.", call. = FALSE)
   }
   time_n_cycles <- as.integer(time_n_cycles)
+
+  .gl_progress(
+    verbose,
+    if (is.null(families)) {
+      paste0("Screening registered ", type, " marginal families.")
+    } else {
+      paste0("Screening ", length(unique(families)), " requested marginal family/families.")
+    },
+    prefix = "select_margin"
+  )
 
   if (is.null(families)) {
     fit <- NULL
@@ -183,6 +199,11 @@ select_margin <- function(
   out$screen_model <- "pooled_intercept"
 
   if (isTRUE(time_intercepts) && nrow(out) > 0L) {
+    .gl_progress(
+      verbose,
+      "Refitting ", nrow(out), " retained family/families with time-specific intercepts.",
+      prefix = "select_margin"
+    )
     time_fits <- .select_margin_time_intercept_fits(
       response = response_all,
       time = data[[time_var]],
@@ -247,6 +268,13 @@ select_margin <- function(
   attr(out, "margin_args") <- margin_args
 
   class(out) <- c("margin_selection", "margin_screen", class(out))
+
+  .gl_progress(
+    verbose,
+    "Complete: retained ", nrow(out), " supported family/families",
+    if (nrow(out)) paste0("; selected ", out$family[[1L]], ".") else ".",
+    prefix = "select_margin"
+  )
 
   out
 }

@@ -1,0 +1,9 @@
+"cycle","parameter","stem","input_formula","selected_formula","formula_changed","AIC","BIC","EDF","candidates"
+1,"mu","actg-covariate-refinement-cycle-01-mu","cd4 ~ treatment + age + s(baseline_cd4, bs = ""ps"", k = 8) + week_factor","cd4 ~ treatment + age + s(baseline_cd4, bs = ""ps"", k = 8) + week_factor",FALSE,26645.5951325789,26899.120924413,41.4439827008132,25
+1,"sigma","actg-covariate-refinement-cycle-01-sigma","~treatment + s(baseline_cd4, bs = ""ps"", k = 8)","~treatment + baseline_cd4",TRUE,26649.1614171596,26892.7490903429,39.8193936818297,27
+1,"nu","actg-covariate-refinement-cycle-01-nu","~treatment + sex + s(baseline_cd4, bs = ""ps"", k = 8)","~treatment + sex + baseline_cd4",TRUE,26646.5813695948,26878.8513357316,37.9692826865968,26
+1,"theta","actg-covariate-refinement-cycle-01-theta","~treatment + sex + s(baseline_cd4, bs = ""ps"", k = 8) + week_factor + treatment:week_factor","~treatment + s(baseline_cd4, bs = ""ps"", k = 8) + week_factor",TRUE,26639.7310323038,26829.1972604361,30.9721351200516,23
+2,"mu","actg-covariate-refinement-cycle-02-mu","cd4 ~ treatment + age + s(baseline_cd4, bs = ""ps"", k = 8) + week_factor","cd4 ~ treatment + age + s(baseline_cd4, bs = ""ps"", k = 8) + week_factor",FALSE,26639.7310323038,26829.1972604361,30.9721351200516,25
+2,"sigma","actg-covariate-refinement-cycle-02-sigma","~treatment + baseline_cd4","~treatment + baseline_cd4",FALSE,26639.7310323038,26829.1972604361,30.9721351200516,28
+2,"nu","actg-covariate-refinement-cycle-02-nu","~treatment + sex + baseline_cd4","~treatment + sex + baseline_cd4",FALSE,26639.7310323038,26829.1972604361,30.9721351200516,26
+2,"theta","actg-covariate-refinement-cycle-02-theta","~treatment + s(baseline_cd4, bs = ""ps"", k = 8) + week_factor","~treatment + s(baseline_cd4, bs = ""ps"", k = 8) + week_factor",FALSE,26639.7310323038,26829.1972604361,30.9721351200516,23

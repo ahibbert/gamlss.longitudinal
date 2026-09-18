@@ -20,6 +20,7 @@ plot_copula_overlay(
   time_var = "time",
   lags = 1,
   by_time = FALSE,
+  by = NULL,
   transform = c("normal", "uniform"),
   grid_n = 80,
   bins = 28,
@@ -44,6 +45,7 @@ plot_copula_fit(
   time_var = "time",
   lags = 1,
   by_time = FALSE,
+  by = NULL,
   transform = c("normal", "uniform"),
   grid_n = 80,
   bins = 28,
@@ -84,6 +86,12 @@ pseudo-observations from \code{response_var}.}
 
 \item{by_time}{Logical; if \code{TRUE}, facet the copula overlay by adjacent
 time pair.}
+
+\item{by}{Optional name of a factor or other grouping column used to facet
+the plot. Grouping covariates are taken from the left-hand observation in
+each adjacent pair. Supply \code{data} for fitted-model grouping by a column
+other than time. When both \code{by_time = TRUE} and \code{by} are supplied, \code{by}
+takes precedence.}
 
 \item{transform}{Character; either \code{"normal"} or \code{"uniform"}.}
 

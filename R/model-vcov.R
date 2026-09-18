@@ -35,6 +35,9 @@
 #' @return By default, a named covariance matrix aligned with `coef(object)`.
 #'   With `details = TRUE`, a list containing variance-covariance matrices and
 #'   standard errors is returned. `vcov$overall` covers fixed coefficients conditional on fitted smooths;
+#'   for sandwich inference it is also available as `vcov$cluster_robust`, while
+#'   `vcov$model_based` contains the inverse-Hessian covariance used as the
+#'   sandwich bread. The corresponding standard errors are stored under `se`.
 #'   `vcov$smooth_vcov` is a separate penalized approximation. Fixed-smooth
 #'   covariance and smoothing-parameter uncertainty are excluded. See
 #'   [inference_contracts()].
@@ -116,6 +119,12 @@ vcov.gamlss.longitudinal <- function(object, par = NA, sep_d2 = TRUE, numderiv =
       method_requested = method_requested_for_missingness,
       hessian_diagnostics = sandwich_path$hessian_diagnostics
     )
+    # Retain the inverse-Hessian bread for comparison while keeping the
+    # cluster-robust covariance as the primary `overall` result.
+    sandwich_result$vcov$model_based <- sandwich_path$model_based_vcov
+    sandwich_result$vcov$cluster_robust <- sandwich_result$vcov$overall
+    sandwich_result$se$model_based <- sandwich_path$model_based_se
+    sandwich_result$se$cluster_robust <- sandwich_result$se$overall
     sandwich_result$hessian_diagnostics$missingness_inference_fallback <-
       !identical(method_requested_for_missingness, "sandwich")
     sandwich_result$hessian_diagnostics$method_requested_before_missingness_fallback <-

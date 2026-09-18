@@ -409,7 +409,7 @@ test_that("T205 select_margin and screen_margin return ordered candidate tables 
 
   y <- rnorm(30)
   expect_silent(
-    screen <- select_margin(y, type = "realAll", try.gamlss = FALSE, trace = FALSE)
+    screen <- select_margin(y, type = "realAll", try.gamlss = FALSE, trace = FALSE, verbose = 0)
   )
 
   expect_s3_class(screen, "margin_selection")
@@ -447,7 +447,8 @@ test_that("T205 select_margin and screen_margin return ordered candidate tables 
       type = "realAll",
       families = c("NO", "TF"),
       try.gamlss = FALSE,
-      trace = FALSE
+      trace = FALSE,
+      verbose = 0
     )
   )
   expect_s3_class(time_screen, "margin_selection")

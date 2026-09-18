@@ -137,5 +137,10 @@ plot_dist <- function(
     grid_n = grid_n,
     contour_bins = contour_bins
   )
-  ggpubr::ggarrange(plotlist = plots, ncol = num_margins, nrow = num_margins)
+  ggpubr::ggarrange(
+    plotlist = plots,
+    ncol = num_margins,
+    nrow = num_margins,
+    align = "hv"
+  )
 }

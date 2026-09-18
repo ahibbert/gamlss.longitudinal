@@ -29,7 +29,8 @@ select_copula(
   pit_seed = 1L,
   copula_time_intercepts = FALSE,
   tail_thresholds = c(0.05, 0.1, 0.2),
-  margin_args = list()
+  margin_args = list(),
+  verbose = 1
 )
 }
 \arguments{
@@ -96,6 +97,10 @@ summaries.}
 \item{margin_args}{Named fixed marginal arguments passed to the temporary
 marginal fit. Binomial families require \code{list(bd = ...)} as described in
 \code{\link[=gamlss_longitudinal]{gamlss_longitudinal()}}.}
+
+\item{verbose}{Logical or integer verbosity level. The default, \code{1}, reports
+pair construction and candidate-level screening progress. Use \code{0} or
+\code{FALSE} for no progress output.}
 }
 \value{
 A data frame with one row per retained family and class

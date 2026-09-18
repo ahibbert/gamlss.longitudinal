@@ -26,6 +26,7 @@ Imports:
     methods,
     utils,
     stats,
+    callr,
     graphics
 License: GPL-3
 Encoding: UTF-8
@@ -41,7 +42,6 @@ Suggests:
     knitr,
     rmarkdown,
     testthat (>= 3.0.0),
-    callr,
     withr,
     VineCopula,
     gamCopula,

@@ -277,6 +277,8 @@
     reference_hessian = bread_path$reference_hessian %||% NULL
   )
   bread_inv <- bread_valid$vcov
+  model_based_se <- sqrt(diag(bread_inv))
+  names(model_based_se) <- colnames(bread_inv)
   correction <- .gl_sandwich_correction(
     n_obs = length(response),
     n_clusters = nrow(scores),
@@ -316,6 +318,8 @@
   list(
     vcov_final = vc,
     se_final = se,
+    model_based_vcov = bread_inv,
+    model_based_se = model_based_se,
     hessian_diagnostics = diagnostics,
     method_used = "sandwich_cluster",
     scores = scores

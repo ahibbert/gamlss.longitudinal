@@ -20,8 +20,16 @@
 #'   number of gaps and segments and labels AIC and BIC as available under the
 #'   explicit assumption that different observed segments are independent.
 #'   When coefficient uncertainty is requested for such a fit, model-Hessian
-#'   inference is replaced by subject-clustered sandwich covariance with a
-#'   warning rather than preventing the summary from being produced.
+#'   inference is replaced by subject-clustered sandwich covariance. Whenever
+#'   sandwich covariance is used, the coefficient table reports both
+#'   model-based and cluster-robust standard
+#'   errors for comparison, while `std_error`, tests, and p-values continue to
+#'   use the cluster-robust covariance. The fit's
+#'   segmented-likelihood warning records this routing; an incompatible
+#'   on-demand inference request issues a specific routing warning.
+#'   Covariance output computed during fitting is reused when its method and
+#'   options match the summary request; incompatible or explicitly customized
+#'   requests are computed on demand.
 #'   `fit$inference_contract`, `fit$smooth_inference_contract`, and the object
 #'   `inference_contract` attribute record methods, coefficient blocks,
 #'   conditioning, omitted uncertainty, diagnostics, fallback, and validity.

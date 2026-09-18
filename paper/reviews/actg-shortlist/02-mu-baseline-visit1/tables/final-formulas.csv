@@ -1,0 +1,6 @@
+"parameter","formula"
+"mu","cd4 ~ treatment + age + s(baseline_cd4, bs = ""ps"", k = 8) + week_factor + baseline_cd4:visit1"
+"sigma","~treatment + baseline_cd4"
+"nu","~1"
+"tau","~treatment + sex + baseline_cd4"
+"theta","~treatment + s(baseline_cd4, bs = ""ps"", k = 8) + week_factor"

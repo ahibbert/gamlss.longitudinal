@@ -81,7 +81,11 @@
   supported <- !is.null(spec) && identical(spec$status, "supported") &&
     !is.null(.margin_family_object(family))
   if (supported && !is.null(response)) {
-    supported <- .gl_capability_response_matches(response, spec)
+    supported <- .gl_capability_response_matches(
+      response,
+      spec,
+      family = family
+    )
   }
   supported
 }

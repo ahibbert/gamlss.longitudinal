@@ -26,12 +26,18 @@
   coef_tbl <- coef_tbl
   coef_tbl$estimate <- round(coef_tbl$estimate, digits)
   coef_tbl$std_error <- round(coef_tbl$std_error, digits)
+  if (!"model_std_error" %in% names(coef_tbl)) coef_tbl$model_std_error <- NA_real_
+  if (!"robust_std_error" %in% names(coef_tbl)) coef_tbl$robust_std_error <- NA_real_
+  coef_tbl$model_std_error <- round(coef_tbl$model_std_error, digits)
+  coef_tbl$robust_std_error <- round(coef_tbl$robust_std_error, digits)
 
   fmt_num <- function(v, d) ifelse(is.na(v), "NA", formatC(v, format = "f", digits = d))
   data.frame(
     term = as.character(coef_tbl$term),
     estimate = fmt_num(coef_tbl$estimate, digits),
     std_error = fmt_num(coef_tbl$std_error, digits),
+    model_std_error = fmt_num(coef_tbl$model_std_error, digits),
+    robust_std_error = fmt_num(coef_tbl$robust_std_error, digits),
     p_value = .gl_format_summary_p_value(coef_tbl$p_value, digits + 1),
     signif = ifelse(is.na(coef_tbl$signif), "", as.character(coef_tbl$signif)),
     parameter = as.character(coef_tbl$parameter),
@@ -50,7 +56,13 @@
     coef_disp,
     param_order = c("mu", "sigma", "nu", "tau", "theta", "zeta"),
     prefix = "    ") {
+  coef_disp_original <- coef_disp
+  if (!"model_std_error" %in% names(coef_disp)) coef_disp$model_std_error <- "NA"
+  if (!"robust_std_error" %in% names(coef_disp)) coef_disp$robust_std_error <- "NA"
   has_inference <- any(coef_disp$std_error != "NA" | coef_disp$p_value != "NA")
+  has_se_comparison <- any(
+    coef_disp$model_std_error != "NA" & coef_disp$robust_std_error != "NA"
+  )
   w_term <- max(nchar("term"), nchar(coef_disp$term, type = "width"), na.rm = TRUE)
   w_est <- max(nchar("estimate"), nchar(coef_disp$estimate, type = "width"), na.rm = TRUE)
   if (!has_inference) {
@@ -63,13 +75,27 @@
         cat(sprintf("    %-*s  %*s\n", w_term, block$term[ii], w_est, block$estimate[ii]))
       }
     }
-    return(invisible(coef_disp))
+    return(invisible(coef_disp_original))
   }
   w_se <- max(nchar("std_error"), nchar(coef_disp$std_error, type = "width"), na.rm = TRUE)
+  w_model_se <- max(nchar("model_se"), nchar(coef_disp$model_std_error, type = "width"), na.rm = TRUE)
+  w_robust_se <- max(nchar("robust_se"), nchar(coef_disp$robust_std_error, type = "width"), na.rm = TRUE)
   w_p <- max(nchar("p_value"), nchar(coef_disp$p_value, type = "width"), na.rm = TRUE)
   w_sig <- max(nchar("signif"), nchar(coef_disp$signif, type = "width"), na.rm = TRUE)
 
-  format_row <- function(term, estimate, std_error, p_value, signif) {
+  format_row <- function(term, estimate, std_error, model_std_error,
+                         robust_std_error, p_value, signif) {
+    if (has_se_comparison) {
+      return(sprintf(
+        "%-*s  %*s  %*s  %*s  %*s  %-*s",
+        w_term, term,
+        w_est, estimate,
+        w_model_se, model_std_error,
+        w_robust_se, robust_std_error,
+        w_p, p_value,
+        w_sig, signif
+      ))
+    }
     sprintf(
       "%-*s  %*s  %*s  %*s  %-*s",
       w_term, term,
@@ -81,13 +107,17 @@
   }
 
   print_coef_block <- function(block, prefix = "    ") {
-    hdr <- format_row("term", "estimate", "std_error", "p_value", "signif")
+    hdr <- format_row(
+      "term", "estimate", "std_error", "model_se", "robust_se", "p_value", "signif"
+    )
     cat(prefix, hdr, "\n", sep = "")
     for (ii in seq_len(nrow(block))) {
       row_txt <- format_row(
         block$term[ii],
         block$estimate[ii],
         block$std_error[ii],
+        block$model_std_error[ii],
+        block$robust_std_error[ii],
         block$p_value[ii],
         block$signif[ii]
       )
@@ -100,11 +130,15 @@
 
   for (k in seq_along(params_print)) {
     p <- params_print[k]
-    block <- coef_disp[coef_disp$parameter == p, c("term", "estimate", "std_error", "p_value", "signif"), drop = FALSE]
+    block <- coef_disp[
+      coef_disp$parameter == p,
+      c("term", "estimate", "std_error", "model_std_error", "robust_std_error", "p_value", "signif"),
+      drop = FALSE
+    ]
     cat(sprintf("  [%s]\n", p))
     print_coef_block(block, prefix = prefix)
     if (k < length(params_print)) cat("  --------------------\n")
   }
 
-  invisible(coef_disp)
+  invisible(coef_disp_original)
 }

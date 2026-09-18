@@ -21,7 +21,11 @@ select_joint_distribution(
   progress = TRUE,
   fit_args = list(),
   keep_fits = FALSE,
-  margin_args = list()
+  margin_args = list(),
+  isolate_candidates = c("auto", "always", "never"),
+  candidate_timeout = Inf,
+  checkpoint_dir = NULL,
+  resume = TRUE
 )
 }
 \arguments{
@@ -69,6 +73,21 @@ with elapsed time and an estimated remaining runtime.}
 
 \item{margin_args}{Named fixed marginal arguments. Binomial candidates
 require \code{list(bd = ...)} as described in \code{\link[=gamlss_longitudinal]{gamlss_longitudinal()}}.}
+
+\item{isolate_candidates}{Candidate process policy: \code{"auto"} uses a separate
+R worker when \code{callr} is available, \code{"always"}
+requires isolation, and \code{"never"} fits in the current R process. Isolation
+prevents a native-code failure in one candidate from terminating the
+screening session.}
+
+\item{candidate_timeout}{Positive per-candidate worker timeout in seconds;
+\code{Inf} disables the process-level timeout.}
+
+\item{checkpoint_dir}{Optional directory in which to save an atomic
+checkpoint after every candidate. Existing compatible checkpoints are
+reused when \code{resume = TRUE}.}
+
+\item{resume}{Logical; reuse compatible files in \code{checkpoint_dir}.}
 }
 \value{
 A data frame with one row per margin-copula combination and class

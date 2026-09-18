@@ -1,0 +1,139 @@
+<!doctype html><html><head><meta charset='utf-8'><title>ACTG final model review</title>
+<style>body{font-family:Arial,sans-serif;max-width:1200px;margin:2rem auto;padding:0 1rem;color:#222}table{border-collapse:collapse;width:100%;margin:1rem 0 2rem}th,td{border:1px solid #ccc;padding:.45rem;text-align:left;font-size:.9rem}th{background:#f3f5f7}code{background:#f3f5f7;padding:.15rem .3rem}img{max-width:100%;height:auto;border:1px solid #ddd}section{margin:2rem 0}.note{background:#fff7df;border-left:4px solid #d99b00;padding:1rem}</style></head><body>
+<h1>Final ACTG ZISICHEL–Gumbel model review</h1>
+<p>Generated 2026-09-10 13:48:43 AEST.</p>
+<div class='note'><p>The primary coefficient uncertainty uses subject-clustered sandwich standard errors. Model-based standard errors are included as a sensitivity comparison.</p><p>Inference is conditional on the AIC-selected model and does not account for model selection. The segmented-likelihood assumption applies.</p></div>
+<h2>Final formulas</h2>
+<table><thead><tr><th>parameter</th><th>formula</th></tr></thead><tbody><tr><td>mu</td><td>cd4 ~ treatment + age + s(baseline_cd4, bs = &quot;ps&quot;, k = 8) + week_factor</td></tr>
+<tr><td>sigma</td><td>~treatment + baseline_cd4</td></tr>
+<tr><td>nu</td><td>~1</td></tr>
+<tr><td>tau</td><td>~treatment + sex + baseline_cd4</td></tr>
+<tr><td>theta</td><td>~treatment + s(baseline_cd4, bs = &quot;ps&quot;, k = 8) + week_factor</td></tr></tbody></table>
+<h2>Model fit</h2>
+<table><thead><tr><th>statistic</th><th>value</th></tr></thead><tbody><tr><td>Margin distribution</td><td>ZISICHEL</td></tr>
+<tr><td>Copula distribution</td><td>G</td></tr>
+<tr><td>Observed responses</td><td>3352</td></tr>
+<tr><td>Submitted rows</td><td>4708</td></tr>
+<tr><td>Subjects</td><td>1177</td></tr>
+<tr><td>Time points</td><td>4</td></tr>
+<tr><td>Fixed coefficients</td><td>26</td></tr>
+<tr><td>Smooth terms</td><td>2</td></tr>
+<tr><td>Smooth EDF</td><td>5.91761841560651</td></tr>
+<tr><td>Log likelihood</td><td>-13259.3646973762</td></tr>
+<tr><td>AIC</td><td>26582.5646315837</td></tr>
+<tr><td>BIC</td><td>26777.8146764621</td></tr>
+<tr><td>Converged</td><td>TRUE</td></tr>
+<tr><td>Outer iterations</td><td>2</td></tr>
+<tr><td>Stop reason</td><td>converged</td></tr>
+<tr><td>Missingness likelihood</td><td>segmented</td></tr>
+<tr><td>Primary coefficient VCOV</td><td>subject-clustered sandwich</td></tr></tbody></table>
+<h2>Publication coefficients</h2>
+<table><thead><tr><th>Component</th><th>Parameter</th><th>Term</th><th>Estimate</th><th>Robust SE</th><th>Model-based SE</th><th>95% CI</th><th>p-value</th></tr></thead><tbody><tr><td>Margin</td><td>mu</td><td>(Intercept)</td><td>2.894</td><td>0.055</td><td>0.063</td><td>[2.786, 3.001]</td><td>&lt;0.001</td></tr>
+<tr><td>Margin</td><td>mu</td><td>treatmentzidovudine_zalcitabine</td><td>0.132</td><td>0.059</td><td>0.052</td><td>[0.016, 0.248]</td><td>0.026</td></tr>
+<tr><td>Margin</td><td>mu</td><td>treatmentzidovudine_didanosine</td><td>0.420</td><td>0.079</td><td>0.063</td><td>[0.265, 0.574]</td><td>&lt;0.001</td></tr>
+<tr><td>Margin</td><td>mu</td><td>treatmentzidovudine_didanosine_nevirapine</td><td>0.621</td><td>0.070</td><td>0.060</td><td>[0.485, 0.758]</td><td>&lt;0.001</td></tr>
+<tr><td>Margin</td><td>mu</td><td>age</td><td>0.007</td><td>0.002</td><td>0.002</td><td>[0.004, 0.010]</td><td>&lt;0.001</td></tr>
+<tr><td>Margin</td><td>mu</td><td>time_covariate16</td><td>-0.136</td><td>0.017</td><td>0.019</td><td>[-0.169, -0.104]</td><td>&lt;0.001</td></tr>
+<tr><td>Margin</td><td>mu</td><td>time_covariate24</td><td>-0.338</td><td>0.018</td><td>0.024</td><td>[-0.374, -0.303]</td><td>&lt;0.001</td></tr>
+<tr><td>Margin</td><td>mu</td><td>time_covariate32</td><td>-0.383</td><td>0.027</td><td>0.030</td><td>[-0.437, -0.329]</td><td>&lt;0.001</td></tr>
+<tr><td>Margin</td><td>sigma</td><td>(Intercept)</td><td>-0.314</td><td>0.028</td><td>0.038</td><td>[-0.369, -0.258]</td><td>&lt;0.001</td></tr>
+<tr><td>Margin</td><td>sigma</td><td>treatmentzidovudine_zalcitabine</td><td>0.296</td><td>0.126</td><td>0.113</td><td>[0.049, 0.544]</td><td>0.019</td></tr>
+<tr><td>Margin</td><td>sigma</td><td>treatmentzidovudine_didanosine</td><td>0.946</td><td>0.166</td><td>0.138</td><td>[0.621, 1.270]</td><td>&lt;0.001</td></tr>
+<tr><td>Margin</td><td>sigma</td><td>treatmentzidovudine_didanosine_nevirapine</td><td>1.017</td><td>0.136</td><td>0.126</td><td>[0.752, 1.283]</td><td>&lt;0.001</td></tr>
+<tr><td>Margin</td><td>sigma</td><td>baseline_cd4</td><td>-0.009</td><td>0.002</td><td>0.001</td><td>[-0.012, -0.006]</td><td>&lt;0.001</td></tr>
+<tr><td>Margin</td><td>nu</td><td>(Intercept)</td><td>-1.225</td><td>0.021</td><td>0.042</td><td>[-1.267, -1.184]</td><td>&lt;0.001</td></tr>
+<tr><td>Margin</td><td>tau</td><td>(Intercept)</td><td>-3.090</td><td>0.008</td><td>0.053</td><td>[-3.106, -3.074]</td><td>&lt;0.001</td></tr>
+<tr><td>Margin</td><td>tau</td><td>treatmentzidovudine_zalcitabine</td><td>0.244</td><td>0.272</td><td>0.233</td><td>[-0.289, 0.777]</td><td>0.370</td></tr>
+<tr><td>Margin</td><td>tau</td><td>treatmentzidovudine_didanosine</td><td>0.245</td><td>0.303</td><td>0.245</td><td>[-0.349, 0.840]</td><td>0.419</td></tr>
+<tr><td>Margin</td><td>tau</td><td>treatmentzidovudine_didanosine_nevirapine</td><td>-0.851</td><td>0.351</td><td>0.305</td><td>[-1.539, -0.162]</td><td>0.016</td></tr>
+<tr><td>Margin</td><td>tau</td><td>sexmale</td><td>1.320</td><td>0.008</td><td>0.053</td><td>[1.304, 1.336]</td><td>&lt;0.001</td></tr>
+<tr><td>Margin</td><td>tau</td><td>baseline_cd4</td><td>-0.093</td><td>0.012</td><td>0.010</td><td>[-0.117, -0.070]</td><td>&lt;0.001</td></tr>
+<tr><td>Copula</td><td>theta</td><td>(Intercept)</td><td>-0.745</td><td>0.021</td><td>0.047</td><td>[-0.785, -0.705]</td><td>&lt;0.001</td></tr>
+<tr><td>Copula</td><td>theta</td><td>treatmentzidovudine_zalcitabine</td><td>0.387</td><td>0.131</td><td>0.116</td><td>[0.129, 0.644]</td><td>0.003</td></tr>
+<tr><td>Copula</td><td>theta</td><td>treatmentzidovudine_didanosine</td><td>0.733</td><td>0.125</td><td>0.108</td><td>[0.488, 0.977]</td><td>&lt;0.001</td></tr>
+<tr><td>Copula</td><td>theta</td><td>treatmentzidovudine_didanosine_nevirapine</td><td>0.731</td><td>0.112</td><td>0.098</td><td>[0.511, 0.950]</td><td>&lt;0.001</td></tr>
+<tr><td>Copula</td><td>theta</td><td>time_covariate16</td><td>0.165</td><td>0.021</td><td>0.045</td><td>[0.124, 0.205]</td><td>&lt;0.001</td></tr>
+<tr><td>Copula</td><td>theta</td><td>time_covariate24</td><td>0.280</td><td>0.095</td><td>0.091</td><td>[0.094, 0.466]</td><td>0.003</td></tr></tbody></table>
+<h2>Diagnostic figures</h2>
+<section><h3>copula-conditional-tail-exceedance</h3><a href='figures/copula-conditional-tail-exceedance.png'><img src='figures/copula-conditional-tail-exceedance.png'></a></section>
+<section><h3>copula-diagnostics-dashboard</h3><a href='figures/copula-diagnostics-dashboard.png'><img src='figures/copula-diagnostics-dashboard.png'></a></section>
+<section><h3>copula-empirical-overlay</h3><a href='figures/copula-empirical-overlay.png'><img src='figures/copula-empirical-overlay.png'></a></section>
+<section><h3>copula-kendall-function</h3><a href='figures/copula-kendall-function.png'><img src='figures/copula-kendall-function.png'></a></section>
+<section><h3>copula-quartile-correlation</h3><a href='figures/copula-quartile-correlation.png'><img src='figures/copula-quartile-correlation.png'></a></section>
+<section><h3>copula-residual-lag-correlation</h3><a href='figures/copula-residual-lag-correlation.png'><img src='figures/copula-residual-lag-correlation.png'></a></section>
+<section><h3>copula-rosenblatt-by-time</h3><a href='figures/copula-rosenblatt-by-time.png'><img src='figures/copula-rosenblatt-by-time.png'></a></section>
+<section><h3>copula-rosenblatt-lag</h3><a href='figures/copula-rosenblatt-lag.png'><img src='figures/copula-rosenblatt-lag.png'></a></section>
+<section><h3>copula-rosenblatt-qq</h3><a href='figures/copula-rosenblatt-qq.png'><img src='figures/copula-rosenblatt-qq.png'></a></section>
+<section><h3>copula-tail-cooccurrence</h3><a href='figures/copula-tail-cooccurrence.png'><img src='figures/copula-tail-cooccurrence.png'></a></section>
+<section><h3>diagnostic-pit-by-time</h3><a href='figures/diagnostic-pit-by-time.png'><img src='figures/diagnostic-pit-by-time.png'></a></section>
+<section><h3>diagnostic-pithist</h3><a href='figures/diagnostic-pithist.png'><img src='figures/diagnostic-pithist.png'></a></section>
+<section><h3>diagnostic-qq-by-time</h3><a href='figures/diagnostic-qq-by-time.png'><img src='figures/diagnostic-qq-by-time.png'></a></section>
+<section><h3>diagnostic-qqrplot</h3><a href='figures/diagnostic-qqrplot.png'><img src='figures/diagnostic-qqrplot.png'></a></section>
+<section><h3>diagnostic-rootogram-by-time</h3><a href='figures/diagnostic-rootogram-by-time.png'><img src='figures/diagnostic-rootogram-by-time.png'></a></section>
+<section><h3>diagnostic-rootogram</h3><a href='figures/diagnostic-rootogram.png'><img src='figures/diagnostic-rootogram.png'></a></section>
+<section><h3>diagnostic-worm-by-time</h3><a href='figures/diagnostic-worm-by-time.png'><img src='figures/diagnostic-worm-by-time.png'></a></section>
+<section><h3>diagnostic-wormplot</h3><a href='figures/diagnostic-wormplot.png'><img src='figures/diagnostic-wormplot.png'></a></section>
+<section><h3>observed-vs-fitted-by-time-treatment</h3><a href='figures/observed-vs-fitted-by-time-treatment.png'><img src='figures/observed-vs-fitted-by-time-treatment.png'></a></section>
+<section><h3>quantile-residuals-by-time</h3><a href='figures/quantile-residuals-by-time.png'><img src='figures/quantile-residuals-by-time.png'></a></section>
+<section><h3>residuals-vs-fitted</h3><a href='figures/residuals-vs-fitted.png'><img src='figures/residuals-vs-fitted.png'></a></section>
+<section><h3>term-effects-dashboard-plotlist-plot-1</h3><a href='figures/term-effects-dashboard-plotlist-plot-1.png'><img src='figures/term-effects-dashboard-plotlist-plot-1.png'></a></section>
+<section><h3>term-effects-dashboard-plotlist-plot-10</h3><a href='figures/term-effects-dashboard-plotlist-plot-10.png'><img src='figures/term-effects-dashboard-plotlist-plot-10.png'></a></section>
+<section><h3>term-effects-dashboard-plotlist-plot-11</h3><a href='figures/term-effects-dashboard-plotlist-plot-11.png'><img src='figures/term-effects-dashboard-plotlist-plot-11.png'></a></section>
+<section><h3>term-effects-dashboard-plotlist-plot-12</h3><a href='figures/term-effects-dashboard-plotlist-plot-12.png'><img src='figures/term-effects-dashboard-plotlist-plot-12.png'></a></section>
+<section><h3>term-effects-dashboard-plotlist-plot-13</h3><a href='figures/term-effects-dashboard-plotlist-plot-13.png'><img src='figures/term-effects-dashboard-plotlist-plot-13.png'></a></section>
+<section><h3>term-effects-dashboard-plotlist-plot-14</h3><a href='figures/term-effects-dashboard-plotlist-plot-14.png'><img src='figures/term-effects-dashboard-plotlist-plot-14.png'></a></section>
+<section><h3>term-effects-dashboard-plotlist-plot-15</h3><a href='figures/term-effects-dashboard-plotlist-plot-15.png'><img src='figures/term-effects-dashboard-plotlist-plot-15.png'></a></section>
+<section><h3>term-effects-dashboard-plotlist-plot-2</h3><a href='figures/term-effects-dashboard-plotlist-plot-2.png'><img src='figures/term-effects-dashboard-plotlist-plot-2.png'></a></section>
+<section><h3>term-effects-dashboard-plotlist-plot-3</h3><a href='figures/term-effects-dashboard-plotlist-plot-3.png'><img src='figures/term-effects-dashboard-plotlist-plot-3.png'></a></section>
+<section><h3>term-effects-dashboard-plotlist-plot-4</h3><a href='figures/term-effects-dashboard-plotlist-plot-4.png'><img src='figures/term-effects-dashboard-plotlist-plot-4.png'></a></section>
+<section><h3>term-effects-dashboard-plotlist-plot-5</h3><a href='figures/term-effects-dashboard-plotlist-plot-5.png'><img src='figures/term-effects-dashboard-plotlist-plot-5.png'></a></section>
+<section><h3>term-effects-dashboard-plotlist-plot-6</h3><a href='figures/term-effects-dashboard-plotlist-plot-6.png'><img src='figures/term-effects-dashboard-plotlist-plot-6.png'></a></section>
+<section><h3>term-effects-dashboard-plotlist-plot-7</h3><a href='figures/term-effects-dashboard-plotlist-plot-7.png'><img src='figures/term-effects-dashboard-plotlist-plot-7.png'></a></section>
+<section><h3>term-effects-dashboard-plotlist-plot-8</h3><a href='figures/term-effects-dashboard-plotlist-plot-8.png'><img src='figures/term-effects-dashboard-plotlist-plot-8.png'></a></section>
+<section><h3>term-effects-dashboard-plotlist-plot-9</h3><a href='figures/term-effects-dashboard-plotlist-plot-9.png'><img src='figures/term-effects-dashboard-plotlist-plot-9.png'></a></section>
+<section><h3>term-effects-fixed-terms-dashboard-plotlist-plot-1</h3><a href='figures/term-effects-fixed-terms-dashboard-plotlist-plot-1.png'><img src='figures/term-effects-fixed-terms-dashboard-plotlist-plot-1.png'></a></section>
+<section><h3>term-effects-fixed-terms-dashboard-plotlist-plot-10</h3><a href='figures/term-effects-fixed-terms-dashboard-plotlist-plot-10.png'><img src='figures/term-effects-fixed-terms-dashboard-plotlist-plot-10.png'></a></section>
+<section><h3>term-effects-fixed-terms-dashboard-plotlist-plot-11</h3><a href='figures/term-effects-fixed-terms-dashboard-plotlist-plot-11.png'><img src='figures/term-effects-fixed-terms-dashboard-plotlist-plot-11.png'></a></section>
+<section><h3>term-effects-fixed-terms-dashboard-plotlist-plot-12</h3><a href='figures/term-effects-fixed-terms-dashboard-plotlist-plot-12.png'><img src='figures/term-effects-fixed-terms-dashboard-plotlist-plot-12.png'></a></section>
+<section><h3>term-effects-fixed-terms-dashboard-plotlist-plot-13</h3><a href='figures/term-effects-fixed-terms-dashboard-plotlist-plot-13.png'><img src='figures/term-effects-fixed-terms-dashboard-plotlist-plot-13.png'></a></section>
+<section><h3>term-effects-fixed-terms-dashboard-plotlist-plot-2</h3><a href='figures/term-effects-fixed-terms-dashboard-plotlist-plot-2.png'><img src='figures/term-effects-fixed-terms-dashboard-plotlist-plot-2.png'></a></section>
+<section><h3>term-effects-fixed-terms-dashboard-plotlist-plot-3</h3><a href='figures/term-effects-fixed-terms-dashboard-plotlist-plot-3.png'><img src='figures/term-effects-fixed-terms-dashboard-plotlist-plot-3.png'></a></section>
+<section><h3>term-effects-fixed-terms-dashboard-plotlist-plot-4</h3><a href='figures/term-effects-fixed-terms-dashboard-plotlist-plot-4.png'><img src='figures/term-effects-fixed-terms-dashboard-plotlist-plot-4.png'></a></section>
+<section><h3>term-effects-fixed-terms-dashboard-plotlist-plot-5</h3><a href='figures/term-effects-fixed-terms-dashboard-plotlist-plot-5.png'><img src='figures/term-effects-fixed-terms-dashboard-plotlist-plot-5.png'></a></section>
+<section><h3>term-effects-fixed-terms-dashboard-plotlist-plot-6</h3><a href='figures/term-effects-fixed-terms-dashboard-plotlist-plot-6.png'><img src='figures/term-effects-fixed-terms-dashboard-plotlist-plot-6.png'></a></section>
+<section><h3>term-effects-fixed-terms-dashboard-plotlist-plot-7</h3><a href='figures/term-effects-fixed-terms-dashboard-plotlist-plot-7.png'><img src='figures/term-effects-fixed-terms-dashboard-plotlist-plot-7.png'></a></section>
+<section><h3>term-effects-fixed-terms-dashboard-plotlist-plot-8</h3><a href='figures/term-effects-fixed-terms-dashboard-plotlist-plot-8.png'><img src='figures/term-effects-fixed-terms-dashboard-plotlist-plot-8.png'></a></section>
+<section><h3>term-effects-fixed-terms-dashboard-plotlist-plot-9</h3><a href='figures/term-effects-fixed-terms-dashboard-plotlist-plot-9.png'><img src='figures/term-effects-fixed-terms-dashboard-plotlist-plot-9.png'></a></section>
+<section><h3>term-effects-fixed-terms-mu-age-plot</h3><a href='figures/term-effects-fixed-terms-mu-age-plot.png'><img src='figures/term-effects-fixed-terms-mu-age-plot.png'></a></section>
+<section><h3>term-effects-fixed-terms-mu-time-covariate16-plot</h3><a href='figures/term-effects-fixed-terms-mu-time-covariate16-plot.png'><img src='figures/term-effects-fixed-terms-mu-time-covariate16-plot.png'></a></section>
+<section><h3>term-effects-fixed-terms-mu-time-covariate24-plot</h3><a href='figures/term-effects-fixed-terms-mu-time-covariate24-plot.png'><img src='figures/term-effects-fixed-terms-mu-time-covariate24-plot.png'></a></section>
+<section><h3>term-effects-fixed-terms-mu-time-covariate32-plot</h3><a href='figures/term-effects-fixed-terms-mu-time-covariate32-plot.png'><img src='figures/term-effects-fixed-terms-mu-time-covariate32-plot.png'></a></section>
+<section><h3>term-effects-fixed-terms-mu-treatment-plot</h3><a href='figures/term-effects-fixed-terms-mu-treatment-plot.png'><img src='figures/term-effects-fixed-terms-mu-treatment-plot.png'></a></section>
+<section><h3>term-effects-fixed-terms-plots-plot-1</h3><a href='figures/term-effects-fixed-terms-plots-plot-1.png'><img src='figures/term-effects-fixed-terms-plots-plot-1.png'></a></section>
+<section><h3>term-effects-fixed-terms-plots-plot-10</h3><a href='figures/term-effects-fixed-terms-plots-plot-10.png'><img src='figures/term-effects-fixed-terms-plots-plot-10.png'></a></section>
+<section><h3>term-effects-fixed-terms-plots-plot-11</h3><a href='figures/term-effects-fixed-terms-plots-plot-11.png'><img src='figures/term-effects-fixed-terms-plots-plot-11.png'></a></section>
+<section><h3>term-effects-fixed-terms-plots-plot-12</h3><a href='figures/term-effects-fixed-terms-plots-plot-12.png'><img src='figures/term-effects-fixed-terms-plots-plot-12.png'></a></section>
+<section><h3>term-effects-fixed-terms-plots-plot-13</h3><a href='figures/term-effects-fixed-terms-plots-plot-13.png'><img src='figures/term-effects-fixed-terms-plots-plot-13.png'></a></section>
+<section><h3>term-effects-fixed-terms-plots-plot-2</h3><a href='figures/term-effects-fixed-terms-plots-plot-2.png'><img src='figures/term-effects-fixed-terms-plots-plot-2.png'></a></section>
+<section><h3>term-effects-fixed-terms-plots-plot-3</h3><a href='figures/term-effects-fixed-terms-plots-plot-3.png'><img src='figures/term-effects-fixed-terms-plots-plot-3.png'></a></section>
+<section><h3>term-effects-fixed-terms-plots-plot-4</h3><a href='figures/term-effects-fixed-terms-plots-plot-4.png'><img src='figures/term-effects-fixed-terms-plots-plot-4.png'></a></section>
+<section><h3>term-effects-fixed-terms-plots-plot-5</h3><a href='figures/term-effects-fixed-terms-plots-plot-5.png'><img src='figures/term-effects-fixed-terms-plots-plot-5.png'></a></section>
+<section><h3>term-effects-fixed-terms-plots-plot-6</h3><a href='figures/term-effects-fixed-terms-plots-plot-6.png'><img src='figures/term-effects-fixed-terms-plots-plot-6.png'></a></section>
+<section><h3>term-effects-fixed-terms-plots-plot-7</h3><a href='figures/term-effects-fixed-terms-plots-plot-7.png'><img src='figures/term-effects-fixed-terms-plots-plot-7.png'></a></section>
+<section><h3>term-effects-fixed-terms-plots-plot-8</h3><a href='figures/term-effects-fixed-terms-plots-plot-8.png'><img src='figures/term-effects-fixed-terms-plots-plot-8.png'></a></section>
+<section><h3>term-effects-fixed-terms-plots-plot-9</h3><a href='figures/term-effects-fixed-terms-plots-plot-9.png'><img src='figures/term-effects-fixed-terms-plots-plot-9.png'></a></section>
+<section><h3>term-effects-fixed-terms-sigma-baseline-cd4-plot</h3><a href='figures/term-effects-fixed-terms-sigma-baseline-cd4-plot.png'><img src='figures/term-effects-fixed-terms-sigma-baseline-cd4-plot.png'></a></section>
+<section><h3>term-effects-fixed-terms-sigma-treatment-plot</h3><a href='figures/term-effects-fixed-terms-sigma-treatment-plot.png'><img src='figures/term-effects-fixed-terms-sigma-treatment-plot.png'></a></section>
+<section><h3>term-effects-fixed-terms-tau-baseline-cd4-plot</h3><a href='figures/term-effects-fixed-terms-tau-baseline-cd4-plot.png'><img src='figures/term-effects-fixed-terms-tau-baseline-cd4-plot.png'></a></section>
+<section><h3>term-effects-fixed-terms-tau-sex-plot</h3><a href='figures/term-effects-fixed-terms-tau-sex-plot.png'><img src='figures/term-effects-fixed-terms-tau-sex-plot.png'></a></section>
+<section><h3>term-effects-fixed-terms-tau-treatment-plot</h3><a href='figures/term-effects-fixed-terms-tau-treatment-plot.png'><img src='figures/term-effects-fixed-terms-tau-treatment-plot.png'></a></section>
+<section><h3>term-effects-fixed-terms-theta-time-covariate16-plot</h3><a href='figures/term-effects-fixed-terms-theta-time-covariate16-plot.png'><img src='figures/term-effects-fixed-terms-theta-time-covariate16-plot.png'></a></section>
+<section><h3>term-effects-fixed-terms-theta-time-covariate24-plot</h3><a href='figures/term-effects-fixed-terms-theta-time-covariate24-plot.png'><img src='figures/term-effects-fixed-terms-theta-time-covariate24-plot.png'></a></section>
+<section><h3>term-effects-fixed-terms-theta-treatment-plot</h3><a href='figures/term-effects-fixed-terms-theta-treatment-plot.png'><img src='figures/term-effects-fixed-terms-theta-treatment-plot.png'></a></section>
+<section><h3>term-effects-smooth-terms-dashboard-plotlist-plot-1</h3><a href='figures/term-effects-smooth-terms-dashboard-plotlist-plot-1.png'><img src='figures/term-effects-smooth-terms-dashboard-plotlist-plot-1.png'></a></section>
+<section><h3>term-effects-smooth-terms-dashboard-plotlist-plot-2</h3><a href='figures/term-effects-smooth-terms-dashboard-plotlist-plot-2.png'><img src='figures/term-effects-smooth-terms-dashboard-plotlist-plot-2.png'></a></section>
+<section><h3>term-effects-smooth-terms-mu-s-baseline-cd4-bs-ps-k-8-plot</h3><a href='figures/term-effects-smooth-terms-mu-s-baseline-cd4-bs-ps-k-8-plot.png'><img src='figures/term-effects-smooth-terms-mu-s-baseline-cd4-bs-ps-k-8-plot.png'></a></section>
+<section><h3>term-effects-smooth-terms-plots-plot-1</h3><a href='figures/term-effects-smooth-terms-plots-plot-1.png'><img src='figures/term-effects-smooth-terms-plots-plot-1.png'></a></section>
+<section><h3>term-effects-smooth-terms-plots-plot-2</h3><a href='figures/term-effects-smooth-terms-plots-plot-2.png'><img src='figures/term-effects-smooth-terms-plots-plot-2.png'></a></section>
+<section><h3>term-effects-smooth-terms-theta-s-baseline-cd4-bs-ps-k-8-plot</h3><a href='figures/term-effects-smooth-terms-theta-s-baseline-cd4-bs-ps-k-8-plot.png'><img src='figures/term-effects-smooth-terms-theta-s-baseline-cd4-bs-ps-k-8-plot.png'></a></section>
+</body></html>

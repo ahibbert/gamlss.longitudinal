@@ -48,7 +48,7 @@
     theme_gamlss_longitudinal()
 
   if (is_grouped) {
-    p <- p + ggplot2::facet_wrap(~split_group)
+    p <- p + ggplot2::facet_wrap(~split_group, scales = "fixed")
   }
 
   p
@@ -81,7 +81,7 @@
     theme_gamlss_longitudinal()
 
   if (is_grouped) {
-    p <- p + ggplot2::facet_wrap(~split_group, scales = if (is.null(tau_ylim)) "free_y" else "fixed")
+    p <- p + ggplot2::facet_wrap(~split_group, scales = "fixed")
   }
 
   if (!is.null(tau_ylim)) {

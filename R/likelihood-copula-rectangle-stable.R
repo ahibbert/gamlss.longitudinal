@@ -121,3 +121,54 @@
   }
   out
 }
+
+#' Direct Student-t copula rectangle probability by fixed quadrature
+#'
+#' Evaluating a discrete Student-t rectangle as four separately integrated CDF
+#' corners is both expensive and vulnerable to cancellation. Integrate the
+#' copula density over the probability rectangle directly instead. The same
+#' fixed Gauss-Legendre rule is used by the stable log-ratio fallback above.
+#'
+#' @noRd
+.copula_t_rectangle_prob_quadrature <- function(
+    u1, u2, l1, l2, par, par2, floor_probability = TRUE) {
+  vals <- .copula_recycle(
+    as.numeric(u1), as.numeric(u2), as.numeric(l1), as.numeric(l2),
+    .copula_gaussian_rho(par), .copula_t_df(par2)
+  )
+  n <- length(vals[[1L]])
+  if (!n) return(numeric(0))
+
+  upper <- cbind(vals[[1L]], vals[[2L]])
+  lower <- cbind(vals[[3L]], vals[[4L]])
+  width1 <- upper[, 1L] - lower[, 1L]
+  width2 <- upper[, 2L] - lower[, 2L]
+  valid <- is.finite(width1) & is.finite(width2) &
+    is.finite(vals[[5L]]) & is.finite(vals[[6L]]) &
+    lower[, 1L] >= 0 & upper[, 1L] <= 1 &
+    lower[, 2L] >= 0 & upper[, 2L] <= 1 &
+    width1 >= 0 & width2 >= 0
+
+  out <- rep(NA_real_, n)
+  zero <- valid & (width1 == 0 | width2 == 0)
+  out[zero] <- 0
+  positive <- valid & width1 > 0 & width2 > 0
+  if (any(positive)) {
+    log_width1 <- log(width1[positive])
+    log_width2 <- log(width2[positive])
+    log_ratio <- .gl_discrete_copula_log_ratio_quadrature(
+      family = "t",
+      par = vals[[5L]][positive],
+      par2 = vals[[6L]][positive],
+      upper = upper[positive, , drop = FALSE],
+      lower = lower[positive, , drop = FALSE],
+      margin_log_d1 = log_width1,
+      margin_log_d2 = log_width2
+    )
+    probability <- exp(log_ratio + log_width1 + log_width2)
+    probability <- pmin(pmax(probability, 0), pmin(width1[positive], width2[positive]))
+    out[positive] <- probability
+  }
+
+  if (isTRUE(floor_probability)) pmax(out, 1e-300) else out
+}
