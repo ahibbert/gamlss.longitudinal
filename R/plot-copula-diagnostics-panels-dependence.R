@@ -39,7 +39,7 @@
   p <- ggplot2::ggplot(tail_long, ggplot2::aes(x = threshold, y = probability, color = source, group = source)) +
     ggplot2::geom_point(size = 2.4) +
     ggplot2::geom_line(linewidth = 0.8) +
-    ggplot2::facet_wrap(~tail) +
+    ggplot2::facet_wrap(~tail, scales = "fixed") +
     ggplot2::scale_color_manual(values = c(Empirical = cols[["observed"]], Fitted = cols[["fitted"]])) +
     ggplot2::labs(
       title = title,

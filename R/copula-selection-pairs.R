@@ -17,7 +17,8 @@
     time_intercepts = FALSE,
     margin_n_cycles = 100L,
     pit_seed = 1L,
-    margin_args = list()) {
+    margin_args = list(),
+    verbose = 0) {
   upper_var <- NULL
   lower_var <- NULL
   log_mass_var <- NULL
@@ -87,7 +88,8 @@
         time_intercepts = time_intercepts,
         margin_n_cycles = margin_n_cycles,
         pit_seed = pit_seed,
-        margin_args = margin_args
+        margin_args = margin_args,
+        verbose = verbose
       )
       data <- auto$data
       u_var <- auto$u_var
@@ -157,6 +159,10 @@
       right <- left + lag
       k <- k + 1L
       pair <- data.frame(
+        subject = subject_data[[subject_var]][left],
+        time_left = subject_data[[time_var]][left],
+        time_right = subject_data[[time_var]][right],
+        lag = rep.int(as.integer(lag), length(left)),
         u1 = .copula_clamp01(subject_data[[u_var]][left]),
         u2 = .copula_clamp01(subject_data[[u_var]][right]),
         copula_time = paste(subject_data[[time_var]][left], subject_data[[time_var]][right], sep = "->")
@@ -180,7 +186,15 @@
   }
 
   if (k == 0L) {
-    empty <- data.frame(u1 = numeric(), u2 = numeric(), copula_time = character())
+    empty <- data.frame(
+      subject = data[[subject_var]][0L],
+      time_left = data[[time_var]][0L],
+      time_right = data[[time_var]][0L],
+      lag = integer(),
+      u1 = numeric(),
+      u2 = numeric(),
+      copula_time = character()
+    )
     if (!is.null(upper_var) && !is.null(lower_var)) {
       for (name in c("upper1", "upper2", "lower1", "lower2")) empty[[name]] <- numeric()
     }

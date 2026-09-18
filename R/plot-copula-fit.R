@@ -25,6 +25,11 @@
 #' @param lags Positive integer lag(s) used when forming pairs.
 #' @param by_time Logical; if `TRUE`, facet the copula overlay by adjacent
 #'   time pair.
+#' @param by Optional name of a factor or other grouping column used to facet
+#'   the plot. Grouping covariates are taken from the left-hand observation in
+#'   each adjacent pair. Supply `data` for fitted-model grouping by a column
+#'   other than time. When both `by_time = TRUE` and `by` are supplied, `by`
+#'   takes precedence.
 #' @param transform Character; either `"normal"` or `"uniform"`.
 #' @param grid_n Grid size for fitted density contours.
 #' @param bins Number of empirical two-dimensional bins.
@@ -52,6 +57,7 @@ plot_copula_fit <- function(
     time_var = "time",
     lags = 1,
     by_time = FALSE,
+    by = NULL,
     transform = c("normal", "uniform"),
     grid_n = 80,
     bins = 28,
@@ -62,9 +68,6 @@ plot_copula_fit <- function(
   .plot_reject_old_call_args(sys.call(), old_args = c("copula", "selected_fit"))
   .plot_reject_old_args(list(...), old_args = c("copula", "selected_fit"))
   transform <- match.arg(transform)
-  if (!is.logical(by_time) || length(by_time) != 1L || is.na(by_time)) {
-    stop("'by_time' must be TRUE or FALSE.", call. = FALSE)
-  }
 
   plot_data <- .plot_copula_fit_inputs(
     data = data,
@@ -80,7 +83,8 @@ plot_copula_fit <- function(
     subject_var = subject_var,
     time_var = time_var,
     lags = lags,
-    by_time = by_time
+    by_time = by_time,
+    by = by
   )
 
   pair_data <- plot_data$pair_data
@@ -89,7 +93,7 @@ plot_copula_fit <- function(
   density_grid <- .plot_copula_fit_density_grid(
     pair_data = pair_data,
     spec = spec,
-    by_time = by_time,
+    by_time = plot_data$split_by,
     grid_n = grid_n,
     max_pairs_overlay = max_pairs_overlay,
     refit_by_group = is.null(plot_data$fit)
@@ -104,7 +108,7 @@ plot_copula_fit <- function(
     transform = transform,
     bins = bins,
     contour_bins = contour_bins,
-    by_time = by_time
+    by_time = plot_data$split_by
   )
 
   if (isTRUE(plot)) {
@@ -116,6 +120,7 @@ plot_copula_fit <- function(
     pair_data = pair_data,
     density = density_grid,
     copula = spec,
-    selection = selection
+    selection = selection,
+    by = plot_data$by
   ), primary = "plot"))
 }

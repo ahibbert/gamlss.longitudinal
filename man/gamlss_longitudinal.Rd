@@ -24,7 +24,7 @@ gamlss_longitudinal(
   compute_vcov = TRUE,
   vcov_method = c("analytical", "numderiv"),
   margin_args = list(),
-  verbose = FALSE,
+  verbose = 1,
   ...
 )
 }
@@ -55,7 +55,8 @@ Terminal dropout does not require segmentation. AIC and
 BIC remain available for segmented fits under the stated independence
 assumption. Standard inference methods automatically use subject-clustered
 sandwich covariance instead of ordinary model-Hessian inference for this
-composite objective; bootstrap sensitivity analysis remains advisable.
+composite objective; model-based standard errors remain available for
+comparison, and bootstrap sensitivity analysis remains advisable.
 Numerical integration across gaps and a distinct delayed-entry
 likelihood are not yet implemented.}
 
@@ -99,8 +100,9 @@ positive integer used for every row or the name of a data column containing
 row-specific trial counts. Other fixed family arguments are not currently
 supported.}
 
-\item{verbose}{Logical; print optimizer progress when \code{TRUE}. Integer levels
-\code{0} to \code{3} remain available for advanced tracing.}
+\item{verbose}{Logical or integer verbosity level. The default, \code{1}, reports
+fitting stages and outer iterations. Use \code{0} or \code{FALSE} for no progress
+output; levels \code{2} and \code{3} add increasingly detailed optimizer tracing.}
 
 \item{...}{Deprecated argument aliases retained for compatibility. New code
 should use \code{data}, \code{optimization}, \code{start}, and \code{optimizer_control}.}

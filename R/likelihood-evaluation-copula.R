@@ -59,21 +59,31 @@
   par2 <- rep(NA_real_, length(row_id1))
   if (length(row_id1) > 0) {
     theta_len <- length(eta_inv[["theta"]])
-    if (theta_len == n_obs) {
+    if (theta_len == 1L) {
+      par1 <- rep(as.numeric(eta_inv[["theta"]]), length(row_id1))
+    } else if (theta_len == n_obs) {
       theta_idx <- row_id1
     } else {
       theta_idx <- pair_cache$theta_index_map[row_id1]
     }
 
-    par1 <- eta_inv[["theta"]][theta_idx]
+    if (theta_len != 1L) {
+      par1 <- eta_inv[["theta"]][theta_idx]
+    }
     if ("zeta" %in% names(eta_inv)) {
-      par2 <- eta_inv[["zeta"]][theta_idx]
+      zeta_len <- length(eta_inv[["zeta"]])
+      if (zeta_len == 1L) {
+        par2 <- rep(as.numeric(eta_inv[["zeta"]]), length(row_id1))
+      } else {
+        par2 <- eta_inv[["zeta"]][theta_idx]
+      }
     } else {
       par2 <- rep(0, length(par1))
     }
   }
 
   pair_input_valid <- pair_input_valid & is.finite(par1) & is.finite(par2)
+  pair_evaluated <- pair_included & pair_input_valid
 
   Fx_eval <- Fx_1_2
   if (nrow(Fx_eval) > 0) {
@@ -98,7 +108,8 @@
     Fx_lower_eval[!is.finite(Fx_lower_eval)] <- 0.5
     Fx_lower_eval[Fx_lower_eval > 1] <- 1
     Fx_lower_eval[Fx_lower_eval < 0] <- 0
-    gaussian_independence <- identical(.copula_family_code(copula_dist), "N") &
+    gaussian_independence <- pair_evaluated &
+      identical(.copula_family_code(copula_dist), "N") &
       abs(.copula_gaussian_rho(par1_eval)) <= 1e-12
     copula_rect_prob <- rep(NA_real_, length(par1_eval))
 
@@ -112,7 +123,7 @@
       copula_rect_prob[gaussian_independence] <- exp(independent_log_mass)
     }
 
-    dependent <- !gaussian_independence
+    dependent <- pair_evaluated & !gaussian_independence
     if (any(dependent)) {
       copula_rect_prob[dependent] <- .copula_rectangle_prob(
         Fx_eval[dependent, 1], Fx_eval[dependent, 2],
@@ -159,14 +170,21 @@
     }
     copula_d <- exp(copula_log_d)
   } else {
-    copula_d <- .copula_pdf(
-      Fx_eval[, 1], Fx_eval[, 2],
-      family = copula_dist, par = par1_eval, par2 = par2_eval
-    )
-    copula_log_d <- .copula_logpdf(
-      Fx_eval[, 1], Fx_eval[, 2],
-      family = copula_dist, par = par1_eval, par2 = par2_eval
-    )
+    copula_d <- rep(NA_real_, length(par1_eval))
+    if (any(pair_evaluated)) {
+      copula_d[pair_evaluated] <- .copula_pdf(
+        Fx_eval[pair_evaluated, 1], Fx_eval[pair_evaluated, 2],
+        family = copula_dist,
+        par = par1_eval[pair_evaluated],
+        par2 = par2_eval[pair_evaluated]
+      )
+      copula_log_d[pair_evaluated] <- .copula_logpdf(
+        Fx_eval[pair_evaluated, 1], Fx_eval[pair_evaluated, 2],
+        family = copula_dist,
+        par = par1_eval[pair_evaluated],
+        par2 = par2_eval[pair_evaluated]
+      )
+    }
   }
 
   if (length(copula_d) > 0) {

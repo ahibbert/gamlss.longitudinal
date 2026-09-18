@@ -4,6 +4,14 @@
 .gl_vcov_cache_version <- function() 1L
 
 #' @noRd
+.gl_vcov_method_key <- function(method) {
+  method <- as.character(method %||% "")[[1L]]
+  if (grepl("sandwich", method, fixed = TRUE)) return("sandwich")
+  if (grepl("numderiv|numerical", method)) return("numderiv")
+  method
+}
+
+#' @noRd
 .can_use_cached_vcov <- function(object, numderiv = FALSE, method = NULL, extra_args = list()) {
   if (!inherits(object, "gamlss.longitudinal")) {
     return(FALSE)
@@ -36,11 +44,19 @@
   if (!is.null(object$vcov_meta) && !is.null(object$vcov_meta$numderiv)) {
     numderiv_ok <- identical(isTRUE(object$vcov_meta$numderiv), isTRUE(numderiv))
 
+    cached_methods <- c(
+      object$vcov_meta$method,
+      object$vcov_meta$method_used,
+      object$vcov$method
+    )
+    cached_method_keys <- unique(vapply(
+      cached_methods,
+      .gl_vcov_method_key,
+      character(1)
+    ))
     method_ok <- is.null(method) ||
-
       is.null(object$vcov_meta$method) ||
-
-      identical(as.character(object$vcov_meta$method)[1], as.character(method)[1])
+      .gl_vcov_method_key(method) %in% cached_method_keys
 
     return(numderiv_ok && method_ok)
   }

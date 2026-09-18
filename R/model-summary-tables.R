@@ -6,6 +6,8 @@
     term = names(object$par),
     estimate = as.numeric(object$par),
     std_error = NA_real_,
+    model_std_error = NA_real_,
+    robust_std_error = NA_real_,
     p_value = NA_real_,
     signif = NA_character_,
     stringsAsFactors = FALSE
@@ -45,6 +47,34 @@
       coef_tbl$std_error <- se[idx]
     } else if (length(se) == nrow(coef_tbl)) {
       coef_tbl$std_error <- se
+    }
+
+    is_sandwich <- grepl("sandwich", vcov_out$method %||% "", fixed = TRUE)
+    if (is_sandwich) {
+      coef_tbl$robust_std_error <- coef_tbl$std_error
+      model_se <- vcov_out$se$model_based %||% NULL
+      model_se_names <- names(model_se)
+      if (is.null(model_se) && !is.null(vcov_out$vcov$model_based)) {
+        model_se <- .gl_sqrt_derived_variance(
+          diag(vcov_out$vcov$model_based),
+          "summary model-based coefficient covariance",
+          allow_zero = FALSE
+        )
+        model_se_names <- rownames(vcov_out$vcov$model_based)
+      }
+      if (is.null(model_se_names) && !is.null(vcov_out$vcov$model_based)) {
+        model_se_names <- rownames(vcov_out$vcov$model_based)
+      }
+      if (!is.null(model_se)) {
+        model_se <- as.numeric(model_se)
+        if (!is.null(model_se_names)) {
+          coef_tbl$model_std_error <- model_se[match(coef_tbl$term, model_se_names)]
+        } else if (length(model_se) == nrow(coef_tbl)) {
+          coef_tbl$model_std_error <- model_se
+        }
+      }
+    } else {
+      coef_tbl$model_std_error <- coef_tbl$std_error
     }
 
     z_abs <- abs(coef_tbl$estimate / coef_tbl$std_error)

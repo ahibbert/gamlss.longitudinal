@@ -148,11 +148,11 @@ plot.copula_contour_compare <- function(x, lags = 1, grid_n = 45, max_pairs_over
     theme_gamlss_longitudinal()
 
   if (isTRUE(time_stratified)) {
-    p_emp <- p_emp + ggplot2::facet_wrap(~time_pair)
+    p_emp <- p_emp + ggplot2::facet_wrap(~time_pair, scales = "fixed")
 
-    p_fit <- p_fit + ggplot2::facet_wrap(~time_pair)
+    p_fit <- p_fit + ggplot2::facet_wrap(~time_pair, scales = "fixed")
 
-    p_diff <- p_diff + ggplot2::facet_wrap(~time_pair)
+    p_diff <- p_diff + ggplot2::facet_wrap(~time_pair, scales = "fixed")
   }
 
   dashboard <- ggpubr::ggarrange(p_emp, p_fit, p_diff, ncol = 1, nrow = 3)

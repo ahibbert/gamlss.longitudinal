@@ -76,7 +76,10 @@ print.summary.gamlss.longitudinal <- function(x, digits = max(3, getOption("digi
     cat("Between-gap assumption: different observed segments are treated as independent.\n")
     cat("AIC and BIC are available under this explicit segmented-independence assumption.\n")
     if (isTRUE(x$fit$vcov_included)) {
-      cat("Inference: subject-clustered sandwich covariance (model-Hessian inference is not used).\n")
+      cat(paste0(
+        "Inference: subject-clustered sandwich covariance is primary; ",
+        "model-based standard errors are shown for comparison.\n"
+      ))
     }
     cat("Numerical integration of dependence across gaps is not currently implemented.\n")
   }
@@ -115,6 +118,10 @@ print.summary.gamlss.longitudinal <- function(x, digits = max(3, getOption("digi
   }
 
   cat("\nFixed coefficients\n")
+  if (isTRUE(x$fit$vcov_included) &&
+      grepl("sandwich", x$fit$vcov_method %||% "", fixed = TRUE)) {
+    cat("  Tests and p-values use subject-clustered robust standard errors.\n")
+  }
   coef_disp <- .gl_summary_coefficient_display(x$coefficients, digits = digits)
   .gl_print_summary_coefficient_blocks(coef_disp)
 

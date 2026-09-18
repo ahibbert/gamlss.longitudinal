@@ -249,15 +249,17 @@ test_that("final fit object assembly preserves fitted object fields and traces",
 
 test_that("final fit workflow builds convergence metadata before final object assembly", {
   captured <- list()
+  smooth_basis <- matrix(c(-0.5, 0.5), ncol = 1)
+  attr(smooth_basis, "penalty") <- matrix(1, nrow = 1, ncol = 1)
   optimizer_state <- list(
     par_cov = c(`mu.(Intercept)` = 1),
     log_lik_history = matrix(c(-2, -1, -3), nrow = 1, dimnames = list(NULL, c("marginal", "copula", "joint"))),
     par_history = matrix(1, nrow = 1, dimnames = list(NULL, "mu.(Intercept)")),
     calc_lik_out_end = list(log_lik = c(marginal = -2, copula = -1, joint = -3)),
-    par_s = list(mu = list()),
-    lambda_s = list(mu = list()),
-    df_s = list(mu = list()),
-    weights_final = list(mu = c(1, 1)),
+    par_s = list(mu = list(`s(x)` = c(`mu.s(x).1` = 0.25))),
+    lambda_s = list(mu = list(`s(x)` = 2)),
+    df_s = list(mu = list(`s(x)` = 0)),
+    weights_final = list(mu = c(1, 2)),
     rs_block_trace = list(data.frame(parameter = "mu")),
     cg_lambda_trace = data.frame(),
     cg_step_trace = list(),
@@ -279,7 +281,10 @@ test_that("final fit workflow builds convergence metadata before final object as
     var_map = list(y = "response"),
     missingness_contract = list(objective = "ordinary")
   )
-  mm <- list(x = list(mu = matrix(1, nrow = 2, ncol = 1)), s = list(mu = list()))
+  mm <- list(
+    x = list(mu = matrix(1, nrow = 2, ncol = 1)),
+    s = list(mu = list(`s(x)` = smooth_basis))
+  )
   matrix_bundle <- list(mm = mm, copula_link = "identity")
   convergence_info <- list(converged = TRUE, hit_outer_limit = FALSE)
   fit_out <- structure(list(ok = TRUE), class = "gamlss.longitudinal")
@@ -328,6 +333,9 @@ test_that("final fit workflow builds convergence metadata before final object as
   expect_identical(captured$finalize$formulas, list(mu = y ~ 1))
   expect_identical(captured$finalize$formulas_int, fit_data$formulas_int)
   expect_identical(captured$finalize$convergence_info, convergence_info)
+  expected_information <- crossprod(smooth_basis, smooth_basis * c(1, 2))
+  expected_edf <- sum(solve(expected_information + 2) * expected_information)
+  expect_equal(unname(captured$finalize$df_s$mu$`s(x)`), expected_edf)
 })
 
 test_that("prepared fit finalization bridge forwards normalized workflow state", {

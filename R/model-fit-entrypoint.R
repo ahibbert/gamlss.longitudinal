@@ -42,6 +42,14 @@
     finalize_fn = .gl_finalize_prepared_fit) {
   fit_start_time <- time_fn()
 
+  .gl_progress(
+    verbose,
+    "Starting ", method, " fit: ",
+    .gl_margin_display_label(margin_dist), " margin with ",
+    .gl_copula_display_label(copula_dist), " copula.",
+    prefix = "gamlss_longitudinal"
+  )
+
   capability_preflight_fn(
     dataset = dataset,
     margin_dist = margin_dist,
@@ -85,6 +93,12 @@
   margin_dist <- fit_workflow$margin_dist %||% margin_dist
 
   .gl_warn_segmented_missingness(fit_workflow$fit_data$missingness_contract)
+
+  .gl_progress(
+    verbose,
+    "Setup complete; beginning optimization.",
+    prefix = "gamlss_longitudinal"
+  )
 
   optimizer_state <- optimizer_fn(
     fit_workflow = fit_workflow,

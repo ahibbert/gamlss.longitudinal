@@ -181,3 +181,33 @@ test_that("plot_dist overlay helper adds selected copula contours", {
   layer_classes <- vapply(p$layers, function(layer) class(layer$geom)[1], character(1))
   expect_true("GeomContour" %in% layer_classes)
 })
+
+test_that("plot_dist panel grid shares histogram and copula axes", {
+  diagonal_1 <- ggplot2::ggplot(data.frame(x = c(0, 1)), ggplot2::aes(x)) +
+    ggplot2::geom_histogram(bins = 4)
+  offdiag_1 <- ggplot2::ggplot(
+    data.frame(x = c(-1, 1), y = c(-2, 2)),
+    ggplot2::aes(x, y)
+  ) + ggplot2::geom_point()
+  offdiag_2 <- ggplot2::ggplot(
+    data.frame(x = c(10, 12), y = c(20, 22)),
+    ggplot2::aes(x, y)
+  ) + ggplot2::geom_point()
+  diagonal_2 <- ggplot2::ggplot(data.frame(x = c(100, 110, 120)), ggplot2::aes(x)) +
+    ggplot2::geom_histogram(bins = 4)
+
+  plots <- gamlss.longitudinal:::.plot_dist_share_panel_axes(
+    list(diagonal_1, offdiag_1, offdiag_2, diagonal_2),
+    num_margins = 2
+  )
+  panel_ranges <- lapply(plots, function(plot) {
+    panel <- ggplot2::ggplot_build(plot)$layout$panel_params[[1L]]
+    list(x = panel$x.range, y = panel$y.range)
+  })
+
+  expect_equal(panel_ranges[[1L]]$x, panel_ranges[[4L]]$x)
+  expect_equal(panel_ranges[[1L]]$y, panel_ranges[[4L]]$y)
+  expect_equal(panel_ranges[[2L]]$x, panel_ranges[[3L]]$x)
+  expect_equal(panel_ranges[[2L]]$y, panel_ranges[[3L]]$y)
+  expect_equal(panel_ranges[[2L]]$x, panel_ranges[[2L]]$y)
+})

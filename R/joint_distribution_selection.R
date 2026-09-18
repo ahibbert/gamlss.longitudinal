@@ -36,6 +36,17 @@
 #'   `"fits"` attribute.
 #' @param margin_args Named fixed marginal arguments. Binomial candidates
 #'   require `list(bd = ...)` as described in [gamlss_longitudinal()].
+#' @param isolate_candidates Candidate process policy: `"auto"` uses a separate
+#'   R worker when `callr` is available, `"always"`
+#'   requires isolation, and `"never"` fits in the current R process. Isolation
+#'   prevents a native-code failure in one candidate from terminating the
+#'   screening session.
+#' @param candidate_timeout Positive per-candidate worker timeout in seconds;
+#'   `Inf` disables the process-level timeout.
+#' @param checkpoint_dir Optional directory in which to save an atomic
+#'   checkpoint after every candidate. Existing compatible checkpoints are
+#'   reused when `resume = TRUE`.
+#' @param resume Logical; reuse compatible files in `checkpoint_dir`.
 #'
 #' @return A data frame with one row per margin-copula combination and class
 #'   `joint_distribution_selection`. Failed fits are retained with an `error`
@@ -60,8 +71,13 @@ select_joint_distribution <- function(
     progress = TRUE,
     fit_args = list(),
     keep_fits = FALSE,
-    margin_args = list()) {
+    margin_args = list(),
+    isolate_candidates = c("auto", "always", "never"),
+    candidate_timeout = Inf,
+    checkpoint_dir = NULL,
+    resume = TRUE) {
   criterion <- match.arg(criterion)
+  isolate_candidates <- match.arg(isolate_candidates)
   if (!is.data.frame(data)) {
     data <- as.data.frame(data, stringsAsFactors = FALSE)
   } else {
@@ -79,6 +95,24 @@ select_joint_distribution <- function(
   }
   if (!is.logical(progress) || length(progress) != 1L || is.na(progress)) {
     stop("'progress' must be TRUE or FALSE.", call. = FALSE)
+  }
+  if (!is.numeric(candidate_timeout) || length(candidate_timeout) != 1L ||
+      is.na(candidate_timeout) || candidate_timeout <= 0) {
+    stop("'candidate_timeout' must be a positive number or Inf.", call. = FALSE)
+  }
+  if (!is.logical(resume) || length(resume) != 1L || is.na(resume)) {
+    stop("'resume' must be TRUE or FALSE.", call. = FALSE)
+  }
+  if (!is.null(checkpoint_dir)) {
+    if (!is.character(checkpoint_dir) || length(checkpoint_dir) != 1L ||
+        is.na(checkpoint_dir) || !nzchar(checkpoint_dir)) {
+      stop("'checkpoint_dir' must be NULL or one directory path.", call. = FALSE)
+    }
+    dir.create(checkpoint_dir, recursive = TRUE, showWarnings = FALSE)
+    if (!dir.exists(checkpoint_dir)) {
+      stop("Could not create 'checkpoint_dir'.", call. = FALSE)
+    }
+    checkpoint_dir <- normalizePath(checkpoint_dir, mustWork = TRUE)
   }
   min_pairs <- as.integer(min_pairs)
   if (length(min_pairs) != 1L || !is.finite(min_pairs) || min_pairs < 1L) {
@@ -159,7 +193,11 @@ select_joint_distribution <- function(
     copula_time_intercepts = copula_time_intercepts,
     trace = trace,
     progress = progress,
-    keep_fits = keep_fits
+    keep_fits = keep_fits,
+    isolate_candidates = isolate_candidates,
+    candidate_timeout = candidate_timeout,
+    checkpoint_dir = checkpoint_dir,
+    resume = resume
   )
 
   out <- .joint_selection_finalize_result(

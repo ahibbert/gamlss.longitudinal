@@ -59,6 +59,9 @@
 #' @param tail_thresholds Numeric vector of lower-tail probabilities used for
 #'   empirical-versus-fitted tail co-occurrence and conditional tail exceedance
 #'   summaries.
+#' @param verbose Logical or integer verbosity level. The default, `1`, reports
+#'   pair construction and candidate-level screening progress. Use `0` or
+#'   `FALSE` for no progress output.
 #'
 #' @return A data frame with one row per retained family and class
 #'   `copula_selection`. The selected family is stored in the `selected`
@@ -94,7 +97,9 @@ select_copula <- function(
     pit_seed = 1L,
     copula_time_intercepts = FALSE,
     tail_thresholds = c(0.05, 0.10, 0.20),
-    margin_args = list()) {
+    margin_args = list(),
+    verbose = 1) {
+  verbose <- .gl_normalize_verbose(verbose)
   criterion <- match.arg(criterion)
   families <- vapply(families, .copula_family_code, character(1), USE.NAMES = FALSE)
   lags <- as.integer(lags)
@@ -110,6 +115,8 @@ select_copula <- function(
     stop("'pit_seed' must be one finite number.", call. = FALSE)
   }
   pit_seed <- as.integer(pit_seed)
+
+  .gl_progress(verbose, "Preparing pseudo-observation pairs.", prefix = "select_copula")
 
   pairs <- .select_copula_pairs(
     data = data,
@@ -130,7 +137,8 @@ select_copula <- function(
     time_intercepts = time_intercepts,
     margin_n_cycles = margin_n_cycles,
     pit_seed = pit_seed,
-    margin_args = margin_args
+    margin_args = margin_args,
+    verbose = verbose
   )
   margin_family <- .select_copula_margin_family(
     margin_dist = margin_dist,
@@ -187,7 +195,21 @@ select_copula <- function(
     )
   }
 
-  fits <- lapply(families, function(family) {
+  .gl_progress(
+    verbose,
+    "Prepared ", nrow(pairs), " complete pair(s); screening ",
+    length(families), " copula family/families.",
+    prefix = "select_copula"
+  )
+
+  fits <- lapply(seq_along(families), function(index) {
+    family <- families[[index]]
+    .gl_progress(
+      verbose,
+      "[", index, "/", length(families), "] Fitting ",
+      .gl_copula_display_label(family), ".",
+      prefix = "select_copula"
+    )
     .select_copula_fit_family(
       u1 = pairs$u1,
       u2 = pairs$u2,
@@ -235,5 +257,10 @@ select_copula <- function(
   attr(out, "tail_cooccurrence") <- tail_diagnostics$cooccurrence
   attr(out, "conditional_tail_exceedance") <- tail_diagnostics$conditional
   class(out) <- c("copula_selection", "data.frame")
+  .gl_progress(
+    verbose,
+    "Complete: selected ", .gl_copula_display_label(out$family[[1L]]), ".",
+    prefix = "select_copula"
+  )
   out
 }

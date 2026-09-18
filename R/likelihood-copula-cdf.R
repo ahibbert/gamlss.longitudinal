@@ -101,6 +101,12 @@
       u1, u2, l1, l2, par, floor_probability = floor_probability
     ))
   }
+  if (identical(family, "t")) {
+    return(.copula_t_rectangle_prob_quadrature(
+      u1, u2, l1, l2, par, par2,
+      floor_probability = floor_probability
+    ))
+  }
   rect <- .copula_cdf(u1, u2, family = family, par = par, par2 = par2) -
     .copula_cdf(l1, u2, family = family, par = par, par2 = par2) -
     .copula_cdf(u1, l2, family = family, par = par, par2 = par2) +

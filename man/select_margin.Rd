@@ -20,6 +20,7 @@ select_margin(
   try.gamlss = FALSE,
   trace = FALSE,
   margin_args = list(),
+  verbose = 1,
   ...
 )
 }
@@ -53,11 +54,16 @@ the returned \code{converged} column before selecting a final marginal family.}
 \item{time_n_cycles}{Positive integer maximum number of cycles used for each
 temporary time-intercept GAMLSS fit.}
 
-\item{try.gamlss, trace, ...}{Passed to \code{\link[gamlss:fitDist]{gamlss::fitDist()}}.}
+\item{try.gamlss, trace, ...}{Passed to \code{\link[gamlss:fitDist]{gamlss::fitDist()}}. \code{trace} controls
+detailed output from the underlying GAMLSS routines independently of the
+package-level progress controlled by \code{verbose}.}
 
 \item{margin_args}{Named fixed margin arguments. Supplying
 \code{list(bd = ...)} screens binomial families using a success/failure response;
 \code{bd} may be one positive integer or a column name in \code{data}.}
+
+\item{verbose}{Logical or integer verbosity level. The default, \code{1}, reports
+the major screening stages. Use \code{0} or \code{FALSE} for no progress output.}
 }
 \value{
 A data frame ordered by AIC and class \code{margin_selection}. With

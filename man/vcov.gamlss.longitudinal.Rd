@@ -71,6 +71,9 @@ advanced diagnostics and package internals.}
 By default, a named covariance matrix aligned with \code{coef(object)}.
 With \code{details = TRUE}, a list containing variance-covariance matrices and
 standard errors is returned. \code{vcov$overall} covers fixed coefficients conditional on fitted smooths;
+for sandwich inference it is also available as \code{vcov$cluster_robust}, while
+\code{vcov$model_based} contains the inverse-Hessian covariance used as the
+sandwich bread. The corresponding standard errors are stored under \code{se}.
 \code{vcov$smooth_vcov} is a separate penalized approximation. Fixed-smooth
 covariance and smoothing-parameter uncertainty are excluded. See
 \code{\link[=inference_contracts]{inference_contracts()}}.

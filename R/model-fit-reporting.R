@@ -25,18 +25,6 @@
     cache_version = .gl_vcov_cache_version()
   )
 
-  objective <- return_list$likelihood_contract$objective %||% "ordinary"
-  if (identical(objective, "segmented") &&
-      !identical(vcov_method, "sandwich")) {
-    return_list$vcov_meta$inference_status <- "unavailable_for_segmented_objective"
-    return_list$vcov_meta$hessian_diagnostics <- list(
-      status = "unavailable",
-      reason = "segmented_objective",
-      recommendation = "Use cluster-sandwich or bootstrap sensitivity analysis."
-    )
-    return(return_list)
-  }
-
   if (isTRUE(compute_vcov)) {
     if (verbose > 0) {
       cat("Calculating variance-covariance matrix at fit completion...\n")
@@ -46,12 +34,20 @@
     inference_failure <- NULL
     vcov_cached <- tryCatch(
       {
-        vcov.gamlss.longitudinal(
-          return_list,
-          numderiv = isTRUE(vcov_numderiv),
-          method = vcov_method,
-          details = TRUE,
-          progress = isTRUE(verbose > 0)
+        withCallingHandlers(
+          vcov.gamlss.longitudinal(
+            return_list,
+            numderiv = isTRUE(vcov_numderiv),
+            method = vcov_method,
+            details = TRUE,
+            progress = isTRUE(verbose > 0)
+          ),
+          gamlss_longitudinal_segmented_inference_warning = function(w) {
+            # The fit-level segmented-likelihood warning already explains this
+            # routing. Keep the requested method in the cached result without
+            # emitting a second warning during fit finalization.
+            invokeRestart("muffleWarning")
+          }
         )
       },
       error = function(e) {

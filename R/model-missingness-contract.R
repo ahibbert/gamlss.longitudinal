@@ -171,8 +171,8 @@
           selection_message,
           "observations in different contiguous segments ",
           "are treated as independent. AIC and BIC remain available under this stated assumption. ",
-          "Ordinary model-Hessian inference is not used for this composite objective; ",
-          "standard inference methods use subject-clustered sandwich covariance and ",
+          "Subject-clustered sandwich covariance is used for primary inference; ",
+          "model-based standard errors are retained for comparison, and ",
           "bootstrap sensitivity analyses remain advisable. ",
           "Numerical integration of dependence across gaps and a distinct delayed-entry likelihood are not implemented; ",
           "a future integration engine may add this support."

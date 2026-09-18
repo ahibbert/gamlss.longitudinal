@@ -1,0 +1,52 @@
+List of 36
+ $ status                                      : chr "available_with_warnings"
+ $ failure_codes                               : chr "fitted_gradient_too_large"
+ $ blocking_failure_codes                      : chr(0) 
+ $ warning_codes                               : chr "fitted_gradient_too_large"
+ $ validation_profile                          : chr "standard"
+ $ validation_defaults_version                 : chr "0.1.0-provisional"
+ $ effective_thresholds                        :List of 8
+  ..$ information_eigenvalue_min: num 0
+  ..$ symmetry_tol              : num 1e-07
+  ..$ rank_tol                  : num 1e-10
+  ..$ condition_max             : num 1e+12
+  ..$ gradient_tol              : num 0.25
+  ..$ agreement_tol             : num 0.2
+  ..$ gradient_step             : num 1e-04
+  ..$ check_agreement           : logi FALSE
+ $ expert_override                             : Named list()
+ $ hessian_source                              : chr "sandwich_bread:numderiv"
+ $ hessian_fallback                            :List of 4
+  ..$ from       : chr "analytical"
+  ..$ to         : chr "numderiv"
+  ..$ reason     : chr "NA/NaN/Inf in foreign function call (arg 1)"
+  ..$ diagnostics: NULL
+ $ dimension                                   : int 26
+ $ finite                                      : logi TRUE
+ $ conformable                                 : logi TRUE
+ $ named                                       : logi TRUE
+ $ relative_symmetry_error                     : num 0
+ $ min_information_eigenvalue                  : num 9.79
+ $ max_information_eigenvalue                  : num 5109455
+ $ numerical_rank                              : int 26
+ $ scaled_condition_number                     : num 99.9
+ $ fitted_gradient                             : Named num [1:26] 0.00515 -0.41329 0.59846 -0.07465 0.01543 ...
+  ..- attr(*, "names")= chr [1:26] "theta.intercept" "theta.treatmentzidovudine_zalcitabine" "theta.treatmentzidovudine_didanosine" "theta.treatmentzidovudine_didanosine_nevirapine" ...
+ $ fitted_gradient_steps                       : Named num [1:26] 1e-04 1e-04 1e-04 1e-04 1e-04 ...
+  ..- attr(*, "names")= chr [1:26] "theta.intercept" "theta.treatmentzidovudine_zalcitabine" "theta.treatmentzidovudine_didanosine" "theta.treatmentzidovudine_didanosine_nevirapine" ...
+ $ scaled_gradient_max                         : num 2.97
+ $ hessian_agreement_relative                  : num NA
+ $ covariance_diagonal                         : Named num [1:26] 0.000424 0.017212 0.015569 0.012529 0.00043 ...
+  ..- attr(*, "names")= chr [1:26] "theta.intercept" "theta.treatmentzidovudine_zalcitabine" "theta.treatmentzidovudine_didanosine" "theta.treatmentzidovudine_didanosine_nevirapine" ...
+ $ bread_method                                : chr "numderiv"
+ $ n_clusters                                  : int 1177
+ $ n_observations                              : int 4708
+ $ n_parameters                                : int 26
+ $ score_step                                  : num 1e-05
+ $ bread_step                                  : num 1e-04
+ $ small_sample_correction                     : num 1.01
+ $ max_abs_cluster_score_sum                   : num 1135
+ $ joint_loglik_from_clusters                  : num -13259
+ $ joint_loglik                                : num -13259
+ $ missingness_inference_fallback              : logi FALSE
+ $ method_requested_before_missingness_fallback: chr "sandwich"

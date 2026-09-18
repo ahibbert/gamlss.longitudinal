@@ -60,6 +60,8 @@ test_that("copula diagnostics empirical overlay panel handles grouped and empty 
 
   expect_s3_class(grouped, "ggplot")
   expect_identical(names(grouped$facet$params$facets), "split_group")
+  expect_false(grouped$facet$params$free$x)
+  expect_false(grouped$facet$params$free$y)
   expect_s3_class(empty, "ggplot")
   expect_equal(empty$labels$title, "Empirical and fitted copula")
 })
@@ -111,6 +113,26 @@ test_that("copula diagnostics cut summary panel supports grouped fixed-scale pan
   expect_s3_class(p, "ggplot")
   expect_identical(names(p$facet$params$facets), "split_group")
   expect_equal(p$coordinates$limits$y, c(-1, 1))
+})
+
+test_that("copula diagnostics grouped cut summaries share automatic axes", {
+  quartile_df <- data.frame(
+    cut_group = c("C1", "C2", "C1", "C2"),
+    tau_emp = c(0.1, 0.2, -0.8, 0.9),
+    tau_fit = c(0.15, 0.25, -0.7, 0.8),
+    n_pairs = c(5L, 5L, 5L, 5L),
+    split_group = c("early", "early", "late", "late")
+  )
+
+  p <- .copula_v2_cut_summary_panel(
+    quartile_df = quartile_df,
+    plot2_cuts = 2,
+    is_grouped = TRUE,
+    tau_ylim = NULL
+  )
+
+  expect_false(p$facet$params$free$x)
+  expect_false(p$facet$params$free$y)
 })
 
 test_that("copula diagnostics Rosenblatt time panel handles finite and empty data", {
