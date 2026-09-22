@@ -25,7 +25,10 @@
 
   nd$.gl_sim_time_idx <- time_grid$time_idx
 
-  nd_eval <- nd[order(nd$subject, nd$.gl_sim_time_idx, nd$.gl_sim_row_id), , drop = FALSE]
+  # Copula parameter matrices omit the final scheduled visit. Keep the global
+  # visit order explicit so an unbalanced subject-first panel cannot identify
+  # the wrong visit as the final one.
+  nd_eval <- nd[order(nd$.gl_sim_time_idx, nd$subject, nd$.gl_sim_row_id), , drop = FALSE]
   margin_dist_use <- .gl_bind_margin_args(object$margin_dist, nd_eval)
 
   mm_use <- do.call(
