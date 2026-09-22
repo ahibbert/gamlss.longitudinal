@@ -88,7 +88,6 @@ if (length(private)) {
   audit$hash_verified[private] <- !is.na(actual) & nzchar(expected) & actual == expected
 }
 cat(sprintf("Audited %d manuscript assets: %d classified, %d unclassified.\n", nrow(audit), sum(audit$classified), sum(!audit$classified)))
-if (any(!audit$classified)) stop("Unclassified manuscript assets: ", paste(audit$manuscript_path[!audit$classified], collapse = ", "), call. = FALSE)
 # Do not copy withdrawn clinical labels or asset names from the private paper
 # repository into the public checkout. Neutral manifest identifiers and hashes
 # preserve the audit result without disclosing those strings.
@@ -98,6 +97,17 @@ if (length(private)) {
 }
 out <- file.path(root, "paper", "manuscript-asset-audit.csv")
 utils::write.csv(audit, out, row.names = FALSE)
+if (any(!audit$classified)) {
+  stop("Unclassified manuscript assets: ", paste(audit$manuscript_path[!audit$classified], collapse = ", "), call. = FALSE)
+}
+retired <- audit$classified & audit$publication_status == "retired"
+if (any(retired)) {
+  stop(
+    "Retired artifacts are still referenced by the manuscript: ",
+    paste(audit$artifact_id[retired], collapse = ", "),
+    call. = FALSE
+  )
+}
 if (length(private) && any(!audit$hash_verified[private])) {
   stop("Private static manuscript artifact hash mismatch: ",
     paste(audit$artifact_id[private][!audit$hash_verified[private]], collapse = ", "), call. = FALSE)

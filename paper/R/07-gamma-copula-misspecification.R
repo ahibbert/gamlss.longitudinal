@@ -956,7 +956,7 @@ jss_misspec_binding_review_gate <- function(results, grid = NULL, paths, context
   rows <- list(
     data.frame(check = "results_schema", status = if (nrow(results) > 0L && all(required %in% names(results))) "pass" else "fail", detail = paste("rows", nrow(results)), stringsAsFactors = FALSE),
     data.frame(check = "results_unique", status = if ("fit_id" %in% names(results) && !anyDuplicated(results$fit_id)) "pass" else "fail", detail = "fit_id must be unique", stringsAsFactors = FALSE),
-    data.frame(check = "results_path_is_csv", status = if (file.exists(paths$results) && !jss_misspec_is_png(paths$results)) "pass" else "fail", detail = paths$results, stringsAsFactors = FALSE),
+    data.frame(check = "results_path_is_csv", status = if (file.exists(paths$results) && !jss_misspec_is_png(paths$results)) "pass" else "fail", detail = paste0("data/", basename(paths$results)), stringsAsFactors = FALSE),
     data.frame(check = "png_paths_are_distinct", status = if (!paths$results %in% unname(unlist(paths[grepl("heatmap|convergence", names(paths))]))) "pass" else "fail", detail = "results CSV cannot alias a figure path", stringsAsFactors = FALSE),
     data.frame(check = "semantic_binding", status = if (!length(semantic_issues)) "pass" else "fail", detail = if (length(semantic_issues)) paste(semantic_issues, collapse = " | ") else "canonical fields, seeds, and attempt semantics verified", stringsAsFactors = FALSE),
     data.frame(

@@ -97,3 +97,30 @@ updated. At the latest run it found nine pending claim markers, three
 pending/missing scope anchors, three pending artifacts, and eight known stale
 empirical blocks. These are Phase 3 wording, structure, citation, and asset-use
 tasks; they do not invalidate the underlying Phase 2 public evidence gate.
+
+## Current ACTG manuscript audit
+
+The ACTG workflow added after the Phase 2 close-out has now passed a genuinely
+fresh Windows R 4.4.1 `paper` run at package commit
+`a5510d650ab0faa5e0d1461618d35eca77f87bca`. All 27 targets completed from an
+empty store in 39 minutes 6 seconds with zero target warnings/errors and 23/23
+passing figure checks. The run installed the checked-out package source and
+recorded a clean Git state, 530 input hashes, and 129 output hashes.
+
+The computational result does not yet close the manuscript-publication gate.
+The current 49-page ACTG PDF is newer than the TeX held by the canonical paper
+repository, which still contains the earlier application. Audit of the closest
+available ACTG TeX classified all 45 assets but found eight retired simulation
+artifacts still referenced. Seven generated ACTG tables also remain inline,
+and 26 of 29 active public manuscript assets do not yet have author-approved
+reference hashes.
+
+The asset publisher stages 36 allowlisted files without changing paper source.
+A disposable compile with the closest ACTG TeX succeeds after publication, but
+the stale canonical bibliography leaves six undefined citations and the draft
+still references the retired joint-versus-separate section. The formal
+main-recovery producer also remains out of alignment with four recovery tables
+and four recovery figures in the current manuscript; this must be resolved
+before final asset hashes are approved. See
+`reviews/2026-09-22-end-to-end-replication-audit.md` for the itemized close-out
+plan.

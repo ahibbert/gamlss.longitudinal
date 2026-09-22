@@ -1484,7 +1484,8 @@ jss_write_phase2_gate_audit <- function(settings, modules, claim_evidence) {
   validation <- if (file.exists(validation_path)) utils::read.csv(validation_path, stringsAsFactors = FALSE) else data.frame(pass = FALSE)
   rows[[9L]] <- jss_phase2_gate_row(
     "main_recovery_code_gate", nrow(validation) > 0L && all(as.logical(validation$pass)),
-    "structural and recomputation contract checks; distinct from production completion", validation_path
+    "structural and recomputation contract checks; distinct from production completion",
+    jss_phase2_normalize_output_path(validation_path, settings)
   )
   trust_error <- NULL
   trust_ok <- tryCatch({

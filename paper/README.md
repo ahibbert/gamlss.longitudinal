@@ -49,6 +49,11 @@ Rscript paper/publish-assets.R --paper-repo <clone> --profile paper --dry-run
 Rscript paper/publish-assets.R --paper-repo <clone> --profile paper --apply
 ```
 
+The manuscript audit writes `paper/manuscript-asset-audit.csv` even when it
+fails, so unresolved items can be reviewed directly. It fails when a
+manuscript asset is unclassified or when an artifact marked `retired` remains
+referenced by the manuscript.
+
 ## Outputs
 
 Generated files are written under `results/jss-replication/<profile>/`:

@@ -9,3 +9,7 @@ missingness-data,100000,base_seed + rep,Shared complete-data simulation stream
 missingness-mechanism,100000,data seed plus registered mechanism and rate offsets,Separate streams for subject-level monotone dropout and time-dependent intermittent MAR
 copula-misspecification,20960528,settings seed 20260528 + 700000 followed by deterministic family/tau/n/rep offsets,Immutable focused full R=100 Gamma six-by-six copula grid at n=150 and Kendall tau=0.25: 600 dataset seeds each reused for six candidate fits (3600 fit attempts); public use requires an independently approved exact bundle
 fit-scaling,20260528,scenario-key-v1 keyed by scenario/attempt/stream,Separate fit warmup order precision and contrast streams
+actg-screening-pit,20260922,fixed randomized-PIT stream,Copula screening diagnostics
+actg-family-calibration,20260916,base_seed plus offsets 0 through 19,Twenty randomized-PIT streams averaged for family comparison diagnostics
+actg-joint-simulation,20260922,fixed simulation stream,Five hundred fitted joint trajectories on the observed ACTG panel
+actg-conditional-continuation,20260922,fixed conditional simulation stream,Five hundred week-32 continuations conditional on fitted subject history

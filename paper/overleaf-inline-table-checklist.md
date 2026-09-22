@@ -12,9 +12,11 @@ Current exact classifications from canonical `main.tex`:
 ## ACTG workflow assets
 
 The ACTG workflow now generates and publishes the following manuscript-ready
-tables. Replace the corresponding inline `tabular` blocks in `main.tex` with
-the listed `\input{...}` calls, while retaining the table environments,
-captions, labels, and surrounding prose in `main.tex`:
+tables. Each generated file already contains its complete `table` or
+`longtable` environment, caption, label, notes, and tabular content. Replace
+the corresponding entire table block in `main.tex` with the listed
+`\input{...}` call, while retaining only the surrounding narrative prose in
+`main.tex`:
 
 - Cohort and missingness summary: `\input{tables/actg-cohort.tex}`.
 - Joint margin--copula shortlist: `\input{tables/actg-joint-family-screen.tex}`.
@@ -39,8 +41,8 @@ The ACTG figure paths already match the filenames used by the current draft:
 - `charts/ACTG no intermittent missingness model.png`
 
 After making the table substitutions, confirm that each table is included only
-once and that its existing `\label{...}` remains unique. Do not copy generated
-captions or labels into the `.tex` assets: those remain manuscript text.
+once and that its generated `\label{...}` remains unique. Do not retain a
+second caption, label, or table environment around the `\input{...}` call.
 
 - Confirm every simulation-design, recovery, convergence, runtime, sensitivity, and benchmark table is externalized.
 - Describe only manifest-listed public tables as regenerated.

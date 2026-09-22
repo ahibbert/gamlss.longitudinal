@@ -128,7 +128,15 @@ test_that("ACTG workflow is registered as a public paper module", {
     file.path(root, "paper", "manifest.csv"),
     stringsAsFactors = FALSE
   )
+  seeds <- utils::read.csv(
+    file.path(root, "paper", "seeds.csv"),
+    stringsAsFactors = FALSE
+  )
   actg <- manifest[manifest$producer == "module_05_actg", , drop = FALSE]
+  workflow_table <- manifest[
+    manifest$artifact_id == "inline_package_workflow",
+    , drop = FALSE
+  ]
   target_code <- paste(
     readLines(file.path(root, "paper", "_targets.R"), warn = FALSE),
     collapse = "\n"
@@ -144,6 +152,15 @@ test_that("ACTG workflow is registered as a public paper module", {
   )
 
   expect_equal(nrow(actg), 18L)
+  expect_equal(nrow(workflow_table), 1L)
+  expect_identical(workflow_table$access, "non-data-static")
+  expect_identical(workflow_table$publication_status, "active")
+  expect_true(all(c(
+    "actg-screening-pit",
+    "actg-family-calibration",
+    "actg-joint-simulation",
+    "actg-conditional-continuation"
+  ) %in% seeds$study))
   expect_true(all(actg$access == "public"))
   expect_true(all(actg$publication_status == "active"))
   expect_true(all(grepl("paper", actg$profiles, fixed = TRUE)))
@@ -152,4 +169,23 @@ test_that("ACTG workflow is registered as a public paper module", {
   expect_match(target_code, "module_05_actg", fixed = TRUE)
   expect_false(grepl("devtools::load_all", entry_scripts, fixed = TRUE))
   expect_false(grepl("paper/reviews/actg-shortlist", entry_scripts, fixed = TRUE))
+})
+
+test_that("manuscript audit records failures and rejects retired references", {
+  root <- test_path("..", "..")
+  audit_code <- readLines(
+    file.path(root, "paper", "audit-manuscript.R"),
+    warn = FALSE
+  )
+  write_line <- grep("utils::write.csv(audit, out", audit_code, fixed = TRUE)
+  unclassified_line <- grep("if (any(!audit$classified))", audit_code, fixed = TRUE)
+
+  expect_length(write_line, 1L)
+  expect_length(unclassified_line, 1L)
+  expect_lt(write_line, unclassified_line)
+  expect_true(any(grepl(
+    "Retired artifacts are still referenced by the manuscript",
+    audit_code,
+    fixed = TRUE
+  )))
 })
