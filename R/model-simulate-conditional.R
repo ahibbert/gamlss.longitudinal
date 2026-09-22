@@ -346,11 +346,6 @@
   future_fit <- setup$future_fit
   history <- setup$history
   n <- nrow(future_fit)
-  qfun <- get(
-    paste0("q", setup$future_diag$family),
-    envir = asNamespace("gamlss.dist"),
-    inherits = FALSE
-  )
   out <- matrix(NA_real_, nrow = n, ncol = nsim)
   eps <- sqrt(.Machine$double.eps)
 
@@ -406,9 +401,11 @@
     }
 
     family_args <- attr(setup$future_diag$params, "family_args", exact = TRUE) %||% list()
-    args <- c(list(p = u), family_args, setup$future_diag$params)
-    args <- args[names(args) %in% formalArgs(qfun)]
-    out[, j] <- do.call(qfun, args)
+    out[, j] <- .gl_simulation_quantiles(
+      family = setup$future_diag$family,
+      p = u,
+      args = c(family_args, setup$future_diag$params)
+    )
   }
 
   metadata <- .gl_conditional_simulation_metadata(setup, nsim)

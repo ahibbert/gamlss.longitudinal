@@ -80,8 +80,7 @@ simulate_longitudinal_dataset <- function(
   )
 
   long$.sim_u <- .sim_apply_u_bounds(as.vector(t(u_mat)), u_bounds)
-  qfun <- .sim_margin_quantile_function(margin_dist)
-  qargs <- list(p = long$.sim_u)
+  qargs <- list()
   for (param_name in names(margin_params)) {
     qargs[[param_name]] <- .sim_eval_long_param(
       margin_params[[param_name]],
@@ -91,8 +90,11 @@ simulate_longitudinal_dataset <- function(
       label = paste0("margin_params$", param_name)
     )
   }
-  qargs <- qargs[names(qargs) %in% formalArgs(qfun)]
-  long[[response_var]] <- do.call(qfun, qargs)
+  long[[response_var]] <- .gl_simulation_quantiles(
+    family = margin_dist$family[1L],
+    p = long$.sim_u,
+    args = qargs
+  )
 
   if (include_truth) {
     long$u <- long$.sim_u
