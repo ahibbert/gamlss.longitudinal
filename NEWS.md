@@ -4,6 +4,11 @@ This release is the stable package baseline before the experimental joint
 missingness and full higher-order D-vine extension. Development of that method
 is isolated on `codex/experimental-missingness-higher-vine`.
 
+- Fitted-model and dataset simulation now use analytical conditional inverses
+  for Gaussian, Student-t, Clayton, and Frank copulas, vectorized inversion for
+  Gumbel and Joe copulas, bounded simulation batches, and vectorized CDF
+  inversion for discrete marginal distributions.
+
 ## Count-margin and Student-t stability
 
 - Student-t starting-value screening now evaluates complex GAMLSS margin
