@@ -104,6 +104,14 @@
   plot_objects
 }
 
+.plot_terms_dashboard_theme <- function() {
+  ggplot2::theme(
+    axis.title.y = ggplot2::element_text(margin = ggplot2::margin(r = 8)),
+    axis.title.x = ggplot2::element_text(margin = ggplot2::margin(t = 5)),
+    plot.margin = ggplot2::margin(8, 12, 8, 16)
+  )
+}
+
 .plot_terms_dashboard_layout <- function(plot_objects, ncol = 4, paginate = FALSE) {
   if (length(plot_objects) == 0) {
     return(NULL)

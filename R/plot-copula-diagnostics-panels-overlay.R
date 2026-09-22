@@ -6,9 +6,9 @@
                                                copula_family_name,
                                                x_label,
                                                y_label) {
-  title <- "Empirical and fitted copula"
+  title <- "Copula fit"
   cols <- .gl_plot_colours()
-  subtitle <- paste0("Average fitted ", .gl_copula_display_label(copula_family_name), " contours")
+  subtitle <- paste0("Fitted ", .gl_copula_display_label(copula_family_name), " contours")
 
   if (all(!is.finite(density_grid$density))) {
     return(.copula_v2_message_plot(
@@ -57,8 +57,8 @@
 .copula_v2_cut_summary_panel <- function(quartile_df, plot2_cuts, is_grouped, tau_ylim) {
   if (nrow(quartile_df) == 0 || all(!is.finite(quartile_df$tau_emp)) || all(!is.finite(quartile_df$tau_fit))) {
     return(.copula_v2_message_plot(
-      title = "Observed vs Fitted Correlation by Quantile Bin",
-      subtitle = "Bins are formed from fitted copula strength",
+      title = "Kendall's tau by fitted bin",
+      subtitle = "Bins use fitted copula strength",
       message = "No finite cut summaries"
     ))
   }
@@ -73,8 +73,8 @@
     ggplot2::geom_point(ggplot2::aes(y = tau_fit), color = cols[["fitted"]], size = 2.8, shape = 4, stroke = 1.1) +
     ggplot2::geom_line(ggplot2::aes(y = tau_fit, group = 1), color = cols[["fitted"]], linewidth = 0.8, linetype = "dashed") +
     ggplot2::labs(
-      title = "Observed vs Fitted Correlation by Quantile Bin",
-      subtitle = paste0("", plot2_cuts, " cuts formed from fitted copula strength"),
+      title = "Kendall's tau by fitted bin",
+      subtitle = paste0(plot2_cuts, " fitted-strength bins"),
       x = "Cut",
       y = "Kendall's tau"
     ) +

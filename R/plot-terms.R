@@ -18,7 +18,7 @@
 #'   `missingness = "segment"`.
 
 #' @param ncol Number of columns in the combined dashboard. The default of
-#'   three is designed to remain legible in package documentation and reports.
+#'   four keeps the individual panels close to square in wide reports.
 
 #' @param include_intercept Logical; include intercept terms in fixed-effect
 
@@ -52,7 +52,7 @@ plot_terms <- function(
     data = NULL,
     ci_level = 0.95,
     vcov_method = c("analytical", "numderiv", "analytical_only", "sandwich"),
-    ncol = 3,
+    ncol = 4,
     include_intercept = FALSE,
     plot_interactions = FALSE,
     ci_col = .gl_plot_colours()[["interval"]],
@@ -99,7 +99,7 @@ plot.terms <- function(x, ...) {
     data = NULL,
     ci_level = 0.95,
     vcov_method = c("analytical", "numderiv", "analytical_only", "sandwich"),
-    ncol = 3,
+    ncol = 4,
     include_intercept = FALSE,
     plot_interactions = FALSE,
     ci_col = .gl_plot_colours()[["interval"]],

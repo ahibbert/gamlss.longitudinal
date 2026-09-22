@@ -210,11 +210,11 @@
     ) +
     ggplot2::labs(
       title = paste0("Copula Overlay: ", spec$family),
-      subtitle = "Darker bins show empirical density; blue contours show the fitted copula",
+      subtitle = "Empirical density with fitted copula contours",
       x = x_label,
       y = y_label
     ) +
-    theme_gamlss_longitudinal()
+    theme_gamlss_longitudinal(base_size = 12)
 
   if (isTRUE(by_time)) {
     p <- p + ggplot2::facet_wrap(~split_group, scales = "fixed")
