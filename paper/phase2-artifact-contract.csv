@@ -9,6 +9,7 @@
 "phase2-artifacts-2026-09-03.2-lean","p2_recovery_nbi_parameter_table","table","paper_simulation_nbi_clayton_highsignal_fixed_parameter_bias_rmse.tex","module_phase2_main_recovery","paper|full","main-recovery","public","active","documented_numeric_tolerance"
 "phase2-artifacts-2026-09-03.2-lean","p2_missing_fixed_figure","figure","figures/fixed_margin_rmse_by_missingness.png","module_04_missingness","paper|full","missingness","public","active","dimensions_nonblank"
 "phase2-artifacts-2026-09-03.2-lean","p2_missing_smooth_figure","figure","figures/smooth_selected_recovery_curves.png","module_04_missingness","paper|full","missingness","public","active","dimensions_nonblank"
+"phase2-artifacts-2026-09-03.2-lean","p2_missing_retention_figure","figure","figures/fit_retention_by_missingness.png","module_04_missingness","paper|full","missingness","public","active","dimensions_nonblank"
 "phase2-artifacts-2026-09-03.2-lean","p2_copula_heatmap","figure","figures/07-gamma-copula-misspecification-paper-summary-heatmap.png","module_07_copula_misspecification","paper|full","copula-misspecification","public","active","dimensions_nonblank"
 "phase2-artifacts-2026-09-03.2-lean","p2_recovery_attempts","data","data/main-recovery/attempt_metadata.csv","module_phase2_main_recovery","paper|full","main-recovery","public","active","schema_keys_tolerance"
 "phase2-artifacts-2026-09-03.2-lean","p2_recovery_design","table","data/main-recovery/design_table.csv","module_phase2_main_recovery","paper|full","main-recovery","public","active","schema_keys_tolerance"
