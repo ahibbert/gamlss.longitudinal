@@ -9,6 +9,39 @@ Current exact classifications from canonical `main.tex`:
 - Keep `tab:r-software-comparison`, `tab:copula_families`, `tab:copula_functions_tail_dependence`, `tab:optimizer-guidance`, and `tab:sensitivity-guidance` inline as non-data explanatory content.
 - Do not add private-data tables to the public publisher allowlist.
 
+## ACTG workflow assets
+
+The ACTG workflow now generates and publishes the following manuscript-ready
+tables. Replace the corresponding inline `tabular` blocks in `main.tex` with
+the listed `\input{...}` calls, while retaining the table environments,
+captions, labels, and surrounding prose in `main.tex`:
+
+- Cohort and missingness summary: `\input{tables/actg-cohort.tex}`.
+- Joint margin--copula shortlist: `\input{tables/actg-joint-family-screen.tex}`.
+- Final parameter-specific model specification: `\input{tables/actg-final-model.tex}`.
+- Treatment effects with model-based and sandwich uncertainty: `\input{tables/actg-treatment-effects.tex}`.
+- Treatment-by-visit fitted predictions: `\input{tables/actg-fitted-predictions.tex}`.
+- Observed-versus-simulated marginal and dependence summaries: `\input{tables/actg-simulation-comparison.tex}`.
+- Full covariate-selection path for the appendix: `\input{tables/actg-covariate-selection.tex}`.
+
+The ACTG figure paths already match the filenames used by the current draft:
+
+- `charts/final-model-plot_dist.png`
+- `charts/nbi_plot_adjusted.png`
+- `charts/zisichel_plot_adjusted.png`
+- `charts/gumbel_copula_fit.png`
+- `charts/t_copula_fit.png`
+- `charts/plot_margin_trt.png`
+- `charts/plot_copula_trt.png`
+- `charts/final_model_copula_diagnostics.png`
+- `charts/final_model_plot.png`
+- `charts/plot_terms.png`
+- `charts/ACTG no intermittent missingness model.png`
+
+After making the table substitutions, confirm that each table is included only
+once and that its existing `\label{...}` remains unique. Do not copy generated
+captions or labels into the `.tex` assets: those remain manuscript text.
+
 - Confirm every simulation-design, recovery, convergence, runtime, sensitivity, and benchmark table is externalized.
 - Describe only manifest-listed public tables as regenerated.
 - Run `Rscript paper/audit-manuscript.R --paper-repo <clone>` after each TeX edit.

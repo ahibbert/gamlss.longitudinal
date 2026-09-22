@@ -10,6 +10,7 @@ source(file.path("paper", "R", "03-joint-vs-separate-optimization.R"))
 source(file.path("paper", "R", "missingness-study-helpers.R"))
 source(file.path("paper", "R", "04-missingness-dropout-sensitivity.R"))
 source(file.path("paper", "R", "04-missingness-publication-lean.R"))
+source(file.path("paper", "R", "05-actg-workflow.R"))
 source(file.path("paper", "R", "07-gamma-copula-misspecification.R"))
 source(file.path("paper", "R", "10-fit-scaling.R"))
 source(file.path("paper", "R", "phase2-central-integration.R"))
@@ -67,6 +68,34 @@ modules <- if (identical(profile, "smoke")) {
   )
 } else {
   list(
+    tar_target(actg_data, jss_actg_load_data()),
+    tar_target(actg_summaries, jss_actg_data_summary(actg_data)),
+    tar_target(
+      actg_screening,
+      if (identical(settings$profile, "full")) {
+        jss_actg_screen(actg_data, settings)
+      } else {
+        jss_actg_load_screen_ledger(settings)
+      }
+    ),
+    tar_target(actg_primary_fit, jss_actg_fit_primary(actg_data)),
+    tar_target(
+      actg_family_comparison,
+      jss_actg_family_comparison(actg_data, actg_primary_fit)
+    ),
+    tar_target(actg_sensitivity, jss_actg_fit_sensitivity(actg_data)),
+    tar_target(actg_postfit, jss_actg_postfit(actg_data, actg_primary_fit)),
+    tar_target(
+      module_05_actg,
+      {
+        public_input_files
+        jss_run_05_actg(
+          settings, actg_data, actg_summaries, actg_screening,
+          actg_primary_fit, actg_family_comparison, actg_sensitivity,
+          actg_postfit
+        )
+      }
+    ),
     tar_target(module_phase2_main_recovery, { public_input_files; jss_run_phase2_main_recovery(settings) }),
     tar_target(module_03_joint_vs_separate, { public_input_files; jss_run_phase2_optimizer(settings) }),
     tar_target(module_04_missingness, { public_input_files; jss_run_04_missingness_dropout(settings) }),
@@ -101,6 +130,7 @@ output_target <- if (identical(profile, "smoke")) {
   tar_target(public_outputs, list(public_workflow_figures, coverage_summary_csv, convergence_summary_csv, fit_events))
 } else {
   tar_target(public_outputs, list(public_workflow_figures, module_phase2_main_recovery, module_03_joint_vs_separate, module_04_missingness,
+    module_05_actg,
     module_07_copula_misspecification,
     module_10_fit_scaling, phase2_claim_evidence, phase2_gate_audit))
 }

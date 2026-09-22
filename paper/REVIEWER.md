@@ -16,7 +16,13 @@ The first run restores the lockfile and installs this checkout into an isolated 
   checkpoint/resume support. The exploratory multivariate benchmark is deferred
   from this submission and is not in the target graph.
 
-The public workflow has no private-data application dependency. The fully simulated BCPE/t workflow reproduces the complete model-building, diagnostic, prediction, and visualization sequence.
+The public workflow has no private-data application dependency. The ACTG
+application uses the package-shipped public actg_cd4 data. Its final model,
+diagnostics, prediction, simulation, and intermittent-gap sensitivity analysis
+are refitted. The historical 51-fit covariate-selection path is retained as a
+compact public ledger and is not rerun in the standard reviewer profile. The
+standard `paper` profile also reads the versioned screening ledger; use `full`
+to rerun the broad screens and checkpointed six-model joint shortlist.
 
 Every run writes the available session information, Git/dirty state, lockfile and actual-input
 hashes, seeds, cores, target timings, structured target/fit events, artifact

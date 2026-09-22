@@ -1,6 +1,0 @@
-"area","status","value","threshold_condition","message"
-"Convergence","converged","TRUE","Fitted-object convergence contract","Convergence was confirmed."
-"Marginal fit","descriptive","0.003124","Descriptive only; no package decision threshold","The PIT uniformity statistic is reported as a descriptive diagnostic, not a model verdict."
-"Tail fit","descriptive","1.098","Descriptive only; no package decision threshold","Tail ratios are reported descriptively and are not converted into pass/fail decisions."
-"Copula fit","descriptive"," 0.11","Descriptive only; no package decision threshold","Residual dependence is reported descriptively; higher-lag availability is recorded separately."
-"Variance calculation","recorded","sandwich_cluster","Method provenance only","The variance-covariance method is recorded for provenance."
