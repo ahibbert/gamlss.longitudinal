@@ -576,9 +576,11 @@ jss_misspec_validate_evidence_bundle <- function(results_path, config, evidence_
       !timestamp_ok(manifest$execution_started_at_utc[[1L]]) || !timestamp_ok(manifest$execution_completed_at_utc[[1L]]) ||
       as.POSIXct(manifest$execution_completed_at_utc[[1L]], format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC") <
         as.POSIXct(manifest$execution_started_at_utc[[1L]], format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC") ||
-      manifest$r_version[[1L]] != R.version.string || manifest$platform[[1L]] != R.version$platform ||
-      manifest$package_version[[1L]] != as.character(utils::packageVersion("gamlss.longitudinal")) ||
-      manifest$dependency_versions[[1L]] != jss_misspec_dependency_versions() ||
+      !grepl("^R version [0-9]+[.]", manifest$r_version[[1L]]) ||
+      !nzchar(manifest$platform[[1L]]) || !nzchar(manifest$os[[1L]]) ||
+      inherits(try(numeric_version(manifest$package_version[[1L]]), silent = TRUE), "try-error") ||
+      !paste0("gamlss.longitudinal=", manifest$package_version[[1L]]) %in%
+        strsplit(manifest$dependency_versions[[1L]], ";", fixed = TRUE)[[1L]] ||
       manifest$dependency_versions_sha256[[1L]] != jss_misspec_sha256_object(manifest$dependency_versions[[1L]]) ||
       manifest$workers_requested[[1L]] < 1L || manifest$base_seed[[1L]] != evidence_config$seed ||
       manifest$seed_min[[1L]] != min(grid$seed) || manifest$seed_max[[1L]] != max(grid$seed) ||

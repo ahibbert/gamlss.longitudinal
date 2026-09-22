@@ -1995,10 +1995,16 @@ jss_main_recovery_validate_public_bundle <- function(path, conf.level = 0.95,
     }
   }
   actual_package_version <- as.character(read.dcf(file.path(repo_root, "DESCRIPTION"))[1, "Version"])
+  recorded_package_version <- unique(as.character(ledger_input$package_version))
   fitted_package_sha <- unique(as.character(ledger_input$package_source_sha256))
   if (length(fitted_package_sha) != 1L || !grepl("^[0-9a-f]{64}$", fitted_package_sha) ||
       anyNA(jss_recovery_portable_source_identity(ledger_input$package_source_path)) ||
-      !identical(unique(as.character(ledger_input$package_version)), actual_package_version)) stop("Main-recovery fitted-package source identity is malformed or inconsistent.", call. = FALSE)
+      length(recorded_package_version) != 1L || is.na(recorded_package_version) ||
+      inherits(try(numeric_version(recorded_package_version), silent = TRUE), "try-error") ||
+      (identical(source_policy, "current") &&
+        !identical(recorded_package_version, actual_package_version))) {
+    stop("Main-recovery fitted-package source identity is malformed or inconsistent.", call. = FALSE)
+  }
   ledger <- jss_recovery_reconcile_retention(ledger_input, fixed, smooth, predictive, diagnostic)
   validation <- jss_recovery_validate(ledger, fixed, smooth, predictive, diagnostic)
   if (any(!validation$pass)) stop("Main-recovery recomputed validation failed: ", paste(validation$check_id[!validation$pass], collapse = ", "), call. = FALSE)

@@ -65,11 +65,12 @@ local_main_recovery_fixture <- function(env) {
   package_sha <- env$jss_recovery_package_source_sha256(root)
   bcpe_runner_sha <- unname(env$jss_recovery_sha256(file.path(root, "paper", "scripts", "final-simulations", "bcpe-t", "simulation_bcpe_t_gamlss_comparison.R")))
   nbi_runner_sha <- unname(env$jss_recovery_sha256(file.path(root, "paper", "scripts", "final-simulations", "nbi-clayton", "compare_gamlss_ours_nbi_sigma_smooth.R")))
+  package_version <- unname(read.dcf(file.path(root, "DESCRIPTION"))[1, "Version"])
   bcpe <- data.frame(
     evidence_status = "post_phase1_production", study_id = "bcpe_t_main_recovery",
     margin_family = "BCPE", copula_family = "t", copula_code = "t",
     runner_contract_version = "bcpe-t-main-recovery-2026-09-02.7", phase1_contract_version = env$jss_recovery_phase1_contract_version(), runner_settings_signature = bcpe_signature,
-    runner_settings_sha256 = digest::digest(bcpe_signature, algo = "sha256", serialize = FALSE), runner_sha256 = bcpe_runner_sha, package_source_path = ".", package_version = "0.1.0", package_source_sha256 = package_sha,
+    runner_settings_sha256 = digest::digest(bcpe_signature, algo = "sha256", serialize = FALSE), runner_sha256 = bcpe_runner_sha, package_source_path = ".", package_version = package_version, package_source_sha256 = package_sha,
     scenario = "n500_d4", n = 500L, d = 4L,
     target_replicates = 100L, rep = 1:100, model = "gamlss.longitudinal",
     success = TRUE, converged = TRUE, elapsed_sec = seq_len(100), error = NA_character_, seed = 110001:110100,
@@ -80,7 +81,7 @@ local_main_recovery_fixture <- function(env) {
     evidence_status = "post_phase1_production", study_id = "nbi_clayton_main_recovery",
     margin_family = "NBI", copula_family = "Clayton", copula_code = "C",
     runner_contract_version = "nbi-clayton-main-recovery-2026-09-02.5", phase1_contract_version = env$jss_recovery_phase1_contract_version(), runner_settings_signature = nbi_signature,
-    runner_settings_sha256 = digest::digest(nbi_signature, algo = "sha256", serialize = FALSE), runner_sha256 = nbi_runner_sha, package_source_path = ".", package_version = "0.1.0", package_source_sha256 = package_sha,
+    runner_settings_sha256 = digest::digest(nbi_signature, algo = "sha256", serialize = FALSE), runner_sha256 = nbi_runner_sha, package_source_path = ".", package_version = package_version, package_source_sha256 = package_sha,
     scenario = "n500_d4_nbi_signal2", n = 500L, d = 4L,
     target_replicates = 100L, rep = 1:100, engine = "ours_rs_joint",
     success = TRUE, converged = TRUE, elapsed_sec = 101:200, error = NA_character_, seed = 210001:210100,

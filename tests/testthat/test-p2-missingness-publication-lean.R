@@ -82,6 +82,34 @@ test_that("warning policy is narrow and unknown text is fatal", {
   expect_error(env$jss_missingness_lean_warning_events(unknown), "fatal")
 })
 
+test_that("missingness presentation retains failure denominators", {
+  env <- local_lean_missingness_env()
+  attempts <- data.frame(
+    missing_mechanism = c("monotone_dropout", "time_dependent_intermittent_mar"),
+    target_missing_rate = c(.3, .4),
+    model = c("gamlss.longitudinal", "gamlss2"),
+    attempted = c(20L, 20L), retained = c(13L, 20L),
+    retention_rate_conf_low = c(.4329, .8389),
+    retention_rate_conf_high = c(.8188, 1),
+    stringsAsFactors = FALSE
+  )
+  labels <- c(
+    monotone_dropout = "Monotone dropout (headline)",
+    time_dependent_intermittent_mar = "Intermittent MAR (sensitivity)"
+  )
+  plot_data <- env$jss_missingness_retention_plot_data(attempts, labels)
+  expect_equal(plot_data$retention_pct, c(65, 100))
+  expect_identical(plot_data$retention_label, c("13/20", "20/20"))
+  expect_identical(as.character(plot_data$mechanism_panel), unname(labels))
+
+  invalid <- attempts
+  invalid$retained[[1L]] <- 21L
+  expect_error(
+    env$jss_missingness_retention_plot_data(invalid, labels),
+    "invalid mechanism or denominator"
+  )
+})
+
 test_that("reviewer artifacts are CSV-only and omit release forensics", {
   env <- local_lean_missingness_env()
   files <- env$jss_missingness_lean_artifacts()

@@ -1222,14 +1222,24 @@ $s_1 \sim \operatorname{Uniform}(0,1)$, and smooth targets are centered on the
 fixed $0$--$1$ reference grid. They are not observed-data projections or
 realized-sample centerings.
 
-The production sensitivity study is being regenerated under the registered
-attempt, source-identity, and failure-accounting contract. No empirical figure
-or directional result is shown until that bundle passes its publication gate.
-The final summaries will retain every attempt and report failure-inclusive
-sensitivity alongside conditional RMSE or IRMSE and Monte Carlo uncertainty.
-Hessian-based coverage will be marked not applicable for the segmented
-objective; no coverage conclusion will be inferred from an unavailable
-covariance.
+The registered study contains 20 replicates for each model, mechanism, and
+missingness level. Figure~\ref{fig:sim_sensitivity_missing_retention} reports
+fit retention before any recovery summaries. The marginal reference fit was
+retained in all 20 replicates at every level. Retention of the longitudinal fit
+fell above 20\% target missingness: under monotone dropout, 13, 11, and 5 of 20 fits were retained at 30\%, 40\%, and 50\%, respectively; under intermittent
+MAR, the corresponding counts were 7, 2, and 5. Conditional RMSE and IRMSE
+curves therefore describe the retained fits only and are not interpreted as
+unconditional performance at the higher missingness levels. The registered
+failure-inclusive summaries and attempt tables accompany those conditional
+results. Hessian-based coverage is marked not applicable for the segmented
+objective; no coverage conclusion is inferred from an unavailable covariance.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{charts/fit_retention_by_missingness.png}
+    \caption{Retained fits out of 20 attempted replicates for each model and target missingness level. Error bars are 95\% Wilson intervals. Monotone dropout is the headline analysis; intermittent MAR is a segmented-likelihood sensitivity analysis. Recovery summaries condition on the retained fits and must be read together with these denominators.}
+    \label{fig:sim_sensitivity_missing_retention}
+\end{figure}
 
 One potential option for increasing fit and parameter recovery in the presence of missing data may be the use of multiple imputation prior to modelling using gamlss.longitudinal.
 

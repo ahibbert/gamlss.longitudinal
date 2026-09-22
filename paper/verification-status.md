@@ -1,6 +1,6 @@
 # Replication verification status
 
-Last updated: 2026-09-08 (Australia/Sydney).
+Last updated: 2026-09-22 (Australia/Sydney).
 
 ## Gate definition
 
@@ -31,7 +31,9 @@ author-side recomputation.
 - The missingness bundle contains 240 scenario/replicate tasks and 480 fits:
   399 retained, 81 named failures, 298 expected warnings, and zero unexpected
   warnings. Monotone dropout is the headline and intermittent MAR is a
-  sensitivity analysis.
+  sensitivity analysis. A generated retention figure now reports every
+  retained/attempted denominator and its Wilson interval before the
+  conditional recovery figures are interpreted.
 - The focused six-by-six copula-misspecification study completed all 3,600
   candidate fits: 100 data sets from each of six generating copulas, with all
   six candidates fitted to every data set, at `n = 150` and Kendall's tau
@@ -50,7 +52,7 @@ author-side recomputation.
 - The promoted main-recovery bundle contains 26 CSV files and 400/400
   successful, converged, retained attempts. All 31 evidence checks pass; the
   public bundle contains no RDS, fitted object, residual, or private asset.
-- The strict `paper` profile passes all 10 Phase 2 gates with 83 exact public
+- The strict `paper` profile passes all 10 Phase 2 gates with 84 exact public
   manifest paths and 17 verified claims. `target-events.csv` reports no target
   warnings/errors; the final cached pipeline took 1 minute 1.6 seconds and a
   detached clean-checkout pipeline took 3 minutes 50.6 seconds.

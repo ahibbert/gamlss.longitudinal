@@ -1,7 +1,7 @@
 # Lean Phase 2 publication layer for the missingness study.
 #
 # The local checkpoint archive is producer infrastructure. Reviewers receive only
-# portable CSV evidence and the two manuscript figures derived from those CSVs.
+# portable CSV evidence and the manuscript figures derived from those CSVs.
 
 jss_missingness_lean_artifacts <- function() {
   c(
@@ -644,21 +644,91 @@ jss_missingness_validate_candidate_bundle <- jss_missingness_validate_public_bun
 jss_missingness_production_gate <- function(input, root = getwd())
   jss_missingness_validate_public_bundle(input, root = root)
 
+jss_missingness_retention_plot_data <- function(attempts, mechanism_labels) {
+  required <- c(
+    "missing_mechanism", "target_missing_rate", "model", "attempted", "retained",
+    "retention_rate_conf_low", "retention_rate_conf_high"
+  )
+  if (!is.data.frame(attempts) || !nrow(attempts) || !all(required %in% names(attempts))) {
+    stop("Missingness fit-retention data lack the registered attempt summary fields.", call. = FALSE)
+  }
+  if (any(!attempts$missing_mechanism %in% names(mechanism_labels)) ||
+      any(!is.finite(attempts$attempted)) || any(attempts$attempted < 1L) ||
+      any(!is.finite(attempts$retained)) || any(attempts$retained < 0L) ||
+      any(attempts$retained > attempts$attempted)) {
+    stop("Missingness fit-retention data contain an invalid mechanism or denominator.", call. = FALSE)
+  }
+  attempts$mechanism_panel <- factor(
+    unname(mechanism_labels[attempts$missing_mechanism]),
+    levels = unname(mechanism_labels)
+  )
+  attempts$target_missing_pct <- 100 * attempts$target_missing_rate
+  attempts$retention_pct <- 100 * attempts$retained / attempts$attempted
+  attempts$retention_lower_pct <- 100 * attempts$retention_rate_conf_low
+  attempts$retention_upper_pct <- 100 * attempts$retention_rate_conf_high
+  attempts$retention_label <- sprintf("%d/%d", attempts$retained, attempts$attempted)
+  attempts$model <- factor(attempts$model, levels = c("gamlss2", "gamlss.longitudinal"))
+  attempts
+}
+
 jss_run_04_missingness_from_public_inputs <- function(settings) {
   method_colours <- jss_method_colours()[c("gamlss2", "gamlss.longitudinal")]
   colours <- jss_plot_colours()
   method_labels <- c(gamlss2 = "gamlss2", gamlss.longitudinal = "gamlss.longitudinal")
   input <- file.path(settings$public_data_dir, "missingness")
   validated <- jss_missingness_validate_public_bundle(input, settings$root)
+  attempts <- validated$tables[["attempt_failure_summary.csv"]]
   fixed <- validated$tables[["fixed_term_summary_by_missingness.csv"]]
   smooth <- validated$tables[["smooth_selected_plot_data.csv"]]
   labels <- c(
     monotone_dropout = "Monotone dropout (headline)",
     time_dependent_intermittent_mar = "Intermittent MAR (sensitivity)"
   )
-  fixed$mechanism_panel <- unname(labels[fixed$missing_mechanism])
-  smooth$mechanism_panel <- unname(labels[smooth$missing_mechanism])
+  fixed$mechanism_panel <- factor(
+    unname(labels[fixed$missing_mechanism]), levels = unname(labels)
+  )
+  smooth$mechanism_panel <- factor(
+    unname(labels[smooth$missing_mechanism]), levels = unname(labels)
+  )
+  attempts <- jss_missingness_retention_plot_data(attempts, labels)
   fixed$model <- factor(fixed$model, levels = c("gamlss2", "gamlss.longitudinal"))
+  retention_plot <- ggplot2::ggplot(
+    attempts,
+    ggplot2::aes(
+      target_missing_pct, retention_pct,
+      colour = model, shape = model, group = model
+    )
+  ) +
+    ggplot2::geom_errorbar(
+      ggplot2::aes(ymin = retention_lower_pct, ymax = retention_upper_pct),
+      width = 1.1, linewidth = .4, alpha = .75
+    ) +
+    ggplot2::geom_line(linewidth = .7) +
+    ggplot2::geom_point(size = 2) +
+    ggplot2::geom_text(
+      ggplot2::aes(label = retention_label),
+      colour = colours[["observed"]], size = 2.5, vjust = -0.85,
+      show.legend = FALSE
+    ) +
+    ggplot2::facet_wrap(~mechanism_panel, nrow = 1) +
+    ggplot2::scale_x_continuous(breaks = seq(0, 50, 10)) +
+    ggplot2::scale_y_continuous(
+      breaks = seq(0, 100, 20), limits = c(0, 108),
+      labels = function(x) paste0(x, "%")
+    ) +
+    ggplot2::scale_colour_manual(values = method_colours, labels = method_labels) +
+    ggplot2::scale_shape_manual(values = c(gamlss2 = 16, gamlss.longitudinal = 17)) +
+    ggplot2::labs(
+      x = "Target missingness (%)", y = "Retained fits",
+      colour = NULL, shape = NULL,
+      caption = "Labels show retained/attempted fits; error bars are 95% Wilson intervals. Conditional recovery summaries exclude failed fits."
+    ) +
+    ggplot2::guides(shape = "none") +
+    theme_jss_paper(base_size = 9, legend_position = "top")
+  dir.create(settings$figures_dir, recursive = TRUE, showWarnings = FALSE)
+  f0 <- file.path(settings$figures_dir, "fit_retention_by_missingness.png")
+  jss_save_figure(f0, retention_plot, size = "shallow", height = 3.4)
+
   fixed_plot <- fixed[is.finite(fixed$mean_rmse) &
     fixed$parameter %in% c("mu", "sigma", "nu", "tau"), , drop = FALSE]
   p1 <- ggplot2::ggplot(fixed_plot,
@@ -675,7 +745,6 @@ jss_run_04_missingness_from_public_inputs <- function(settings) {
       colour = NULL, shape = NULL) +
     ggplot2::guides(shape = "none") +
     theme_jss_paper(base_size = 9, legend_position = "top")
-  dir.create(settings$figures_dir, recursive = TRUE, showWarnings = FALSE)
   f1 <- file.path(settings$figures_dir, "fixed_margin_rmse_by_missingness.png")
   jss_save_figure(f1, p1, size = "standard")
 
@@ -705,8 +774,11 @@ jss_run_04_missingness_from_public_inputs <- function(settings) {
   jss_save_figure(f2, p2, size = "tall")
   staged <- jss_stage_04_missingness_data(input, settings)
   list(module_id = "04-missingness-dropout-sensitivity", status = "regenerated",
-    data = staged, tables = character(), figures = c(f1, f2),
-    notes = "Monotone dropout is the headline; time-dependent intermittent MAR is a sensitivity analysis.")
+    data = staged, tables = character(), figures = c(f0, f1, f2),
+    notes = paste(
+      "Monotone dropout is the headline; time-dependent intermittent MAR is a sensitivity analysis.",
+      "Fit retention is reported before conditional recovery summaries."
+    ))
 }
 
 jss_run_04_missingness_dropout <- function(settings) {

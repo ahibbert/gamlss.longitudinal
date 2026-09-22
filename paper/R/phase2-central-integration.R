@@ -43,7 +43,7 @@ jss_phase2_artifact_contract <- function(root = getwd()) {
     "contract_version", "artifact_id", "artifact_type", "generated_path",
     "producer", "profiles", "input_bundle", "access", "publication_status", "verification"
   )
-  if (!identical(names(contract), required) || nrow(contract) != 83L ||
+  if (!identical(names(contract), required) || nrow(contract) != 84L ||
       anyDuplicated(contract$artifact_id) || anyDuplicated(contract$generated_path) ||
       !all(contract$contract_version == "phase2-artifacts-2026-09-03.2-lean")) {
     stop("Versioned Phase 2 artifact contract is malformed.", call. = FALSE)
