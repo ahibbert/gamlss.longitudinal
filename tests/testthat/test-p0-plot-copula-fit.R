@@ -57,7 +57,7 @@ test_that("plot_copula_fit plot builder returns ggplot with optional facets", {
   expect_true(inherits(p$facet, "FacetWrap"))
   expect_false(p$facet$params$free$x)
   expect_false(p$facet$params$free$y)
-  expect_match(p$labels$subtitle, "Darker bins show empirical density", fixed = TRUE)
+  expect_match(p$labels$subtitle, "Empirical density with fitted copula contours", fixed = TRUE)
   expect_identical(p$scales$get_scales("fill")$guide, "none")
 })
 

@@ -1,8 +1,8 @@
 .copula_v2_rosenblatt_time_panel <- function(rosenblatt_df) {
   if (nrow(rosenblatt_df) == 0 || all(!is.finite(rosenblatt_df$z))) {
     return(.copula_v2_message_plot(
-      title = "Rosenblatt Normal Scores by Time",
-      subtitle = "Scores are qnorm of pairwise conditional Rosenblatt residuals",
+      title = "Rosenblatt scores by time",
+      subtitle = "Conditional normal scores",
       message = "No finite Rosenblatt residuals"
     ))
   }
@@ -12,8 +12,8 @@
     ggplot2::geom_hline(yintercept = 0, color = cols[["reference"]], linetype = "dashed") +
     ggplot2::geom_boxplot(fill = cols[["interval"]], color = cols[["observed"]], outlier.alpha = 0.35) +
     ggplot2::labs(
-      title = "Rosenblatt Normal Scores by Time",
-      subtitle = "Each time point should be centered near zero with similar spread",
+      title = "Rosenblatt scores by time",
+      subtitle = "Target: centred at 0 with similar spread",
       x = "Time",
       y = "Normal score"
     ) +
@@ -23,8 +23,8 @@
 .copula_v2_rosenblatt_qq_panel <- function(rosenblatt_qq_df) {
   if (nrow(rosenblatt_qq_df) == 0) {
     return(.copula_v2_message_plot(
-      title = "Rosenblatt normal Q-Q",
-      subtitle = "Conditional scores should follow N(0, 1)",
+      title = "Rosenblatt Q-Q",
+      subtitle = "Target: N(0, 1) conditional scores",
       message = "No finite Rosenblatt residuals"
     ))
   }
@@ -34,8 +34,8 @@
     ggplot2::geom_abline(intercept = 0, slope = 1, color = cols[["reference"]], linetype = "dashed") +
     ggplot2::geom_point(color = cols[["observed"]], alpha = 0.55, size = 1.2) +
     ggplot2::labs(
-      title = "Rosenblatt normal Q-Q",
-      subtitle = "Conditional scores should follow N(0, 1)",
+      title = "Rosenblatt Q-Q",
+      subtitle = "Target: N(0, 1) conditional scores",
       x = "Theoretical normal quantile",
       y = "Observed normal score"
     ) +
@@ -46,7 +46,7 @@
   if (nrow(rosenblatt_pair_df) == 0 || all(!is.finite(rosenblatt_pair_df$z_prev)) || all(!is.finite(rosenblatt_pair_df$z_curr))) {
     return(.copula_v2_message_plot(
       title = "Rosenblatt Lag Plot",
-      subtitle = "Current conditional score against previous marginal score",
+      subtitle = "Current conditional vs previous score",
       message = "No finite Rosenblatt lag pairs"
     ))
   }
@@ -59,7 +59,7 @@
     ggplot2::geom_smooth(method = "loess", se = FALSE, color = cols[["fitted"]], linewidth = 0.7) +
     ggplot2::labs(
       title = "Rosenblatt Lag Plot",
-      subtitle = "The smooth should be approximately flat at zero",
+      subtitle = "Target: smooth is flat at 0",
       x = expression(Phi^-1 * (U[t])),
       y = expression(Phi^-1 * (R[t + 1] ~ "|" ~ U[t]))
     ) +

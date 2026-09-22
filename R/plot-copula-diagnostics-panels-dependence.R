@@ -1,8 +1,8 @@
 .copula_v2_kendall_panel <- function(kendall_df) {
   if (nrow(kendall_df) == 0) {
     return(.copula_v2_message_plot(
-      title = "Kendall-function calibration",
-      subtitle = "Empirical against fitted copula probabilities",
+      title = "Kendall calibration",
+      subtitle = "Empirical vs fitted probabilities",
       message = "No finite Kendall diagnostic values"
     ))
   }
@@ -12,8 +12,8 @@
     ggplot2::geom_abline(intercept = 0, slope = 1, color = cols[["reference"]], linetype = "dashed") +
     ggplot2::geom_point(color = cols[["observed"]], alpha = 0.55, size = 1.2) +
     ggplot2::labs(
-      title = "Kendall-function calibration",
-      subtitle = "Empirical against fitted copula probabilities",
+      title = "Kendall calibration",
+      subtitle = "Empirical vs fitted probabilities",
       x = "Fitted copula probability",
       y = "Empirical copula probability"
     ) +
@@ -60,8 +60,8 @@
 .copula_v2_residual_lag_panel <- function(lag_summary_df) {
   if (nrow(lag_summary_df) == 0 || all(!is.finite(lag_summary_df$cor_z))) {
     return(.copula_v2_message_plot(
-      title = "Residual dependence by lag",
-      subtitle = "Rosenblatt-score correlations within subject",
+      title = "Residual correlation by lag",
+      subtitle = "Rosenblatt scores: target 0",
       message = "No finite residual lag correlations"
     ))
   }
@@ -73,8 +73,8 @@
     ggplot2::geom_text(ggplot2::aes(label = paste0("n=", n_pairs)), vjust = -0.35, size = 3) +
     ggplot2::coord_cartesian(ylim = c(-1, 1)) +
     ggplot2::labs(
-      title = "Residual dependence by lag",
-      subtitle = "Rosenblatt-score correlations should be near zero",
+      title = "Residual correlation by lag",
+      subtitle = "Rosenblatt scores: target 0",
       x = "Lag",
       y = "Correlation"
     ) +

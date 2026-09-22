@@ -457,7 +457,7 @@
       x = "Response",
       y = if (is_discrete) "Probability" else "Density"
     ) +
-    theme_gamlss_longitudinal()
+    theme_gamlss_longitudinal(base_size = 12)
 
   if (isTRUE(by_time)) {
     p <- p + ggplot2::facet_wrap(~split_group, scales = "free_y")
