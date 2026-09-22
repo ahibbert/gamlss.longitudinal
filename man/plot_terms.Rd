@@ -11,7 +11,7 @@ plot_terms(
   data = NULL,
   ci_level = 0.95,
   vcov_method = c("analytical", "numderiv", "analytical_only", "sandwich"),
-  ncol = 3,
+  ncol = 4,
   include_intercept = FALSE,
   plot_interactions = FALSE,
   ci_col = .gl_plot_colours()[["interval"]],
@@ -39,7 +39,7 @@ are grouped into one point-and-interval plot per model term and parameter.}
 \code{missingness = "segment"}.}
 
 \item{ncol}{Number of columns in the combined dashboard. The default of
-three is designed to remain legible in package documentation and reports.}
+four keeps the individual panels close to square in wide reports.}
 
 \item{include_intercept}{Logical; include intercept terms in fixed-effect
 plots.}

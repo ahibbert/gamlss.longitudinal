@@ -20,11 +20,12 @@
     ggplot2::labs(
       title = paste(par_name, fg$var_name, sep = ": "),
       x = fg$var_name,
-      y = paste("fixed contribution:", paste(par_name, fg$var_name, sep = "."))
+      y = "Contribution"
     ),
     "labs"
   )
   p <- gg_add(p, theme_gamlss_longitudinal(), "theme_gamlss_longitudinal")
+  p <- gg_add(p, .plot_terms_dashboard_theme(), "plot_terms_dashboard_theme")
 
   if (!is.null(term_data$y_lim)) {
     p <- gg_add(p, ggplot2::coord_cartesian(ylim = term_data$y_lim), "coord_cartesian")
@@ -71,11 +72,12 @@
     ggplot2::labs(
       title = paste(par_name, ig$interaction_name, sep = ": "),
       x = pg$var_name,
-      y = paste("fixed contribution:", paste(par_name, ig$interaction_name, sep = "."))
+      y = "Contribution"
     ),
     "labs"
   )
   p <- gg_add(p, theme_gamlss_longitudinal(), "theme_gamlss_longitudinal")
+  p <- gg_add(p, .plot_terms_dashboard_theme(), "plot_terms_dashboard_theme")
 
   if (!is.null(term_data$y_lim)) {
     p <- gg_add(p, ggplot2::coord_cartesian(ylim = term_data$y_lim), "coord_cartesian")
@@ -106,11 +108,12 @@
     ggplot2::labs(
       title = paste(par_name, term_data$col_name, sep = ": "),
       x = paste(term_data$col_name, "(interaction level)"),
-      y = paste("fixed contribution:", term_data$coef_name)
+      y = "Contribution"
     ),
     "labs"
   )
   p <- gg_add(p, theme_gamlss_longitudinal(), "theme_gamlss_longitudinal")
+  p <- gg_add(p, .plot_terms_dashboard_theme(), "plot_terms_dashboard_theme")
 
   if (!is.null(term_data$y_lim)) {
     p <- gg_add(p, ggplot2::coord_cartesian(ylim = term_data$y_lim), "coord_cartesian")

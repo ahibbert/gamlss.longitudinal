@@ -200,9 +200,9 @@ plot.copula <- function(
   p_tail <- .copula_v2_tail_panel(
     tail_long = tail_long,
     title = "Tail Co-occurrence",
-    message_subtitle = "Observed joint tail probability against fitted copula probability",
+    message_subtitle = "Observed vs fitted joint tails",
     empty_message = "No finite tail diagnostics",
-    plot_subtitle = "Lower: P(Ut <= a, Ut+1 <= a); Upper: P(Ut >= 1-a, Ut+1 >= 1-a)",
+    plot_subtitle = "Lower and upper joint-tail probabilities",
     y_label = "Joint probability"
   )
 
@@ -211,9 +211,9 @@ plot.copula <- function(
   p_cond_tail <- .copula_v2_tail_panel(
     tail_long = cond_tail_long,
     title = "Conditional Tail Exceedance",
-    message_subtitle = "Observed conditional tail probability against fitted copula probability",
+    message_subtitle = "Observed vs fitted conditional tails",
     empty_message = "No finite conditional tail diagnostics",
-    plot_subtitle = "Lower: P(Ut+1 <= a | Ut <= a); Upper: P(Ut+1 >= 1-a | Ut >= 1-a)",
+    plot_subtitle = "Lower and upper conditional-tail probabilities",
     y_label = "Conditional probability",
     ylim = c(0, 1)
   )

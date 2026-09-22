@@ -20,7 +20,7 @@
   } else {
     p <- p + ggplot2::geom_histogram(bins = 30, fill = cols[["fitted"]], color = "white", na.rm = TRUE)
   }
-  p <- p + ggplot2::labs(x = x_lab) + theme_gamlss_longitudinal()
+  p <- p + ggplot2::labs(x = x_lab) + theme_gamlss_longitudinal(base_size = 13)
 
   if (overlay == "margin") {
     params <- .plot_margin_constant_params(input_data$X1, margin_dist)
@@ -93,7 +93,7 @@
     ggplot2::geom_point(size = 0.4, alpha = 0.25, color = cols[["observed"]], na.rm = TRUE) +
     ggplot2::geom_density_2d(contour_var = "density", bins = 10, color = cols[["observed"]]) +
     ggplot2::labs(x = x_lab, y = y_lab) +
-    theme_gamlss_longitudinal()
+    theme_gamlss_longitudinal(base_size = 13)
 
   if (show_cor_stats) {
     p <- .plot_dist_add_cor_stats(p, input_data)

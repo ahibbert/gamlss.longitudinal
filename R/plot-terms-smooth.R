@@ -160,7 +160,7 @@ plot_smooth_terms <- function(
       p <- p + ggplot2::labs(caption = paste("fit /", round(ci_level * 100), "% CI"))
     }
 
-    p <- p + theme_gamlss_longitudinal()
+    p <- p + theme_gamlss_longitudinal() + .plot_terms_dashboard_theme()
 
     plot_objects[[length(plot_objects) + 1]] <- p
 
