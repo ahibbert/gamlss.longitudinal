@@ -350,6 +350,10 @@ test_that("central gate validates frozen evidence while reporting Phase 3 claim 
     paste0("verified_claims=", nrow(verified), "; pending_phase3_claims=20")
   )
   expect_true(all(audit$pass))
+  expect_identical(
+    audit$source[audit$check_id == "main_recovery_code_gate"],
+    "data/main-recovery/evidence_validation.csv"
+  )
 })
 
 test_that("Phase 2 manifest retires superseded evidence and registers current artifacts", {

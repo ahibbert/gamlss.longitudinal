@@ -959,3 +959,28 @@ test_that("one target owns full production and paper consumes only the frozen bu
   expect_false(grepl("jss_recovery_stage_approved_bundle(tracked", evidence, fixed = TRUE))
   expect_false(grepl("require_attestation = TRUE", gate, fixed = TRUE))
 })
+
+test_that("main-recovery TeX assets use the registered manuscript labels", {
+  skip_if_not_installed("ggplot2")
+  root <- local_main_recovery_root()
+  env <- local_main_recovery_env()
+  out <- tempfile("main-recovery-manuscript-assets-")
+  dir.create(out)
+
+  env$jss_recovery_write_manuscript_assets(
+    file.path(root, "paper", "data", "public-derived", "main-recovery"),
+    list(out_dir = out)
+  )
+
+  bcpe_fit <- paste(readLines(
+    file.path(out, "paper_simulation_bcpe_t_fit_characteristics.tex"),
+    warn = FALSE
+  ), collapse = "\n")
+  bcpe_recovery <- paste(readLines(
+    file.path(out, "paper_simulation_bcpe_t_fixed_parameter_bias_rmse.tex"),
+    warn = FALSE
+  ), collapse = "\n")
+
+  expect_match(bcpe_fit, "\\\\label\\{tab:fit-characteristics\\}")
+  expect_match(bcpe_recovery, "\\\\label\\{tab:parameter-recovery\\}")
+})

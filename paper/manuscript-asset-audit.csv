@@ -1,20 +1,20 @@
 "manuscript_path","classified","artifact_id","manuscript_label","access","publication_status","actual_sha256","reference_sha256","hash_verified"
 "orcid.pdf",TRUE,"static_orcid","","non-data-static","active",NA,"06e283aedd17de29af9549f052c87f6f56b3d3405bafc930059c39febca0854b",NA
 "orcid.pdf",TRUE,"static_orcid","","non-data-static","active",NA,"06e283aedd17de29af9549f052c87f6f56b3d3405bafc930059c39febca0854b",NA
-"charts/intro - copula examples.png",TRUE,"fig_intro_copulas","fig:example-copulas","public","active",NA,"8aafc74e08a84a16197c46abcce3023b4b031d5c9e072579303b362edd8cd34a",NA
-"charts/software - plot_dist.png",TRUE,"fig_software_dist","fig:plot_dist","public","active",NA,"6709431e7d14bb12b6a39dec3bbae0c3f702efdc5d90e97297458644987b4621",NA
-"charts/software - plot_copula_diagnostics.png",TRUE,"fig_software_copula","fig:plot_copula_diagnostics","public","active",NA,"6d0c9b30c48415bc80ffa6f428a872da84e85e89b5d36f44b6cc9fde144df7ae",NA
+"charts/final-model-plot_dist.png",TRUE,"actg_fig_dist","fig:plot_dist","public","active",NA,"",NA
+"charts/nbi_plot_adjusted.png",TRUE,"actg_fig_nbi_margin","fig:nbi_margin_fit","public","active",NA,"",NA
+"charts/zisichel_plot_adjusted.png",TRUE,"actg_fig_zisichel_margin","fig:zisichel_margin_fit","public","active",NA,"",NA
+"charts/plot_margin_trt.png",TRUE,"actg_fig_margin_treatment","fig:plot_margin_fit_trt","public","active",NA,"",NA
+"charts/plot_copula_trt.png",TRUE,"actg_fig_copula_treatment","fig:plot_copula_fit_trt","public","active",NA,"",NA
+"charts/final_model_copula_diagnostics.png",TRUE,"actg_fig_copula_diagnostics","fig:plot_copula_diagnostics","public","active",NA,"",NA
 "charts/paper_simulation_bcpe_t_fixed_effect_recovery.png",TRUE,"p2_recovery_bcpe_fixed_figure","fig:sim_fixed_recovery","public","active",NA,"",NA
 "tables/paper_simulation_bcpe_t_fit_characteristics",TRUE,"p2_recovery_bcpe_fit_table","","public","active",NA,"",NA
+"charts/gumbel_copula_fit.png",TRUE,"actg_fig_gumbel_screen","fig:gumbel_copula_fit","public","active",NA,"",NA
+"charts/t_copula_fit.png",TRUE,"actg_fig_t_screen","fig:t_copula_fit","public","active",NA,"",NA
+"charts/plot_terms.png",TRUE,"actg_fig_terms","fig:plot_terms","public","active",NA,"",NA
+"charts/final_model_plot.png",TRUE,"actg_fig_model_diagnostics","fig:plot","public","active",NA,"",NA
+"charts/ACTG no intermittent missingness model.png",TRUE,"actg_fig_gap_sensitivity","fig:actg_no_intermittent_gaps_coefficient_comparison","public","active",NA,"",NA
 "tables/paper_simulation_bcpe_t_fixed_parameter_bias_rmse",TRUE,"p2_recovery_bcpe_parameter_table","","public","active",NA,"",NA
-"tables/08-simulation-sensitivity-correlation-misspecification-scenario-design",TRUE,"tab_corr_design","","public","retired",NA,"5f941aa8ace349da13ec7fa898e07e155ad41365b40a9f67d0f3f47e040029fb",NA
-"tables/08-simulation-sensitivity-correlation-misspecification-external-correlation",TRUE,"tab_corr_external","","public","retired",NA,"9639f613d96ca3a59ada261c81144581c8432b9639ebe1f9663139f1e9e717f5",NA
-"tables/08-simulation-sensitivity-correlation-misspecification-flexible-correlation",TRUE,"tab_corr_flexible","","public","retired",NA,"49dc67c96875726bbfb492751a68bc61122e46b48bef53595e20ba14be4ebb38",NA
-"charts/07-gamma-copula-misspecification-paper-summary-heatmap.png",TRUE,"p2_copula_heatmap","fig:sim_sensitivity_copmisspesification","public","active",NA,"bbf8fd14be5eff16f563ee838ea82f043a113595c7c6fe0c4c37ee5ce6cb0847",NA
-"private-static/figure-01",TRUE,"private_clinical_figure_01","private-label-sha256:ac49f58e6ca7b0dce0c3bd90d3a80b9c88109fffbbd54f081a2291795f84c111","private","active","3eb7222f1b35b61d6be1989edc2742bb36b505ac93e2a2ed6f70d7c507970792","3eb7222f1b35b61d6be1989edc2742bb36b505ac93e2a2ed6f70d7c507970792",TRUE
-"private-static/figure-02",TRUE,"private_clinical_figure_02","private-label-sha256:f5204a2077d008beeced3d8a109a2a19f8633bcdecbe39da34fa6ea6ee9b2946","private","active","f074aa870d1e1eed35b69162fb19dcf0bab2241bc29458df1333f3a5287d4568","f074aa870d1e1eed35b69162fb19dcf0bab2241bc29458df1333f3a5287d4568",TRUE
-"private-static/figure-03",TRUE,"private_clinical_figure_03","private-label-sha256:817309936f88492efc9183704fb09e916814d746a51bb884bbf464a369e1e53e","private","active","d8f565c4d2d945a95ed5ba1c98f5bae4ead67d3a226133def5646282c3db07e6","d8f565c4d2d945a95ed5ba1c98f5bae4ead67d3a226133def5646282c3db07e6",TRUE
-"private-static/figure-04",TRUE,"private_clinical_figure_04","private-label-sha256:36002dca86650115b98cfe5e141296dddb8a82151f42fbf6b74bbd83153d3d7b","private","active","1bfdc4be50a14defcc6f9332a7c10c1660ce9ed60f4f0cb83f5e838e8640aa5d","1bfdc4be50a14defcc6f9332a7c10c1660ce9ed60f4f0cb83f5e838e8640aa5d",TRUE
 "charts/paper_simulation_bcpe_t_smooth_effect_recovery.png",TRUE,"p2_recovery_bcpe_smooth_figure","fig:sim_smooth_recovery","public","active",NA,"",NA
 "charts/paper_simulation_nbi_clayton_highsignal_fixed_effect_recovery.png",TRUE,"p2_recovery_nbi_fixed_figure","fig:sim_fixed_recovery_nb","public","active",NA,"",NA
 "charts/paper_simulation_nbi_clayton_highsignal_smooth_effect_recovery.png",TRUE,"p2_recovery_nbi_smooth_figure","fig:sim_smooth_recovery_nb","public","active",NA,"",NA
@@ -23,20 +23,24 @@
 "tables/normal-joint-vs-separate-six-case-median-iqr-table",TRUE,"tab_jvs_normal","","public","retired",NA,"1c1921ea8f92f459ebb826f45e33e073c9272a4b730abc74c0759e3b36bae799",NA
 "tables/gamma-joint-vs-separate-six-case-median-iqr-table",TRUE,"tab_jvs_gamma","","public","retired",NA,"e2c1162eeaa1b97169b9cbbdf312147ecbd3e7a6904ce0be975ae45411a118d8",NA
 "tables/negative-binomial-joint-vs-separate-six-case-median-iqr-table",TRUE,"tab_jvs_nbi","","public","retired",NA,"2ee45d3295a93861eeff9d9664a698bfcadfa24368a9dc731df4804d00f861b0",NA
+"tables/08-simulation-sensitivity-correlation-misspecification-scenario-design",TRUE,"tab_corr_design","","public","retired",NA,"5f941aa8ace349da13ec7fa898e07e155ad41365b40a9f67d0f3f47e040029fb",NA
+"tables/08-simulation-sensitivity-correlation-misspecification-external-correlation",TRUE,"tab_corr_external","","public","retired",NA,"9639f613d96ca3a59ada261c81144581c8432b9639ebe1f9663139f1e9e717f5",NA
+"tables/08-simulation-sensitivity-correlation-misspecification-flexible-correlation",TRUE,"tab_corr_flexible","","public","retired",NA,"49dc67c96875726bbfb492751a68bc61122e46b48bef53595e20ba14be4ebb38",NA
+"charts/07-gamma-copula-misspecification-paper-summary-heatmap.png",TRUE,"p2_copula_heatmap","fig:sim_sensitivity_copmisspesification","public","active",NA,"bbf8fd14be5eff16f563ee838ea82f043a113595c7c6fe0c4c37ee5ce6cb0847",NA
 "charts/fixed_margin_rmse_by_missingness.png",TRUE,"p2_missing_fixed_figure","fig:sim_sensitivity_mar_fixed","public","active",NA,"0fdcba2f500b4f0d8ca323946b2f6d819b4f98dfb9a942fe6b896f4dd4cfd06b",NA
 "charts/smooth_selected_recovery_curves.png",TRUE,"p2_missing_smooth_figure","fig:sim_sensitivity_mar_smooth","public","active",NA,"8ea6851e06c336fb4e6ae94907af62de2d6dd5130f243f4a8c273de3d361c0ba",NA
-"charts/fit_retention_by_missingness.png",TRUE,"p2_missing_retention_figure","fig:sim_sensitivity_missing_retention","public","active",NA,"",NA
-"private-static/figure-05",TRUE,"private_clinical_figure_05","private-label-sha256:cf390bc2544f34088f95568d1445d3359096d07ed72ea3083b3d1e08679ea173","private","active","0c08a0e08209eec03aba543b2702d9a4917162ee25c39af5e9b6cfe32b862617","0c08a0e08209eec03aba543b2702d9a4917162ee25c39af5e9b6cfe32b862617",TRUE
-"private-static/figure-06",TRUE,"private_clinical_figure_06","private-label-sha256:b2e13ab599a226c895a70c3595a97d103474d0ed61beaad37837e049945bba16","private","active","eb92938877d64a772d00897d9a9de684f247deccafe830201f24c41ba7a0fc45","eb92938877d64a772d00897d9a9de684f247deccafe830201f24c41ba7a0fc45",TRUE
-"private-static/figure-07",TRUE,"private_clinical_figure_07","private-label-sha256:33a8260b09c3396a263d538acc825d220b852ef342bccc4dc1ebefc36e8e1b2d","private","active","a348c7e651b8eda6e5fff47f0e7481fbef1b0154f141d92212281bcf603f18c3","a348c7e651b8eda6e5fff47f0e7481fbef1b0154f141d92212281bcf603f18c3",TRUE
 "inline:tab:r-software-comparison",TRUE,"inline_software_comparison","tab:r-software-comparison","non-data-static","active",NA,"",NA
+"inline:tab:package_workflow",TRUE,"inline_package_workflow","tab:package_workflow","non-data-static","active",NA,"",NA
 "inline:tab:copula_families",TRUE,"inline_copula_families","tab:copula_families","non-data-static","active",NA,"",NA
-"inline:tab:copula_functions_tail_dependence",TRUE,"inline_copula_tail","tab:copula_functions_tail_dependence","non-data-static","active",NA,"",NA
+"inline:tab:actg-cohort",TRUE,"actg_tab_cohort","tab:actg-cohort","public","active",NA,"",NA
+"inline:tab:joint-family-screen",TRUE,"actg_tab_joint_family","tab:joint-family-screen","public","active",NA,"",NA
+"inline:tab:actg-final-model",TRUE,"actg_tab_final_model","tab:actg-final-model","public","active",NA,"",NA
+"inline:tab:actg-treatment-effects",TRUE,"actg_tab_treatment","tab:actg-treatment-effects","public","active",NA,"",NA
+"inline:tab:actg-fitted-predictions",TRUE,"actg_tab_predictions","tab:actg-fitted-predictions","public","active",NA,"",NA
+"inline:tab:actg-simulation-comparison",TRUE,"actg_tab_simulation","tab:actg-simulation-comparison","public","active",NA,"",NA
 "inline:tab:simulation-design",TRUE,"inline_sim_design","tab:simulation-design","public","retired",NA,"",NA
 "inline:tab:optimizer-guidance",TRUE,"inline_optimizer_guidance","tab:optimizer-guidance","non-data-static","active",NA,"",NA
 "inline:tab:sensitivity-guidance",TRUE,"inline_sensitivity_guidance","tab:sensitivity-guidance","non-data-static","active",NA,"",NA
-"private-static/table-01",TRUE,"private_clinical_table_01","private-label-sha256:e3941e8120afc2cb12e9b4eda53abef75d29d20870399035825c356e30dd6267","private","active","9b39daa8cc9883c8a3f02cd99e380c24c01e3a0348d60471146bb8cd2aa980f2","9b39daa8cc9883c8a3f02cd99e380c24c01e3a0348d60471146bb8cd2aa980f2",TRUE
-"private-static/table-02",TRUE,"private_clinical_table_02","private-label-sha256:5e3cd8f12cb652f6c13492566a7515969f6c51f182b4b1ea64b46037f9021a4c","private","active","559f7558c1415d4ff03f6d634ad10bcd3b394f72063d36e72e4eae6bc18f2fd6","559f7558c1415d4ff03f6d634ad10bcd3b394f72063d36e72e4eae6bc18f2fd6",TRUE
-"private-static/table-03",TRUE,"private_clinical_table_03","private-label-sha256:e6540a102bc602ec0481d84a34d95aeedeceda7818dd38606954e96ea72a27cf","private","active","cdd92484448532ae80dabddd2fe759116e598a59677b61f29c9ec20722bbfca7","cdd92484448532ae80dabddd2fe759116e598a59677b61f29c9ec20722bbfca7",TRUE
-"private-static/table-04",TRUE,"private_clinical_table_04","private-label-sha256:4261c5bfe0df275dd9f08eeeaf7d26fe8b4a48157c8ff4e74c2bb5a4b5e23740","private","active","520721a72e2f305cb9305b1bf415c0e50fb8390409a4885e8137f41097a20042","520721a72e2f305cb9305b1bf415c0e50fb8390409a4885e8137f41097a20042",TRUE
+"inline:tab:copula_functions_tail_dependence",TRUE,"inline_copula_tail","tab:copula_functions_tail_dependence","non-data-static","active",NA,"",NA
+"inline:tab:actg-covariate-selection",TRUE,"actg_tab_selection","tab:actg-covariate-selection","public","active",NA,"",NA
 "inline:tab:sim_jvs_scenarios",TRUE,"inline_jvs_design","tab:sim_jvs_scenarios","public","retired",NA,"",NA

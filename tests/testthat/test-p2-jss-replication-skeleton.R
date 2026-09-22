@@ -120,6 +120,10 @@ test_that("copula misspecification paper and full outputs pass a fatal binding g
   expect_false(env$jss_misspec_is_png(paths$results))
   review <- env$jss_misspec_binding_review_gate(results, grid, paths, "test-full", config)
   expect_true(all(review$status == "pass"))
+  expect_identical(
+    review$detail[review$check == "results_path_is_csv"],
+    paste0("data/", basename(paths$results))
+  )
 
   for (field in c("generating_copula", "fitted_copula", "rep", "seed", "dataset_seed")) {
     forged <- results

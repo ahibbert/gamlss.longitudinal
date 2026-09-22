@@ -2087,8 +2087,8 @@ jss_recovery_write_manuscript_assets <- function(bundle_dir, settings) {
     writeLines(lines, path, useBytes = TRUE)
   }
   table_paths <- file.path(settings$out_dir, c("paper_simulation_bcpe_t_fit_characteristics.tex", "paper_simulation_bcpe_t_fixed_parameter_bias_rmse.tex", "paper_simulation_nbi_clayton_highsignal_fit_characteristics.tex", "paper_simulation_nbi_clayton_highsignal_fixed_parameter_bias_rmse.tex"))
-  write_table("bcpe", table_paths[[1]], "tab:bcpe-fit")
-  write_recovery_table("bcpe", table_paths[[2]], "tab:bcpe-recovery")
+  write_table("bcpe", table_paths[[1]], "tab:fit-characteristics")
+  write_recovery_table("bcpe", table_paths[[2]], "tab:parameter-recovery")
   write_table("nbi", table_paths[[3]], "tab:nbi-fit")
   write_recovery_table("nbi", table_paths[[4]], "tab:nbi-recovery")
   figure_paths <- file.path(settings$out_dir, c("paper_simulation_bcpe_t_fixed_effect_recovery.png", "paper_simulation_bcpe_t_smooth_effect_recovery.png", "paper_simulation_nbi_clayton_highsignal_fixed_effect_recovery.png", "paper_simulation_nbi_clayton_highsignal_smooth_effect_recovery.png"))

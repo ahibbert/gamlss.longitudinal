@@ -10,6 +10,7 @@
 "tab_corr_flexible","table","tables/08-simulation-sensitivity-correlation-misspecification-flexible-correlation","tab:corr-flexible","module_08_correlation_misspecification","paper|full","correlation-misspecification","public","retired","canonical_sha256","49dc67c96875726bbfb492751a68bc61122e46b48bef53595e20ba14be4ebb38","tables/08-simulation-sensitivity-correlation-misspecification-flexible-correlation.tex"
 "static_orcid","figure","orcid.pdf","static:orcid","static_nondata","","none","non-data-static","active","approved_static_hash","06e283aedd17de29af9549f052c87f6f56b3d3405bafc930059c39febca0854b",""
 "inline_software_comparison","inline_table","inline:tab:r-software-comparison","tab:r-software-comparison","static_nondata","","none","non-data-static","active","manual","",""
+"inline_package_workflow","inline_table","inline:tab:package_workflow","tab:package_workflow","static_nondata","","none","non-data-static","active","manual","",""
 "inline_copula_families","inline_table","inline:tab:copula_families","tab:copula_families","static_nondata","","none","non-data-static","active","manual","",""
 "inline_copula_tail","inline_table","inline:tab:copula_functions_tail_dependence","tab:copula_functions_tail_dependence","static_nondata","","none","non-data-static","active","manual","",""
 "inline_sim_design","inline_table","inline:tab:simulation-design","tab:simulation-design","module_01_bcpe_t","paper|full","bcpe-t|nbi-clayton","public","retired","manual_until_externalized","",""
