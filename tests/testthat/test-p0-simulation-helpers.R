@@ -245,6 +245,128 @@ test_that("simulate_longitudinal_dataset runs across native copula families", {
   }
 })
 
+test_that("vectorized inverse h-functions recover conditional probabilities", {
+  u1 <- c(0.08, 0.25, 0.5, 0.8, 0.95)
+  target <- c(0.04, 0.2, 0.55, 0.82, 0.97)
+  cases <- list(
+    N = list(par = c(-0.7, -0.2, 0, 0.35, 0.8), par2 = 0),
+    C = list(par = c(0, 0.2, 0.8, 2, 5), par2 = 0),
+    F = list(par = c(-5, -1, 0, 1.5, 6), par2 = 0),
+    G = list(par = c(1, 1.1, 1.5, 2.5, 5), par2 = 0),
+    J = list(par = c(1, 1.1, 1.5, 2.5, 5), par2 = 0),
+    t = list(par = c(-0.7, -0.2, 0, 0.35, 0.8), par2 = c(3, 5, 8, 15, 30))
+  )
+
+  old_backend <- getOption("gamlss.longitudinal.copula_backend")
+  on.exit(options(gamlss.longitudinal.copula_backend = old_backend), add = TRUE)
+  options(gamlss.longitudinal.copula_backend = "native")
+
+  for (family in names(cases)) {
+    parameters <- cases[[family]]
+    simulated <- .sim_invert_hfunc1(
+      u1 = u1,
+      target = target,
+      family = family,
+      par = parameters$par,
+      par2 = parameters$par2
+    )
+    recovered <- .copula_hfunc1(
+      u1,
+      simulated,
+      family = family,
+      par = parameters$par,
+      par2 = parameters$par2
+    )
+
+    expect_equal(length(simulated), length(target), info = family)
+    expect_true(all(simulated > 0 & simulated < 1), info = family)
+    expect_equal(recovered, target, tolerance = 2e-8, info = family)
+  }
+})
+
+test_that("native inverse h-functions agree with delegated VineCopula inversion", {
+  skip_if_not_installed("VineCopula")
+  u1 <- c(0.13, 0.41, 0.77)
+  target <- c(0.17, 0.58, 0.91)
+  cases <- list(
+    N = list(par = c(-0.4, 0.2, 0.7), par2 = 0),
+    C = list(par = c(0.3, 1.2, 3), par2 = 0),
+    F = list(par = c(-2, 1, 4), par2 = 0),
+    G = list(par = c(1.1, 1.7, 3), par2 = 0),
+    J = list(par = c(1.1, 1.7, 3), par2 = 0),
+    t = list(par = c(-0.4, 0.2, 0.7), par2 = c(4, 8, 20))
+  )
+
+  old_backend <- getOption("gamlss.longitudinal.copula_backend")
+  on.exit(options(gamlss.longitudinal.copula_backend = old_backend), add = TRUE)
+
+  for (family in names(cases)) {
+    parameters <- cases[[family]]
+    options(gamlss.longitudinal.copula_backend = "native")
+    native <- .sim_invert_hfunc1(
+      u1, target, family, parameters$par, parameters$par2
+    )
+    options(gamlss.longitudinal.copula_backend = "vinecopula")
+    delegated <- .sim_invert_hfunc1(
+      u1, target, family, parameters$par, parameters$par2
+    )
+    expect_equal(native, delegated, tolerance = 2e-8, info = family)
+  }
+})
+
+test_that("vectorized discrete quantiles match gamlss.dist quantiles", {
+  p <- c(0.01, 0.15, 0.4, 0.72, 0.95, 0.995)
+  cases <- list(
+    PO = list(mu = c(0.5, 1, 2, 4, 8, 15)),
+    NBI = list(mu = c(0.5, 1, 2, 4, 8, 15), sigma = c(0.2, 0.4, 0.7, 1, 1.3, 1.8)),
+    ZIP = list(mu = c(0.5, 1, 2, 4, 8, 15), sigma = rep(0.25, 6)),
+    BI = list(mu = c(0.1, 0.25, 0.4, 0.6, 0.75, 0.9), bd = rep(20, 6)),
+    ZISICHEL = list(
+      mu = c(2, 5, 10, 20, 40, 80),
+      sigma = rep(0.7, 6),
+      nu = rep(-0.5, 6),
+      tau = rep(0.2, 6)
+    )
+  )
+
+  for (family in names(cases)) {
+    qfun <- get(
+      paste0("q", family),
+      envir = asNamespace("gamlss.dist"),
+      inherits = FALSE
+    )
+    expected <- do.call(qfun, c(list(p = p), cases[[family]]))
+    actual <- .gl_simulation_quantiles(family, p, cases[[family]])
+    expect_equal(actual, expected, info = family)
+  }
+})
+
+test_that("batched fitted simulation preserves seeded column prefixes", {
+  fit_data <- data.frame(
+    subject = rep(c("b", "a", "c"), each = 3L),
+    time = rep(1:3, times = 3L),
+    theta_fit = rep(c(1.7, 1.7, NA_real_), times = 3L),
+    zeta_fit = NA_real_
+  )
+  diag_data <- list(
+    family = "NO",
+    params = list(mu = seq(-0.4, 0.4, length.out = 9), sigma = rep(1, 9))
+  )
+  object <- list(copula_dist = "G")
+
+  set.seed(812)
+  short <- .gl_simulate_copula_matrix(
+    object, diag_data, nsim = 3L, fit_data = fit_data, time_levels = 1:3
+  )
+  set.seed(812)
+  long <- .gl_simulate_copula_matrix(
+    object, diag_data, nsim = 7L, fit_data = fit_data, time_levels = 1:3
+  )
+
+  expect_equal(short, long[, 1:3, drop = FALSE])
+  expect_equal(.gl_simulation_batch_size(5000L, 500L), 50L)
+})
+
 test_that("simulated fixed Normal Gaussian parameters recover under separate RS", {
   suppressPackageStartupMessages(library(gamlss.dist))
 
