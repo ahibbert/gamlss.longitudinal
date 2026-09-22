@@ -75,17 +75,26 @@ files), while `logs/provenance-hashes.csv` hashes the completed run logs.
 
 ## Public analysis modules
 
-The public graph contains the introductory and BCPE/t software-workflow figures
-plus five evidence modules:
+The public graph contains the introductory and BCPE/t software-workflow figures,
+the public ACTG application workflow, and five focused validation modules:
 
-1. Main recovery: BCPE/t and NBI/Clayton results from tracked replicate-level
+1. ACTG workflow: package-shipped public data, descriptive and missingness
+   summaries, margin/copula screening, the prespecified final model, diagnostics,
+   prediction, joint and conditional simulation, and the intermittent-gap
+   sensitivity fit. The 51-fit historical covariate search is represented by a
+   compact versioned selection ledger rather than rerun in the reviewer profile.
+   The `paper` profile likewise consumes the versioned screening ledger, while
+   `full` reruns the broad margin/copula screens and checkpointed six-model joint
+   shortlist before rebuilding the same outputs.
+
+2. Main recovery: BCPE/t and NBI/Clayton results from tracked replicate-level
    public inputs (`paper`), based on 100 data-generating replicates per study.
-2. Joint-versus-separate optimization: a supplementary three-scenario paired
+3. Joint-versus-separate optimization: a supplementary three-scenario paired
    RS benchmark with 97 retained pairs per scenario.
-3. Missingness/dropout: monotone dropout as the headline analysis and
+4. Missingness/dropout: monotone dropout as the headline analysis and
    time-dependent intermittent MAR as a sensitivity analysis.
-4. Gamma-margin copula-family misspecification summaries and heatmap.
-5. Fit-scaling evidence, with runtimes explicitly limited to the recorded
+5. Gamma-margin copula-family misspecification summaries and heatmap.
+6. Fit-scaling evidence, with runtimes explicitly limited to the recorded
    execution environment.
 
 `smoke` instead runs small new public simulations and representative workflow

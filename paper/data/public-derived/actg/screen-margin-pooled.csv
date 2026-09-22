@@ -1,0 +1,4 @@
+rank,family,AIC,delta_AIC,screen_model,converged
+1,ZIBNB,29478.27,0.00,pooled_intercepts,TRUE
+2,ZIPIG,29496.88,18.61,pooled_intercepts,TRUE
+3,ZISICHEL,29497.62,19.35,pooled_intercepts,TRUE

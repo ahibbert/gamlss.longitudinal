@@ -19,6 +19,7 @@ paper/_targets/
 paper/.library/
 paper/.renv/
 paper/checkpoints/
+paper/reviews/actg-shortlist/
 paper/*.aux
 paper/*.bbl
 paper/*.blg
