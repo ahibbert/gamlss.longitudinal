@@ -1,15 +1,18 @@
 .sim_copula_uniform_matrix <- function(n, n_time, family, copula_params, long_data, subject_var, time_var) {
-  u <- matrix(stats::runif(n * n_time), nrow = n, ncol = n_time)
-  if (n_time == 1L) {
-    return(u)
-  }
-
   edge_data <- .sim_edge_data(long_data, n_time, subject_var, time_var)
   theta <- .sim_resolve_copula_theta(copula_params, edge_data, n, n_time - 1L, family)
   zeta <- .sim_resolve_copula_zeta(copula_params, edge_data, n, n_time - 1L, family)
 
   theta_mat <- matrix(theta, nrow = n, ncol = n_time - 1L, byrow = TRUE)
   zeta_mat <- matrix(zeta, nrow = n, ncol = n_time - 1L, byrow = TRUE)
+
+  if (identical(family, "N")) {
+    u <- .sim_gaussian_uniform_matrix(n, n_time, theta_mat)
+    attr(u, "edge_truth") <- list(theta = theta_mat, zeta = zeta_mat)
+    return(u)
+  }
+
+  u <- matrix(stats::runif(n * n_time), nrow = n, ncol = n_time)
 
   for (time_index in 2:n_time) {
     target <- stats::runif(n)
@@ -27,6 +30,26 @@
 
   attr(u, "edge_truth") <- list(theta = theta_mat, zeta = zeta_mat)
   u
+}
+
+.sim_gaussian_uniform_matrix <- function(n, n_time, theta_mat) {
+  if (any(!is.finite(theta_mat)) || any(abs(theta_mat) >= 1)) {
+    stop("Normal copula theta values must be finite and strictly between -1 and 1.", call. = FALSE)
+  }
+
+  innovations <- matrix(stats::rnorm(n * n_time), nrow = n, ncol = n_time)
+  normal_scores <- matrix(NA_real_, nrow = n, ncol = n_time)
+  normal_scores[, 1L] <- innovations[, 1L]
+
+  for (time_index in 2:n_time) {
+    edge_index <- time_index - 1L
+    rho <- theta_mat[, edge_index]
+    normal_scores[, time_index] <-
+      rho * normal_scores[, time_index - 1L] +
+      sqrt(pmax(0, 1 - rho^2)) * innovations[, time_index]
+  }
+
+  stats::pnorm(normal_scores)
 }
 
 .sim_edge_data <- function(long_data, n_time, subject_var, time_var) {

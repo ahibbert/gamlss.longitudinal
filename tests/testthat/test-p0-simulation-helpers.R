@@ -245,6 +245,39 @@ test_that("simulate_longitudinal_dataset runs across native copula families", {
   }
 })
 
+test_that("Normal copula simulation uses the exact vectorised Gaussian transition", {
+  n <- 5L
+  n_time <- 4L
+  theta_mat <- matrix(
+    rep(c(-0.25, 0.35, 0.7), times = n),
+    nrow = n,
+    ncol = n_time - 1L,
+    byrow = TRUE
+  )
+
+  set.seed(321)
+  actual <- .sim_gaussian_uniform_matrix(n, n_time, theta_mat)
+
+  set.seed(321)
+  innovations <- matrix(stats::rnorm(n * n_time), nrow = n, ncol = n_time)
+  scores <- matrix(NA_real_, nrow = n, ncol = n_time)
+  scores[, 1L] <- innovations[, 1L]
+  for (time_index in 2:n_time) {
+    rho <- theta_mat[, time_index - 1L]
+    scores[, time_index] <-
+      rho * scores[, time_index - 1L] +
+      sqrt(1 - rho^2) * innovations[, time_index]
+  }
+
+  expect_equal(actual, stats::pnorm(scores), tolerance = 1e-15)
+  expect_true(all(actual > 0 & actual < 1))
+  expect_error(
+    .sim_gaussian_uniform_matrix(1, 2, matrix(1, nrow = 1)),
+    "strictly between -1 and 1",
+    fixed = TRUE
+  )
+})
+
 test_that("simulated fixed Normal Gaussian parameters recover under separate RS", {
   suppressPackageStartupMessages(library(gamlss.dist))
 
