@@ -282,45 +282,21 @@ if (identical(stage, "refine")) {
   maximum_formulas[[stage_parameter]] <- smooth_parameter_maximum
 }
 
-route_refinement <- switch(
-  paste(margin_family, copula_code, sep = "/"),
-  `ZISICHEL/G` = list(after = 10L, iterations = 100L, refinements = 1L,
-                       rescue = FALSE, repolish = 50L),
-  `ZIBNB/G` = list(after = 2L, iterations = 170L, refinements = 1L,
-                    rescue = FALSE, repolish = 50L),
-  `ZISICHEL/t` = list(after = 1L, iterations = 120L, refinements = 1L,
-                       rescue = FALSE, repolish = 50L),
-  `ZIBNB/t` = list(after = 1L, iterations = 40L, refinements = 2L,
-                    rescue = TRUE, repolish = 40L),
-  list(after = 10L, iterations = 100L, refinements = 1L,
-       rescue = FALSE, repolish = 50L)
-)
-target_route <- margin_family %in% c("ZISICHEL", "ZIBNB")
 optimizer_control <- gamlss_longitudinal_control(
   outer_tol = 1e-4,
   max_outer_iter = 50L,
   max_elapsed_sec = max_elapsed_sec,
   rs = list(
-    inner_tol = 1e-5,
-    max_inner_iter = 20L,
-    initial_inner_iter = 5L,
-    start_step_size = 2,
-    warm_start_joint = TRUE,
-    warm_start_joint_iter = if (target_route) 2L else 5L,
-    use_backtracking = TRUE,
-    backtracking_max_halves = 2L,
-    adaptive_step_size = FALSE,
-    update_lambda = TRUE,
-    lambda_update_every = 5L,
-    bfgs_refine = target_route,
-    bfgs_refine_after = route_refinement$after,
-    bfgs_max_refinements = route_refinement$refinements,
-    bfgs_max_iter = route_refinement$iterations,
-    bfgs_reltol = 1e-12,
-    bfgs_coordinate_rescue = route_refinement$rescue,
-    bfgs_repolish_iter = route_refinement$repolish,
-    discrete_score_method = "analytical"
+    inner_tol = 1e-5
   )
+)
+optimizer_control <- gamlss.longitudinal:::.gl_apply_route_optimizer_defaults(
+  control = optimizer_control,
+  method = "RS",
+  margin_dist = getExportedValue("gamlss.dist", margin_family)(),
+  copula_dist = copula_code,
+  optimization = "joint",
+  purpose = "screening"
 )
 
 formula_text <- function(formula) {
