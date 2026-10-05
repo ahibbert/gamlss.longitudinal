@@ -30,8 +30,14 @@
 
   dlogc_row1 <- (as.numeric(dcdu1) * as.numeric(F_nd[row_id1])) / as.numeric(copula_d)
   dlogc_row2 <- (as.numeric(dcdu2) * as.numeric(F_nd[row_id2])) / as.numeric(copula_d)
-  dlogc_row1[!pair_complete | !is.finite(dlogc_row1)] <- 0
-  dlogc_row2[!pair_complete | !is.finite(dlogc_row2)] <- 0
+  dlogc_row1 <- .gl_score_zero_unobserved_or_stop(
+    dlogc_row1, pair_complete,
+    "Continuous copula-to-margin first-endpoint score"
+  )
+  dlogc_row2 <- .gl_score_zero_unobserved_or_stop(
+    dlogc_row2, pair_complete,
+    "Continuous copula-to-margin second-endpoint score"
+  )
 
   out <- numeric(n_obs)
   valid1 <- is.finite(row_id1) & row_id1 >= 1L & row_id1 <= n_obs

@@ -6,6 +6,7 @@
 .gl_initialize_fit_optimizer_context <- function(
     start_from,
     warm_start_par_s,
+    warm_start_lambda_s = NULL,
     mm,
     margin_dist,
     copula_dist,
@@ -24,7 +25,7 @@
     optimizer_state_fn = .gl_initialize_optimizer_state,
     rs_eta_calculator_fn = .gl_build_rs_eta_calculator,
     stop_criteria_fn = .gl_resolve_stop_criteria) {
-  initial_state <- initial_state_fn(
+  initial_state_args <- list(
     start_from = start_from,
     warm_start_par_s = warm_start_par_s,
     mm = mm,
@@ -33,6 +34,11 @@
     dataset = dataset,
     lambda_start = lambda_start
   )
+  initial_state_formals <- names(formals(initial_state_fn))
+  if ("warm_start_lambda_s" %in% initial_state_formals || "..." %in% initial_state_formals) {
+    initial_state_args$warm_start_lambda_s <- warm_start_lambda_s
+  }
+  initial_state <- do.call(initial_state_fn, initial_state_args)
 
   par_cov <- initial_state$par_cov
   par_s <- initial_state$par_s

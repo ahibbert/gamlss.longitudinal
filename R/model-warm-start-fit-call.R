@@ -33,10 +33,15 @@
   warm_control$shared$max_outer_iter <- as.integer(warm_start_joint_iter)
   warm_control$rs$warm_start_joint <- FALSE
   warm_control$rs$warm_start_joint_iter <- 0L
+  # The separate fit is only an initializer for the full joint optimizer.
+  # Preserve its bounded inner iterations, backtracking, adaptive step, and
+  # lambda policy, but do not pay for the endpoint-only joint BFGS/refinement
+  # sequence twice. The joint fit retains the user's full refinement controls.
+  warm_control$rs$bfgs_refine <- FALSE
   specified <- attr(warm_control, "specified")
   specified$shared[] <- FALSE
   specified$shared[["max_outer_iter"]] <- TRUE
-  specified$rs <- c("warm_start_joint", "warm_start_joint_iter")
+  specified$rs <- c("warm_start_joint", "warm_start_joint_iter", "bfgs_refine")
   specified$cg <- character(0)
   attr(warm_control, "specified") <- specified
 

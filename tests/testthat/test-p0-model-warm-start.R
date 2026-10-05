@@ -26,7 +26,20 @@ make_warm_start_args <- function(...) {
         step_adjustment = 1,
         max_steps = 5L,
         max_inner_iter = 3L,
-        max_negative_outer_streak = 10L
+        initial_inner_iter = 2L,
+        max_negative_outer_streak = 10L,
+        adaptive_step_size = TRUE,
+        lambda_update_every = 7L,
+        bfgs_refine = TRUE,
+        bfgs_refine_after = 4L,
+        bfgs_max_iter = 25L,
+        bfgs_reltol = 1e-10,
+        bfgs_coordinate_rescue = TRUE,
+        bfgs_coordinate_threshold = 2,
+        bfgs_coordinate_radius = 5,
+        bfgs_coordinate_max = 4L,
+        bfgs_coordinate_tol = 1e-4,
+        bfgs_repolish_iter = 12L
       )
     ),
     true_val = NA,
@@ -123,6 +136,7 @@ test_that("warm-start helper captures fit output warnings and starts", {
   expect_equal(out$warm_start_info$outer_iter, 2L)
   expect_equal(out$warm_start_info$log_lik, c(marginal = -4, copula = -2, joint = -6))
   expect_true(out$warm_start_info$carries_smooth)
+  expect_false(out$warm_start_info$carries_lambda)
   expect_match(out$warm_start_info$captured_output, "warm output line")
   expect_equal(out$warm_start_info$captured_warnings, "warm warning")
   expect_match(paste(top_output, collapse = "\n"), "Running separate RS warm-start phase", fixed = TRUE)
@@ -133,6 +147,19 @@ test_that("warm-start helper captures fit output warnings and starts", {
   expect_false(fit_args$optimizer_control$rs$warm_start_joint)
   expect_equal(fit_args$optimizer_control$rs$warm_start_joint_iter, 0L)
   expect_equal(fit_args$optimizer_control$shared$max_outer_iter, 2L)
+  expect_identical(fit_args$optimizer_control$rs$lambda_update_every, 7L)
+  expect_identical(fit_args$optimizer_control$rs$initial_inner_iter, 2L)
+  expect_true(fit_args$optimizer_control$rs$adaptive_step_size)
+  expect_false(fit_args$optimizer_control$rs$bfgs_refine)
+  expect_identical(fit_args$optimizer_control$rs$bfgs_refine_after, 4L)
+  expect_identical(fit_args$optimizer_control$rs$bfgs_max_iter, 25L)
+  expect_equal(fit_args$optimizer_control$rs$bfgs_reltol, 1e-10)
+  expect_true(fit_args$optimizer_control$rs$bfgs_coordinate_rescue)
+  expect_equal(fit_args$optimizer_control$rs$bfgs_coordinate_threshold, 2)
+  expect_equal(fit_args$optimizer_control$rs$bfgs_coordinate_radius, 5)
+  expect_identical(fit_args$optimizer_control$rs$bfgs_coordinate_max, 4L)
+  expect_equal(fit_args$optimizer_control$rs$bfgs_coordinate_tol, 1e-4)
+  expect_identical(fit_args$optimizer_control$rs$bfgs_repolish_iter, 12L)
   expect_false(fit_args$compute_vcov)
 })
 
@@ -140,6 +167,7 @@ test_that("warm-start result helper records accepted fit metadata", {
   warm_fit <- list(
     par = c(`mu.(Intercept)` = 1.2),
     par_s = list(mu = list(`s(x)` = c(`mu.s(x).1` = 0.4))),
+    lambda_s = list(mu = list(`s(x)` = 3)),
     calc_lik_out_end = list(log_lik = c(marginal = -4, copula = -2, joint = -6))
   )
 
@@ -153,6 +181,8 @@ test_that("warm-start result helper records accepted fit metadata", {
 
   expect_equal(out$start_from, c(`mu.(Intercept)` = 1.2))
   expect_equal(out$warm_start_par_s, warm_fit$par_s)
+  expect_equal(out$warm_start_lambda_s, warm_fit$lambda_s)
+  expect_true(out$warm_start_info$carries_lambda)
   expect_true(out$warm_start_info$used)
   expect_equal(out$warm_start_info$outer_iter, 2L)
   expect_false(out$warm_start_info$include_dlcopdpar)
@@ -187,6 +217,19 @@ test_that("warm-start fit-call helper captures output warnings and cold-start ar
   expect_false(fit_args$optimizer_control$rs$warm_start_joint)
   expect_equal(fit_args$optimizer_control$rs$warm_start_joint_iter, 0L)
   expect_equal(fit_args$optimizer_control$shared$max_outer_iter, 2L)
+  expect_identical(fit_args$optimizer_control$rs$lambda_update_every, 7L)
+  expect_identical(fit_args$optimizer_control$rs$initial_inner_iter, 2L)
+  expect_true(fit_args$optimizer_control$rs$adaptive_step_size)
+  expect_false(fit_args$optimizer_control$rs$bfgs_refine)
+  expect_identical(fit_args$optimizer_control$rs$bfgs_refine_after, 4L)
+  expect_identical(fit_args$optimizer_control$rs$bfgs_max_iter, 25L)
+  expect_equal(fit_args$optimizer_control$rs$bfgs_reltol, 1e-10)
+  expect_true(fit_args$optimizer_control$rs$bfgs_coordinate_rescue)
+  expect_equal(fit_args$optimizer_control$rs$bfgs_coordinate_threshold, 2)
+  expect_equal(fit_args$optimizer_control$rs$bfgs_coordinate_radius, 5)
+  expect_identical(fit_args$optimizer_control$rs$bfgs_coordinate_max, 4L)
+  expect_equal(fit_args$optimizer_control$rs$bfgs_coordinate_tol, 1e-4)
+  expect_identical(fit_args$optimizer_control$rs$bfgs_repolish_iter, 12L)
   expect_false(fit_args$compute_vcov)
 })
 
@@ -227,4 +270,57 @@ test_that("warm-start helper preserves failure messages", {
     "Separate RS warm-start phase did not return coefficient starting values",
     fixed = TRUE
   )
+})
+
+test_that("a fitted model start carries fixed smooth and smoothing-penalty state", {
+  prior <- structure(list(
+    par = c(
+      `mu.(Intercept)` = 1,
+      `mu.x` = 2,
+      `sigma.(Intercept)` = -0.5
+    ),
+    par_s = list(
+      mu = list(`s(z)` = c(`mu.s(z).1` = 0.2, `mu.s(z).2` = -0.1)),
+      sigma = list()
+    ),
+    lambda_s = list(mu = list(`s(z)` = 7), sigma = list())
+  ), class = "gamlss.longitudinal")
+
+  warm <- run_warm_start(
+    start_from = prior,
+    user_supplied_start = TRUE,
+    fit_fn = function(...) stop("a supplied fitted state must skip generic warm start")
+  )
+  expect_equal(warm$start_from, prior$par)
+  expect_equal(warm$warm_start_par_s, prior$par_s)
+  expect_equal(warm$warm_start_lambda_s, prior$lambda_s)
+  expect_false(warm$warm_start_info$used)
+
+  mm <- list(
+    x = list(
+      mu = structure(matrix(1, 3, 1), dimnames = list(NULL, "(Intercept)")),
+      sigma = structure(matrix(1, 3, 1), dimnames = list(NULL, "(Intercept)"))
+    ),
+    s = list(
+      mu = list(`s(z)` = structure(matrix(1, 3, 2), penalty = diag(2))),
+      sigma = list()
+    )
+  )
+  initial <- gamlss.longitudinal:::.gl_build_initial_parameter_state(
+    start_from = warm$start_from,
+    warm_start_par_s = warm$warm_start_par_s,
+    warm_start_lambda_s = warm$warm_start_lambda_s,
+    mm = mm,
+    margin_dist = list(),
+    copula_dist = "G",
+    dataset = data.frame(response = 1:3),
+    lambda_start = NA
+  )
+
+  expect_equal(
+    initial$par_cov,
+    c(`mu.(Intercept)` = 1, `sigma.(Intercept)` = -0.5)
+  )
+  expect_equal(initial$par_s$mu$`s(z)`, prior$par_s$mu$`s(z)`)
+  expect_equal(unname(initial$lambda_s$mu$`s(z)`), 7)
 })

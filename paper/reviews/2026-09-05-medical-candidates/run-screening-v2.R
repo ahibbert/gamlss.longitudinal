@@ -76,7 +76,7 @@ workers <- positive_integer(
   "workers"
 )
 max_steps <- positive_integer(argument_value("max-steps", "Inf"), "max-steps", TRUE)
-max_elapsed_sec <- suppressWarnings(as.numeric(argument_value("max-elapsed-sec", "7200")))
+max_elapsed_sec <- suppressWarnings(as.numeric(argument_value("max-elapsed-sec", "1200")))
 if (length(max_elapsed_sec) != 1L || is.na(max_elapsed_sec) || max_elapsed_sec <= 0) {
   stop("--max-elapsed-sec must be a positive number.")
 }
@@ -85,19 +85,30 @@ dry_run <- argument_flag("dry-run", FALSE)
 subject_argument <- tolower(argument_value("subjects", "all"))
 stage <- tolower(argument_value("stage", "mu-linear"))
 margin_family <- toupper(argument_value("margin", "ZIPIG"))
-if (!margin_family %in% c("ZIPIG", "ZIBNB")) {
-  stop("--margin must be ZIPIG or ZIBNB.")
+if (!margin_family %in% c("ZIPIG", "ZISICHEL", "ZIBNB")) {
+  stop("--margin must be ZIPIG, ZISICHEL, or ZIBNB.")
 }
-has_tau <- identical(margin_family, "ZIBNB")
-valid_stages <- c("mu-linear", "mu-smooth", "sigma", "nu", "tau", "theta", "refine")
+copula_argument <- tolower(argument_value("copula", "G"))
+copula_code <- switch(copula_argument, g = "G", gumbel = "G", t = "t", student = "t",
+  `student-t` = "t", stop("--copula must be G/Gumbel or t/Student-t."))
+copula_label <- if (identical(copula_code, "G")) "Gumbel (G)" else "Student-t (t)"
+has_tau <- margin_family %in% c("ZISICHEL", "ZIBNB")
+has_zeta <- identical(copula_code, "t")
+valid_stages <- c("mu-linear", "mu-smooth", "sigma", "nu", "tau", "theta", "zeta", "refine")
 if (!stage %in% valid_stages) {
   stop("--stage must be one of: ", paste(valid_stages, collapse = ", "), ".")
+}
+if (identical(stage, "tau") && !has_tau) {
+  stop("--stage=tau is unavailable for margin ", margin_family, ".")
+}
+if (identical(stage, "zeta") && !has_zeta) {
+  stop("--stage=zeta requires --copula=t.")
 }
 smooth_k <- positive_integer(argument_value("smooth-k", "8"), "smooth-k")
 parameters <- trimws(strsplit(
   tolower(argument_value("parameters", "mu")), ",", fixed = TRUE
 )[[1L]])
-valid_parameters <- c("mu", "sigma", "nu", if (has_tau) "tau", "theta")
+valid_parameters <- c("mu", "sigma", "nu", if (has_tau) "tau", "theta", if (has_zeta) "zeta")
 if (!length(parameters) || any(!parameters %in% valid_parameters)) {
   stop("--parameters must contain one or more of: ", paste(valid_parameters, collapse = ","), ".")
 }
@@ -105,6 +116,7 @@ if (identical(stage, "refine") && length(parameters) != 1L) {
   stop("--stage=refine requires exactly one value in --parameters.")
 }
 input_formulas_argument <- argument_value("input-formulas", "")
+initial_fit_argument <- argument_value("initial-fit", "")
 output_stem_argument <- argument_value("output-stem", "")
 results_subdir <- argument_value("results-subdir", "")
 if (nzchar(output_stem_argument) && !grepl("^[A-Za-z0-9._-]+$", output_stem_argument)) {
@@ -160,6 +172,7 @@ if (!identical(subject_argument, "all")) {
 }
 stage_label <- if (identical(stage, "mu-linear")) "" else paste0("-", stage)
 family_stem <- if (identical(margin_family, "ZIPIG")) "actg" else paste0("actg-", tolower(margin_family))
+if (has_zeta) family_stem <- paste0(family_stem, "-t")
 default_run_stem <- if (identical(subject_argument, "all")) {
   paste0(family_stem, "-backward-selection", stage_label)
 } else {
@@ -208,6 +221,7 @@ stage_parameter <- switch(
   nu = "nu",
   tau = "tau",
   theta = "theta",
+  zeta = "zeta",
   refine = NULL
 )
 if (!stage %in% c("mu-linear", "refine")) parameters <- stage_parameter
@@ -218,6 +232,7 @@ prior_stage <- switch(
   nu = "sigma",
   tau = "nu",
   theta = if (has_tau) "tau" else "nu",
+  zeta = "theta",
   NULL
 )
 if (identical(stage, "refine")) {
@@ -225,7 +240,7 @@ if (identical(stage, "refine")) {
     stop("--stage=refine requires an existing --input-formulas RDS file.")
   }
   maximum_formulas <- readRDS(input_formulas_argument)
-  required_formulas <- c("mu", "sigma", "nu", if (has_tau) "tau", "theta")
+  required_formulas <- c("mu", "sigma", "nu", if (has_tau) "tau", "theta", if (has_zeta) "zeta")
   if (!is.list(maximum_formulas) || !all(required_formulas %in% names(maximum_formulas))) {
     stop("The refinement input must contain mu, sigma, nu, and theta formulas.")
   }
@@ -241,7 +256,8 @@ if (identical(stage, "refine")) {
     sigma = ~ 1,
     nu = ~ 1,
     tau = if (has_tau) ~ 1 else NULL,
-    theta = ~ 1
+    theta = ~ 1,
+    zeta = if (has_zeta) ~ 1 else NULL
   )
   maximum_formulas <- maximum_formulas[!vapply(maximum_formulas, is.null, logical(1L))]
 } else {
@@ -266,15 +282,43 @@ if (identical(stage, "refine")) {
   maximum_formulas[[stage_parameter]] <- smooth_parameter_maximum
 }
 
+route_refinement <- switch(
+  paste(margin_family, copula_code, sep = "/"),
+  `ZISICHEL/G` = list(after = 10L, iterations = 100L, refinements = 1L,
+                       rescue = FALSE, repolish = 50L),
+  `ZIBNB/G` = list(after = 2L, iterations = 170L, refinements = 1L,
+                    rescue = FALSE, repolish = 50L),
+  `ZISICHEL/t` = list(after = 1L, iterations = 120L, refinements = 1L,
+                       rescue = FALSE, repolish = 50L),
+  `ZIBNB/t` = list(after = 1L, iterations = 40L, refinements = 2L,
+                    rescue = TRUE, repolish = 40L),
+  list(after = 10L, iterations = 100L, refinements = 1L,
+       rescue = FALSE, repolish = 50L)
+)
+target_route <- margin_family %in% c("ZISICHEL", "ZIBNB")
 optimizer_control <- gamlss_longitudinal_control(
   outer_tol = 1e-4,
   max_outer_iter = 50L,
   max_elapsed_sec = max_elapsed_sec,
   rs = list(
     inner_tol = 1e-5,
-    max_inner_iter = 100L,
+    max_inner_iter = 20L,
+    initial_inner_iter = 5L,
+    start_step_size = 2,
     warm_start_joint = TRUE,
-    warm_start_joint_iter = 5L,
+    warm_start_joint_iter = if (target_route) 2L else 5L,
+    use_backtracking = TRUE,
+    backtracking_max_halves = 2L,
+    adaptive_step_size = FALSE,
+    update_lambda = TRUE,
+    lambda_update_every = 5L,
+    bfgs_refine = target_route,
+    bfgs_refine_after = route_refinement$after,
+    bfgs_max_refinements = route_refinement$refinements,
+    bfgs_max_iter = route_refinement$iterations,
+    bfgs_reltol = 1e-12,
+    bfgs_coordinate_rescue = route_refinement$rescue,
+    bfgs_repolish_iter = route_refinement$repolish,
     discrete_score_method = "analytical"
   )
 )
@@ -368,15 +412,23 @@ formula_moves <- function(formula, hierarchy) {
 }
 
 start_for_formulas <- function(fit, formulas, data) {
-  has_smooth <- any(vapply(formulas, function(formula) {
-    any(grepl("^\\s*s\\(", attr(stats::terms(formula), "term.labels")))
-  }, logical(1L)))
-  if (has_smooth) return(NULL)
-  expected <- unlist(Map(function(parameter, formula) {
-    paste(parameter, colnames(stats::model.matrix(formula, data = data)), sep = ".")
-  }, names(formulas), formulas), use.names = FALSE)
-  if (!all(expected %in% names(fit$par))) return(NULL)
-  stats::setNames(as.numeric(fit$par[expected]), expected)
+  if (!inherits(fit, "gamlss.longitudinal")) return(NULL)
+  # The package maps retained fixed coefficients, compatible smooth basis
+  # coefficients, and smoothing penalties by name. Passing the fitted parent
+  # also bypasses the generic five-outer separate warm phase.
+  fit
+}
+
+start_signature <- function(start) {
+  if (!inherits(start, "gamlss.longitudinal")) return(object_md5(start))
+  object_md5(list(
+    par = start$par,
+    par_s = start$par_s,
+    lambda_s = start$lambda_s,
+    margin = start$margin_dist$family,
+    copula = start$copula_dist,
+    formulas = formula_signature(start$formulas)
+  ))
 }
 
 empty_metrics <- function() {
@@ -398,6 +450,10 @@ fit_screening_candidate <- function(task) {
 
   started <- proc.time()[["elapsed"]]
   warnings <- character()
+  optional_formulas <- c(
+    if (has_tau) list(tau.formula = task$formulas$tau) else list(),
+    if (has_zeta) list(zeta.formula = task$formulas$zeta) else list()
+  )
   fit <- tryCatch(
     withCallingHandlers(
       do.call(gamlss_longitudinal, c(list(
@@ -405,7 +461,7 @@ fit_screening_candidate <- function(task) {
         time_var = "week_factor",
         subject_var = "subject",
         margin_dist = getExportedValue("gamlss.dist", margin_family)(),
-        copula_dist = "G", # Gumbel
+        copula_dist = copula_code,
         mu.formula = task$formulas$mu,
         sigma.formula = task$formulas$sigma,
         nu.formula = task$formulas$nu,
@@ -417,7 +473,7 @@ fit_screening_candidate <- function(task) {
         start = task$start,
         compute_vcov = FALSE,
         verbose = 0
-      ), if (has_tau) list(tau.formula = task$formulas$tau) else list())),
+      ), optional_formulas)),
       warning = function(warning) {
         warnings <<- c(warnings, conditionMessage(warning))
         invokeRestart("muffleWarning")
@@ -474,8 +530,8 @@ make_task <- function(
   metadata <- list(
     step = as.integer(step), parameter = parameter, dropped_term = dropped_term,
     change_type = change_type,
-    formulas = formula_signature(formulas), start = start,
-    margin = margin_family, copula = "G", missingness = "segment",
+    formulas = formula_signature(formulas), start_signature = start_signature(start),
+    margin = margin_family, copula = copula_code, missingness = "segment",
     optimizer_control = optimizer_control,
     package_source_fingerprint = package_source_fingerprint,
     r_version = R.version.string,
@@ -516,6 +572,7 @@ candidate_row <- function(
     nu_formula = formula_text(task$formulas$nu),
     tau_formula = if (has_tau) formula_text(task$formulas$tau) else NA_character_,
     theta_formula = formula_text(task$formulas$theta),
+    zeta_formula = if (has_zeta) formula_text(task$formulas$zeta) else NA_character_,
     logLik = unname(result$metrics[["logLik"]]),
     AIC = unname(result$metrics[["AIC"]]),
     BIC = unname(result$metrics[["BIC"]]),
@@ -547,13 +604,38 @@ write_rows <- function(rows, path) {
   invisible(output)
 }
 
+initial_fit <- NULL
+if (nzchar(initial_fit_argument)) {
+  if (!file.exists(initial_fit_argument)) {
+    stop("--initial-fit does not exist: ", initial_fit_argument)
+  }
+  initial_container <- readRDS(initial_fit_argument)
+  initial_fit <- if (inherits(initial_container, "gamlss.longitudinal")) {
+    initial_container
+  } else if (is.list(initial_container) &&
+             inherits(initial_container$fit, "gamlss.longitudinal")) {
+    initial_container$fit
+  } else if (is.list(initial_container)) {
+    initial_container$value
+  } else {
+    NULL
+  }
+  if (!inherits(initial_fit, "gamlss.longitudinal")) {
+    stop("--initial-fit must contain a gamlss.longitudinal fitted object.")
+  }
+  if (!identical(initial_fit$margin_dist$family[[1L]], margin_family) ||
+      !identical(initial_fit$copula_dist, copula_code)) {
+    stop("--initial-fit must use the requested margin and copula route.")
+  }
+}
+
 n_subjects <- length(unique(actg_data$subject))
 n_observed <- sum(is.finite(actg_data$cd4))
 cat(
   "ACTG backward screening\n",
   "  subjects: ", n_subjects, " (", nrow(actg_data), " rows; ", n_observed,
   " observed responses)\n",
-  "  family/copula: ", margin_family, "/Gumbel (G)\n",
+  "  family/copula: ", margin_family, "/", copula_label, "\n",
   "  criterion/hierarchy: ", criterion, "/", hierarchy, "\n",
   "  stage/smooth k: ", stage, "/", smooth_k, "\n",
   "  parameters: ", paste(parameters, collapse = ", "), "\n",
@@ -588,7 +670,7 @@ if (workers > 1L) {
     cluster,
     c(
       "actg_data", "optimizer_control", "resume", "empty_metrics",
-      "fit_screening_candidate", "margin_family", "has_tau"
+      "fit_screening_candidate", "margin_family", "copula_code", "has_tau", "has_zeta"
     ),
     envir = environment()
   )
@@ -606,7 +688,7 @@ candidate_rows <- list()
 path_rows <- list()
 current_formulas <- maximum_formulas
 full_task <- make_task(
-  0L, parameters[[1L]], NA_character_, current_formulas, NULL, "maximum"
+  0L, parameters[[1L]], NA_character_, current_formulas, initial_fit, "maximum"
 )
 cat("\nStep 0: fitting the maximum model...\n")
 current_result <- run_tasks(list(full_task))[[1L]]
@@ -720,7 +802,7 @@ saveRDS(list(
   hierarchy = hierarchy,
   parameters = parameters,
   margin_family = margin_family,
-  copula_family = "Gumbel (G)",
+  copula_family = copula_label,
   missingness = "segment",
   optimizer_control = optimizer_control,
   data_summary = list(
@@ -730,6 +812,7 @@ saveRDS(list(
   ),
   maximum_formulas = maximum_formulas,
   input_formulas = if (nzchar(input_formulas_argument)) normalizePath(input_formulas_argument) else NULL,
+  initial_fit = if (nzchar(initial_fit_argument)) normalizePath(initial_fit_argument) else NULL,
   selected_formulas = current_formulas,
   model_table = model_table,
   accepted_path = path_table,

@@ -22,10 +22,18 @@
 #' @param cg Named list of CG-only controls. See Details.
 #'
 #' @details
-#' RS controls are `inner_tol`, `max_inner_iter`, `max_negative_outer_streak`,
+#' RS controls are `inner_tol`, `max_inner_iter`, `initial_inner_iter`,
+#' `max_negative_outer_streak`,
 #' `start_step_size`, `step_adjustment`, `max_steps`, `warm_start_joint`,
 #' `warm_start_joint_iter`, `use_backtracking`, `backtracking_max_halves`,
-#' `update_lambda`, `smooth_trust_radius`, and `discrete_score_method`.
+#' `adaptive_step_size`, `update_lambda`, `lambda_update_every`,
+#' `bfgs_refine`, `bfgs_refine_after`, `bfgs_method`,
+#' `bfgs_max_refinements`, `bfgs_max_iter`, `bfgs_reltol`,
+#' `bfgs_coordinate_rescue`, `bfgs_coordinate_threshold`,
+#' `bfgs_coordinate_radius`, `bfgs_coordinate_max`,
+#' `bfgs_coordinate_tol`, `bfgs_repolish_iter`,
+#' `smooth_trust_radius`, and
+#' `discrete_score_method`.
 #'
 #' CG controls are `max_stall`, `max_delta`, `armijo_c1`, `grad_tol`,
 #' `step_tol`, `update_lambda`, `lambda_update_every`, `max_lambda_updates`,
@@ -43,10 +51,19 @@
 #' integers. The elapsed budget must be positive or `Inf`.
 #'
 #' RS defaults are `inner_tol = NA`, `max_inner_iter = 100`,
+#' `initial_inner_iter = NA` (use `max_inner_iter` immediately),
 #' `max_negative_outer_streak = 10`, `start_step_size = 0.5`,
 #' `step_adjustment = NA`, `max_steps = 5`, `warm_start_joint = TRUE`,
 #' `warm_start_joint_iter = 5`, `use_backtracking = TRUE`,
-#' `backtracking_max_halves = 50`, `update_lambda = TRUE`,
+#' `backtracking_max_halves = 50`, `adaptive_step_size = FALSE`,
+#' `update_lambda = TRUE`,
+#' `lambda_update_every = 1`,
+#' `bfgs_refine = FALSE`, `bfgs_refine_after = 10`, `bfgs_method = "BFGS"`,
+#' `bfgs_max_refinements = 1`,
+#' `bfgs_max_iter = 100`, `bfgs_reltol = 1e-12`,
+#' `bfgs_coordinate_rescue = FALSE`, `bfgs_coordinate_threshold = 1.5`,
+#' `bfgs_coordinate_radius = 4`, `bfgs_coordinate_max = 10`,
+#' `bfgs_coordinate_tol = 1e-3`, `bfgs_repolish_iter = 50`,
 #' `smooth_trust_radius = Inf`, and `discrete_score_method = "analytical"`.
 #' Counts are non-negative except `max_inner_iter` and
 #' `max_negative_outer_streak`, which are positive; the latter may be `Inf`.
@@ -138,6 +155,7 @@ gamlss_longitudinal_control <- function(
   list(
     inner_tol = NA,
     max_inner_iter = 100L,
+    initial_inner_iter = NA_integer_,
     max_negative_outer_streak = 10L,
     start_step_size = 0.5,
     step_adjustment = NA,
@@ -146,7 +164,21 @@ gamlss_longitudinal_control <- function(
     warm_start_joint_iter = 5L,
     use_backtracking = TRUE,
     backtracking_max_halves = 50L,
+    adaptive_step_size = FALSE,
     update_lambda = TRUE,
+    lambda_update_every = 1L,
+    bfgs_refine = FALSE,
+    bfgs_refine_after = 10L,
+    bfgs_method = "BFGS",
+    bfgs_max_refinements = 1L,
+    bfgs_max_iter = 100L,
+    bfgs_reltol = 1e-12,
+    bfgs_coordinate_rescue = FALSE,
+    bfgs_coordinate_threshold = 1.5,
+    bfgs_coordinate_radius = 4,
+    bfgs_coordinate_max = 10L,
+    bfgs_coordinate_tol = 1e-3,
+    bfgs_repolish_iter = 50L,
     smooth_trust_radius = Inf,
     discrete_score_method = "analytical"
   )
@@ -250,6 +282,21 @@ gamlss_longitudinal_control <- function(
     x <- control$rs
     if (!.gl_is_auto_stop_crit(x$inner_tol)) x$inner_tol <- .gl_validate_stop_crit(x$inner_tol, "rs$inner_tol")
     x$max_inner_iter <- .gl_positive_integer(x$max_inner_iter, "rs$max_inner_iter")
+    if (length(x$initial_inner_iter) != 1L ||
+        (!is.na(x$initial_inner_iter) &&
+          (!is.numeric(x$initial_inner_iter) || !is.finite(x$initial_inner_iter) ||
+            x$initial_inner_iter < 1L ||
+            x$initial_inner_iter != as.integer(x$initial_inner_iter)))) {
+      stop("rs$initial_inner_iter must be a single positive integer or NA.", call. = FALSE)
+    }
+    x$initial_inner_iter <- if (is.na(x$initial_inner_iter)) {
+      x$max_inner_iter
+    } else {
+      as.integer(x$initial_inner_iter)
+    }
+    if (x$initial_inner_iter > x$max_inner_iter) {
+      stop("rs$initial_inner_iter cannot exceed rs$max_inner_iter.", call. = FALSE)
+    }
     if (!(is.numeric(x$max_negative_outer_streak) && length(x$max_negative_outer_streak) == 1L &&
         !is.na(x$max_negative_outer_streak) && x$max_negative_outer_streak > 0)) {
       stop("rs$max_negative_outer_streak must be positive or Inf.", call. = FALSE)
@@ -263,7 +310,45 @@ gamlss_longitudinal_control <- function(
     x$warm_start_joint_iter <- warm$warm_start_joint_iter
     x$use_backtracking <- .gl_scalar_logical(x$use_backtracking, "rs$use_backtracking")
     x$backtracking_max_halves <- .gl_normalize_backtracking_halves(x$backtracking_max_halves)
+    x$adaptive_step_size <- .gl_scalar_logical(
+      x$adaptive_step_size,
+      "rs$adaptive_step_size"
+    )
     x$update_lambda <- .gl_scalar_logical(x$update_lambda, "rs$update_lambda")
+    x$lambda_update_every <- .gl_positive_integer(
+      x$lambda_update_every,
+      "rs$lambda_update_every"
+    )
+    x$bfgs_refine <- .gl_scalar_logical(x$bfgs_refine, "rs$bfgs_refine")
+    x$bfgs_refine_after <- .gl_positive_integer(
+      x$bfgs_refine_after,
+      "rs$bfgs_refine_after"
+    )
+    x$bfgs_method <- match.arg(x$bfgs_method, c("BFGS", "L-BFGS-B"))
+    x$bfgs_max_refinements <- .gl_positive_integer(
+      x$bfgs_max_refinements,
+      "rs$bfgs_max_refinements"
+    )
+    x$bfgs_max_iter <- .gl_positive_integer(x$bfgs_max_iter, "rs$bfgs_max_iter")
+    x$bfgs_reltol <- .gl_positive_number(x$bfgs_reltol, "rs$bfgs_reltol")
+    x$bfgs_coordinate_rescue <- .gl_scalar_logical(
+      x$bfgs_coordinate_rescue, "rs$bfgs_coordinate_rescue"
+    )
+    x$bfgs_coordinate_threshold <- .gl_positive_number(
+      x$bfgs_coordinate_threshold, "rs$bfgs_coordinate_threshold"
+    )
+    x$bfgs_coordinate_radius <- .gl_positive_number(
+      x$bfgs_coordinate_radius, "rs$bfgs_coordinate_radius"
+    )
+    x$bfgs_coordinate_max <- .gl_positive_integer(
+      x$bfgs_coordinate_max, "rs$bfgs_coordinate_max"
+    )
+    x$bfgs_coordinate_tol <- .gl_positive_number(
+      x$bfgs_coordinate_tol, "rs$bfgs_coordinate_tol"
+    )
+    x$bfgs_repolish_iter <- .gl_positive_integer(
+      x$bfgs_repolish_iter, "rs$bfgs_repolish_iter"
+    )
     x$smooth_trust_radius <- .gl_validate_rs_smooth_trust_radius(x$smooth_trust_radius)
     x$discrete_score_method <- match.arg(x$discrete_score_method, c("analytical", "finite"))
     control$rs <- x

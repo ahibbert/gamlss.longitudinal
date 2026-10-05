@@ -30,7 +30,13 @@ calc_Fx_derivatives <- function(eta_inv, mm, margin_dist, response, par_names = 
     # nd_impact[eta_par_names_nd]=(change[2]-change[1])/(2*adj_fac)
     # nd_impact_m[eta_par_names_nd]=(change_m[2]-change_m[1])/(2*adj_fac)
     # nd_impact_c[eta_par_names_nd]=(change_c[2]-change_c[1])/(2*adj_fac)
-    nd_impact_F[[eta_par_names_nd]] <- (change_F[, 2] - change_F[, 1]) / (2 * adj_fac)
+    nd_impact_F[[eta_par_names_nd]] <- .gl_validate_margin_cdf_derivative(
+      (change_F[, 2] - change_F[, 1]) / (2 * adj_fac),
+      response = response,
+      margin_dist = margin_dist,
+      context = "First marginal CDF derivative",
+      parameter = eta_par_names_nd
+    )
   }
   return(nd_impact_F)
 }
@@ -65,7 +71,13 @@ calc_Fx2_derivatives <- function(eta_inv, mm, margin_dist, response, testing = F
     # nd_impact[eta_par_names_nd]=(change[2]-change[1])/(2*adj_fac)
     # nd_impact_m[eta_par_names_nd]=(change_m[2]-change_m[1])/(2*adj_fac)
     nd_impact_c[[eta_par_names_nd]] <- (change_c[, 2] + change_c[, 1] - 2 * change_c[, 3]) / (adj_fac^2)
-    nd_impact_F[[eta_par_names_nd]] <- (change_F[, 2] + change_F[, 1] - 2 * change_F[, 3]) / (adj_fac^2)
+    nd_impact_F[[eta_par_names_nd]] <- .gl_validate_margin_cdf_derivative(
+      (change_F[, 2] + change_F[, 1] - 2 * change_F[, 3]) / (adj_fac^2),
+      response = response,
+      margin_dist = margin_dist,
+      context = "Second marginal CDF derivative",
+      parameter = eta_par_names_nd
+    )
   }
   if (testing == FALSE) {
     return(nd_impact_F)

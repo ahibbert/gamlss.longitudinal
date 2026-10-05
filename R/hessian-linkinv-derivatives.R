@@ -17,7 +17,21 @@
 
   out <- (plus - 2 * base + minus) / (step^2)
 
-  out[!is.finite(out)] <- 0
+  if (any(!is.finite(out))) {
+    stop(structure(
+      list(
+        message = paste0(
+          "Inverse-link second derivative was nonfinite at row(s) ",
+          paste(utils::head(which(!is.finite(out)), 10L), collapse = ", "),
+          if (sum(!is.finite(out)) > 10L) ", ..." else "."
+        ),
+        call = NULL,
+        rows = which(!is.finite(out)),
+        context = "Inverse-link second derivative"
+      ),
+      class = c("gamlss_longitudinal_score_evaluation_error", "error", "condition")
+    ))
+  }
 
   as.numeric(out)
 }

@@ -66,7 +66,10 @@ candidate \code{\link[=gamlss_longitudinal]{gamlss_longitudinal()}} fit output i
 with elapsed time and an estimated remaining runtime.}
 
 \item{fit_args}{Optional named list of arguments overriding the default
-\code{\link[=gamlss_longitudinal]{gamlss_longitudinal()}} screening fit settings.}
+\code{\link[=gamlss_longitudinal]{gamlss_longitudinal()}} screening fit settings. The reserved entry
+\code{optimizer_controls_by_route} may be a named list of
+\code{\link[=gamlss_longitudinal_control]{gamlss_longitudinal_control()}} objects keyed as \code{"MARGIN/COPULA"}; it is
+resolved for each candidate and is not forwarded to the model fitter.}
 
 \item{keep_fits}{Logical; if \code{TRUE}, attach retained fitted models in the
 \code{"fits"} attribute.}

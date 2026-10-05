@@ -1,3 +1,86 @@
+test_that("RS lambda scheduling includes warm fits and defers convergence safely", {
+  scheduled <- vapply(
+    1:13,
+    gamlss.longitudinal:::.gl_rs_lambda_update_scheduled,
+    logical(1L),
+    update_lambda = TRUE,
+    lambda_update_every = 5L
+  )
+  expect_identical(which(scheduled), c(2L, 7L, 12L))
+  expect_true(all(vapply(
+    1:4,
+    gamlss.longitudinal:::.gl_rs_lambda_update_scheduled,
+    logical(1L),
+    update_lambda = FALSE,
+    lambda_update_every = 5L
+  )))
+  expect_identical(
+    gamlss.longitudinal:::.gl_rs_outer_change_for_stopping(
+      1e-6, TRUE, 5L, FALSE
+    ),
+    Inf
+  )
+  expect_equal(
+    gamlss.longitudinal:::.gl_rs_outer_change_for_stopping(
+      1e-6, TRUE, 5L, TRUE
+    ),
+    1e-6
+  )
+})
+
+test_that("RS adaptive inner budget grows only for a block still moving at its cap", {
+  update <- gamlss.longitudinal:::.gl_update_rs_inner_budget
+  expect_identical(update(5L, 20L, 5L, 2e-4, 1e-5), 10L)
+  expect_identical(update(10L, 20L, 10L, 2e-4, 1e-5), 20L)
+  expect_identical(update(5L, 20L, 4L, 2e-4, 1e-5), 5L)
+  expect_identical(update(5L, 20L, 5L, 5e-6, 1e-5), 5L)
+  expect_identical(update(20L, 20L, 20L, 2e-4, 1e-5), 20L)
+})
+
+test_that("RS adaptive block steps retain clean steps and shrink rejected blocks", {
+  update <- gamlss.longitudinal:::.gl_update_rs_block_step
+  clean <- data.frame(
+    rejected = c(FALSE, FALSE),
+    accepted_step_size = c(2, 2),
+    backtracking_attempts = c(0L, 0L)
+  )
+  backed_off <- data.frame(
+    rejected = c(FALSE, FALSE),
+    accepted_step_size = c(1, 1),
+    backtracking_attempts = c(1L, 1L)
+  )
+  rejected <- data.frame(
+    rejected = TRUE,
+    accepted_step_size = 0,
+    backtracking_attempts = 10L
+  )
+  accepted_then_stopped <- data.frame(
+    rejected = c(FALSE, TRUE),
+    accepted_step_size = c(1, 0),
+    backtracking_attempts = c(1L, 2L)
+  )
+
+  expect_equal(update(2, clean, TRUE), list(step_size = 2, rejected = FALSE))
+  expect_equal(update(2, backed_off, TRUE), list(step_size = 1, rejected = FALSE))
+  expect_equal(update(2, rejected, TRUE), list(step_size = 1, rejected = TRUE))
+  expect_equal(
+    update(1, rejected, TRUE, previously_rejected = TRUE),
+    list(step_size = 1, rejected = FALSE)
+  )
+  expect_equal(
+    update(2, accepted_then_stopped, TRUE),
+    list(step_size = 1, rejected = FALSE)
+  )
+  expect_equal(update(2, rejected, FALSE), list(step_size = 2, rejected = FALSE))
+})
+
+test_that("RS adaptive rejection requires a retry at the smaller block step", {
+  update <- gamlss.longitudinal:::.gl_rs_outer_change_after_step_adaptation
+  expect_identical(update(0, TRUE, c(mu = FALSE, tau = TRUE)), Inf)
+  expect_equal(update(0, TRUE, c(mu = FALSE, tau = FALSE)), 0)
+  expect_equal(update(0, FALSE, c(mu = FALSE, tau = TRUE)), 0)
+})
+
 test_that("RS optimizer runner wires loop helpers and returns updated state", {
   calls <- character()
   outer_calls <- 0L

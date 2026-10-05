@@ -4,6 +4,141 @@
 #' margin parameters. These feed the discrete rectangle likelihood derivatives.
 #'
 #' @noRd
+.calc_zibnb_F_bounds_derivatives <- function(
+    eta_inv, response, par_names = c("mu", "sigma", "nu", "tau")) {
+  required <- c("mu", "sigma", "nu", "tau")
+  if (!all(required %in% names(eta_inv))) return(NULL)
+
+  n_obs <- length(response)
+  mu <- rep(as.numeric(eta_inv$mu), length.out = n_obs)
+  sigma <- rep(as.numeric(eta_inv$sigma), length.out = n_obs)
+  nu <- rep(as.numeric(eta_inv$nu), length.out = n_obs)
+  tau <- rep(as.numeric(eta_inv$tau), length.out = n_obs)
+  observed <- is.finite(response)
+  valid <- observed & response >= 0 & response == floor(response) &
+    is.finite(mu) & mu > 0 & is.finite(sigma) & sigma > 0 &
+    is.finite(nu) & nu > 0 & is.finite(tau) & tau > 0 & tau < 1
+  if (any(observed & !valid)) return(NULL)
+
+  q <- integer(n_obs)
+  q[valid] <- as.integer(response[valid])
+  m <- 1 / sigma + 1
+  shape_n <- mu * nu / sigma
+  shape_k <- 1 / nu
+
+  probability <- numeric(n_obs)
+  score_n <- numeric(n_obs)
+  score_m <- numeric(n_obs)
+  score_k <- numeric(n_obs)
+  mass <- numeric(n_obs)
+  mass_score_n <- numeric(n_obs)
+  mass_score_m <- numeric(n_obs)
+  mass_score_k <- numeric(n_obs)
+
+  active <- which(valid)
+  if (length(active)) {
+    p_x <- numeric(n_obs)
+    s_n <- numeric(n_obs)
+    s_m <- numeric(n_obs)
+    s_k <- numeric(n_obs)
+    p_x[active] <- exp(
+      lbeta(shape_n[active], m[active] + shape_k[active]) -
+        lbeta(shape_n[active], m[active])
+    )
+    s_n[active] <- digamma(shape_n[active] + m[active]) -
+      digamma(shape_n[active] + m[active] + shape_k[active])
+    s_m[active] <- digamma(m[active] + shape_k[active]) -
+      digamma(shape_n[active] + m[active] + shape_k[active]) -
+      digamma(m[active]) + digamma(shape_n[active] + m[active])
+    s_k[active] <- digamma(m[active] + shape_k[active]) -
+      digamma(shape_n[active] + m[active] + shape_k[active])
+
+    probability[active] <- p_x[active]
+    score_n[active] <- p_x[active] * s_n[active]
+    score_m[active] <- p_x[active] * s_m[active]
+    score_k[active] <- p_x[active] * s_k[active]
+    at_mass <- active[q[active] == 0L]
+    if (length(at_mass)) {
+      mass[at_mass] <- p_x[at_mass]
+      mass_score_n[at_mass] <- p_x[at_mass] * s_n[at_mass]
+      mass_score_m[at_mass] <- p_x[at_mass] * s_m[at_mass]
+      mass_score_k[at_mass] <- p_x[at_mass] * s_k[at_mass]
+    }
+
+    max_q <- max(q[active])
+    if (max_q >= 1L) {
+      for (x in 0:(max_q - 1L)) {
+        next_active <- active[q[active] >= x + 1L]
+        if (!length(next_active)) break
+        denominator <- x + shape_n[next_active] + m[next_active] + shape_k[next_active]
+        ratio <- ((x + shape_n[next_active]) / denominator) *
+          ((x + shape_k[next_active]) / (x + 1))
+        p_x[next_active] <- p_x[next_active] * ratio
+        s_n[next_active] <- s_n[next_active] +
+          1 / (x + shape_n[next_active]) - 1 / denominator
+        s_m[next_active] <- s_m[next_active] - 1 / denominator
+        s_k[next_active] <- s_k[next_active] - 1 / denominator +
+          1 / (x + shape_k[next_active])
+
+        probability[next_active] <- probability[next_active] + p_x[next_active]
+        score_n[next_active] <- score_n[next_active] +
+          p_x[next_active] * s_n[next_active]
+        score_m[next_active] <- score_m[next_active] +
+          p_x[next_active] * s_m[next_active]
+        score_k[next_active] <- score_k[next_active] +
+          p_x[next_active] * s_k[next_active]
+        at_mass <- next_active[q[next_active] == x + 1L]
+        if (length(at_mass)) {
+          mass[at_mass] <- p_x[at_mass]
+          mass_score_n[at_mass] <- p_x[at_mass] * s_n[at_mass]
+          mass_score_m[at_mass] <- p_x[at_mass] * s_m[at_mass]
+          mass_score_k[at_mass] <- p_x[at_mass] * s_k[at_mass]
+        }
+      }
+    }
+  }
+
+  d_n <- list(upper = score_n, lower = score_n - mass_score_n)
+  d_m <- list(upper = score_m, lower = score_m - mass_score_m)
+  d_k <- list(upper = score_k, lower = score_k - mass_score_k)
+  positive_lower <- valid & q >= 1L
+  zero_lower <- valid & !positive_lower
+
+  derivatives <- list(
+    mu = list(
+      upper = (1 - tau) * d_n$upper * nu / sigma,
+      lower = (1 - tau) * d_n$lower * nu / sigma
+    ),
+    sigma = list(
+      upper = (1 - tau) * (
+        d_n$upper * (-shape_n / sigma) + d_m$upper * (-1 / sigma^2)
+      ),
+      lower = (1 - tau) * (
+        d_n$lower * (-shape_n / sigma) + d_m$lower * (-1 / sigma^2)
+      )
+    ),
+    nu = list(
+      upper = (1 - tau) * (
+        d_n$upper * mu / sigma + d_k$upper * (-1 / nu^2)
+      ),
+      lower = (1 - tau) * (
+        d_n$lower * mu / sigma + d_k$lower * (-1 / nu^2)
+      )
+    ),
+    tau = list(
+      upper = 1 - probability,
+      lower = 1 - (probability - mass)
+    )
+  )
+  for (parameter in names(derivatives)) {
+    derivatives[[parameter]]$upper[!valid] <- 0
+    derivatives[[parameter]]$lower[!positive_lower] <- 0
+    derivatives[[parameter]]$lower[zero_lower] <- 0
+  }
+  derivatives[intersect(par_names, names(derivatives))]
+}
+
+#' @noRd
 .calc_F_bounds_derivatives <- function(eta_inv, mm, margin_dist, response, par_names = NULL, h = 1e-4) {
   if (is.list(mm) && all(c("x", "s") %in% names(mm))) {
     mm <- mm$x
@@ -12,6 +147,16 @@
   margin_par_names <- names(eta_inv)[names(eta_inv) %in% c("mu", "sigma", "nu", "tau")]
   if (!is.null(par_names)) {
     margin_par_names <- intersect(margin_par_names, par_names)
+  }
+
+  if (identical(as.character(margin_dist$family[1L]), "ZIBNB") &&
+      isTRUE(getOption("gamlss.longitudinal.fast_zibnb_cdf_scores", TRUE))) {
+    fast <- .calc_zibnb_F_bounds_derivatives(
+      eta_inv = eta_inv,
+      response = response,
+      par_names = margin_par_names
+    )
+    if (!is.null(fast)) return(fast)
   }
 
   out <- setNames(vector("list", length(margin_par_names)), margin_par_names)
@@ -37,11 +182,21 @@
     Fl_minus <- calc_F_x(eta_minus, mm, margin_dist, response - 1)
 
     out[[pn]] <- list(
-      upper = as.numeric((Fu_plus - Fu_minus) / denom),
-      lower = as.numeric((Fl_plus - Fl_minus) / denom)
+      upper = .gl_validate_margin_cdf_derivative(
+        (Fu_plus - Fu_minus) / denom,
+        response = response,
+        margin_dist = margin_dist,
+        context = "Upper discrete rectangle-bound derivative",
+        parameter = pn
+      ),
+      lower = .gl_validate_margin_cdf_derivative(
+        (Fl_plus - Fl_minus) / denom,
+        response = response,
+        margin_dist = margin_dist,
+        context = "Lower discrete rectangle-bound derivative",
+        parameter = pn
+      )
     )
-    out[[pn]]$upper[!is.finite(out[[pn]]$upper)] <- 0
-    out[[pn]]$lower[!is.finite(out[[pn]]$lower)] <- 0
   }
   out
 }

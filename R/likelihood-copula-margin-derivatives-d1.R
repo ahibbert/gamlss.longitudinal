@@ -31,8 +31,19 @@
       # row_id1 gets (dc/du1)*(du1/dpar)/c, row_id2 gets (dc/du2)*(du2/dpar)/c.
       dlogc_row1 <- (dc_tplus_du_t * du_t_dmu) / c_tplus
       dlogc_row2 <- (dc_tplus_du_tplus * du_t_plus_dmu) / c_tplus
-      dlogc_row1[!is.finite(dlogc_row1)] <- 0
-      dlogc_row2[!is.finite(dlogc_row2)] <- 0
+      pair_included <- if ("pair_complete" %in% colnames(input)) {
+        as.logical(input[, "pair_complete"])
+      } else {
+        rep(TRUE, length(dlogc_row1))
+      }
+      dlogc_row1 <- .gl_score_zero_unobserved_or_stop(
+        dlogc_row1, pair_included,
+        "Continuous merged copula-to-margin first-endpoint score"
+      )
+      dlogc_row2 <- .gl_score_zero_unobserved_or_stop(
+        dlogc_row2, pair_included,
+        "Continuous merged copula-to-margin second-endpoint score"
+      )
 
       dlcopdpar_row1[, i] <- dlogc_row1
       dlcopdpar_row2[, i] <- dlogc_row2

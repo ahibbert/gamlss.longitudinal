@@ -49,10 +49,18 @@ controls apply to both optimizers. Method-specific controls live in the \code{rs
 and \code{cg} lists so that optimizer settings cannot silently leak across routes.
 }
 \details{
-RS controls are \code{inner_tol}, \code{max_inner_iter}, \code{max_negative_outer_streak},
+RS controls are \code{inner_tol}, \code{max_inner_iter}, \code{initial_inner_iter},
+\code{max_negative_outer_streak},
 \code{start_step_size}, \code{step_adjustment}, \code{max_steps}, \code{warm_start_joint},
 \code{warm_start_joint_iter}, \code{use_backtracking}, \code{backtracking_max_halves},
-\code{update_lambda}, \code{smooth_trust_radius}, and \code{discrete_score_method}.
+\code{adaptive_step_size}, \code{update_lambda}, \code{lambda_update_every},
+\code{bfgs_refine}, \code{bfgs_refine_after}, \code{bfgs_method},
+\code{bfgs_max_refinements}, \code{bfgs_max_iter}, \code{bfgs_reltol},
+\code{bfgs_coordinate_rescue}, \code{bfgs_coordinate_threshold},
+\code{bfgs_coordinate_radius}, \code{bfgs_coordinate_max},
+\code{bfgs_coordinate_tol}, \code{bfgs_repolish_iter},
+\code{smooth_trust_radius}, and
+\code{discrete_score_method}.
 
 CG controls are \code{max_stall}, \code{max_delta}, \code{armijo_c1}, \code{grad_tol},
 \code{step_tol}, \code{update_lambda}, \code{lambda_update_every}, \code{max_lambda_updates},
@@ -70,10 +78,19 @@ where an automatic value is documented; iteration counts are positive
 integers. The elapsed budget must be positive or \code{Inf}.
 
 RS defaults are \code{inner_tol = NA}, \code{max_inner_iter = 100},
+\code{initial_inner_iter = NA} (use \code{max_inner_iter} immediately),
 \code{max_negative_outer_streak = 10}, \code{start_step_size = 0.5},
 \code{step_adjustment = NA}, \code{max_steps = 5}, \code{warm_start_joint = TRUE},
 \code{warm_start_joint_iter = 5}, \code{use_backtracking = TRUE},
-\code{backtracking_max_halves = 50}, \code{update_lambda = TRUE},
+\code{backtracking_max_halves = 50}, \code{adaptive_step_size = FALSE},
+\code{update_lambda = TRUE},
+\code{lambda_update_every = 1},
+\code{bfgs_refine = FALSE}, \code{bfgs_refine_after = 10}, \code{bfgs_method = "BFGS"},
+\code{bfgs_max_refinements = 1},
+\code{bfgs_max_iter = 100}, \code{bfgs_reltol = 1e-12},
+\code{bfgs_coordinate_rescue = FALSE}, \code{bfgs_coordinate_threshold = 1.5},
+\code{bfgs_coordinate_radius = 4}, \code{bfgs_coordinate_max = 10},
+\code{bfgs_coordinate_tol = 1e-3}, \code{bfgs_repolish_iter = 50},
 \code{smooth_trust_radius = Inf}, and \code{discrete_score_method = "analytical"}.
 Counts are non-negative except \code{max_inner_iter} and
 \code{max_negative_outer_streak}, which are positive; the latter may be \code{Inf}.

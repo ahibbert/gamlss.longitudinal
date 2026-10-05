@@ -23,7 +23,7 @@ build_copula_pair_cache <- function(response, response_margin, response_subject)
   margin_names <- sort(unique(response_margin))
   num_margins <- length(margin_names)
   n_obs <- length(response)
-  obs_response <- !is.na(response)
+  obs_response <- is.finite(response)
   segment_id <- .gl_observation_segments(
     response = response,
     time = response_margin,

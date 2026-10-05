@@ -112,7 +112,7 @@
     response,
     h = 1e-5) {
   n_obs <- length(response)
-  observed <- !is.na(response)
+  observed <- is.finite(response)
   out <- numeric(n_obs)
   if (!any(observed) || !par_name %in% names(margin_deriv_input)) return(out)
 
@@ -173,7 +173,7 @@
     calc_margin_deriv = TRUE,
     margin_deriv_names = NULL) {
   n_obs <- length(response)
-  obs_response <- !is.na(response)
+  obs_response <- is.finite(response)
   margin_deriv <- list()
   if (isTRUE(calc_margin_deriv)) {
     margin_deriv_cache <- margin_eval_cache$margin_deriv_cache
@@ -287,7 +287,7 @@
     calc_margin_deriv = TRUE,
     margin_deriv_names = NULL) {
   n_obs <- length(response)
-  obs_response <- !is.na(response)
+  obs_response <- is.finite(response)
 
   margin_deriv_input <- .gl_likelihood_margin_derivative_input(
     eta_inv = eta_inv,
@@ -306,24 +306,18 @@
   )
 
   observed_input <- .gl_likelihood_subset_row_input(margin_deriv_input, obs_response, n_obs)
-  margin_p <- rep(NA_real_, n_obs)
-  if (any(obs_response)) {
-    FUN_args <- names(observed_input)[names(observed_input) %in% margin_eval_cache$margin_p_args]
-    observed_p <- .call_fast_count_family("p", margin_dist$family[1], observed_input)
-    if (is.null(observed_p)) {
-      observed_p <- .call_margin_family_cached(
-        margin_eval_cache$margin_pFUN,
-        observed_input,
-        FUN_args,
-        cacheable = discrete_margin,
-        cache_env = margin_eval_cache$family_call_cache,
-        cache_prefix = paste0(margin_dist$family[1], ":p:upper"),
-        force_scalar = margin_eval_cache$force_scalar_family
-      )
-    }
-    margin_p[obs_response] <- observed_p
-  }
-  margin_p[!is.finite(margin_p)] <- NA
+  margin_p <- .gl_evaluate_margin_cdf(
+    input = margin_deriv_input,
+    margin_dist = margin_dist,
+    response = response,
+    FUN = margin_eval_cache$margin_pFUN,
+    FUN_args = margin_eval_cache$margin_p_args,
+    cacheable = discrete_margin,
+    cache_env = margin_eval_cache$family_call_cache,
+    cache_prefix = paste0(margin_dist$family[1], ":p:upper"),
+    use_fast = discrete_margin,
+    strict = FALSE
+  )
 
   margin_d <- rep(NA_real_, n_obs)
   margin_log_d <- rep(NA_real_, n_obs)

@@ -34,12 +34,15 @@
   list(
     start_from = warm_fit$par,
     warm_start_par_s = warm_start_par_s,
+    warm_start_lambda_s = warm_fit$lambda_s,
     warm_start_info = list(
       used = TRUE,
       outer_iter = warm_start_joint_iter,
       include_dlcopdpar = FALSE,
       log_lik = warm_fit$calc_lik_out_end$log_lik,
       carries_smooth = !is.null(warm_start_par_s) && any(vapply(warm_start_par_s, length, integer(1L)) > 0L),
+      carries_lambda = !is.null(warm_fit$lambda_s) &&
+        length(unlist(warm_fit$lambda_s, use.names = FALSE)) > 0L,
       captured_output = warm_output,
       captured_warnings = warm_warnings
     )

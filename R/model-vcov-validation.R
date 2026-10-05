@@ -27,12 +27,16 @@
     paste(codes, collapse = ", "), "). Calculated covariance, standard errors, ",
     "and downstream inference are being returned; interpret them with caution."
   )
+  warning_classes <- c(
+    if (any(codes %in% c("fitted_gradient_not_checked", "fitted_gradient_too_large"))) {
+      "gamlss_longitudinal_stationarity_warning"
+    },
+    "gamlss_longitudinal_inference_warning",
+    "warning", "condition"
+  )
   structure(
     list(message = message, call = NULL, diagnostics = diagnostics),
-    class = c(
-      "gamlss_longitudinal_inference_warning",
-      "warning", "condition"
-    )
+    class = warning_classes
   )
 }
 
@@ -209,6 +213,13 @@
   }
 
   gradient_scaled_max <- if (is.null(gradient)) NA_real_ else gradient$scaled_max
+  stationarity_status <- if (is.null(gradient)) {
+    "not_checked"
+  } else if (is.finite(gradient_scaled_max) && gradient_scaled_max <= control$gradient_tol) {
+    "passed"
+  } else {
+    "failed"
+  }
   if (is.null(gradient)) {
     add_failure("fitted_gradient_not_checked")
   } else if (
@@ -281,6 +292,16 @@
     fitted_gradient = gradient$gradient %||% NULL,
     fitted_gradient_steps = gradient$steps %||% NULL,
     scaled_gradient_max = gradient_scaled_max,
+    stationarity_status = stationarity_status,
+    stationarity_scaled_gradient_max = gradient_scaled_max,
+    stationarity_tolerance = control$gradient_tol,
+    stationarity_warning_code = if (identical(stationarity_status, "failed")) {
+      "fitted_gradient_too_large"
+    } else if (identical(stationarity_status, "not_checked")) {
+      "fitted_gradient_not_checked"
+    } else {
+      NA_character_
+    },
     hessian_agreement_relative = agreement_relative,
     covariance_diagonal = covariance_diagonal
   )

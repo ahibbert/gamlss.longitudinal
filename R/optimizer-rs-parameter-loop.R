@@ -2,6 +2,72 @@
 #' and updating parameter estimates and likelihood etc.
 #'
 #' @noRd
+.gl_update_rs_inner_budget <- function(
+    current_budget,
+    max_inner_iter,
+    iterations_used,
+    final_loglik_change,
+    inner_stop_crit) {
+  still_moving_at_cap <- iterations_used >= current_budget &&
+    is.finite(final_loglik_change) &&
+    abs(final_loglik_change) > inner_stop_crit
+  if (!isTRUE(still_moving_at_cap) || current_budget >= max_inner_iter) {
+    return(as.integer(current_budget))
+  }
+  min(
+    as.integer(max_inner_iter),
+    max(as.integer(current_budget) + 1L, 2L * as.integer(current_budget))
+  )
+}
+
+#' Adapt one RS block's nominal step after its accepted/rejected trace
+#'
+#' @noRd
+.gl_update_rs_block_step <- function(
+    nominal_step,
+    block_trace,
+    adaptive_step_size,
+    previously_rejected = FALSE) {
+  if (!isTRUE(adaptive_step_size) || !is.data.frame(block_trace) || !nrow(block_trace)) {
+    return(list(step_size = nominal_step, rejected = FALSE))
+  }
+  accepted <- block_trace$accepted_step_size[
+    is.finite(block_trace$accepted_step_size) & block_trace$accepted_step_size > 0
+  ]
+  rejected <- any(block_trace$rejected %in% TRUE) && !length(accepted)
+  if (rejected && !isTRUE(previously_rejected)) {
+    return(list(step_size = nominal_step / 2, rejected = TRUE))
+  }
+  # A block that cannot move even on its one reduced-step, no-backtracking
+  # retry has exhausted the adaptive proposal. Do not halve indefinitely or
+  # prevent the unchanged outer convergence contract from being evaluated.
+  if (rejected) {
+    return(list(step_size = nominal_step, rejected = FALSE))
+  }
+  if (length(accepted) && any(block_trace$backtracking_attempts > 0L)) {
+    nominal_step <- min(nominal_step, stats::median(accepted))
+  }
+  list(step_size = nominal_step, rejected = FALSE)
+}
+
+#' Slice newly appended RS trace rows regardless of storage representation
+#'
+#' @noRd
+.gl_rs_new_block_trace <- function(rs_block_trace, start_index) {
+  trace_size <- if (is.data.frame(rs_block_trace)) {
+    nrow(rs_block_trace)
+  } else {
+    length(rs_block_trace)
+  }
+  if (trace_size <= start_index) return(data.frame())
+  indices <- seq.int(start_index + 1L, trace_size)
+  if (is.data.frame(rs_block_trace)) {
+    return(rs_block_trace[indices, , drop = FALSE])
+  }
+  do.call(rbind, rs_block_trace[indices])
+}
+
+#' @noRd
 .gl_run_rs_parameter_iterations <- function(
     mm,
     verbose,
@@ -33,10 +99,17 @@
     rs_block_trace,
     use_backtracking,
     backtracking_max_halves,
+    rs_adaptive_step_size = FALSE,
+    rs_block_step_sizes = stats::setNames(rep(step_size, length(mm$x)), names(mm$x)),
+    rs_block_rejected_last = stats::setNames(rep(FALSE, length(mm$x)), names(mm$x)),
     plot_results,
     true_val,
     inner_stop_crit,
     max_inner_iter,
+    rs_inner_budgets = stats::setNames(
+      rep(as.integer(max_inner_iter), length(mm$x)),
+      names(mm$x)
+    ),
     weights_final,
     inner_continue_fn,
     initialize_parameter_state_fn,
@@ -48,6 +121,11 @@
 
   # For each parameter in the model, run the inner iteration (GLIM) loop to update the parameter estimates
   for (par_name in names(mm$x)) {
+    block_trace_start <- if (is.data.frame(rs_block_trace)) {
+      nrow(rs_block_trace)
+    } else {
+      length(rs_block_trace)
+    }
     if (verbose > 2) {
       cat(paste("\nINNER ITERATION: Parameter:", par_name))
     }
@@ -58,6 +136,18 @@
     beta_change_inner <- rs_parameter_state$beta_change_inner
     run_counter <- rs_parameter_state$run_counter
     inner_run_counter <- rs_parameter_state$inner_run_counter
+    block_inner_budget <- min(
+      as.integer(max_inner_iter),
+      as.integer(rs_inner_budgets[[par_name]] %||% max_inner_iter)
+    )
+    block_step_size <- min(
+      as.numeric(step_size),
+      as.numeric(rs_block_step_sizes[[par_name]] %||% step_size)
+    )
+    block_backtracking_halves <- if (
+      isTRUE(rs_adaptive_step_size) &&
+      isTRUE(rs_block_rejected_last[[par_name]])
+    ) 0L else backtracking_max_halves
 
     # INNER ITERATION (GLIM)
 
@@ -67,7 +157,7 @@
       change_log_lik = change_log_lik,
       inner_stop_crit = inner_stop_crit,
       inner_run_counter = inner_run_counter,
-      max_inner_iter = max_inner_iter
+      max_inner_iter = block_inner_budget
     )) {
       timer <- c()
       timer_start <- time_fn()
@@ -104,14 +194,14 @@
         lambda_penalty_K = lambda_penalty_K,
         lambda_s = lambda_s,
         df_s = df_s,
-        step_size = step_size,
+        step_size = block_step_size,
         rs_update_lambda = rs_update_lambda,
         inner_run_counter = inner_run_counter,
         outer_run_counter = outer_run_counter,
         rs_block_trace = rs_block_trace,
         run_counter = run_counter,
         use_backtracking = use_backtracking,
-        backtracking_max_halves = backtracking_max_halves,
+        backtracking_max_halves = block_backtracking_halves,
         plot_results = plot_results,
         true_val = true_val,
         likelihood_state_fn = likelihood_state_fn,
@@ -138,6 +228,24 @@
       # print(timer)
     }
 
+    iterations_used <- as.integer(inner_run_counter) - 1L
+    rs_inner_budgets[[par_name]] <- .gl_update_rs_inner_budget(
+      current_budget = block_inner_budget,
+      max_inner_iter = max_inner_iter,
+      iterations_used = iterations_used,
+      final_loglik_change = change_log_lik,
+      inner_stop_crit = inner_stop_crit
+    )
+    block_trace <- .gl_rs_new_block_trace(rs_block_trace, block_trace_start)
+    step_state <- .gl_update_rs_block_step(
+      nominal_step = block_step_size,
+      block_trace = block_trace,
+      adaptive_step_size = rs_adaptive_step_size,
+      previously_rejected = isTRUE(rs_block_rejected_last[[par_name]])
+    )
+    rs_block_step_sizes[[par_name]] <- step_state$step_size
+    rs_block_rejected_last[[par_name]] <- step_state$rejected
+
     weights_final[[par_name]] <- score$w_k
   }
 
@@ -153,6 +261,9 @@
     first_outer_run = first_outer_run,
     outer_start_log_lik = outer_start_log_lik,
     log_lik_history = log_lik_history,
-    par_history = par_history
+    par_history = par_history,
+    rs_inner_budgets = rs_inner_budgets,
+    rs_block_step_sizes = rs_block_step_sizes,
+    rs_block_rejected_last = rs_block_rejected_last
   )
 }

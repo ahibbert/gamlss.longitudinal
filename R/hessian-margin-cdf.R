@@ -17,33 +17,22 @@
 .calc_dFdpar <- function(eta_inv, mm, margin_dist, response, h = 1e-4) {
   cdf_setup <- .hessian_margin_cdf_setup(eta_inv, margin_dist, response)
   margin_pars <- cdf_setup$margin_pars
-  pfun <- cdf_setup$pfun
-  valid_args_base <- cdf_setup$args_base
 
   result <- vector("list", length(margin_pars))
 
   names(result) <- margin_pars
 
   for (pn in margin_pars) {
-    args_p <- valid_args_base
-
-    args_m <- valid_args_base
-
-    hp <- .natural_fd_step(as.numeric(args_p[[pn]]), pn, margin_dist, h)
-
-    args_p[[pn]] <- args_p[[pn]] + hp
-
-    args_m[[pn]] <- args_m[[pn]] - hp
-
-    Fp <- do.call(pfun, args_p)
-
-    Fm <- do.call(pfun, args_m)
-
-    dF <- (Fp - Fm) / (2 * hp)
-
-    dF[!is.finite(dF)] <- 0
-
-    result[[pn]] <- as.numeric(dF)
+    eta_p <- eta_m <- eta_inv
+    hp <- .natural_fd_step(as.numeric(eta_inv[[pn]]), pn, margin_dist, h)
+    eta_p[[pn]] <- eta_p[[pn]] + hp
+    eta_m[[pn]] <- eta_m[[pn]] - hp
+    Fp <- calc_F_x(eta_p, mm, margin_dist, response)
+    Fm <- calc_F_x(eta_m, mm, margin_dist, response)
+    result[[pn]] <- .gl_validate_margin_cdf_derivative(
+      (Fp - Fm) / (2 * hp), response, margin_dist,
+      context = "Analytical-Hessian first CDF derivative", parameter = pn
+    )
   }
 
   result
@@ -58,37 +47,23 @@
 .calc_d2Fdpar2 <- function(eta_inv, mm, margin_dist, response, h = 1e-4) {
   cdf_setup <- .hessian_margin_cdf_setup(eta_inv, margin_dist, response)
   margin_pars <- cdf_setup$margin_pars
-  pfun <- cdf_setup$pfun
-  valid_args_base <- cdf_setup$args_base
-
-  F0 <- do.call(pfun, valid_args_base)
-
-  F0[!is.finite(F0)] <- NA
+  F0 <- calc_F_x(eta_inv, mm, margin_dist, response)
 
   result <- vector("list", length(margin_pars))
 
   names(result) <- margin_pars
 
   for (pn in margin_pars) {
-    args_p <- valid_args_base
-
-    args_m <- valid_args_base
-
-    hp <- .natural_fd_step(as.numeric(args_p[[pn]]), pn, margin_dist, h)
-
-    args_p[[pn]] <- args_p[[pn]] + hp
-
-    args_m[[pn]] <- args_m[[pn]] - hp
-
-    Fp <- do.call(pfun, args_p)
-
-    Fm <- do.call(pfun, args_m)
-
-    d2F <- (Fp + Fm - 2 * F0) / (hp^2)
-
-    d2F[!is.finite(d2F)] <- 0
-
-    result[[pn]] <- as.numeric(d2F)
+    eta_p <- eta_m <- eta_inv
+    hp <- .natural_fd_step(as.numeric(eta_inv[[pn]]), pn, margin_dist, h)
+    eta_p[[pn]] <- eta_p[[pn]] + hp
+    eta_m[[pn]] <- eta_m[[pn]] - hp
+    Fp <- calc_F_x(eta_p, mm, margin_dist, response)
+    Fm <- calc_F_x(eta_m, mm, margin_dist, response)
+    result[[pn]] <- .gl_validate_margin_cdf_derivative(
+      (Fp + Fm - 2 * F0) / (hp^2), response, margin_dist,
+      context = "Analytical-Hessian second CDF derivative", parameter = pn
+    )
   }
 
   result
@@ -103,8 +78,6 @@
 .calc_d2Fdpar_cross <- function(eta_inv, mm, margin_dist, response, h = 1e-4) {
   cdf_setup <- .hessian_margin_cdf_setup(eta_inv, margin_dist, response)
   margin_pars <- cdf_setup$margin_pars
-  pfun <- cdf_setup$pfun
-  valid_args_base <- cdf_setup$args_base
 
   n_par <- length(margin_pars)
 
@@ -132,39 +105,33 @@
     for (j in (i + 1):n_par) {
       pn2 <- margin_pars[j]
 
-      h1 <- .natural_fd_step(as.numeric(valid_args_base[[pn1]]), pn1, margin_dist, h)
+      h1 <- .natural_fd_step(as.numeric(eta_inv[[pn1]]), pn1, margin_dist, h)
 
-      h2 <- .natural_fd_step(as.numeric(valid_args_base[[pn2]]), pn2, margin_dist, h)
+      h2 <- .natural_fd_step(as.numeric(eta_inv[[pn2]]), pn2, margin_dist, h)
 
       # 4-point mixed-derivative formula
 
-      args_pp <- valid_args_base
-      args_pp[[pn1]] <- args_pp[[pn1]] + h1
-      args_pp[[pn2]] <- args_pp[[pn2]] + h2
+      eta_pp <- eta_pm <- eta_mp <- eta_mm <- eta_inv
+      eta_pp[[pn1]] <- eta_pp[[pn1]] + h1
+      eta_pp[[pn2]] <- eta_pp[[pn2]] + h2
+      eta_pm[[pn1]] <- eta_pm[[pn1]] + h1
+      eta_pm[[pn2]] <- eta_pm[[pn2]] - h2
+      eta_mp[[pn1]] <- eta_mp[[pn1]] - h1
+      eta_mp[[pn2]] <- eta_mp[[pn2]] + h2
+      eta_mm[[pn1]] <- eta_mm[[pn1]] - h1
+      eta_mm[[pn2]] <- eta_mm[[pn2]] - h2
 
-      args_pm <- valid_args_base
-      args_pm[[pn1]] <- args_pm[[pn1]] + h1
-      args_pm[[pn2]] <- args_pm[[pn2]] - h2
+      Fpp <- calc_F_x(eta_pp, mm, margin_dist, response)
+      Fpm <- calc_F_x(eta_pm, mm, margin_dist, response)
+      Fmp <- calc_F_x(eta_mp, mm, margin_dist, response)
+      Fmm <- calc_F_x(eta_mm, mm, margin_dist, response)
 
-      args_mp <- valid_args_base
-      args_mp[[pn1]] <- args_mp[[pn1]] - h1
-      args_mp[[pn2]] <- args_mp[[pn2]] + h2
-
-      args_mm <- valid_args_base
-      args_mm[[pn1]] <- args_mm[[pn1]] - h1
-      args_mm[[pn2]] <- args_mm[[pn2]] - h2
-
-      Fpp <- do.call(pfun, args_pp)
-
-      Fpm <- do.call(pfun, args_pm)
-
-      Fmp <- do.call(pfun, args_mp)
-
-      Fmm <- do.call(pfun, args_mm)
-
-      d2F <- (Fpp - Fpm - Fmp + Fmm) / (4 * h1 * h2)
-
-      d2F[!is.finite(d2F)] <- 0
+      d2F <- .gl_validate_margin_cdf_derivative(
+        (Fpp - Fpm - Fmp + Fmm) / (4 * h1 * h2),
+        response, margin_dist,
+        context = "Analytical-Hessian cross CDF derivative",
+        parameter = paste(pn1, pn2, sep = "/")
+      )
 
       result[[pn1]][[pn2]] <- as.numeric(d2F)
 

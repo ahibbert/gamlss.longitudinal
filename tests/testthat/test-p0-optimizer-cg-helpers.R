@@ -633,6 +633,35 @@ test_that("CG beta evaluator rejects invalid positive distribution parameters", 
   expect_null(out)
 })
 
+test_that("CG beta evaluator accepts valid positive parameters below numerical epsilon", {
+  dataset <- data.frame(response = 1, time = 1, subject = "a")
+  mm_cg <- list(x = list(mu = matrix(1, nrow = 1)), s = list(mu = list()))
+  likelihood_called <- FALSE
+
+  out <- gamlss.longitudinal:::.gl_evaluate_cg_beta(
+    beta_vec = c(`mu.(Intercept)` = 1),
+    mm_cg = mm_cg,
+    par_cov_template = c(`mu.(Intercept)` = 1),
+    par_s_template = list(mu = list()),
+    margin_dist = gamlss.dist::NO(),
+    copula_link = "identity",
+    copula_dist = "G",
+    dataset = dataset,
+    pair_cache = list(),
+    margin_eval_cache = list(),
+    calc_eta_fn = function(...) {
+      list(eta_inv = list(mu = 1, sigma = 1e-12, tau = 1e-12, theta = 1.2))
+    },
+    likelihood_fn = function(...) {
+      likelihood_called <<- TRUE
+      list(valid = TRUE, log_lik = c(marginal = -1, copula = 0, joint = -1))
+    }
+  )
+
+  expect_true(likelihood_called)
+  expect_equal(out$loglik, -1)
+})
+
 test_that("CG beta evaluator converts likelihood errors to invalid candidate", {
   dataset <- data.frame(response = 1, time = 1, subject = "a")
   mm_cg <- list(x = list(mu = matrix(1, nrow = 1)), s = list(mu = list()))

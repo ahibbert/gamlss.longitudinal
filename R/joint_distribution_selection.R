@@ -31,7 +31,10 @@
 #' @param progress Logical; if `TRUE`, print candidate-level progress messages
 #'   with elapsed time and an estimated remaining runtime.
 #' @param fit_args Optional named list of arguments overriding the default
-#'   [gamlss_longitudinal()] screening fit settings.
+#'   [gamlss_longitudinal()] screening fit settings. The reserved entry
+#'   `optimizer_controls_by_route` may be a named list of
+#'   [gamlss_longitudinal_control()] objects keyed as `"MARGIN/COPULA"`; it is
+#'   resolved for each candidate and is not forwarded to the model fitter.
 #' @param keep_fits Logical; if `TRUE`, attach retained fitted models in the
 #'   `"fits"` attribute.
 #' @param margin_args Named fixed marginal arguments. Binomial candidates

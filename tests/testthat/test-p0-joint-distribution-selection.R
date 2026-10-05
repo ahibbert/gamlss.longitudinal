@@ -166,6 +166,54 @@ test_that("joint distribution fit formulas preserve time-intercept policies", {
   expect_match(deparse(time_specific$theta_formula), "~factor\\(visit\\)")
 })
 
+test_that("joint distribution screening resolves optimizer controls by route", {
+  skip_if_not_installed("gamlss")
+
+  dat <- simulate_longitudinal_dataset(
+    n = 8,
+    times = 1:3,
+    margin_dist = gamlss.dist::NO(),
+    margin_params = list(mu = 0, sigma = 1),
+    copula_dist = "N",
+    copula_params = list(theta = 0.2),
+    seed = 1013
+  )
+  controls <- list(
+    `NO/N` = gamlss_longitudinal_control(
+      outer_tol = 1,
+      max_outer_iter = 2L,
+      rs = list(max_inner_iter = 2L, warm_start_joint = FALSE)
+    ),
+    `NO/C` = gamlss_longitudinal_control(
+      outer_tol = 1,
+      max_outer_iter = 2L,
+      rs = list(max_inner_iter = 3L, warm_start_joint = FALSE)
+    )
+  )
+
+  selected <- select_joint_distribution(
+    data = dat,
+    response_var = "response",
+    time_var = "time",
+    subject_var = "subject",
+    type = "realAll",
+    margin_families = "NO",
+    copula_families = c("N", "C"),
+    progress = FALSE,
+    isolate_candidates = "never",
+    keep_fits = TRUE,
+    fit_args = list(optimizer_controls_by_route = controls)
+  )
+
+  fits <- attr(selected, "fits")
+  resolved <- stats::setNames(
+    vapply(fits, function(fit) fit$optimizer_control_requested$rs$max_inner_iter,
+           integer(1L)),
+    vapply(fits, function(fit) fit$copula_dist, character(1L))
+  )
+  expect_identical(resolved[c("N", "C")], c(N = 2L, C = 3L))
+})
+
 test_that("joint distribution fit row helpers preserve success and failure schemas", {
   fit <- list(convergence = list(converged = TRUE, hit_outer_limit = FALSE))
   fit_metrics <- list(

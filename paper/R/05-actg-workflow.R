@@ -185,23 +185,72 @@ jss_actg_data_summary <- function(data) {
   )
 }
 
-jss_actg_optimizer_control <- function(max_elapsed_sec = 7200) {
+jss_actg_optimizer_control <- function(
+    max_elapsed_sec = 1200,
+    margin_family = "ZIBNB",
+    copula_family = "t",
+    screening = TRUE) {
+  margin_family <- toupper(margin_family)
+  copula_family <- if (tolower(copula_family) == "t") "t" else toupper(copula_family)
+  route <- paste(margin_family, copula_family, sep = "/")
+  refinement <- switch(
+    route,
+    `ZISICHEL/G` = list(after = if (isTRUE(screening)) 2L else 10L,
+                         iterations = 100L, refinements = 1L,
+                         rescue = FALSE, repolish = 50L),
+    `ZIBNB/G` = list(after = 2L, iterations = 170L, refinements = 1L,
+                      rescue = FALSE, repolish = 50L),
+    `ZISICHEL/t` = list(after = 1L, iterations = 120L, refinements = 1L,
+                         rescue = FALSE, repolish = 50L),
+    `ZIBNB/t` = list(after = 1L, iterations = 40L, refinements = 2L,
+                      rescue = TRUE, repolish = 40L),
+    list(after = 10L, iterations = 100L, refinements = 1L,
+         rescue = FALSE, repolish = 50L)
+  )
   gamlss_longitudinal_control(
     outer_tol = 1e-4,
     max_outer_iter = 50L,
     max_elapsed_sec = max_elapsed_sec,
     rs = list(
       inner_tol = 1e-5,
-      max_inner_iter = 100L,
+      max_inner_iter = 20L,
+      initial_inner_iter = 5L,
+      start_step_size = 2,
       warm_start_joint = TRUE,
-      warm_start_joint_iter = 5L,
+      warm_start_joint_iter = 2L,
+      use_backtracking = TRUE,
+      backtracking_max_halves = 2L,
+      adaptive_step_size = FALSE,
+      update_lambda = TRUE,
+      lambda_update_every = 5L,
+      bfgs_refine = margin_family %in% c("ZISICHEL", "ZIBNB"),
+      bfgs_refine_after = refinement$after,
+      bfgs_max_refinements = refinement$refinements,
+      bfgs_max_iter = refinement$iterations,
+      bfgs_reltol = 1e-12,
+      bfgs_coordinate_rescue = refinement$rescue,
+      bfgs_repolish_iter = refinement$repolish,
       discrete_score_method = "analytical"
     )
   )
 }
 
 jss_actg_screen <- function(data, settings) {
-  control <- jss_actg_optimizer_control()
+  screen_margins <- c("ZIBNB", "ZIPIG", "ZISICHEL")
+  screen_copulas <- c("t", "G")
+  route_controls <- stats::setNames(
+    lapply(
+      as.vector(outer(screen_margins, screen_copulas, paste, sep = "/")),
+      function(route) {
+        fields <- strsplit(route, "/", fixed = TRUE)[[1L]]
+        jss_actg_optimizer_control(
+          margin_family = fields[[1L]], copula_family = fields[[2L]],
+          screening = TRUE
+        )
+      }
+    ),
+    as.vector(outer(screen_margins, screen_copulas, paste, sep = "/"))
+  )
   pooled <- jss_actg_capture(select_margin(
     data = data,
     time_var = "week_factor",
@@ -232,8 +281,8 @@ jss_actg_screen <- function(data, settings) {
     time_var = "week_factor",
     subject_var = "subject",
     response_var = "cd4",
-    margin_families = c("ZIBNB", "ZIPIG", "ZISICHEL"),
-    copula_families = c("t", "G"),
+    margin_families = screen_margins,
+    copula_families = screen_copulas,
     progress = FALSE,
     checkpoint_dir = checkpoint_dir,
     resume = TRUE,
@@ -241,7 +290,7 @@ jss_actg_screen <- function(data, settings) {
       missingness = "segment",
       method = "RS",
       optimization = "joint",
-      optimizer_control = control,
+      optimizer_controls_by_route = route_controls,
       compute_vcov = FALSE,
       verbose = 0
     )
@@ -311,7 +360,9 @@ jss_actg_fit_primary <- function(data) {
     missingness = "segment",
     method = "RS",
     optimization = "joint",
-    optimizer_control = jss_actg_optimizer_control(),
+    optimizer_control = jss_actg_optimizer_control(
+      margin_family = "ZISICHEL", copula_family = "G", screening = FALSE
+    ),
     verbose = 0
   ))
   if (!inherits(fit$value, "gamlss.longitudinal") ||
@@ -375,7 +426,9 @@ jss_actg_fit_candidate <- function(data, family, formulas) {
     missingness = "segment",
     method = "RS",
     optimization = "joint",
-    optimizer_control = jss_actg_optimizer_control(),
+    optimizer_control = jss_actg_optimizer_control(
+      margin_family = family, copula_family = "G", screening = FALSE
+    ),
     compute_vcov = FALSE,
     verbose = 0
   ))
@@ -454,7 +507,9 @@ jss_actg_fit_sensitivity <- function(data) {
     missingness = "segment",
     method = "RS",
     optimization = "joint",
-    optimizer_control = jss_actg_optimizer_control(),
+    optimizer_control = jss_actg_optimizer_control(
+      margin_family = "ZISICHEL", copula_family = "G", screening = FALSE
+    ),
     compute_vcov = FALSE,
     verbose = 0
   ))

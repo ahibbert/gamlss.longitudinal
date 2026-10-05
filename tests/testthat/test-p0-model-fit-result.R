@@ -226,6 +226,7 @@ test_that("final fit object assembly preserves fitted object fields and traces",
     method = "RS",
     warm_start_info = list(used = FALSE),
     rs_block_trace = list(data.frame(parameter = "mu", accepted = TRUE)),
+    rs_bfgs_diagnostics = list(enabled = TRUE, used = TRUE, accepted = TRUE),
     cg_lambda_trace = data.frame(),
     cg_step_trace = list(),
     convergence_info = convergence_info,
@@ -243,6 +244,7 @@ test_that("final fit object assembly preserves fitted object fields and traces",
   expect_identical(fit$response_var, "response")
   expect_true(is.data.frame(fit$rs_block_trace))
   expect_equal(fit$rs_block_trace$parameter, "mu")
+  expect_true(fit$rs_bfgs_diagnostics$accepted)
   expect_false(fit$vcov_meta$precomputed)
   expect_identical(fit$vcov_meta$method, "analytical")
 })

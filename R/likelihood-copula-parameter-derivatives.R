@@ -25,6 +25,27 @@ calc_copula_derivatives <- function(eta_inv, Fx_1_2, copula_dist, calc_d2 = FALS
   derivatives <- unique(as.character(derivatives))
   want <- function(name) name %in% derivatives
   zero_vec <- function() numeric(length(par1))
+  validate_pair <- function(value, context, positive = FALSE, excluded_value = 0) {
+    value <- as.numeric(value)
+    bad <- pair_complete & (!is.finite(value) | (positive & value <= 0))
+    if (any(bad)) {
+      stop(structure(
+        list(
+          message = paste0(
+            context, " was invalid for complete copula pair(s) ",
+            paste(utils::head(which(bad), 10L), collapse = ", "),
+            if (sum(bad) > 10L) ", ..." else "."
+          ),
+          call = NULL,
+          rows = which(bad),
+          context = context
+        ),
+        class = c("gamlss_longitudinal_score_evaluation_error", "error", "condition")
+      ))
+    }
+    value[!pair_complete] <- excluded_value
+    value
+  }
 
   if (length(par1) == 0) {
     if (has_zeta) {
@@ -40,14 +61,27 @@ calc_copula_derivatives <- function(eta_inv, Fx_1_2, copula_dist, calc_d2 = FALS
   }
 
   Fx_eval <- as.matrix(Fx_1_2)
-  Fx_eval[!is.finite(Fx_eval)] <- 0.5
+  complete_matrix <- matrix(pair_complete, nrow = length(pair_complete), ncol = 2L)
+  bad_Fx <- complete_matrix & (!is.finite(Fx_eval) | Fx_eval < 0 | Fx_eval > 1)
+  if (any(bad_Fx)) {
+    stop(structure(
+      list(
+        message = "Copula score inputs were invalid for one or more complete pairs.",
+        call = NULL,
+        rows = unique(row(Fx_eval)[bad_Fx]),
+        context = "Copula score CDF input"
+      ),
+      class = c("gamlss_longitudinal_score_evaluation_error", "error", "condition")
+    ))
+  }
+  Fx_eval[!complete_matrix] <- 0.5
   Fx_eval[Fx_eval > 1] <- 1
   Fx_eval[Fx_eval < 0] <- 0
 
   par1_eval <- par1
   par2_eval <- par2
-  par1_eval[!is.finite(par1_eval)] <- 0
-  par2_eval[!is.finite(par2_eval)] <- 0
+  par1_eval <- validate_pair(par1_eval, "First copula parameter", excluded_value = 0)
+  par2_eval <- validate_pair(par2_eval, "Second copula parameter", excluded_value = 0)
 
   if (copula_dist == "C") {
     par1_eval[par1_eval >= 28] <- 27.9
@@ -68,19 +102,17 @@ calc_copula_derivatives <- function(eta_inv, Fx_1_2, copula_dist, calc_d2 = FALS
   copula_d <- NULL
   if (need_copula_d) {
     copula_d <- .copula_pdf(Fx_eval[, 1], Fx_eval[, 2], family = copula_dist, par = par1_eval, par2 = par2_eval)
-    copula_d[!is.finite(copula_d) | copula_d <= 0] <- 1
-    copula_d[!pair_complete] <- 1
+    copula_d <- validate_pair(copula_d, "Copula density", positive = TRUE, excluded_value = 1)
   }
 
   dldth <- dcdth <- NULL
   if (want("dldth") || want("dcdth") || calc_d2) {
     dldth <- .copula_deriv(Fx_eval[, 1], Fx_eval[, 2], family = copula_dist, par = par1_eval, par2 = par2_eval, deriv = "par", log = TRUE)
-    dldth[!is.finite(dldth)] <- 0
-    dldth[!pair_complete] <- 0
+    dldth <- validate_pair(dldth, "Copula theta score")
   }
   if (want("dcdth") || calc_d2) {
     dcdth <- copula_d * dldth
-    dcdth[!pair_complete] <- 0
+    dcdth <- validate_pair(dcdth, "Copula theta density derivative")
   }
 
   if (calc_d2 == TRUE) {
@@ -91,13 +123,11 @@ calc_copula_derivatives <- function(eta_inv, Fx_1_2, copula_dist, calc_d2 = FALS
   dldz <- dcdz <- NULL
   if (has_zeta && (want("dldz") || want("dcdz") || calc_d2)) {
     dldz <- .copula_deriv(Fx_eval[, 1], Fx_eval[, 2], family = copula_dist, par = par1_eval, par2 = par2_eval, deriv = "par2", log = TRUE)
-    dldz[!is.finite(dldz)] <- 0
-    dldz[!pair_complete] <- 0
+    dldz <- validate_pair(dldz, "Copula zeta score")
   }
   if (has_zeta && (want("dcdz") || calc_d2)) {
     dcdz <- copula_d * dldz
-    dcdz[!is.finite(dcdz)] <- 0
-    dcdz[!pair_complete] <- 0
+    dcdz <- validate_pair(dcdz, "Copula zeta density derivative")
 
     if (calc_d2 == TRUE) {
       d2cdz <- .copula_deriv2(Fx_eval[, 1], Fx_eval[, 2], family = copula_dist, par = par1_eval, par2 = par2_eval, deriv = "par2")
@@ -111,32 +141,28 @@ calc_copula_derivatives <- function(eta_inv, Fx_1_2, copula_dist, calc_d2 = FALS
   dcdu1 <- dcdu2 <- NULL
   if (want("dcdu1") || calc_d2) {
     dcdu1 <- .copula_deriv(Fx_eval[, 1], Fx_eval[, 2], family = copula_dist, par = par1_eval, par2 = par2_eval, deriv = "u1", log = FALSE)
-    dcdu1[!pair_complete] <- 0
+    dcdu1 <- validate_pair(dcdu1, "Copula first-margin derivative")
   }
   if (want("dcdu2") || calc_d2) {
     dcdu2 <- .copula_deriv(Fx_eval[, 1], Fx_eval[, 2], family = copula_dist, par = par1_eval, par2 = par2_eval, deriv = "u2", log = FALSE)
-    dcdu2[!pair_complete] <- 0
+    dcdu2 <- validate_pair(dcdu2, "Copula second-margin derivative")
   }
 
   if (calc_d2 == TRUE) {
-    d2ldth2[!is.finite(d2ldth2)] <- 0
+    d2ldth2 <- validate_pair(d2ldth2, "Copula theta second derivative")
   }
 
   if (calc_d2 == TRUE) {
     d2cdu12 <- .copula_deriv2(Fx_eval[, 1], Fx_eval[, 2], family = copula_dist, par = par1_eval, par2 = par2_eval, deriv = "u1")
     d2cdu22 <- .copula_deriv2(Fx_eval[, 1], Fx_eval[, 2], family = copula_dist, par = par1_eval, par2 = par2_eval, deriv = "u2")
-    d2cdu12[!is.finite(d2cdu12)] <- 0
-    d2cdu22[!is.finite(d2cdu22)] <- 0
-    d2cdu12[!pair_complete] <- 0
-    d2cdu22[!pair_complete] <- 0
+    d2cdu12 <- validate_pair(d2cdu12, "Copula first-margin second derivative")
+    d2cdu22 <- validate_pair(d2cdu22, "Copula second-margin second derivative")
   }
 
   if (has_zeta) {
     if (calc_d2 == TRUE) {
-      d2ldz2[!is.finite(d2ldz2)] <- 0
-      d2ldthdz[!is.finite(d2ldthdz)] <- 0
-      d2ldz2[!pair_complete] <- 0
-      d2ldthdz[!pair_complete] <- 0
+      d2ldz2 <- validate_pair(d2ldz2, "Copula zeta second derivative")
+      d2ldthdz <- validate_pair(d2ldthdz, "Copula theta-zeta cross derivative")
     }
   }
 
@@ -196,13 +222,22 @@ calc_copula_derivatives <- function(eta_inv, Fx_1_2, copula_dist, calc_d2 = FALS
     log = log_flags[t_derivs]
   )
   copula_d <- attr(t_out, "density")
-  copula_d[!is.finite(copula_d) | copula_d <= 0] <- 1
+  bad_density <- pair_complete & (!is.finite(copula_d) | copula_d <= 0)
+  if (any(bad_density)) {
+    stop(structure(
+      list(
+        message = "t copula density was invalid for one or more complete pairs.",
+        call = NULL,
+        rows = which(bad_density),
+        context = "t copula density"
+      ),
+      class = c("gamlss_longitudinal_score_evaluation_error", "error", "condition")
+    ))
+  }
   copula_d[!pair_complete] <- 1
 
   clean_pair <- function(x) {
-    x[!is.finite(x)] <- 0
-    x[!pair_complete] <- 0
-    x
+    .gl_score_zero_unobserved_or_stop(x, pair_complete, "t copula score derivative")
   }
 
   out <- list()

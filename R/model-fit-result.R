@@ -91,6 +91,7 @@
     method = method,
     warm_start_info = warm_start_info,
     rs_block_trace = optimizer_state$rs_block_trace,
+    rs_bfgs_diagnostics = optimizer_state$rs_bfgs_diagnostics %||% NULL,
     cg_lambda_trace = optimizer_state$cg_lambda_trace,
     cg_step_trace = optimizer_state$cg_step_trace,
     convergence_info = convergence_info,

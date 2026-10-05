@@ -286,6 +286,97 @@ test_that("discrete rectangle analytical scores match finite differences", {
   for (nm in names(finite)) {
     expect_equal(analytical[[nm]], finite[[nm]], tolerance = 1e-2)
   }
+
+  for (nm in names(analytical)) {
+    analytical_block <- gamlss.longitudinal:::.calc_discrete_rectangle_scores(
+      eta_inv, mm, gamlss.dist::DEL(), "C", response, time, subject,
+      pair_cache = pair_cache, calc_lik = lik, method = "analytical", h = 1e-4,
+      score_names = nm
+    )
+    finite_block <- gamlss.longitudinal:::.calc_discrete_rectangle_scores(
+      eta_inv, mm, gamlss.dist::DEL(), "C", response, time, subject,
+      pair_cache = pair_cache, calc_lik = lik, method = "finite", h = 1e-4,
+      score_names = nm
+    )
+    expect_named(analytical_block, nm)
+    expect_named(finite_block, nm)
+    expect_equal(analytical_block[[nm]], analytical[[nm]], tolerance = 1e-12)
+    expect_equal(finite_block[[nm]], finite[[nm]], tolerance = 1e-12)
+  }
+})
+
+test_that("fast ZIBNB family evaluations and bound scores preserve semantics", {
+  skip_if_not_installed("gamlss.dist")
+  set.seed(1201)
+  n <- 40L
+  q <- sample(0:60, n, replace = TRUE)
+  mu <- exp(stats::runif(n, -0.5, 4))
+  sigma <- exp(stats::runif(n, -2, 1))
+  nu <- exp(stats::runif(n, -2, 1))
+  tau <- stats::plogis(stats::runif(n, -4, 1))
+
+  expect_equal(
+    gamlss.longitudinal:::.fast_zibnb_probability(q, mu, sigma, nu, tau),
+    gamlss.dist::pZIBNB(q, mu, sigma, nu, tau),
+    tolerance = 1e-10
+  )
+  expect_equal(
+    gamlss.longitudinal:::.fast_zibnb_density(q, mu, sigma, nu, tau, log = TRUE),
+    gamlss.dist::dZIBNB(q, mu, sigma, nu, tau, log = TRUE),
+    tolerance = 1e-12
+  )
+
+  eta_inv <- list(mu = mu, sigma = sigma, nu = nu, tau = tau)
+  mm <- setNames(lapply(eta_inv, function(value) matrix(1, n, 1L)), names(eta_inv))
+  old <- getOption("gamlss.longitudinal.fast_zibnb_cdf_scores")
+  on.exit(options(gamlss.longitudinal.fast_zibnb_cdf_scores = old), add = TRUE)
+  options(gamlss.longitudinal.fast_zibnb_cdf_scores = FALSE)
+  reference <- gamlss.longitudinal:::.calc_F_bounds_derivatives(
+    eta_inv, mm, gamlss.dist::ZIBNB(), q
+  )
+  options(gamlss.longitudinal.fast_zibnb_cdf_scores = TRUE)
+  candidate <- gamlss.longitudinal:::.calc_F_bounds_derivatives(
+    eta_inv, mm, gamlss.dist::ZIBNB(), q
+  )
+  for (parameter in names(reference)) {
+    expect_equal(candidate[[parameter]]$upper, reference[[parameter]]$upper, tolerance = 2e-5)
+    expect_equal(candidate[[parameter]]$lower, reference[[parameter]]$lower, tolerance = 2e-5)
+  }
+})
+
+test_that("fused Student-t rectangle scores match the former finite-difference route", {
+  skip_if_not_installed("gamlss.dist")
+  response <- c(0, 2, 5, 1, 3, 7, 0, 4, 8, 2, 6, 9)
+  time <- rep(1:3, 4)
+  subject <- rep(1:4, each = 3)
+  n <- length(response)
+  eta_inv <- list(
+    mu = rep(4, n), sigma = rep(0.7, n), nu = rep(0.8, n),
+    tau = rep(0.15, n), theta = rep(0.35, n), zeta = rep(5, n)
+  )
+  mm <- setNames(lapply(eta_inv, function(value) matrix(1, length(value), 1L)), names(eta_inv))
+  pair_cache <- gamlss.longitudinal:::build_copula_pair_cache(response, time, subject)
+  likelihood <- gamlss.longitudinal:::calc_likelihood_minimal(
+    eta_inv, mm, gamlss.dist::ZIBNB(), "t",
+    response = response, response_margin = time, response_subject = subject,
+    pair_cache = pair_cache
+  )
+  old <- getOption("gamlss.longitudinal.fast_t_rectangle_scores")
+  on.exit(options(gamlss.longitudinal.fast_t_rectangle_scores = old), add = TRUE)
+  options(gamlss.longitudinal.fast_t_rectangle_scores = FALSE)
+  reference <- gamlss.longitudinal:::.calc_discrete_rectangle_scores(
+    eta_inv, mm, gamlss.dist::ZIBNB(), "t", response, time, subject,
+    pair_cache = pair_cache, calc_lik = likelihood,
+    score_names = c("theta", "zeta")
+  )
+  options(gamlss.longitudinal.fast_t_rectangle_scores = TRUE)
+  candidate <- gamlss.longitudinal:::.calc_discrete_rectangle_scores(
+    eta_inv, mm, gamlss.dist::ZIBNB(), "t", response, time, subject,
+    pair_cache = pair_cache, calc_lik = likelihood,
+    score_names = c("theta", "zeta")
+  )
+  expect_equal(candidate$theta, reference$theta, tolerance = 1e-6)
+  expect_equal(candidate$zeta, reference$zeta, tolerance = 1e-6)
 })
 
 test_that("RS discrete rectangle score modes both fit finite tiny DEL models", {

@@ -19,15 +19,15 @@
   u1 <- pmax(pmin(margin_p[row_id1], 1 - 1e-10), 1e-10)
   u2 <- pmax(pmin(margin_p[row_id2], 1 - 1e-10), 1e-10)
 
-  par1_e <- par1
-  par2_e <- par2
-  par1_e[!is.finite(par1_e)] <- 0
-  par2_e[!is.finite(par2_e)] <- 0
-  if (copula_dist == "C") par1_e[par1_e >= 28] <- 27.9
-
   pair_ok <- pair_cache$observed_pair_base &
     is.finite(u1) & is.finite(u2) &
-    is.finite(par1_e) & is.finite(par2_e)
+    is.finite(par1) & is.finite(par2)
+
+  par1_e <- par1
+  par2_e <- par2
+  par1_e[!pair_ok] <- 0
+  par2_e[!pair_ok] <- 0
+  if (copula_dist == "C") par1_e[par1_e >= 28] <- 27.9
 
   list(
     n_obs = n_obs,

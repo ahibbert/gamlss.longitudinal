@@ -1,3 +1,30 @@
+.gl_score_zero_unobserved_or_stop <- function(value, included, context) {
+  value <- as.numeric(value)
+  included <- as.logical(included)
+  if (length(value) != length(included)) {
+    stop(context, " has inconsistent value and inclusion lengths.", call. = FALSE)
+  }
+  included[is.na(included)] <- FALSE
+  bad <- included & !is.finite(value)
+  if (any(bad)) {
+    stop(structure(
+      list(
+        message = paste0(
+          context, " was nonfinite for included contribution(s) ",
+          paste(utils::head(which(bad), 10L), collapse = ", "),
+          if (sum(bad) > 10L) ", ..." else "."
+        ),
+        call = NULL,
+        rows = which(bad),
+        context = context
+      ),
+      class = c("gamlss_longitudinal_score_evaluation_error", "error", "condition")
+    ))
+  }
+  value[!included] <- 0
+  value
+}
+
 .calc_discrete_rectangle_scores <- function(
     eta_inv,
     mm,
@@ -9,7 +36,8 @@
     pair_cache = NULL,
     calc_lik = NULL,
     method = c("analytical", "finite"),
-    h = 1e-5) {
+    h = 1e-5,
+    score_names = NULL) {
   method <- match.arg(method)
   if (is.null(pair_cache)) {
     pair_cache <- build_copula_pair_cache(response, response_margin, response_subject)
@@ -23,7 +51,14 @@
     )
   }
 
-  score_names <- intersect(names(mm), c("mu", "sigma", "nu", "tau", "theta", "zeta"))
+  available_score_names <- intersect(
+    names(mm), c("mu", "sigma", "nu", "tau", "theta", "zeta")
+  )
+  if (is.null(score_names)) {
+    score_names <- available_score_names
+  } else {
+    score_names <- intersect(as.character(score_names), available_score_names)
+  }
   if (method == "finite") {
     base <- calc_lik$log_lik["joint"]
     out <- setNames(vector("list", length(score_names)), score_names)
@@ -80,7 +115,10 @@
     hit <- grep(paste0("^", d_name, "$"), names(calc_lik$margin_deriv))
     if (length(hit) == 0) hit <- grep(d_name, names(calc_lik$margin_deriv))
     out[[pn]] <- if (length(hit) == 0) rep(0, length(response)) else as.numeric(calc_lik$margin_deriv[[hit[1]]])
-    out[[pn]][!is.finite(out[[pn]])] <- 0
+    out[[pn]] <- .gl_score_zero_unobserved_or_stop(
+      out[[pn]], is.finite(response),
+      paste0("Discrete marginal score for '", pn, "'")
+    )
   }
 
   row_id1 <- calc_lik$copula_row_id1
@@ -110,8 +148,14 @@
       drect2 <- (du2_uu - du2_lu) * dU[row_id2] + (-dl2_ul + dl2_ll) * dL[row_id2]
       contrib1 <- drect1 / rect - out[[pn]][row_id1]
       contrib2 <- drect2 / rect - out[[pn]][row_id2]
-      contrib1[!pair_ok | !is.finite(contrib1)] <- 0
-      contrib2[!pair_ok | !is.finite(contrib2)] <- 0
+      contrib1 <- .gl_score_zero_unobserved_or_stop(
+        contrib1, pair_ok,
+        paste0("Discrete rectangle first-endpoint score for '", pn, "'")
+      )
+      contrib2 <- .gl_score_zero_unobserved_or_stop(
+        contrib2, pair_ok,
+        paste0("Discrete rectangle second-endpoint score for '", pn, "'")
+      )
       sum1 <- rowsum(contrib1, row_id1, reorder = FALSE)
       sum2 <- rowsum(contrib2, row_id2, reorder = FALSE)
       out[[pn]][as.integer(rownames(sum1))] <- out[[pn]][as.integer(rownames(sum1))] + sum1[, 1]
@@ -119,13 +163,30 @@
     }
   }
 
+  copula_rectangle_derivatives <- NULL
+  if (identical(.copula_family_code(copula_dist), "t") &&
+      length(copula_par) > 0L &&
+      isTRUE(getOption("gamlss.longitudinal.fast_t_rectangle_scores", TRUE))) {
+    copula_rectangle_derivatives <- .calc_copula_t_rectangle_par_derivatives(
+      calc_lik = calc_lik,
+      par_names = copula_par,
+      h = h
+    )
+  }
   for (pn in copula_par) {
     n_par <- length(eta_inv[[pn]])
     out[[pn]] <- numeric(n_par)
     if (length(row_id1) == 0L) next
-    drect <- .calc_copula_rectangle_par_derivative(calc_lik, copula_dist, pn, h = h)
+    drect <- if (is.null(copula_rectangle_derivatives)) {
+      .calc_copula_rectangle_par_derivative(calc_lik, copula_dist, pn, h = h)
+    } else {
+      copula_rectangle_derivatives[[pn]]
+    }
     contrib <- drect / rect
-    contrib[!pair_ok | !is.finite(contrib)] <- 0
+    contrib <- .gl_score_zero_unobserved_or_stop(
+      contrib, pair_ok,
+      paste0("Discrete rectangle copula score for '", pn, "'")
+    )
     if (n_par == length(response)) {
       par_idx <- row_id1
     } else {

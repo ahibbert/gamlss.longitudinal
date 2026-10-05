@@ -23,6 +23,7 @@
       testing = FALSE,
       response_margin = response_margin,
       response_subject = response_subject,
+      h = h,
       progress = progress
     )
   } else if (method %in% c("analytical", "analytical_only")) {
@@ -39,7 +40,7 @@
         object = object, par = par_cov, mm = mm$x,
         margin_dist = margin_dist, response = response, testing = FALSE,
         response_margin = response_margin,
-        response_subject = response_subject, progress = progress
+        response_subject = response_subject, h = h, progress = progress
       )
     }
 
@@ -80,12 +81,21 @@
         analytical_vcov$error,
         call. = FALSE
       )
+      # For an analytical-Hessian validation failure, use a deliberately
+      # less cancellation-prone finite-difference scale. The standard
+      # numerical step (1e-4) can yield an indefinite observed-information
+      # matrix for large, zero-heavy discrete models even when every diagonal
+      # curvature term is positive. This is not an acceptance relaxation:
+      # the full numerical Hessian is still passed through exactly the same
+      # positive-definiteness, rank, covariance, and stationarity gates.
+      numerical_hessian_step <- max(h, 1e-3)
       method_used <- "numderiv"
       hessian_fallback <- list(
         from = "analytical",
         to = "numderiv",
         reason = analytical_vcov$error,
-        diagnostics = analytical_vcov$condition$diagnostics %||% NULL
+        diagnostics = analytical_vcov$condition$diagnostics %||% NULL,
+        numerical_hessian_step = numerical_hessian_step
       )
       hessian_nd <- calc_true_SE_numderiv_only_covariates(
         object = object,
@@ -96,8 +106,31 @@
         testing = FALSE,
         response_margin = response_margin,
         response_subject = response_subject,
+        h = numerical_hessian_step,
         progress = progress
       )
+      numerical_gradient <- .gl_vcov_fitted_gradient(
+        object, par_cov, hessian_nd, inference$gradient_step
+      )
+      numerical_vcov <- tryCatch(
+        .gl_solve_hessian_vcov(
+          hessian_nd,
+          parameter_names = names(par_cov),
+          inference = inference,
+          source = "numderiv",
+          fallback = hessian_fallback,
+          gradient = numerical_gradient
+        ),
+        error = function(e) structure(
+          list(error = conditionMessage(e), condition = e),
+          class = "vcov_hessian_error"
+        )
+      )
+      if (!inherits(numerical_vcov, "vcov_hessian_error")) {
+        vcov_final <- numerical_vcov$vcov
+        se_final <- numerical_vcov$se
+        hessian_diagnostics <- numerical_vcov$hessian_diagnostics
+      }
     } else {
       method_used <- "analytical"
       hessian_nd <- analytical_hessian

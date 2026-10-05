@@ -4,7 +4,11 @@
   for (pn in names(score_list)) {
     if (!pn %in% names(mm_cg$x) || !pn %in% names(eta_out$eta_dr)) next
     score_eta <- as.numeric(score_list[[pn]]) * as.numeric(eta_out$eta_dr[[pn]])
-    score_eta[!is.finite(score_eta)] <- 0
+    score_eta <- .gl_score_zero_unobserved_or_stop(
+      score_eta,
+      rep(TRUE, length(score_eta)),
+      paste0("Coefficient-scale score for '", pn, "'")
+    )
     X <- as.matrix(mm_cg$x[[pn]])
     par_grad <- as.numeric(crossprod(X, score_eta))
     x_names <- colnames(X)
@@ -44,7 +48,11 @@
     }
   }
   score_eta <- d1_full * as.numeric(eta_dr[[par_name]])
-  score_eta[!is.finite(score_eta)] <- 0
+  score_eta <- .gl_score_zero_unobserved_or_stop(
+    score_eta,
+    rep(TRUE, length(score_eta)),
+    paste0("Coefficient-scale copula score for '", par_name, "'")
+  )
   par_grad <- as.numeric(crossprod(as.matrix(mm_cg$x[[par_name]]), score_eta))
   x_names <- colnames(mm_cg$x[[par_name]])
   names(par_grad) <- ifelse(
@@ -116,7 +124,11 @@
 
   for (par_name in margin_par) {
     score_eta <- as.numeric(margin_score_natural[[par_name]]) * as.numeric(eta_dr[[par_name]])
-    score_eta[!is.finite(score_eta)] <- 0
+    score_eta <- .gl_score_zero_unobserved_or_stop(
+      score_eta,
+      rep(TRUE, length(score_eta)),
+      paste0("Coefficient-scale margin score for '", par_name, "'")
+    )
     X <- as.matrix(mm_cg$x[[par_name]])
     par_grad <- as.numeric(crossprod(X, score_eta))
     x_names <- colnames(X)

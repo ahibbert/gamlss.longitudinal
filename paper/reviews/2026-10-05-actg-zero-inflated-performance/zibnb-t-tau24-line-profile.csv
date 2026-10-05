@@ -1,0 +1,11 @@
+"coefficient","base_value","offset","value","logLik","delta_logLik"
+"tau.treatmentzidovudine_didanosine_nevirapine:time_covariate24",-4.17800303109814,-4,-8.17800303109814,-13195.8050023529,-0.046664311661516
+"tau.treatmentzidovudine_didanosine_nevirapine:time_covariate24",-4.17800303109814,-2,-6.17800303109814,-13195.7993370983,-0.0409990570224181
+"tau.treatmentzidovudine_didanosine_nevirapine:time_covariate24",-4.17800303109814,-1,-5.17800303109814,-13195.7881623031,-0.0298242618391669
+"tau.treatmentzidovudine_didanosine_nevirapine:time_covariate24",-4.17800303109814,-0.5,-4.67800303109814,-13195.7768082782,-0.0184702369333536
+"tau.treatmentzidovudine_didanosine_nevirapine:time_covariate24",-4.17800303109814,0,-4.17800303109814,-13195.7583380413,0
+"tau.treatmentzidovudine_didanosine_nevirapine:time_covariate24",-4.17800303109814,0.5,-3.67800303109814,-13195.7285507864,0.0297872548453597
+"tau.treatmentzidovudine_didanosine_nevirapine:time_covariate24",-4.17800303109814,1,-3.17800303109814,-13195.681192418,0.0771456232869241
+"tau.treatmentzidovudine_didanosine_nevirapine:time_covariate24",-4.17800303109814,2,-2.17800303109814,-13195.4977888251,0.260549216136496
+"tau.treatmentzidovudine_didanosine_nevirapine:time_covariate24",-4.17800303109814,3,-1.17800303109814,-13195.153701069,0.604636972235312
+"tau.treatmentzidovudine_didanosine_nevirapine:time_covariate24",-4.17800303109814,4,-0.178003031098139,-13194.9332837322,0.825054309063489

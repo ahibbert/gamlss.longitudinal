@@ -106,23 +106,30 @@
     dataset,
     pair_cache,
     discrete_score_method,
+    par_name = NULL,
     score_fn = .calc_discrete_rectangle_scores) {
   if (!identical(calc_lik_out$likelihood_type, "discrete_rectangle")) {
     return(NULL)
   }
 
-  score_fn(
+  score_args <- list(
     eta_inv,
-    mm$x,
-    margin_dist,
-    copula_dist,
-    dataset$response,
-    dataset$time,
-    dataset$subject,
+    mm = mm$x,
+    margin_dist = margin_dist,
+    copula_dist = copula_dist,
+    response = dataset$response,
+    response_margin = dataset$time,
+    response_subject = dataset$subject,
     pair_cache = pair_cache,
     calc_lik = calc_lik_out,
     method = discrete_score_method
   )
+  score_formals <- names(formals(score_fn))
+  if (!is.null(par_name) &&
+      ("..." %in% score_formals || "score_names" %in% score_formals)) {
+    score_args$score_names <- par_name
+  }
+  do.call(score_fn, score_args)
 }
 
 #' Build RS copula-derivative context from current likelihood values

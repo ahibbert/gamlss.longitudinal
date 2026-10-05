@@ -48,7 +48,11 @@
 
   positive_names <- intersect(names(eta_inv), c("sigma", "tau", "zeta"))
   for (pn in positive_names) {
-    if (any(eta_inv[[pn]] <= 1e-8, na.rm = TRUE)) {
+    # Link inverses can legitimately produce very small positive values (for
+    # example a near-zero ZISICHEL zero-inflation probability). The likelihood
+    # is the authority on any stricter family-specific boundary; rejecting an
+    # arbitrary epsilon here made valid RS states impossible to hand to CG.
+    if (any(eta_inv[[pn]] <= 0, na.rm = TRUE)) {
       return(NULL)
     }
   }

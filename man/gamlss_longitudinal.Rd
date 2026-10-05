@@ -83,8 +83,11 @@ for \code{method = "RS"}.}
 \item{optimizer_control}{Optimizer settings created by
 \code{\link[=gamlss_longitudinal_control]{gamlss_longitudinal_control()}}. \code{method} remains a top-level choice.}
 
-\item{start}{Optional named starting coefficients. \code{NULL} uses automatic
-starting values.}
+\item{start}{Optional named starting coefficients, or a previously fitted
+\code{gamlss.longitudinal} model. A fitted-model start maps every retained fixed
+coefficient by name and also carries compatible smooth coefficients and
+smoothing penalties, which is useful for nested-model selection. \code{NULL}
+uses automatic starting values.}
 
 \item{compute_vcov}{Logical; if \code{TRUE} (default), compute and store the
 model variance-covariance output at the end of fitting.}

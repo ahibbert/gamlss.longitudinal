@@ -255,3 +255,31 @@ test_that("fit-time PO analytical vcov is cached and reused", {
   )
   expect_identical(resolved, fit$vcov)
 })
+test_that("discrete Hessian endpoint cache reuses exact states only", {
+  calls <- 0L
+  cached <- gamlss.longitudinal:::.discrete_hessian_cached_endpoint_evaluator(
+    endpoint_eval_fn = function(obs_id, eta_inv, margin_dist, response, pfun,
+                                dfun, override = NULL) {
+      calls <<- calls + 1L
+      list(obs_id = obs_id, override = override, call = calls)
+    }
+  )
+  args <- list(
+    obs_id = 3L,
+    eta_inv = list(),
+    margin_dist = list(),
+    response = 1,
+    pfun = identity,
+    dfun = identity
+  )
+  base1 <- do.call(cached, args)
+  base2 <- do.call(cached, args)
+  plus1 <- do.call(cached, c(args, list(override = list(mu = 1.25))))
+  plus2 <- do.call(cached, c(args, list(override = list(mu = 1.25))))
+  minus <- do.call(cached, c(args, list(override = list(mu = 1.24))))
+
+  expect_identical(base1, base2)
+  expect_identical(plus1, plus2)
+  expect_false(identical(plus1, minus))
+  expect_identical(calls, 3L)
+})

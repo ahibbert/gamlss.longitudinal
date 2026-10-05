@@ -7,11 +7,16 @@
 .gl_build_initial_parameter_state <- function(
     start_from,
     warm_start_par_s = NULL,
+    warm_start_lambda_s = NULL,
     mm,
     margin_dist,
     copula_dist,
     dataset,
     lambda_start = NA) {
+  if (is.list(start_from) && !is.null(start_from$par)) {
+    start_from <- start_from$par
+  }
+
   if (all(is.na(start_from))) {
     par_eta <- get_starting_values(copula_dist, margin_dist, dataset = dataset, eta_transform = TRUE)
     par_cov <- as.numeric(vector())
@@ -26,7 +31,19 @@
       par_cov <- c(par_cov, par_cov_single)
     }
   } else {
-    par_cov <- start_from
+    expected <- unlist(Map(function(par_name, design) {
+      paste(par_name, colnames(design), sep = ".")
+    }, names(mm$x), mm$x), use.names = FALSE)
+    if (!is.null(names(start_from)) && all(expected %in% names(start_from))) {
+      par_cov <- stats::setNames(as.numeric(start_from[expected]), expected)
+    } else if (length(start_from) == length(expected)) {
+      par_cov <- stats::setNames(as.numeric(start_from), expected)
+    } else {
+      stop(
+        "The supplied start does not contain every fixed coefficient required by the model.",
+        call. = FALSE
+      )
+    }
   }
 
   par_s <- list()
@@ -66,6 +83,18 @@
         warm_beta <- warm_start_par_s[[par_name]][[s_name]]
         if (length(warm_beta) == length(par_s[[par_name]][[s_name]])) {
           par_s[[par_name]][[s_name]] <- warm_beta
+        }
+      }
+    }
+  }
+
+  if (!is.null(warm_start_lambda_s)) {
+    for (par_name in intersect(names(lambda_s), names(warm_start_lambda_s))) {
+      if (!length(lambda_s[[par_name]]) || !length(warm_start_lambda_s[[par_name]])) next
+      for (s_name in intersect(names(lambda_s[[par_name]]), names(warm_start_lambda_s[[par_name]]))) {
+        warm_lambda <- warm_start_lambda_s[[par_name]][[s_name]]
+        if (length(warm_lambda) == 1L && is.finite(warm_lambda) && warm_lambda > 0) {
+          lambda_s[[par_name]][[s_name]] <- warm_lambda
         }
       }
     }

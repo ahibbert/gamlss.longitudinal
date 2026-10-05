@@ -33,6 +33,14 @@
     warm_start_fit_call_fn = .gl_call_joint_warm_start_fit) {
   warm_start_info <- .gl_default_warm_start_info()
   warm_start_par_s <- NULL
+  warm_start_lambda_s <- NULL
+
+  if (inherits(start_from, "gamlss.longitudinal") ||
+      (is.list(start_from) && !is.null(start_from$par))) {
+    warm_start_par_s <- start_from$par_s
+    warm_start_lambda_s <- start_from$lambda_s
+    start_from <- start_from$par
+  }
 
   if (!.gl_should_run_joint_warm_start(
     method = method,
@@ -44,6 +52,7 @@
     return(list(
       start_from = start_from,
       warm_start_par_s = warm_start_par_s,
+      warm_start_lambda_s = warm_start_lambda_s,
       warm_start_info = warm_start_info
     ))
   }

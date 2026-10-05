@@ -1,7 +1,7 @@
 #' Check whether a fitted object can reuse its stored vcov output
 #'
 #' @noRd
-.gl_vcov_cache_version <- function() 1L
+.gl_vcov_cache_version <- function() 2L
 
 #' @noRd
 .gl_vcov_method_key <- function(method) {
