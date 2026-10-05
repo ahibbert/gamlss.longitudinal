@@ -34,8 +34,20 @@
     expected <- unlist(Map(function(par_name, design) {
       paste(par_name, colnames(design), sep = ".")
     }, names(mm$x), mm$x), use.names = FALSE)
+    mapped_fitted_state <- !is.null(warm_start_par_s) || !is.null(warm_start_lambda_s)
     if (!is.null(names(start_from)) && all(expected %in% names(start_from))) {
       par_cov <- stats::setNames(as.numeric(start_from[expected]), expected)
+    } else if (!is.null(names(start_from)) && mapped_fitted_state &&
+               any(expected %in% names(start_from))) {
+      # Formula screening can introduce a fixed coefficient that was not in
+      # the fitted parent (for example, replacing s(age) by age or expanding a
+      # previously intercept-only parameter). Retain every compatible fitted
+      # coefficient and start genuinely new effects at the neutral value zero.
+      # Raw user vectors remain strict so misspelled coefficient names are not
+      # silently accepted.
+      par_cov <- stats::setNames(numeric(length(expected)), expected)
+      retained <- intersect(expected, names(start_from))
+      par_cov[retained] <- as.numeric(start_from[retained])
     } else if (length(start_from) == length(expected)) {
       par_cov <- stats::setNames(as.numeric(start_from), expected)
     } else {
