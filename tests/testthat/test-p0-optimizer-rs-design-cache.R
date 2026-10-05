@@ -2667,3 +2667,61 @@ test_that("RS lambda helper handles parameters without smooths", {
   expect_equal(out, lambda_s)
   expect_equal(optim_calls, 0L)
 })
+
+test_that("RS lambda helper rejects non-finite trial objectives without aborting", {
+  lambda_s <- list(mu = list(`s(x)` = 2))
+  trial_value <- NA_real_
+  out <- gamlss.longitudinal:::.gl_rs_update_smoothing_parameters(
+    lambda_s = lambda_s,
+    par_name = "mu",
+    par_s = list(mu = list()),
+    par_cov = c(mu = 0),
+    beta_start = c(mu = 0),
+    K = 2,
+    margin_dist = NULL,
+    copula_dist = "N",
+    dataset = data.frame(response = 1),
+    mm = list(),
+    copula_link = "identity",
+    df_s = list(mu = list()),
+    step_size = 0.5,
+    rs_update_lambda = TRUE,
+    inner_run_counter = 1L,
+    verbose = 0,
+    backfitting_fn = function(...) list(GAIC_lambda_k = NA_real_),
+    optim_fn = function(par, fn, ...) {
+      trial_value <<- fn(par + 1)
+      list(par = par + 1, value = trial_value)
+    }
+  )
+
+  expect_true(is.finite(trial_value))
+  expect_equal(trial_value, 1e100)
+  expect_equal(out, lambda_s)
+})
+
+test_that("RS lambda helper keeps the current value after bounded optimizer errors", {
+  lambda_s <- list(mu = list(`s(x)` = 2))
+  out <- gamlss.longitudinal:::.gl_rs_update_smoothing_parameters(
+    lambda_s = lambda_s,
+    par_name = "mu",
+    par_s = list(mu = list()),
+    par_cov = c(mu = 0),
+    beta_start = c(mu = 0),
+    K = 2,
+    margin_dist = NULL,
+    copula_dist = "N",
+    dataset = data.frame(response = 1),
+    mm = list(),
+    copula_link = "identity",
+    df_s = list(mu = list()),
+    step_size = 0.5,
+    rs_update_lambda = TRUE,
+    inner_run_counter = 1L,
+    verbose = 0,
+    backfitting_fn = function(...) list(GAIC_lambda_k = 1),
+    optim_fn = function(...) stop("L-BFGS-B needs finite values of 'fn'")
+  )
+
+  expect_equal(out, lambda_s)
+})
