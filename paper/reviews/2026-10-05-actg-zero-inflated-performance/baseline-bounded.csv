@@ -1,0 +1,6 @@
+margin,copula,response,outer_iterations,inner_iterations,warm_start,backtracking,update_lambda,compute_vcov,elapsed_sec,git_sha,r_version,cpu
+ZISICHEL,G,cd4,1,1,FALSE,FALSE,FALSE,FALSE,6.75,6e74ad6ed5f67cb3aa720188e72c01562f59f3e6,R-4.4.1,AMD Ryzen 7 7840U
+ZISICHEL,t,cd4,1,1,FALSE,FALSE,FALSE,FALSE,24.08,6e74ad6ed5f67cb3aa720188e72c01562f59f3e6,R-4.4.1,AMD Ryzen 7 7840U
+ZIBNB,G,cd4,1,1,FALSE,FALSE,FALSE,FALSE,3.83,6e74ad6ed5f67cb3aa720188e72c01562f59f3e6,R-4.4.1,AMD Ryzen 7 7840U
+ZIBNB,t,cd4,1,1,FALSE,FALSE,FALSE,FALSE,21.06,6e74ad6ed5f67cb3aa720188e72c01562f59f3e6,R-4.4.1,AMD Ryzen 7 7840U
+BCPE,t,cd4_plus_1,1,1,FALSE,FALSE,FALSE,FALSE,7.78,6e74ad6ed5f67cb3aa720188e72c01562f59f3e6,R-4.4.1,AMD Ryzen 7 7840U

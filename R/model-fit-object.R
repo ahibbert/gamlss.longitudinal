@@ -35,7 +35,8 @@
     vcov_method,
     verbose,
     optimizer_control_requested = NULL,
-    optimizer_control_effective = NULL) {
+    optimizer_control_effective = NULL,
+    rs_bfgs_diagnostics = NULL) {
   if (!isTRUE(convergence_info$converged)) .gl_warn_nonconverged_fit(convergence_info)
 
   total_fit_time <- as.numeric(difftime(Sys.time(), fit_start_time, units = "secs"))
@@ -92,6 +93,7 @@
     return_list = return_list,
     method = method,
     rs_block_trace = rs_block_trace,
+    rs_bfgs_diagnostics = rs_bfgs_diagnostics,
     cg_lambda_trace = cg_lambda_trace,
     cg_step_trace = cg_step_trace
   )

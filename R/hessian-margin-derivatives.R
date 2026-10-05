@@ -1,5 +1,50 @@
 # ------------------------------------------------------------
 
+#' Evaluate log-density perturbations on observed rows only
+#'
+#' @noRd
+.hessian_margin_log_density_eval <- function(args, dfun, margin_dist, response, context) {
+  n <- length(response)
+  observed <- is.finite(response)
+  out <- numeric(n)
+  if (!any(observed)) return(out)
+
+  observed_args <- lapply(args, function(value) {
+    if (length(value) == n) value[observed] else value
+  })
+  fun_args <- names(observed_args)[names(observed_args) %in% formalArgs(dfun)]
+  value <- .call_margin_family_cached(
+    dfun,
+    observed_args,
+    fun_args,
+    force_scalar = .gl_margin_requires_scalar_calls(margin_dist$family[1L])
+  )
+  value <- as.numeric(value)
+  if (length(value) != sum(observed) || any(!is.finite(value))) {
+    value <- .gl_margin_cdf_scalar_eval(dfun, observed_args, fun_args, sum(observed))
+  }
+  if (length(value) != sum(observed) || any(!is.finite(value))) {
+    bad <- if (length(value) == sum(observed)) which(observed)[!is.finite(value)] else which(observed)
+    stop(structure(
+      list(
+        message = paste0(
+          context, " was nonfinite for observed row(s) ",
+          paste(utils::head(bad, 10L), collapse = ", "),
+          if (length(bad) > 10L) ", ..." else "."
+        ),
+        call = NULL,
+        rows = bad,
+        context = context
+      ),
+      class = c("gamlss_longitudinal_score_evaluation_error", "error", "condition")
+    ))
+  }
+  out[observed] <- value
+  out
+}
+
+# ------------------------------------------------------------
+
 # 4.  Margin per-observation second derivative (observed, via FD on log-density)
 
 # ------------------------------------------------------------
@@ -36,11 +81,10 @@
 
   base_args <- density_setup$base_args
 
-  # log-density at base parameters (all observations)
-
-  ll0 <- do.call(dfun, base_args)
-
-  ll0[!obs_valid] <- 0
+  ll0 <- .hessian_margin_log_density_eval(
+    base_args, dfun, margin_dist, response,
+    "Base marginal log-density for analytical Hessian"
+  )
 
   result <- vector("list", length(margin_pars))
 
@@ -67,17 +111,24 @@
     args_im <- base_args
     args_im[[pni]] <- par_i - hi
 
-    ll_ip <- do.call(dfun, args_ip)
-    ll_ip[!obs_valid] <- 0
+    ll_ip <- .hessian_margin_log_density_eval(
+      args_ip, dfun, margin_dist, response,
+      paste0("Positive marginal log-density perturbation for '", pni, "'")
+    )
 
-    ll_im <- do.call(dfun, args_im)
-    ll_im[!obs_valid] <- 0
+    ll_im <- .hessian_margin_log_density_eval(
+      args_im, dfun, margin_dist, response,
+      paste0("Negative marginal log-density perturbation for '", pni, "'")
+    )
 
     # Diagonal: d2l/d pni^2 via 3-point stencil
 
     d2_diag <- (ll_ip - 2 * ll0 + ll_im) / hi^2
 
-    d2_diag[!is.finite(d2_diag)] <- 0
+    d2_diag <- .gl_score_zero_unobserved_or_stop(
+      d2_diag, obs_valid,
+      paste0("Marginal log-density diagonal Hessian for '", pni, "'")
+    )
 
     result[[pni]][[pni]] <- d2_diag
 
@@ -108,21 +159,32 @@
       args_imjm <- args_jm
       args_imjm[[pni]] <- par_i - hi
 
-      ll_pp <- do.call(dfun, args_ipjp)
-      ll_pp[!obs_valid] <- 0
+      ll_pp <- .hessian_margin_log_density_eval(
+        args_ipjp, dfun, margin_dist, response,
+        paste0("Positive/positive marginal log-density perturbation for '", pni, "'/'", pnj, "'")
+      )
 
-      ll_pm <- do.call(dfun, args_ipjm)
-      ll_pm[!obs_valid] <- 0
+      ll_pm <- .hessian_margin_log_density_eval(
+        args_ipjm, dfun, margin_dist, response,
+        paste0("Positive/negative marginal log-density perturbation for '", pni, "'/'", pnj, "'")
+      )
 
-      ll_mp <- do.call(dfun, args_imjp)
-      ll_mp[!obs_valid] <- 0
+      ll_mp <- .hessian_margin_log_density_eval(
+        args_imjp, dfun, margin_dist, response,
+        paste0("Negative/positive marginal log-density perturbation for '", pni, "'/'", pnj, "'")
+      )
 
-      ll_mm <- do.call(dfun, args_imjm)
-      ll_mm[!obs_valid] <- 0
+      ll_mm <- .hessian_margin_log_density_eval(
+        args_imjm, dfun, margin_dist, response,
+        paste0("Negative/negative marginal log-density perturbation for '", pni, "'/'", pnj, "'")
+      )
 
       d2_cross <- (ll_pp - ll_pm - ll_mp + ll_mm) / (4 * hi * hj)
 
-      d2_cross[!is.finite(d2_cross)] <- 0
+      d2_cross <- .gl_score_zero_unobserved_or_stop(
+        d2_cross, obs_valid,
+        paste0("Marginal log-density cross Hessian for '", pni, "'/'", pnj, "'")
+      )
 
       result[[pni]][[pnj]] <- d2_cross
 

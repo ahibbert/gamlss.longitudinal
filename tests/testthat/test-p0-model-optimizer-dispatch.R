@@ -41,11 +41,24 @@ make_dispatch_args <- function(method, optimizer_context, cg_runner_fn, rs_runne
     stop_on_convergence = TRUE,
     rs = list(
       max_inner_iter = 10L,
+      initial_inner_iter = 3L,
       max_negative_outer_streak = 5L,
       step_adjustment = 0.5,
       max_steps = 5L,
       start_step_size = 1,
-      update_lambda = FALSE
+      update_lambda = FALSE,
+      adaptive_step_size = TRUE,
+      lambda_update_every = 7L,
+      bfgs_refine = TRUE,
+      bfgs_refine_after = 4L,
+      bfgs_max_iter = 25L,
+      bfgs_reltol = 1e-10,
+      bfgs_coordinate_rescue = TRUE,
+      bfgs_coordinate_threshold = 2,
+      bfgs_coordinate_radius = 5,
+      bfgs_coordinate_max = 4L,
+      bfgs_coordinate_tol = 1e-4,
+      bfgs_repolish_iter = 12L
     ),
     cg = list(
       max_delta = 1,
@@ -173,6 +186,19 @@ test_that("fit optimizer dispatch routes RS state through the RS runner", {
   expect_identical(captured$rs$rs_design_cache, context$rs_design_cache)
   expect_identical(captured$rs$margin_eval_cache, context$margin_eval_cache)
   expect_equal(captured$rs$inner_stop_crit, context$inner_stop_crit)
+  expect_identical(captured$rs$initial_inner_iter, 3L)
+  expect_true(captured$rs$rs_adaptive_step_size)
+  expect_true(captured$rs$rs_bfgs_refine)
+  expect_identical(captured$rs$rs_bfgs_refine_after, 4L)
+  expect_identical(captured$rs$rs_bfgs_max_iter, 25L)
+  expect_equal(captured$rs$rs_bfgs_reltol, 1e-10)
+  expect_true(captured$rs$rs_bfgs_coordinate_rescue)
+  expect_equal(captured$rs$rs_bfgs_coordinate_threshold, 2)
+  expect_equal(captured$rs$rs_bfgs_coordinate_radius, 5)
+  expect_identical(captured$rs$rs_bfgs_coordinate_max, 4L)
+  expect_equal(captured$rs$rs_bfgs_coordinate_tol, 1e-4)
+  expect_identical(captured$rs$rs_bfgs_repolish_iter, 12L)
+  expect_identical(captured$rs$rs_lambda_update_every, 7L)
   expect_equal(out$par_cov, rs_state$par_cov)
   expect_equal(out$rs_block_trace, rs_state$rs_block_trace)
   expect_equal(out$cg_stop_reason, context$cg_stop_reason)

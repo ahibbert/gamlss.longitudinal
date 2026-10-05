@@ -24,7 +24,7 @@
   num_smooths <- length(lambda_s[[par_name]])
   initial_results <- NULL
 
-  if (num_smooths > 0 && outer_only_run_counter != 1) {
+  if (num_smooths > 0 && outer_only_run_counter != 1L) {
     lambda_s <- lambda_update_fn(
       lambda_s = lambda_s,
       par_name = par_name,

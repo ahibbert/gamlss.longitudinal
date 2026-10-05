@@ -782,6 +782,7 @@ test_that("RS discrete score helper forwards rectangle likelihood context", {
     dataset = dataset,
     pair_cache = pair_cache,
     discrete_score_method = "finite",
+    par_name = "mu",
     score_fn = function(
       eta_inv,
       mm,
@@ -792,7 +793,8 @@ test_that("RS discrete score helper forwards rectangle likelihood context", {
       response_subject,
       pair_cache,
       calc_lik,
-      method
+      method,
+      score_names
     ) {
       captured <<- list(
         eta_inv = eta_inv,
@@ -804,7 +806,8 @@ test_that("RS discrete score helper forwards rectangle likelihood context", {
         response_subject = response_subject,
         pair_cache = pair_cache,
         calc_lik = calc_lik,
-        method = method
+        method = method,
+        score_names = score_names
       )
       list(mu = c(0.1, 0.2, 0.3), theta = c(0.4, 0.5, 0.6))
     }
@@ -821,6 +824,48 @@ test_that("RS discrete score helper forwards rectangle likelihood context", {
   expect_identical(captured$pair_cache, pair_cache)
   expect_identical(captured$calc_lik, calc_lik)
   expect_identical(captured$method, "finite")
+  expect_identical(captured$score_names, "mu")
+})
+
+test_that("RS exact-discrete score state skips unused continuous copula derivatives", {
+  copula_called <- FALSE
+  requested <- NULL
+  out <- gamlss.longitudinal:::.gl_evaluate_rs_parameter_score_state(
+    par_name = "theta",
+    eta = list(theta = c(0.2, 0.2)),
+    eta_inv = list(theta = c(0.3, 0.3)),
+    Fx_1_2 = matrix(c(0.2, 0.4), ncol = 2),
+    copula_dist = "t",
+    calc_lik_out = list(likelihood_type = "discrete_rectangle"),
+    mm = list(x = list(theta = matrix(1, nrow = 2))),
+    margin_dist = "DEL",
+    dataset = data.frame(response = c(1, 2), time = c(1, 2), subject = c(1, 1)),
+    pair_cache = list(),
+    discrete_score_method = "analytical",
+    include_dlcopdpar = TRUE,
+    margin_deriv = list(),
+    copula_d = 1,
+    log_lik = c(joint = -1),
+    check_dlcopdpar_gradient = FALSE,
+    outer_only_run_counter = 1L,
+    verbose = 0,
+    timer = numeric(),
+    timer_start = Sys.time(),
+    copula_context_fn = function(...) {
+      copula_called <<- TRUE
+      stop("continuous copula derivatives should not be evaluated")
+    },
+    timer_fn = function(timer, ...) timer,
+    discrete_scores_fn = function(..., par_name) {
+      requested <<- par_name
+      list(theta = c(0.5, 0.6))
+    }
+  )
+
+  expect_false(copula_called)
+  expect_identical(requested, "theta")
+  expect_identical(out$score_assembly$path, "discrete")
+  expect_equal(as.numeric(out$d1), c(0.5, 0.6))
 })
 
 test_that("RS copula derivative context clamps probabilities and forwards likelihood metadata", {

@@ -40,7 +40,11 @@
   vcov_controls <- .gl_normalize_vcov_controls(vcov_method, vcov_numderiv)
   fit_controls <- list(
     method = method,
-    user_supplied_start = !all(is.na(start_from)),
+    user_supplied_start = if (inherits(start_from, "gamlss.longitudinal") || is.list(start_from)) {
+      !is.null(start_from$par)
+    } else {
+      !all(is.na(start_from))
+    },
     warm_start_joint = rs_control$warm_start_joint,
     warm_start_joint_iter = rs_control$warm_start_joint_iter,
     backtracking_max_halves = if (identical(method, "RS")) rs_control$backtracking_max_halves else cg_control$backtracking_max_halves,
@@ -124,6 +128,7 @@
   optimizer_context <- optimizer_context_fn(
     start_from = warm_start$start_from,
     warm_start_par_s = warm_start$warm_start_par_s,
+    warm_start_lambda_s = warm_start$warm_start_lambda_s,
     mm = matrix_bundle$mm,
     margin_dist = margin_dist,
     copula_dist = copula_dist,

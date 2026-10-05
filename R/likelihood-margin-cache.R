@@ -282,6 +282,108 @@
   out
 }
 
+.fast_bnb_probability <- function(
+    q, mu, sigma, nu, lower.tail = TRUE, log.p = FALSE) {
+  n <- max(length(q), length(mu), length(sigma), length(nu))
+  q <- rep(q, length.out = n)
+  mu <- rep(mu, length.out = n)
+  sigma <- rep(sigma, length.out = n)
+  nu <- rep(nu, length.out = n)
+  if (any(!is.finite(q) | q != floor(q)) ||
+      any(!is.finite(mu) | mu <= 0) ||
+      any(!is.finite(sigma) | sigma <= 0) ||
+      any(!is.finite(nu) | nu <= 0)) {
+    return(NULL)
+  }
+
+  q_integer <- as.integer(q)
+  probability <- numeric(n)
+  active <- which(q_integer >= 0L)
+  if (length(active)) {
+    shape_m <- 1 / sigma + 1
+    shape_n <- mu * nu / sigma
+    shape_k <- 1 / nu
+    mass <- numeric(n)
+    mass[active] <- exp(
+      lbeta(shape_n[active], shape_m[active] + shape_k[active]) -
+        lbeta(shape_n[active], shape_m[active])
+    )
+    probability[active] <- mass[active]
+    max_q <- max(q_integer[active])
+    if (max_q >= 1L) {
+      for (x in 0:(max_q - 1L)) {
+        next_active <- active[q_integer[active] >= x + 1L]
+        if (!length(next_active)) break
+        mass[next_active] <- mass[next_active] *
+          ((x + shape_n[next_active]) /
+             (x + shape_n[next_active] + shape_m[next_active] + shape_k[next_active])) *
+          ((x + shape_k[next_active]) / (x + 1))
+        probability[next_active] <- probability[next_active] + mass[next_active]
+      }
+    }
+  }
+  probability <- pmin(pmax(probability, 0), 1)
+  result <- if (isTRUE(lower.tail)) probability else 1 - probability
+  if (isTRUE(log.p)) result <- log(result)
+  result[q_integer < 0L] <- 0
+  result
+}
+
+.fast_bnb_density <- function(x, mu, sigma, nu, log = FALSE) {
+  n <- max(length(x), length(mu), length(sigma), length(nu))
+  x <- rep(x, length.out = n)
+  mu <- rep(mu, length.out = n)
+  sigma <- rep(sigma, length.out = n)
+  nu <- rep(nu, length.out = n)
+  if (any(!is.finite(mu) | mu <= 0) ||
+      any(!is.finite(sigma) | sigma <= 0) ||
+      any(!is.finite(nu) | nu <= 0)) {
+    return(NULL)
+  }
+  shape_m <- 1 / sigma + 1
+  shape_n <- mu * nu / sigma
+  shape_k <- 1 / nu
+  log_mass <- lbeta(x + shape_n, shape_m + shape_k) -
+    lbeta(shape_n, shape_m) - lgamma(x + 1) - lgamma(shape_k) +
+    lgamma(x + shape_k)
+  result <- if (isTRUE(log)) log_mass else exp(log_mass)
+  result[x < 0] <- 0
+  result
+}
+
+.fast_zibnb_probability <- function(
+    q, mu, sigma, nu, tau, lower.tail = TRUE, log.p = FALSE) {
+  n <- max(length(q), length(mu), length(sigma), length(nu), length(tau))
+  tau <- rep(tau, length.out = n)
+  if (any(!is.finite(tau) | tau <= 0 | tau >= 1)) return(NULL)
+  base <- .fast_bnb_probability(
+    q, mu, sigma, nu, lower.tail = TRUE, log.p = FALSE
+  )
+  if (is.null(base)) return(NULL)
+  probability <- tau + (1 - tau) * base
+  result <- if (isTRUE(lower.tail)) probability else 1 - probability
+  if (isTRUE(log.p)) result <- log(result)
+  result[rep(q, length.out = n) < 0] <- 0
+  result
+}
+
+.fast_zibnb_density <- function(x, mu, sigma, nu, tau, log = FALSE) {
+  n <- max(length(x), length(mu), length(sigma), length(nu), length(tau))
+  x <- rep(x, length.out = n)
+  tau <- rep(tau, length.out = n)
+  if (any(!is.finite(tau) | tau <= 0 | tau >= 1)) return(NULL)
+  base_log_mass <- .fast_bnb_density(x, mu, sigma, nu, log = TRUE)
+  if (is.null(base_log_mass)) return(NULL)
+  log_mass <- log1p(-tau) + base_log_mass
+  at_zero <- x == 0
+  log_mass[at_zero] <- log(
+    tau[at_zero] + (1 - tau[at_zero]) * exp(base_log_mass[at_zero])
+  )
+  result <- if (isTRUE(log)) log_mass else exp(log_mass)
+  result[x < 0] <- 0
+  result
+}
+
 .fast_zero_modified_probability <- function(
     q, mu, zero_probability, base = c("poisson", "nbi"), sigma = NULL,
     hurdle = FALSE, lower.tail = TRUE, log.p = FALSE) {
@@ -402,6 +504,40 @@
     if (identical(prefix, "p")) {
       return(.fast_nbi_probability(
         x, mu, args$sigma,
+        lower.tail = args$lower.tail %||% TRUE,
+        log.p = args$log.p %||% FALSE
+      ))
+    }
+  }
+
+  if (identical(family_name, "BNB") &&
+      all(c("sigma", "nu") %in% names(args))) {
+    if (prefix %in% c("d", "logd")) {
+      return(.fast_bnb_density(
+        x, mu, args$sigma, args$nu, log = identical(prefix, "logd")
+      ))
+    }
+    if (identical(prefix, "p")) {
+      return(.fast_bnb_probability(
+        x, mu, args$sigma, args$nu,
+        lower.tail = args$lower.tail %||% TRUE,
+        log.p = args$log.p %||% FALSE
+      ))
+    }
+  }
+
+  if (identical(family_name, "ZIBNB") &&
+      isTRUE(getOption("gamlss.longitudinal.fast_zibnb_family", TRUE)) &&
+      all(c("sigma", "nu", "tau") %in% names(args))) {
+    if (prefix %in% c("d", "logd")) {
+      return(.fast_zibnb_density(
+        x, mu, args$sigma, args$nu, args$tau,
+        log = identical(prefix, "logd")
+      ))
+    }
+    if (identical(prefix, "p")) {
+      return(.fast_zibnb_probability(
+        x, mu, args$sigma, args$nu, args$tau,
         lower.tail = args$lower.tail %||% TRUE,
         log.p = args$log.p %||% FALSE
       ))

@@ -56,6 +56,7 @@
         calc_lik$order_copula,
         row_id1 = calc_lik$copula_row_id1,
         row_id2 = calc_lik$copula_row_id2,
+        pair_complete = calc_lik$pair_complete,
         dcdu1 = copula_derivatives$dcdu1,
         dcdu2 = copula_derivatives$dcdu2,
         copula_d = calc_lik$copula_d

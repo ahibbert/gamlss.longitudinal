@@ -71,8 +71,11 @@
 #'   for `method = "RS"`.
 #' @param optimizer_control Optimizer settings created by
 #'   [gamlss_longitudinal_control()]. `method` remains a top-level choice.
-#' @param start Optional named starting coefficients. `NULL` uses automatic
-#'   starting values.
+#' @param start Optional named starting coefficients, or a previously fitted
+#'   `gamlss.longitudinal` model. A fitted-model start maps every retained fixed
+#'   coefficient by name and also carries compatible smooth coefficients and
+#'   smoothing penalties, which is useful for nested-model selection. `NULL`
+#'   uses automatic starting values.
 #' @param compute_vcov Logical; if `TRUE` (default), compute and store the
 #' model variance-covariance output at the end of fitting.
 #' @param vcov_method Character; fit-time vcov method when `compute_vcov = TRUE`.

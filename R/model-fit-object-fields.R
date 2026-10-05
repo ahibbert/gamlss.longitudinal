@@ -107,6 +107,7 @@
     return_list,
     method,
     rs_block_trace,
+    rs_bfgs_diagnostics = NULL,
     cg_lambda_trace,
     cg_step_trace) {
   if (!identical(method, "CG")) {
@@ -115,6 +116,7 @@
     } else {
       data.frame()
     }
+    return_list$rs_bfgs_diagnostics <- rs_bfgs_diagnostics
   }
 
   if (identical(method, "CG")) {

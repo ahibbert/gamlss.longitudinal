@@ -156,7 +156,15 @@ vcov.gamlss.longitudinal <- function(object, par = NA, sep_d2 = TRUE, numderiv =
 
   margin_derivatives <- calc_lik_out$margin_deriv
 
-  copula_derivatives <- calc_copula_derivatives(eta_inv, Fx_1_2, copula_dist, calc_d2 = TRUE)
+  copula_derivatives <- calc_copula_derivatives(
+    eta_inv,
+    Fx_1_2,
+    copula_dist,
+    calc_d2 = TRUE,
+    par1 = calc_lik_out$copula_par1,
+    par2 = calc_lik_out$copula_par2,
+    pair_complete = calc_lik_out$pair_complete
+  )
 
   # Calculate numerical derivatives for F(x) - also used as a reference for overall likelihood derivative
 
@@ -226,6 +234,7 @@ vcov.gamlss.longitudinal <- function(object, par = NA, sep_d2 = TRUE, numderiv =
     se_final = vcov_solved$se_final,
     method_used = method_used,
     method_requested = method_requested,
-    hessian_diagnostics = vcov_solved$hessian_diagnostics
+    hessian_diagnostics = vcov_solved$hessian_diagnostics,
+    hessian_fallback = vcov_path$hessian_fallback
   ), return_details = details))
 }

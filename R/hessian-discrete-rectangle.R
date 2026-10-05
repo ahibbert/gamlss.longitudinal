@@ -4,17 +4,18 @@
 .discrete_hessian_clamp_margin_value <- function(value, par_name, margin_dist) {
   link_name <- margin_dist[[paste(par_name, "link", sep = ".")]]
   family <- as.character(margin_dist$family[1])
+  boundary_eps <- .Machine$double.eps
 
   if (is.character(link_name) && identical(link_name[1], "logit")) {
-    return(pmin(pmax(value, 1e-8), 1 - 1e-8))
+    return(pmin(pmax(value, boundary_eps), 1 - boundary_eps))
   }
 
   if (is.character(link_name) && identical(link_name[1], "log")) {
-    return(pmax(value, 1e-8))
+    return(pmax(value, boundary_eps))
   }
 
   if (par_name %in% c("mu", "sigma", "tau") && !identical(family, "BI")) {
-    return(pmax(value, 1e-8))
+    return(pmax(value, boundary_eps))
   }
 
   value
@@ -28,8 +29,17 @@
   plus <- .discrete_hessian_clamp_margin_value(value + step, par_name, margin_dist)
   minus <- .discrete_hessian_clamp_margin_value(value - step, par_name, margin_dist)
   if (!is.finite(plus) || !is.finite(minus) || abs(plus - minus) < .Machine$double.eps) {
-    plus <- value + h
-    minus <- value - h
+    stop(structure(
+      list(
+        message = paste0(
+          "Could not construct distinct interior finite-difference values for margin parameter '",
+          par_name, "'."
+        ),
+        call = NULL,
+        context = "Discrete rectangle Hessian finite-difference stencil"
+      ),
+      class = c("gamlss_longitudinal_score_evaluation_error", "error", "condition")
+    ))
   }
   c(plus = plus, minus = minus)
 }
@@ -39,20 +49,38 @@
 #' @noRd
 .discrete_hessian_first <- function(gp, gm, xp, xm) {
   out <- (gp - gm) / (xp - xm)
-  if (is.finite(out)) out else 0
+  if (!is.finite(out)) {
+    stop(structure(
+      list(message = "Discrete rectangle first Hessian difference was nonfinite.", call = NULL),
+      class = c("gamlss_longitudinal_score_evaluation_error", "error", "condition")
+    ))
+  }
+  out
 }
 
 #' @noRd
 .discrete_hessian_second <- function(gp, g0, gm, xp, xm) {
   step <- (xp - xm) / 2
   out <- (gp - 2 * g0 + gm) / (step^2)
-  if (is.finite(out)) out else 0
+  if (!is.finite(out)) {
+    stop(structure(
+      list(message = "Discrete rectangle diagonal Hessian difference was nonfinite.", call = NULL),
+      class = c("gamlss_longitudinal_score_evaluation_error", "error", "condition")
+    ))
+  }
+  out
 }
 
 #' @noRd
 .discrete_hessian_cross <- function(gpp, gpm, gmp, gmm, xp, xm, yp, ym) {
   out <- (gpp - gpm - gmp + gmm) / ((xp - xm) * (yp - ym))
-  if (is.finite(out)) out else 0
+  if (!is.finite(out)) {
+    stop(structure(
+      list(message = "Discrete rectangle cross Hessian difference was nonfinite.", call = NULL),
+      class = c("gamlss_longitudinal_score_evaluation_error", "error", "condition")
+    ))
+  }
+  out
 }
 
 #' Evaluate one endpoint's discrete CDF bounds and PMF
@@ -82,34 +110,103 @@
   args <- c(args, lapply(.gl_margin_fixed_family_args(margin_dist, n), function(x) x[[obs_id]]))
 
   upper_args <- args
-  upper_args$q <- y
   lower_args <- args
-  lower_args$q <- y - 1
+  for (response_name in intersect(c("q", "x", "y"), names(args))) {
+    upper_args[[response_name]] <- y
+    lower_args[[response_name]] <- y - 1
+  }
   density_args <- args
   density_args$x <- y
 
-  upper <- tryCatch(
-    do.call(pfun, upper_args[names(upper_args) %in% formalArgs(pfun)]),
-    error = function(e) NA_real_
+  upper <- .gl_evaluate_margin_cdf(
+    input = upper_args,
+    margin_dist = margin_dist,
+    response = y,
+    FUN = pfun,
+    FUN_args = formalArgs(pfun),
+    cacheable = TRUE
   )
-  lower <- if (is.finite(y) && y <= 0) {
-    0
-  } else {
-    tryCatch(
-      do.call(pfun, lower_args[names(lower_args) %in% formalArgs(pfun)]),
-      error = function(e) NA_real_
-    )
-  }
+  lower <- .gl_evaluate_margin_cdf(
+    input = lower_args,
+    margin_dist = margin_dist,
+    response = y - 1,
+    FUN = pfun,
+    FUN_args = formalArgs(pfun),
+    cacheable = TRUE
+  )
   mass <- tryCatch(
     do.call(dfun, density_args[names(density_args) %in% formalArgs(dfun)]),
     error = function(e) NA_real_
   )
 
+  values <- c(upper = as.numeric(upper)[1], lower = as.numeric(lower)[1], mass = as.numeric(mass)[1])
+  invalid <- !is.finite(values) |
+    values < -100 * .Machine$double.eps |
+    c(values["upper"] > 1 + 100 * .Machine$double.eps,
+      values["lower"] > 1 + 100 * .Machine$double.eps,
+      FALSE)
+  if (any(invalid)) {
+    stop(structure(
+      list(
+        message = paste0("Discrete Hessian endpoint evaluation was invalid on observed row ", obs_id, "."),
+        call = NULL,
+        rows = obs_id
+      ),
+      class = c("gamlss_longitudinal_score_evaluation_error", "error", "condition")
+    ))
+  }
+
   list(
-    upper = as.numeric(upper)[1],
-    lower = as.numeric(lower)[1],
-    mass = as.numeric(mass)[1]
+    upper = pmin(pmax(values[["upper"]], 0), 1),
+    lower = pmin(pmax(values[["lower"]], 0), 1),
+    mass = pmax(values[["mass"]], 0)
   )
+}
+
+#' Cache exact discrete endpoint states within one Hessian evaluation
+#'
+#' @noRd
+.discrete_hessian_cached_endpoint_evaluator <- function(
+    endpoint_eval_fn = .discrete_hessian_endpoint_eval) {
+  endpoint_cache <- new.env(hash = TRUE, parent = emptyenv())
+  function(
+      obs_id,
+      eta_inv,
+      margin_dist,
+      response,
+      pfun,
+      dfun,
+      override = NULL) {
+    override_values <- unlist(override, recursive = TRUE, use.names = TRUE)
+    if (length(override_values)) {
+      override_values <- override_values[order(names(override_values))]
+      override_key <- paste(
+        names(override_values),
+        vapply(override_values, function(value) {
+          sprintf("%a", as.numeric(value))
+        }, character(1L)),
+        sep = "=",
+        collapse = ";"
+      )
+    } else {
+      override_key <- "base"
+    }
+    key <- paste0(obs_id, "|", override_key)
+    if (exists(key, envir = endpoint_cache, inherits = FALSE)) {
+      return(get(key, envir = endpoint_cache, inherits = FALSE))
+    }
+    value <- endpoint_eval_fn(
+      obs_id = obs_id,
+      eta_inv = eta_inv,
+      margin_dist = margin_dist,
+      response = response,
+      pfun = pfun,
+      dfun = dfun,
+      override = override
+    )
+    assign(key, value, envir = endpoint_cache)
+    value
+  }
 }
 
 #' Evaluate one adjacent-pair discrete copula ratio log-likelihood
@@ -130,12 +227,13 @@
     endpoint1_override = NULL,
     endpoint2_override = NULL,
     theta = NULL,
-    zeta = NULL) {
-  e1 <- .discrete_hessian_endpoint_eval(
+    zeta = NULL,
+    endpoint_eval_fn = .discrete_hessian_endpoint_eval) {
+  e1 <- endpoint_eval_fn(
     row_id1[[pair_id]], eta_inv, margin_dist, response, pfun, dfun,
     override = endpoint1_override
   )
-  e2 <- .discrete_hessian_endpoint_eval(
+  e2 <- endpoint_eval_fn(
     row_id2[[pair_id]], eta_inv, margin_dist, response, pfun, dfun,
     override = endpoint2_override
   )
@@ -147,10 +245,25 @@
     family = copula_dist, par = th, par2 = ze
   )
 
+  if (!is.finite(rect) || rect < 0) {
+    stop(structure(
+      list(message = paste0("Discrete rectangle Hessian probability was invalid for complete pair ", pair_id, "."),
+           call = NULL, rows = pair_id),
+      class = c("gamlss_longitudinal_score_evaluation_error", "error", "condition")
+    ))
+  }
+
   out <- log(pmax(rect, 1e-300)) -
     log(pmax(e1$mass, 1e-300)) -
     log(pmax(e2$mass, 1e-300))
-  if (is.finite(out)) as.numeric(out) else 0
+  if (!is.finite(out)) {
+    stop(structure(
+      list(message = paste0("Discrete rectangle Hessian log ratio was nonfinite for complete pair ", pair_id, "."),
+           call = NULL, rows = pair_id),
+      class = c("gamlss_longitudinal_score_evaluation_error", "error", "condition")
+    ))
+  }
+  as.numeric(out)
 }
 
 #' Pair-level Hessian contributions for exact discrete rectangle likelihoods
@@ -190,10 +303,26 @@
   pfun <- get(paste0("p", margin_dist$family[1]), envir = asNamespace("gamlss.dist"), mode = "function")
   dfun <- get(paste0("d", margin_dist$family[1]), envir = asNamespace("gamlss.dist"), mode = "function")
 
+  pair_ok <- as.logical(calc_lik$pair_complete)
   par1 <- calc_lik$copula_par1
   par2 <- calc_lik$copula_par2
-  par1[!is.finite(par1)] <- 0
-  par2[!is.finite(par2)] <- 0
+  bad_parameter <- pair_ok & (!is.finite(par1) | !is.finite(par2))
+  if (any(bad_parameter)) {
+    stop(structure(
+      list(message = "Discrete rectangle Hessian copula parameters were nonfinite for a complete pair.",
+           call = NULL, rows = which(bad_parameter)),
+      class = c("gamlss_longitudinal_score_evaluation_error", "error", "condition")
+    ))
+  }
+  par1[!pair_ok] <- 0
+  par2[!pair_ok] <- 0
+
+  # The finite-difference stencil revisits the same endpoint state many times:
+  # the opposite endpoint is unchanged for every one-sided perturbation, and
+  # copula-parameter perturbations do not alter either endpoint. Cache exact
+  # endpoint/override combinations for this Hessian call so the expensive
+  # family CDF and PMF evaluations are performed once per distinct state.
+  cached_endpoint_eval <- .discrete_hessian_cached_endpoint_evaluator()
 
   eval_pair <- function(k, e1 = NULL, e2 = NULL, theta = NULL, zeta = NULL) {
     .discrete_hessian_pair_logratio(
@@ -211,11 +340,11 @@
       endpoint1_override = e1,
       endpoint2_override = e2,
       theta = theta,
-      zeta = zeta
+      zeta = zeta,
+      endpoint_eval_fn = cached_endpoint_eval
     )
   }
 
-  pair_ok <- calc_lik$pair_complete
   for (k in seq_len(n_pairs)) {
     if (!isTRUE(pair_ok[[k]])) next
     i1 <- row_id1[[k]]

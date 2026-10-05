@@ -112,24 +112,45 @@
     parameter_score_fn = .gl_rs_parameter_score,
     print_fn = print,
     state_builder_fn = .gl_build_rs_parameter_score_state) {
-  copula_context_args <- list(
-    eta_inv = eta_inv,
-    Fx_1_2 = Fx_1_2,
-    copula_dist = copula_dist,
-    calc_lik_out = calc_lik_out
-  )
-  copula_context_formals <- names(formals(copula_context_fn))
-  if ("..." %in% copula_context_formals || "par_name" %in% copula_context_formals) {
-    copula_context_args$par_name <- par_name
+  margin_params <- c("mu", "sigma", "nu", "tau")
+  use_discrete_score <-
+    identical(calc_lik_out$likelihood_type, "discrete_rectangle") &&
+    (!par_name %in% margin_params || isTRUE(include_dlcopdpar))
+
+  if (use_discrete_score) {
+    # Exact rectangle scores fully determine this block. Continuous-density
+    # copula derivatives are not consumed by `.gl_rs_parameter_score()` and
+    # can be particularly expensive for Student-t copulas.
+    copula_context <- list(
+      Fx_1_2 = Fx_1_2,
+      copula_derivatives = list(),
+      dldth = NULL,
+      dcdth = NULL,
+      dcdu1 = NULL,
+      dcdu2 = NULL,
+      dldz = NULL,
+      dcdz = NULL
+    )
+  } else {
+    copula_context_args <- list(
+      eta_inv = eta_inv,
+      Fx_1_2 = Fx_1_2,
+      copula_dist = copula_dist,
+      calc_lik_out = calc_lik_out
+    )
+    copula_context_formals <- names(formals(copula_context_fn))
+    if ("..." %in% copula_context_formals || "par_name" %in% copula_context_formals) {
+      copula_context_args$par_name <- par_name
+    }
+    if ("..." %in% copula_context_formals || "include_dlcopdpar" %in% copula_context_formals) {
+      copula_context_args$include_dlcopdpar <- include_dlcopdpar
+    }
+    copula_context <- do.call(copula_context_fn, copula_context_args)
   }
-  if ("..." %in% copula_context_formals || "include_dlcopdpar" %in% copula_context_formals) {
-    copula_context_args$include_dlcopdpar <- include_dlcopdpar
-  }
-  copula_context <- do.call(copula_context_fn, copula_context_args)
 
   timer <- timer_fn(timer, timer_start, "Copula Derivatives")
 
-  discrete_scores <- discrete_scores_fn(
+  discrete_score_args <- list(
     calc_lik_out = calc_lik_out,
     eta_inv = eta_inv,
     mm = mm,
@@ -139,6 +160,11 @@
     pair_cache = pair_cache,
     discrete_score_method = discrete_score_method
   )
+  discrete_score_formals <- names(formals(discrete_scores_fn))
+  if ("..." %in% discrete_score_formals || "par_name" %in% discrete_score_formals) {
+    discrete_score_args$par_name <- par_name
+  }
+  discrete_scores <- do.call(discrete_scores_fn, discrete_score_args)
 
   score_assembly <- parameter_score_fn(
     par_name = par_name,

@@ -18,6 +18,28 @@
   if (is.null(margin_dist)) {
     error <- paste0("Could not construct gamlss.dist family object for '", margin_family, "'.")
   } else {
+    optimizer_controls_by_route <- fit_args$optimizer_controls_by_route
+    fit_args$optimizer_controls_by_route <- NULL
+    if (!is.null(optimizer_controls_by_route)) {
+      if (!is.list(optimizer_controls_by_route) ||
+          is.null(names(optimizer_controls_by_route))) {
+        stop("'fit_args$optimizer_controls_by_route' must be a named list.",
+             call. = FALSE)
+      }
+      route <- paste(margin_family, copula_family, sep = "/")
+      route_control <- optimizer_controls_by_route[[route]] %||%
+        optimizer_controls_by_route[["default"]]
+      if (is.null(route_control)) {
+        stop("No optimizer control was supplied for joint-selection route '",
+             route, "'.", call. = FALSE)
+      }
+      if (!inherits(route_control, "gamlss.longitudinal.control")) {
+        stop("The optimizer control for route '", route,
+             "' must be created by gamlss_longitudinal_control().",
+             call. = FALSE)
+      }
+      fit_args$optimizer_control <- route_control
+    }
     formulas <- .joint_selection_fit_formulas(
       response_var = response_var,
       time_var = time_var,

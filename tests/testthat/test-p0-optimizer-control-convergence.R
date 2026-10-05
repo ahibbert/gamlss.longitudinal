@@ -2,19 +2,69 @@ test_that("optimizer control constructor is strict and method aware", {
   ctl <- gamlss_longitudinal_control(
     outer_tol = 0.01,
     max_outer_iter = 12,
-    rs = list(inner_tol = 0.001, max_inner_iter = 8)
+    rs = list(
+      inner_tol = 0.001,
+      max_inner_iter = 8,
+      initial_inner_iter = 3L,
+      lambda_update_every = 7L,
+      bfgs_refine = TRUE,
+      bfgs_refine_after = 4L,
+      bfgs_method = "L-BFGS-B",
+      bfgs_max_refinements = 2L,
+      bfgs_max_iter = 25L,
+      bfgs_reltol = 1e-10,
+      bfgs_coordinate_rescue = TRUE,
+      bfgs_coordinate_threshold = 2,
+      bfgs_coordinate_radius = 5,
+      bfgs_coordinate_max = 4L,
+      bfgs_coordinate_tol = 1e-4,
+      bfgs_repolish_iter = 12L
+    )
   )
   expect_s3_class(ctl, "gamlss.longitudinal.control")
   expect_equal(ctl$shared$outer_tol, 0.01)
   expect_true(is.na(ctl$shared$lambda_start))
   expect_equal(ctl$shared$lambda_penalty, 2)
   expect_identical(ctl$rs$max_inner_iter, 8)
+  expect_identical(ctl$rs$initial_inner_iter, 3L)
+  expect_identical(ctl$rs$lambda_update_every, 7L)
+  expect_true(ctl$rs$bfgs_refine)
+  expect_identical(ctl$rs$bfgs_refine_after, 4L)
+  expect_identical(ctl$rs$bfgs_method, "L-BFGS-B")
+  expect_identical(ctl$rs$bfgs_max_refinements, 2L)
+  expect_identical(ctl$rs$bfgs_max_iter, 25L)
+  expect_equal(ctl$rs$bfgs_reltol, 1e-10)
+  expect_true(ctl$rs$bfgs_coordinate_rescue)
+  expect_equal(ctl$rs$bfgs_coordinate_threshold, 2)
+  expect_equal(ctl$rs$bfgs_coordinate_radius, 5)
+  expect_identical(ctl$rs$bfgs_coordinate_max, 4L)
+  expect_equal(ctl$rs$bfgs_coordinate_tol, 1e-4)
+  expect_identical(ctl$rs$bfgs_repolish_iter, 12L)
 
   expect_error(gamlss_longitudinal_control(outer_tol = 0), "positive")
   expect_error(gamlss_longitudinal_control(rs = list(1)), "must be named")
   expect_error(gamlss_longitudinal_control(rs = list(foo = 1)), "Unknown")
   expect_error(gamlss_longitudinal_control(rs = structure(list(1, 2), names = c("max_steps", "max_steps"))), "Duplicate")
   expect_error(gamlss_longitudinal_control(rs = list(max_inner_iter = 0)), "positive integer")
+  expect_error(gamlss_longitudinal_control(rs = list(initial_inner_iter = 0)), "positive integer or NA")
+  expect_error(
+    gamlss_longitudinal_control(
+      rs = list(max_inner_iter = 5L, initial_inner_iter = 6L)
+    ),
+    "cannot exceed"
+  )
+  expect_error(gamlss_longitudinal_control(rs = list(lambda_update_every = 0)), "positive integer")
+  expect_error(gamlss_longitudinal_control(rs = list(bfgs_refine_after = 0)), "positive integer")
+  expect_error(gamlss_longitudinal_control(rs = list(bfgs_method = "CG")), "arg")
+  expect_error(gamlss_longitudinal_control(rs = list(bfgs_max_refinements = 0)), "positive integer")
+  expect_error(gamlss_longitudinal_control(rs = list(bfgs_max_iter = 0)), "positive integer")
+  expect_error(gamlss_longitudinal_control(rs = list(bfgs_reltol = 0)), "positive finite")
+  expect_error(gamlss_longitudinal_control(rs = list(bfgs_coordinate_rescue = NA)), "TRUE or FALSE")
+  expect_error(gamlss_longitudinal_control(rs = list(bfgs_coordinate_threshold = 0)), "positive finite")
+  expect_error(gamlss_longitudinal_control(rs = list(bfgs_coordinate_radius = 0)), "positive finite")
+  expect_error(gamlss_longitudinal_control(rs = list(bfgs_coordinate_max = 0)), "positive integer")
+  expect_error(gamlss_longitudinal_control(rs = list(bfgs_coordinate_tol = 0)), "positive finite")
+  expect_error(gamlss_longitudinal_control(rs = list(bfgs_repolish_iter = 0)), "positive integer")
   expect_error(gamlss_longitudinal_control(cg = list(max_stall = 0)), "positive integer")
   expect_error(gamlss_longitudinal_control(lambda_start = 0), "lambda_start")
   expect_error(gamlss_longitudinal_control(lambda_penalty = Inf), "lambda_penalty")
@@ -196,6 +246,7 @@ test_that("warm start uses one optimizer control bundle without legacy arguments
   expect_s3_class(captured$optimizer_control, "gamlss.longitudinal.control")
   expect_identical(captured$optimizer_control$shared$max_outer_iter, 3L)
   expect_false(captured$optimizer_control$rs$warm_start_joint)
+  expect_false(captured$optimizer_control$rs$bfgs_refine)
   expect_false(any(names(captured) %in% names(gamlss.longitudinal:::.gl_legacy_optimizer_map())))
   expect_false(any(names(captured) %in% c("true_val", "vcov_numderiv", "use_Rcpp")))
 })
