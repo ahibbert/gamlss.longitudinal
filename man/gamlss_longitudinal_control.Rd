@@ -77,14 +77,14 @@ Shared defaults are \code{outer_tol = NA} (data-adaptive),
 where an automatic value is documented; iteration counts are positive
 integers. The elapsed budget must be positive or \code{Inf}.
 
-RS defaults are \code{inner_tol = NA}, \code{max_inner_iter = 100},
-\code{initial_inner_iter = NA} (use \code{max_inner_iter} immediately),
-\code{max_negative_outer_streak = 10}, \code{start_step_size = 0.5},
+RS defaults are \code{inner_tol = NA}, \code{max_inner_iter = 20},
+\code{initial_inner_iter = 5} (adapt to 10 and then 20 when needed),
+\code{max_negative_outer_streak = 10}, \code{start_step_size = 2},
 \code{step_adjustment = NA}, \code{max_steps = 5}, \code{warm_start_joint = TRUE},
-\code{warm_start_joint_iter = 5}, \code{use_backtracking = TRUE},
-\code{backtracking_max_halves = 50}, \code{adaptive_step_size = FALSE},
+\code{warm_start_joint_iter = 2}, \code{use_backtracking = TRUE},
+\code{backtracking_max_halves = 2}, \code{adaptive_step_size = FALSE},
 \code{update_lambda = TRUE},
-\code{lambda_update_every = 1},
+\code{lambda_update_every = 5},
 \code{bfgs_refine = FALSE}, \code{bfgs_refine_after = 10}, \code{bfgs_method = "BFGS"},
 \code{bfgs_max_refinements = 1},
 \code{bfgs_max_iter = 100}, \code{bfgs_reltol = 1e-12},
@@ -92,6 +92,12 @@ RS defaults are \code{inner_tol = NA}, \code{max_inner_iter = 100},
 \code{bfgs_coordinate_radius = 4}, \code{bfgs_coordinate_max = 10},
 \code{bfgs_coordinate_tol = 1e-3}, \code{bfgs_repolish_iter = 50},
 \code{smooth_trust_radius = Inf}, and \code{discrete_score_method = "analytical"}.
+For joint RS fits, the default control is resolved by route. ZISICHEL and
+ZIBNB with Gumbel or Student-t copulas automatically use the validated
+endpoint BFGS schedule; ZIBNB--Student-t also enables bounded coordinate
+rescue. Explicitly supplied RS controls always take precedence. Other
+margins, other copulas, CG fits, and separate RS fits do not enable endpoint
+BFGS automatically.
 Counts are non-negative except \code{max_inner_iter} and
 \code{max_negative_outer_streak}, which are positive; the latter may be \code{Inf}.
 Step sizes are positive, and \code{discrete_score_method} is \code{"analytical"} or

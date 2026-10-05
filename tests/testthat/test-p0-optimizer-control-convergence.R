@@ -78,6 +78,75 @@ test_that("optimizer control constructor is strict and method aware", {
   )
 })
 
+test_that("production RS defaults use bounded adaptive work", {
+  ctl <- gamlss_longitudinal_control()
+
+  expect_identical(ctl$rs$max_inner_iter, 20L)
+  expect_identical(ctl$rs$initial_inner_iter, 5L)
+  expect_equal(ctl$rs$start_step_size, 2)
+  expect_identical(ctl$rs$warm_start_joint_iter, 2L)
+  expect_identical(ctl$rs$backtracking_max_halves, 2L)
+  expect_false(ctl$rs$adaptive_step_size)
+  expect_identical(ctl$rs$lambda_update_every, 5L)
+  expect_false(ctl$rs$bfgs_refine)
+})
+
+test_that("joint zero-inflated routes receive validated refinement defaults", {
+  apply_defaults <- gamlss.longitudinal:::.gl_apply_route_optimizer_defaults
+
+  zibnb_t <- apply_defaults(
+    gamlss_longitudinal_control(), "RS", gamlss.dist::ZIBNB(), "t",
+    optimization = "joint", purpose = "fit"
+  )
+  expect_true(zibnb_t$rs$bfgs_refine)
+  expect_identical(zibnb_t$rs$bfgs_refine_after, 1L)
+  expect_identical(zibnb_t$rs$bfgs_max_refinements, 2L)
+  expect_identical(zibnb_t$rs$bfgs_max_iter, 40L)
+  expect_true(zibnb_t$rs$bfgs_coordinate_rescue)
+  expect_identical(zibnb_t$rs$bfgs_repolish_iter, 40L)
+  expect_identical(attr(zibnb_t, "route_defaults")$route, "ZIBNB/t")
+
+  zis_g_screen <- apply_defaults(
+    gamlss_longitudinal_control(), "RS", gamlss.dist::ZISICHEL(), "G",
+    optimization = "joint", purpose = "screening"
+  )
+  zis_g_fit <- apply_defaults(
+    gamlss_longitudinal_control(), "RS", gamlss.dist::ZISICHEL(), "G",
+    optimization = "joint", purpose = "fit"
+  )
+  expect_identical(zis_g_screen$rs$bfgs_refine_after, 2L)
+  expect_identical(zis_g_fit$rs$bfgs_refine_after, 10L)
+
+  ordinary <- apply_defaults(
+    gamlss_longitudinal_control(), "RS", gamlss.dist::NBI(), "C",
+    optimization = "joint", purpose = "fit"
+  )
+  expect_false(ordinary$rs$bfgs_refine)
+
+  separate <- apply_defaults(
+    gamlss_longitudinal_control(), "RS", gamlss.dist::ZIBNB(), "t",
+    optimization = "separate", purpose = "fit"
+  )
+  expect_false(separate$rs$bfgs_refine)
+})
+
+test_that("explicit route controls override automatic refinement defaults", {
+  ctl <- gamlss_longitudinal_control(rs = list(
+    bfgs_refine = FALSE,
+    bfgs_max_iter = 7L,
+    bfgs_coordinate_rescue = FALSE
+  ))
+  resolved <- gamlss.longitudinal:::.gl_apply_route_optimizer_defaults(
+    ctl, "RS", gamlss.dist::ZIBNB(), "t",
+    optimization = "joint", purpose = "fit"
+  )
+
+  expect_false(resolved$rs$bfgs_refine)
+  expect_identical(resolved$rs$bfgs_max_iter, 7L)
+  expect_false(resolved$rs$bfgs_coordinate_rescue)
+  expect_identical(resolved$rs$bfgs_max_refinements, 2L)
+})
+
 test_that("legacy inactive-method controls deprecate and are ignored for one release", {
   old_options <- options(gamlss.longitudinal.lifecycle_verbosity = "warning")
   on.exit(options(old_options), add = TRUE)
@@ -95,7 +164,7 @@ test_that("legacy inactive-method controls deprecate and are ignored for one rel
     }
   )
   expect_s3_class(seen, "gamlss.longitudinal_deprecated_optimizer_control")
-  expect_identical(cg$rs$max_inner_iter, 100L)
+  expect_identical(cg$rs$max_inner_iter, 20L)
 
   gamlss.longitudinal:::.gl_reset_optimizer_control_deprecation()
   rs <- suppressWarnings(gamlss.longitudinal:::.gl_resolve_optimizer_control(

@@ -50,14 +50,14 @@
 #' where an automatic value is documented; iteration counts are positive
 #' integers. The elapsed budget must be positive or `Inf`.
 #'
-#' RS defaults are `inner_tol = NA`, `max_inner_iter = 100`,
-#' `initial_inner_iter = NA` (use `max_inner_iter` immediately),
-#' `max_negative_outer_streak = 10`, `start_step_size = 0.5`,
+#' RS defaults are `inner_tol = NA`, `max_inner_iter = 20`,
+#' `initial_inner_iter = 5` (adapt to 10 and then 20 when needed),
+#' `max_negative_outer_streak = 10`, `start_step_size = 2`,
 #' `step_adjustment = NA`, `max_steps = 5`, `warm_start_joint = TRUE`,
-#' `warm_start_joint_iter = 5`, `use_backtracking = TRUE`,
-#' `backtracking_max_halves = 50`, `adaptive_step_size = FALSE`,
+#' `warm_start_joint_iter = 2`, `use_backtracking = TRUE`,
+#' `backtracking_max_halves = 2`, `adaptive_step_size = FALSE`,
 #' `update_lambda = TRUE`,
-#' `lambda_update_every = 1`,
+#' `lambda_update_every = 5`,
 #' `bfgs_refine = FALSE`, `bfgs_refine_after = 10`, `bfgs_method = "BFGS"`,
 #' `bfgs_max_refinements = 1`,
 #' `bfgs_max_iter = 100`, `bfgs_reltol = 1e-12`,
@@ -65,6 +65,12 @@
 #' `bfgs_coordinate_radius = 4`, `bfgs_coordinate_max = 10`,
 #' `bfgs_coordinate_tol = 1e-3`, `bfgs_repolish_iter = 50`,
 #' `smooth_trust_radius = Inf`, and `discrete_score_method = "analytical"`.
+#' For joint RS fits, the default control is resolved by route. ZISICHEL and
+#' ZIBNB with Gumbel or Student-t copulas automatically use the validated
+#' endpoint BFGS schedule; ZIBNB--Student-t also enables bounded coordinate
+#' rescue. Explicitly supplied RS controls always take precedence. Other
+#' margins, other copulas, CG fits, and separate RS fits do not enable endpoint
+#' BFGS automatically.
 #' Counts are non-negative except `max_inner_iter` and
 #' `max_negative_outer_streak`, which are positive; the latter may be `Inf`.
 #' Step sizes are positive, and `discrete_score_method` is `"analytical"` or
@@ -154,19 +160,19 @@ gamlss_longitudinal_control <- function(
 .gl_rs_control_defaults <- function() {
   list(
     inner_tol = NA,
-    max_inner_iter = 100L,
-    initial_inner_iter = NA_integer_,
+    max_inner_iter = 20L,
+    initial_inner_iter = 5L,
     max_negative_outer_streak = 10L,
-    start_step_size = 0.5,
+    start_step_size = 2,
     step_adjustment = NA,
     max_steps = 5L,
     warm_start_joint = TRUE,
-    warm_start_joint_iter = 5L,
+    warm_start_joint_iter = 2L,
     use_backtracking = TRUE,
-    backtracking_max_halves = 50L,
+    backtracking_max_halves = 2L,
     adaptive_step_size = FALSE,
     update_lambda = TRUE,
-    lambda_update_every = 1L,
+    lambda_update_every = 5L,
     bfgs_refine = FALSE,
     bfgs_refine_after = 10L,
     bfgs_method = "BFGS",
@@ -182,6 +188,93 @@ gamlss_longitudinal_control <- function(
     smooth_trust_radius = Inf,
     discrete_score_method = "analytical"
   )
+}
+
+#' Apply validated route-specific defaults without overriding user controls
+#'
+#' @noRd
+.gl_apply_route_optimizer_defaults <- function(
+    control,
+    method,
+    margin_dist,
+    copula_dist,
+    optimization = "joint",
+    purpose = c("fit", "screening")) {
+  purpose <- match.arg(purpose)
+  if (!identical(method, "RS") || !identical(optimization, "joint")) {
+    return(control)
+  }
+
+  existing <- attr(control, "route_defaults", exact = TRUE)
+  if (is.list(existing) && identical(existing$resolved, TRUE)) {
+    return(control)
+  }
+
+  margin_family <- toupper(as.character(margin_dist$family[[1L]]))
+  copula_family <- if (identical(tolower(as.character(copula_dist)[[1L]]), "t")) {
+    "t"
+  } else {
+    toupper(as.character(copula_dist)[[1L]])
+  }
+  route <- paste(margin_family, copula_family, sep = "/")
+  schedule <- switch(
+    route,
+    `ZISICHEL/G` = list(
+      bfgs_refine = TRUE,
+      bfgs_refine_after = if (identical(purpose, "screening")) 2L else 10L,
+      bfgs_max_refinements = 1L,
+      bfgs_max_iter = 100L,
+      bfgs_coordinate_rescue = FALSE,
+      bfgs_repolish_iter = 50L
+    ),
+    `ZIBNB/G` = list(
+      bfgs_refine = TRUE,
+      bfgs_refine_after = 2L,
+      bfgs_max_refinements = 1L,
+      bfgs_max_iter = 170L,
+      bfgs_coordinate_rescue = FALSE,
+      bfgs_repolish_iter = 50L
+    ),
+    `ZISICHEL/t` = list(
+      bfgs_refine = TRUE,
+      bfgs_refine_after = 1L,
+      bfgs_max_refinements = 1L,
+      bfgs_max_iter = 120L,
+      bfgs_coordinate_rescue = FALSE,
+      bfgs_repolish_iter = 50L
+    ),
+    `ZIBNB/t` = list(
+      bfgs_refine = TRUE,
+      bfgs_refine_after = 1L,
+      bfgs_max_refinements = 2L,
+      bfgs_max_iter = 40L,
+      bfgs_coordinate_rescue = TRUE,
+      bfgs_repolish_iter = 40L
+    ),
+    NULL
+  )
+
+  applied <- character()
+  if (!is.null(schedule)) {
+    specified <- attr(control, "specified", exact = TRUE)
+    specified_rs <- specified$rs %||% character()
+    for (name in names(schedule)) {
+      if (!name %in% specified_rs) {
+        control$rs[[name]] <- schedule[[name]]
+        applied <- c(applied, name)
+      }
+    }
+    control <- .gl_validate_selected_optimizer_controls(
+      control, "RS", enforce_inactive = FALSE
+    )
+  }
+  attr(control, "route_defaults") <- list(
+    resolved = TRUE,
+    route = route,
+    purpose = purpose,
+    applied = applied
+  )
+  control
 }
 
 .gl_cg_control_defaults <- function() {
@@ -295,7 +388,11 @@ gamlss_longitudinal_control <- function(
       as.integer(x$initial_inner_iter)
     }
     if (x$initial_inner_iter > x$max_inner_iter) {
-      stop("rs$initial_inner_iter cannot exceed rs$max_inner_iter.", call. = FALSE)
+      initial_inner_explicit <- "initial_inner_iter" %in% (specified$rs %||% character())
+      if (initial_inner_explicit) {
+        stop("rs$initial_inner_iter cannot exceed rs$max_inner_iter.", call. = FALSE)
+      }
+      x$initial_inner_iter <- x$max_inner_iter
     }
     if (!(is.numeric(x$max_negative_outer_streak) && length(x$max_negative_outer_streak) == 1L &&
         !is.na(x$max_negative_outer_streak) && x$max_negative_outer_streak > 0)) {

@@ -46,6 +46,32 @@
       time_intercepts = time_intercepts,
       copula_time_intercepts = copula_time_intercepts
     )
+    selection_method <- toupper(fit_args$method %||% "RS")
+    selection_optimization <- fit_args$optimization %||% "joint"
+    default_optimizer_control <- gamlss_longitudinal_control()
+    default_optimizer_control <- .gl_apply_route_optimizer_defaults(
+      control = default_optimizer_control,
+      method = selection_method,
+      margin_dist = margin_dist,
+      copula_dist = copula_family,
+      optimization = selection_optimization,
+      purpose = "screening"
+    )
+    if (!is.null(fit_args$optimizer_control)) {
+      if (!inherits(fit_args$optimizer_control, "gamlss.longitudinal.control")) {
+        stop("'fit_args$optimizer_control' must be created by gamlss_longitudinal_control().",
+             call. = FALSE)
+      }
+      default_optimizer_control <- .gl_apply_route_optimizer_defaults(
+        control = fit_args$optimizer_control,
+        method = selection_method,
+        margin_dist = margin_dist,
+        copula_dist = copula_family,
+        optimization = selection_optimization,
+        purpose = "screening"
+      )
+      fit_args$optimizer_control <- default_optimizer_control
+    }
     default_args <- list(
       data = data,
       margin_dist = margin_dist,
@@ -60,9 +86,7 @@
       zeta.formula = ~1,
       optimization = "joint",
       compute_vcov = FALSE,
-      optimizer_control = gamlss_longitudinal_control(
-        rs = list(warm_start_joint = FALSE)
-      ),
+      optimizer_control = default_optimizer_control,
       verbose = 0
     )
     legacy_optimizer_names <- c(

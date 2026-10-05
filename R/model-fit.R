@@ -160,6 +160,14 @@ gamlss_longitudinal <- function(data = NULL,
     optimization_supplied = optimization_supplied,
     legacy = legacy
   )
+  optimizer_control <- .gl_apply_route_optimizer_defaults(
+    control = optimizer_control,
+    method = method,
+    margin_dist = margin_dist,
+    copula_dist = copula_dist,
+    optimization = optimization,
+    purpose = "fit"
+  )
   include_dlcopdpar <- identical(optimization, "joint")
 
   fit <- .gl_run_gamlss_longitudinal_entrypoint(
