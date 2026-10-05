@@ -96,3 +96,56 @@ test_that("initial parameter state preserves supplied starts and warm smooths", 
   expect_equal(unname(state$df_s$mu$`s(x)`), 0)
   expect_equal(unname(state$lambda_s$mu$`s(x)`), sum(diag(t(B) %*% B)) / 2)
 })
+
+test_that("fitted-state starts retain compatible terms and initialize new effects", {
+  mm <- list(
+    x = list(
+      mu = cbind(`(Intercept)` = 1, age = c(-1, 0, 1)),
+      sigma = cbind(`(Intercept)` = 1, treatment = c(0, 1, 0))
+    ),
+    s = list(mu = list(), sigma = list())
+  )
+  fitted_par <- c(
+    `mu.(Intercept)` = 2,
+    `sigma.(Intercept)` = -0.5,
+    `mu.sex` = 0.25
+  )
+
+  state <- gamlss.longitudinal:::.gl_build_initial_parameter_state(
+    start_from = fitted_par,
+    warm_start_par_s = list(mu = list(`s(age)` = c(0.1, -0.1)), sigma = list()),
+    warm_start_lambda_s = list(mu = list(`s(age)` = 4), sigma = list()),
+    mm = mm,
+    margin_dist = gamlss.dist::NO(),
+    copula_dist = "N",
+    dataset = data.frame(response = c(1, 2, 3)),
+    lambda_start = NA
+  )
+
+  expect_equal(
+    state$par_cov,
+    c(
+      `mu.(Intercept)` = 2, mu.age = 0,
+      `sigma.(Intercept)` = -0.5, sigma.treatment = 0
+    )
+  )
+})
+
+test_that("raw partial coefficient vectors remain strict", {
+  mm <- list(
+    x = list(mu = cbind(`(Intercept)` = 1, age = c(-1, 0, 1))),
+    s = list(mu = list())
+  )
+
+  expect_error(
+    gamlss.longitudinal:::.gl_build_initial_parameter_state(
+      start_from = c(`mu.(Intercept)` = 2),
+      mm = mm,
+      margin_dist = gamlss.dist::NO(),
+      copula_dist = "N",
+      dataset = data.frame(response = c(1, 2, 3)),
+      lambda_start = NA
+    ),
+    "does not contain every fixed coefficient"
+  )
+})
