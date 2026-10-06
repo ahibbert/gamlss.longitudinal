@@ -38,10 +38,12 @@
     log_lik_history,
     par_history,
     true_val,
+    check_elapsed_budget = function(stage) NULL,
     backfitting_inputs_fn = .gl_rs_backfitting_inputs,
     timer_fn = .gl_record_rs_timer_step,
     runner_fn = .gl_build_rs_backfitting_runner,
     acceptance_fn = .gl_run_rs_backfitting_acceptance) {
+  check_elapsed_budget(sprintf("RS backfitting inputs (%s)", par_name))
   backfitting_inputs <- backfitting_inputs_fn(
     eta = eta,
     eta_dr = eta_dr,
@@ -54,6 +56,7 @@
 
   timer <- timer_fn(timer, timer_start, "Backfitting")
 
+  check_elapsed_budget(sprintf("RS backfitting solve (%s)", par_name))
   backfitting_iteration <- runner_fn(
     design_info = backfitting_inputs$design_info,
     w_k_vec = backfitting_inputs$w_k_vec,
@@ -67,7 +70,7 @@
 
   K <- lambda_penalty_K
 
-  rs_step <- acceptance_fn(
+  acceptance_args <- list(
     lambda_s = lambda_s,
     par_name = par_name,
     par_s = par_s,
@@ -98,6 +101,13 @@
     par_history = par_history,
     true_val = true_val
   )
+  acceptance_formals <- names(formals(acceptance_fn))
+  if ("..." %in% acceptance_formals ||
+      "check_elapsed_budget" %in% acceptance_formals) {
+    acceptance_args$check_elapsed_budget <- check_elapsed_budget
+  }
+  check_elapsed_budget(sprintf("RS proposal acceptance (%s)", par_name))
+  rs_step <- do.call(acceptance_fn, acceptance_args)
 
   timer <- timer_fn(
     timer,

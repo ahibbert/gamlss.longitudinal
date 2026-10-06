@@ -324,3 +324,47 @@ test_that("a fitted model start carries fixed smooth and smoothing-penalty state
   expect_equal(initial$par_s$mu$`s(z)`, prior$par_s$mu$`s(z)`)
   expect_equal(unname(initial$lambda_s$mu$`s(z)`), 7)
 })
+
+test_that("reduced-formula warm starts project the fitted predictor", {
+  prior <- structure(list(
+    par = c(`sigma.intercept` = 10, `sigma.week2` = -10),
+    par_s = list(sigma = list()),
+    lambda_s = list(sigma = list()),
+    model_matrix = list(
+      x = list(sigma = data.frame(
+        intercept = rep(1, 4),
+        week2 = c(0, 1, 0, 1)
+      )),
+      s = list(sigma = list())
+    )
+  ), class = "gamlss.longitudinal")
+  target_mm <- list(
+    x = list(sigma = structure(
+      matrix(1, nrow = 4, ncol = 1),
+      dimnames = list(NULL, "intercept")
+    )),
+    s = list(sigma = list())
+  )
+
+  projected <- gamlss.longitudinal:::.gl_project_fitted_start(
+    prior, target_mm
+  )
+
+  expect_equal(unname(projected$par[["sigma.intercept"]]), 5)
+  expect_identical(projected$projected, "sigma")
+  expect_equal(unname(projected$rmse[["sigma"]]), 5)
+
+  warm <- run_warm_start(
+    start_from = prior,
+    user_supplied_start = TRUE,
+    target_mm = target_mm,
+    fit_fn = function(...) stop("a supplied fitted state must skip generic warm start")
+  )
+  expect_equal(unname(warm$start_from[["sigma.intercept"]]), 10)
+  expect_equal(
+    unname(warm$projected_start_fallback$par[["sigma.intercept"]]),
+    5
+  )
+  expect_identical(warm$warm_start_info$projected_parameters, "sigma")
+  expect_false(warm$warm_start_info$projection_used)
+})

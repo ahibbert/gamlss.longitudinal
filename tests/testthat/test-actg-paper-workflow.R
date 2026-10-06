@@ -91,6 +91,21 @@ test_that("ACTG warning audit rejects unclassified events", {
   expect_match(source, 'warning_table$warning_code != "unexpected"', fixed = TRUE)
 })
 
+test_that("ACTG zero-inflated controls enforce the production time envelope", {
+  environment <- actg_workflow_environment()
+  control <- environment$jss_actg_optimizer_control(
+    margin_family = "ZISICHEL",
+    copula_family = "t",
+    screening = TRUE
+  )
+
+  expect_equal(control$shared$max_elapsed_sec, 1190)
+  expect_identical(control$rs$initial_inner_iter, 5L)
+  expect_identical(control$rs$max_inner_iter, 20L)
+  expect_identical(control$rs$backtracking_max_halves, 2L)
+  expect_identical(control$rs$bfgs_max_iter, 100L)
+})
+
 test_that("ACTG manuscript table renderers use only promoted inputs", {
   environment <- actg_workflow_environment()
   data <- environment$jss_actg_load_data()

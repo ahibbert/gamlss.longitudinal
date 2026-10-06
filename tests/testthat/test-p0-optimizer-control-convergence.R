@@ -117,6 +117,12 @@ test_that("joint zero-inflated routes receive validated refinement defaults", {
   expect_identical(zis_g_screen$rs$bfgs_refine_after, 2L)
   expect_identical(zis_g_fit$rs$bfgs_refine_after, 10L)
 
+  zis_t <- apply_defaults(
+    gamlss_longitudinal_control(), "RS", gamlss.dist::ZISICHEL(), "t",
+    optimization = "joint", purpose = "screening"
+  )
+  expect_identical(zis_t$rs$bfgs_max_iter, 100L)
+
   ordinary <- apply_defaults(
     gamlss_longitudinal_control(), "RS", gamlss.dist::NBI(), "C",
     optimization = "joint", purpose = "fit"

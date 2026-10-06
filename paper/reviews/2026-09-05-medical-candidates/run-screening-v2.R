@@ -76,7 +76,7 @@ workers <- positive_integer(
   "workers"
 )
 max_steps <- positive_integer(argument_value("max-steps", "Inf"), "max-steps", TRUE)
-max_elapsed_sec <- suppressWarnings(as.numeric(argument_value("max-elapsed-sec", "1200")))
+max_elapsed_sec <- suppressWarnings(as.numeric(argument_value("max-elapsed-sec", "1190")))
 if (length(max_elapsed_sec) != 1L || is.na(max_elapsed_sec) || max_elapsed_sec <= 0) {
   stop("--max-elapsed-sec must be a positive number.")
 }

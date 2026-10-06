@@ -35,6 +35,7 @@
     log_lik_history,
     par_history,
     true_val,
+    check_elapsed_budget = function(stage) NULL,
     prepare_proposal_fn = .gl_rs_prepare_backfitting_proposal,
     accept_step_fn = .gl_rs_accept_backfitting_step,
     apply_acceptance_fn = .gl_apply_rs_acceptance_state,
@@ -42,6 +43,7 @@
     plot_progress_fn = .gl_plot_rs_progress,
     difftime_fn = difftime,
     sys_time_fn = Sys.time) {
+  check_elapsed_budget(sprintf("RS proposal (%s)", par_name))
   proposal <- prepare_proposal_fn(
     lambda_s = lambda_s,
     par_name = par_name,
@@ -80,6 +82,7 @@
     use_backtracking = use_backtracking,
     backtracking_max_halves = backtracking_max_halves,
     proposal_fn = function(trial_step) {
+      check_elapsed_budget(sprintf("RS backtracking proposal (%s)", par_name))
       backfitting_fn(
         par_s = par_s,
         par_cov = par_cov,

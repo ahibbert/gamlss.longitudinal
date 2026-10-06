@@ -239,7 +239,7 @@ gamlss_longitudinal_control <- function(
       bfgs_refine = TRUE,
       bfgs_refine_after = 1L,
       bfgs_max_refinements = 1L,
-      bfgs_max_iter = 120L,
+      bfgs_max_iter = 100L,
       bfgs_coordinate_rescue = FALSE,
       bfgs_repolish_iter = 50L
     ),
