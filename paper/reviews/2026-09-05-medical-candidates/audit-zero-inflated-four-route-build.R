@@ -128,7 +128,7 @@ row_key <- function(value) {
   if (!length(columns)) return(rep("", nrow(value)))
   do.call(paste, c(lapply(value[columns], function(x) {
     x <- as.character(x)
-    x[is.na(x)] <- "<NA>"
+    x[is.na(x) | !nzchar(trimws(x))] <- "<NA>"
     x
   }), sep = "\r"))
 }
