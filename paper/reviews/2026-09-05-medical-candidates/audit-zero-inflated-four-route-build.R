@@ -188,6 +188,25 @@ unexpected_warning_count <- function(warnings, converged) {
   }, logical(1L)))
 }
 
+selection_consistent <- function(value) {
+  if (!nrow(value)) return(TRUE)
+  groups <- split(seq_len(nrow(value)), paste(value$stage, value$step, sep = "\r"))
+  all(vapply(groups, function(index) {
+    rows <- value[index, , drop = FALSE]
+    eligible <- rows$converged %in% TRUE & is.finite(rows$AIC)
+    accepted <- rows$accepted %in% TRUE
+    if (sum(accepted) > 1L || any(accepted & !eligible)) return(FALSE)
+    maximum_step <- all(rows$step == 0L)
+    if (maximum_step) return(sum(accepted) == 1L && sum(eligible) == 1L)
+    finite_delta <- is.finite(rows$delta_AIC_from_parent)
+    improving <- eligible & finite_delta & rows$delta_AIC_from_parent < 0
+    if (!any(improving)) return(!any(accepted))
+    if (sum(accepted) != 1L) return(FALSE)
+    accepted_index <- which(accepted)
+    identical(accepted_index, which.min(ifelse(eligible, rows$AIC, Inf)))
+  }, logical(1L)))
+}
+
 formula_signature <- function(formulas) {
   if (!is.list(formulas)) return(character())
   vapply(formulas, function(formula) {
@@ -242,6 +261,8 @@ summary_rows <- lapply(routes, function(route) {
     unexpected_warning_rows = unexpected_warning_count(
       warning_values, current$converged
     ),
+    selection_consistency_pass = selection_consistent(current),
+    duplicate_candidate_keys = sum(duplicated(row_key(current))),
     fingerprint_pass = manifest_fingerprint_ok(results_prefix, route),
     reference_overlap = comparison$overlap,
     reference_missing = comparison$missing_reference,
@@ -272,6 +293,8 @@ present <- summary$candidates > 0L
 if (any(present & !summary$runtime_pass)) failures <- c(failures, "runtime")
 if (any(present & summary$fingerprint_pass %in% FALSE)) failures <- c(failures, "fingerprint")
 if (any(summary$unexpected_warning_rows > 0L)) failures <- c(failures, "warnings")
+if (any(!summary$selection_consistency_pass)) failures <- c(failures, "selection_consistency")
+if (any(summary$duplicate_candidate_keys > 0L)) failures <- c(failures, "duplicate_candidates")
 if (any(summary$decision_mismatches > 0L, na.rm = TRUE)) failures <- c(failures, "decisions")
 if (any(summary$max_abs_logLik > 1e-8, na.rm = TRUE) ||
     any(summary$max_abs_AIC > 1e-8, na.rm = TRUE)) {
