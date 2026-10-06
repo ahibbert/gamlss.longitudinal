@@ -2158,6 +2158,9 @@ test_that("RS backfitting acceptance runner sequences proposal acceptance report
     log_lik_history = matrix(1, nrow = 1, ncol = 3),
     par_history = matrix(1, nrow = 1, ncol = 1),
     true_val = NA_real_,
+    check_elapsed_budget = function(stage) {
+      call_order <<- c(call_order, paste("budget", stage))
+    },
     prepare_proposal_fn = function(lambda_s, par_name, par_s, par_cov,
                                    beta_start, K, margin_dist, copula_dist,
                                    dataset, mm, copula_link, df_s, step_size,
@@ -2231,7 +2234,15 @@ test_that("RS backfitting acceptance runner sequences proposal acceptance report
     sys_time_fn = function() as.POSIXct("2024-01-01 00:00:10", tz = "UTC")
   )
 
-  expect_equal(call_order, c("prepare", "accept", "apply", "report", "plot"))
+  expect_equal(call_order, c(
+    "budget RS proposal (mu)",
+    "prepare",
+    "accept",
+    "budget RS backtracking proposal (mu)",
+    "apply",
+    "report",
+    "plot"
+  ))
   expect_equal(out$lambda_s, lambda_updated)
   expect_equal(out$par_cov, c(mu = 3))
   expect_equal(out$calc_lik_out_end, accepted_calc_lik)

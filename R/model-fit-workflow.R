@@ -5,6 +5,41 @@
 #' - Initialization of starting parameters and optimizer context (model-fit-setup.R)
 #' 
 #' @noRd
+.gl_initial_optimizer_likelihood_valid <- function(
+    optimizer_context,
+    mm,
+    margin_dist,
+    copula_dist,
+    dataset,
+    likelihood_fn = calc_likelihood_minimal) {
+  eta_out <- tryCatch(
+    optimizer_context$rs_calc_eta(
+      par_cov_current = optimizer_context$par_cov,
+      par_s_current = optimizer_context$par_s
+    ),
+    error = identity
+  )
+  if (inherits(eta_out, "error")) return(FALSE)
+  likelihood <- tryCatch(
+    likelihood_fn(
+      eta_inv = eta_out$eta_inv,
+      mm = mm$x,
+      margin_dist = margin_dist,
+      copula_dist = copula_dist,
+      response = dataset$response,
+      response_margin = dataset$time,
+      response_subject = dataset$subject,
+      pair_cache = optimizer_context$pair_cache,
+      margin_eval_cache = optimizer_context$margin_eval_cache,
+      calc_margin_deriv = FALSE
+    ),
+    error = identity
+  )
+  !inherits(likelihood, "error") && isTRUE(likelihood$valid) &&
+    is.finite(likelihood$log_lik[["joint"]])
+}
+
+#' @noRd
 .gl_prepare_fit_workflow <- function(
     dataset,
     margin_dist,
@@ -33,7 +68,8 @@
     matrix_fn = .gl_build_model_matrix_bundle,
     warm_start_fn = .gl_run_joint_warm_start,
     step_control_fn = .gl_normalize_step_controls,
-    optimizer_context_fn = .gl_initialize_fit_optimizer_context) {
+    optimizer_context_fn = .gl_initialize_fit_optimizer_context,
+    initial_likelihood_valid_fn = .gl_initial_optimizer_likelihood_valid) {
   rs_control <- optimizer_control$rs
   cg_control <- optimizer_control$cg
   shared_control <- optimizer_control$shared
@@ -87,7 +123,7 @@
     dataset = fit_data$dataset
   )
 
-  warm_start <- warm_start_fn(
+  warm_start_args <- list(
     start_from = start_from,
     method = fit_controls$method,
     include_dlcopdpar = include_dlcopdpar,
@@ -115,6 +151,11 @@
     lambda_penalty_K = lambda_penalty_K,
     verbose = verbose
   )
+  warm_start_formals <- names(formals(warm_start_fn))
+  if ("..." %in% warm_start_formals || "target_mm" %in% warm_start_formals) {
+    warm_start_args$target_mm <- matrix_bundle$mm
+  }
+  warm_start <- do.call(warm_start_fn, warm_start_args)
 
   step_controls <- step_control_fn(
     method = fit_controls$method,
@@ -143,6 +184,48 @@
     method = fit_controls$method,
     verbose = verbose
   )
+
+  projected_fallback <- warm_start$projected_start_fallback
+  if (!is.null(projected_fallback) &&
+      !initial_likelihood_valid_fn(
+        optimizer_context = optimizer_context,
+        mm = matrix_bundle$mm,
+        margin_dist = margin_dist,
+        copula_dist = copula_dist,
+        dataset = fit_data$dataset
+      )) {
+    projected_context <- optimizer_context_fn(
+      start_from = projected_fallback$par,
+      warm_start_par_s = projected_fallback$par_s,
+      warm_start_lambda_s = projected_fallback$lambda_s,
+      mm = matrix_bundle$mm,
+      margin_dist = margin_dist,
+      copula_dist = copula_dist,
+      dataset = fit_data$dataset,
+      lambda_start = lambda_start,
+      start_step_size = step_controls$start_step_size,
+      copula_link = matrix_bundle$copula_link,
+      inner_stop_crit = rs_control$inner_tol,
+      outer_stop_crit = shared_control$outer_tol,
+      cg_grad_tol = cg_control$grad_tol,
+      cg_step_tol = cg_control$step_tol,
+      method = method,
+      verbose = verbose
+    )
+    if (initial_likelihood_valid_fn(
+      optimizer_context = projected_context,
+      mm = matrix_bundle$mm,
+      margin_dist = margin_dist,
+      copula_dist = copula_dist,
+      dataset = fit_data$dataset
+    )) {
+      optimizer_context <- projected_context
+      warm_start$start_from <- projected_fallback$par
+      warm_start$warm_start_par_s <- projected_fallback$par_s
+      warm_start$warm_start_lambda_s <- projected_fallback$lambda_s
+      warm_start$warm_start_info$projection_used <- TRUE
+    }
+  }
 
   list(
     margin_dist = margin_dist,

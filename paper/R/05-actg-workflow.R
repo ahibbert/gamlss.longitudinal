@@ -186,7 +186,7 @@ jss_actg_data_summary <- function(data) {
 }
 
 jss_actg_optimizer_control <- function(
-    max_elapsed_sec = 1200,
+    max_elapsed_sec = 1190,
     margin_family = "ZIBNB",
     copula_family = "t",
     screening = TRUE) {
@@ -200,7 +200,7 @@ jss_actg_optimizer_control <- function(
                          rescue = FALSE, repolish = 50L),
     `ZIBNB/G` = list(after = 2L, iterations = 170L, refinements = 1L,
                       rescue = FALSE, repolish = 50L),
-    `ZISICHEL/t` = list(after = 1L, iterations = 120L, refinements = 1L,
+    `ZISICHEL/t` = list(after = 1L, iterations = 100L, refinements = 1L,
                          rescue = FALSE, repolish = 50L),
     `ZIBNB/t` = list(after = 1L, iterations = 40L, refinements = 2L,
                       rescue = TRUE, repolish = 40L),

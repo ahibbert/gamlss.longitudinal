@@ -26,7 +26,7 @@ argument_value <- function(name, default) {
 
 workers <- suppressWarnings(as.integer(argument_value("workers", "4")))
 max_cycles <- suppressWarnings(as.integer(argument_value("max-cycles", "10")))
-max_elapsed_sec <- suppressWarnings(as.numeric(argument_value("max-elapsed-sec", "1200")))
+max_elapsed_sec <- suppressWarnings(as.numeric(argument_value("max-elapsed-sec", "1190")))
 results_prefix <- argument_value("results-prefix", "actg-zero-inflated-defaults-2026-10-06")
 dry_run <- tolower(argument_value("dry-run", "false")) %in% c("true", "1", "yes")
 requested_routes <- trimws(strsplit(

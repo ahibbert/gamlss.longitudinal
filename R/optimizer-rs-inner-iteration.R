@@ -43,6 +43,7 @@
     backtracking_max_halves,
     plot_results,
     true_val,
+    check_elapsed_budget = function(stage) NULL,
     likelihood_state_fn,
     score_state_fn,
     backfitting_step_fn) {
@@ -71,6 +72,7 @@
   if ("..." %in% likelihood_state_formals || "current_calc_lik_out" %in% likelihood_state_formals) {
     likelihood_state_args$current_calc_lik_out <- current_calc_lik_out
   }
+  check_elapsed_budget(sprintf("RS likelihood evaluation (%s)", par_name))
   rs_likelihood_state <- do.call(likelihood_state_fn, likelihood_state_args)
   eta <- rs_likelihood_state$eta
   eta_dr <- rs_likelihood_state$eta_dr
@@ -86,6 +88,7 @@
   log_lik_history <- rs_likelihood_state$log_lik_history
   par_history <- rs_likelihood_state$par_history
 
+  check_elapsed_budget(sprintf("RS score evaluation (%s)", par_name))
   rs_score_state <- score_state_fn(
     par_name = par_name,
     eta = eta,
@@ -111,7 +114,7 @@
   d1 <- rs_score_state$d1
   timer <- rs_score_state$timer
 
-  rs_backfitting_step <- backfitting_step_fn(
+  backfitting_step_args <- list(
     eta = eta,
     eta_dr = eta_dr,
     d1 = d1,
@@ -149,6 +152,13 @@
     par_history = par_history,
     true_val = true_val
   )
+  backfitting_step_formals <- names(formals(backfitting_step_fn))
+  if ("..." %in% backfitting_step_formals ||
+      "check_elapsed_budget" %in% backfitting_step_formals) {
+    backfitting_step_args$check_elapsed_budget <- check_elapsed_budget
+  }
+  check_elapsed_budget(sprintf("RS backfitting update (%s)", par_name))
+  rs_backfitting_step <- do.call(backfitting_step_fn, backfitting_step_args)
 
   list(
     score = rs_backfitting_step$score,

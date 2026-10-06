@@ -111,6 +111,7 @@
       names(mm$x)
     ),
     weights_final,
+    check_elapsed_budget = function(stage) NULL,
     inner_continue_fn,
     initialize_parameter_state_fn,
     inner_iteration_step_fn,
@@ -121,6 +122,7 @@
 
   # For each parameter in the model, run the inner iteration (GLIM) loop to update the parameter estimates
   for (par_name in names(mm$x)) {
+    check_elapsed_budget(sprintf("RS parameter block (%s)", par_name))
     block_trace_start <- if (is.data.frame(rs_block_trace)) {
       nrow(rs_block_trace)
     } else {
@@ -159,13 +161,14 @@
       inner_run_counter = inner_run_counter,
       max_inner_iter = block_inner_budget
     )) {
+      check_elapsed_budget(sprintf("RS inner iteration (%s)", par_name))
       timer <- c()
       timer_start <- time_fn()
 
       first_inner_run <- FALSE
 
       # Run an inner step for the current parameter, updating the parameter estimates and state
-      rs_inner_step <- inner_iteration_step_fn(
+      inner_step_args <- list(
         par_name = par_name,
         rs_calc_eta = rs_calc_eta,
         par_cov = par_cov,
@@ -208,6 +211,12 @@
         score_state_fn = score_state_fn,
         backfitting_step_fn = backfitting_step_fn
       )
+      inner_step_formals <- names(formals(inner_iteration_step_fn))
+      if ("..." %in% inner_step_formals ||
+          "check_elapsed_budget" %in% inner_step_formals) {
+        inner_step_args$check_elapsed_budget <- check_elapsed_budget
+      }
+      rs_inner_step <- do.call(inner_iteration_step_fn, inner_step_args)
       score <- rs_inner_step$score
       lambda_s <- rs_inner_step$lambda_s
       par_cov <- rs_inner_step$par_cov

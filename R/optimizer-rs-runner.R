@@ -202,6 +202,7 @@
       max_inner_iter = max_inner_iter,
       rs_inner_budgets = rs_inner_budgets,
       weights_final = weights_final,
+      check_elapsed_budget = check_elapsed_budget,
       inner_continue_fn = inner_continue_fn,
       initialize_parameter_state_fn = initialize_parameter_state_fn,
       inner_iteration_step_fn = inner_iteration_step_fn,
