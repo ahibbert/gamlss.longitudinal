@@ -124,14 +124,27 @@ copula_label <- function(code) {
 valid_completed_stage <- function(manifest_path, fit_path, route, stage, parameters = NULL) {
   if (!file.exists(manifest_path) || !file.exists(fit_path)) return(FALSE)
   manifest <- tryCatch(readRDS(manifest_path), error = function(error) NULL)
-  fit <- extract_fit(fit_path)
-  is.list(manifest) && inherits(fit, "gamlss.longitudinal") &&
+  fit_info <- file.info(fit_path)
+  accepted_path <- if (is.list(manifest)) manifest$accepted_path else NULL
+  final_path_row <- if (is.data.frame(accepted_path) && nrow(accepted_path)) {
+    accepted_path[nrow(accepted_path), , drop = FALSE]
+  } else {
+    NULL
+  }
+  manifest_fit_path <- if (is.list(manifest)) manifest$final_fit_path else NULL
+  same_fit_path <- is.character(manifest_fit_path) && length(manifest_fit_path) == 1L &&
+    identical(
+      normalizePath(manifest_fit_path, winslash = "/", mustWork = FALSE),
+      normalizePath(fit_path, winslash = "/", mustWork = FALSE)
+    )
+  is.list(manifest) && isTRUE(is.finite(fit_info$size)) && fit_info$size > 0 &&
+    same_fit_path && is.data.frame(final_path_row) &&
+    isTRUE(final_path_row$converged[[1L]]) && isTRUE(final_path_row$accepted[[1L]]) &&
     identical(manifest$stage, stage) &&
     identical(manifest$margin_family, route$margin) &&
     identical(manifest$copula_family, copula_label(route$copula)) &&
     identical(manifest$package_source_fingerprint, package_source_fingerprint) &&
-    (is.null(parameters) || identical(manifest$parameters, parameters)) &&
-    isTRUE(fit$convergence$converged)
+    (is.null(parameters) || identical(manifest$parameters, parameters))
 }
 
 all_stage_parameters <- function(route) {
