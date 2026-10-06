@@ -414,10 +414,12 @@ empty_metrics <- function() {
 fit_screening_candidate <- function(task) {
   if (isTRUE(resume) && file.exists(task$checkpoint)) {
     cached <- tryCatch(readRDS(task$checkpoint), error = identity)
+    cached_has_metrics <- is.list(cached) && is.numeric(cached$metrics) &&
+      all(names(empty_metrics()) %in% names(cached$metrics))
     cache_is_reusable <- is.list(cached) &&
       identical(cached$metadata, task$metadata) &&
-      isTRUE(cached$converged) &&
-      inherits(cached$fit, "gamlss.longitudinal")
+      (isTRUE(cached$converged) && inherits(cached$fit, "gamlss.longitudinal") ||
+       identical(cached$converged, FALSE) && cached_has_metrics)
     if (cache_is_reusable) {
       cached$from_checkpoint <- TRUE
       # The complete fit is already durable in the checkpoint. Returning it
