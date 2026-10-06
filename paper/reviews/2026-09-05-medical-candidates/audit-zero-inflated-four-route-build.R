@@ -48,6 +48,16 @@ package_source_files <- c(
 )
 current_source_fingerprint <- tools::md5sum(package_source_files)
 
+canonical_fingerprint <- function(value) {
+  if (is.null(value) || !length(value)) return(character())
+  keys <- sub("^.*[/\\\\](DESCRIPTION|R[/\\\\].*)$", "\\1", names(value))
+  keys <- gsub("\\\\", "/", keys)
+  stats::setNames(unname(value), keys)[order(keys)]
+}
+current_source_fingerprint_canonical <- canonical_fingerprint(
+  current_source_fingerprint
+)
+
 empty_rows <- function() {
   data.frame(
     route = character(), stage = character(), table_path = character(),
@@ -101,8 +111,8 @@ manifest_fingerprint_ok <- function(prefix, route) {
   all(vapply(paths, function(path) {
     manifest <- tryCatch(readRDS(path), error = function(error) NULL)
     is.list(manifest) && identical(
-      manifest$package_source_fingerprint,
-      current_source_fingerprint
+      canonical_fingerprint(manifest$package_source_fingerprint),
+      current_source_fingerprint_canonical
     )
   }, logical(1L)))
 }
