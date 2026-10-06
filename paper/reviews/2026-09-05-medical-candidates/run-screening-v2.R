@@ -420,6 +420,11 @@ fit_screening_candidate <- function(task) {
       inherits(cached$fit, "gamlss.longitudinal")
     if (cache_is_reusable) {
       cached$from_checkpoint <- TRUE
+      # The complete fit is already durable in the checkpoint. Returning it
+      # through a PSOCK socket makes the coordinator deserialize every
+      # candidate fit in a step, even though it only needs scalar metrics to
+      # rank candidates. Reload only the accepted checkpoint below.
+      cached$fit <- NULL
       return(cached)
     }
   }
@@ -493,7 +498,25 @@ fit_screening_candidate <- function(task) {
   if (!saved) {
     stop("Could not save checkpoint: ", task$checkpoint)
   }
+  result$fit <- NULL
   result
+}
+
+load_checkpoint_fit <- function(result, task) {
+  checkpoint <- result$checkpoint %||% task$checkpoint
+  complete <- tryCatch(readRDS(checkpoint), error = identity)
+  valid <- is.list(complete) &&
+    identical(complete$metadata, task$metadata) &&
+    isTRUE(complete$converged) &&
+    inherits(complete$fit, "gamlss.longitudinal")
+  if (!valid) {
+    detail <- if (inherits(complete, "error")) conditionMessage(complete) else {
+      "checkpoint did not contain the expected converged fitted object"
+    }
+    stop("Could not reload accepted checkpoint ", checkpoint, ": ", detail)
+  }
+  complete$from_checkpoint <- isTRUE(result$from_checkpoint)
+  complete
 }
 
 make_task <- function(
@@ -667,13 +690,14 @@ full_task <- make_task(
   0L, parameters[[1L]], NA_character_, current_formulas, initial_fit, "maximum"
 )
 cat("\nStep 0: fitting the maximum model...\n")
-current_result <- run_tasks(list(full_task))[[1L]]
-if (!isTRUE(current_result$converged)) {
+current_summary <- run_tasks(list(full_task))[[1L]]
+if (!isTRUE(current_summary$converged)) {
   stop(
-    "The maximum model did not converge (", current_result$stop_reason, "). ",
-    if (!is.na(current_result$error)) current_result$error else "Inspect its checkpoint and warnings."
+    "The maximum model did not converge (", current_summary$stop_reason, "). ",
+    if (!is.na(current_summary$error)) current_summary$error else "Inspect its checkpoint and warnings."
   )
 }
+current_result <- load_checkpoint_fit(current_summary, full_task)
 candidate_rows[[1L]] <- candidate_row(
   current_result, full_task, TRUE, criterion_rank = 1L
 )
@@ -685,6 +709,8 @@ write_rows(
   file.path(output_dir, paste0(run_stem, "-model-selection-table.csv"))
 )
 write_rows(path_rows, file.path(output_dir, paste0(run_stem, "-path.csv")))
+rm(current_summary, full_task, initial_fit)
+gc(verbose = FALSE)
 
 global_step <- 0L
 for (parameter in parameters) {
@@ -730,7 +756,7 @@ for (parameter in parameters) {
       )
     }
     if (improved) {
-      current_result <- results[[best]]
+      current_result <- load_checkpoint_fit(results[[best]], tasks[[best]])
       current_formulas <- tasks[[best]]$formulas
       path_rows[[length(path_rows) + 1L]] <- candidate_row(
         current_result, tasks[[best]], TRUE,
@@ -751,6 +777,8 @@ for (parameter in parameters) {
       file.path(output_dir, paste0(run_stem, "-model-selection-table.csv"))
     )
     write_rows(path_rows, file.path(output_dir, paste0(run_stem, "-path.csv")))
+    rm(results, tasks)
+    gc(verbose = FALSE)
     if (!improved) break
   }
 }
