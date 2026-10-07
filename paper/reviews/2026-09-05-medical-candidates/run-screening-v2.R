@@ -103,6 +103,10 @@ pilot_outer_iter <- positive_integer(
 pilot_bfgs_max_iter <- positive_integer(
   argument_value("pilot-bfgs-max-iter", "20"), "pilot-bfgs-max-iter"
 )
+low_lambda_initial_inner_iter <- positive_integer(
+  argument_value("low-lambda-initial-inner-iter", "5"),
+  "low-lambda-initial-inner-iter"
+)
 resume <- argument_flag("resume", TRUE)
 dry_run <- argument_flag("dry-run", FALSE)
 subject_argument <- tolower(argument_value("subjects", "all"))
@@ -523,9 +527,15 @@ fit_screening_candidate <- function(task) {
     )
   }
 
+  candidate_control <- optimizer_control
+  inner_override <- task$metadata$rs_initial_inner_iter_override
+  if (length(inner_override) == 1L && is.finite(inner_override)) {
+    candidate_control$rs$initial_inner_iter <- as.integer(inner_override)
+  }
+
   pilot <- task$metadata$dominance_pilot
   if (is.list(pilot)) {
-    pilot_control <- optimizer_control
+    pilot_control <- candidate_control
     pilot_control$shared$max_outer_iter <- pilot$max_outer_iter
     pilot_control$rs$bfgs_max_iter <- pilot$bfgs_max_iter
     pilot_attempt <- run_fit(pilot_control)
@@ -538,7 +548,7 @@ fit_screening_candidate <- function(task) {
       pilot_result$dominance_pilot_rejected <- TRUE
       result <- pilot_result
     } else {
-      full_control <- optimizer_control
+      full_control <- candidate_control
       remaining <- full_control$shared$max_elapsed_sec - pilot_attempt$elapsed_sec
       if (!is.finite(remaining) || remaining <= 0) {
         result <- pilot_result
@@ -553,7 +563,7 @@ fit_screening_candidate <- function(task) {
       }
     }
   } else {
-    result <- result_from_attempt(run_fit(optimizer_control))
+    result <- result_from_attempt(run_fit(candidate_control))
   }
   temporary <- tempfile("candidate-", tmpdir = dirname(task$checkpoint), fileext = ".rds")
   saveRDS(result, temporary, compress = "gzip")
@@ -629,6 +639,19 @@ dominance_pilot_for_task <- function(
   )
 }
 
+low_lambda_inner_override_for_task <- function(
+    step,
+    parameter,
+    dropped_term,
+    change_type,
+    start) {
+  if (!identical(stage, "refine") || as.integer(step) <= 1L) return(NULL)
+  if (!change_type %in% c("drop", "simplify")) return(NULL)
+  lambda <- smooth_penalty_for_term(start, parameter, dropped_term)
+  if (!is.finite(lambda) || lambda > pilot_low_lambda_max) return(NULL)
+  max(as.integer(initial_inner_iter), as.integer(low_lambda_initial_inner_iter))
+}
+
 make_task <- function(
     step,
     parameter,
@@ -637,6 +660,9 @@ make_task <- function(
     start,
     change_type = "drop") {
   dominance_pilot <- dominance_pilot_for_task(
+    step, parameter, dropped_term, change_type, start
+  )
+  rs_initial_inner_iter_override <- low_lambda_inner_override_for_task(
     step, parameter, dropped_term, change_type, start
   )
   metadata <- list(
@@ -655,6 +681,9 @@ make_task <- function(
   )
   if (is.list(dominance_pilot)) {
     metadata$dominance_pilot <- dominance_pilot
+  }
+  if (length(rs_initial_inner_iter_override) == 1L) {
+    metadata$rs_initial_inner_iter_override <- rs_initial_inner_iter_override
   }
   signature <- substr(object_md5(metadata), 1L, 12L)
   label <- if (is.na(dropped_term)) "full" else paste0("drop-", safe_name(dropped_term))
@@ -759,6 +788,8 @@ cat(
   "  refinement-step-1 dominance pilot: lambda <= ", pilot_low_lambda_max,
   ", delta ", criterion, " > ", pilot_delta_threshold,
   ", outer/BFGS = ", pilot_outer_iter, "/", pilot_bfgs_max_iter, "\n",
+  "  later low-lambda initial inner iterations: ",
+  low_lambda_initial_inner_iter, "\n",
   "  checkpoints: ", checkpoint_dir, "\n",
   sep = ""
 )
