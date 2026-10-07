@@ -154,6 +154,8 @@ compare_reference <- function(current, reference) {
     return(list(
       overlap = 0L, missing_reference = nrow(current), decision_mismatches = NA_integer_,
       max_abs_logLik = NA_real_, max_abs_AIC = NA_real_,
+      max_abs_logLik_all_converged = NA_real_,
+      max_abs_AIC_all_converged = NA_real_,
       warning_mismatches = NA_integer_
     ))
   }
@@ -165,14 +167,22 @@ compare_reference <- function(current, reference) {
     return(list(
       overlap = 0L, missing_reference = nrow(current), decision_mismatches = NA_integer_,
       max_abs_logLik = NA_real_, max_abs_AIC = NA_real_,
+      max_abs_logLik_all_converged = NA_real_,
+      max_abs_AIC_all_converged = NA_real_,
       warning_mismatches = NA_integer_
     ))
   }
   old <- reference[matched[overlap], , drop = FALSE]
   new <- current[overlap, , drop = FALSE]
-  metric_comparable <- old$converged %in% TRUE & new$converged %in% TRUE
-  max_metric_difference <- function(column) {
-    difference <- abs(old[[column]][metric_comparable] - new[[column]][metric_comparable])
+  all_converged <- old$converged %in% TRUE & new$converged %in% TRUE
+  # Exact metric agreement is a gate for the selected path. Rejected
+  # candidates may reach a slightly different (including better) local optimum
+  # without changing eligibility or backward-selection decisions; retain their
+  # maximum drift as a separate diagnostic rather than treating it as failure.
+  selected_comparable <- all_converged &
+    (old$accepted %in% TRUE | new$accepted %in% TRUE)
+  max_metric_difference <- function(column, comparable) {
+    difference <- abs(old[[column]][comparable] - new[[column]][comparable])
     difference <- difference[is.finite(difference)]
     if (length(difference)) max(difference) else NA_real_
   }
@@ -184,8 +194,10 @@ compare_reference <- function(current, reference) {
     overlap = sum(overlap),
     missing_reference = sum(!overlap),
     decision_mismatches = decision_mismatches,
-    max_abs_logLik = max_metric_difference("logLik"),
-    max_abs_AIC = max_metric_difference("AIC"),
+    max_abs_logLik = max_metric_difference("logLik", selected_comparable),
+    max_abs_AIC = max_metric_difference("AIC", selected_comparable),
+    max_abs_logLik_all_converged = max_metric_difference("logLik", all_converged),
+    max_abs_AIC_all_converged = max_metric_difference("AIC", all_converged),
     warning_mismatches = sum(
       trimws(old$warnings) != trimws(new$warnings),
       na.rm = TRUE
@@ -291,6 +303,8 @@ summary_rows <- lapply(routes, function(route) {
     decision_mismatches = comparison$decision_mismatches,
     max_abs_logLik = comparison$max_abs_logLik,
     max_abs_AIC = comparison$max_abs_AIC,
+    max_abs_logLik_all_converged = comparison$max_abs_logLik_all_converged,
+    max_abs_AIC_all_converged = comparison$max_abs_AIC_all_converged,
     warning_mismatches = comparison$warning_mismatches,
     selected_formulas_match = selected_formulas_match,
     stringsAsFactors = FALSE
