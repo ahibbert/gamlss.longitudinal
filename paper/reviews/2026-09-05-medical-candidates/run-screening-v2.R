@@ -619,8 +619,9 @@ dominance_pilot_for_task <- function(
     dropped_term,
     change_type,
     start) {
-  if (!identical(stage, "refine") || as.integer(step) != 1L) return(NULL)
+  if (!identical(stage, "refine")) return(NULL)
   if (!change_type %in% c("drop", "simplify")) return(NULL)
+  if (as.integer(step) != 1L && !identical(change_type, "simplify")) return(NULL)
   lambda <- smooth_penalty_for_term(start, parameter, dropped_term)
   if (!is.finite(lambda) || lambda > pilot_low_lambda_max) return(NULL)
   parent_value <- tryCatch(
@@ -646,7 +647,7 @@ low_lambda_inner_override_for_task <- function(
     change_type,
     start) {
   if (!identical(stage, "refine") || as.integer(step) <= 1L) return(NULL)
-  if (!change_type %in% c("drop", "simplify")) return(NULL)
+  if (!identical(change_type, "drop")) return(NULL)
   lambda <- smooth_penalty_for_term(start, parameter, dropped_term)
   if (!is.finite(lambda) || lambda > pilot_low_lambda_max) return(NULL)
   max(as.integer(initial_inner_iter), as.integer(low_lambda_initial_inner_iter))
@@ -785,7 +786,8 @@ cat(
   "  stage/smooth k: ", stage, "/", smooth_k, "\n",
   "  parameters: ", paste(parameters, collapse = ", "), "\n",
   "  workers: ", workers, "\n",
-  "  refinement-step-1 dominance pilot: lambda <= ", pilot_low_lambda_max,
+  "  dominance pilot (refinement step 1 and later simplifications): lambda <= ",
+  pilot_low_lambda_max,
   ", delta ", criterion, " > ", pilot_delta_threshold,
   ", outer/BFGS = ", pilot_outer_iter, "/", pilot_bfgs_max_iter, "\n",
   "  later low-lambda initial inner iterations: ",
