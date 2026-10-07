@@ -83,6 +83,26 @@ max_elapsed_sec <- suppressWarnings(as.numeric(argument_value("max-elapsed-sec",
 if (length(max_elapsed_sec) != 1L || is.na(max_elapsed_sec) || max_elapsed_sec <= 0) {
   stop("--max-elapsed-sec must be a positive number.")
 }
+pilot_low_lambda_max <- suppressWarnings(as.numeric(
+  argument_value("pilot-low-lambda-max", "1")
+))
+if (length(pilot_low_lambda_max) != 1L || is.na(pilot_low_lambda_max) ||
+    pilot_low_lambda_max < 0) {
+  stop("--pilot-low-lambda-max must be a non-negative number.")
+}
+pilot_delta_threshold <- suppressWarnings(as.numeric(
+  argument_value("pilot-delta-threshold", "100")
+))
+if (length(pilot_delta_threshold) != 1L || is.na(pilot_delta_threshold) ||
+    pilot_delta_threshold < 0) {
+  stop("--pilot-delta-threshold must be a non-negative number.")
+}
+pilot_outer_iter <- positive_integer(
+  argument_value("pilot-outer-iter", "2"), "pilot-outer-iter"
+)
+pilot_bfgs_max_iter <- positive_integer(
+  argument_value("pilot-bfgs-max-iter", "20"), "pilot-bfgs-max-iter"
+)
 resume <- argument_flag("resume", TRUE)
 dry_run <- argument_flag("dry-run", FALSE)
 subject_argument <- tolower(argument_value("subjects", "all"))
@@ -435,64 +455,106 @@ fit_screening_candidate <- function(task) {
     }
   }
 
-  started <- proc.time()[["elapsed"]]
-  warnings <- character()
   optional_formulas <- c(
     if (has_tau) list(tau.formula = task$formulas$tau) else list(),
     if (has_zeta) list(zeta.formula = task$formulas$zeta) else list()
   )
-  fit <- tryCatch(
-    withCallingHandlers(
-      do.call(gamlss_longitudinal, c(list(
-        data = actg_data,
-        time_var = "week_factor",
-        subject_var = "subject",
-        margin_dist = getExportedValue("gamlss.dist", margin_family)(),
-        copula_dist = copula_code,
-        mu.formula = task$formulas$mu,
-        sigma.formula = task$formulas$sigma,
-        nu.formula = task$formulas$nu,
-        theta.formula = task$formulas$theta,
-        missingness = "segment",
-        method = "RS",
-        optimization = "joint",
-        optimizer_control = optimizer_control,
-        start = task$start,
-        compute_vcov = FALSE,
-        verbose = 0
-      ), optional_formulas)),
-      warning = function(warning) {
-        warnings <<- c(warnings, conditionMessage(warning))
-        invokeRestart("muffleWarning")
-      }
-    ),
-    error = identity
-  )
-  elapsed <- proc.time()[["elapsed"]] - started
-  returned_fit <- inherits(fit, "gamlss.longitudinal")
-  converged <- returned_fit && isTRUE(fit$convergence$converged)
-  metrics <- empty_metrics()
-  if (returned_fit && !is.null(fit$model_selection)) {
-    metrics <- c(
-      logLik = as.numeric(fit$model_selection["LogLik", "joint"]),
-      AIC = as.numeric(fit$model_selection["AIC", "joint"]),
-      BIC = as.numeric(fit$model_selection["BIC", "joint"]),
-      EDF = as.numeric(fit$model_selection["EDF", "joint"])
+  run_fit <- function(control) {
+    started <- proc.time()[["elapsed"]]
+    captured_warnings <- character()
+    fit <- tryCatch(
+      withCallingHandlers(
+        do.call(gamlss_longitudinal, c(list(
+          data = actg_data,
+          time_var = "week_factor",
+          subject_var = "subject",
+          margin_dist = getExportedValue("gamlss.dist", margin_family)(),
+          copula_dist = copula_code,
+          mu.formula = task$formulas$mu,
+          sigma.formula = task$formulas$sigma,
+          nu.formula = task$formulas$nu,
+          theta.formula = task$formulas$theta,
+          missingness = "segment",
+          method = "RS",
+          optimization = "joint",
+          optimizer_control = control,
+          start = task$start,
+          compute_vcov = FALSE,
+          verbose = 0
+        ), optional_formulas)),
+        warning = function(warning) {
+          captured_warnings <<- c(captured_warnings, conditionMessage(warning))
+          invokeRestart("muffleWarning")
+        }
+      ),
+      error = identity
+    )
+    list(
+      fit = fit,
+      elapsed_sec = proc.time()[["elapsed"]] - started,
+      warnings = unique(captured_warnings)
     )
   }
-  result <- list(
-    metadata = task$metadata,
-    fit = if (returned_fit) fit else NULL,
-    metrics = metrics,
-    converged = converged,
-    elapsed_sec = elapsed,
-    outer_iterations = if (returned_fit) fit$convergence$outer_iterations else NA_integer_,
-    stop_reason = if (returned_fit) fit$convergence$stop_reason else "error",
-    warnings = unique(warnings),
-    error = if (inherits(fit, "error")) conditionMessage(fit) else NA_character_,
-    checkpoint = task$checkpoint,
-    from_checkpoint = FALSE
-  )
+
+  result_from_attempt <- function(attempt, elapsed_sec = attempt$elapsed_sec) {
+    fit <- attempt$fit
+    returned_fit <- inherits(fit, "gamlss.longitudinal")
+    metrics <- empty_metrics()
+    if (returned_fit && !is.null(fit$model_selection)) {
+      metrics <- c(
+        logLik = as.numeric(fit$model_selection["LogLik", "joint"]),
+        AIC = as.numeric(fit$model_selection["AIC", "joint"]),
+        BIC = as.numeric(fit$model_selection["BIC", "joint"]),
+        EDF = as.numeric(fit$model_selection["EDF", "joint"])
+      )
+    }
+    list(
+      metadata = task$metadata,
+      fit = if (returned_fit) fit else NULL,
+      metrics = metrics,
+      converged = returned_fit && isTRUE(fit$convergence$converged),
+      elapsed_sec = elapsed_sec,
+      outer_iterations = if (returned_fit) fit$convergence$outer_iterations else NA_integer_,
+      stop_reason = if (returned_fit) fit$convergence$stop_reason else "error",
+      warnings = attempt$warnings,
+      error = if (inherits(fit, "error")) conditionMessage(fit) else NA_character_,
+      checkpoint = task$checkpoint,
+      from_checkpoint = FALSE
+    )
+  }
+
+  pilot <- task$metadata$dominance_pilot
+  if (is.list(pilot)) {
+    pilot_control <- optimizer_control
+    pilot_control$shared$max_outer_iter <- pilot$max_outer_iter
+    pilot_control$rs$bfgs_max_iter <- pilot$bfgs_max_iter
+    pilot_attempt <- run_fit(pilot_control)
+    pilot_result <- result_from_attempt(pilot_attempt)
+    pilot_delta <- pilot_result$metrics[[pilot$criterion]] - pilot$parent_value
+    dominated <- !isTRUE(pilot_result$converged) &&
+      identical(pilot_result$stop_reason, "max_iterations") &&
+      is.finite(pilot_delta) && pilot_delta > pilot$delta_threshold
+    if (dominated) {
+      pilot_result$dominance_pilot_rejected <- TRUE
+      result <- pilot_result
+    } else {
+      full_control <- optimizer_control
+      remaining <- full_control$shared$max_elapsed_sec - pilot_attempt$elapsed_sec
+      if (!is.finite(remaining) || remaining <= 0) {
+        result <- pilot_result
+      } else {
+        full_control$shared$max_elapsed_sec <- remaining
+        full_attempt <- run_fit(full_control)
+        result <- result_from_attempt(
+          full_attempt,
+          elapsed_sec = pilot_attempt$elapsed_sec + full_attempt$elapsed_sec
+        )
+        result$dominance_pilot_rejected <- FALSE
+      }
+    }
+  } else {
+    result <- result_from_attempt(run_fit(optimizer_control))
+  }
   temporary <- tempfile("candidate-", tmpdir = dirname(task$checkpoint), fileext = ".rds")
   saveRDS(result, temporary, compress = "gzip")
   saved <- if (file.exists(task$checkpoint)) {
@@ -525,6 +587,46 @@ load_checkpoint_fit <- function(result, task) {
   complete
 }
 
+smooth_penalty_for_term <- function(start, parameter, dropped_term) {
+  if (!inherits(start, "gamlss.longitudinal") || is.null(start$lambda_s) ||
+      is.na(dropped_term) || !nzchar(dropped_term)) {
+    return(NA_real_)
+  }
+  term <- trimws(sub("\\s*->.*$", "", dropped_term))
+  if (!grepl("^s\\(", term)) return(NA_real_)
+  values <- unlist(start$lambda_s, recursive = TRUE, use.names = TRUE)
+  if (!length(values) || is.null(names(values))) return(NA_real_)
+  prefix <- paste0(parameter, ".", term)
+  matched <- startsWith(names(values), prefix)
+  values <- suppressWarnings(as.numeric(values[matched]))
+  values <- values[is.finite(values)]
+  if (length(values) == 1L) values[[1L]] else NA_real_
+}
+
+dominance_pilot_for_task <- function(
+    parameter,
+    dropped_term,
+    change_type,
+    start) {
+  if (!change_type %in% c("drop", "simplify")) return(NULL)
+  lambda <- smooth_penalty_for_term(start, parameter, dropped_term)
+  if (!is.finite(lambda) || lambda > pilot_low_lambda_max) return(NULL)
+  parent_value <- tryCatch(
+    as.numeric(start$model_selection[criterion, "joint"]),
+    error = function(error) NA_real_
+  )
+  if (!is.finite(parent_value)) return(NULL)
+  list(
+    criterion = criterion,
+    parent_value = parent_value,
+    delta_threshold = pilot_delta_threshold,
+    low_lambda_max = pilot_low_lambda_max,
+    smooth_lambda = lambda,
+    max_outer_iter = pilot_outer_iter,
+    bfgs_max_iter = pilot_bfgs_max_iter
+  )
+}
+
 make_task <- function(
     step,
     parameter,
@@ -532,6 +634,9 @@ make_task <- function(
     formulas,
     start,
     change_type = "drop") {
+  dominance_pilot <- dominance_pilot_for_task(
+    parameter, dropped_term, change_type, start
+  )
   metadata <- list(
     step = as.integer(step), parameter = parameter, dropped_term = dropped_term,
     change_type = change_type,
@@ -546,6 +651,9 @@ make_task <- function(
     n_subjects = length(unique(actg_data$subject)),
     n_observed = sum(is.finite(actg_data$cd4))
   )
+  if (is.list(dominance_pilot)) {
+    metadata$dominance_pilot <- dominance_pilot
+  }
   signature <- substr(object_md5(metadata), 1L, 12L)
   label <- if (is.na(dropped_term)) "full" else paste0("drop-", safe_name(dropped_term))
   list(
@@ -591,6 +699,7 @@ candidate_row <- function(
     elapsed_sec = result$elapsed_sec,
     outer_iterations = result$outer_iterations,
     stop_reason = result$stop_reason,
+    dominance_pilot_rejected = isTRUE(result$dominance_pilot_rejected),
     from_checkpoint = result$from_checkpoint,
     warnings = paste(result$warnings, collapse = " | "),
     error = result$error,
@@ -645,6 +754,9 @@ cat(
   "  stage/smooth k: ", stage, "/", smooth_k, "\n",
   "  parameters: ", paste(parameters, collapse = ", "), "\n",
   "  workers: ", workers, "\n",
+  "  dominance pilot: lambda <= ", pilot_low_lambda_max,
+  ", delta ", criterion, " > ", pilot_delta_threshold,
+  ", outer/BFGS = ", pilot_outer_iter, "/", pilot_bfgs_max_iter, "\n",
   "  checkpoints: ", checkpoint_dir, "\n",
   sep = ""
 )
