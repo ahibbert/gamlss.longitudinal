@@ -26,6 +26,7 @@ argument_value <- function(name, default = "") {
 results_prefix <- argument_value("results-prefix")
 reference_prefix <- argument_value("reference-prefix")
 limit_sec <- suppressWarnings(as.numeric(argument_value("limit-sec", "1200")))
+metric_tol <- suppressWarnings(as.numeric(argument_value("metric-tol", "1e-8")))
 output_path <- argument_value("output")
 results_root_argument <- argument_value("results-root")
 require_complete <- tolower(argument_value("require-complete", "false")) %in%
@@ -34,6 +35,9 @@ require_complete <- tolower(argument_value("require-complete", "false")) %in%
 if (!nzchar(results_prefix)) stop("--results-prefix is required.", call. = FALSE)
 if (!is.finite(limit_sec) || limit_sec <= 0) {
   stop("--limit-sec must be a positive finite number.", call. = FALSE)
+}
+if (!is.finite(metric_tol) || metric_tol < 0) {
+  stop("--metric-tol must be a non-negative finite number.", call. = FALSE)
 }
 
 routes <- c("zisichel-g", "zisichel-t", "zibnb-g", "zibnb-t")
@@ -275,6 +279,7 @@ summary_rows <- lapply(routes, function(route) {
   )
 })
 summary <- do.call(rbind, summary_rows)
+summary$metric_tolerance <- metric_tol
 
 print(summary, row.names = FALSE)
 
@@ -296,8 +301,8 @@ if (any(summary$unexpected_warning_rows > 0L)) failures <- c(failures, "warnings
 if (any(!summary$selection_consistency_pass)) failures <- c(failures, "selection_consistency")
 if (any(summary$duplicate_candidate_keys > 0L)) failures <- c(failures, "duplicate_candidates")
 if (any(summary$decision_mismatches > 0L, na.rm = TRUE)) failures <- c(failures, "decisions")
-if (any(summary$max_abs_logLik > 1e-8, na.rm = TRUE) ||
-    any(summary$max_abs_AIC > 1e-8, na.rm = TRUE)) {
+if (any(summary$max_abs_logLik > metric_tol, na.rm = TRUE) ||
+    any(summary$max_abs_AIC > metric_tol, na.rm = TRUE)) {
   failures <- c(failures, "metrics")
 }
 if (any(summary$selected_formulas_match %in% FALSE)) failures <- c(failures, "formulas")
