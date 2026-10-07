@@ -604,10 +604,12 @@ smooth_penalty_for_term <- function(start, parameter, dropped_term) {
 }
 
 dominance_pilot_for_task <- function(
+    step,
     parameter,
     dropped_term,
     change_type,
     start) {
+  if (!identical(stage, "refine") || as.integer(step) != 1L) return(NULL)
   if (!change_type %in% c("drop", "simplify")) return(NULL)
   lambda <- smooth_penalty_for_term(start, parameter, dropped_term)
   if (!is.finite(lambda) || lambda > pilot_low_lambda_max) return(NULL)
@@ -635,7 +637,7 @@ make_task <- function(
     start,
     change_type = "drop") {
   dominance_pilot <- dominance_pilot_for_task(
-    parameter, dropped_term, change_type, start
+    step, parameter, dropped_term, change_type, start
   )
   metadata <- list(
     step = as.integer(step), parameter = parameter, dropped_term = dropped_term,
@@ -754,7 +756,7 @@ cat(
   "  stage/smooth k: ", stage, "/", smooth_k, "\n",
   "  parameters: ", paste(parameters, collapse = ", "), "\n",
   "  workers: ", workers, "\n",
-  "  dominance pilot: lambda <= ", pilot_low_lambda_max,
+  "  refinement-step-1 dominance pilot: lambda <= ", pilot_low_lambda_max,
   ", delta ", criterion, " > ", pilot_delta_threshold,
   ", outer/BFGS = ", pilot_outer_iter, "/", pilot_bfgs_max_iter, "\n",
   "  checkpoints: ", checkpoint_dir, "\n",
