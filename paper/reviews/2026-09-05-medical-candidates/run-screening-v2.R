@@ -97,6 +97,18 @@ if (length(pilot_delta_threshold) != 1L || is.na(pilot_delta_threshold) ||
     pilot_delta_threshold < 0) {
   stop("--pilot-delta-threshold must be a non-negative number.")
 }
+pilot_fixed_projection_rmse_min <- suppressWarnings(as.numeric(
+  argument_value("pilot-fixed-projection-rmse-min", "5")
+))
+if (length(pilot_fixed_projection_rmse_min) != 1L ||
+    is.na(pilot_fixed_projection_rmse_min) ||
+    pilot_fixed_projection_rmse_min < 0) {
+  stop("--pilot-fixed-projection-rmse-min must be a non-negative number.")
+}
+pilot_fixed_parent_terms <- positive_integer(
+  argument_value("pilot-fixed-parent-terms", "3"),
+  "pilot-fixed-parent-terms"
+)
 pilot_outer_iter <- positive_integer(
   argument_value("pilot-outer-iter", "2"), "pilot-outer-iter"
 )
@@ -613,6 +625,62 @@ smooth_penalty_for_term <- function(start, parameter, dropped_term) {
   if (length(values) == 1L) values[[1L]] else NA_real_
 }
 
+fixed_drop_projection_rmse <- function(start, parameter, dropped_term) {
+  if (!inherits(start, "gamlss.longitudinal") ||
+      is.na(dropped_term) || !nzchar(dropped_term)) {
+    return(NA_real_)
+  }
+  term <- trimws(sub("\\s*->.*$", "", dropped_term))
+  if (grepl("^s\\(", term)) return(NA_real_)
+  formula <- start$formulas[[parameter]]
+  x <- start$model_matrix$x[[parameter]]
+  if (is.null(formula) || is.null(x)) return(NA_real_)
+  x <- as.matrix(x)
+  assignment <- attr(start$model_matrix$x[[parameter]], "assign")
+  formula_terms <- attr(stats::terms(formula), "term.labels")
+  term_index <- match(term, formula_terms)
+  if (is.na(term_index) || length(assignment) != ncol(x) ||
+      !any(assignment == term_index)) {
+    return(NA_real_)
+  }
+  fixed_names <- paste(parameter, colnames(x), sep = ".")
+  if (!all(fixed_names %in% names(start$par))) return(NA_real_)
+  eta <- as.numeric(x %*% as.numeric(start$par[fixed_names]))
+  smooth_design <- start$model_matrix$s[[parameter]] %||% list()
+  smooth_coefficients <- start$par_s[[parameter]] %||% list()
+  retained_smooths <- intersect(names(smooth_design), names(smooth_coefficients))
+  for (name in retained_smooths) {
+    basis <- as.matrix(smooth_design[[name]])
+    coefficient <- as.numeric(smooth_coefficients[[name]])
+    if (nrow(basis) != length(eta) || ncol(basis) != length(coefficient)) {
+      return(NA_real_)
+    }
+    eta <- eta + as.numeric(basis %*% coefficient)
+  }
+  retained_fixed <- assignment != term_index
+  candidate_design <- x[, retained_fixed, drop = FALSE]
+  if (length(retained_smooths)) {
+    candidate_design <- do.call(cbind, c(
+      list(candidate_design),
+      lapply(smooth_design[retained_smooths], as.matrix)
+    ))
+  }
+  if (!ncol(candidate_design) || !all(is.finite(candidate_design)) ||
+      !all(is.finite(eta))) {
+    return(NA_real_)
+  }
+  projected <- tryCatch(
+    stats::lm.fit(candidate_design, eta),
+    error = identity
+  )
+  if (inherits(projected, "error") ||
+      length(projected$fitted.values) != length(eta) ||
+      any(!is.finite(projected$fitted.values))) {
+    return(NA_real_)
+  }
+  sqrt(mean((eta - projected$fitted.values)^2))
+}
+
 dominance_pilot_for_task <- function(
     step,
     parameter,
@@ -621,9 +689,23 @@ dominance_pilot_for_task <- function(
     start) {
   if (!identical(stage, "refine")) return(NULL)
   if (!change_type %in% c("drop", "simplify")) return(NULL)
-  if (as.integer(step) != 1L && !identical(change_type, "simplify")) return(NULL)
   lambda <- smooth_penalty_for_term(start, parameter, dropped_term)
-  if (!is.finite(lambda) || lambda > pilot_low_lambda_max) return(NULL)
+  low_lambda_smooth <- is.finite(lambda) && lambda <= pilot_low_lambda_max &&
+    (as.integer(step) == 1L || identical(change_type, "simplify"))
+  projection_rmse <- if (identical(change_type, "drop")) {
+    fixed_drop_projection_rmse(start, parameter, dropped_term)
+  } else {
+    NA_real_
+  }
+  parent_term_count <- tryCatch(
+    length(attr(stats::terms(start$formulas[[parameter]]), "term.labels")),
+    error = function(error) NA_integer_
+  )
+  high_projection_fixed <- is.finite(projection_rmse) &&
+    projection_rmse >= pilot_fixed_projection_rmse_min &&
+    is.finite(parent_term_count) &&
+    parent_term_count == pilot_fixed_parent_terms
+  if (!low_lambda_smooth && !high_projection_fixed) return(NULL)
   parent_value <- tryCatch(
     as.numeric(start$model_selection[criterion, "joint"]),
     error = function(error) NA_real_
@@ -635,6 +717,14 @@ dominance_pilot_for_task <- function(
     delta_threshold = pilot_delta_threshold,
     low_lambda_max = pilot_low_lambda_max,
     smooth_lambda = lambda,
+    fixed_projection_rmse_min = pilot_fixed_projection_rmse_min,
+    fixed_projection_rmse = projection_rmse,
+    fixed_parent_terms_required = pilot_fixed_parent_terms,
+    fixed_parent_terms_observed = parent_term_count,
+    trigger = paste(c(
+      if (low_lambda_smooth) "low_lambda_smooth",
+      if (high_projection_fixed) "high_projection_fixed"
+    ), collapse = "+"),
     max_outer_iter = pilot_outer_iter,
     bfgs_max_iter = pilot_bfgs_max_iter
   )
@@ -786,8 +876,10 @@ cat(
   "  stage/smooth k: ", stage, "/", smooth_k, "\n",
   "  parameters: ", paste(parameters, collapse = ", "), "\n",
   "  workers: ", workers, "\n",
-  "  dominance pilot (refinement step 1 and later simplifications): lambda <= ",
+  "  dominance pilot: low-lambda refinement step 1/later simplifications <= ",
   pilot_low_lambda_max,
+  "; sparse fixed-drop projection RMSE >= ", pilot_fixed_projection_rmse_min,
+  " at ", pilot_fixed_parent_terms, " parent terms",
   ", delta ", criterion, " > ", pilot_delta_threshold,
   ", outer/BFGS = ", pilot_outer_iter, "/", pilot_bfgs_max_iter, "\n",
   "  later low-lambda initial inner iterations: ",
