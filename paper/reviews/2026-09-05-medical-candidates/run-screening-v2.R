@@ -76,6 +76,9 @@ workers <- positive_integer(
   "workers"
 )
 max_steps <- positive_integer(argument_value("max-steps", "Inf"), "max-steps", TRUE)
+initial_inner_iter <- positive_integer(
+  argument_value("initial-inner-iter", "2"), "initial-inner-iter"
+)
 max_elapsed_sec <- suppressWarnings(as.numeric(argument_value("max-elapsed-sec", "1190")))
 if (length(max_elapsed_sec) != 1L || is.na(max_elapsed_sec) || max_elapsed_sec <= 0) {
   stop("--max-elapsed-sec must be a positive number.")
@@ -287,7 +290,8 @@ optimizer_control <- gamlss_longitudinal_control(
   max_outer_iter = 50L,
   max_elapsed_sec = max_elapsed_sec,
   rs = list(
-    inner_tol = 1e-5
+    inner_tol = 1e-5,
+    initial_inner_iter = initial_inner_iter
   )
 )
 optimizer_control <- gamlss.longitudinal:::.gl_apply_route_optimizer_defaults(

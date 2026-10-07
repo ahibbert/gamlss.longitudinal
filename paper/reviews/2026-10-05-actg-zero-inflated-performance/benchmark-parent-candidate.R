@@ -29,6 +29,7 @@ joint_max_refinements <- if (length(args) >= 22L) as.integer(args[[22L]]) else 1
 outer_tol <- if (length(args) >= 23L) as.numeric(args[[23L]]) else 1e-4
 coordinate_rescue <- if (length(args) >= 24L) as.logical(args[[24L]]) else FALSE
 coordinate_repolish_iter <- if (length(args) >= 25L) as.integer(args[[25L]]) else 50L
+warm_start_iter <- if (length(args) >= 26L) as.integer(args[[26L]]) else 5L
 start_path <- if (length(args) >= 20L) args[[20L]] else parent_path
 cold_start <- identical(tolower(start_path), "cold")
 parent_container <- readRDS(parent_path)
@@ -143,7 +144,7 @@ control <- if (identical(method, "RS")) {
       initial_inner_iter = initial_inner,
       start_step_size = start_step,
       warm_start_joint = TRUE,
-      warm_start_joint_iter = 5L,
+      warm_start_joint_iter = warm_start_iter,
       use_backtracking = TRUE,
       backtracking_max_halves = backtracking_halves,
       adaptive_step_size = adaptive_step,
@@ -200,10 +201,11 @@ timing <- system.time(fit <- gamlss_longitudinal(
 ))
 saveRDS(fit, output_path, version = 3L)
 cat(sprintf(
-  paste0("drop=%s method=%s update_lambda=%s inner=%d initial_inner=%d lambda_every=%d step=%.3f ",
+  paste0("drop=%s method=%s update_lambda=%s inner=%d initial_inner=%d warm_start=%d lambda_every=%d step=%.3f ",
          "backtracks=%d adaptive_step=%s bfgs=%s elapsed=%.3f outer=%d rows=%d ",
          "logLik=%.15f converged=%s stop=%s\n"),
-  drop_term, method, update_lambda, max_inner, initial_inner, lambda_update_every, start_step,
+  drop_term, method, update_lambda, max_inner, initial_inner, warm_start_iter,
+  lambda_update_every, start_step,
   backtracking_halves, adaptive_step, bfgs_refine,
   timing[["elapsed"]], fit$convergence$outer_iterations,
   nrow(fit$rs_block_trace), as.numeric(logLik(fit)), fit$convergence$converged,
