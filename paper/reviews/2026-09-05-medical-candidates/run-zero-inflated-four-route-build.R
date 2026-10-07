@@ -26,6 +26,7 @@ argument_value <- function(name, default) {
 
 workers <- suppressWarnings(as.integer(argument_value("workers", "4")))
 max_cycles <- suppressWarnings(as.integer(argument_value("max-cycles", "10")))
+initial_inner_iter <- suppressWarnings(as.integer(argument_value("initial-inner-iter", "2")))
 max_elapsed_sec <- suppressWarnings(as.numeric(argument_value("max-elapsed-sec", "1190")))
 results_prefix <- argument_value("results-prefix", "actg-zero-inflated-defaults-2026-10-06")
 dry_run <- tolower(argument_value("dry-run", "false")) %in% c("true", "1", "yes")
@@ -36,6 +37,9 @@ requested_routes <- trimws(strsplit(
 
 if (!is.finite(workers) || workers < 1L) stop("--workers must be positive.")
 if (!is.finite(max_cycles) || max_cycles < 1L) stop("--max-cycles must be positive.")
+if (!is.finite(initial_inner_iter) || initial_inner_iter < 1L) {
+  stop("--initial-inner-iter must be positive.")
+}
 if (!is.finite(max_elapsed_sec) || max_elapsed_sec <= 0) {
   stop("--max-elapsed-sec must be positive.")
 }
@@ -211,6 +215,7 @@ run_route <- function(route_name) {
       paste0("--stage=", stage),
       "--criterion=AIC", "--hierarchy=strong", "--resume=true",
       paste0("--workers=", workers),
+      paste0("--initial-inner-iter=", initial_inner_iter),
       paste0("--max-elapsed-sec=", format(max_elapsed_sec, scientific = FALSE)),
       paste0("--results-subdir=", results_subdir),
       paste0("--output-stem=", stem)
