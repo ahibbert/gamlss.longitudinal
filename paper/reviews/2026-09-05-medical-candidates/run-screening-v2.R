@@ -828,12 +828,30 @@ if (workers > 1L) {
   )
 }
 
-run_tasks <- function(tasks) {
+dispatch_tasks <- function(tasks) {
+  if (!length(tasks)) return(list())
   if (is.null(cluster)) {
     lapply(tasks, fit_screening_candidate)
   } else {
     parallel::parLapplyLB(cluster, tasks, fit_screening_candidate)
   }
+}
+
+run_tasks <- function(tasks) {
+  isolated <- which(vapply(tasks, function(task) {
+    length(task$metadata$rs_initial_inner_iter_override) == 1L
+  }, logical(1L)))
+  if (!length(isolated)) return(dispatch_tasks(tasks))
+
+  results <- vector("list", length(tasks))
+  parallel_indices <- setdiff(seq_along(tasks), isolated)
+  if (length(parallel_indices)) {
+    results[parallel_indices] <- dispatch_tasks(tasks[parallel_indices])
+  }
+  for (index in isolated) {
+    results[[index]] <- dispatch_tasks(tasks[index])[[1L]]
+  }
+  results
 }
 
 candidate_rows <- list()
