@@ -27,6 +27,12 @@ results_prefix <- argument_value("results-prefix")
 reference_prefix <- argument_value("reference-prefix")
 limit_sec <- suppressWarnings(as.numeric(argument_value("limit-sec", "1200")))
 metric_tol <- suppressWarnings(as.numeric(argument_value("metric-tol", "1e-8")))
+logLik_tol <- suppressWarnings(as.numeric(
+  argument_value("loglik-tol", as.character(metric_tol))
+))
+AIC_tol <- suppressWarnings(as.numeric(
+  argument_value("aic-tol", as.character(metric_tol))
+))
 output_path <- argument_value("output")
 results_root_argument <- argument_value("results-root")
 require_complete <- tolower(argument_value("require-complete", "false")) %in%
@@ -38,6 +44,12 @@ if (!is.finite(limit_sec) || limit_sec <= 0) {
 }
 if (!is.finite(metric_tol) || metric_tol < 0) {
   stop("--metric-tol must be a non-negative finite number.", call. = FALSE)
+}
+if (!is.finite(logLik_tol) || logLik_tol < 0) {
+  stop("--loglik-tol must be a non-negative finite number.", call. = FALSE)
+}
+if (!is.finite(AIC_tol) || AIC_tol < 0) {
+  stop("--aic-tol must be a non-negative finite number.", call. = FALSE)
 }
 
 routes <- c("zisichel-g", "zisichel-t", "zibnb-g", "zibnb-t")
@@ -280,6 +292,8 @@ summary_rows <- lapply(routes, function(route) {
 })
 summary <- do.call(rbind, summary_rows)
 summary$metric_tolerance <- metric_tol
+summary$logLik_tolerance <- logLik_tol
+summary$AIC_tolerance <- AIC_tol
 
 print(summary, row.names = FALSE)
 
@@ -301,8 +315,8 @@ if (any(summary$unexpected_warning_rows > 0L)) failures <- c(failures, "warnings
 if (any(!summary$selection_consistency_pass)) failures <- c(failures, "selection_consistency")
 if (any(summary$duplicate_candidate_keys > 0L)) failures <- c(failures, "duplicate_candidates")
 if (any(summary$decision_mismatches > 0L, na.rm = TRUE)) failures <- c(failures, "decisions")
-if (any(summary$max_abs_logLik > metric_tol, na.rm = TRUE) ||
-    any(summary$max_abs_AIC > metric_tol, na.rm = TRUE)) {
+if (any(summary$max_abs_logLik > logLik_tol, na.rm = TRUE) ||
+    any(summary$max_abs_AIC > AIC_tol, na.rm = TRUE)) {
   failures <- c(failures, "metrics")
 }
 if (any(summary$selected_formulas_match %in% FALSE)) failures <- c(failures, "formulas")
