@@ -170,6 +170,12 @@ compare_reference <- function(current, reference) {
   }
   old <- reference[matched[overlap], , drop = FALSE]
   new <- current[overlap, , drop = FALSE]
+  metric_comparable <- old$converged %in% TRUE & new$converged %in% TRUE
+  max_metric_difference <- function(column) {
+    difference <- abs(old[[column]][metric_comparable] - new[[column]][metric_comparable])
+    difference <- difference[is.finite(difference)]
+    if (length(difference)) max(difference) else NA_real_
+  }
   decision_mismatches <- sum(
     old$converged != new$converged | old$accepted != new$accepted,
     na.rm = TRUE
@@ -178,8 +184,8 @@ compare_reference <- function(current, reference) {
     overlap = sum(overlap),
     missing_reference = sum(!overlap),
     decision_mismatches = decision_mismatches,
-    max_abs_logLik = max(abs(old$logLik - new$logLik), na.rm = TRUE),
-    max_abs_AIC = max(abs(old$AIC - new$AIC), na.rm = TRUE),
+    max_abs_logLik = max_metric_difference("logLik"),
+    max_abs_AIC = max_metric_difference("AIC"),
     warning_mismatches = sum(
       trimws(old$warnings) != trimws(new$warnings),
       na.rm = TRUE
