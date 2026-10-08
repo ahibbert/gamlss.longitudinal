@@ -106,6 +106,31 @@ test_that("ACTG zero-inflated controls enforce the production time envelope", {
   expect_identical(control$rs$bfgs_max_iter, 100L)
 })
 
+test_that("ACTG four-route resume keys include run controls", {
+  path <- test_path(
+    "..", "..", "paper", "reviews", "2026-09-05-medical-candidates",
+    "run-zero-inflated-four-route-build.R"
+  )
+  expect_silent(parse(file = path))
+  source <- paste(readLines(path, warn = FALSE), collapse = "\n")
+
+  expect_match(
+    source,
+    "identical(completion$run_control_signature, run_control_signature)",
+    fixed = TRUE
+  )
+  expect_match(
+    source,
+    "manifest_control$rs$initial_inner_iter",
+    fixed = TRUE
+  )
+  expect_match(
+    source,
+    "manifest_control$shared$max_elapsed_sec",
+    fixed = TRUE
+  )
+})
+
 test_that("ACTG manuscript table renderers use only promoted inputs", {
   environment <- actg_workflow_environment()
   data <- environment$jss_actg_load_data()
