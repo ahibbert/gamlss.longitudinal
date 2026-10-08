@@ -26,6 +26,9 @@ argument_value <- function(name, default = "") {
 results_prefix <- argument_value("results-prefix")
 reference_prefix <- argument_value("reference-prefix")
 limit_sec <- suppressWarnings(as.numeric(argument_value("limit-sec", "1200")))
+t_limit_sec <- suppressWarnings(as.numeric(argument_value(
+  "t-limit-sec", as.character(limit_sec)
+)))
 metric_tol <- suppressWarnings(as.numeric(argument_value("metric-tol", "1e-8")))
 logLik_tol <- suppressWarnings(as.numeric(
   argument_value("loglik-tol", as.character(metric_tol))
@@ -41,6 +44,9 @@ require_complete <- tolower(argument_value("require-complete", "false")) %in%
 if (!nzchar(results_prefix)) stop("--results-prefix is required.", call. = FALSE)
 if (!is.finite(limit_sec) || limit_sec <= 0) {
   stop("--limit-sec must be a positive finite number.", call. = FALSE)
+}
+if (!is.finite(t_limit_sec) || t_limit_sec <= 0) {
+  stop("--t-limit-sec must be a positive finite number.", call. = FALSE)
 }
 if (!is.finite(metric_tol) || metric_tol < 0) {
   stop("--metric-tol must be a non-negative finite number.", call. = FALSE)
@@ -274,6 +280,7 @@ summary_rows <- lapply(routes, function(route) {
     NA
   }
   finite_elapsed <- current$elapsed_sec[is.finite(current$elapsed_sec)]
+  route_limit_sec <- if (endsWith(route, "-t")) t_limit_sec else limit_sec
   warning_values <- if ("warnings" %in% names(current)) {
     current$warnings
   } else {
@@ -289,8 +296,9 @@ summary_rows <- lapply(routes, function(route) {
     converged = sum(current$converged %in% TRUE),
     nonconverged = sum(!(current$converged %in% TRUE)),
     max_elapsed_sec = if (length(finite_elapsed)) max(finite_elapsed) else NA_real_,
+    runtime_limit_sec = route_limit_sec,
     runtime_pass = length(finite_elapsed) == nrow(current) &&
-      all(finite_elapsed < limit_sec),
+      all(finite_elapsed < route_limit_sec),
     warning_rows = sum(warning_rows),
     unexpected_warning_rows = unexpected_warning_count(
       warning_values, current$converged

@@ -139,7 +139,7 @@ test_that("ACTG four-route resume keys safely reuse stricter time caps", {
   helper_environment <- new.env(parent = baseenv())
   for (expression in expressions) {
     assignment <- paste(deparse(expression, width.cutoff = 500L), collapse = " ")
-    if (grepl("^(run_control_signature|compatible_run_control) <-", assignment)) {
+    if (grepl("^compatible_run_control <-", assignment)) {
       eval(expression, envir = helper_environment)
     }
   }
@@ -154,6 +154,19 @@ test_that("ACTG four-route resume keys safely reuse stricter time caps", {
   expect_false(helper_environment$compatible_run_control(
     list(initial_inner_iter = 1L, max_elapsed_sec = 1190), requested
   ))
+})
+
+test_that("ACTG four-route audit keeps the t runtime allowance isolated", {
+  path <- test_path(
+    "..", "..", "paper", "reviews", "2026-09-05-medical-candidates",
+    "audit-zero-inflated-four-route-build.R"
+  )
+  expect_silent(parse(file = path))
+  source <- paste(readLines(path, warn = FALSE), collapse = "\n")
+
+  expect_match(source, '"t-limit-sec"', fixed = TRUE)
+  expect_match(source, 'endsWith(route, "-t")', fixed = TRUE)
+  expect_match(source, "all(finite_elapsed < route_limit_sec)", fixed = TRUE)
 })
 
 test_that("ACTG manuscript table renderers use only promoted inputs", {
