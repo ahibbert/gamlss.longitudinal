@@ -460,9 +460,11 @@ start_for_formulas <- function(fit, formulas, data) {
 screening_start_strategy <- function(
     copula,
     step,
+    screening_stage,
     parameter,
     dropped_term,
-    change_type) {
+    change_type,
+    project_smooth_drop = FALSE) {
   # In the ACTG Student-t routes, inheriting the fitted zeta surface after
   # deleting a zeta interaction reproducibly enters a poorer local optimum.
   # Reset only that screened parameter; every other parameter, plus the
@@ -480,8 +482,14 @@ screening_start_strategy <- function(
   reset_terminal_zeta_treatment <- identical(copula, "t") &&
     as.integer(step) >= 5L && identical(parameter, "zeta") &&
     identical(change_type, "drop") && identical(dropped_term, "treatment")
+  project_refinement_smooth_drop <- isTRUE(project_smooth_drop) &&
+    identical(screening_stage, "refine") &&
+    identical(change_type, "drop") && length(dropped_term) == 1L &&
+    !is.na(dropped_term) && grepl("^\\s*s\\(", dropped_term)
   if (reset_zeta_interaction || reset_terminal_zeta_treatment) {
     "zero_screened_parameter"
+  } else if (project_refinement_smooth_drop) {
+    "project_parent_predictor"
   } else {
     "fitted_parent"
   }
@@ -496,6 +504,60 @@ zero_screened_parameter_start <- function(start, parameter) {
       start$par_s[[parameter]],
       function(value) value * 0
     )
+  }
+  start
+}
+
+project_smooth_drop_start <- function(start, parameter, dropped_term) {
+  if (!inherits(start, "gamlss.longitudinal") ||
+      is.na(dropped_term) || !nzchar(dropped_term)) {
+    return(start)
+  }
+  term <- trimws(sub("\\s*->.*$", "", dropped_term))
+  fixed_design <- start$model_matrix$x[[parameter]]
+  fixed_names <- paste(parameter, colnames(fixed_design), sep = ".")
+  smooth_design <- start$model_matrix$s[[parameter]]
+  smooth_coefficients <- start$par_s[[parameter]]
+  if (is.null(fixed_design) || !all(fixed_names %in% names(start$par)) ||
+      is.null(smooth_design) || is.null(smooth_coefficients) ||
+      !term %in% names(smooth_coefficients)) {
+    return(start)
+  }
+  fixed_design <- as.matrix(fixed_design)
+  eta <- as.numeric(fixed_design %*% as.numeric(start$par[fixed_names]))
+  smooth_names <- intersect(names(smooth_design), names(smooth_coefficients))
+  for (name in smooth_names) {
+    basis <- as.matrix(smooth_design[[name]])
+    coefficient <- as.numeric(smooth_coefficients[[name]])
+    if (nrow(basis) != length(eta) || ncol(basis) != length(coefficient)) {
+      return(start)
+    }
+    eta <- eta + as.numeric(basis %*% coefficient)
+  }
+  retained_smooths <- setdiff(smooth_names, term)
+  retained_designs <- lapply(retained_smooths, function(name) {
+    as.matrix(smooth_design[[name]])
+  })
+  candidate_design <- do.call(cbind, c(list(fixed_design), retained_designs))
+  if (!ncol(candidate_design) || any(!is.finite(candidate_design)) ||
+      any(!is.finite(eta))) {
+    return(start)
+  }
+  projected <- tryCatch(stats::lm.fit(candidate_design, eta), error = identity)
+  if (inherits(projected, "error") ||
+      length(projected$coefficients) != ncol(candidate_design) ||
+      any(!is.finite(projected$coefficients))) {
+    return(start)
+  }
+  offset <- ncol(fixed_design)
+  start$par[fixed_names] <- projected$coefficients[seq_len(offset)]
+  for (name in retained_smooths) {
+    width <- ncol(as.matrix(smooth_design[[name]]))
+    index <- offset + seq_len(width)
+    value <- projected$coefficients[index]
+    names(value) <- names(start$par_s[[parameter]][[name]])
+    start$par_s[[parameter]][[name]] <- value
+    offset <- offset + width
   }
   start
 }
@@ -852,11 +914,19 @@ make_task <- function(
   rs_initial_inner_iter_override <- low_lambda_inner_override_for_task(
     step, parameter, dropped_term, change_type, start
   )
+  project_low_lambda_smooth_drop <- identical(stage, "refine") &&
+    identical(change_type, "drop") && length(dropped_term) == 1L &&
+    !is.na(dropped_term) && grepl("^\\s*s\\(", dropped_term) &&
+    (is.list(dominance_pilot) ||
+      length(rs_initial_inner_iter_override) == 1L)
   start_strategy <- screening_start_strategy(
-    copula_code, step, parameter, dropped_term, change_type
+    copula_code, step, stage, parameter, dropped_term, change_type,
+    project_smooth_drop = project_low_lambda_smooth_drop
   )
   if (identical(start_strategy, "zero_screened_parameter")) {
     start <- zero_screened_parameter_start(start, parameter)
+  } else if (identical(start_strategy, "project_parent_predictor")) {
+    start <- project_smooth_drop_start(start, parameter, dropped_term)
   }
   metadata <- list(
     step = as.integer(step), parameter = parameter, dropped_term = dropped_term,

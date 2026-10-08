@@ -234,7 +234,7 @@ test_that("ACTG Student-t zeta interaction deletion resets only zeta", {
   for (expression in expressions) {
     assignment <- paste(deparse(expression, width.cutoff = 500L), collapse = " ")
     if (grepl(
-      "^(screening_start_strategy|zero_screened_parameter_start) <-",
+      "^(screening_start_strategy|zero_screened_parameter_start|project_smooth_drop_start) <-",
       assignment
     )) {
       eval(expression, envir = helper_environment)
@@ -243,31 +243,43 @@ test_that("ACTG Student-t zeta interaction deletion resets only zeta", {
 
   expect_identical(
     helper_environment$screening_start_strategy(
-      "t", 1L, "zeta", "treatment:week_factor", "drop"
+      "t", 1L, "zeta", "zeta", "treatment:week_factor", "drop"
     ),
     "zero_screened_parameter"
   )
   expect_identical(
     helper_environment$screening_start_strategy(
-      "t", 1L, "zeta", "s(age, k = 8) -> age", "simplify"
+      "t", 1L, "zeta", "zeta", "s(age, k = 8) -> age", "simplify"
     ),
     "fitted_parent"
   )
   expect_identical(
     helper_environment$screening_start_strategy(
-      "G", 1L, "zeta", "treatment:week_factor", "drop"
+      "G", 1L, "zeta", "zeta", "treatment:week_factor", "drop"
     ),
     "fitted_parent"
   )
   expect_identical(
     helper_environment$screening_start_strategy(
-      "t", 5L, "zeta", "treatment", "drop"
+      "t", 5L, "zeta", "zeta", "treatment", "drop"
     ),
     "zero_screened_parameter"
   )
   expect_identical(
     helper_environment$screening_start_strategy(
-      "t", 4L, "zeta", "treatment", "drop"
+      "t", 4L, "zeta", "zeta", "treatment", "drop"
+    ),
+    "fitted_parent"
+  )
+  expect_identical(
+    helper_environment$screening_start_strategy(
+      "t", 1L, "refine", "mu", "s(age, k = 8)", "drop", TRUE
+    ),
+    "project_parent_predictor"
+  )
+  expect_identical(
+    helper_environment$screening_start_strategy(
+      "t", 1L, "refine", "mu", "s(age, k = 8)", "drop", FALSE
     ),
     "fitted_parent"
   )
@@ -282,6 +294,46 @@ test_that("ACTG Student-t zeta interaction deletion resets only zeta", {
   expect_equal(reset$par[["theta.intercept"]], 0.5)
   expect_equal(unname(reset$par_s$zeta$age), c(0, 0))
   expect_identical(reset$lambda_s, start$lambda_s)
+
+  x <- cbind(intercept = 1, group = rep(c(0, 1), each = 3))
+  retained_basis <- cbind(age.1 = c(-1, 0, 1, -1, 0, 1))
+  dropped_basis <- cbind(base.1 = c(0, 1, 4, 0, 1, 4))
+  projected_start <- structure(list(
+    par = c(mu.intercept = 1, mu.group = 2),
+    par_s = list(mu = list(
+      `s(age, k = 8)` = c(mu.age.1 = 0.5),
+      `s(base, k = 8)` = c(mu.base.1 = 3)
+    )),
+    lambda_s = list(mu = list(age = 2, base = 0.1)),
+    model_matrix = list(
+      x = list(mu = x),
+      s = list(mu = list(
+        `s(age, k = 8)` = retained_basis,
+        `s(base, k = 8)` = dropped_basis
+      ))
+    )
+  ), class = "gamlss.longitudinal")
+  parent_eta <- as.numeric(
+    x %*% projected_start$par[c("mu.intercept", "mu.group")] +
+      retained_basis %*% projected_start$par_s$mu[["s(age, k = 8)"]] +
+      dropped_basis %*% projected_start$par_s$mu[["s(base, k = 8)"]]
+  )
+  projected <- helper_environment$project_smooth_drop_start(
+    projected_start, "mu", "s(base, k = 8)"
+  )
+  projected_eta <- as.numeric(
+    x %*% projected$par[c("mu.intercept", "mu.group")] +
+      retained_basis %*% projected$par_s$mu[["s(age, k = 8)"]]
+  )
+  unprojected_eta <- as.numeric(
+    x %*% projected_start$par[c("mu.intercept", "mu.group")] +
+      retained_basis %*% projected_start$par_s$mu[["s(age, k = 8)"]]
+  )
+  expect_lt(
+    sqrt(mean((parent_eta - projected_eta)^2)),
+    sqrt(mean((parent_eta - unprojected_eta)^2))
+  )
+  expect_identical(projected$lambda_s, projected_start$lambda_s)
 })
 
 test_that("ACTG four-route audit keeps the t runtime allowance isolated", {
