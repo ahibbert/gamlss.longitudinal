@@ -1011,7 +1011,9 @@ if (workers > 1L) {
     cluster,
     c(
       "actg_data", "optimizer_control", "resume", "empty_metrics",
-      "fit_screening_candidate", "margin_family", "copula_code", "has_tau", "has_zeta"
+      "candidate_checkpoint_paths", "checkpoint_metadata_compatible",
+      "checkpoint_metadata_without_elapsed_cap", "fit_screening_candidate",
+      "margin_family", "copula_code", "has_tau", "has_zeta"
     ),
     envir = environment()
   )
