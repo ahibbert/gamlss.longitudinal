@@ -150,6 +150,20 @@ valid_completed_stage <- function(manifest_path, fit_path, route, stage, paramet
   }
   manifest_fit_path <- if (is.list(manifest)) manifest$final_fit_path else NULL
   manifest_control <- if (is.list(manifest)) manifest$optimizer_control else NULL
+  manifest_table <- if (is.list(manifest)) manifest$model_table else NULL
+  stored_elapsed_cap <- if (is.list(manifest_control)) {
+    manifest_control$shared$max_elapsed_sec
+  } else {
+    NA_real_
+  }
+  timeout_under_tighter_cap <- is.data.frame(manifest_table) &&
+    length(stored_elapsed_cap) == 1L && is.finite(stored_elapsed_cap) &&
+    stored_elapsed_cap < run_control_signature$max_elapsed_sec &&
+    "error" %in% names(manifest_table) &&
+    any(grepl(
+      "exceeded max_elapsed_sec", manifest_table$error,
+      fixed = TRUE
+    ), na.rm = TRUE)
   same_run_control <- is.list(manifest_control) && compatible_run_control(list(
     initial_inner_iter = manifest_control$rs$initial_inner_iter,
     max_elapsed_sec = manifest_control$shared$max_elapsed_sec
@@ -162,7 +176,7 @@ valid_completed_stage <- function(manifest_path, fit_path, route, stage, paramet
   is.list(manifest) && isTRUE(is.finite(fit_info$size)) && fit_info$size > 0 &&
     same_fit_path && is.data.frame(final_path_row) &&
     isTRUE(final_path_row$converged[[1L]]) && isTRUE(final_path_row$accepted[[1L]]) &&
-    same_run_control &&
+    same_run_control && !timeout_under_tighter_cap &&
     identical(manifest$stage, stage) &&
     identical(manifest$margin_family, route$margin) &&
     identical(manifest$copula_family, copula_label(route$copula)) &&

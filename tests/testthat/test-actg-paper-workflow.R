@@ -154,6 +154,43 @@ test_that("ACTG four-route resume keys safely reuse stricter time caps", {
   expect_false(helper_environment$compatible_run_control(
     list(initial_inner_iter = 1L, max_elapsed_sec = 1190), requested
   ))
+  expect_match(source, "timeout_under_tighter_cap", fixed = TRUE)
+  expect_match(source, '"exceeded max_elapsed_sec"', fixed = TRUE)
+})
+
+test_that("ACTG candidate checkpoints rerun only tighter-cap timeouts", {
+  path <- test_path(
+    "..", "..", "paper", "reviews", "2026-09-05-medical-candidates",
+    "run-screening-v2.R"
+  )
+  expect_silent(parse(file = path))
+  source <- paste(readLines(path, warn = FALSE), collapse = "\n")
+
+  expect_match(source, "checkpoint_metadata_compatible", fixed = TRUE)
+  expect_match(source, "checkpoint_metadata_without_elapsed_cap", fixed = TRUE)
+  expect_match(source, "looser_elapsed_cap && elapsed_timeout", fixed = TRUE)
+
+  expressions <- parse(file = path)
+  helper_environment <- new.env(parent = baseenv())
+  for (expression in expressions) {
+    assignment <- paste(deparse(expression, width.cutoff = 500L), collapse = " ")
+    if (grepl(
+      "^checkpoint_metadata_(without_elapsed_cap|compatible) <-",
+      assignment
+    )) {
+      eval(expression, envir = helper_environment)
+    }
+  }
+  stored <- list(
+    model = "same",
+    optimizer_control = list(shared = list(max_elapsed_sec = 1500), rs = list())
+  )
+  requested <- stored
+  requested$optimizer_control$shared$max_elapsed_sec <- 1800
+  expect_true(helper_environment$checkpoint_metadata_compatible(stored, requested))
+  expect_false(helper_environment$checkpoint_metadata_compatible(requested, stored))
+  requested$model <- "different"
+  expect_false(helper_environment$checkpoint_metadata_compatible(stored, requested))
 })
 
 test_that("ACTG four-route audit keeps the t runtime allowance isolated", {

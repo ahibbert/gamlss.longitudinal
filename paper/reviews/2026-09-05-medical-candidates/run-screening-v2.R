@@ -354,6 +354,28 @@ object_md5 <- function(object) {
   unname(tools::md5sum(path))
 }
 
+checkpoint_metadata_without_elapsed_cap <- function(metadata) {
+  value <- metadata
+  if (is.list(value$optimizer_control) && is.list(value$optimizer_control$shared)) {
+    value$optimizer_control$shared$max_elapsed_sec <- NULL
+  }
+  value
+}
+
+checkpoint_metadata_compatible <- function(stored, requested) {
+  if (identical(stored, requested)) return(TRUE)
+  if (!is.list(stored) || !is.list(requested)) return(FALSE)
+  stored_cap <- stored$optimizer_control$shared$max_elapsed_sec
+  requested_cap <- requested$optimizer_control$shared$max_elapsed_sec
+  length(stored_cap) == 1L && is.finite(stored_cap) &&
+    length(requested_cap) == 1L && is.finite(requested_cap) &&
+    as.numeric(stored_cap) <= as.numeric(requested_cap) &&
+    identical(
+      checkpoint_metadata_without_elapsed_cap(stored),
+      checkpoint_metadata_without_elapsed_cap(requested)
+    )
+}
+
 safe_name <- function(value) {
   value <- gsub("[^A-Za-z0-9]+", "-", value)
   tolower(gsub("(^-+|-+$)", "", value))
@@ -456,10 +478,22 @@ fit_screening_candidate <- function(task) {
     cached <- tryCatch(readRDS(task$checkpoint), error = identity)
     cached_has_metrics <- is.list(cached) && is.numeric(cached$metrics) &&
       all(names(empty_metrics()) %in% names(cached$metrics))
+    stored_cap <- if (is.list(cached) && is.list(cached$metadata)) {
+      cached$metadata$optimizer_control$shared$max_elapsed_sec
+    } else {
+      NA_real_
+    }
+    requested_cap <- task$metadata$optimizer_control$shared$max_elapsed_sec
+    looser_elapsed_cap <- is.list(cached) && length(stored_cap) == 1L &&
+      is.finite(stored_cap) && length(requested_cap) == 1L &&
+      is.finite(requested_cap) && requested_cap > stored_cap
+    elapsed_timeout <- is.list(cached) && length(cached$error) == 1L &&
+      !is.na(cached$error) && grepl("exceeded max_elapsed_sec", cached$error, fixed = TRUE)
     cache_is_reusable <- is.list(cached) &&
-      identical(cached$metadata, task$metadata) &&
+      checkpoint_metadata_compatible(cached$metadata, task$metadata) &&
       inherits(cached$fit, "gamlss.longitudinal") && cached_has_metrics &&
-      (isTRUE(cached$converged) || identical(cached$converged, FALSE))
+      (isTRUE(cached$converged) || identical(cached$converged, FALSE)) &&
+      !(looser_elapsed_cap && elapsed_timeout)
     if (cache_is_reusable) {
       cached$from_checkpoint <- TRUE
       # The complete fit is already durable in the checkpoint. Returning it
