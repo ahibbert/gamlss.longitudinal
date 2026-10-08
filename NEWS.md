@@ -21,6 +21,10 @@ is isolated on `codex/experimental-missingness-higher-vine`.
   tail cancellation, and substantially reduces fitting time.
 - Invalid or excluded response pairs no longer trigger needless copula
   evaluation.
+- RS endpoint BFGS refinement now reuses the exact likelihood state when the
+  objective and analytical gradient are requested at the same coefficient
+  vector. This removes duplicate discrete-copula evaluations without changing
+  the optimized objective, gradient, or convergence rules.
 - `select_joint_distribution()` isolates candidates in separate R workers by
   default, supports per-candidate timeouts and resumable atomic checkpoints,
   and retains worker failures as structured result rows rather than allowing a
