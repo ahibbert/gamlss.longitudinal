@@ -243,19 +243,31 @@ test_that("ACTG Student-t zeta interaction deletion resets only zeta", {
 
   expect_identical(
     helper_environment$screening_start_strategy(
-      "t", "zeta", "treatment:week_factor", "drop"
+      "t", 1L, "zeta", "treatment:week_factor", "drop"
     ),
     "zero_screened_parameter"
   )
   expect_identical(
     helper_environment$screening_start_strategy(
-      "t", "zeta", "s(age, k = 8) -> age", "simplify"
+      "t", 1L, "zeta", "s(age, k = 8) -> age", "simplify"
     ),
     "fitted_parent"
   )
   expect_identical(
     helper_environment$screening_start_strategy(
-      "G", "zeta", "treatment:week_factor", "drop"
+      "G", 1L, "zeta", "treatment:week_factor", "drop"
+    ),
+    "fitted_parent"
+  )
+  expect_identical(
+    helper_environment$screening_start_strategy(
+      "t", 5L, "zeta", "treatment", "drop"
+    ),
+    "zero_screened_parameter"
+  )
+  expect_identical(
+    helper_environment$screening_start_strategy(
+      "t", 4L, "zeta", "treatment", "drop"
     ),
     "fitted_parent"
   )
