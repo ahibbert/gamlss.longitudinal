@@ -90,6 +90,14 @@ if (length(pilot_low_lambda_max) != 1L || is.na(pilot_low_lambda_max) ||
     pilot_low_lambda_max < 0) {
   stop("--pilot-low-lambda-max must be a non-negative number.")
 }
+pilot_smooth_projection_rmse_min <- suppressWarnings(as.numeric(
+  argument_value("pilot-smooth-projection-rmse-min", "0.25")
+))
+if (length(pilot_smooth_projection_rmse_min) != 1L ||
+    is.na(pilot_smooth_projection_rmse_min) ||
+    pilot_smooth_projection_rmse_min < 0) {
+  stop("--pilot-smooth-projection-rmse-min must be a non-negative number.")
+}
 pilot_delta_threshold <- suppressWarnings(as.numeric(
   argument_value("pilot-delta-threshold", "100")
 ))
@@ -839,6 +847,54 @@ fixed_drop_projection_rmse <- function(start, parameter, dropped_term) {
   sqrt(mean((eta - projected$fitted.values)^2))
 }
 
+smooth_drop_projection_rmse <- function(start, parameter, dropped_term) {
+  if (!inherits(start, "gamlss.longitudinal") ||
+      is.na(dropped_term) || !nzchar(dropped_term)) {
+    return(NA_real_)
+  }
+  term <- trimws(sub("\\s*->.*$", "", dropped_term))
+  if (!grepl("^s\\(", term)) return(NA_real_)
+  fixed_design <- start$model_matrix$x[[parameter]]
+  fixed_names <- paste(parameter, colnames(fixed_design), sep = ".")
+  smooth_design <- start$model_matrix$s[[parameter]]
+  smooth_coefficients <- start$par_s[[parameter]]
+  if (is.null(fixed_design) || !all(fixed_names %in% names(start$par)) ||
+      is.null(smooth_design) || is.null(smooth_coefficients) ||
+      !term %in% names(smooth_coefficients)) {
+    return(NA_real_)
+  }
+  fixed_design <- as.matrix(fixed_design)
+  eta <- as.numeric(fixed_design %*% as.numeric(start$par[fixed_names]))
+  smooth_names <- intersect(names(smooth_design), names(smooth_coefficients))
+  for (name in smooth_names) {
+    basis <- as.matrix(smooth_design[[name]])
+    coefficient <- as.numeric(smooth_coefficients[[name]])
+    if (nrow(basis) != length(eta) || ncol(basis) != length(coefficient)) {
+      return(NA_real_)
+    }
+    eta <- eta + as.numeric(basis %*% coefficient)
+  }
+  retained_smooths <- setdiff(smooth_names, term)
+  candidate_design <- do.call(cbind, c(
+    list(fixed_design),
+    lapply(retained_smooths, function(name) as.matrix(smooth_design[[name]]))
+  ))
+  if (!ncol(candidate_design) || any(!is.finite(candidate_design)) ||
+      any(!is.finite(eta))) {
+    return(NA_real_)
+  }
+  projected <- tryCatch(
+    stats::lm.fit(candidate_design, eta),
+    error = identity
+  )
+  if (inherits(projected, "error") ||
+      length(projected$fitted.values) != length(eta) ||
+      any(!is.finite(projected$fitted.values))) {
+    return(NA_real_)
+  }
+  sqrt(mean((eta - projected$fitted.values)^2))
+}
+
 dominance_pilot_for_task <- function(
     step,
     parameter,
@@ -849,6 +905,13 @@ dominance_pilot_for_task <- function(
   if (!change_type %in% c("drop", "simplify")) return(NULL)
   lambda <- smooth_penalty_for_term(start, parameter, dropped_term)
   low_lambda_smooth <- is.finite(lambda) && lambda <= pilot_low_lambda_max
+  smooth_projection_rmse <- if (identical(change_type, "drop")) {
+    smooth_drop_projection_rmse(start, parameter, dropped_term)
+  } else {
+    NA_real_
+  }
+  high_projection_smooth <- is.finite(smooth_projection_rmse) &&
+    smooth_projection_rmse >= pilot_smooth_projection_rmse_min
   projection_rmse <- if (identical(change_type, "drop")) {
     fixed_drop_projection_rmse(start, parameter, dropped_term)
   } else {
@@ -862,7 +925,8 @@ dominance_pilot_for_task <- function(
     projection_rmse >= pilot_fixed_projection_rmse_min &&
     is.finite(parent_term_count) &&
     parent_term_count == pilot_fixed_parent_terms
-  if (!low_lambda_smooth && !high_projection_fixed) return(NULL)
+  if (!low_lambda_smooth && !high_projection_smooth &&
+      !high_projection_fixed) return(NULL)
   parent_value <- tryCatch(
     as.numeric(start$model_selection[criterion, "joint"]),
     error = function(error) NA_real_
@@ -874,12 +938,15 @@ dominance_pilot_for_task <- function(
     delta_threshold = pilot_delta_threshold,
     low_lambda_max = pilot_low_lambda_max,
     smooth_lambda = lambda,
+    smooth_projection_rmse_min = pilot_smooth_projection_rmse_min,
+    smooth_projection_rmse = smooth_projection_rmse,
     fixed_projection_rmse_min = pilot_fixed_projection_rmse_min,
     fixed_projection_rmse = projection_rmse,
     fixed_parent_terms_required = pilot_fixed_parent_terms,
     fixed_parent_terms_observed = parent_term_count,
     trigger = paste(c(
       if (low_lambda_smooth) "low_lambda_smooth",
+      if (high_projection_smooth) "high_projection_smooth",
       if (high_projection_fixed) "high_projection_fixed"
     ), collapse = "+"),
     max_outer_iter = pilot_outer_iter,
@@ -913,14 +980,14 @@ make_task <- function(
   rs_initial_inner_iter_override <- low_lambda_inner_override_for_task(
     step, parameter, dropped_term, change_type, start
   )
-  project_low_lambda_smooth_drop <- identical(stage, "refine") &&
+  project_piloted_smooth_drop <- identical(stage, "refine") &&
     identical(change_type, "drop") && length(dropped_term) == 1L &&
     !is.na(dropped_term) && grepl("^\\s*s\\(", dropped_term) &&
     (is.list(dominance_pilot) ||
       length(rs_initial_inner_iter_override) == 1L)
   start_strategy <- screening_start_strategy(
     copula_code, step, stage, parameter, dropped_term, change_type,
-    project_smooth_drop = project_low_lambda_smooth_drop
+    project_smooth_drop = project_piloted_smooth_drop
   )
   if (identical(start_strategy, "zero_screened_parameter")) {
     start <- zero_screened_parameter_start(start, parameter)
@@ -1055,8 +1122,8 @@ cat(
   "  stage/smooth k: ", stage, "/", smooth_k, "\n",
   "  parameters: ", paste(parameters, collapse = ", "), "\n",
   "  workers: ", workers, "\n",
-  "  dominance pilot: low-lambda refinement smooth changes <= ",
-  pilot_low_lambda_max,
+  "  dominance pilot: refinement smooth lambda <= ", pilot_low_lambda_max,
+  " or smooth-drop projection RMSE >= ", pilot_smooth_projection_rmse_min,
   "; sparse fixed-drop projection RMSE >= ", pilot_fixed_projection_rmse_min,
   " at ", pilot_fixed_parent_terms, " parent terms",
   ", delta ", criterion, " > ", pilot_delta_threshold,
