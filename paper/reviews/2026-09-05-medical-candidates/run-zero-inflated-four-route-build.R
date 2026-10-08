@@ -47,6 +47,11 @@ if (!grepl("^[A-Za-z0-9._-]+$", results_prefix)) {
   stop("--results-prefix may contain only letters, numbers, periods, underscores, and hyphens.")
 }
 
+run_control_signature <- list(
+  initial_inner_iter = as.integer(initial_inner_iter),
+  max_elapsed_sec = as.numeric(max_elapsed_sec)
+)
+
 route_registry <- list(
   `zisichel-g` = list(
     margin = "ZISICHEL", copula = "G",
@@ -136,6 +141,17 @@ valid_completed_stage <- function(manifest_path, fit_path, route, stage, paramet
     NULL
   }
   manifest_fit_path <- if (is.list(manifest)) manifest$final_fit_path else NULL
+  manifest_control <- if (is.list(manifest)) manifest$optimizer_control else NULL
+  same_run_control <- is.list(manifest_control) &&
+    identical(
+      as.integer(manifest_control$rs$initial_inner_iter),
+      run_control_signature$initial_inner_iter
+    ) &&
+    isTRUE(all.equal(
+      as.numeric(manifest_control$shared$max_elapsed_sec),
+      run_control_signature$max_elapsed_sec,
+      tolerance = 0
+    ))
   same_fit_path <- is.character(manifest_fit_path) && length(manifest_fit_path) == 1L &&
     identical(
       normalizePath(manifest_fit_path, winslash = "/", mustWork = FALSE),
@@ -144,6 +160,7 @@ valid_completed_stage <- function(manifest_path, fit_path, route, stage, paramet
   is.list(manifest) && isTRUE(is.finite(fit_info$size)) && fit_info$size > 0 &&
     same_fit_path && is.data.frame(final_path_row) &&
     isTRUE(final_path_row$converged[[1L]]) && isTRUE(final_path_row$accepted[[1L]]) &&
+    same_run_control &&
     identical(manifest$stage, stage) &&
     identical(manifest$margin_family, route$margin) &&
     identical(manifest$copula_family, copula_label(route$copula)) &&
@@ -170,6 +187,7 @@ run_route <- function(route_name) {
   if (file.exists(completion_path)) {
     completion <- tryCatch(readRDS(completion_path), error = function(error) NULL)
     if (is.list(completion) && isTRUE(completion$stable) &&
+        identical(completion$run_control_signature, run_control_signature) &&
         identical(completion$package_source_fingerprint, package_source_fingerprint)) {
       cat("Reusing completed route ", route_name, ".\n", sep = "")
       return(completion)
@@ -315,6 +333,7 @@ run_route <- function(route_name) {
     selected_formulas_path = selected_formulas_path,
     selected_fit_path = selected_fit_path,
     stage_log_path = stage_log_path,
+    run_control_signature = run_control_signature,
     package_source_fingerprint = package_source_fingerprint
   )
   atomic_save_rds(completion, completion_path)
@@ -350,6 +369,7 @@ summary_path <- file.path(
 atomic_save_rds(list(
   started_at = started_at, completed_at = Sys.time(),
   routes = route_results,
+  run_control_signature = run_control_signature,
   package_source_fingerprint = package_source_fingerprint
 ), summary_path)
 cat("All requested ACTG zero-inflated routes are stable: ", summary_path, "\n", sep = "")
