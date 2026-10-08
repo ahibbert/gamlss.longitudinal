@@ -16,7 +16,7 @@ args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 5L) {
   stop(
     "Usage: diagnose-specific-candidate.R PARENT OUTPUT PARAMETER TERM BFGS_MAXIT ",
-    "[MAX_ELAPSED] [MAX_REFINEMENTS] [START_MODE]",
+    "[MAX_ELAPSED] [MAX_REFINEMENTS] [START_MODE] [MAX_OUTER]",
     call. = FALSE
   )
 }
@@ -28,8 +28,9 @@ bfgs_max_iter <- as.integer(args[[5L]])
 max_elapsed_sec <- if (length(args) >= 6L) as.numeric(args[[6L]]) else 1800
 bfgs_max_refinements <- if (length(args) >= 7L) as.integer(args[[7L]]) else 1L
 start_mode <- if (length(args) >= 8L) args[[8L]] else "parent"
-if (!start_mode %in% c("parent", "zero-parameter")) {
-  stop("START_MODE must be parent or zero-parameter.", call. = FALSE)
+max_outer_iter <- if (length(args) >= 9L) as.integer(args[[9L]]) else 50L
+if (!start_mode %in% c("parent", "zero-parameter", "project-parameter")) {
+  stop("START_MODE must be parent, zero-parameter, or project-parameter.", call. = FALSE)
 }
 
 container <- readRDS(parent_path)
@@ -74,10 +75,41 @@ if (identical(start_mode, "zero-parameter")) {
       function(value) value * 0
     )
   }
+} else if (identical(start_mode, "project-parameter")) {
+  fixed_design <- as.matrix(fit_start$model_matrix$x[[parameter]])
+  fixed_names <- paste(parameter, colnames(fixed_design), sep = ".")
+  smooth_design <- fit_start$model_matrix$s[[parameter]]
+  smooth_coefficients <- fit_start$par_s[[parameter]]
+  eta <- as.numeric(fixed_design %*% as.numeric(fit_start$par[fixed_names]))
+  smooth_names <- intersect(names(smooth_design), names(smooth_coefficients))
+  for (name in smooth_names) {
+    eta <- eta + as.numeric(
+      as.matrix(smooth_design[[name]]) %*% as.numeric(smooth_coefficients[[name]])
+    )
+  }
+  retained_smooths <- setdiff(smooth_names, term)
+  retained_designs <- lapply(retained_smooths, function(name) {
+    as.matrix(smooth_design[[name]])
+  })
+  candidate_design <- do.call(cbind, c(list(fixed_design), retained_designs))
+  projected <- stats::lm.fit(candidate_design, eta)$coefficients
+  if (any(!is.finite(projected))) {
+    stop("Projected candidate start was rank deficient.", call. = FALSE)
+  }
+  offset <- ncol(fixed_design)
+  fit_start$par[fixed_names] <- projected[seq_len(offset)]
+  for (name in retained_smooths) {
+    width <- ncol(as.matrix(smooth_design[[name]]))
+    index <- offset + seq_len(width)
+    value <- projected[index]
+    names(value) <- names(fit_start$par_s[[parameter]][[name]])
+    fit_start$par_s[[parameter]][[name]] <- value
+    offset <- offset + width
+  }
 }
 control <- gamlss_longitudinal_control(
   outer_tol = 1e-4,
-  max_outer_iter = 50L,
+  max_outer_iter = max_outer_iter,
   max_elapsed_sec = max_elapsed_sec,
   rs = list(
     inner_tol = 1e-5,
