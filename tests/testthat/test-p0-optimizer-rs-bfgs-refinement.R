@@ -122,6 +122,9 @@ test_that("RS BFGS refinement scales sparse large coefficients", {
   expect_equal(captured_control$parscale, c(1, 7, 25))
   expect_equal(out$diagnostics$parscale_min, 1)
   expect_equal(out$diagnostics$parscale_max, 25)
+  expect_identical(out$diagnostics$evaluation_calls, 3L)
+  expect_identical(out$diagnostics$evaluation_cache_hits, 2L)
+  expect_identical(out$diagnostics$evaluation_cache_misses, 1L)
 })
 
 test_that("RS coordinate rescue improves only selected large fixed effects", {

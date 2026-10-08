@@ -138,9 +138,32 @@
     mm = mm
   )
 
+  # stats::optim() commonly requests fn and gr at exactly the same coefficient
+  # vector.  A joint discrete likelihood evaluation is expensive and already
+  # contains every quantity needed by both closures, so retain the most recent
+  # state instead of calculating it twice.  Exact coefficient equality is
+  # intentional: this changes no numerical approximation or optimizer
+  # semantics, and invalid evaluations are cached as well.
+  last_beta <- NULL
+  last_evaluation <- NULL
+  has_last_evaluation <- FALSE
+  evaluation_calls <- 0L
+  evaluation_cache_hits <- 0L
+  evaluation_cache_misses <- 0L
+
   evaluate <- function(beta) {
     check_elapsed_budget("RS BFGS refinement")
-    suppressWarnings(evaluate_fn(
+    evaluation_calls <<- evaluation_calls + 1L
+    beta_numeric <- as.numeric(beta)
+    cache_hit <- isTRUE(has_last_evaluation) &&
+      length(beta_numeric) == length(last_beta) &&
+      isTRUE(all(beta_numeric == last_beta))
+    if (cache_hit) {
+      evaluation_cache_hits <<- evaluation_cache_hits + 1L
+      return(last_evaluation)
+    }
+    evaluation_cache_misses <<- evaluation_cache_misses + 1L
+    evaluation <- suppressWarnings(evaluate_fn(
       beta_vec = beta,
       mm_cg = augmented$mm,
       par_cov_template = par_cov,
@@ -152,6 +175,10 @@
       pair_cache = pair_cache,
       margin_eval_cache = margin_eval_cache
     ))
+    last_beta <<- beta_numeric
+    last_evaluation <<- evaluation
+    has_last_evaluation <<- TRUE
+    evaluation
   }
   penalized_value <- function(beta, evaluation) {
     as.numeric(
@@ -169,6 +196,9 @@
         used = TRUE,
         accepted = FALSE,
         reason = "invalid_start",
+        evaluation_calls = evaluation_calls,
+        evaluation_cache_hits = evaluation_cache_hits,
+        evaluation_cache_misses = evaluation_cache_misses,
         elapsed_sec = proc.time()[["elapsed"]] - started
       )
     ))
@@ -258,6 +288,9 @@
         accepted = FALSE,
         reason = "optim_error",
         error = conditionMessage(optimized),
+        evaluation_calls = evaluation_calls,
+        evaluation_cache_hits = evaluation_cache_hits,
+        evaluation_cache_misses = evaluation_cache_misses,
         elapsed_sec = proc.time()[["elapsed"]] - started
       )
     ))
@@ -342,6 +375,9 @@
       convergence = optimized$convergence,
       message = optimized$message %||% NULL,
       counts = optimized$counts,
+      evaluation_calls = evaluation_calls,
+      evaluation_cache_hits = evaluation_cache_hits,
+      evaluation_cache_misses = evaluation_cache_misses,
       parscale_min = min(attr(optimized, "parameter_scale")),
       parscale_max = max(attr(optimized, "parameter_scale")),
       coordinate_rescue = rescue,
