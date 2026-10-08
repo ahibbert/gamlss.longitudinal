@@ -52,6 +52,14 @@ run_control_signature <- list(
   max_elapsed_sec = as.numeric(max_elapsed_sec)
 )
 
+compatible_run_control <- function(stored, requested = run_control_signature) {
+  is.list(stored) &&
+    identical(as.integer(stored$initial_inner_iter), requested$initial_inner_iter) &&
+    length(stored$max_elapsed_sec) == 1L &&
+    is.finite(stored$max_elapsed_sec) &&
+    as.numeric(stored$max_elapsed_sec) <= requested$max_elapsed_sec
+}
+
 route_registry <- list(
   `zisichel-g` = list(
     margin = "ZISICHEL", copula = "G",
@@ -142,16 +150,10 @@ valid_completed_stage <- function(manifest_path, fit_path, route, stage, paramet
   }
   manifest_fit_path <- if (is.list(manifest)) manifest$final_fit_path else NULL
   manifest_control <- if (is.list(manifest)) manifest$optimizer_control else NULL
-  same_run_control <- is.list(manifest_control) &&
-    identical(
-      as.integer(manifest_control$rs$initial_inner_iter),
-      run_control_signature$initial_inner_iter
-    ) &&
-    isTRUE(all.equal(
-      as.numeric(manifest_control$shared$max_elapsed_sec),
-      run_control_signature$max_elapsed_sec,
-      tolerance = 0
-    ))
+  same_run_control <- is.list(manifest_control) && compatible_run_control(list(
+    initial_inner_iter = manifest_control$rs$initial_inner_iter,
+    max_elapsed_sec = manifest_control$shared$max_elapsed_sec
+  ))
   same_fit_path <- is.character(manifest_fit_path) && length(manifest_fit_path) == 1L &&
     identical(
       normalizePath(manifest_fit_path, winslash = "/", mustWork = FALSE),
@@ -187,7 +189,7 @@ run_route <- function(route_name) {
   if (file.exists(completion_path)) {
     completion <- tryCatch(readRDS(completion_path), error = function(error) NULL)
     if (is.list(completion) && isTRUE(completion$stable) &&
-        identical(completion$run_control_signature, run_control_signature) &&
+        compatible_run_control(completion$run_control_signature) &&
         identical(completion$package_source_fingerprint, package_source_fingerprint)) {
       cat("Reusing completed route ", route_name, ".\n", sep = "")
       return(completion)

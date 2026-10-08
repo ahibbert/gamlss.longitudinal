@@ -106,7 +106,7 @@ test_that("ACTG zero-inflated controls enforce the production time envelope", {
   expect_identical(control$rs$bfgs_max_iter, 100L)
 })
 
-test_that("ACTG four-route resume keys include run controls", {
+test_that("ACTG four-route resume keys safely reuse stricter time caps", {
   path <- test_path(
     "..", "..", "paper", "reviews", "2026-09-05-medical-candidates",
     "run-zero-inflated-four-route-build.R"
@@ -116,7 +116,7 @@ test_that("ACTG four-route resume keys include run controls", {
 
   expect_match(
     source,
-    "identical(completion$run_control_signature, run_control_signature)",
+    "compatible_run_control(completion$run_control_signature)",
     fixed = TRUE
   )
   expect_match(
@@ -129,6 +129,31 @@ test_that("ACTG four-route resume keys include run controls", {
     "manifest_control$shared$max_elapsed_sec",
     fixed = TRUE
   )
+  expect_match(
+    source,
+    "as.numeric(stored$max_elapsed_sec) <= requested$max_elapsed_sec",
+    fixed = TRUE
+  )
+
+  expressions <- parse(file = path)
+  helper_environment <- new.env(parent = baseenv())
+  for (expression in expressions) {
+    assignment <- paste(deparse(expression, width.cutoff = 500L), collapse = " ")
+    if (grepl("^(run_control_signature|compatible_run_control) <-", assignment)) {
+      eval(expression, envir = helper_environment)
+    }
+  }
+  requested <- list(initial_inner_iter = 2L, max_elapsed_sec = 1500)
+  expect_true(helper_environment$compatible_run_control(
+    list(initial_inner_iter = 2L, max_elapsed_sec = 1190), requested
+  ))
+  expect_true(helper_environment$compatible_run_control(requested, requested))
+  expect_false(helper_environment$compatible_run_control(
+    list(initial_inner_iter = 2L, max_elapsed_sec = 1501), requested
+  ))
+  expect_false(helper_environment$compatible_run_control(
+    list(initial_inner_iter = 1L, max_elapsed_sec = 1190), requested
+  ))
 })
 
 test_that("ACTG manuscript table renderers use only promoted inputs", {
