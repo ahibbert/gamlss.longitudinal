@@ -16,7 +16,7 @@ args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 5L) {
   stop(
     "Usage: diagnose-specific-candidate.R PARENT OUTPUT PARAMETER TERM BFGS_MAXIT ",
-    "[MAX_ELAPSED] [MAX_REFINEMENTS] [START_MODE] [MAX_OUTER]",
+    "[MAX_ELAPSED] [MAX_REFINEMENTS] [START_MODE] [MAX_OUTER] [BFGS_METHOD]",
     call. = FALSE
   )
 }
@@ -29,8 +29,12 @@ max_elapsed_sec <- if (length(args) >= 6L) as.numeric(args[[6L]]) else 1800
 bfgs_max_refinements <- if (length(args) >= 7L) as.integer(args[[7L]]) else 1L
 start_mode <- if (length(args) >= 8L) args[[8L]] else "parent"
 max_outer_iter <- if (length(args) >= 9L) as.integer(args[[9L]]) else 50L
+bfgs_method <- if (length(args) >= 10L) args[[10L]] else "BFGS"
 if (!start_mode %in% c("parent", "zero-parameter", "project-parameter")) {
   stop("START_MODE must be parent, zero-parameter, or project-parameter.", call. = FALSE)
+}
+if (!bfgs_method %in% c("BFGS", "L-BFGS-B")) {
+  stop("BFGS_METHOD must be BFGS or L-BFGS-B.", call. = FALSE)
 }
 
 container <- readRDS(parent_path)
@@ -125,7 +129,7 @@ control <- gamlss_longitudinal_control(
     lambda_update_every = 5L,
     bfgs_refine = TRUE,
     bfgs_refine_after = 1L,
-    bfgs_method = "BFGS",
+    bfgs_method = bfgs_method,
     bfgs_max_refinements = bfgs_max_refinements,
     bfgs_max_iter = bfgs_max_iter,
     bfgs_reltol = 1e-12,
@@ -170,6 +174,7 @@ result <- list(
   dropped_term = term,
   bfgs_max_iter = bfgs_max_iter,
   bfgs_max_refinements = bfgs_max_refinements,
+  bfgs_method = bfgs_method,
   start_mode = start_mode,
   elapsed_sec = unname(timing[["elapsed"]]),
   warnings = unique(warnings),
@@ -179,9 +184,10 @@ saveRDS(result, output_path, version = 3L)
 d <- fit$rs_bfgs_diagnostics
 cat(sprintf(
   paste0(
-    "elapsed=%.2f min outer=%d converged=%s logLik=%.12f AIC=%.12f ",
+    "method=%s elapsed=%.2f min outer=%d converged=%s logLik=%.12f AIC=%.12f ",
     "bfgs_convergence=%d bfgs_fn=%d bfgs_gr=%d cache_hits=%d\n"
   ),
+  result$bfgs_method,
   result$elapsed_sec / 60,
   fit$convergence$outer_iterations,
   fit$convergence$converged,
