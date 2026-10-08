@@ -459,6 +459,7 @@ start_for_formulas <- function(fit, formulas, data) {
 
 screening_start_strategy <- function(
     copula,
+    step,
     parameter,
     dropped_term,
     change_type) {
@@ -471,7 +472,19 @@ screening_start_strategy <- function(
     identical(change_type, "drop") &&
     length(dropped_term) == 1L && !is.na(dropped_term) &&
     grepl(":", dropped_term, fixed = TRUE)
-  if (reset_zeta_interaction) "zero_screened_parameter" else "fitted_parent"
+  # Once the ACTG zeta model has been reduced to treatment + sex + baseline,
+  # deleting treatment from the fitted-parent state can wander for more than
+  # an hour and fail in another parameter block. The same candidate reaches a
+  # converged, clearly noncompetitive endpoint in under 20 minutes from a
+  # zero-zeta start. Keep this exception terminal and term-specific.
+  reset_terminal_zeta_treatment <- identical(copula, "t") &&
+    as.integer(step) >= 5L && identical(parameter, "zeta") &&
+    identical(change_type, "drop") && identical(dropped_term, "treatment")
+  if (reset_zeta_interaction || reset_terminal_zeta_treatment) {
+    "zero_screened_parameter"
+  } else {
+    "fitted_parent"
+  }
 }
 
 zero_screened_parameter_start <- function(start, parameter) {
@@ -840,7 +853,7 @@ make_task <- function(
     step, parameter, dropped_term, change_type, start
   )
   start_strategy <- screening_start_strategy(
-    copula_code, parameter, dropped_term, change_type
+    copula_code, step, parameter, dropped_term, change_type
   )
   if (identical(start_strategy, "zero_screened_parameter")) {
     start <- zero_screened_parameter_start(start, parameter)
