@@ -228,6 +228,11 @@ test_that("ACTG Student-t zeta interaction deletion resets only zeta", {
   )
   source <- paste(readLines(path, warn = FALSE), collapse = "\n")
   expect_match(source, "metadata$start_strategy <- start_strategy", fixed = TRUE)
+  expect_match(
+    source,
+    "low_lambda_smooth <- is.finite(lambda) && lambda <= pilot_low_lambda_max",
+    fixed = TRUE
+  )
 
   expressions <- parse(file = path)
   helper_environment <- new.env(parent = baseenv())

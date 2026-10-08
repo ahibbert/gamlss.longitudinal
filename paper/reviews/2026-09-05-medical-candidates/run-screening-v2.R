@@ -848,8 +848,7 @@ dominance_pilot_for_task <- function(
   if (!identical(stage, "refine")) return(NULL)
   if (!change_type %in% c("drop", "simplify")) return(NULL)
   lambda <- smooth_penalty_for_term(start, parameter, dropped_term)
-  low_lambda_smooth <- is.finite(lambda) && lambda <= pilot_low_lambda_max &&
-    (as.integer(step) == 1L || identical(change_type, "simplify"))
+  low_lambda_smooth <- is.finite(lambda) && lambda <= pilot_low_lambda_max
   projection_rmse <- if (identical(change_type, "drop")) {
     fixed_drop_projection_rmse(start, parameter, dropped_term)
   } else {
@@ -1056,7 +1055,7 @@ cat(
   "  stage/smooth k: ", stage, "/", smooth_k, "\n",
   "  parameters: ", paste(parameters, collapse = ", "), "\n",
   "  workers: ", workers, "\n",
-  "  dominance pilot: low-lambda refinement step 1/later simplifications <= ",
+  "  dominance pilot: low-lambda refinement smooth changes <= ",
   pilot_low_lambda_max,
   "; sparse fixed-drop projection RMSE >= ", pilot_fixed_projection_rmse_min,
   " at ", pilot_fixed_parent_terms, " parent terms",
