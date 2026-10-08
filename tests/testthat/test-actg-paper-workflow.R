@@ -233,13 +233,18 @@ test_that("ACTG Student-t zeta interaction deletion resets only zeta", {
     "low_lambda_smooth <- is.finite(lambda) && lambda <= pilot_low_lambda_max",
     fixed = TRUE
   )
+  expect_match(
+    source,
+    "smooth_projection_rmse >= pilot_smooth_projection_rmse_min",
+    fixed = TRUE
+  )
 
   expressions <- parse(file = path)
   helper_environment <- new.env(parent = baseenv())
   for (expression in expressions) {
     assignment <- paste(deparse(expression, width.cutoff = 500L), collapse = " ")
     if (grepl(
-      "^(screening_start_strategy|zero_screened_parameter_start|project_smooth_drop_start) <-",
+      "^(screening_start_strategy|zero_screened_parameter_start|project_smooth_drop_start|smooth_drop_projection_rmse) <-",
       assignment
     )) {
       eval(expression, envir = helper_environment)
@@ -338,6 +343,17 @@ test_that("ACTG Student-t zeta interaction deletion resets only zeta", {
     sqrt(mean((parent_eta - projected_eta)^2)),
     sqrt(mean((parent_eta - unprojected_eta)^2))
   )
+  expect_equal(
+    helper_environment$smooth_drop_projection_rmse(
+      projected_start, "mu", "s(base, k = 8)"
+    ),
+    sqrt(mean((parent_eta - projected_eta)^2))
+  )
+  expect_true(is.na(
+    helper_environment$smooth_drop_projection_rmse(
+      projected_start, "mu", "group"
+    )
+  ))
   expect_identical(projected$lambda_s, projected_start$lambda_s)
 })
 
