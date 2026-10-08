@@ -457,6 +457,36 @@ start_for_formulas <- function(fit, formulas, data) {
   fit
 }
 
+screening_start_strategy <- function(
+    copula,
+    parameter,
+    dropped_term,
+    change_type) {
+  # In the ACTG Student-t routes, inheriting the fitted zeta surface after
+  # deleting a zeta interaction reproducibly enters a poorer local optimum.
+  # Reset only that screened parameter; every other parameter, plus the
+  # fitted smoothing penalties, remains warm-started from the parent.
+  reset_zeta_interaction <- identical(copula, "t") &&
+    identical(parameter, "zeta") &&
+    identical(change_type, "drop") &&
+    length(dropped_term) == 1L && !is.na(dropped_term) &&
+    grepl(":", dropped_term, fixed = TRUE)
+  if (reset_zeta_interaction) "zero_screened_parameter" else "fitted_parent"
+}
+
+zero_screened_parameter_start <- function(start, parameter) {
+  if (!inherits(start, "gamlss.longitudinal")) return(start)
+  fixed_names <- startsWith(names(start$par), paste0(parameter, "."))
+  start$par[fixed_names] <- 0
+  if (parameter %in% names(start$par_s)) {
+    start$par_s[[parameter]] <- lapply(
+      start$par_s[[parameter]],
+      function(value) value * 0
+    )
+  }
+  start
+}
+
 start_signature <- function(start) {
   if (!inherits(start, "gamlss.longitudinal")) return(object_md5(start))
   object_md5(list(
@@ -473,9 +503,27 @@ empty_metrics <- function() {
   c(logLik = NA_real_, AIC = NA_real_, BIC = NA_real_, EDF = NA_real_)
 }
 
+candidate_checkpoint_paths <- function(task) {
+  prior <- if (length(task$checkpoint_pattern) == 1L) {
+    list.files(
+      dirname(task$checkpoint),
+      pattern = task$checkpoint_pattern,
+      full.names = TRUE
+    )
+  } else {
+    character()
+  }
+  unique(c(task$checkpoint, prior))
+}
+
 fit_screening_candidate <- function(task) {
-  if (isTRUE(resume) && file.exists(task$checkpoint)) {
-    cached <- tryCatch(readRDS(task$checkpoint), error = identity)
+  checkpoint_paths <- if (isTRUE(resume)) {
+    candidate_checkpoint_paths(task)
+  } else {
+    task$checkpoint
+  }
+  for (checkpoint_path in checkpoint_paths[file.exists(checkpoint_paths)]) {
+    cached <- tryCatch(readRDS(checkpoint_path), error = identity)
     cached_has_metrics <- is.list(cached) && is.numeric(cached$metrics) &&
       all(names(empty_metrics()) %in% names(cached$metrics))
     stored_cap <- if (is.list(cached) && is.list(cached$metadata)) {
@@ -496,6 +544,7 @@ fit_screening_candidate <- function(task) {
       !(looser_elapsed_cap && elapsed_timeout)
     if (cache_is_reusable) {
       cached$from_checkpoint <- TRUE
+      cached$checkpoint <- checkpoint_path
       # The complete fit is already durable in the checkpoint. Returning it
       # through a PSOCK socket makes the coordinator deserialize every
       # candidate fit in a step, even though it only needs scalar metrics to
@@ -630,7 +679,7 @@ load_checkpoint_fit <- function(result, task) {
   checkpoint <- result$checkpoint %||% task$checkpoint
   complete <- tryCatch(readRDS(checkpoint), error = identity)
   valid <- is.list(complete) &&
-    identical(complete$metadata, task$metadata) &&
+    checkpoint_metadata_compatible(complete$metadata, task$metadata) &&
     isTRUE(complete$converged) &&
     inherits(complete$fit, "gamlss.longitudinal")
   if (!valid) {
@@ -790,6 +839,12 @@ make_task <- function(
   rs_initial_inner_iter_override <- low_lambda_inner_override_for_task(
     step, parameter, dropped_term, change_type, start
   )
+  start_strategy <- screening_start_strategy(
+    copula_code, parameter, dropped_term, change_type
+  )
+  if (identical(start_strategy, "zero_screened_parameter")) {
+    start <- zero_screened_parameter_start(start, parameter)
+  }
   metadata <- list(
     step = as.integer(step), parameter = parameter, dropped_term = dropped_term,
     change_type = change_type,
@@ -810,15 +865,23 @@ make_task <- function(
   if (length(rs_initial_inner_iter_override) == 1L) {
     metadata$rs_initial_inner_iter_override <- rs_initial_inner_iter_override
   }
+  # Omit the ordinary strategy to preserve all compatible fitted-parent
+  # checkpoints. The exceptional strategy is part of the key so the known
+  # poor-basin checkpoint cannot be reused.
+  if (!identical(start_strategy, "fitted_parent")) {
+    metadata$start_strategy <- start_strategy
+  }
   signature <- substr(object_md5(metadata), 1L, 12L)
   label <- if (is.na(dropped_term)) "full" else paste0("drop-", safe_name(dropped_term))
+  checkpoint_stem <- sprintf("step-%02d-%s-%s", step, parameter, label)
   list(
     step = as.integer(step), parameter = parameter, dropped_term = dropped_term,
     change_type = change_type, formulas = formulas, start = start, metadata = metadata,
     checkpoint = file.path(
       checkpoint_dir,
-      sprintf("step-%02d-%s-%s-%s.rds", step, parameter, label, signature)
-    )
+      paste0(checkpoint_stem, "-", signature, ".rds")
+    ),
+    checkpoint_pattern = paste0("^", checkpoint_stem, "-[[:xdigit:]]{12}\\.rds$")
   )
 }
 

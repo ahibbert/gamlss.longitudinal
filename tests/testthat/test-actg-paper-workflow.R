@@ -169,6 +169,13 @@ test_that("ACTG candidate checkpoints rerun only tighter-cap timeouts", {
   expect_match(source, "checkpoint_metadata_compatible", fixed = TRUE)
   expect_match(source, "checkpoint_metadata_without_elapsed_cap", fixed = TRUE)
   expect_match(source, "looser_elapsed_cap && elapsed_timeout", fixed = TRUE)
+  expect_match(source, "candidate_checkpoint_paths(task)", fixed = TRUE)
+  expect_match(source, "cached$checkpoint <- checkpoint_path", fixed = TRUE)
+  expect_match(
+    source,
+    "checkpoint_metadata_compatible(complete$metadata, task$metadata)",
+    fixed = TRUE
+  )
 
   expressions <- parse(file = path)
   helper_environment <- new.env(parent = baseenv())
@@ -191,6 +198,77 @@ test_that("ACTG candidate checkpoints rerun only tighter-cap timeouts", {
   expect_false(helper_environment$checkpoint_metadata_compatible(requested, stored))
   requested$model <- "different"
   expect_false(helper_environment$checkpoint_metadata_compatible(stored, requested))
+
+  for (expression in expressions) {
+    assignment <- paste(deparse(expression, width.cutoff = 500L), collapse = " ")
+    if (grepl("^candidate_checkpoint_paths <-", assignment)) {
+      eval(expression, envir = helper_environment)
+    }
+  }
+  directory <- withr::local_tempdir()
+  current <- file.path(directory, "step-00-zeta-full-bbbbbbbbbbbb.rds")
+  prior <- file.path(directory, "step-00-zeta-full-aaaaaaaaaaaa.rds")
+  unrelated <- file.path(directory, "step-01-zeta-full-cccccccccccc.rds")
+  file.create(prior, unrelated)
+  paths <- helper_environment$candidate_checkpoint_paths(list(
+    checkpoint = current,
+    checkpoint_pattern = "^step-00-zeta-full-[[:xdigit:]]{12}\\.rds$"
+  ))
+  expect_identical(paths[[1L]], current)
+  normalized_paths <- normalizePath(paths, winslash = "/", mustWork = FALSE)
+  expect_true(normalizePath(prior, winslash = "/") %in% normalized_paths)
+  expect_false(normalizePath(unrelated, winslash = "/") %in% normalized_paths)
+})
+
+test_that("ACTG Student-t zeta interaction deletion resets only zeta", {
+  path <- test_path(
+    "..", "..", "paper", "reviews", "2026-09-05-medical-candidates",
+    "run-screening-v2.R"
+  )
+  source <- paste(readLines(path, warn = FALSE), collapse = "\n")
+  expect_match(source, "metadata$start_strategy <- start_strategy", fixed = TRUE)
+
+  expressions <- parse(file = path)
+  helper_environment <- new.env(parent = baseenv())
+  for (expression in expressions) {
+    assignment <- paste(deparse(expression, width.cutoff = 500L), collapse = " ")
+    if (grepl(
+      "^(screening_start_strategy|zero_screened_parameter_start) <-",
+      assignment
+    )) {
+      eval(expression, envir = helper_environment)
+    }
+  }
+
+  expect_identical(
+    helper_environment$screening_start_strategy(
+      "t", "zeta", "treatment:week_factor", "drop"
+    ),
+    "zero_screened_parameter"
+  )
+  expect_identical(
+    helper_environment$screening_start_strategy(
+      "t", "zeta", "s(age, k = 8) -> age", "simplify"
+    ),
+    "fitted_parent"
+  )
+  expect_identical(
+    helper_environment$screening_start_strategy(
+      "G", "zeta", "treatment:week_factor", "drop"
+    ),
+    "fitted_parent"
+  )
+
+  start <- structure(list(
+    par = c(zeta.intercept = 3, zeta.sexmale = -2, theta.intercept = 0.5),
+    par_s = list(zeta = list(age = c(zeta.age.1 = 4, zeta.age.2 = -1))),
+    lambda_s = list(zeta = list(age = 12))
+  ), class = "gamlss.longitudinal")
+  reset <- helper_environment$zero_screened_parameter_start(start, "zeta")
+  expect_equal(unname(reset$par[c("zeta.intercept", "zeta.sexmale")]), c(0, 0))
+  expect_equal(reset$par[["theta.intercept"]], 0.5)
+  expect_equal(unname(reset$par_s$zeta$age), c(0, 0))
+  expect_identical(reset$lambda_s, start$lambda_s)
 })
 
 test_that("ACTG four-route audit keeps the t runtime allowance isolated", {
