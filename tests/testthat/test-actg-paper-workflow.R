@@ -170,6 +170,7 @@ test_that("ACTG candidate checkpoints rerun only tighter-cap timeouts", {
   expect_match(source, "checkpoint_metadata_without_elapsed_cap", fixed = TRUE)
   expect_match(source, "looser_elapsed_cap && elapsed_timeout", fixed = TRUE)
   expect_match(source, "candidate_checkpoint_paths(task)", fixed = TRUE)
+  expect_match(source, '"candidate_checkpoint_paths", "checkpoint_metadata_compatible"', fixed = TRUE)
   expect_match(source, "cached$checkpoint <- checkpoint_path", fixed = TRUE)
   expect_match(
     source,
