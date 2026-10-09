@@ -162,7 +162,12 @@ test_that("ACTG four-route resume keys safely reuse stricter time caps", {
   expect_match(source, "route_source_fingerprint <- tools::md5sum", fixed = TRUE)
   expect_match(
     source,
-    "identical(manifest$package_source_fingerprint, stage_source_fingerprint)",
+    "canonical_source_fingerprint(manifest$package_source_fingerprint)",
+    fixed = TRUE
+  )
+  expect_match(
+    source,
+    "canonical_source_fingerprint(stage_source_fingerprint)",
     fixed = TRUE
   )
 })
