@@ -510,6 +510,17 @@ screening_start_strategy <- function(
     identical(change_type, "drop") &&
     length(dropped_term) == 1L && !is.na(dropped_term) &&
     grepl(":", dropped_term, fixed = TRUE)
+  # A fitted-parent sigma start can preserve an interaction-specific basin
+  # after the refinement maximum is rebuilt around already-selected formulas.
+  # On the full ACTG ZISICHEL--Gumbel refinement this produced a nominally
+  # converged endpoint 5.9 AIC points above the zero-sigma restart and changed
+  # the next backward-selection decision.  Reset only the screened scale block
+  # for this disruptive refinement move; all other fitted parameters and
+  # smoothing penalties remain warm-started from the parent.
+  reset_refinement_sigma_interaction <- identical(screening_stage, "refine") &&
+    identical(parameter, "sigma") && identical(change_type, "drop") &&
+    length(dropped_term) == 1L && !is.na(dropped_term) &&
+    grepl(":", dropped_term, fixed = TRUE)
   # Once the ACTG zeta model has been reduced to treatment + sex + baseline,
   # deleting treatment from the fitted-parent state can wander for more than
   # an hour and fail in another parameter block. The same candidate reaches a
@@ -522,7 +533,8 @@ screening_start_strategy <- function(
     identical(screening_stage, "refine") &&
     identical(change_type, "drop") && length(dropped_term) == 1L &&
     !is.na(dropped_term) && grepl("^\\s*s\\(", dropped_term)
-  if (reset_zeta_interaction || reset_terminal_zeta_treatment) {
+  if (reset_zeta_interaction || reset_refinement_sigma_interaction ||
+      reset_terminal_zeta_treatment) {
     "zero_screened_parameter"
   } else if (project_refinement_smooth_drop) {
     "project_parent_predictor"
