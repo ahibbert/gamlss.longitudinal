@@ -94,7 +94,8 @@
       response_margin,
       response_subject,
       calc_lik = calc_lik,
-      method = "analytical"
+      method = "analytical",
+      eta_dr = eta_out$eta_dr
     )
     return(.score_list_to_beta_gradient(score_list, eta_out, mm_cg, names(beta_vec)))
   }

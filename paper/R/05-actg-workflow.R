@@ -197,15 +197,15 @@ jss_actg_optimizer_control <- function(
     route,
     `ZISICHEL/G` = list(after = if (isTRUE(screening)) 2L else 10L,
                          iterations = 100L, refinements = 1L,
-                         rescue = FALSE, repolish = 50L),
+                         scale = 25, rescue = FALSE, repolish = 50L),
     `ZIBNB/G` = list(after = 2L, iterations = 170L, refinements = 1L,
-                      rescue = FALSE, repolish = 50L),
-    `ZISICHEL/t` = list(after = 1L, iterations = 100L, refinements = 1L,
-                         rescue = FALSE, repolish = 50L),
+                      scale = 25, rescue = FALSE, repolish = 50L),
+    `ZISICHEL/t` = list(after = 1L, iterations = 60L, refinements = 1L,
+                         scale = 5, rescue = FALSE, repolish = 50L),
     `ZIBNB/t` = list(after = 1L, iterations = 40L, refinements = 2L,
-                      rescue = TRUE, repolish = 40L),
+                      scale = 25, rescue = TRUE, repolish = 40L),
     list(after = 10L, iterations = 100L, refinements = 1L,
-         rescue = FALSE, repolish = 50L)
+         scale = 25, rescue = FALSE, repolish = 50L)
   )
   gamlss_longitudinal_control(
     outer_tol = 1e-4,
@@ -214,7 +214,7 @@ jss_actg_optimizer_control <- function(
     rs = list(
       inner_tol = 1e-5,
       max_inner_iter = 20L,
-      initial_inner_iter = 5L,
+      initial_inner_iter = 2L,
       start_step_size = 2,
       warm_start_joint = TRUE,
       warm_start_joint_iter = 2L,
@@ -228,6 +228,7 @@ jss_actg_optimizer_control <- function(
       bfgs_max_refinements = refinement$refinements,
       bfgs_max_iter = refinement$iterations,
       bfgs_reltol = 1e-12,
+      bfgs_parscale_max = refinement$scale,
       bfgs_coordinate_rescue = refinement$rescue,
       bfgs_repolish_iter = refinement$repolish,
       discrete_score_method = "analytical"

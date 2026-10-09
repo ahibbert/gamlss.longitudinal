@@ -92,6 +92,36 @@ test_that("direct Student-t rectangles agree with four-CDF differences", {
   expect_true(all(direct > 0))
 })
 
+test_that("conditional Student-t rectangles remain accurate across tail and width regimes", {
+  set.seed(91)
+  n <- 40L
+  lower1 <- stats::runif(n, 0.001, 0.95)
+  lower2 <- stats::runif(n, 0.001, 0.95)
+  upper1 <- pmin(lower1 + 10^stats::runif(n, -3, -0.2), 0.999)
+  upper2 <- pmin(lower2 + 10^stats::runif(n, -3, -0.2), 0.999)
+  rho <- stats::runif(n, -0.85, 0.9)
+  degrees_freedom <- exp(stats::runif(n, log(2.001), log(50)))
+
+  oracle <- gamlss.longitudinal:::.copula_t_cdf(
+    upper1, upper2, rho, degrees_freedom
+  ) - gamlss.longitudinal:::.copula_t_cdf(
+    lower1, upper2, rho, degrees_freedom
+  ) - gamlss.longitudinal:::.copula_t_cdf(
+    upper1, lower2, rho, degrees_freedom
+  ) + gamlss.longitudinal:::.copula_t_cdf(
+    lower1, lower2, rho, degrees_freedom
+  )
+  conditional <- gamlss.longitudinal:::.copula_t_rectangle_prob_conditional(
+    upper1, upper2, lower1, lower2, rho, degrees_freedom,
+    floor_probability = FALSE
+  )
+
+  expect_true(all(is.finite(conditional)))
+  expect_true(all(conditional >= 0))
+  expect_lt(max(abs(conditional - oracle)), 1e-5)
+  expect_lt(max(abs(conditional - oracle) / pmax(oracle, 1e-12)), 1e-4)
+})
+
 test_that("joint selection isolates and checkpoints candidates", {
   skip_if_not_installed("callr")
   skip_if_not_installed("digest")

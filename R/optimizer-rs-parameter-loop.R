@@ -35,12 +35,10 @@
     is.finite(block_trace$accepted_step_size) & block_trace$accepted_step_size > 0
   ]
   rejected <- any(block_trace$rejected %in% TRUE) && !length(accepted)
-  if (rejected && !isTRUE(previously_rejected)) {
-    return(list(step_size = nominal_step / 2, rejected = TRUE))
-  }
-  # A block that cannot move even on its one reduced-step, no-backtracking
-  # retry has exhausted the adaptive proposal. Do not halve indefinitely or
-  # prevent the unchanged outer convergence contract from being evaluated.
+  # A fully rejected move has already exhausted the configured backtracking
+  # budget. Persisting a still smaller nominal step can halve indefinitely and
+  # can also prevent the outer convergence contract from ever being evaluated.
+  # Learn only from a shorter step that was actually accepted.
   if (rejected) {
     return(list(step_size = nominal_step, rejected = FALSE))
   }

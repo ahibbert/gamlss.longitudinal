@@ -29,6 +29,7 @@
 #' `adaptive_step_size`, `update_lambda`, `lambda_update_every`,
 #' `bfgs_refine`, `bfgs_refine_after`, `bfgs_method`,
 #' `bfgs_max_refinements`, `bfgs_max_iter`, `bfgs_reltol`,
+#' `bfgs_parscale_max`, `bfgs_active_parameters`,
 #' `bfgs_coordinate_rescue`, `bfgs_coordinate_threshold`,
 #' `bfgs_coordinate_radius`, `bfgs_coordinate_max`,
 #' `bfgs_coordinate_tol`, `bfgs_repolish_iter`,
@@ -61,6 +62,7 @@
 #' `bfgs_refine = FALSE`, `bfgs_refine_after = 10`, `bfgs_method = "BFGS"`,
 #' `bfgs_max_refinements = 1`,
 #' `bfgs_max_iter = 100`, `bfgs_reltol = 1e-12`,
+#' `bfgs_parscale_max = 25`, `bfgs_active_parameters = NULL`,
 #' `bfgs_coordinate_rescue = FALSE`, `bfgs_coordinate_threshold = 1.5`,
 #' `bfgs_coordinate_radius = 4`, `bfgs_coordinate_max = 10`,
 #' `bfgs_coordinate_tol = 1e-3`, `bfgs_repolish_iter = 50`,
@@ -179,6 +181,8 @@ gamlss_longitudinal_control <- function(
     bfgs_max_refinements = 1L,
     bfgs_max_iter = 100L,
     bfgs_reltol = 1e-12,
+    bfgs_parscale_max = 25,
+    bfgs_active_parameters = NULL,
     bfgs_coordinate_rescue = FALSE,
     bfgs_coordinate_threshold = 1.5,
     bfgs_coordinate_radius = 4,
@@ -220,34 +224,42 @@ gamlss_longitudinal_control <- function(
   schedule <- switch(
     route,
     `ZISICHEL/G` = list(
+      initial_inner_iter = 2L,
       bfgs_refine = TRUE,
       bfgs_refine_after = if (identical(purpose, "screening")) 2L else 10L,
       bfgs_max_refinements = 1L,
       bfgs_max_iter = 100L,
+      bfgs_parscale_max = 25,
       bfgs_coordinate_rescue = FALSE,
       bfgs_repolish_iter = 50L
     ),
     `ZIBNB/G` = list(
+      initial_inner_iter = 2L,
       bfgs_refine = TRUE,
       bfgs_refine_after = 2L,
       bfgs_max_refinements = 1L,
       bfgs_max_iter = 170L,
+      bfgs_parscale_max = 25,
       bfgs_coordinate_rescue = FALSE,
       bfgs_repolish_iter = 50L
     ),
     `ZISICHEL/t` = list(
+      initial_inner_iter = 2L,
       bfgs_refine = TRUE,
       bfgs_refine_after = 1L,
       bfgs_max_refinements = 1L,
-      bfgs_max_iter = 100L,
+      bfgs_max_iter = 60L,
+      bfgs_parscale_max = 5,
       bfgs_coordinate_rescue = FALSE,
       bfgs_repolish_iter = 50L
     ),
     `ZIBNB/t` = list(
+      initial_inner_iter = 2L,
       bfgs_refine = TRUE,
       bfgs_refine_after = 1L,
       bfgs_max_refinements = 2L,
       bfgs_max_iter = 40L,
+      bfgs_parscale_max = 25,
       bfgs_coordinate_rescue = TRUE,
       bfgs_repolish_iter = 40L
     ),
@@ -428,6 +440,23 @@ gamlss_longitudinal_control <- function(
     )
     x$bfgs_max_iter <- .gl_positive_integer(x$bfgs_max_iter, "rs$bfgs_max_iter")
     x$bfgs_reltol <- .gl_positive_number(x$bfgs_reltol, "rs$bfgs_reltol")
+    x$bfgs_parscale_max <- .gl_positive_number(
+      x$bfgs_parscale_max, "rs$bfgs_parscale_max"
+    )
+    if (!is.null(x$bfgs_active_parameters)) {
+      x$bfgs_active_parameters <- unique(as.character(x$bfgs_active_parameters))
+      valid_parameters <- c("mu", "sigma", "nu", "tau", "theta", "zeta")
+      if (!length(x$bfgs_active_parameters) ||
+          anyNA(x$bfgs_active_parameters) ||
+          any(!nzchar(x$bfgs_active_parameters)) ||
+          any(!x$bfgs_active_parameters %in% valid_parameters)) {
+        stop(
+          "rs$bfgs_active_parameters must be NULL or contain only: ",
+          paste(valid_parameters, collapse = ", "), ".",
+          call. = FALSE
+        )
+      }
+    }
     x$bfgs_coordinate_rescue <- .gl_scalar_logical(
       x$bfgs_coordinate_rescue, "rs$bfgs_coordinate_rescue"
     )

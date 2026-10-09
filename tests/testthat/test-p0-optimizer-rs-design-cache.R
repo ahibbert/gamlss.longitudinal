@@ -2590,6 +2590,40 @@ test_that("RS lambda helper updates active smooths with optimizer results", {
   expect_true(any(grepl("Optimizing smoothing parameter for mu - s\\(z\\)", output)))
 })
 
+test_that("RS lambda helper caches repeated scalar GAIC evaluations", {
+  evaluations <- 0L
+  out <- gamlss.longitudinal:::.gl_rs_update_smoothing_parameters(
+    lambda_s = list(mu = list(`s(x)` = 2)),
+    par_name = "mu",
+    par_s = list(mu = list()),
+    par_cov = c(mu = 0),
+    beta_start = c(mu = 0),
+    K = 2,
+    margin_dist = NULL,
+    copula_dist = "N",
+    dataset = data.frame(response = 1),
+    mm = list(),
+    copula_link = "identity",
+    df_s = list(mu = list()),
+    step_size = 0.5,
+    rs_update_lambda = TRUE,
+    inner_run_counter = 1L,
+    verbose = 0,
+    backfitting_fn = function(...) {
+      evaluations <<- evaluations + 1L
+      list(GAIC_lambda_k = 3)
+    },
+    optim_fn = function(par, fn, ...) {
+      expect_equal(fn(par), 3)
+      expect_equal(fn(par), 3)
+      list(par = par, value = 3)
+    }
+  )
+
+  expect_equal(out$mu$`s(x)`, 2)
+  expect_identical(evaluations, 1L)
+})
+
 test_that("RS lambda helper skips updates when disabled or not first inner iteration", {
   lambda_s <- list(mu = list(`s(x)` = 2))
   optim_calls <- 0L

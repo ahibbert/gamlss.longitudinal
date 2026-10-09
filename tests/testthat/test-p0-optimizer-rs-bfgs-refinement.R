@@ -106,6 +106,7 @@ test_that("RS BFGS refinement scales sparse large coefficients", {
     include_dlcopdpar = FALSE,
     max_iter = 1L,
     reltol = 1e-12,
+    parscale_max = 5,
     check_elapsed_budget = function(stage) NULL,
     build_model_fn = function(mm, par_cov, par_s) list(mm = mm, beta = par_cov),
     build_penalty_fn = function(beta_names, ...) matrix(0, 3, 3),
@@ -119,12 +120,69 @@ test_that("RS BFGS refinement scales sparse large coefficients", {
            convergence = 0L, message = NULL)
     }
   )
-  expect_equal(captured_control$parscale, c(1, 7, 25))
+  expect_equal(captured_control$parscale, c(1, 5, 5))
   expect_equal(out$diagnostics$parscale_min, 1)
-  expect_equal(out$diagnostics$parscale_max, 25)
+  expect_equal(out$diagnostics$parscale_max, 5)
   expect_identical(out$diagnostics$evaluation_calls, 3L)
   expect_identical(out$diagnostics$evaluation_cache_hits, 2L)
   expect_identical(out$diagnostics$evaluation_cache_misses, 1L)
+})
+
+test_that("RS BFGS refinement can restrict optimization to named parameter blocks", {
+  captured_start <- NULL
+  captured_gradient <- NULL
+  par_cov <- c(`mu.(Intercept)` = 1, `theta.(Intercept)` = -2)
+
+  out <- gamlss.longitudinal:::.gl_run_rs_bfgs_refinement(
+    mm = list(
+      x = list(mu = matrix(1, 1, 1), theta = matrix(1, 1, 1)),
+      s = list(mu = list(), theta = list())
+    ),
+    par_cov = par_cov,
+    par_s = list(mu = list(), theta = list()),
+    lambda_s = list(mu = list(), theta = list()),
+    margin_dist = list(),
+    copula_link = list(),
+    copula_dist = "N",
+    dataset = data.frame(response = 1, time = 1, subject = 1),
+    pair_cache = list(),
+    margin_eval_cache = list(),
+    include_dlcopdpar = FALSE,
+    max_iter = 1L,
+    reltol = 1e-12,
+    active_parameters = "theta",
+    check_elapsed_budget = function(stage) NULL,
+    build_model_fn = function(mm, par_cov, par_s) list(mm = mm, beta = par_cov),
+    build_penalty_fn = function(beta_names, ...) {
+      matrix(0, length(beta_names), length(beta_names))
+    },
+    evaluate_fn = function(beta_vec, ...) {
+      list(
+        loglik = -sum((beta_vec - c(1, 3))^2),
+        eta_out = list(),
+        calc_lik = list()
+      )
+    },
+    gradient_fn = function(beta, ...) -2 * (beta - c(1, 3)),
+    optim_fn = function(par, fn, gr, method, control) {
+      captured_start <<- par
+      captured_gradient <<- gr(par)
+      list(
+        par = stats::setNames(3, names(par)),
+        value = fn(stats::setNames(3, names(par))),
+        counts = c("function" = 1L, gradient = 1L),
+        convergence = 0L,
+        message = NULL
+      )
+    }
+  )
+
+  expect_named(captured_start, "theta.(Intercept)")
+  expect_named(captured_gradient, "theta.(Intercept)")
+  expect_equal(out$par_cov[["mu.(Intercept)"]], 1)
+  expect_equal(out$par_cov[["theta.(Intercept)"]], 3)
+  expect_identical(out$diagnostics$active_parameters, "theta")
+  expect_identical(out$diagnostics$active_coefficient_count, 1L)
 })
 
 test_that("RS coordinate rescue improves only selected large fixed effects", {

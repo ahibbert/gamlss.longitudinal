@@ -13,6 +13,8 @@ test_that("optimizer control constructor is strict and method aware", {
       bfgs_max_refinements = 2L,
       bfgs_max_iter = 25L,
       bfgs_reltol = 1e-10,
+      bfgs_parscale_max = 6,
+      bfgs_active_parameters = c("zeta", "theta", "zeta"),
       bfgs_coordinate_rescue = TRUE,
       bfgs_coordinate_threshold = 2,
       bfgs_coordinate_radius = 5,
@@ -34,6 +36,12 @@ test_that("optimizer control constructor is strict and method aware", {
   expect_identical(ctl$rs$bfgs_max_refinements, 2L)
   expect_identical(ctl$rs$bfgs_max_iter, 25L)
   expect_equal(ctl$rs$bfgs_reltol, 1e-10)
+  expect_equal(ctl$rs$bfgs_parscale_max, 6)
+  expect_identical(ctl$rs$bfgs_active_parameters, c("zeta", "theta", "zeta"))
+  resolved_ctl <- gamlss.longitudinal:::.gl_resolve_optimizer_control(
+    "RS", ctl, legacy_values = list(), legacy_supplied = logical()
+  )
+  expect_identical(resolved_ctl$rs$bfgs_active_parameters, c("zeta", "theta"))
   expect_true(ctl$rs$bfgs_coordinate_rescue)
   expect_equal(ctl$rs$bfgs_coordinate_threshold, 2)
   expect_equal(ctl$rs$bfgs_coordinate_radius, 5)
@@ -59,6 +67,9 @@ test_that("optimizer control constructor is strict and method aware", {
   expect_error(gamlss_longitudinal_control(rs = list(bfgs_max_refinements = 0)), "positive integer")
   expect_error(gamlss_longitudinal_control(rs = list(bfgs_max_iter = 0)), "positive integer")
   expect_error(gamlss_longitudinal_control(rs = list(bfgs_reltol = 0)), "positive finite")
+  expect_error(gamlss_longitudinal_control(rs = list(bfgs_parscale_max = 0)), "positive finite")
+  expect_error(gamlss_longitudinal_control(rs = list(bfgs_active_parameters = character())), "must be NULL")
+  expect_error(gamlss_longitudinal_control(rs = list(bfgs_active_parameters = "bogus")), "must be NULL")
   expect_error(gamlss_longitudinal_control(rs = list(bfgs_coordinate_rescue = NA)), "TRUE or FALSE")
   expect_error(gamlss_longitudinal_control(rs = list(bfgs_coordinate_threshold = 0)), "positive finite")
   expect_error(gamlss_longitudinal_control(rs = list(bfgs_coordinate_radius = 0)), "positive finite")
@@ -102,6 +113,8 @@ test_that("joint zero-inflated routes receive validated refinement defaults", {
   expect_identical(zibnb_t$rs$bfgs_refine_after, 1L)
   expect_identical(zibnb_t$rs$bfgs_max_refinements, 2L)
   expect_identical(zibnb_t$rs$bfgs_max_iter, 40L)
+  expect_identical(zibnb_t$rs$initial_inner_iter, 2L)
+  expect_equal(zibnb_t$rs$bfgs_parscale_max, 25)
   expect_true(zibnb_t$rs$bfgs_coordinate_rescue)
   expect_identical(zibnb_t$rs$bfgs_repolish_iter, 40L)
   expect_identical(attr(zibnb_t, "route_defaults")$route, "ZIBNB/t")
@@ -121,7 +134,10 @@ test_that("joint zero-inflated routes receive validated refinement defaults", {
     gamlss_longitudinal_control(), "RS", gamlss.dist::ZISICHEL(), "t",
     optimization = "joint", purpose = "screening"
   )
-  expect_identical(zis_t$rs$bfgs_max_iter, 100L)
+  expect_identical(zis_t$rs$bfgs_max_iter, 60L)
+  expect_identical(zis_t$rs$bfgs_max_refinements, 1L)
+  expect_identical(zis_t$rs$initial_inner_iter, 2L)
+  expect_equal(zis_t$rs$bfgs_parscale_max, 5)
 
   ordinary <- apply_defaults(
     gamlss_longitudinal_control(), "RS", gamlss.dist::NBI(), "C",

@@ -102,7 +102,7 @@
     ))
   }
   if (identical(family, "t")) {
-    return(.copula_t_rectangle_prob_quadrature(
+    return(.copula_t_rectangle_prob_conditional(
       u1, u2, l1, l2, par, par2,
       floor_probability = floor_probability
     ))

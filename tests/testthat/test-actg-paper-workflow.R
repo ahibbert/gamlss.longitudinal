@@ -100,10 +100,11 @@ test_that("ACTG zero-inflated controls enforce the production time envelope", {
   )
 
   expect_equal(control$shared$max_elapsed_sec, 1190)
-  expect_identical(control$rs$initial_inner_iter, 5L)
+  expect_identical(control$rs$initial_inner_iter, 2L)
   expect_identical(control$rs$max_inner_iter, 20L)
   expect_identical(control$rs$backtracking_max_halves, 2L)
-  expect_identical(control$rs$bfgs_max_iter, 100L)
+  expect_identical(control$rs$bfgs_max_iter, 60L)
+  expect_equal(control$rs$bfgs_parscale_max, 5)
 })
 
 test_that("ACTG four-route resume keys safely reuse stricter time caps", {

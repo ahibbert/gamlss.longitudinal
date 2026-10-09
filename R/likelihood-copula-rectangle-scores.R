@@ -37,7 +37,8 @@
     calc_lik = NULL,
     method = c("analytical", "finite"),
     h = 1e-5,
-    score_names = NULL) {
+    score_names = NULL,
+    eta_dr = NULL) {
   method <- match.arg(method)
   if (is.null(pair_cache)) {
     pair_cache <- build_copula_pair_cache(response, response_margin, response_subject)
@@ -167,10 +168,23 @@
   if (identical(.copula_family_code(copula_dist), "t") &&
       length(copula_par) > 0L &&
       isTRUE(getOption("gamlss.longitudinal.fast_t_rectangle_scores", TRUE))) {
+    zeta_link_derivative <- NULL
+    if ("zeta" %in% copula_par && !is.null(eta_dr$zeta)) {
+      n_zeta <- length(eta_dr$zeta)
+      zeta_index <- if (n_zeta == length(response)) {
+        row_id1
+      } else {
+        calc_lik$copula_theta_index_map[row_id1]
+      }
+      zeta_link_derivative <- rep(NA_real_, length(row_id1))
+      valid_zeta <- is.finite(zeta_index) & zeta_index >= 1L & zeta_index <= n_zeta
+      zeta_link_derivative[valid_zeta] <- eta_dr$zeta[zeta_index[valid_zeta]]
+    }
     copula_rectangle_derivatives <- .calc_copula_t_rectangle_par_derivatives(
       calc_lik = calc_lik,
       par_names = copula_par,
-      h = h
+      h = h,
+      zeta_link_derivative = zeta_link_derivative
     )
   }
   for (pn in copula_par) {

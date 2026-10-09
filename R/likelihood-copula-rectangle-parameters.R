@@ -31,15 +31,88 @@
   )
 }
 
-#' Student-t rectangle derivatives from one shared quadrature grid
+#' Student-t rectangle derivatives from conditional quadrature
+#'
+#' Both copula derivatives differentiate the same one-dimensional conditional
+#' quadrature used by the likelihood. This keeps the objective and score on the
+#' same numerical route while avoiding the former 8 x 8 density grid.
+#'
+#' @noRd
+.calc_copula_t_rectangle_par_derivatives <- function(
+    calc_lik,
+    par_names = c("theta", "zeta"),
+    h = 1e-5,
+    zeta_link_derivative = NULL) {
+  par_names <- intersect(as.character(par_names), c("theta", "zeta"))
+  out <- setNames(vector("list", length(par_names)), par_names)
+  n_pair <- length(calc_lik$copula_row_id1)
+  if (!n_pair) {
+    for (parameter in par_names) out[[parameter]] <- numeric(0)
+    return(out)
+  }
+
+  upper <- calc_lik$Fx_1_2
+  lower <- calc_lik$Fx_1_2_lower
+  rho <- calc_lik$copula_par1
+  df <- calc_lik$copula_par2
+  rectangle <- function(rho_value, df_value) {
+    .copula_t_rectangle_prob_conditional(
+      upper[, 1L], upper[, 2L], lower[, 1L], lower[, 2L],
+      rho_value, df_value, floor_probability = FALSE
+    )
+  }
+
+  if ("theta" %in% par_names) {
+    step <- h * pmax(1, abs(rho))
+    rho_plus <- pmin(rho + step, 1 - 1e-8)
+    rho_minus <- pmax(rho - step, -1 + 1e-8)
+    out$theta <-
+      (rectangle(rho_plus, df) - rectangle(rho_minus, df)) /
+      (rho_plus - rho_minus)
+  }
+
+  if ("zeta" %in% par_names) {
+    zeta_dr <- if (is.null(zeta_link_derivative)) {
+      pmax(df - 2, 0)
+    } else {
+      as.numeric(zeta_link_derivative)
+    }
+    eta_step <- max(as.numeric(h), 1e-3) * pmax(
+      1,
+      abs(log(pmax(zeta_dr, .Machine$double.xmin)))
+    )
+    df_plus <- 2 + zeta_dr * exp(eta_step)
+    df_minus <- 2 + zeta_dr * exp(-eta_step)
+    drect_deta <-
+      (rectangle(rho, df_plus) - rectangle(rho, df_minus)) /
+      (2 * eta_step)
+    stable <- is.finite(zeta_dr) & zeta_dr > sqrt(.Machine$double.eps)
+    out$zeta <- numeric(n_pair)
+    out$zeta[stable] <- drect_deta[stable] / zeta_dr[stable]
+  }
+
+  for (parameter in par_names) {
+    out[[parameter]] <- .gl_score_zero_unobserved_or_stop(
+      out[[parameter]],
+      calc_lik$pair_complete,
+      paste0("Discrete rectangle derivative for copula parameter '", parameter, "'")
+    )
+  }
+  out
+}
+
+#' Former Student-t rectangle derivatives from one shared 2D quadrature grid
 #'
 #' The correlation derivative is integrated analytically. The degrees-of-
 #' freedom derivative retains the existing central finite-difference semantics,
 #' but reuses the probability nodes rather than rebuilding them for each side.
 #'
 #' @noRd
-.calc_copula_t_rectangle_par_derivatives <- function(
-    calc_lik, par_names = c("theta", "zeta"), h = 1e-5) {
+.calc_copula_t_rectangle_par_derivatives_2d <- function(
+    calc_lik,
+    par_names = c("theta", "zeta"),
+    h = 1e-5,
+    zeta_link_derivative = NULL) {
   par_names <- intersect(as.character(par_names), c("theta", "zeta"))
   out <- setNames(vector("list", length(par_names)), par_names)
   n_pair <- length(calc_lik$copula_row_id1)
@@ -125,9 +198,23 @@
   }
 
   if ("zeta" %in% par_names) {
-    hp <- h * pmax(1, abs(df[indices]))
-    df_plus <- rep(df[indices] + hp, times = n_grid)
-    df_minus <- rep(pmax(df[indices] - hp, 1e-8), times = n_grid)
+    zeta_dr <- if (is.null(zeta_link_derivative)) {
+      pmax(df[indices] - 2, 0)
+    } else {
+      as.numeric(zeta_link_derivative)[indices]
+    }
+    # Differentiate on the fitted zeta = log(df - 2) scale. Natural-df
+    # differencing loses resolution both close to the lower bound and near the
+    # Gaussian limit, then amplifies that noise when the score is transformed
+    # back by d(df)/d(zeta). A modest link-scale stencil avoids both failures.
+    eta_step <- max(as.numeric(h), 1e-3) * pmax(
+      1,
+      abs(log(pmax(zeta_dr, .Machine$double.xmin)))
+    )
+    df_plus_pair <- 2 + zeta_dr * exp(eta_step)
+    df_minus_pair <- 2 + zeta_dr * exp(-eta_step)
+    df_plus <- rep(df_plus_pair, times = n_grid)
+    df_minus <- rep(df_minus_pair, times = n_grid)
     log_plus <- .copula_t_logpdf(u1_vec, u2_vec, rho_vec, df_plus)
     log_minus <- .copula_t_logpdf(u1_vec, u2_vec, rho_vec, df_minus)
     width_product <- width1[indices] * width2[indices]
@@ -136,7 +223,11 @@
     upper_bound <- pmin(width1[indices], width2[indices])
     rectangle_plus <- pmax(pmin(rectangle_plus, upper_bound), 1e-300)
     rectangle_minus <- pmax(pmin(rectangle_minus, upper_bound), 1e-300)
-    out$zeta[indices] <- (rectangle_plus - rectangle_minus) / (2 * hp)
+    drect_deta <- (rectangle_plus - rectangle_minus) / (2 * eta_step)
+    stable <- is.finite(zeta_dr) & zeta_dr > sqrt(.Machine$double.eps)
+    natural_derivative <- numeric(n_valid)
+    natural_derivative[stable] <- drect_deta[stable] / zeta_dr[stable]
+    out$zeta[indices] <- natural_derivative
   }
 
   for (parameter in par_names) {

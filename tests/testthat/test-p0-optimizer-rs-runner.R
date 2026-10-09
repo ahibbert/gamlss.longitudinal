@@ -62,7 +62,7 @@ test_that("RS adaptive block steps retain clean steps and shrink rejected blocks
 
   expect_equal(update(2, clean, TRUE), list(step_size = 2, rejected = FALSE))
   expect_equal(update(2, backed_off, TRUE), list(step_size = 1, rejected = FALSE))
-  expect_equal(update(2, rejected, TRUE), list(step_size = 1, rejected = TRUE))
+  expect_equal(update(2, rejected, TRUE), list(step_size = 2, rejected = FALSE))
   expect_equal(
     update(1, rejected, TRUE, previously_rejected = TRUE),
     list(step_size = 1, rejected = FALSE)
@@ -74,7 +74,7 @@ test_that("RS adaptive block steps retain clean steps and shrink rejected blocks
   expect_equal(update(2, rejected, FALSE), list(step_size = 2, rejected = FALSE))
 })
 
-test_that("RS adaptive rejection requires a retry at the smaller block step", {
+test_that("RS adaptive rejection never blocks outer convergence without an accepted step", {
   update <- gamlss.longitudinal:::.gl_rs_outer_change_after_step_adaptation
   expect_identical(update(0, TRUE, c(mu = FALSE, tau = TRUE)), Inf)
   expect_equal(update(0, TRUE, c(mu = FALSE, tau = FALSE)), 0)
@@ -200,6 +200,7 @@ test_that("RS optimizer runner wires loop helpers and returns updated state", {
     score_state_fn = function(
       par_name,
       eta,
+      eta_dr,
       eta_inv,
       Fx_1_2,
       copula_dist,

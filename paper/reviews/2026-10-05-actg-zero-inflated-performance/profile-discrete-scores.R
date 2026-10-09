@@ -19,7 +19,13 @@ options(gamlss.longitudinal.fast_t_rectangle_scores = fast_t)
 options(gamlss.longitudinal.fast_zibnb_family = fast_zibnb_family)
 
 container <- readRDS(input_path)
-fit <- if (inherits(container, "gamlss.longitudinal")) container else container$value
+fit <- if (inherits(container, "gamlss.longitudinal")) {
+  container
+} else if (inherits(container$fit, "gamlss.longitudinal")) {
+  container$fit
+} else {
+  container$value
+}
 stopifnot(inherits(fit, "gamlss.longitudinal"))
 
 dataset <- data.frame(
@@ -82,6 +88,7 @@ score_call <- function(score_names) {
     response_subject = dataset$subject,
     pair_cache = pair_cache,
     calc_lik = calc_lik,
+    eta_dr = eta_out$eta_dr,
     method = "analytical",
     score_names = score_names
   )
