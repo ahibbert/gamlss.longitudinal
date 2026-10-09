@@ -663,7 +663,7 @@ fit_screening_candidate <- function(task) {
       !is.na(cached$error) && grepl("exceeded max_elapsed_sec", cached$error, fixed = TRUE)
     cache_is_reusable <- is.list(cached) &&
       checkpoint_metadata_compatible(cached$metadata, task$metadata) &&
-      inherits(cached$fit, "gamlss.longitudinal") && cached_has_metrics &&
+      cached_has_metrics &&
       (isTRUE(cached$converged) || identical(cached$converged, FALSE)) &&
       !(looser_elapsed_cap && elapsed_timeout)
     resumable_outer_limit <- cache_is_reusable &&
@@ -671,7 +671,8 @@ fit_screening_candidate <- function(task) {
       identical(cached$stop_reason, "max_iterations") &&
       inherits(cached$fit, "gamlss.longitudinal") &&
       (length(cached$error) != 1L || is.na(cached$error))
-    if (cache_is_reusable && isTRUE(cached$converged)) {
+    if (cache_is_reusable && isTRUE(cached$converged) &&
+        inherits(cached$fit, "gamlss.longitudinal")) {
       cached$warnings <- strip_internal_continuation_warnings(cached$warnings)
       cached$from_checkpoint <- TRUE
       cached$checkpoint <- checkpoint_path
