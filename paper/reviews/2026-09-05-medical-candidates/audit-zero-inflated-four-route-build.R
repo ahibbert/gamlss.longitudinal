@@ -81,7 +81,7 @@ canonical_fingerprint <- function(value) {
   paths <- gsub("\\\\", "/", names(value))
   keys <- vapply(paths, function(path) {
     if (grepl("/R/", path, fixed = TRUE)) {
-      return(paste0("R/", sub("^.*?/R/", "", path)))
+      return(paste0("R/", sub("^.*/R/", "", path)))
     }
     basename(path)
   }, character(1L))
