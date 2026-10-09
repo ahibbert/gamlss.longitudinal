@@ -122,7 +122,126 @@
   out
 }
 
-#' Direct Student-t copula rectangle probability by fixed quadrature
+#' Stable Student-t conditional interval probability
+#'
+#' @noRd
+.copula_t_conditional_interval <- function(upper, lower, x, rho, df) {
+  scale <- sqrt((df + x^2) * (1 - rho^2) / (df + 1))
+  upper_q <- stats::qt(upper, df = df)
+  lower_q <- stats::qt(lower, df = df)
+  z_upper <- (upper_q - rho * x) / scale
+  z_lower <- (lower_q - rho * x) / scale
+
+  # Subtract on the shorter tail. This avoids losing the count-cell mass when
+  # both conditional CDF values round close to one in the ACTG upper tail.
+  use_upper_tail <- z_lower > 0
+  out <- numeric(length(z_upper))
+  if (any(!use_upper_tail)) {
+    ordinary <- !use_upper_tail
+    out[ordinary] <- stats::pt(z_upper[ordinary], df = df[ordinary] + 1) -
+      stats::pt(z_lower[ordinary], df = df[ordinary] + 1)
+  }
+  if (any(use_upper_tail)) {
+    out[use_upper_tail] <-
+      stats::pt(
+        z_lower[use_upper_tail], df = df[use_upper_tail] + 1,
+        lower.tail = FALSE
+      ) -
+      stats::pt(
+        z_upper[use_upper_tail], df = df[use_upper_tail] + 1,
+        lower.tail = FALSE
+      )
+  }
+  pmin(pmax(out, 0), 1)
+}
+
+#' Direct Student-t copula rectangle probability by conditional quadrature
+#'
+#' A copula rectangle is the one-dimensional integral of a conditional CDF
+#' difference. An eight-node Gauss-Legendre rule therefore needs eight rather
+#' than 8 x 8 density evaluations while retaining the same t-copula rectangle
+#' likelihood. Each pair is integrated over its narrower probability interval
+#' to reduce curvature, and tail CDFs are subtracted on the stable side.
+#'
+#' @noRd
+.copula_t_rectangle_prob_conditional <- function(
+    u1, u2, l1, l2, par, par2, floor_probability = TRUE) {
+  vals <- .copula_recycle(
+    as.numeric(u1), as.numeric(u2), as.numeric(l1), as.numeric(l2),
+    .copula_gaussian_rho(par), .copula_t_df(par2)
+  )
+  n <- length(vals[[1L]])
+  if (!n) return(numeric(0))
+
+  width1 <- vals[[1L]] - vals[[3L]]
+  width2 <- vals[[2L]] - vals[[4L]]
+  valid <- is.finite(width1) & is.finite(width2) &
+    is.finite(vals[[5L]]) & is.finite(vals[[6L]]) &
+    vals[[3L]] >= 0 & vals[[1L]] <= 1 &
+    vals[[4L]] >= 0 & vals[[2L]] <= 1 &
+    width1 >= 0 & width2 >= 0
+  out <- rep(NA_real_, n)
+  zero <- valid & (width1 == 0 | width2 == 0)
+  out[zero] <- 0
+
+  gaussian <- valid & !zero & vals[[6L]] >= .copula_t_gaussian_limit_df
+  if (any(gaussian)) {
+    out[gaussian] <- .copula_gaussian_rectangle_prob_cached(
+      vals[[1L]][gaussian], vals[[2L]][gaussian],
+      vals[[3L]][gaussian], vals[[4L]][gaussian], vals[[5L]][gaussian],
+      floor_probability = FALSE
+    )
+  }
+
+  ordinary <- valid & !zero & !gaussian
+  if (any(ordinary)) {
+    nodes <- (c(
+      -0.9602898564975363, -0.7966664774136267,
+      -0.5255324099163290, -0.1834346424956498,
+       0.1834346424956498,  0.5255324099163290,
+       0.7966664774136267,  0.9602898564975363
+    ) + 1) / 2
+    weights <- c(
+      0.1012285362903763, 0.2223810344533745,
+      0.3137066458778873, 0.3626837833783620,
+      0.3626837833783620, 0.3137066458778873,
+      0.2223810344533745, 0.1012285362903763
+    ) / 2
+    index <- which(ordinary)
+    swap <- width2[index] < width1[index]
+    integration_lower <- ifelse(swap, vals[[4L]][index], vals[[3L]][index])
+    integration_width <- ifelse(swap, width2[index], width1[index])
+    conditional_lower <- ifelse(swap, vals[[3L]][index], vals[[4L]][index])
+    conditional_upper <- ifelse(swap, vals[[1L]][index], vals[[2L]][index])
+    n_ordinary <- length(index)
+    n_node <- length(nodes)
+    integration_u <-
+      matrix(integration_lower, nrow = n_ordinary, ncol = n_node) +
+      matrix(integration_width, nrow = n_ordinary, ncol = n_node) *
+      matrix(nodes, nrow = n_ordinary, ncol = n_node, byrow = TRUE)
+    df <- rep(vals[[6L]][index], times = n_node)
+    rho <- rep(vals[[5L]][index], times = n_node)
+    conditional_mass <- .copula_t_conditional_interval(
+      upper = rep(conditional_upper, times = n_node),
+      lower = rep(conditional_lower, times = n_node),
+      x = stats::qt(as.numeric(integration_u), df = df),
+      rho = rho,
+      df = df
+    )
+    conditional_mass <- matrix(
+      conditional_mass, nrow = n_ordinary, ncol = n_node
+    )
+    probability <- integration_width * as.numeric(conditional_mass %*% weights)
+    out[index] <- pmin(
+      pmax(probability, 0),
+      pmin(width1[index], width2[index])
+    )
+  }
+
+  if (isTRUE(floor_probability)) pmax(out, 1e-300) else out
+}
+
+#' Direct Student-t copula rectangle probability by fixed 2D quadrature
 #'
 #' Evaluating a discrete Student-t rectangle as four separately integrated CDF
 #' corners is both expensive and vulnerable to cancellation. Integrate the
@@ -130,7 +249,7 @@
 #' fixed Gauss-Legendre rule is used by the stable log-ratio fallback above.
 #'
 #' @noRd
-.copula_t_rectangle_prob_quadrature <- function(
+.copula_t_rectangle_prob_quadrature_2d <- function(
     u1, u2, l1, l2, par, par2, floor_probability = TRUE) {
   vals <- .copula_recycle(
     as.numeric(u1), as.numeric(u2), as.numeric(l1), as.numeric(l2),

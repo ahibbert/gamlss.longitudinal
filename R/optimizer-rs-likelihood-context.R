@@ -100,6 +100,7 @@
 .gl_rs_discrete_scores <- function(
     calc_lik_out,
     eta_inv,
+    eta_dr = NULL,
     mm,
     margin_dist,
     copula_dist,
@@ -125,6 +126,9 @@
     method = discrete_score_method
   )
   score_formals <- names(formals(score_fn))
+  if ("..." %in% score_formals || "eta_dr" %in% score_formals) {
+    score_args$eta_dr <- eta_dr
+  }
   if (!is.null(par_name) &&
       ("..." %in% score_formals || "score_names" %in% score_formals)) {
     score_args$score_names <- par_name

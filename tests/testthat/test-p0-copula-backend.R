@@ -619,3 +619,36 @@ test_that("native independence limits are handled for all supported copulas", {
   expect_equal(.copula_deriv2(u1, u2, "t", 0, t_df, deriv = "u2"), rep(0, length(u1)), tolerance = 1e-4)
   expect_true(all(is.finite(.copula_deriv2(u1, u2, "t", 0, t_df, deriv = "par"))))
 })
+
+test_that("Student-t backend uses a stable exact Gaussian limit", {
+  u1 <- c(0.1, 0.4, 0.8)
+  u2 <- c(0.2, 0.7, 0.9)
+  rho <- c(-0.45, 0.2, 0.75)
+  df <- rep(1e12, length(u1))
+
+  expect_equal(
+    .copula_pdf(u1, u2, "t", rho, df),
+    .copula_pdf(u1, u2, "N", rho),
+    tolerance = 1e-12
+  )
+  expect_equal(
+    .copula_logpdf(u1, u2, "t", rho, df),
+    .copula_logpdf(u1, u2, "N", rho),
+    tolerance = 1e-12
+  )
+  expect_equal(
+    .copula_hfunc1(u1, u2, "t", rho, df),
+    .copula_hfunc1(u1, u2, "N", rho),
+    tolerance = 1e-12
+  )
+  expect_equal(
+    .copula_cdf(u1, u2, "t", rho, df),
+    .copula_cdf(u1, u2, "N", rho),
+    tolerance = 1e-12
+  )
+  expect_equal(
+    .copula_deriv(u1, u2, "t", rho, df, deriv = "par2"),
+    rep(0, length(u1)),
+    tolerance = 1e-12
+  )
+})

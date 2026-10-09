@@ -86,6 +86,8 @@
     rs_bfgs_max_refinements = rs$bfgs_max_refinements,
     rs_bfgs_max_iter = rs$bfgs_max_iter,
     rs_bfgs_reltol = rs$bfgs_reltol,
+    rs_bfgs_parscale_max = rs$bfgs_parscale_max,
+    rs_bfgs_active_parameters = rs$bfgs_active_parameters,
     rs_bfgs_coordinate_rescue = rs$bfgs_coordinate_rescue,
     rs_bfgs_coordinate_threshold = rs$bfgs_coordinate_threshold,
     rs_bfgs_coordinate_radius = rs$bfgs_coordinate_radius,

@@ -1,0 +1,10 @@
+"operation","repetition","elapsed_sec","value_length"
+"all",1,2.56,25894
+"mu",1,0.37,4708
+"sigma",1,0.24,4708
+"nu",1,0.24,4708
+"tau",1,0.23,4708
+"theta",1,0.58,3531
+"zeta",1,1.02,3531
+"copula_theta_raw",1,1.06,3531
+"copula_zeta_raw",1,1,3531

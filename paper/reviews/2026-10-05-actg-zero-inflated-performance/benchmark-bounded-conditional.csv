@@ -1,0 +1,6 @@
+"margin","copula","response","operation","elapsed_sec","returned_fit","logLik","warning_count","error","git_sha","r_version","gamlss_version","gamlss_dist_version","rows","observed","subjects","completed_at_utc"
+"ZISICHEL","G","cd4","bounded_one_rs_sweep",6.78,TRUE,-13819.5418938534,2,"","626ea74b46caaf8488b9c6da6217df44156a8974","4.4.1","5.4.22","6.1.1",4708,3352,1177,"2026-10-09 10:51:29 UTC"
+"ZISICHEL","t","cd4","bounded_one_rs_sweep",33.12,TRUE,-13808.216519095,2,"","626ea74b46caaf8488b9c6da6217df44156a8974","4.4.1","5.4.22","6.1.1",4708,3352,1177,"2026-10-09 10:51:29 UTC"
+"ZIBNB","G","cd4","bounded_one_rs_sweep",3.75,TRUE,-13796.6089291547,2,"","626ea74b46caaf8488b9c6da6217df44156a8974","4.4.1","5.4.22","6.1.1",4708,3352,1177,"2026-10-09 10:51:29 UTC"
+"ZIBNB","t","cd4","bounded_one_rs_sweep",27.46,TRUE,-13808.7413274325,2,"","626ea74b46caaf8488b9c6da6217df44156a8974","4.4.1","5.4.22","6.1.1",4708,3352,1177,"2026-10-09 10:51:29 UTC"
+"BCPE","t","cd4_plus_1","bounded_one_rs_sweep",7.61000000000001,TRUE,-18231.7052274234,2,"","626ea74b46caaf8488b9c6da6217df44156a8974","4.4.1","5.4.22","6.1.1",4708,3352,1177,"2026-10-09 10:51:29 UTC"

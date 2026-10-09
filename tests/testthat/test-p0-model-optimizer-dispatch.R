@@ -53,6 +53,8 @@ make_dispatch_args <- function(method, optimizer_context, cg_runner_fn, rs_runne
       bfgs_refine_after = 4L,
       bfgs_max_iter = 25L,
       bfgs_reltol = 1e-10,
+      bfgs_parscale_max = 6,
+      bfgs_active_parameters = c("mu", "theta"),
       bfgs_coordinate_rescue = TRUE,
       bfgs_coordinate_threshold = 2,
       bfgs_coordinate_radius = 5,
@@ -192,6 +194,8 @@ test_that("fit optimizer dispatch routes RS state through the RS runner", {
   expect_identical(captured$rs$rs_bfgs_refine_after, 4L)
   expect_identical(captured$rs$rs_bfgs_max_iter, 25L)
   expect_equal(captured$rs$rs_bfgs_reltol, 1e-10)
+  expect_equal(captured$rs$rs_bfgs_parscale_max, 6)
+  expect_identical(captured$rs$rs_bfgs_active_parameters, c("mu", "theta"))
   expect_true(captured$rs$rs_bfgs_coordinate_rescue)
   expect_equal(captured$rs$rs_bfgs_coordinate_threshold, 2)
   expect_equal(captured$rs$rs_bfgs_coordinate_radius, 5)

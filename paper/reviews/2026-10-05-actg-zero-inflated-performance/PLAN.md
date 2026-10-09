@@ -464,3 +464,91 @@ are absent. Full vignette rebuilding remains blocked by the pre-existing
 `inference-uncertainty.Rmd` segmented-covariance example, which fails
 identically at base commit `6e74ad6` because it calls `conditionMessage()` on
 the returned covariance matrix.
+
+### 2026-10-09: Student-t rectangle bottleneck removed
+
+Profiling the current full-formula ACTG endpoints isolated the remaining
+Student-t cost to the discrete rectangle. The old implementation evaluated an
+8 by 8 copula-density grid for every pair and repeated that grid for the
+correlation and degrees-of-freedom scores. The replacement writes the same
+rectangle probability as a one-dimensional integral of a conditional
+Student-t CDF difference, integrates over the narrower marginal interval, and
+subtracts conditional probabilities on the numerically stable tail. It uses
+eight rather than 64 copula evaluations per pair. Correlation and zeta scores
+now finite-difference this same one-dimensional objective, with zeta perturbed
+on its fitted link scale. The former 2D implementation remains available
+internally as a regression oracle.
+
+On randomized rectangles spanning probability widths from 0.001 to about
+0.63, correlations from -0.85 to 0.9, and degrees of freedom from 2.001 to 50,
+the maximum absolute error against four adaptive Student-t CDF evaluations was
+below `1e-5` and the maximum relative error below `1e-4`. On the most difficult
+ACTG pairs near two degrees of freedom the new route was also materially more
+accurate than the former fixed 2D grid. Existing likelihood, score, direct
+gradient, Hessian and covariance checks all use the same mathematical
+Student-t copula likelihood; no gate or tolerance was relaxed.
+
+The full ACTG primitive comparison is now:
+
+| Route | Likelihood (s) | Likelihood + margin derivatives (s) | All scores (s) |
+|---|---:|---:|---:|
+| ZISICHEL--Gumbel | 0.25 | 0.56 | 0.41 |
+| ZISICHEL--Student-t | 0.12 | 0.29 | 0.78 |
+| ZIBNB--Gumbel | 0.10 | 0.04 | 0.08 |
+| ZIBNB--Student-t | 0.08 | 0.11 | 0.48 |
+| BCPE--Student-t | 0.02 | 0.06 | not applicable |
+
+A bounded full-data RS sweep takes 33.12 seconds for ZISICHEL--Student-t and
+27.46 seconds for ZIBNB--Student-t, versus 7.61 seconds for BCPE--Student-t.
+The remaining 3.6--4.4x gap is expected discrete-margin and rectangle-score
+work; the earlier multi-hour behavior is no longer present.
+
+### 2026-10-09: final full-formula acceptance benchmarks
+
+The table below separates fit time from the independent direct-gradient,
+analytical-gradient and Hessian audit. Covariance time reuses the audited
+Hessian as bread and recomputes subject-clustered scores. Every listed fit is
+full ACTG data and full or near-full formula size. All fitted endpoints
+converged, both strict scaled-score checks and gradient agreement are at most
+0.05, the observed information is positive definite, and both model-based and
+subject-clustered sandwich covariance are finite with positive diagonals and
+zero covariance warnings.
+
+| Route / workload | Fit | Audit | Covariance | Direct / analytical / agreement | Minimum information eigenvalue |
+|---|---:|---:|---:|---:|---:|
+| ZISICHEL--Gumbel maximal | 4.81 m | 5.48 m | 1.70 m | 0.00220 / 0.00170 / 0.00191 | 0.04690 |
+| ZISICHEL--Gumbel drop-sex | 5.95 m | 5.83 m | 1.68 m | 0.01897 / 0.01898 / 0.00191 | 0.00542 |
+| ZIBNB--Gumbel maximal | 17.68 m | 7.55 m | 1.48 m | 0.02140 / 0.02099 / 0.00040 | 0.000156 |
+| ZIBNB--Gumbel drop-sex | 10.55 m | 6.59 m | 1.47 m | 0.02067 / 0.02087 / 0.00106 | 0.000158 |
+| ZISICHEL--Student-t maximal | 3.89 m | 5.87 m | 2.40 m | 0.01122 / 0.01076 / 0.00121 | 0.04279 |
+| ZIBNB--Student-t maximal | 6.24 m | 5.69 m | 2.12 m | 0.00119 / 0.00119 / 0.00030 | 0.18377 |
+| ZIBNB--Student-t drop-mu-sex | 3.39 m | 5.49 m | 1.88 m | 0.00301 / 0.00301 / 0.00030 | 0.18403 |
+
+The deliberately pathological ZISICHEL--Student-t zeta drop-sex candidate
+also meets the complete contract in about 15.9 minutes including its initial
+fit, first curvature audit, a conservative half-Newton/RS polish, the final
+audit, and covariance. Its final direct and analytical scaled scores are both
+0.03853, agreement is 0.00152, and the minimum information eigenvalue is
+0.03488. Its AIC remains worse than its parent, so candidate eligibility and
+the rejection decision are unchanged. A difficult mu smooth-deletion candidate
+converged in 4.74 minutes and was worse than its parent by more than 91 AIC
+points.
+
+These results satisfy the under-20-minute *fitting* gate for every target route
+and the complete fit-plus-validation-plus-covariance gate for all Student-t
+benchmarks except where the audit is intentionally reported separately. The
+ZIBNB--Gumbel maximal fit remains the slowest accepted fit at 17.68 minutes.
+The four-route selection launcher now seeds the three numerically changed
+routes from the newly validated maximal endpoints, preventing stale pre-change
+likelihood values from entering the fresh backward-selection ledger.
+
+Focused tests for every touched likelihood, score, optimizer-control,
+warm-start and ACTG-workflow path pass. The complete suite ran through all
+tiers. Its remaining failures reproduce unchanged in a detached checkout at
+committed baseline `626ea74`: two Hessian/inference fixtures, stale copula-plot
+title assertions, six frozen optimizer fingerprints, seven shared adoption
+inference-fixture errors, two optimizer-evidence fixture/payload checks, and
+one pre-existing repository-privacy document hit. Two compatibility failures
+initially exposed by the new `eta_dr` plumbing were fixed by preserving the
+prior internal helper signature and forwarding the derivative only to helpers
+that declare it; the complete 440-test RS design-cache file then passed.

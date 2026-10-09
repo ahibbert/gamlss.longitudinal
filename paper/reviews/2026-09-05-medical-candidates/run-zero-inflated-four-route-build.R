@@ -65,14 +65,14 @@ route_registry <- list(
     margin = "ZISICHEL", copula = "G",
     seed = file.path(
       package_root, "paper", "reviews", "2026-10-05-actg-zero-inflated-performance",
-      "g-maximal-integrated-bt2.rds"
+      "zisichel-g-maximal-current-defaults.rds"
     )
   ),
   `zisichel-t` = list(
     margin = "ZISICHEL", copula = "t",
     seed = file.path(
       package_root, "paper", "reviews", "2026-10-05-actg-zero-inflated-performance",
-      "zisichel-t-maximal-from-full-candidate-state-bfgs30-lambda5-bt2.rds"
+      "zisichel-t-maximal-conditional-defaults.rds"
     )
   ),
   `zibnb-g` = list(
@@ -86,7 +86,7 @@ route_registry <- list(
     margin = "ZIBNB", copula = "t",
     seed = file.path(
       package_root, "paper", "reviews", "2026-10-05-actg-zero-inflated-performance",
-      "zibnb-t-maximal-integrated-rescue50x2-refine2-lambda5-bt2.rds"
+      "zibnb-t-maximal-conditional-defaults.rds"
     )
   )
 )

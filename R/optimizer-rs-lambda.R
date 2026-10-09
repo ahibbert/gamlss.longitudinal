@@ -30,7 +30,12 @@
       }
 
       invalid_gaic <- 1e100
+      evaluated_lambda <- numeric()
+      evaluated_gaic <- numeric()
       optim_lambda <- function(lambda_val) {
+        lambda_val <- as.numeric(lambda_val[[1L]])
+        cached <- which(evaluated_lambda == lambda_val)
+        if (length(cached)) return(evaluated_gaic[[cached[[1L]]]])
         lambda_s_temp <- lambda_s
         lambda_s_temp[[par_name]][[smooth_name]] <- lambda_val
         backfitting_iteration_results <- tryCatch(
@@ -57,9 +62,15 @@
             NULL
           }
         )
-        if (is.null(backfitting_iteration_results)) return(invalid_gaic)
-        gaic <- as.numeric(backfitting_iteration_results$GAIC_lambda_k)
-        if (length(gaic) != 1L || !is.finite(gaic)) invalid_gaic else gaic
+        gaic <- if (is.null(backfitting_iteration_results)) {
+          invalid_gaic
+        } else {
+          as.numeric(backfitting_iteration_results$GAIC_lambda_k)
+        }
+        if (length(gaic) != 1L || !is.finite(gaic)) gaic <- invalid_gaic
+        evaluated_lambda <<- c(evaluated_lambda, lambda_val)
+        evaluated_gaic <<- c(evaluated_gaic, gaic)
+        gaic
       }
 
       optim_lambda_out <- tryCatch(

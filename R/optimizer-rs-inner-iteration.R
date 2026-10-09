@@ -92,6 +92,7 @@
   rs_score_state <- score_state_fn(
     par_name = par_name,
     eta = eta,
+    eta_dr = eta_dr,
     eta_inv = eta_inv,
     Fx_1_2 = Fx_1_2,
     copula_dist = copula_dist,

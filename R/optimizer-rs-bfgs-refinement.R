@@ -115,6 +115,8 @@
     method = "BFGS",
     max_iter,
     reltol,
+    parscale_max = 25,
+    active_parameters = NULL,
     coordinate_rescue = FALSE,
     coordinate_threshold = 1.5,
     coordinate_radius = 4,
@@ -130,9 +132,25 @@
     optim_fn = stats::optim) {
   started <- proc.time()[["elapsed"]]
   augmented <- build_model_fn(mm, par_cov, par_s)
-  beta_start <- augmented$beta
+  beta_reference <- augmented$beta
+  active_parameters <- if (is.null(active_parameters)) {
+    unique(sub("[.].*$", "", names(beta_reference)))
+  } else {
+    unique(as.character(active_parameters))
+  }
+  coefficient_parameter <- sub("[.].*$", "", names(beta_reference))
+  active_names <- names(beta_reference)[coefficient_parameter %in% active_parameters]
+  if (!length(active_names)) {
+    stop("RS BFGS refinement has no coefficients in active_parameters.", call. = FALSE)
+  }
+  beta_start <- beta_reference[active_names]
+  expand_beta <- function(beta) {
+    full <- beta_reference
+    full[active_names] <- beta
+    full
+  }
   penalty <- build_penalty_fn(
-    beta_names = names(beta_start),
+    beta_names = names(beta_reference),
     lambda_current = lambda_s,
     par_s = par_s,
     mm = mm
@@ -154,7 +172,8 @@
   evaluate <- function(beta) {
     check_elapsed_budget("RS BFGS refinement")
     evaluation_calls <<- evaluation_calls + 1L
-    beta_numeric <- as.numeric(beta)
+    beta_full <- expand_beta(beta)
+    beta_numeric <- as.numeric(beta_full)
     cache_hit <- isTRUE(has_last_evaluation) &&
       length(beta_numeric) == length(last_beta) &&
       isTRUE(all(beta_numeric == last_beta))
@@ -164,7 +183,7 @@
     }
     evaluation_cache_misses <<- evaluation_cache_misses + 1L
     evaluation <- suppressWarnings(evaluate_fn(
-      beta_vec = beta,
+      beta_vec = beta_full,
       mm_cg = augmented$mm,
       par_cov_template = par_cov,
       par_s_template = par_s,
@@ -181,6 +200,7 @@
     evaluation
   }
   penalized_value <- function(beta, evaluation) {
+    beta <- expand_beta(beta)
     as.numeric(
       evaluation$loglik - 0.5 * sum(beta * as.numeric(penalty %*% beta))
     )
@@ -215,8 +235,9 @@
     if (is.null(evaluation)) {
       stop("BFGS requested a gradient at an invalid likelihood state.", call. = FALSE)
     }
+    beta_full <- expand_beta(beta)
     score <- gradient_fn(
-      beta,
+      beta_full,
       augmented$mm,
       evaluation$eta_out,
       evaluation$calc_lik,
@@ -227,10 +248,11 @@
       dataset$time,
       dataset$subject
     )
-    -stats::setNames(
-      as.numeric(score - penalty %*% beta),
-      names(beta)
+    penalized_score <- stats::setNames(
+      as.numeric(score - penalty %*% beta_full),
+      names(beta_full)
     )
+    -penalized_score[active_names]
   }
 
   run_optim <- function(start, iterations) {
@@ -239,7 +261,10 @@
       # several times larger than dense main effects, making progress along
       # those weak directions extremely slow. Optimizing beta / parscale keeps
       # the initial metric commensurate without changing the objective.
-      parameter_scale <- pmin(pmax(1, abs(as.numeric(start))), 25)
+      parameter_scale <- pmin(
+        pmax(1, abs(as.numeric(start))),
+        as.numeric(parscale_max)
+      )
       optim_control <- if (identical(method, "L-BFGS-B")) {
         list(
           maxit = as.integer(iterations),
@@ -260,12 +285,12 @@
         )
       }
       result <- optim_fn(
-      par = start,
-      fn = objective,
-      gr = gradient,
-      method = method,
-      control = optim_control
-    )
+        par = start,
+        fn = objective,
+        gr = gradient,
+        method = method,
+        control = optim_control
+      )
       attr(result, "parameter_scale") <- parameter_scale
       result
   }
@@ -307,7 +332,7 @@
       is.finite(final_value) && final_value >= initial_value) {
     rescue <- .gl_run_rs_coordinate_rescue(
       beta = optimized$par,
-      fixed_names = names(par_cov),
+      fixed_names = intersect(names(par_cov), active_names),
       value_fn = function(beta) {
         evaluation <- evaluate(beta)
         if (is.null(evaluation)) return(-1e100)
@@ -352,7 +377,7 @@
   accepted <- is.finite(final_value) && final_value >= initial_value
   if (accepted) {
     unpacked <- .gl_unpack_cg_beta(
-      optimized$par,
+      expand_beta(optimized$par),
       par_cov_template = par_cov,
       par_s_template = par_s
     )
@@ -369,6 +394,8 @@
       accepted = accepted,
       reason = if (accepted) "accepted" else "no_penalized_improvement",
       method = method,
+      active_parameters = active_parameters,
+      active_coefficient_count = length(active_names),
       initial_penalized_logLik = initial_value,
       final_penalized_logLik = final_value,
       improvement = final_value - initial_value,

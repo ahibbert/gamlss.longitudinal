@@ -16,7 +16,16 @@ args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 5L) {
   stop(
     "Usage: diagnose-specific-candidate.R PARENT OUTPUT PARAMETER TERM BFGS_MAXIT ",
-    "[MAX_ELAPSED] [MAX_REFINEMENTS] [START_MODE] [MAX_OUTER] [BFGS_METHOD]",
+    paste0(
+      "[MAX_ELAPSED] [MAX_REFINEMENTS] [START_MODE] [MAX_OUTER] ",
+      paste0(
+        "[BFGS_METHOD] [BFGS_PARSCALE_MAX] [MAX_INNER] [BFGS_REFINE] ",
+        paste0(
+          "[ADAPTIVE_STEP] [BFGS_ACTIVE_PARAMETERS] ",
+          "[NEWTON_AUDIT_RDS] [NEWTON_STEP]"
+        )
+      )
+    ),
     call. = FALSE
   )
 }
@@ -30,6 +39,35 @@ bfgs_max_refinements <- if (length(args) >= 7L) as.integer(args[[7L]]) else 1L
 start_mode <- if (length(args) >= 8L) args[[8L]] else "parent"
 max_outer_iter <- if (length(args) >= 9L) as.integer(args[[9L]]) else 50L
 bfgs_method <- if (length(args) >= 10L) args[[10L]] else "BFGS"
+bfgs_parscale_max <- if (length(args) >= 11L) as.numeric(args[[11L]]) else 1
+max_inner_iter <- if (length(args) >= 12L) as.integer(args[[12L]]) else 20L
+bfgs_refine <- if (length(args) >= 13L) {
+  identical(tolower(args[[13L]]), "true")
+} else {
+  TRUE
+}
+adaptive_step_size <- if (length(args) >= 14L) {
+  identical(tolower(args[[14L]]), "true")
+} else {
+  FALSE
+}
+bfgs_active_parameters <- if (length(args) >= 15L &&
+    !identical(tolower(args[[15L]]), "all")) {
+  trimws(strsplit(args[[15L]], ",", fixed = TRUE)[[1L]])
+} else {
+  NULL
+}
+newton_audit_path <- if (length(args) >= 16L && nzchar(args[[16L]]) &&
+    !identical(tolower(args[[16L]]), "none")) {
+  normalizePath(args[[16L]], winslash = "/", mustWork = TRUE)
+} else {
+  NULL
+}
+newton_step <- if (length(args) >= 17L) as.numeric(args[[17L]]) else 1
+if (length(newton_step) != 1L || !is.finite(newton_step) ||
+    newton_step <= 0 || newton_step > 1) {
+  stop("NEWTON_STEP must be in (0, 1].", call. = FALSE)
+}
 if (!start_mode %in% c("parent", "zero-parameter", "project-parameter")) {
   stop("START_MODE must be parent, zero-parameter, or project-parameter.", call. = FALSE)
 }
@@ -68,7 +106,9 @@ remove_formula_term <- function(formula, term) {
 }
 
 formulas <- parent$formulas
-formulas[[parameter]] <- remove_formula_term(formulas[[parameter]], term)
+if (!identical(term, "__none__")) {
+  formulas[[parameter]] <- remove_formula_term(formulas[[parameter]], term)
+}
 fit_start <- parent
 if (identical(start_mode, "zero-parameter")) {
   fixed_names <- grep(paste0("^", parameter, "\\."), names(fit_start$par), value = TRUE)
@@ -111,28 +151,43 @@ if (identical(start_mode, "zero-parameter")) {
     offset <- offset + width
   }
 }
+newton_delta <- NULL
+if (!is.null(newton_audit_path)) {
+  audit <- readRDS(newton_audit_path)
+  hessian <- audit$hessian[names(fit_start$par), names(fit_start$par), drop = FALSE]
+  information <- -(hessian + t(hessian)) / 2
+  gradient <- audit$analytical_gradient[names(fit_start$par)]
+  newton_delta <- tryCatch(
+    as.numeric(solve(information, gradient)),
+    error = function(error) stop("Could not solve audited Newton step: ", conditionMessage(error))
+  )
+  names(newton_delta) <- names(fit_start$par)
+  fit_start$par <- fit_start$par + newton_step * newton_delta
+}
 control <- gamlss_longitudinal_control(
   outer_tol = 1e-4,
   max_outer_iter = max_outer_iter,
   max_elapsed_sec = max_elapsed_sec,
   rs = list(
     inner_tol = 1e-5,
-    max_inner_iter = 20L,
-    initial_inner_iter = 2L,
+    max_inner_iter = max_inner_iter,
+    initial_inner_iter = min(2L, max_inner_iter),
     start_step_size = 2,
     warm_start_joint = TRUE,
     warm_start_joint_iter = 2L,
     use_backtracking = TRUE,
     backtracking_max_halves = 2L,
-    adaptive_step_size = FALSE,
+    adaptive_step_size = adaptive_step_size,
     update_lambda = TRUE,
     lambda_update_every = 5L,
-    bfgs_refine = TRUE,
+    bfgs_refine = bfgs_refine,
     bfgs_refine_after = 1L,
     bfgs_method = bfgs_method,
     bfgs_max_refinements = bfgs_max_refinements,
     bfgs_max_iter = bfgs_max_iter,
     bfgs_reltol = 1e-12,
+    bfgs_parscale_max = bfgs_parscale_max,
+    bfgs_active_parameters = bfgs_active_parameters,
     discrete_score_method = "analytical"
   )
 )
@@ -175,7 +230,15 @@ result <- list(
   bfgs_max_iter = bfgs_max_iter,
   bfgs_max_refinements = bfgs_max_refinements,
   bfgs_method = bfgs_method,
+  bfgs_parscale_max = bfgs_parscale_max,
+  bfgs_active_parameters = bfgs_active_parameters,
+  max_inner_iter = max_inner_iter,
+  bfgs_refine = bfgs_refine,
+  adaptive_step_size = adaptive_step_size,
   start_mode = start_mode,
+  newton_audit_path = newton_audit_path,
+  newton_step = if (is.null(newton_audit_path)) NULL else newton_step,
+  newton_delta = newton_delta,
   elapsed_sec = unname(timing[["elapsed"]]),
   warnings = unique(warnings),
   fit = fit
@@ -193,8 +256,8 @@ cat(sprintf(
   fit$convergence$converged,
   as.numeric(fit$model_selection["LogLik", "joint"]),
   as.numeric(fit$model_selection["AIC", "joint"]),
-  d$convergence,
-  d$counts[["function"]],
-  d$counts[["gradient"]],
-  d$evaluation_cache_hits
+  d$convergence %||% NA_integer_,
+  (d$counts %||% stats::setNames(NA_integer_, "function"))[["function"]],
+  (d$counts %||% stats::setNames(NA_integer_, "gradient"))[["gradient"]],
+  d$evaluation_cache_hits %||% NA_integer_
 ))

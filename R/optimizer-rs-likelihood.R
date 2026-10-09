@@ -106,6 +106,7 @@
     verbose,
     timer,
     timer_start,
+    eta_dr = NULL,
     copula_context_fn = .gl_rs_copula_derivative_context,
     timer_fn = .gl_record_rs_timer_step,
     discrete_scores_fn = .gl_rs_discrete_scores,
@@ -161,6 +162,9 @@
     discrete_score_method = discrete_score_method
   )
   discrete_score_formals <- names(formals(discrete_scores_fn))
+  if ("..." %in% discrete_score_formals || "eta_dr" %in% discrete_score_formals) {
+    discrete_score_args$eta_dr <- eta_dr
+  }
   if ("..." %in% discrete_score_formals || "par_name" %in% discrete_score_formals) {
     discrete_score_args$par_name <- par_name
   }
