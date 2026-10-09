@@ -64,20 +64,34 @@ results_root <- if (nzchar(results_root_argument)) {
 } else {
   file.path(review_dir, "results")
 }
-package_source_files <- c(
+stage_source_files <- c(
   file.path(package_root, "DESCRIPTION"),
-  list.files(file.path(package_root, "R"), pattern = "\\.[Rr]$", full.names = TRUE)
+  list.files(file.path(package_root, "R"), pattern = "\\.[Rr]$", full.names = TRUE),
+  file.path(review_dir, "run-screening-v2.R")
 )
-current_source_fingerprint <- tools::md5sum(package_source_files)
+route_source_files <- c(
+  stage_source_files,
+  file.path(review_dir, "run-zero-inflated-four-route-build.R")
+)
+current_stage_source_fingerprint <- tools::md5sum(stage_source_files)
+current_route_source_fingerprint <- tools::md5sum(route_source_files)
 
 canonical_fingerprint <- function(value) {
   if (is.null(value) || !length(value)) return(character())
-  keys <- sub("^.*[/\\\\](DESCRIPTION|R[/\\\\].*)$", "\\1", names(value))
-  keys <- gsub("\\\\", "/", keys)
+  paths <- gsub("\\\\", "/", names(value))
+  keys <- vapply(paths, function(path) {
+    if (grepl("/R/", path, fixed = TRUE)) {
+      return(paste0("R/", sub("^.*?/R/", "", path)))
+    }
+    basename(path)
+  }, character(1L))
   stats::setNames(unname(value), keys)[order(keys)]
 }
-current_source_fingerprint_canonical <- canonical_fingerprint(
-  current_source_fingerprint
+current_stage_source_fingerprint_canonical <- canonical_fingerprint(
+  current_stage_source_fingerprint
+)
+current_route_source_fingerprint_canonical <- canonical_fingerprint(
+  current_route_source_fingerprint
 )
 
 empty_rows <- function() {
@@ -134,9 +148,17 @@ manifest_fingerprint_ok <- function(prefix, route) {
     manifest <- tryCatch(readRDS(path), error = function(error) NULL)
     is.list(manifest) && identical(
       canonical_fingerprint(manifest$package_source_fingerprint),
-      current_source_fingerprint_canonical
+      current_stage_source_fingerprint_canonical
     )
   }, logical(1L)))
+}
+
+completion_fingerprint_ok <- function(completion) {
+  if (!is.list(completion)) return(NA)
+  identical(
+    canonical_fingerprint(completion$package_source_fingerprint),
+    current_route_source_fingerprint_canonical
+  )
 }
 
 key_columns <- c(
@@ -269,7 +291,17 @@ summary_rows <- lapply(routes, function(route) {
   } else {
     NULL
   }
-  complete <- is.list(completion) && isTRUE(completion$stable)
+  manifest_fingerprint <- manifest_fingerprint_ok(results_prefix, route)
+  completion_fingerprint <- completion_fingerprint_ok(completion)
+  fingerprint_values <- c(manifest_fingerprint, completion_fingerprint)
+  fingerprint_values <- fingerprint_values[!is.na(fingerprint_values)]
+  fingerprint_pass <- if (length(fingerprint_values)) {
+    all(fingerprint_values)
+  } else {
+    NA
+  }
+  complete <- is.list(completion) && isTRUE(completion$stable) &&
+    isTRUE(completion_fingerprint)
   selected_formulas_match <- if (complete && is.list(reference_completion) &&
       isTRUE(reference_completion$stable)) {
     identical(
@@ -305,7 +337,7 @@ summary_rows <- lapply(routes, function(route) {
     ),
     selection_consistency_pass = selection_consistent(current),
     duplicate_candidate_keys = sum(duplicated(row_key(current))),
-    fingerprint_pass = manifest_fingerprint_ok(results_prefix, route),
+    fingerprint_pass = fingerprint_pass,
     reference_overlap = comparison$overlap,
     reference_missing = comparison$missing_reference,
     decision_mismatches = comparison$decision_mismatches,

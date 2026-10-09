@@ -95,11 +95,13 @@ if (!length(requested_routes) || any(!requested_routes %in% names(route_registry
 }
 requested_routes <- unique(requested_routes)
 
-package_source_files <- c(
+stage_source_files <- c(
   file.path(package_root, "DESCRIPTION"),
-  list.files(file.path(package_root, "R"), pattern = "\\.[Rr]$", full.names = TRUE)
+  list.files(file.path(package_root, "R"), pattern = "\\.[Rr]$", full.names = TRUE),
+  screen_script
 )
-package_source_fingerprint <- tools::md5sum(package_source_files)
+stage_source_fingerprint <- tools::md5sum(stage_source_files)
+route_source_fingerprint <- tools::md5sum(c(stage_source_files, script_path))
 rscript <- file.path(R.home("bin"), if (.Platform$OS.type == "windows") "Rscript.exe" else "Rscript")
 
 atomic_save_rds <- function(value, path) {
@@ -180,7 +182,7 @@ valid_completed_stage <- function(manifest_path, fit_path, route, stage, paramet
     identical(manifest$stage, stage) &&
     identical(manifest$margin_family, route$margin) &&
     identical(manifest$copula_family, copula_label(route$copula)) &&
-    identical(manifest$package_source_fingerprint, package_source_fingerprint) &&
+    identical(manifest$package_source_fingerprint, stage_source_fingerprint) &&
     (is.null(parameters) || identical(manifest$parameters, parameters))
 }
 
@@ -204,7 +206,7 @@ run_route <- function(route_name) {
     completion <- tryCatch(readRDS(completion_path), error = function(error) NULL)
     if (is.list(completion) && isTRUE(completion$stable) &&
         compatible_run_control(completion$run_control_signature) &&
-        identical(completion$package_source_fingerprint, package_source_fingerprint)) {
+        identical(completion$package_source_fingerprint, route_source_fingerprint)) {
       cat("Reusing completed route ", route_name, ".\n", sep = "")
       return(completion)
     }
@@ -350,7 +352,7 @@ run_route <- function(route_name) {
     selected_fit_path = selected_fit_path,
     stage_log_path = stage_log_path,
     run_control_signature = run_control_signature,
-    package_source_fingerprint = package_source_fingerprint
+    package_source_fingerprint = route_source_fingerprint
   )
   atomic_save_rds(completion, completion_path)
   cat("Completed stable route ", route_name, ".\n", sep = "")
@@ -386,6 +388,6 @@ atomic_save_rds(list(
   started_at = started_at, completed_at = Sys.time(),
   routes = route_results,
   run_control_signature = run_control_signature,
-  package_source_fingerprint = package_source_fingerprint
+  package_source_fingerprint = route_source_fingerprint
 ), summary_path)
 cat("All requested ACTG zero-inflated routes are stable: ", summary_path, "\n", sep = "")
