@@ -192,14 +192,40 @@ test_that("ACTG candidate checkpoints rerun only tighter-cap timeouts", {
   }
   stored <- list(
     model = "same",
-    optimizer_control = list(shared = list(max_elapsed_sec = 1500), rs = list())
+    optimizer_control = list(shared = list(
+      max_elapsed_sec = 1500,
+      max_outer_iter = 50L
+    ), rs = list())
   )
   requested <- stored
   requested$optimizer_control$shared$max_elapsed_sec <- 1800
+  requested$optimizer_control$shared$max_outer_iter <- 100L
   expect_true(helper_environment$checkpoint_metadata_compatible(stored, requested))
   expect_false(helper_environment$checkpoint_metadata_compatible(requested, stored))
   requested$model <- "different"
   expect_false(helper_environment$checkpoint_metadata_compatible(stored, requested))
+
+  expect_match(source, "continuation_seed <- NULL", fixed = TRUE)
+  expect_match(source, "strip_internal_continuation_warnings", fixed = TRUE)
+  expect_match(source, "start = result$fit", fixed = TRUE)
+  expect_match(source, "continuation_control$rs$bfgs_refine <- FALSE", fixed = TRUE)
+  expect_match(source, "repeat {", fixed = TRUE)
+  expect_match(
+    source,
+    "cumulative_outer < continuation_max_total_outer_iter",
+    fixed = TRUE
+  )
+  expect_match(
+    source,
+    "continuation_control$shared$max_outer_iter <- min(",
+    fixed = TRUE
+  )
+  expect_match(
+    source,
+    "continuation_control$rs$max_inner_iter <- max(",
+    fixed = TRUE
+  )
+  expect_match(source, "continuation_used = isTRUE(result$continuation_used)", fixed = TRUE)
 
   for (expression in expressions) {
     assignment <- paste(deparse(expression, width.cutoff = 500L), collapse = " ")
@@ -237,6 +263,31 @@ test_that("ACTG Student-t zeta interaction deletion resets only zeta", {
   expect_match(
     source,
     "smooth_projection_rmse >= pilot_smooth_projection_rmse_min",
+    fixed = TRUE
+  )
+  expect_match(
+    source,
+    "dominance_pilot_enabled <- argument_flag(\"dominance-pilot\", FALSE)",
+    fixed = TRUE
+  )
+  expect_match(
+    source,
+    "if (!isTRUE(dominance_pilot_enabled)) return(NULL)",
+    fixed = TRUE
+  )
+  expect_match(
+    source,
+    "low_lambda_initial_outer_iter <- positive_integer(",
+    fixed = TRUE
+  )
+  expect_match(
+    source,
+    "rs_initial_outer_iter_override <- low_lambda_outer_override_for_task(",
+    fixed = TRUE
+  )
+  expect_match(
+    source,
+    "candidate_control$shared$max_outer_iter <- as.integer(outer_override)",
     fixed = TRUE
   )
 

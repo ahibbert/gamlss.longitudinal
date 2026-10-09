@@ -186,18 +186,24 @@
   )
 
   projected_fallback <- warm_start$projected_start_fallback
-  if (!is.null(projected_fallback) &&
+  mapped_fallback <- warm_start$mapped_start_fallback
+  alternate_start <- if (!is.null(mapped_fallback)) {
+    mapped_fallback
+  } else {
+    projected_fallback
+  }
+  if (!is.null(alternate_start) &&
       !initial_likelihood_valid_fn(
         optimizer_context = optimizer_context,
         mm = matrix_bundle$mm,
         margin_dist = margin_dist,
         copula_dist = copula_dist,
         dataset = fit_data$dataset
-      )) {
+    )) {
     projected_context <- optimizer_context_fn(
-      start_from = projected_fallback$par,
-      warm_start_par_s = projected_fallback$par_s,
-      warm_start_lambda_s = projected_fallback$lambda_s,
+      start_from = alternate_start$par,
+      warm_start_par_s = alternate_start$par_s,
+      warm_start_lambda_s = alternate_start$lambda_s,
       mm = matrix_bundle$mm,
       margin_dist = margin_dist,
       copula_dist = copula_dist,
@@ -220,10 +226,10 @@
       dataset = fit_data$dataset
     )) {
       optimizer_context <- projected_context
-      warm_start$start_from <- projected_fallback$par
-      warm_start$warm_start_par_s <- projected_fallback$par_s
-      warm_start$warm_start_lambda_s <- projected_fallback$lambda_s
-      warm_start$warm_start_info$projection_used <- TRUE
+      warm_start$start_from <- alternate_start$par
+      warm_start$warm_start_par_s <- alternate_start$par_s
+      warm_start$warm_start_lambda_s <- alternate_start$lambda_s
+      warm_start$warm_start_info$projection_used <- is.null(mapped_fallback)
     }
   }
 
