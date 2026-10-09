@@ -666,6 +666,11 @@ fit_screening_candidate <- function(task) {
       inherits(cached$fit, "gamlss.longitudinal") && cached_has_metrics &&
       (isTRUE(cached$converged) || identical(cached$converged, FALSE)) &&
       !(looser_elapsed_cap && elapsed_timeout)
+    resumable_outer_limit <- cache_is_reusable &&
+      identical(cached$converged, FALSE) &&
+      identical(cached$stop_reason, "max_iterations") &&
+      inherits(cached$fit, "gamlss.longitudinal") &&
+      (length(cached$error) != 1L || is.na(cached$error))
     if (cache_is_reusable && isTRUE(cached$converged)) {
       cached$warnings <- strip_internal_continuation_warnings(cached$warnings)
       cached$from_checkpoint <- TRUE
@@ -677,11 +682,17 @@ fit_screening_candidate <- function(task) {
       cached$fit <- NULL
       return(cached)
     }
-    resumable_outer_limit <- cache_is_reusable &&
-      identical(cached$converged, FALSE) &&
-      identical(cached$stop_reason, "max_iterations") &&
-      inherits(cached$fit, "gamlss.longitudinal") &&
-      (length(cached$error) != 1L || is.na(cached$error))
+    if (cache_is_reusable && identical(cached$converged, FALSE) &&
+        !isTRUE(resumable_outer_limit)) {
+      cached$from_checkpoint <- TRUE
+      cached$checkpoint <- checkpoint_path
+      # Terminal failures at the same (or a tighter requested) runtime cap are
+      # already a complete eligibility decision. Repeating them on every
+      # stage restart only burns the full cap again. A looser requested cap is
+      # excluded from cache_is_reusable above and therefore still reruns.
+      cached$fit <- NULL
+      return(cached)
+    }
     if (isTRUE(resumable_outer_limit)) {
       better_seed <- is.null(continuation_seed) ||
         (!is.finite(continuation_seed$metrics[["logLik"]]) &&
