@@ -157,6 +157,14 @@ test_that("ACTG four-route resume keys safely reuse stricter time caps", {
   ))
   expect_match(source, "timeout_under_tighter_cap", fixed = TRUE)
   expect_match(source, '"exceeded max_elapsed_sec"', fixed = TRUE)
+  expect_match(source, "stage_source_files <- c(", fixed = TRUE)
+  expect_match(source, "screen_script", fixed = TRUE)
+  expect_match(source, "route_source_fingerprint <- tools::md5sum", fixed = TRUE)
+  expect_match(
+    source,
+    "identical(manifest$package_source_fingerprint, stage_source_fingerprint)",
+    fixed = TRUE
+  )
 })
 
 test_that("ACTG candidate checkpoints rerun only tighter-cap timeouts", {
@@ -168,6 +176,11 @@ test_that("ACTG candidate checkpoints rerun only tighter-cap timeouts", {
   source <- paste(readLines(path, warn = FALSE), collapse = "\n")
 
   expect_match(source, "checkpoint_metadata_compatible", fixed = TRUE)
+  expect_match(
+    source,
+    'list.files(file.path(package_root, "R"), pattern = "\\\\.[Rr]$", full.names = TRUE),\n  script_path',
+    fixed = TRUE
+  )
   expect_match(source, "checkpoint_metadata_without_elapsed_cap", fixed = TRUE)
   expect_match(source, "looser_elapsed_cap && elapsed_timeout", fixed = TRUE)
   expect_match(source, "candidate_checkpoint_paths(task)", fixed = TRUE)

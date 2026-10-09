@@ -252,7 +252,8 @@ dir.create(checkpoint_dir, recursive = TRUE, showWarnings = FALSE)
 # Do not reuse fits made against a different version of the package source.
 package_source_files <- c(
   file.path(package_root, "DESCRIPTION"),
-  list.files(file.path(package_root, "R"), pattern = "\\.[Rr]$", full.names = TRUE)
+  list.files(file.path(package_root, "R"), pattern = "\\.[Rr]$", full.names = TRUE),
+  script_path
 )
 package_source_fingerprint <- tools::md5sum(package_source_files)
 
