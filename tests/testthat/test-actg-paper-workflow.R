@@ -248,6 +248,31 @@ test_that("ACTG candidate checkpoints rerun only tighter-cap timeouts", {
   expect_false(normalizePath(unrelated, winslash = "/") %in% normalized_paths)
 })
 
+test_that("ACTG screening can drop the final formula term", {
+  path <- test_path(
+    "..", "..", "paper", "reviews", "2026-09-05-medical-candidates",
+    "run-screening-v2.R"
+  )
+  expressions <- parse(file = path)
+  helper_environment <- new.env(parent = baseenv())
+  for (expression in expressions) {
+    assignment <- paste(deparse(expression, width.cutoff = 500L), collapse = " ")
+    if (grepl("^remove_formula_term <-", assignment)) {
+      eval(expression, envir = helper_environment)
+    }
+  }
+
+  response_formula <- helper_environment$remove_formula_term(y ~ treatment, "treatment")
+  one_sided_formula <- helper_environment$remove_formula_term(~ treatment, "treatment")
+
+  expect_identical(attr(stats::terms(response_formula), "term.labels"), character())
+  expect_identical(attr(stats::terms(one_sided_formula), "term.labels"), character())
+  expect_identical(attr(stats::terms(response_formula), "intercept"), 1L)
+  expect_identical(attr(stats::terms(one_sided_formula), "intercept"), 1L)
+  expect_identical(deparse(response_formula), "y ~ 1")
+  expect_identical(deparse(one_sided_formula), "~1")
+})
+
 test_that("ACTG Student-t zeta interaction deletion resets only zeta", {
   path <- test_path(
     "..", "..", "paper", "reviews", "2026-09-05-medical-candidates",

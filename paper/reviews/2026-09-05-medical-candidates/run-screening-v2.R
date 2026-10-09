@@ -415,13 +415,18 @@ safe_name <- function(value) {
 remove_formula_term <- function(formula, term) {
   formula_terms <- stats::terms(formula)
   labels <- attr(formula_terms, "term.labels")
+  remaining_labels <- labels[labels != term]
+  # reformulate() rejects character(0), but dropping the final covariate is a
+  # valid screening move.  Supplying the neutral "1" term preserves the
+  # original intercept flag and produces either response ~ 1 or ~ 1.
+  if (!length(remaining_labels)) remaining_labels <- "1"
   response <- if (attr(formula_terms, "response") == 1L) {
     deparse(formula[[2L]], width.cutoff = 500L)
   } else {
     NULL
   }
   stats::reformulate(
-    labels[labels != term],
+    remaining_labels,
     response = response,
     intercept = attr(formula_terms, "intercept") == 1L,
     env = environment(formula)
