@@ -206,6 +206,12 @@ test_that("ACTG candidate checkpoints rerun only tighter-cap timeouts", {
   expect_false(helper_environment$checkpoint_metadata_compatible(stored, requested))
 
   expect_match(source, "continuation_seed <- NULL", fixed = TRUE)
+  expect_match(
+    source,
+    "cache_is_reusable && identical(cached$converged, FALSE)",
+    fixed = TRUE
+  )
+  expect_match(source, "!isTRUE(resumable_outer_limit)", fixed = TRUE)
   expect_match(source, "strip_internal_continuation_warnings", fixed = TRUE)
   expect_match(source, "start = result$fit", fixed = TRUE)
   expect_match(source, "continuation_control$rs$bfgs_refine <- FALSE", fixed = TRUE)
