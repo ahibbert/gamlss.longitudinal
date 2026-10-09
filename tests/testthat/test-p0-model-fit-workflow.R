@@ -128,7 +128,7 @@ test_that("fit workflow preparation sequences setup phases and returns bundled s
   expect_identical(out$optimizer_context, optimizer_context)
 })
 
-test_that("fit workflow uses projected fitted state only when the direct state is invalid", {
+test_that("fit workflow can use a projected fallback when the direct state is invalid", {
   dataset_in <- data.frame(y = c(1, 2), id = c(1, 1), t = c(1, 2))
   dataset_prepared <- data.frame(
     response = c(1, 2), subject = c(1, 1), time = c(1, 2)
@@ -205,4 +205,84 @@ test_that("fit workflow uses projected fitted state only when the direct state i
   expect_equal(out$optimizer_context$marker, 2)
   expect_equal(out$warm_start$start_from, c(mu = 2))
   expect_true(out$warm_start$warm_start_info$projection_used)
+})
+
+test_that("fit workflow falls back from an invalid projection to mapped state", {
+  dataset_in <- data.frame(y = c(1, 2), id = c(1, 1), t = c(1, 2))
+  dataset_prepared <- data.frame(
+    response = c(1, 2), subject = c(1, 1), time = c(1, 2)
+  )
+  formulas_int <- list(mu = response ~ 1)
+  mm <- list(
+    x = list(mu = structure(
+      matrix(1, nrow = 2, ncol = 1),
+      dimnames = list(NULL, "intercept")
+    )),
+    s = list(mu = list())
+  )
+  context_starts <- numeric()
+  control <- gamlss_longitudinal_control()
+
+  out <- gamlss.longitudinal:::.gl_prepare_fit_workflow(
+    dataset = dataset_in,
+    margin_dist = "NO",
+    copula_dist = "N",
+    time_var = "t",
+    subject_var = "id",
+    missingness = "error",
+    mu.formula = y ~ 1,
+    sigma.formula = ~ 1,
+    nu.formula = ~ 1,
+    tau.formula = ~ 1,
+    theta.formula = ~ 1,
+    zeta.formula = ~ 1,
+    include_dlcopdpar = TRUE,
+    start_from = NA,
+    verbose = 0,
+    true_val = NULL,
+    method = "RS",
+    optimizer_control = control,
+    vcov_method = "analytical",
+    vcov_numderiv = FALSE,
+    use_Rcpp = FALSE,
+    lambda_start = NA,
+    lambda_penalty_K = 2,
+    data_fn = function(...) list(
+      dataset_original = dataset_in,
+      dataset = dataset_prepared,
+      response_var = "y",
+      var_map = list(response = "y"),
+      formulas_int = formulas_int,
+      miss_by_time = data.frame(),
+      pair_summary = data.frame()
+    ),
+    matrix_fn = function(...) list(mm = mm, copula_link = "identity"),
+    warm_start_fn = function(...) list(
+      start_from = c(mu = 2),
+      warm_start_par_s = list(mu = list()),
+      warm_start_lambda_s = list(mu = list()),
+      projected_start_fallback = NULL,
+      mapped_start_fallback = list(
+        par = c(mu = 1),
+        par_s = list(mu = list()),
+        lambda_s = list(mu = list())
+      ),
+      warm_start_info = list(projection_used = TRUE)
+    ),
+    step_control_fn = function(...) list(
+      start_step_size = 1, max_steps = 5L, step_adjustment = 0.5
+    ),
+    optimizer_context_fn = function(start_from, ...) {
+      context_starts <<- c(context_starts, unname(start_from[[1L]]))
+      list(par_cov = start_from, marker = unname(start_from[[1L]]))
+    },
+    initial_likelihood_valid_fn = function(optimizer_context, ...) {
+      identical(optimizer_context$marker, 1)
+    }
+  )
+
+  expect_equal(context_starts, c(2, 1))
+  expect_equal(out$optimizer_context$marker, 1)
+  expect_equal(out$warm_start$start_from, c(mu = 1))
+  expect_false(out$warm_start$warm_start_info$projection_used)
 })

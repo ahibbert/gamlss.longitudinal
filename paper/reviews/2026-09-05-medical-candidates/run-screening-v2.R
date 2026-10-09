@@ -83,6 +83,7 @@ max_elapsed_sec <- suppressWarnings(as.numeric(argument_value("max-elapsed-sec",
 if (length(max_elapsed_sec) != 1L || is.na(max_elapsed_sec) || max_elapsed_sec <= 0) {
   stop("--max-elapsed-sec must be a positive number.")
 }
+dominance_pilot_enabled <- argument_flag("dominance-pilot", FALSE)
 pilot_low_lambda_max <- suppressWarnings(as.numeric(
   argument_value("pilot-low-lambda-max", "1")
 ))
@@ -126,6 +127,22 @@ pilot_bfgs_max_iter <- positive_integer(
 low_lambda_initial_inner_iter <- positive_integer(
   argument_value("low-lambda-initial-inner-iter", "5"),
   "low-lambda-initial-inner-iter"
+)
+low_lambda_initial_outer_iter <- positive_integer(
+  argument_value("low-lambda-initial-outer-iter", "20"),
+  "low-lambda-initial-outer-iter"
+)
+continuation_outer_iter <- positive_integer(
+  argument_value("continuation-outer-iter", "7"),
+  "continuation-outer-iter"
+)
+continuation_max_total_outer_iter <- positive_integer(
+  argument_value("continuation-max-total-outer-iter", "120"),
+  "continuation-max-total-outer-iter"
+)
+continuation_max_inner_iter <- positive_integer(
+  argument_value("continuation-max-inner-iter", "100"),
+  "continuation-max-inner-iter"
 )
 resume <- argument_flag("resume", TRUE)
 dry_run <- argument_flag("dry-run", FALSE)
@@ -366,6 +383,7 @@ checkpoint_metadata_without_elapsed_cap <- function(metadata) {
   value <- metadata
   if (is.list(value$optimizer_control) && is.list(value$optimizer_control$shared)) {
     value$optimizer_control$shared$max_elapsed_sec <- NULL
+    value$optimizer_control$shared$max_outer_iter <- NULL
   }
   value
 }
@@ -375,9 +393,14 @@ checkpoint_metadata_compatible <- function(stored, requested) {
   if (!is.list(stored) || !is.list(requested)) return(FALSE)
   stored_cap <- stored$optimizer_control$shared$max_elapsed_sec
   requested_cap <- requested$optimizer_control$shared$max_elapsed_sec
+  stored_outer <- stored$optimizer_control$shared$max_outer_iter
+  requested_outer <- requested$optimizer_control$shared$max_outer_iter
   length(stored_cap) == 1L && is.finite(stored_cap) &&
     length(requested_cap) == 1L && is.finite(requested_cap) &&
     as.numeric(stored_cap) <= as.numeric(requested_cap) &&
+    length(stored_outer) == 1L && is.finite(stored_outer) &&
+    length(requested_outer) == 1L && is.finite(requested_outer) &&
+    as.integer(stored_outer) <= as.integer(requested_outer) &&
     identical(
       checkpoint_metadata_without_elapsed_cap(stored),
       checkpoint_metadata_without_elapsed_cap(requested)
@@ -599,7 +622,20 @@ candidate_checkpoint_paths <- function(task) {
   unique(c(task$checkpoint, prior))
 }
 
+strip_internal_continuation_warnings <- function(warnings) {
+  internal_limit_warning <- grepl(
+    paste0(
+      "^Model returned without satisfying the optimizer convergence contract ",
+      "\\(stop reason: max_iterations\\)\\."
+    ),
+    warnings
+  )
+  warnings[!internal_limit_warning]
+}
+
 fit_screening_candidate <- function(task) {
+  continuation_seed <- NULL
+  continuation_checkpoint <- NA_character_
   checkpoint_paths <- if (isTRUE(resume)) {
     candidate_checkpoint_paths(task)
   } else {
@@ -625,7 +661,8 @@ fit_screening_candidate <- function(task) {
       inherits(cached$fit, "gamlss.longitudinal") && cached_has_metrics &&
       (isTRUE(cached$converged) || identical(cached$converged, FALSE)) &&
       !(looser_elapsed_cap && elapsed_timeout)
-    if (cache_is_reusable) {
+    if (cache_is_reusable && isTRUE(cached$converged)) {
+      cached$warnings <- strip_internal_continuation_warnings(cached$warnings)
       cached$from_checkpoint <- TRUE
       cached$checkpoint <- checkpoint_path
       # The complete fit is already durable in the checkpoint. Returning it
@@ -635,13 +672,29 @@ fit_screening_candidate <- function(task) {
       cached$fit <- NULL
       return(cached)
     }
+    resumable_outer_limit <- cache_is_reusable &&
+      identical(cached$converged, FALSE) &&
+      identical(cached$stop_reason, "max_iterations") &&
+      inherits(cached$fit, "gamlss.longitudinal") &&
+      (length(cached$error) != 1L || is.na(cached$error))
+    if (isTRUE(resumable_outer_limit)) {
+      better_seed <- is.null(continuation_seed) ||
+        (!is.finite(continuation_seed$metrics[["logLik"]]) &&
+          is.finite(cached$metrics[["logLik"]])) ||
+        (is.finite(cached$metrics[["logLik"]]) &&
+          cached$metrics[["logLik"]] > continuation_seed$metrics[["logLik"]])
+      if (isTRUE(better_seed)) {
+        continuation_seed <- cached
+        continuation_checkpoint <- checkpoint_path
+      }
+    }
   }
 
   optional_formulas <- c(
     if (has_tau) list(tau.formula = task$formulas$tau) else list(),
     if (has_zeta) list(zeta.formula = task$formulas$zeta) else list()
   )
-  run_fit <- function(control) {
+  run_fit <- function(control, start = task$start) {
     started <- proc.time()[["elapsed"]]
     captured_warnings <- character()
     fit <- tryCatch(
@@ -660,7 +713,7 @@ fit_screening_candidate <- function(task) {
           method = "RS",
           optimization = "joint",
           optimizer_control = control,
-          start = task$start,
+          start = start,
           compute_vcov = FALSE,
           verbose = 0
         ), optional_formulas)),
@@ -710,9 +763,19 @@ fit_screening_candidate <- function(task) {
   if (length(inner_override) == 1L && is.finite(inner_override)) {
     candidate_control$rs$initial_inner_iter <- as.integer(inner_override)
   }
+  outer_override <- task$metadata$rs_initial_outer_iter_override
+  if (length(outer_override) == 1L && is.finite(outer_override)) {
+    candidate_control$shared$max_outer_iter <- as.integer(outer_override)
+  }
 
   pilot <- task$metadata$dominance_pilot
-  if (is.list(pilot)) {
+  if (!is.null(continuation_seed)) {
+    result <- continuation_seed
+    result$metadata <- task$metadata
+    result$checkpoint <- task$checkpoint
+    result$from_checkpoint <- FALSE
+    result$continuation_source_checkpoint <- continuation_checkpoint
+  } else if (is.list(pilot)) {
     pilot_control <- candidate_control
     pilot_control$shared$max_outer_iter <- pilot$max_outer_iter
     pilot_control$rs$bfgs_max_iter <- pilot$bfgs_max_iter
@@ -742,6 +805,66 @@ fit_screening_candidate <- function(task) {
     }
   } else {
     result <- result_from_attempt(run_fit(candidate_control))
+  }
+  result$continuation_used <- FALSE
+  result$continuation_attempts <- 0L
+  continuation_attempts <- 0L
+  continuation_initial_elapsed_sec <- result$elapsed_sec
+  continuation_initial_outer_iterations <- result$outer_iterations
+  continuation_initial_stop_reason <- result$stop_reason
+  result$continuation_initial_elapsed_sec <- continuation_initial_elapsed_sec
+  result$continuation_initial_outer_iterations <- continuation_initial_outer_iterations
+  result$continuation_initial_stop_reason <- continuation_initial_stop_reason
+  result$continuation_source_checkpoint <- continuation_checkpoint
+  repeat {
+    cumulative_outer <- result$outer_iterations
+    can_continue <- !isTRUE(result$dominance_pilot_rejected) &&
+      !isTRUE(result$converged) &&
+      identical(result$stop_reason, "max_iterations") &&
+      inherits(result$fit, "gamlss.longitudinal") &&
+      length(cumulative_outer) == 1L && is.finite(cumulative_outer) &&
+      cumulative_outer < continuation_max_total_outer_iter
+    if (!isTRUE(can_continue)) break
+
+    remaining <- candidate_control$shared$max_elapsed_sec - result$elapsed_sec
+    if (!is.finite(remaining) || remaining <= 0) break
+    continuation_control <- candidate_control
+    continuation_control$shared$max_elapsed_sec <- remaining
+    continuation_control$shared$max_outer_iter <- min(
+      as.integer(continuation_outer_iter),
+      as.integer(continuation_max_total_outer_iter - cumulative_outer)
+    )
+    continuation_control$rs$bfgs_refine <- FALSE
+    continuation_control$rs$max_inner_iter <- max(
+      as.integer(continuation_control$rs$max_inner_iter),
+      as.integer(continuation_max_inner_iter)
+    )
+    prior_elapsed <- result$elapsed_sec
+    prior_outer <- result$outer_iterations
+    prior_warnings <- strip_internal_continuation_warnings(result$warnings)
+    continuation_attempt <- run_fit(
+      continuation_control,
+      start = result$fit
+    )
+    result <- result_from_attempt(
+      continuation_attempt,
+      elapsed_sec = prior_elapsed + continuation_attempt$elapsed_sec
+    )
+    result$outer_iterations <- sum(
+      c(prior_outer, result$outer_iterations),
+      na.rm = TRUE
+    )
+    result$warnings <- unique(c(prior_warnings, result$warnings))
+    continuation_attempts <- continuation_attempts + 1L
+    result$continuation_used <- TRUE
+    result$continuation_attempts <- continuation_attempts
+    result$continuation_initial_elapsed_sec <- continuation_initial_elapsed_sec
+    result$continuation_initial_outer_iterations <- continuation_initial_outer_iterations
+    result$continuation_initial_stop_reason <- continuation_initial_stop_reason
+    result$continuation_source_checkpoint <- continuation_checkpoint
+  }
+  if (isTRUE(result$converged)) {
+    result$warnings <- strip_internal_continuation_warnings(result$warnings)
   }
   temporary <- tempfile("candidate-", tmpdir = dirname(task$checkpoint), fileext = ".rds")
   saveRDS(result, temporary, compress = "gzip")
@@ -901,6 +1024,7 @@ dominance_pilot_for_task <- function(
     dropped_term,
     change_type,
     start) {
+  if (!isTRUE(dominance_pilot_enabled)) return(NULL)
   if (!identical(stage, "refine")) return(NULL)
   if (!change_type %in% c("drop", "simplify")) return(NULL)
   lambda <- smooth_penalty_for_term(start, parameter, dropped_term)
@@ -967,6 +1091,21 @@ low_lambda_inner_override_for_task <- function(
   max(as.integer(initial_inner_iter), as.integer(low_lambda_initial_inner_iter))
 }
 
+low_lambda_outer_override_for_task <- function(
+    parameter,
+    dropped_term,
+    change_type,
+    start) {
+  if (!identical(stage, "refine")) return(NULL)
+  if (!change_type %in% c("drop", "simplify")) return(NULL)
+  lambda <- smooth_penalty_for_term(start, parameter, dropped_term)
+  if (!is.finite(lambda) || lambda > pilot_low_lambda_max) return(NULL)
+  min(
+    as.integer(optimizer_control$shared$max_outer_iter),
+    as.integer(low_lambda_initial_outer_iter)
+  )
+}
+
 make_task <- function(
     step,
     parameter,
@@ -979,6 +1118,9 @@ make_task <- function(
   )
   rs_initial_inner_iter_override <- low_lambda_inner_override_for_task(
     step, parameter, dropped_term, change_type, start
+  )
+  rs_initial_outer_iter_override <- low_lambda_outer_override_for_task(
+    parameter, dropped_term, change_type, start
   )
   project_piloted_smooth_drop <- identical(stage, "refine") &&
     identical(change_type, "drop") && length(dropped_term) == 1L &&
@@ -1013,6 +1155,9 @@ make_task <- function(
   }
   if (length(rs_initial_inner_iter_override) == 1L) {
     metadata$rs_initial_inner_iter_override <- rs_initial_inner_iter_override
+  }
+  if (length(rs_initial_outer_iter_override) == 1L) {
+    metadata$rs_initial_outer_iter_override <- rs_initial_outer_iter_override
   }
   # Omit the ordinary strategy to preserve all compatible fitted-parent
   # checkpoints. The exceptional strategy is part of the key so the known
@@ -1068,6 +1213,10 @@ candidate_row <- function(
     outer_iterations = result$outer_iterations,
     stop_reason = result$stop_reason,
     dominance_pilot_rejected = isTRUE(result$dominance_pilot_rejected),
+    continuation_used = isTRUE(result$continuation_used),
+    continuation_attempts = as.integer(result$continuation_attempts %||% 0L),
+    continuation_initial_elapsed_sec = result$continuation_initial_elapsed_sec %||% NA_real_,
+    continuation_initial_outer_iterations = result$continuation_initial_outer_iterations %||% NA_integer_,
     from_checkpoint = result$from_checkpoint,
     warnings = paste(result$warnings, collapse = " | "),
     error = result$error,
@@ -1122,14 +1271,24 @@ cat(
   "  stage/smooth k: ", stage, "/", smooth_k, "\n",
   "  parameters: ", paste(parameters, collapse = ", "), "\n",
   "  workers: ", workers, "\n",
-  "  dominance pilot: refinement smooth lambda <= ", pilot_low_lambda_max,
-  " or smooth-drop projection RMSE >= ", pilot_smooth_projection_rmse_min,
-  "; sparse fixed-drop projection RMSE >= ", pilot_fixed_projection_rmse_min,
-  " at ", pilot_fixed_parent_terms, " parent terms",
-  ", delta ", criterion, " > ", pilot_delta_threshold,
-  ", outer/BFGS = ", pilot_outer_iter, "/", pilot_bfgs_max_iter, "\n",
+  "  dominance pilot: ", if (dominance_pilot_enabled) "enabled" else "disabled",
+  if (dominance_pilot_enabled) paste0(
+    "; refinement smooth lambda <= ", pilot_low_lambda_max,
+    " or smooth-drop projection RMSE >= ", pilot_smooth_projection_rmse_min,
+    "; sparse fixed-drop projection RMSE >= ", pilot_fixed_projection_rmse_min,
+    " at ", pilot_fixed_parent_terms, " parent terms",
+    ", delta ", criterion, " > ", pilot_delta_threshold,
+    ", outer/BFGS = ", pilot_outer_iter, "/", pilot_bfgs_max_iter
+  ) else "",
+  "\n",
   "  later low-lambda initial inner iterations: ",
   low_lambda_initial_inner_iter, "\n",
+  "  low-lambda initial outer iterations: ",
+  low_lambda_initial_outer_iter, "\n",
+  "  continuation outer/total iterations: ",
+  continuation_outer_iter, "/", continuation_max_total_outer_iter, "\n",
+  "  continuation maximum inner iterations: ",
+  continuation_max_inner_iter, "\n",
   "  checkpoints: ", checkpoint_dir, "\n",
   sep = ""
 )
@@ -1161,8 +1320,11 @@ if (workers > 1L) {
     c(
       "actg_data", "optimizer_control", "resume", "empty_metrics",
       "candidate_checkpoint_paths", "checkpoint_metadata_compatible",
-      "checkpoint_metadata_without_elapsed_cap", "fit_screening_candidate",
-      "margin_family", "copula_code", "has_tau", "has_zeta"
+      "checkpoint_metadata_without_elapsed_cap",
+      "strip_internal_continuation_warnings", "fit_screening_candidate",
+      "margin_family", "copula_code", "has_tau", "has_zeta",
+      "continuation_outer_iter", "continuation_max_total_outer_iter",
+      "continuation_max_inner_iter"
     ),
     envir = environment()
   )
@@ -1179,7 +1341,8 @@ dispatch_tasks <- function(tasks) {
 
 run_tasks <- function(tasks) {
   isolated <- which(vapply(tasks, function(task) {
-    length(task$metadata$rs_initial_inner_iter_override) == 1L
+    length(task$metadata$rs_initial_inner_iter_override) == 1L ||
+      length(task$metadata$rs_initial_outer_iter_override) == 1L
   }, logical(1L)))
   if (!length(isolated)) return(dispatch_tasks(tasks))
 
@@ -1320,6 +1483,22 @@ saveRDS(list(
   copula_family = copula_label,
   missingness = "segment",
   optimizer_control = optimizer_control,
+  dominance_pilot = list(
+    enabled = dominance_pilot_enabled,
+    low_lambda_max = pilot_low_lambda_max,
+    smooth_projection_rmse_min = pilot_smooth_projection_rmse_min,
+    fixed_projection_rmse_min = pilot_fixed_projection_rmse_min,
+    fixed_parent_terms = pilot_fixed_parent_terms,
+    delta_threshold = pilot_delta_threshold,
+    max_outer_iter = pilot_outer_iter,
+    bfgs_max_iter = pilot_bfgs_max_iter
+  ),
+  continuation = list(
+    low_lambda_initial_outer_iter = low_lambda_initial_outer_iter,
+    outer_iter = continuation_outer_iter,
+    max_total_outer_iter = continuation_max_total_outer_iter,
+    max_inner_iter = continuation_max_inner_iter
+  ),
   data_summary = list(
     rows = nrow(actg_data),
     subjects = length(unique(actg_data$subject)),
