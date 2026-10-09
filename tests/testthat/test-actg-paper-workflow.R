@@ -212,6 +212,11 @@ test_that("ACTG candidate checkpoints rerun only tighter-cap timeouts", {
     fixed = TRUE
   )
   expect_match(source, "!isTRUE(resumable_outer_limit)", fixed = TRUE)
+  expect_match(
+    source,
+    'isTRUE(cached$converged) &&\n        inherits(cached$fit, "gamlss.longitudinal")',
+    fixed = TRUE
+  )
   expect_match(source, "strip_internal_continuation_warnings", fixed = TRUE)
   expect_match(source, "start = result$fit", fixed = TRUE)
   expect_match(source, "continuation_control$rs$bfgs_refine <- FALSE", fixed = TRUE)
