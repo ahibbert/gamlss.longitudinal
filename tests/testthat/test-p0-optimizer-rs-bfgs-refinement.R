@@ -242,6 +242,105 @@ test_that("RS BFGS refinement safely retains state after optimizer errors", {
   expect_equal(out$par_cov, par_cov)
 })
 
+test_that("RS BFGS refinement falls back only for classed analytical boundary errors", {
+  boundary_error <- structure(
+    list(message = "gradient boundary", call = NULL),
+    class = c("gamlss_longitudinal_margin_cdf_error", "error", "condition")
+  )
+  fallback_gradient <- NULL
+  out <- gamlss.longitudinal:::.gl_run_rs_bfgs_refinement(
+    mm = list(x = list(mu = matrix(1, 1, 1)), s = list(mu = list())),
+    par_cov = c(`mu.(Intercept)` = 0),
+    par_s = list(mu = list()),
+    lambda_s = list(mu = list()),
+    margin_dist = list(),
+    copula_link = list(),
+    copula_dist = "N",
+    dataset = data.frame(response = 1, time = 1, subject = 1),
+    pair_cache = list(),
+    margin_eval_cache = list(),
+    include_dlcopdpar = FALSE,
+    max_iter = 1L,
+    reltol = 1e-12,
+    check_elapsed_budget = function(stage) NULL,
+    build_model_fn = function(mm, par_cov, par_s) list(mm = mm, beta = par_cov),
+    build_penalty_fn = function(beta_names, ...) matrix(0, 1, 1),
+    evaluate_fn = function(beta_vec, ...) {
+      list(loglik = -(unname(beta_vec) - 2)^2, eta_out = list(), calc_lik = list())
+    },
+    gradient_fn = function(beta, ...) {
+      if (unname(beta) > 0.5) stop(boundary_error)
+      stats::setNames(-2 * (unname(beta) - 2), names(beta))
+    },
+    optim_fn = function(par, fn, gr, method, control) {
+      expect_true(is.finite(fn(par)))
+      expect_true(is.finite(gr(par)))
+      candidate <- stats::setNames(1, names(par))
+      expect_true(is.finite(fn(candidate)))
+      fallback_gradient <<- gr(candidate)
+      list(
+        par = par,
+        value = fn(par),
+        counts = c("function" = 3L, gradient = 2L),
+        convergence = 0L,
+        message = NULL
+      )
+    }
+  )
+
+  expect_equal(unname(fallback_gradient), -2, tolerance = 1e-5)
+  expect_identical(out$diagnostics$analytical_gradient_failures, 1L)
+  expect_identical(out$diagnostics$finite_gradient_fallbacks, 1L)
+  expect_identical(out$diagnostics$invalid_gradient_barriers, 0L)
+})
+
+test_that("RS BFGS refinement directs invalid-gradient requests toward the last valid point", {
+  barrier_gradient <- NULL
+  out <- gamlss.longitudinal:::.gl_run_rs_bfgs_refinement(
+    mm = list(x = list(mu = matrix(1, 1, 1)), s = list(mu = list())),
+    par_cov = c(`mu.(Intercept)` = 0),
+    par_s = list(mu = list()),
+    lambda_s = list(mu = list()),
+    margin_dist = list(),
+    copula_link = list(),
+    copula_dist = "N",
+    dataset = data.frame(response = 1, time = 1, subject = 1),
+    pair_cache = list(),
+    margin_eval_cache = list(),
+    include_dlcopdpar = FALSE,
+    max_iter = 1L,
+    reltol = 1e-12,
+    check_elapsed_budget = function(stage) NULL,
+    build_model_fn = function(mm, par_cov, par_s) list(mm = mm, beta = par_cov),
+    build_penalty_fn = function(beta_names, ...) matrix(0, 1, 1),
+    evaluate_fn = function(beta_vec, ...) {
+      if (unname(beta_vec) > 0.5) return(NULL)
+      list(loglik = -(unname(beta_vec) - 2)^2, eta_out = list(), calc_lik = list())
+    },
+    gradient_fn = function(beta, ...) {
+      stats::setNames(-2 * (unname(beta) - 2), names(beta))
+    },
+    optim_fn = function(par, fn, gr, method, control) {
+      expect_true(is.finite(gr(par)))
+      candidate <- stats::setNames(1, names(par))
+      expect_equal(fn(candidate), 1e100)
+      barrier_gradient <<- gr(candidate)
+      list(
+        par = par,
+        value = fn(par),
+        counts = c("function" = 2L, gradient = 2L),
+        convergence = 0L,
+        message = NULL
+      )
+    }
+  )
+
+  expect_gt(unname(barrier_gradient), 0)
+  expect_identical(out$diagnostics$analytical_gradient_failures, 0L)
+  expect_identical(out$diagnostics$finite_gradient_fallbacks, 0L)
+  expect_identical(out$diagnostics$invalid_gradient_barriers, 1L)
+})
+
 test_that("RS BFGS refinement propagates elapsed-time budget errors", {
   budget_error <- structure(
     list(message = "budget exhausted", call = NULL),

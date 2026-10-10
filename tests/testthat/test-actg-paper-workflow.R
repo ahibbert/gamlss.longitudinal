@@ -359,6 +359,21 @@ test_that("ACTG Student-t zeta interaction deletion resets only zeta", {
     "candidate_control$shared$max_outer_iter <- as.integer(outer_override)",
     fixed = TRUE
   )
+  expect_match(
+    source,
+    'argument_value("later-low-lambda-bfgs-max-iter", "120")',
+    fixed = TRUE
+  )
+  expect_match(
+    source,
+    "rs_bfgs_max_iter_override <- later_low_lambda_bfgs_override_for_task(",
+    fixed = TRUE
+  )
+  expect_match(
+    source,
+    "candidate_control$rs$bfgs_max_iter <- as.integer(bfgs_override)",
+    fixed = TRUE
+  )
 
   expressions <- parse(file = path)
   helper_environment <- new.env(parent = baseenv())

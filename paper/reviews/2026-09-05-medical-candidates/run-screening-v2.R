@@ -133,6 +133,10 @@ low_lambda_initial_outer_iter <- positive_integer(
   argument_value("low-lambda-initial-outer-iter", "20"),
   "low-lambda-initial-outer-iter"
 )
+later_low_lambda_bfgs_max_iter <- positive_integer(
+  argument_value("later-low-lambda-bfgs-max-iter", "120"),
+  "later-low-lambda-bfgs-max-iter"
+)
 continuation_outer_iter <- positive_integer(
   argument_value("continuation-outer-iter", "7"),
   "continuation-outer-iter"
@@ -799,6 +803,10 @@ fit_screening_candidate <- function(task) {
   if (length(outer_override) == 1L && is.finite(outer_override)) {
     candidate_control$shared$max_outer_iter <- as.integer(outer_override)
   }
+  bfgs_override <- task$metadata$rs_bfgs_max_iter_override
+  if (length(bfgs_override) == 1L && is.finite(bfgs_override)) {
+    candidate_control$rs$bfgs_max_iter <- as.integer(bfgs_override)
+  }
 
   pilot <- task$metadata$dominance_pilot
   if (!is.null(continuation_seed)) {
@@ -1148,6 +1156,25 @@ low_lambda_outer_override_for_task <- function(
   )
 }
 
+later_low_lambda_bfgs_override_for_task <- function(
+    step,
+    parameter,
+    dropped_term,
+    change_type,
+    start) {
+  if (!identical(stage, "refine") || as.integer(step) < 3L ||
+      !identical(margin_family, "ZISICHEL") || !identical(copula_code, "G") ||
+      !change_type %in% c("drop", "simplify")) {
+    return(NULL)
+  }
+  lambda <- smooth_penalty_for_term(start, parameter, dropped_term)
+  if (!is.finite(lambda) || lambda > pilot_low_lambda_max) return(NULL)
+  max(
+    as.integer(optimizer_control$rs$bfgs_max_iter),
+    as.integer(later_low_lambda_bfgs_max_iter)
+  )
+}
+
 make_task <- function(
     step,
     parameter,
@@ -1163,6 +1190,9 @@ make_task <- function(
   )
   rs_initial_outer_iter_override <- low_lambda_outer_override_for_task(
     parameter, dropped_term, change_type, start
+  )
+  rs_bfgs_max_iter_override <- later_low_lambda_bfgs_override_for_task(
+    step, parameter, dropped_term, change_type, start
   )
   project_piloted_smooth_drop <- identical(stage, "refine") &&
     identical(change_type, "drop") && length(dropped_term) == 1L &&
@@ -1199,6 +1229,9 @@ make_task <- function(
   }
   if (length(rs_initial_outer_iter_override) == 1L) {
     metadata$rs_initial_outer_iter_override <- rs_initial_outer_iter_override
+  }
+  if (length(rs_bfgs_max_iter_override) == 1L) {
+    metadata$rs_bfgs_max_iter_override <- rs_bfgs_max_iter_override
   }
   # Omit the ordinary strategy to preserve all compatible fitted-parent
   # checkpoints. The exceptional strategy is part of the key so the known
@@ -1326,6 +1359,8 @@ cat(
   low_lambda_initial_inner_iter, "\n",
   "  low-lambda initial outer iterations: ",
   low_lambda_initial_outer_iter, "\n",
+  "  later ZISICHEL--Gumbel low-lambda BFGS iterations: ",
+  later_low_lambda_bfgs_max_iter, "\n",
   "  continuation outer/total iterations: ",
   if (continuation_enabled) {
     paste0(continuation_outer_iter, "/", continuation_max_total_outer_iter)
@@ -1387,7 +1422,8 @@ dispatch_tasks <- function(tasks) {
 run_tasks <- function(tasks) {
   isolated <- which(vapply(tasks, function(task) {
     length(task$metadata$rs_initial_inner_iter_override) == 1L ||
-      length(task$metadata$rs_initial_outer_iter_override) == 1L
+      length(task$metadata$rs_initial_outer_iter_override) == 1L ||
+      length(task$metadata$rs_bfgs_max_iter_override) == 1L
   }, logical(1L)))
   if (!length(isolated)) return(dispatch_tasks(tasks))
 
@@ -1541,6 +1577,7 @@ saveRDS(list(
   continuation = list(
     enabled = continuation_enabled,
     low_lambda_initial_outer_iter = low_lambda_initial_outer_iter,
+    later_low_lambda_bfgs_max_iter = later_low_lambda_bfgs_max_iter,
     outer_iter = continuation_outer_iter,
     max_total_outer_iter = continuation_max_total_outer_iter,
     max_inner_iter = continuation_max_inner_iter
