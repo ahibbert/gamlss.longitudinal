@@ -100,7 +100,7 @@ test_that("ACTG zero-inflated controls enforce the production time envelope", {
   )
 
   expect_equal(control$shared$max_elapsed_sec, 1190)
-  expect_identical(control$rs$initial_inner_iter, 2L)
+  expect_identical(control$rs$initial_inner_iter, 5L)
   expect_identical(control$rs$max_inner_iter, 20L)
   expect_identical(control$rs$backtracking_max_halves, 2L)
   expect_identical(control$rs$bfgs_max_iter, 60L)
@@ -226,6 +226,16 @@ test_that("ACTG candidate checkpoints rerun only tighter-cap timeouts", {
   expect_match(source, "continuation_seed <- NULL", fixed = TRUE)
   expect_match(
     source,
+    'continuation_enabled <- argument_flag("continuation", FALSE)',
+    fixed = TRUE
+  )
+  expect_match(
+    source,
+    "resumable_outer_limit <- isTRUE(continuation_enabled)",
+    fixed = TRUE
+  )
+  expect_match(
+    source,
     "cache_is_reusable && identical(cached$converged, FALSE)",
     fixed = TRUE
   )
@@ -239,6 +249,11 @@ test_that("ACTG candidate checkpoints rerun only tighter-cap timeouts", {
   expect_match(source, "start = result$fit", fixed = TRUE)
   expect_match(source, "continuation_control$rs$bfgs_refine <- FALSE", fixed = TRUE)
   expect_match(source, "repeat {", fixed = TRUE)
+  expect_match(
+    source,
+    "can_continue <- isTRUE(continuation_enabled)",
+    fixed = TRUE
+  )
   expect_match(
     source,
     "cumulative_outer < continuation_max_total_outer_iter",

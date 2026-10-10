@@ -224,7 +224,7 @@ gamlss_longitudinal_control <- function(
   schedule <- switch(
     route,
     `ZISICHEL/G` = list(
-      initial_inner_iter = 2L,
+      initial_inner_iter = 5L,
       bfgs_refine = TRUE,
       bfgs_refine_after = if (identical(purpose, "screening")) 2L else 10L,
       bfgs_max_refinements = 1L,
@@ -234,7 +234,7 @@ gamlss_longitudinal_control <- function(
       bfgs_repolish_iter = 50L
     ),
     `ZIBNB/G` = list(
-      initial_inner_iter = 2L,
+      initial_inner_iter = 5L,
       bfgs_refine = TRUE,
       bfgs_refine_after = 2L,
       bfgs_max_refinements = 1L,
@@ -244,7 +244,7 @@ gamlss_longitudinal_control <- function(
       bfgs_repolish_iter = 50L
     ),
     `ZISICHEL/t` = list(
-      initial_inner_iter = 2L,
+      initial_inner_iter = 5L,
       bfgs_refine = TRUE,
       bfgs_refine_after = 1L,
       bfgs_max_refinements = 1L,
@@ -254,7 +254,7 @@ gamlss_longitudinal_control <- function(
       bfgs_repolish_iter = 50L
     ),
     `ZIBNB/t` = list(
-      initial_inner_iter = 2L,
+      initial_inner_iter = 5L,
       bfgs_refine = TRUE,
       bfgs_refine_after = 1L,
       bfgs_max_refinements = 2L,

@@ -146,22 +146,14 @@
       NULL
     }
     if (!is.null(projected) && length(projected$projected)) {
-      mapped_start_fallback <- list(
-        par = fitted_start$par,
-        par_s = fitted_start$par_s,
-        lambda_s = fitted_start$lambda_s
-      )
+      projected_start_fallback <- projected
       warm_start_info$projected_parameters <- projected$projected
       warm_start_info$projection_rmse <- projected$rmse
-      warm_start_info$projection_used <- TRUE
-      warm_start_par_s <- projected$par_s
-      warm_start_lambda_s <- projected$lambda_s
-      start_from <- projected$par
-    } else {
-      warm_start_par_s <- fitted_start$par_s
-      warm_start_lambda_s <- fitted_start$lambda_s
-      start_from <- fitted_start$par
+      warm_start_info$projection_used <- FALSE
     }
+    warm_start_par_s <- fitted_start$par_s
+    warm_start_lambda_s <- fitted_start$lambda_s
+    start_from <- fitted_start$par
   }
 
   if (!.gl_should_run_joint_warm_start(

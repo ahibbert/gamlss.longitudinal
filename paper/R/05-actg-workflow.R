@@ -214,7 +214,7 @@ jss_actg_optimizer_control <- function(
     rs = list(
       inner_tol = 1e-5,
       max_inner_iter = 20L,
-      initial_inner_iter = 2L,
+      initial_inner_iter = 5L,
       start_step_size = 2,
       warm_start_joint = TRUE,
       warm_start_joint_iter = 2L,
