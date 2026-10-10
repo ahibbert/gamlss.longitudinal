@@ -168,6 +168,10 @@
   evaluation_calls <- 0L
   evaluation_cache_hits <- 0L
   evaluation_cache_misses <- 0L
+  analytical_gradient_failures <- 0L
+  finite_gradient_fallbacks <- 0L
+  invalid_gradient_barriers <- 0L
+  last_gradient_valid_beta <- beta_start
 
   evaluate <- function(beta) {
     check_elapsed_budget("RS BFGS refinement")
@@ -219,6 +223,9 @@
         evaluation_calls = evaluation_calls,
         evaluation_cache_hits = evaluation_cache_hits,
         evaluation_cache_misses = evaluation_cache_misses,
+        analytical_gradient_failures = analytical_gradient_failures,
+        finite_gradient_fallbacks = finite_gradient_fallbacks,
+        invalid_gradient_barriers = invalid_gradient_barriers,
         elapsed_sec = proc.time()[["elapsed"]] - started
       )
     ))
@@ -230,28 +237,84 @@
     if (is.null(evaluation)) return(1e100)
     -penalized_value(beta, evaluation)
   }
+  finite_objective_gradient <- function(beta, evaluation) {
+    base_value <- penalized_value(beta, evaluation)
+    score <- stats::setNames(rep(0, length(beta)), names(beta))
+    for (index in seq_along(beta)) {
+      increment <- 1e-5 * max(1, abs(beta[[index]]))
+      plus <- beta
+      minus <- beta
+      plus[[index]] <- plus[[index]] + increment
+      minus[[index]] <- minus[[index]] - increment
+      plus_evaluation <- evaluate(plus)
+      minus_evaluation <- evaluate(minus)
+      plus_value <- if (is.null(plus_evaluation)) NA_real_ else {
+        penalized_value(plus, plus_evaluation)
+      }
+      minus_value <- if (is.null(minus_evaluation)) NA_real_ else {
+        penalized_value(minus, minus_evaluation)
+      }
+      score[[index]] <- if (is.finite(plus_value) && is.finite(minus_value)) {
+        (plus_value - minus_value) / (2 * increment)
+      } else if (is.finite(plus_value) && is.finite(base_value)) {
+        (plus_value - base_value) / increment
+      } else if (is.finite(minus_value) && is.finite(base_value)) {
+        (base_value - minus_value) / increment
+      } else {
+        0
+      }
+    }
+    -score
+  }
+  invalid_gradient_barrier <- function(beta) {
+    delta <- as.numeric(beta) - as.numeric(last_gradient_valid_beta)
+    distance <- max(abs(delta))
+    if (!is.finite(distance) || distance <= .Machine$double.eps) {
+      stop("BFGS requested a gradient at an invalid likelihood state.", call. = FALSE)
+    }
+    stats::setNames(1e4 * delta / distance, names(beta))
+  }
   gradient <- function(beta) {
     evaluation <- evaluate(beta)
     if (is.null(evaluation)) {
-      stop("BFGS requested a gradient at an invalid likelihood state.", call. = FALSE)
+      invalid_gradient_barriers <<- invalid_gradient_barriers + 1L
+      return(invalid_gradient_barrier(beta))
     }
     beta_full <- expand_beta(beta)
-    score <- gradient_fn(
-      beta_full,
-      augmented$mm,
-      evaluation$eta_out,
-      evaluation$calc_lik,
-      margin_dist,
-      copula_dist,
-      isTRUE(include_dlcopdpar),
-      dataset$response,
-      dataset$time,
-      dataset$subject
+    score <- tryCatch(
+      gradient_fn(
+        beta_full,
+        augmented$mm,
+        evaluation$eta_out,
+        evaluation$calc_lik,
+        margin_dist,
+        copula_dist,
+        isTRUE(include_dlcopdpar),
+        dataset$response,
+        dataset$time,
+        dataset$subject
+      ),
+      error = function(error) {
+        if (inherits(error, "gamlss.longitudinal_time_limit_error")) stop(error)
+        if (!inherits(error, "gamlss_longitudinal_margin_cdf_error")) stop(error)
+        analytical_gradient_failures <<- analytical_gradient_failures + 1L
+        error
+      }
     )
+    if (inherits(score, "gamlss_longitudinal_margin_cdf_error")) {
+      fallback <- finite_objective_gradient(beta, evaluation)
+      if (any(!is.finite(fallback))) {
+        stop(score)
+      }
+      finite_gradient_fallbacks <<- finite_gradient_fallbacks + 1L
+      last_gradient_valid_beta <<- beta
+      return(fallback)
+    }
     penalized_score <- stats::setNames(
       as.numeric(score - penalty %*% beta_full),
       names(beta_full)
     )
+    last_gradient_valid_beta <<- beta
     -penalized_score[active_names]
   }
 
@@ -316,6 +379,9 @@
         evaluation_calls = evaluation_calls,
         evaluation_cache_hits = evaluation_cache_hits,
         evaluation_cache_misses = evaluation_cache_misses,
+        analytical_gradient_failures = analytical_gradient_failures,
+        finite_gradient_fallbacks = finite_gradient_fallbacks,
+        invalid_gradient_barriers = invalid_gradient_barriers,
         elapsed_sec = proc.time()[["elapsed"]] - started
       )
     ))
@@ -405,6 +471,9 @@
       evaluation_calls = evaluation_calls,
       evaluation_cache_hits = evaluation_cache_hits,
       evaluation_cache_misses = evaluation_cache_misses,
+      analytical_gradient_failures = analytical_gradient_failures,
+      finite_gradient_fallbacks = finite_gradient_fallbacks,
+      invalid_gradient_barriers = invalid_gradient_barriers,
       parscale_min = min(attr(optimized, "parameter_scale")),
       parscale_max = max(attr(optimized, "parameter_scale")),
       coordinate_rescue = rescue,

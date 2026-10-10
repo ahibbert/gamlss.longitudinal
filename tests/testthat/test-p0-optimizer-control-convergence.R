@@ -129,6 +129,8 @@ test_that("joint zero-inflated routes receive validated refinement defaults", {
   )
   expect_identical(zis_g_screen$rs$bfgs_refine_after, 2L)
   expect_identical(zis_g_fit$rs$bfgs_refine_after, 10L)
+  expect_identical(zis_g_screen$rs$bfgs_max_iter, 100L)
+  expect_identical(zis_g_fit$rs$bfgs_max_iter, 100L)
   expect_identical(zis_g_screen$rs$initial_inner_iter, 5L)
   expect_identical(zis_g_fit$rs$initial_inner_iter, 5L)
 
