@@ -77,13 +77,14 @@ workers <- positive_integer(
 )
 max_steps <- positive_integer(argument_value("max-steps", "Inf"), "max-steps", TRUE)
 initial_inner_iter <- positive_integer(
-  argument_value("initial-inner-iter", "2"), "initial-inner-iter"
+  argument_value("initial-inner-iter", "5"), "initial-inner-iter"
 )
 max_elapsed_sec <- suppressWarnings(as.numeric(argument_value("max-elapsed-sec", "1190")))
 if (length(max_elapsed_sec) != 1L || is.na(max_elapsed_sec) || max_elapsed_sec <= 0) {
   stop("--max-elapsed-sec must be a positive number.")
 }
 dominance_pilot_enabled <- argument_flag("dominance-pilot", FALSE)
+continuation_enabled <- argument_flag("continuation", FALSE)
 pilot_low_lambda_max <- suppressWarnings(as.numeric(
   argument_value("pilot-low-lambda-max", "1")
 ))
@@ -679,7 +680,8 @@ fit_screening_candidate <- function(task) {
       cached_has_metrics &&
       (isTRUE(cached$converged) || identical(cached$converged, FALSE)) &&
       !(looser_elapsed_cap && elapsed_timeout)
-    resumable_outer_limit <- cache_is_reusable &&
+    resumable_outer_limit <- isTRUE(continuation_enabled) &&
+      cache_is_reusable &&
       identical(cached$converged, FALSE) &&
       identical(cached$stop_reason, "max_iterations") &&
       inherits(cached$fit, "gamlss.longitudinal") &&
@@ -848,7 +850,8 @@ fit_screening_candidate <- function(task) {
   result$continuation_source_checkpoint <- continuation_checkpoint
   repeat {
     cumulative_outer <- result$outer_iterations
-    can_continue <- !isTRUE(result$dominance_pilot_rejected) &&
+    can_continue <- isTRUE(continuation_enabled) &&
+      !isTRUE(result$dominance_pilot_rejected) &&
       !isTRUE(result$converged) &&
       identical(result$stop_reason, "max_iterations") &&
       inherits(result$fit, "gamlss.longitudinal") &&
@@ -1114,8 +1117,17 @@ low_lambda_inner_override_for_task <- function(
     dropped_term,
     change_type,
     start) {
-  if (!identical(stage, "refine") || as.integer(step) <= 1L) return(NULL)
-  if (!identical(change_type, "drop")) return(NULL)
+  if (!identical(stage, "refine")) return(NULL)
+  disruptive_move <- identical(change_type, "simplify") ||
+    (identical(change_type, "drop") && length(dropped_term) == 1L &&
+      !is.na(dropped_term) && grepl(":", dropped_term, fixed = TRUE))
+  if (isTRUE(disruptive_move)) {
+    return(max(
+      as.integer(initial_inner_iter),
+      as.integer(low_lambda_initial_inner_iter)
+    ))
+  }
+  if (as.integer(step) <= 1L || !identical(change_type, "drop")) return(NULL)
   lambda <- smooth_penalty_for_term(start, parameter, dropped_term)
   if (!is.finite(lambda) || lambda > pilot_low_lambda_max) return(NULL)
   max(as.integer(initial_inner_iter), as.integer(low_lambda_initial_inner_iter))
@@ -1155,8 +1167,7 @@ make_task <- function(
   project_piloted_smooth_drop <- identical(stage, "refine") &&
     identical(change_type, "drop") && length(dropped_term) == 1L &&
     !is.na(dropped_term) && grepl("^\\s*s\\(", dropped_term) &&
-    (is.list(dominance_pilot) ||
-      length(rs_initial_inner_iter_override) == 1L)
+    is.list(dominance_pilot)
   start_strategy <- screening_start_strategy(
     copula_code, step, stage, parameter, dropped_term, change_type,
     project_smooth_drop = project_piloted_smooth_drop
@@ -1316,7 +1327,11 @@ cat(
   "  low-lambda initial outer iterations: ",
   low_lambda_initial_outer_iter, "\n",
   "  continuation outer/total iterations: ",
-  continuation_outer_iter, "/", continuation_max_total_outer_iter, "\n",
+  if (continuation_enabled) {
+    paste0(continuation_outer_iter, "/", continuation_max_total_outer_iter)
+  } else {
+    "disabled"
+  }, "\n",
   "  continuation maximum inner iterations: ",
   continuation_max_inner_iter, "\n",
   "  checkpoints: ", checkpoint_dir, "\n",
@@ -1354,7 +1369,7 @@ if (workers > 1L) {
       "strip_internal_continuation_warnings", "fit_screening_candidate",
       "margin_family", "copula_code", "has_tau", "has_zeta",
       "continuation_outer_iter", "continuation_max_total_outer_iter",
-      "continuation_max_inner_iter"
+      "continuation_max_inner_iter", "continuation_enabled"
     ),
     envir = environment()
   )
@@ -1524,6 +1539,7 @@ saveRDS(list(
     bfgs_max_iter = pilot_bfgs_max_iter
   ),
   continuation = list(
+    enabled = continuation_enabled,
     low_lambda_initial_outer_iter = low_lambda_initial_outer_iter,
     outer_iter = continuation_outer_iter,
     max_total_outer_iter = continuation_max_total_outer_iter,

@@ -325,7 +325,7 @@ test_that("a fitted model start carries fixed smooth and smoothing-penalty state
   expect_equal(unname(initial$lambda_s$mu$`s(z)`), 7)
 })
 
-test_that("reduced-formula warm starts project the fitted predictor", {
+test_that("reduced-formula warm starts keep mapped coefficients with projection fallback", {
   prior <- structure(list(
     par = c(`sigma.intercept` = 10, `sigma.week2` = -10),
     par_s = list(sigma = list()),
@@ -360,12 +360,12 @@ test_that("reduced-formula warm starts project the fitted predictor", {
     target_mm = target_mm,
     fit_fn = function(...) stop("a supplied fitted state must skip generic warm start")
   )
-  expect_equal(unname(warm$start_from[["sigma.intercept"]]), 5)
+  expect_equal(unname(warm$start_from[["sigma.intercept"]]), 10)
+  expect_null(warm$mapped_start_fallback)
   expect_equal(
-    unname(warm$mapped_start_fallback$par[["sigma.intercept"]]),
-    10
+    unname(warm$projected_start_fallback$par[["sigma.intercept"]]),
+    5
   )
-  expect_null(warm$projected_start_fallback)
   expect_identical(warm$warm_start_info$projected_parameters, "sigma")
-  expect_true(warm$warm_start_info$projection_used)
+  expect_false(warm$warm_start_info$projection_used)
 })
