@@ -344,6 +344,33 @@ test_that("fast ZIBNB family evaluations and bound scores preserve semantics", {
   }
 })
 
+test_that("margin-bound scores use a one-sided derivative at a CDF boundary", {
+  eta_inv <- list(
+    mu = c(4, 5),
+    sigma = c(2, 3)
+  )
+  response <- c(5, 6)
+  cdf_fn <- function(eta_inv, mm, margin_dist, response, strict = TRUE) {
+    value <- 0.1 * response + 0.01 * eta_inv$sigma
+    if (!strict && eta_inv$sigma[[1L]] > 2) value[[1L]] <- NA_real_
+    value
+  }
+
+  derivative <- gamlss.longitudinal:::.calc_F_bounds_derivatives(
+    eta_inv = eta_inv,
+    mm = list(sigma = matrix(1, 2L, 1L)),
+    margin_dist = list(family = "TEST"),
+    response = response,
+    par_names = "sigma",
+    h = 1e-4,
+    cdf_fn = cdf_fn
+  )$sigma
+
+  expect_true(all(is.finite(unlist(derivative))))
+  expect_equal(derivative$upper, rep(0.01, 2), tolerance = 1e-10)
+  expect_equal(derivative$lower, rep(0.01, 2), tolerance = 1e-10)
+})
+
 test_that("fused Student-t rectangle scores match the former finite-difference route", {
   skip_if_not_installed("gamlss.dist")
   response <- c(0, 2, 5, 1, 3, 7, 0, 4, 8, 2, 6, 9)

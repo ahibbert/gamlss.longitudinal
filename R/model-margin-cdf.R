@@ -200,13 +200,14 @@
 #'
 #' @keywords internal
 #' @noRd
-calc_F_x <- function(eta_inv, mm, margin_dist, response) {
+calc_F_x <- function(eta_inv, mm, margin_dist, response, strict = TRUE) {
   input <- .gl_margin_cdf_input(eta_inv, margin_dist, response)
   .gl_evaluate_margin_cdf(
     input = input,
     margin_dist = margin_dist,
     response = response,
     cacheable = .is_discrete_margin(margin_dist),
-    cache_prefix = paste0(margin_dist$family[1L], ":cdf")
+    cache_prefix = paste0(margin_dist$family[1L], ":cdf"),
+    strict = strict
   )
 }

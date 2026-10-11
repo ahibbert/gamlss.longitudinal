@@ -139,7 +139,14 @@
 }
 
 #' @noRd
-.calc_F_bounds_derivatives <- function(eta_inv, mm, margin_dist, response, par_names = NULL, h = 1e-4) {
+.calc_F_bounds_derivatives <- function(
+    eta_inv,
+    mm,
+    margin_dist,
+    response,
+    par_names = NULL,
+    h = 1e-4,
+    cdf_fn = calc_F_x) {
   if (is.list(mm) && all(c("x", "s") %in% names(mm))) {
     mm <- mm$x
   }
@@ -176,21 +183,55 @@
     denom <- eta_plus[[pn]] - eta_minus[[pn]]
     denom[!is.finite(denom) | abs(denom) < .Machine$double.eps] <- NA_real_
 
-    Fu_plus <- calc_F_x(eta_plus, mm, margin_dist, response)
-    Fu_minus <- calc_F_x(eta_minus, mm, margin_dist, response)
-    Fl_plus <- calc_F_x(eta_plus, mm, margin_dist, response - 1)
-    Fl_minus <- calc_F_x(eta_minus, mm, margin_dist, response - 1)
+    # A family CDF can fail on only one side of an otherwise valid numerical
+    # perturbation (for example, pZISICHEL at an extreme but finite sigma).
+    # Preserve the central difference wherever both sides are evaluable and
+    # use the valid base likelihood state for a one-sided derivative otherwise.
+    # Both invalid sides remain NA and are rejected by the validator below.
+    Fu_plus <- cdf_fn(eta_plus, mm, margin_dist, response, strict = FALSE)
+    Fu_minus <- cdf_fn(eta_minus, mm, margin_dist, response, strict = FALSE)
+    Fl_plus <- cdf_fn(eta_plus, mm, margin_dist, response - 1, strict = FALSE)
+    Fl_minus <- cdf_fn(eta_minus, mm, margin_dist, response - 1, strict = FALSE)
+
+    upper <- (Fu_plus - Fu_minus) / denom
+    lower <- (Fl_plus - Fl_minus) / denom
+    needs_base <-
+      xor(is.finite(Fu_plus), is.finite(Fu_minus)) |
+      xor(is.finite(Fl_plus), is.finite(Fl_minus))
+    if (any(needs_base)) {
+      Fu_base <- cdf_fn(eta_inv, mm, margin_dist, response)
+      Fl_base <- cdf_fn(eta_inv, mm, margin_dist, response - 1)
+      plus_denom <- eta_plus[[pn]] - eta_inv[[pn]]
+      minus_denom <- eta_inv[[pn]] - eta_minus[[pn]]
+
+      upper_plus_only <- is.finite(Fu_plus) & !is.finite(Fu_minus)
+      upper_minus_only <- !is.finite(Fu_plus) & is.finite(Fu_minus)
+      lower_plus_only <- is.finite(Fl_plus) & !is.finite(Fl_minus)
+      lower_minus_only <- !is.finite(Fl_plus) & is.finite(Fl_minus)
+      upper[upper_plus_only] <-
+        (Fu_plus[upper_plus_only] - Fu_base[upper_plus_only]) /
+        plus_denom[upper_plus_only]
+      upper[upper_minus_only] <-
+        (Fu_base[upper_minus_only] - Fu_minus[upper_minus_only]) /
+        minus_denom[upper_minus_only]
+      lower[lower_plus_only] <-
+        (Fl_plus[lower_plus_only] - Fl_base[lower_plus_only]) /
+        plus_denom[lower_plus_only]
+      lower[lower_minus_only] <-
+        (Fl_base[lower_minus_only] - Fl_minus[lower_minus_only]) /
+        minus_denom[lower_minus_only]
+    }
 
     out[[pn]] <- list(
       upper = .gl_validate_margin_cdf_derivative(
-        (Fu_plus - Fu_minus) / denom,
+        upper,
         response = response,
         margin_dist = margin_dist,
         context = "Upper discrete rectangle-bound derivative",
         parameter = pn
       ),
       lower = .gl_validate_margin_cdf_derivative(
-        (Fl_plus - Fl_minus) / denom,
+        lower,
         response = response,
         margin_dist = margin_dist,
         context = "Lower discrete rectangle-bound derivative",

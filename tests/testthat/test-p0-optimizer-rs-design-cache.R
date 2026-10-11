@@ -1537,6 +1537,84 @@ test_that("RS backfitting proposal updates fixed effects and evaluates likelihoo
   expect_equal(likelihood_calls, 1L)
 })
 
+test_that("RS backfitting proposal marks classed CDF boundary trials invalid", {
+  X <- matrix(1, nrow = 2, ncol = 1, dimnames = list(NULL, "mu.(Intercept)"))
+  current <- list(
+    valid = TRUE,
+    log_lik = c(marginal = -1, copula = -1, joint = -2)
+  )
+  boundary_error <- structure(
+    list(message = "CDF boundary", call = NULL),
+    class = c("gamlss_longitudinal_margin_cdf_error", "error", "condition")
+  )
+
+  out <- gamlss.longitudinal:::.gl_rs_backfitting_iteration(
+    par_s = list(mu = list()),
+    par_cov = c(`mu.(Intercept)` = 0),
+    beta_start = c(`mu.(Intercept)` = 0),
+    lambda_s = list(mu = list()),
+    K = 2,
+    margin_dist = NULL,
+    copula_dist = "N",
+    dataset = data.frame(response = 1:2, time = 1:2, subject = 1L),
+    mm = list(x = list(mu = X)),
+    df_s = list(mu = list()),
+    step_size = 1,
+    par_name = "mu",
+    design_info = list(
+      X = X,
+      fixed_names = colnames(X),
+      smooth_penalty_meta = list()
+    ),
+    w_k_vec = c(1, 1),
+    z_k = c(1, 1),
+    rs_smooth_trust_radius = Inf,
+    rs_calc_eta = function(...) list(eta_inv = list(mu = c(1, 1))),
+    calc_lik_out = current,
+    likelihood_fn = function(...) stop(boundary_error)
+  )
+
+  expect_false(out$calc_lik_out_end$valid)
+  expect_true(all(is.infinite(out$calc_lik_out_end$log_lik)))
+  expect_true(is.infinite(out$GAIC_lambda_k))
+  expect_match(out$calc_lik_out_end$invalid_reason, "CDF boundary", fixed = TRUE)
+})
+
+test_that("RS backfitting proposal propagates unrelated likelihood errors", {
+  X <- matrix(1, nrow = 2, ncol = 1, dimnames = list(NULL, "mu.(Intercept)"))
+  expect_error(
+    gamlss.longitudinal:::.gl_rs_backfitting_iteration(
+      par_s = list(mu = list()),
+      par_cov = c(`mu.(Intercept)` = 0),
+      beta_start = c(`mu.(Intercept)` = 0),
+      lambda_s = list(mu = list()),
+      K = 2,
+      margin_dist = NULL,
+      copula_dist = "N",
+      dataset = data.frame(response = 1:2, time = 1:2, subject = 1L),
+      mm = list(x = list(mu = X)),
+      df_s = list(mu = list()),
+      step_size = 1,
+      par_name = "mu",
+      design_info = list(
+        X = X,
+        fixed_names = colnames(X),
+        smooth_penalty_meta = list()
+      ),
+      w_k_vec = c(1, 1),
+      z_k = c(1, 1),
+      rs_smooth_trust_radius = Inf,
+      rs_calc_eta = function(...) list(eta_inv = list(mu = c(1, 1))),
+      calc_lik_out = list(
+        valid = TRUE,
+        log_lik = c(marginal = -1, copula = -1, joint = -2)
+      ),
+      likelihood_fn = function(...) stop("unrelated failure")
+    ),
+    "unrelated failure"
+  )
+})
+
 test_that("RS backfitting proposal applies smooth trust radius and records EDF", {
   X <- cbind(`mu.(Intercept)` = 1, `mu.s(x).1` = c(-1, 0, 1))
   B <- matrix(X[, "mu.s(x).1"], ncol = 1)
