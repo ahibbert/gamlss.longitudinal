@@ -181,6 +181,7 @@ compare_reference <- function(current, reference) {
   if (!nrow(current) || !nrow(reference)) {
     return(list(
       overlap = 0L, missing_reference = nrow(current), decision_mismatches = NA_integer_,
+      eligibility_regressions = NA_integer_, convergence_upgrades = NA_integer_,
       max_abs_logLik = NA_real_, max_abs_AIC = NA_real_,
       max_abs_logLik_all_converged = NA_real_,
       max_abs_AIC_all_converged = NA_real_,
@@ -194,6 +195,7 @@ compare_reference <- function(current, reference) {
   if (!any(overlap)) {
     return(list(
       overlap = 0L, missing_reference = nrow(current), decision_mismatches = NA_integer_,
+      eligibility_regressions = NA_integer_, convergence_upgrades = NA_integer_,
       max_abs_logLik = NA_real_, max_abs_AIC = NA_real_,
       max_abs_logLik_all_converged = NA_real_,
       max_abs_AIC_all_converged = NA_real_,
@@ -214,14 +216,22 @@ compare_reference <- function(current, reference) {
     difference <- difference[is.finite(difference)]
     if (length(difference)) max(difference) else NA_real_
   }
+  # A newly converged rejected candidate is an optimizer improvement, not a
+  # backward-selection decision change.  It remains visible as a convergence
+  # upgrade below.  In contrast, losing convergence for any formerly eligible
+  # candidate is an eligibility regression and remains a hard decision gate.
+  eligibility_regression <- old$converged %in% TRUE & !(new$converged %in% TRUE)
+  convergence_upgrade <- !(old$converged %in% TRUE) & new$converged %in% TRUE
   decision_mismatches <- sum(
-    old$converged != new$converged | old$accepted != new$accepted,
+    old$accepted != new$accepted | eligibility_regression,
     na.rm = TRUE
   )
   list(
     overlap = sum(overlap),
     missing_reference = sum(!overlap),
     decision_mismatches = decision_mismatches,
+    eligibility_regressions = sum(eligibility_regression, na.rm = TRUE),
+    convergence_upgrades = sum(convergence_upgrade, na.rm = TRUE),
     max_abs_logLik = max_metric_difference("logLik", selected_comparable),
     max_abs_AIC = max_metric_difference("AIC", selected_comparable),
     max_abs_logLik_all_converged = max_metric_difference("logLik", all_converged),
@@ -341,6 +351,8 @@ summary_rows <- lapply(routes, function(route) {
     reference_overlap = comparison$overlap,
     reference_missing = comparison$missing_reference,
     decision_mismatches = comparison$decision_mismatches,
+    eligibility_regressions = comparison$eligibility_regressions,
+    convergence_upgrades = comparison$convergence_upgrades,
     max_abs_logLik = comparison$max_abs_logLik,
     max_abs_AIC = comparison$max_abs_AIC,
     max_abs_logLik_all_converged = comparison$max_abs_logLik_all_converged,
