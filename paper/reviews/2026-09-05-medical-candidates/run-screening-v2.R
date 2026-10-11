@@ -75,6 +75,10 @@ workers <- positive_integer(
   argument_value("workers", Sys.getenv("N_CORES", unset = as.character(default_workers))),
   "workers"
 )
+override_workers <- positive_integer(
+  argument_value("override-workers", as.character(workers)), "override-workers"
+)
+override_workers <- min(override_workers, workers)
 max_steps <- positive_integer(argument_value("max-steps", "Inf"), "max-steps", TRUE)
 initial_inner_iter <- positive_integer(
   argument_value("initial-inner-iter", "5"), "initial-inner-iter"
@@ -1345,6 +1349,7 @@ cat(
   "  stage/smooth k: ", stage, "/", smooth_k, "\n",
   "  parameters: ", paste(parameters, collapse = ", "), "\n",
   "  workers: ", workers, "\n",
+  "  override-task workers: ", override_workers, "\n",
   "  dominance pilot: ", if (dominance_pilot_enabled) "enabled" else "disabled",
   if (dominance_pilot_enabled) paste0(
     "; refinement smooth lambda <= ", pilot_low_lambda_max,
@@ -1432,8 +1437,12 @@ run_tasks <- function(tasks) {
   if (length(parallel_indices)) {
     results[parallel_indices] <- dispatch_tasks(tasks[parallel_indices])
   }
-  for (index in isolated) {
-    results[[index]] <- dispatch_tasks(tasks[index])[[1L]]
+  isolated_batches <- split(
+    isolated,
+    ceiling(seq_along(isolated) / override_workers)
+  )
+  for (indices in isolated_batches) {
+    results[indices] <- dispatch_tasks(tasks[indices])
   }
   results
 }
@@ -1559,6 +1568,7 @@ saveRDS(list(
   stage = stage,
   smooth_k = smooth_k,
   hierarchy = hierarchy,
+  override_workers = override_workers,
   parameters = parameters,
   margin_family = margin_family,
   copula_family = copula_label,

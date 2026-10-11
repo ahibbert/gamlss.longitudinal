@@ -91,18 +91,28 @@
       pair_cache = pair_cache
     )
   } else {
-    calc_lik_out_end <- likelihood_fn(
-      eta_inv,
-      mm = mm$x,
-      margin_dist,
-      copula_dist,
-      calc_d2 = FALSE,
-      response = dataset$response,
-      response_margin = dataset$time,
-      response_subject = dataset$subject,
-      pair_cache = pair_cache,
-      margin_eval_cache = margin_eval_cache,
-      calc_margin_deriv = FALSE
+    calc_lik_out_end <- tryCatch(
+      likelihood_fn(
+        eta_inv,
+        mm = mm$x,
+        margin_dist,
+        copula_dist,
+        calc_d2 = FALSE,
+        response = dataset$response,
+        response_margin = dataset$time,
+        response_subject = dataset$subject,
+        pair_cache = pair_cache,
+        margin_eval_cache = margin_eval_cache,
+        calc_margin_deriv = FALSE
+      ),
+      error = function(error) {
+        if (!inherits(error, "gamlss_longitudinal_margin_cdf_error")) stop(error)
+        invalid <- calc_lik_out
+        invalid$valid <- FALSE
+        invalid$log_lik[] <- -Inf
+        invalid$invalid_reason <- conditionMessage(error)
+        invalid
+      }
     )
   }
 
