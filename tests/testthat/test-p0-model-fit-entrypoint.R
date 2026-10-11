@@ -17,6 +17,45 @@ test_that("original formula bundle preserves names and formula objects", {
   expect_equal(out$zeta, ~ b)
 })
 
+test_that("omitted fit formulas do not retain the fit call frame", {
+  captured <- NULL
+  explicit_environment <- new.env(parent = baseenv())
+  explicit_sigma <- ~ explicit_covariate
+  environment(explicit_sigma) <- explicit_environment
+
+  testthat::local_mocked_bindings(
+    .gl_run_gamlss_longitudinal_entrypoint = function(...) {
+      captured <<- list(...)
+      structure(
+        list(convergence = list()),
+        class = "gamlss.longitudinal"
+      )
+    },
+    .package = "gamlss.longitudinal"
+  )
+
+  gamlss_longitudinal(
+    data = data.frame(y = 1, id = 1, visit = 1),
+    margin_dist = gamlss.dist::NO(),
+    copula_dist = "G",
+    time_var = "visit",
+    subject_var = "id",
+    mu.formula = y ~ 1,
+    sigma.formula = explicit_sigma,
+    compute_vcov = FALSE,
+    verbose = 0
+  )
+
+  expect_identical(environment(captured$sigma.formula), explicit_environment)
+  for (parameter in c("nu", "tau", "theta", "zeta")) {
+    expect_identical(
+      environment(captured[[paste0(parameter, ".formula")]]),
+      baseenv(),
+      info = parameter
+    )
+  }
+})
+
 test_that("fit entrypoint sequences public fit phases and preserves original fit arguments", {
   calls <- character()
   captured <- list()

@@ -130,6 +130,30 @@ gamlss_longitudinal <- function(data = NULL,
                                 margin_args = list(),
                                 verbose = 1,
                                 ...) {
+  # Formula defaults are promises evaluated in this call frame.  Retaining
+  # that environment in a fitted object also retains the data, starts, and
+  # controls reachable from the frame, making otherwise small checkpoints
+  # hundreds of megabytes larger.  The defaults contain no user symbols, so
+  # give only omitted formulas a stable, empty parent environment.  Explicit
+  # formulas keep their original environments unchanged.
+  if (missing(mu.formula)) {
+    mu.formula <- stats::as.formula("response ~ 1", env = baseenv())
+  }
+  if (missing(sigma.formula)) {
+    sigma.formula <- stats::as.formula("~ 1", env = baseenv())
+  }
+  if (missing(nu.formula)) {
+    nu.formula <- stats::as.formula("~ 1", env = baseenv())
+  }
+  if (missing(tau.formula)) {
+    tau.formula <- stats::as.formula("~ 1", env = baseenv())
+  }
+  if (missing(theta.formula)) {
+    theta.formula <- stats::as.formula("~ 1", env = baseenv())
+  }
+  if (missing(zeta.formula)) {
+    zeta.formula <- stats::as.formula("~ 1", env = baseenv())
+  }
   data_supplied <- !missing(data)
   optimization_supplied <- !missing(optimization)
   start_supplied <- !missing(start)
