@@ -322,6 +322,11 @@
       }
     }
   }
+  tolerance <- 100 * .Machine$double.eps
+  invalid_probability <- !is.finite(probability) |
+    probability < -tolerance |
+    probability > 1 + tolerance
+  if (any(invalid_probability)) return(NULL)
   probability <- pmin(pmax(probability, 0), 1)
   result <- if (isTRUE(lower.tail)) probability else 1 - probability
   if (isTRUE(log.p)) result <- log(result)
