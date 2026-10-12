@@ -344,6 +344,21 @@ test_that("fast ZIBNB family evaluations and bound scores preserve semantics", {
   }
 })
 
+test_that("fast ZIBNB CDF rejects material boundary overflow before clipping", {
+  q <- 20
+  mu <- exp(64.98511)
+  sigma <- exp(-327.1471)
+  nu <- exp(3.67348)
+  tau <- stats::plogis(-15.06491)
+
+  expect_null(
+    gamlss.longitudinal:::.fast_bnb_probability(q, mu, sigma, nu)
+  )
+  expect_null(
+    gamlss.longitudinal:::.fast_zibnb_probability(q, mu, sigma, nu, tau)
+  )
+})
+
 test_that("margin-bound scores use a one-sided derivative at a CDF boundary", {
   eta_inv <- list(
     mu = c(4, 5),
