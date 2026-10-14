@@ -1221,6 +1221,11 @@ test_that("missingness fit warnings are classified, captured, and fail closed", 
       "Hessian-based inference is unavailable (fitted_gradient_too_large).",
       "The fitted model is unchanged."
     ))
+    warning(paste0(
+      "Hessian-based inference diagnostics raised a warning ",
+      "(fitted_gradient_too_large). Calculated covariance, standard errors, ",
+      "and downstream inference are being returned; interpret them with caution."
+    ))
     warning(paste(
       "Analytical Hessian vcov failed; falling back to numerical Hessian. Reason:",
       "Hessian-based inference is unavailable (fitted_gradient_too_large).",
@@ -1234,7 +1239,8 @@ test_that("missingness fit warnings are classified, captured, and fail closed", 
     "monotone_dropout", 0.3, "gamlss.longitudinal")
   expect_identical(events$classification,
     c("segmented_likelihood_assumption", "optimizer_nonconvergence",
-      "hessian_inference_unavailable", "numerical_hessian_fallback", "numerical_domain"))
+      "hessian_inference_unavailable", "stationarity_inference_warning",
+      "numerical_hessian_fallback", "numerical_domain"))
   expect_true(all(events$expected))
   expect_silent(env$jss_missing_assert_warning_policy(events))
 

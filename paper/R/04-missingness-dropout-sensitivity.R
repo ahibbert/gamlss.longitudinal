@@ -12,7 +12,7 @@ jss_run_04_missingness_dropout <- function(settings) {
       MISSING_LEVELS = levels, COMPUTE_SE = if (identical(settings$profile, "smoke")) "0" else "1",
       COMPUTE_PREDICTIVE_SCORES = "0", MAX_OUTER_ITER = if (identical(settings$profile, "smoke")) "3" else "1000",
       MAX_INNER_ITER = if (identical(settings$profile, "smoke")) "3" else "100",
-      MAX_ELAPSED_SEC = if (identical(settings$profile, "smoke")) "20" else "180"
+      MAX_ELAPSED_SEC = if (identical(settings$profile, "smoke")) "20" else "1190"
     ),
     settings$root
   )

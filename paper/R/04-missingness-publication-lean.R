@@ -69,12 +69,17 @@ jss_missingness_lean_wilson <- function(events, attempts) {
 
 jss_missingness_lean_warning_classify <- function(message) {
   normalized <- trimws(gsub("[[:space:]]+", " ", enc2utf8(as.character(message))))
+  stationarity_advisory <- paste0(
+    "Hessian-based inference diagnostics raised a warning ",
+    "(fitted_gradient_too_large). Calculated covariance, standard errors, ",
+    "and downstream inference are being returned; interpret them with caution."
+  )
   inference <- c(
     "Analytical Hessian vcov failed; falling back to numerical Hessian. Reason: Hessian-based inference is unavailable (fitted_gradient_too_large). The fitted model is unchanged.",
     "Hessian-based inference is unavailable (fitted_gradient_too_large). The fitted model is unchanged.",
     "Hessian-based inference is unavailable (information_not_positive_definite, fitted_gradient_too_large). The fitted model is unchanged."
   )
-  segmented <- grepl(
+  segmented_legacy <- grepl(
     paste0(
       "^Intermittent observation gaps or leading unobserved scheduled visits were detected for [0-9]+ subject\\(s\\)\\. ",
       "Using the segmented likelihood requested by missingness = \\\"segment\\\": observations in different contiguous segments are treated as independent\\. ",
@@ -83,11 +88,25 @@ jss_missingness_lean_warning_classify <- function(message) {
       "are not implemented; a future integration engine may add this support\\.$"
     ), normalized, perl = TRUE
   )
+  segmented_current <- grepl(
+    paste0(
+      "^Intermittent observation gaps or leading unobserved scheduled visits were detected for [0-9]+ subject\\(s\\)\\. ",
+      "Using the segmented likelihood requested by missingness = \\\"segment\\\": observations in different contiguous segments are treated as independent\\. ",
+      "AIC and BIC remain available under this stated assumption\\. Subject-clustered sandwich covariance is used for primary inference; ",
+      "model-based standard errors are retained for comparison, and bootstrap sensitivity analyses remain advisable\\. ",
+      "Numerical integration of dependence across gaps and a distinct delayed-entry likelihood are not implemented; ",
+      "a future integration engine may add this support\\.$"
+    ), normalized, perl = TRUE
+  )
+  if (identical(normalized, stationarity_advisory)) {
+    return(c(classification = "stationarity_inference_warning", expected = "TRUE",
+      coverage_eligible = "FALSE"))
+  }
   if (normalized %in% inference) {
     return(c(classification = "inference_unavailable", expected = "TRUE",
       coverage_eligible = "FALSE"))
   }
-  if (segmented) {
+  if (segmented_legacy || segmented_current) {
     return(c(classification = "segmented_likelihood_assumption", expected = "TRUE",
       coverage_eligible = "TRUE"))
   }
@@ -800,7 +819,7 @@ jss_run_04_missingness_dropout <- function(settings) {
       COMPUTE_SE = if (smoke) "0" else "1", COMPUTE_PREDICTIVE_SCORES = "0",
       MAX_OUTER_ITER = if (smoke) "3" else "1000",
       MAX_INNER_ITER = if (smoke) "3" else "100",
-      MAX_ELAPSED_SEC = if (smoke) "20" else "180"
+      MAX_ELAPSED_SEC = if (smoke) "20" else "1190"
     ), settings$root)
   if (smoke) {
     figures <- file.path(out,

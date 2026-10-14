@@ -77,9 +77,59 @@ test_that("warning policy is narrow and unknown text is fatal", {
   classified <- env$jss_missingness_lean_warning_events(known)
   expect_identical(classified$classification, "inference_unavailable")
   expect_false(classified$coverage_eligible)
+
+  stationarity <- known
+  stationarity$normalized_message <- paste0(
+    "Hessian-based inference diagnostics raised a warning ",
+    "(fitted_gradient_too_large). Calculated covariance, standard errors, ",
+    "and downstream inference are being returned; interpret them with caution."
+  )
+  classified_stationarity <- env$jss_missingness_lean_warning_events(stationarity)
+  expect_identical(classified_stationarity$classification,
+    "stationarity_inference_warning")
+  expect_true(classified_stationarity$expected)
+  expect_false(classified_stationarity$coverage_eligible)
+
+  segmented <- known
+  segmented$normalized_message <- paste0(
+    "Intermittent observation gaps or leading unobserved scheduled visits were detected for 56 subject(s). ",
+    "Using the segmented likelihood requested by missingness = \"segment\": observations in different contiguous segments are treated as independent. ",
+    "AIC and BIC remain available under this stated assumption. Subject-clustered sandwich covariance is used for primary inference; ",
+    "model-based standard errors are retained for comparison, and bootstrap sensitivity analyses remain advisable. ",
+    "Numerical integration of dependence across gaps and a distinct delayed-entry likelihood are not implemented; ",
+    "a future integration engine may add this support."
+  )
+  classified_segmented <- env$jss_missingness_lean_warning_events(segmented)
+  expect_identical(classified_segmented$classification,
+    "segmented_likelihood_assumption")
+  expect_true(classified_segmented$expected)
+  expect_true(classified_segmented$coverage_eligible)
+
+  segmented_near_miss <- segmented
+  segmented_near_miss$normalized_message <- sub("stated assumption", "assumption",
+    segmented_near_miss$normalized_message, fixed = TRUE)
+  expect_error(env$jss_missingness_lean_warning_events(segmented_near_miss), "fatal")
+
+  near_miss <- stationarity
+  near_miss$normalized_message <- sub("with caution", "carefully",
+    near_miss$normalized_message, fixed = TRUE)
+  expect_error(env$jss_missingness_lean_warning_events(near_miss), "fatal")
   unknown <- known
   unknown$normalized_message <- "a new numerical warning"
   expect_error(env$jss_missingness_lean_warning_events(unknown), "fatal")
+})
+
+test_that("full missingness production uses the ordinary 1190-second fit cap", {
+  root <- normalizePath(file.path(testthat::test_path(), "..", ".."),
+    winslash = "/", mustWork = TRUE)
+  paths <- file.path(root, "paper", "R", c(
+    "04-missingness-dropout-sensitivity.R",
+    "04-missingness-publication-lean.R"
+  ))
+  code <- vapply(paths, function(path)
+    paste(readLines(path, warn = FALSE), collapse = "\n"), character(1))
+  expect_true(all(grepl('MAX_ELAPSED_SEC = .*else "1190"', code)))
+  expect_false(any(grepl('MAX_ELAPSED_SEC = .*else "180"', code)))
 })
 
 test_that("missingness presentation retains failure denominators", {
