@@ -160,6 +160,20 @@ test_that("full missingness production uses the ordinary 1190-second fit cap", {
   expect_false(any(grepl('MAX_ELAPSED_SEC = .*else "180"', code)))
 })
 
+test_that("full missingness production registers 100 replicates per scenario", {
+  env <- local_lean_missingness_env()
+  expect_identical(env$jss_missing_registered_replicates(), 100L)
+  grid <- env$jss_missing_registered_task_grid()
+  expect_equal(nrow(grid), 1200L)
+  expect_setequal(unique(grid$rep), seq_len(100L))
+  configuration <- env$jss_missingness_lean_configuration()
+  values <- stats::setNames(configuration$value, configuration$field)
+  expect_identical(unname(values[["replicates"]]), "100")
+  expect_identical(unname(values[["tasks"]]), "1200")
+  expect_identical(unname(values[["fits"]]), "2400")
+  expect_identical(unname(values[["max_elapsed_sec"]]), "1190")
+})
+
 test_that("missingness presentation retains failure denominators", {
   env <- local_lean_missingness_env()
   attempts <- data.frame(

@@ -202,23 +202,31 @@ jss_missingness_lean_subject_audit <- function(pattern) {
 }
 
 jss_missingness_lean_configuration <- function() {
+  replicates <- jss_missing_registered_replicates()
+  tasks <- 12L * replicates
+  fits <- 2L * tasks
   data.frame(
     field = c("design_version", "tasks", "fits", "subjects", "visits", "replicates",
       "missingness_rates", "missingness_mechanisms", "family", "copula", "compute_se",
       "max_outer_iter", "max_inner_iter", "max_elapsed_sec", "predictive_scores",
       "failure_penalty", "seed_rule"),
-    value = c("missingness-v5", "240", "480", "500", "4", "20",
+    value = c("missingness-v5", as.character(tasks), as.character(fits), "500", "4",
+      as.character(replicates),
       "0,0.1,0.2,0.3,0.4,0.5",
       "monotone_dropout,time_dependent_intermittent_mar", "BCPE_log_mu", "t", "TRUE",
-      "1000", "100", "180", "FALSE", "1",
+      "1000", "100", "1190", "FALSE", "1",
       "simulation=100000+rep; missingness=simulation+mechanism_offset+1000*rate"),
     stringsAsFactors = FALSE
   )
 }
 
 jss_missingness_lean_validate_raw <- function(results) {
-  if (!is.list(results) || length(results) != 240L) {
-    stop("Lean missingness rebuild requires exactly 240 raw task payloads.", call. = FALSE)
+  expected_tasks <- nrow(jss_missing_registered_task_grid())
+  if (!is.list(results) || length(results) != expected_tasks) {
+    stop(sprintf(
+      "Lean missingness rebuild requires exactly %d raw task payloads.",
+      expected_tasks
+    ), call. = FALSE)
   }
   if (any(!vapply(results, function(x) {
     is.list(x) && identical(x$checkpoint_schema_version, 5L) &&
@@ -235,7 +243,7 @@ jss_missingness_lean_validate_raw <- function(results) {
     optimizer = identical(config$optim_method, "RS"),
     max_outer = identical(config$max_outer_iter, 1000L),
     max_inner = identical(config$max_inner_iter, 100L),
-    max_elapsed = identical(config$max_elapsed_sec, 180),
+    max_elapsed = identical(config$max_elapsed_sec, 1190),
     predictive = identical(config$predictive$compute, FALSE),
     seed_rule = identical(config$seed_formula_version,
       "simulation=100000+rep; mechanism offset + rate offset")
@@ -430,13 +438,18 @@ jss_missingness_materialize_lean_bundle <- function(raw_archive, output_dir) {
     jss_missingness_lean_bind(lapply(results, `[[`, "warning_events")))
 
   expected <- jss_missing_registered_task_grid()
+  expected_tasks <- nrow(expected)
+  expected_runs <- 2L * expected_tasks
   actual <- unique(runs[names(expected)])
   jss_missing_compare_frame(actual, expected, c("scenario", "rep"),
     "Lean missingness registered design", tolerance = 1e-15)
-  if (nrow(runs) != 480L || anyDuplicated(paste(runs$scenario, runs$rep, runs$model)) ||
+  if (nrow(runs) != expected_runs || anyDuplicated(paste(runs$scenario, runs$rep, runs$model)) ||
       !all(vapply(split(runs$model, interaction(runs$scenario, runs$rep, drop = TRUE)),
         function(x) identical(sort(as.character(x)), c("gamlss.longitudinal", "gamlss2")), logical(1)))) {
-    stop("Lean missingness attempt rows do not form the exact 240-task/480-fit design.", call. = FALSE)
+    stop(sprintf(
+      "Lean missingness attempt rows do not form the exact %d-task/%d-fit design.",
+      expected_tasks, expected_runs
+    ), call. = FALSE)
   }
   audits <- lapply(split(pattern, interaction(pattern$scenario, pattern$rep, drop = TRUE)),
     jss_missingness_lean_subject_audit)
@@ -580,11 +593,17 @@ jss_missingness_validate_public_bundle <- function(input, root = getwd(), ...) {
   jss_missing_compare_frame(tables[["missingness_sensitivity_registry.csv"]],
     expected_sensitivity, "role", "Lean missingness sensitivity registry")
   expected <- jss_missing_registered_task_grid()
+  expected_tasks <- nrow(expected)
+  expected_runs <- 2L * expected_tasks
   jss_missing_compare_frame(unique(runs[names(expected)]), expected,
     c("scenario", "rep"), "Lean missingness registered design", tolerance = 1e-15)
-  if (nrow(runs) != 480L || nrow(attempts) != 24L ||
-      nrow(tables[["missingness_by_rep.csv"]]) != 240L) {
-    stop("Lean missingness public bundle does not contain 480 fits, 240 tasks, and 24 attempt cells.", call. = FALSE)
+  if (nrow(runs) != expected_runs || nrow(attempts) != 24L ||
+      nrow(tables[["missingness_by_rep.csv"]]) != expected_tasks) {
+    stop(sprintf(
+      paste0("Lean missingness public bundle does not contain %d fits, ",
+        "%d tasks, and 24 attempt cells."),
+      expected_runs, expected_tasks
+    ), call. = FALSE)
   }
   if (any(runs$retained %in% TRUE &
       (!(runs$success %in% TRUE) | !(runs$converged %in% TRUE))) ||
@@ -844,7 +863,8 @@ jss_run_04_missingness_dropout <- function(settings) {
     file.path(settings$root, "paper", "scripts", "final-simulations", "missingness",
       "run_missingness_study.R"),
     c(
-      OUT_DIR = out, N_FITS = if (smoke) "1" else "20",
+      OUT_DIR = out,
+      N_FITS = if (smoke) "1" else as.character(jss_missing_registered_replicates()),
       N_CORES = as.character(cores), RESUME_CHECKPOINTS = "1",
       MISSING_MECHANISMS = "monotone_dropout,time_dependent_intermittent_mar",
       MISSING_LEVELS = if (smoke) "0,0.2" else "0,0.1,0.2,0.3,0.4,0.5",

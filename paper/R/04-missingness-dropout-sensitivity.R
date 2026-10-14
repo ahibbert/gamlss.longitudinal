@@ -1,7 +1,13 @@
 jss_run_04_missingness_dropout <- function(settings) {
   if (identical(settings$profile, "paper")) return(jss_run_04_missingness_from_public_inputs(settings))
   out <- file.path(settings$out_dir, "missingness")
-  reps <- if (identical(settings$profile, "full")) "20" else if (identical(settings$profile, "paper")) "20" else "1"
+  reps <- if (identical(settings$profile, "full")) {
+    as.character(jss_missing_registered_replicates())
+  } else if (identical(settings$profile, "paper")) {
+    as.character(jss_missing_registered_replicates())
+  } else {
+    "1"
+  }
   levels <- if (identical(settings$profile, "smoke")) "0,0.2" else "0,0.1,0.2,0.3,0.4,0.5"
   cores <- if (settings$workers > 1L) settings$workers else max(1L, parallel::detectCores() - 2L)
   jss_run_script(
@@ -40,6 +46,8 @@ jss_run_04_missingness_dropout <- function(settings) {
   )
 }
 
+jss_missing_registered_replicates <- function() 100L
+
 jss_missingness_public_artifacts <- function() {
   c(
     "missingness_design_registry.csv", "missingness_estimand_registry.csv",
@@ -57,7 +65,8 @@ jss_missingness_public_artifacts <- function() {
 jss_missing_registered_task_grid <- function() {
   grid <- expand.grid(
     missing_mechanism = c("monotone_dropout", "time_dependent_intermittent_mar"),
-    target_missing_rate = seq(0, .5, by = .1), rep = seq_len(20L),
+    target_missing_rate = seq(0, .5, by = .1),
+    rep = seq_len(jss_missing_registered_replicates()),
     stringsAsFactors = FALSE)
   grid$n <- 500L; grid$d <- 4L
   grid$scenario <- sprintf("n500_d4_%s_miss%02d", grid$missing_mechanism,
@@ -72,18 +81,23 @@ jss_missing_registered_task_grid <- function() {
 
 jss_missing_validate_registered_design <- function(runs, checkpoints) {
   expected <- jss_missing_registered_task_grid()
+  expected_tasks <- nrow(expected)
+  expected_runs <- 2L * expected_tasks
   task_fields <- names(expected)
-  if (!is.data.frame(runs) || nrow(runs) != 480L ||
+  if (!is.data.frame(runs) || nrow(runs) != expected_runs ||
       !all(c(task_fields, "model") %in% names(runs)) ||
-      !is.data.frame(checkpoints) || nrow(checkpoints) != 240L ||
+      !is.data.frame(checkpoints) || nrow(checkpoints) != expected_tasks ||
       !all(c("scenario", "rep") %in% names(checkpoints))) {
-    stop("Missingness bundle is not the registered 240-task/480-model design.", call. = FALSE)
+    stop(sprintf(
+      "Missingness bundle is not the registered %d-task/%d-model design.",
+      expected_tasks, expected_runs
+    ), call. = FALSE)
   }
   actual_tasks <- unique(runs[task_fields])
   jss_missing_compare_frame(actual_tasks, expected, c("scenario", "rep"),
     "Missingness registered Cartesian task grid", tolerance = 1e-15)
   model_cells <- split(runs$model, interaction(runs$scenario, runs$rep, drop = TRUE))
-  if (length(model_cells) != 240L || !all(vapply(model_cells, function(x)
+  if (length(model_cells) != expected_tasks || !all(vapply(model_cells, function(x)
       identical(sort(as.character(x)), c("gamlss.longitudinal", "gamlss2")), logical(1)))) {
     stop("Missingness task grid lacks exactly both registered model rows.", call. = FALSE)
   }

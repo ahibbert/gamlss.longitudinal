@@ -9,10 +9,10 @@ copula,100 replicates per generating family,Registered copula replicate count.
 copula,100 datasets per generating copula,Registered figure-caption replicate count.
 copula,95\% confidence intervals,Registered uncertainty level.
 copula,50 percent range bands,Registered copula figure display interval.
-missingness,20 replicates,Registered missingness replicate count.
+missingness,100 replicates,Registered missingness replicate count.
 missingness,20\% target missingness,Registered threshold where fit retention begins to fall.
 missingness,30\%,Registered missingness level.
 missingness,40\%,Registered missingness level.
 missingness,50\%,Registered missingness level.
-missingness,20 fits,Registered attempted-fit denominator.
+missingness,100 fits,Registered attempted-fit denominator.
 missingness,95\% Wilson intervals,Registered uncertainty level for fit retention.
