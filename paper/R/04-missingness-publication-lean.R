@@ -74,11 +74,39 @@ jss_missingness_lean_warning_classify <- function(message) {
     "(fitted_gradient_too_large). Calculated covariance, standard errors, ",
     "and downstream inference are being returned; interpret them with caution."
   )
-  inference <- c(
-    "Analytical Hessian vcov failed; falling back to numerical Hessian. Reason: Hessian-based inference is unavailable (fitted_gradient_too_large). The fitted model is unchanged.",
-    "Hessian-based inference is unavailable (fitted_gradient_too_large). The fitted model is unchanged.",
-    "Hessian-based inference is unavailable (information_not_positive_definite, fitted_gradient_too_large). The fitted model is unchanged."
+  known_inference_codes <- c(
+    "hessian_not_square", "hessian_nonfinite", "hessian_not_conformable",
+    "hessian_names_invalid", "hessian_asymmetric",
+    "information_not_positive_definite", "information_eigen_failure",
+    "information_rank_deficient", "information_ill_conditioned",
+    "information_nonpositive_diagonal", "fitted_gradient_not_checked",
+    "fitted_gradient_too_large", "hessian_agreement_not_checked",
+    "hessian_method_disagreement", "covariance_nonfinite",
+    "covariance_diagonal_nonpositive"
   )
+  inference_prefix <- paste0(
+    "Analytical Hessian vcov failed; falling back to numerical Hessian. Reason: "
+  )
+  inference_body <- if (startsWith(normalized, inference_prefix)) {
+    substring(normalized, nchar(inference_prefix) + 1L)
+  } else {
+    normalized
+  }
+  inference_match <- regexec(
+    "^Hessian-based inference is unavailable \\(([^)]+)\\)\\. The fitted model is unchanged\\.$",
+    inference_body, perl = TRUE
+  )
+  inference_parts <- regmatches(inference_body, inference_match)[[1L]]
+  inference_codes <- if (length(inference_parts) == 2L) {
+    strsplit(inference_parts[[2L]], ", ", fixed = TRUE)[[1L]]
+  } else {
+    character()
+  }
+  inference_valid <- length(inference_codes) > 0L &&
+    all(nzchar(inference_codes)) &&
+    !anyDuplicated(inference_codes) &&
+    all(inference_codes %in% known_inference_codes)
+  numerical_fallback <- inference_valid && startsWith(normalized, inference_prefix)
   segmented_legacy <- grepl(
     paste0(
       "^Intermittent observation gaps or leading unobserved scheduled visits were detected for [0-9]+ subject\\(s\\)\\. ",
@@ -102,7 +130,11 @@ jss_missingness_lean_warning_classify <- function(message) {
     return(c(classification = "stationarity_inference_warning", expected = "TRUE",
       coverage_eligible = "FALSE"))
   }
-  if (normalized %in% inference) {
+  if (numerical_fallback) {
+    return(c(classification = "numerical_hessian_fallback", expected = "TRUE",
+      coverage_eligible = "FALSE"))
+  }
+  if (inference_valid) {
     return(c(classification = "inference_unavailable", expected = "TRUE",
       coverage_eligible = "FALSE"))
   }

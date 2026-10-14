@@ -78,6 +78,34 @@ test_that("warning policy is narrow and unknown text is fatal", {
   expect_identical(classified$classification, "inference_unavailable")
   expect_false(classified$coverage_eligible)
 
+  multi_code <- known
+  multi_code$normalized_message <- paste0(
+    "Hessian-based inference is unavailable ",
+    "(information_not_positive_definite, fitted_gradient_too_large, ",
+    "covariance_diagonal_nonpositive). The fitted model is unchanged."
+  )
+  classified_multi <- env$jss_missingness_lean_warning_events(multi_code)
+  expect_identical(classified_multi$classification, "inference_unavailable")
+  expect_true(classified_multi$expected)
+  expect_false(classified_multi$coverage_eligible)
+
+  fallback <- multi_code
+  fallback$normalized_message <- paste0(
+    "Analytical Hessian vcov failed; falling back to numerical Hessian. Reason: ",
+    multi_code$normalized_message
+  )
+  classified_fallback <- env$jss_missingness_lean_warning_events(fallback)
+  expect_identical(classified_fallback$classification, "numerical_hessian_fallback")
+  expect_true(classified_fallback$expected)
+  expect_false(classified_fallback$coverage_eligible)
+
+  unknown_code <- multi_code
+  unknown_code$normalized_message <- sub(
+    "covariance_diagonal_nonpositive", "unregistered_hessian_code",
+    unknown_code$normalized_message, fixed = TRUE
+  )
+  expect_error(env$jss_missingness_lean_warning_events(unknown_code), "fatal")
+
   stationarity <- known
   stationarity$normalized_message <- paste0(
     "Hessian-based inference diagnostics raised a warning ",
