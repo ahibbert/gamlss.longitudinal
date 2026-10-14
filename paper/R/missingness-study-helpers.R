@@ -256,7 +256,8 @@ jss_missing_warning_policy <- function() {
   data.frame(
     classification = c(
       "segmented_likelihood_assumption", "optimizer_nonconvergence",
-      "hessian_inference_unavailable", "numerical_hessian_fallback",
+      "hessian_inference_unavailable", "stationarity_inference_warning",
+      "numerical_hessian_fallback",
       "numerical_domain", "optimizer_step"
     ),
     pattern = c(
@@ -268,6 +269,11 @@ jss_missing_warning_policy <- function() {
       paste0(
         "^Hessian-based inference is unavailable \\([^)]*\\)\\. ",
         "The fitted model is unchanged\\.$"
+      ),
+      paste0(
+        "^Hessian-based inference diagnostics raised a warning ",
+        "\\(fitted_gradient_too_large\\)\\. Calculated covariance, standard errors, ",
+        "and downstream inference are being returned; interpret them with caution\\.$"
       ),
       paste0(
         "^Analytical Hessian vcov failed; falling back to numerical Hessian\\. Reason: ",
