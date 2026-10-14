@@ -991,7 +991,7 @@ test_that("missingness registered Cartesian grid rejects deletion substitution a
   ] <- as.numeric("0.3")
   expect_silent(env$jss_missing_validate_registered_design(csv_roundtrip, checkpoints))
   expect_error(env$jss_missing_validate_registered_design(runs[-1L, ], checkpoints),
-    "240-task/480-model")
+    "1200-task/2400-model")
   substituted <- runs
   substituted$target_missing_rate[1:2] <- .25
   expect_error(env$jss_missing_validate_registered_design(substituted, checkpoints),
