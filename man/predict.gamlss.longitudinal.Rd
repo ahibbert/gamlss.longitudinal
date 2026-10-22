@@ -17,6 +17,7 @@
   interval = c("none", "confidence"),
   level = 0.95,
   vcov_method = "analytical",
+  coefficients = c("fixed", "joint"),
   ...
 )
 }
@@ -56,6 +57,13 @@ limits when \code{type = "response"}, \code{"mu"}, or \code{"mean"}.}
 \item{level}{Confidence level for \code{interval = "confidence"}.}
 
 \item{vcov_method}{Variance-covariance method passed to \code{\link[=vcov.gamlss.longitudinal]{vcov.gamlss.longitudinal()}}.}
+
+\item{coefficients}{Covariance coefficient scope for prediction uncertainty.
+The default \code{"fixed"} preserves the fixed-mu approximation described above.
+\code{"joint"} is unavailable for prediction standard errors or intervals and
+raises an inference-unavailable error. This argument does not change point
+predictions. Joint covariance remains available through
+\code{\link[=vcov.gamlss.longitudinal]{vcov.gamlss.longitudinal()}}.}
 
 \item{...}{Additional arguments reserved for future methods.}
 }

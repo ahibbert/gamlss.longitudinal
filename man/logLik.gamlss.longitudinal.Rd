@@ -14,7 +14,9 @@
 \value{
 A scalar object of class \code{logLik} for the fitted joint likelihood.
 Its \code{df} attribute is the joint effective degrees of freedom and its
-\code{nobs} attribute is the total number of observed responses.
+\code{nobs} attribute is the number of observed subjects, the independent
+sampling units used by \code{\link[stats:AIC]{stats::BIC()}}. The total number of observed
+responses is retained in the \code{nresponses} attribute.
 }
 \description{
 Log-likelihood for a fitted longitudinal GAMLSS-copula model

@@ -12,9 +12,11 @@
   }
 
   if (nrow(pair_data) > max_pairs_overlay) {
-    set.seed(1)
-
-    pair_data <- pair_data[sample(seq_len(nrow(pair_data)), max_pairs_overlay), , drop = FALSE]
+    sampled <- .gl_with_preserved_rng(
+      1L,
+      sample(seq_len(nrow(pair_data)), max_pairs_overlay)
+    )
+    pair_data <- pair_data[sampled, , drop = FALSE]
   }
 
   density_sum <- rep(0, nrow(grid_df))

@@ -50,6 +50,17 @@
 
 #'   autocorrelation diagnostics.
 
+#' @param randomized_residuals Logical; for discrete margins, use seeded
+#'   copula-conditional latent completions and exact randomized conditional PIT
+#'   residuals. The default is `TRUE`; set to `FALSE` to withhold diagnostics
+#'   that require latent continuous values.
+#' @param randomized_seed Finite numeric seed used for the discrete
+#'   randomization. The caller's random-number state is preserved.
+#' @param randomized_draws Positive integer number of copula-conditional latent
+#'   completions per observed adjacent pair for discrete copula, Kendall, and
+#'   tail panels. Multiple completions reduce Monte Carlo sensitivity while
+#'   retaining the observed probability rectangles.
+
 #' @param plot Logical; if TRUE, print the dashboard.
 
 #' @param ... Deprecated aliases `plot1_style`, `plot2_cuts`, and
@@ -89,6 +100,9 @@ plot_copula_diagnostics <- function(
     empirical = c("bins", "points"),
     n_bins = 10,
     ncol = 2,
+    randomized_residuals = TRUE,
+    randomized_seed = 1L,
+    randomized_draws = 5L,
     ...) {
   dots <- list(...)
   if (length(dots) && (is.null(names(dots)) || anyNA(names(dots)) || any(!nzchar(names(dots))))) {
@@ -147,6 +161,9 @@ plot_copula_diagnostics <- function(
     tau_ylim = tau_ylim,
     tail_thresholds = tail_thresholds,
     residual_lags = residual_lags,
+    randomized_residuals = randomized_residuals,
+    randomized_seed = randomized_seed,
+    randomized_draws = randomized_draws,
     plot = plot
   )
 }

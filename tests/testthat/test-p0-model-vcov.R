@@ -263,3 +263,69 @@ test_that("current vcov solve methods require valid signed likelihood curvature"
   expect_equal(out$se_final, sqrt(diag(solve(-hessian))))
   expect_true(is.list(out$hessian_diagnostics))
 })
+
+test_that("analytical vcov fallback uses a guarded larger numerical Hessian step", {
+  parameter_names <- c("mu.(Intercept)", "sigma.(Intercept)")
+  calls <- numeric()
+  hessian <- -diag(c(2, 4))
+  dimnames(hessian) <- list(parameter_names, parameter_names)
+  object <- list(par = stats::setNames(c(0, 0), parameter_names))
+
+  testthat::local_mocked_bindings(
+    .gl_source_analytical_hessian_helpers = function() invisible(TRUE),
+    calc_analytical_hessian = function(...) stop("analytical path failed"),
+    calc_true_SE_numderiv_only_covariates = function(..., h = NULL, progress = NULL) {
+      calls <<- c(calls, h)
+      hessian
+    },
+    .gl_vcov_fitted_gradient = function(...) {
+      list(
+        gradient = stats::setNames(c(0, 0), parameter_names),
+        steps = c(1e-4, 1e-4), scaled_max = 0
+      )
+    },
+    .package = "gamlss.longitudinal"
+  )
+
+  expect_warning(
+    out <- gamlss.longitudinal:::.gl_vcov_compute_primary(
+      object = object,
+      par_cov = object$par,
+      mm = list(x = list()),
+      margin_dist = NULL,
+      response = numeric(),
+      response_margin = numeric(),
+      response_subject = numeric(),
+      method = "analytical",
+      progress = FALSE,
+      h = 1e-4,
+      inference = inference_control("standard")
+    ),
+    "Analytical Hessian vcov failed",
+    fixed = TRUE
+  )
+
+  expect_equal(calls, 1e-3)
+  expect_identical(out$method_used, "numderiv")
+  expect_equal(out$hessian_fallback$numerical_hessian_step, 1e-3)
+  expect_equal(out$vcov_final, solve(-hessian))
+  expect_identical(out$hessian_diagnostics$status, "available")
+})
+
+test_that("vcov details retain guarded numerical-Hessian fallback provenance", {
+  testthat::local_mocked_bindings(
+    .gl_compute_smooth_vcov = function(...) list(smooth_vcov = list(), smooth_se = list()),
+    .gl_enrich_vcov_contract = function(out, object) out,
+    .package = "gamlss.longitudinal"
+  )
+  fallback <- list(
+    from = "analytical", to = "numderiv", numerical_hessian_step = 1e-3
+  )
+  out <- gamlss.longitudinal:::.gl_vcov_build_result(
+    object = list(), eta_inv = list(), response = numeric(),
+    vcov_final = diag(2), se_final = c(1, 1), method_used = "numderiv",
+    method_requested = "analytical", hessian_diagnostics = list(status = "available"),
+    hessian_fallback = fallback
+  )
+  expect_identical(out$hessian_fallback, fallback)
+})

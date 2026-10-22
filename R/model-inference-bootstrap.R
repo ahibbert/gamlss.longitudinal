@@ -75,6 +75,39 @@
   do.call(gamlss_longitudinal, args)
 }
 
+.gl_bootstrap_capture_attempt <- function(expr) {
+  records <- list()
+  record <- function(condition, type) {
+    records[[length(records) + 1L]] <<- list(
+      sequence = length(records) + 1L, type = type,
+      condition = condition, classes = class(condition),
+      message = conditionMessage(condition), call = conditionCall(condition)
+    )
+  }
+  # Calling handlers observe conditions before the existing warning suppression.
+  # Messages still propagate; duplicate warnings remain distinct records.
+  value <- tryCatch(suppressWarnings(withCallingHandlers(force(expr),
+    warning = function(w) record(w, "warning"),
+    message = function(m) record(m, "message"),
+    error = function(e) record(e, "error"))), error = function(e) e)
+  list(value = value, conditions = records)
+}
+
+.gl_bootstrap_call_attempt_callback <- function(callback, record) {
+  # Storage callbacks must not perturb later cluster draws or randomized refits.
+  kind <- RNGkind()
+  present <- exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+  state <- if (present) get(".Random.seed", envir = .GlobalEnv, inherits = FALSE) else NULL
+  on.exit({
+    do.call(RNGkind, as.list(kind))
+    if (present) assign(".Random.seed", state, envir = .GlobalEnv)
+    else if (exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE))
+      rm(".Random.seed", envir = .GlobalEnv)
+  }, add = TRUE)
+  callback(record) # Deliberately outside refit error handling: storage errors abort.
+  invisible(NULL)
+}
+
 #' Bootstrap inference for fitted models
 
 #'
@@ -117,6 +150,19 @@
 #'   while `"cluster"` resamples subjects with replacement.
 
 #' @param ... Additional arguments passed to [simulate.gamlss.longitudinal()].
+#' @param attempt_callback Optional function of one record, called synchronously
+#'   after every native refit return or error, before convergence/coefficient
+#'   filtering. The record contains `attempt`, `R`, `type`, exact refit `data`,
+#'   `seed`, `rng_kind`, `rng_before_refit`, `rng_after_refit`, `fit_args`,
+#'   `coefficient_names`, complete `fit` (including failed eligibility), original
+#'   `error` or `NULL`, and ordered `conditions` (original condition objects,
+#'   types, classes, messages and calls). Conditions cover the refit only, not
+#'   initial simulation or subsequent filtering. Callback return values are
+#'   ignored; a callback error aborts before any later attempt. The default
+#'   `NULL` retains existing behavior. This does not change `keep_fits`, retry
+#'   failed fits, or certify inference. Callback RNG changes are restored; other
+#'   external side effects are the callback author's responsibility. Use a
+#'   callback that writes and verifies each record for durable attempt retention.
 
 #'
 
@@ -136,8 +182,10 @@ bootstrap_inference <- function(
     fit_args = list(),
     keep_fits = FALSE,
     type = c("parametric", "cluster"),
-    ...) {
+    ..., attempt_callback = NULL) {
   .gl_require_converged_fit(object, "bootstrap inference")
+  if (!is.null(attempt_callback) && !is.function(attempt_callback))
+    stop("'attempt_callback' must be NULL or a function.", call. = FALSE)
   validated <- .gl_validate_bootstrap_args(object, R, fit_args)
 
   R <- validated$R
@@ -188,6 +236,36 @@ bootstrap_inference <- function(
   missing_mask <- is.na(object$response)
 
   for (b in seq_len(R)) {
+    rng_before_refit <- NULL
+    if (!is.null(attempt_callback)) {
+      if (identical(type, "parametric")) {
+        response_b <- sim[[b]]
+        response_b[missing_mask] <- NA_real_
+        dat_b <- object$dataset
+        dat_b$response <- response_b
+      } else {
+        dat_b <- .gl_cluster_bootstrap_dataset(object)
+      }
+      rng_kind <- RNGkind()
+      rng_before_refit <- if (exists(".Random.seed", .GlobalEnv, inherits = FALSE))
+        get(".Random.seed", .GlobalEnv, inherits = FALSE) else NULL
+      captured <- if (identical(type, "parametric")) {
+        .gl_bootstrap_capture_attempt(.gl_bootstrap_refit(object, response_b, fit_args = fit_args))
+      } else {
+        .gl_bootstrap_capture_attempt(.gl_bootstrap_refit_dataset(object, dat_b, fit_args = fit_args))
+      }
+      fit_b <- captured$value
+      .gl_bootstrap_call_attempt_callback(attempt_callback, list(
+        attempt = b, R = R, type = type, data = dat_b, seed = seed,
+        rng_kind = rng_kind, rng_before_refit = rng_before_refit,
+        rng_after_refit = if (exists(".Random.seed", .GlobalEnv, inherits = FALSE))
+          get(".Random.seed", .GlobalEnv, inherits = FALSE) else NULL,
+        fit_args = fit_args, coefficient_names = terms_use,
+        fit = if (inherits(fit_b, "error")) NULL else fit_b,
+        error = if (inherits(fit_b, "error")) fit_b else NULL,
+        conditions = captured$conditions
+      ))
+    } else {
     fit_b <- if (identical(type, "parametric")) {
       response_b <- sim[[b]]
       response_b[missing_mask] <- NA_real_
@@ -203,6 +281,7 @@ bootstrap_inference <- function(
         suppressWarnings(.gl_bootstrap_refit_dataset(object, dat_b, fit_args = fit_args)),
         error = function(e) e
       )
+    }
     }
 
     if (inherits(fit_b, "error")) {

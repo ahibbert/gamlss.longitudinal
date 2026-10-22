@@ -37,7 +37,7 @@ make_jss001_likelihood_inputs <- function(response, discrete = FALSE) {
 }
 
 evaluate_jss001_inputs <- function(x, eta_inv = x$eta_inv, pair_cache = NULL,
-                                   copula_dist = "C") {
+                                   copula_dist = "C", calc_margin_deriv = TRUE) {
   gamlss.longitudinal:::calc_likelihood_minimal(
     eta_inv = eta_inv,
     mm = x$mm,
@@ -46,11 +46,12 @@ evaluate_jss001_inputs <- function(x, eta_inv = x$eta_inv, pair_cache = NULL,
     response = x$response,
     response_margin = x$time,
     response_subject = x$subject,
-    pair_cache = pair_cache
+    pair_cache = pair_cache,
+    calc_margin_deriv = calc_margin_deriv
   )
 }
 
-test_that("likelihood inclusion counts depend only on response missingness", {
+test_that("likelihood inclusion counts use response missingness and invalid observed CDFs fail", {
   skip_if_not_installed("gamlss.dist")
   x <- make_jss001_likelihood_inputs(c(0, 1, NA_real_, 2))
   pair_cache <- gamlss.longitudinal:::build_copula_pair_cache(
@@ -60,24 +61,17 @@ test_that("likelihood inclusion counts depend only on response missingness", {
   valid <- evaluate_jss001_inputs(x, pair_cache = pair_cache)
   invalid_eta <- x$eta_inv
   invalid_eta$sigma[2] <- 0
-  invalid <- suppressWarnings(evaluate_jss001_inputs(
-    x, eta_inv = invalid_eta, pair_cache = pair_cache
-  ))
-
+  expect_error(
+    evaluate_jss001_inputs(x, eta_inv = invalid_eta, pair_cache = pair_cache),
+    class = "gamlss_longitudinal_margin_cdf_error"
+  )
   expect_equal(
     unname(valid$contribution_counts[c("marginal_included", "pair_included")]),
     c(3, 1)
   )
-  expect_equal(
-    invalid$contribution_counts[c("marginal_included", "pair_included")],
-    valid$contribution_counts[c("marginal_included", "pair_included")]
-  )
   expect_identical(valid$margin_included, c(TRUE, TRUE, FALSE, TRUE))
   expect_identical(valid$pair_included, c(TRUE, FALSE))
   expect_true(valid$valid)
-  expect_false(invalid$valid)
-  expect_identical(unname(invalid$log_lik["joint"]), -Inf)
-  expect_true("invalid_margin_contribution" %in% invalid$failure$codes)
 })
 
 test_that("continuous marginal and copula terms use stable log evaluation", {
@@ -128,13 +122,16 @@ test_that("invalid included copula inputs fail instead of becoming independence"
   )
 })
 
-test_that("invalid discrete contributions fail with fixed inclusion counts", {
+test_that("invalid observed discrete CDFs are computational failures", {
   skip_if_not_installed("gamlss.dist")
   x <- make_jss001_likelihood_inputs(c(1, 2), discrete = TRUE)
   valid <- evaluate_jss001_inputs(x)
   invalid_eta <- x$eta_inv
   invalid_eta$mu[1] <- 0
-  invalid <- suppressWarnings(evaluate_jss001_inputs(x, eta_inv = invalid_eta))
+  expect_error(
+    evaluate_jss001_inputs(x, eta_inv = invalid_eta),
+    class = "gamlss_longitudinal_margin_cdf_error"
+  )
 
   expect_identical(valid$likelihood_type, "discrete_rectangle")
   expect_true(valid$valid)
@@ -142,13 +139,6 @@ test_that("invalid discrete contributions fail with fixed inclusion counts", {
     unname(valid$contribution_counts[c("marginal_included", "pair_included")]),
     c(2, 1)
   )
-  expect_equal(
-    invalid$contribution_counts[c("marginal_included", "pair_included")],
-    valid$contribution_counts[c("marginal_included", "pair_included")]
-  )
-  expect_false(invalid$valid)
-  expect_identical(unname(invalid$log_lik["joint"]), -Inf)
-  expect_true("invalid_margin_contribution" %in% invalid$failure$codes)
 })
 
 test_that("CG and RS reject likelihood-invalid proposals consistently", {

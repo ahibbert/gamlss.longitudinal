@@ -81,6 +81,7 @@ test_that("likelihood comparison preserves order and withholds reference for sam
 
   expect_equal(out$model, c("a", "b"))
   expect_equal(out$n_obs, c(4L, 5L))
+  expect_equal(out$n_subjects, c(2L, 3L))
   expect_identical(out$reference_status[[2L]], "unavailable")
   expect_match(out$reference_failure[[2L]], "observed_sample_mismatch")
   expect_true(is.na(out$p_value[[2L]]))
@@ -95,6 +96,7 @@ test_that("likelihood_compare delegates to helper output", {
   expect_s3_class(out, "gamlss_longitudinal_likelihood_compare")
   expect_equal(out$model, c("fit_reduced", "fit_full"))
   expect_equal(out$AIC, c(22, 16))
+  expect_equal(out$BIC, c(20 + log(2), 12 + 2 * log(2)))
   expect_identical(out$reference_status[[2L]], "reference_available")
   expect_true(is.finite(out$p_value[[2L]]))
 })

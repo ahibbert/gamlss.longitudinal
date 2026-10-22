@@ -18,6 +18,7 @@
   sandwich_bread_method = c("analytical", "numderiv", "analytical_only"),
   inference = inference_control("standard"),
   details = FALSE,
+  coefficients = c("fixed", "joint"),
   ...
 )
 }
@@ -65,6 +66,12 @@ bread.}
 instead of the standard coefficient covariance matrix. Intended for
 advanced diagnostics and package internals.}
 
+\item{coefficients}{Coefficient scope. The default \code{"fixed"} preserves
+fixed-coefficient inference conditional on fitted smooths. \code{"joint"}
+includes fixed and smooth coefficients using inverse penalized information,
+conditional on fitted smoothing parameters and the fitted constrained basis.
+Joint sandwich, segmented likelihoods and \code{par} overrides are unsupported.}
+
 \item{...}{Additional arguments, currently unused.}
 }
 \value{
@@ -75,7 +82,16 @@ for sandwich inference it is also available as \code{vcov$cluster_robust}, while
 \code{vcov$model_based} contains the inverse-Hessian covariance used as the
 sandwich bread. The corresponding standard errors are stored under \code{se}.
 \code{vcov$smooth_vcov} is a separate penalized approximation. Fixed-smooth
-covariance and smoothing-parameter uncertainty are excluded. See
+covariance and smoothing-parameter uncertainty are excluded in this default mode.
+With \code{coefficients = "joint"}, the matrix instead covers every named fixed
+and smooth coordinate. Details include the coefficient map, estimates, raw
+likelihood Hessian, fitted penalty, penalized information and cross-blocks.
+This is a local empirical-Bayes covariance, not the frequentist penalized
+estimator covariance or a robust sandwich. Smoothing-parameter uncertainty
+remains excluded. Joint analytical failures are reported without an automatic
+numerical rescue; \code{method = "numderiv"} is an explicit reference route.
+Positive definite, full-rank usable penalized information is required;
+penalized stationarity uses the existing warning policy. See
 \code{\link[=inference_contracts]{inference_contracts()}}.
 }
 \description{

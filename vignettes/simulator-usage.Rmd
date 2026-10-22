@@ -259,10 +259,11 @@ head(cbind(future_panel[c("subject", "time")], sim_future))
 ### Missing data / observations handling
 
 The fitted model uses first-order copula dependence between consecutive
-scheduled observations. Complete panels and observed prefixes followed by
-dropout use the ordinary likelihood. Intermittent gaps or leading unobserved
-scheduled visits are rejected by default rather than silently changing the
-likelihood. With the explicit `missingness = "segment"` contract, separate
+observed responses. Complete panels, delayed entry followed by one contiguous
+observed sequence, and observed prefixes followed by dropout use the ordinary
+likelihood. Intermittent internal gaps are rejected by `missingness = "error"`;
+the default `missingness = "auto"` switches to the segmented likelihood with a
+warning. With the explicit `missingness = "segment"` contract, separate
 contiguous observed segments are treated as independent during estimation.
 
 These rules govern estimation rather than missingness generation. `simulate()`

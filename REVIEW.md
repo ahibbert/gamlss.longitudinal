@@ -20,7 +20,8 @@ Most reviewers need to answer four questions first:
 
 Use the route sections below for a first pass. Use
 `inst/standards/method-traceability.csv` for a complete audit of source files,
-tests, paper modules, and standards evidence.
+tests and standards evidence. Paper artifact traceability is maintained in the
+companion repository described in route 6.
 
 The source files in `R/` use prefix-based names. For example, `model-*` files
 contain fitting, prediction, simulation, and fitted-object helpers;
@@ -188,40 +189,40 @@ Evidence: `tests/testthat/test-p0-benchmark-*.R`,
 
 ### 6. JSS Paper Replication
 
-The paper workflow is repository-only and excluded from CRAN/source builds.
+The manuscript and its replication workflow live in the separate
+[paper repository](https://github.com/ahibbert/working-paper-gamlss-long), outside this
+software checkout and the installed R package.
 
-Start here:
+Start with its [reviewer guide](https://github.com/ahibbert/working-paper-gamlss-long/blob/main/paper/REVIEWER.md).
+This is a release-preparation draft at its intended publication location, not a
+claim that the prepared files are already published or that all three profiles
+have passed. Use the exact package/paper source pair identified in the final
+release record. Follow its clone/archive assembly and environment instructions;
+run paper commands from that assembled workspace, not this package checkout.
 
-- `paper/jss-submission-checklist.md`: blocking JSS submission gates.
-- `paper/jss-submission-audit.csv`: manuscript item to repository artifact map.
-- `paper/jss-manuscript-blueprint.md`: JSS-first manuscript outline.
-- `paper/README.md`: replication instructions.
-- `paper/manifest.csv`: claim-to-artifact map.
-- `paper/_targets.R`: pipeline wiring.
-- `paper/R/*.R`: numbered replication modules.
-- `paper/replicate.R`: smoke and expanded replication entry point.
+The three paper profiles have distinct purposes:
 
-Planned JSS modules:
+- `smoke` checks installation and a small synthetic workflow.
+- `paper` rebuilds assets from versioned analysis-ready inputs and refits the
+  declared ACTG application analyses.
+- `full` recomputes the declared simulation and timing studies and application
+  analyses before rebuilding their assets.
 
-1. Continuous simulation: BCPE margin with t copula.
-2. Discrete simulation: Delaporte margin with Clayton copula.
-3. Joint optimization versus separate optimization.
-4. Sensitivity to missingness and dropout.
-5. Public worked application.
+Both `paper` and `full` retain the declared historical ACTG selection ledgers;
+the final ACTG fits and post-fit analyses are separate computations. Consult the
+guide for the precise scope, retained warnings and uncertainty eligibility.
 
-Commands:
+In the paired paper revision, inspect [paper/manifest.csv](https://github.com/ahibbert/working-paper-gamlss-long/blob/main/paper/manifest.csv),
+[paper/_targets.R](https://github.com/ahibbert/working-paper-gamlss-long/blob/main/paper/_targets.R),
+[paper/replicate.R](https://github.com/ahibbert/working-paper-gamlss-long/blob/main/paper/replicate.R)
+and [paper/tests](https://github.com/ahibbert/working-paper-gamlss-long/tree/main/paper/tests).
+These branch links help navigation; the release's pinned revisions govern
+reproduction. Its [submission checklist](https://github.com/ahibbert/working-paper-gamlss-long/blob/main/paper/jss-submission-checklist.md)
+tracks additional manuscript and submission gates.
 
-```r
-source("paper/replicate.R")
-Sys.setenv(GAMLSS_LONGITUDINAL_JSS_PROFILE = "expanded")
-source("paper/replicate.R")
-```
-
-Generated tables, figures, logs, session information, and hashes are written
-`GAMLSS_LONGITUDINAL_RAND_DATA`.
-
-Evidence: `tests/testthat/test-p2-jss-replication-skeleton.R`,
-`paper/manifest.csv`, and `paper/README.md`.
+The package checks in route 7 and the installed new-user smoke script in the
+README review the software. Neither substitutes for the three paper-profile
+runs, output checks or the independent reviewer rehearsal.
 
 ### 7. CRAN And rOpenSci Review
 
@@ -283,7 +284,7 @@ unavailability when absent.
 | Copula/backend | `R/copula-*.R`, `R/joint-distribution-*.R` | copula and selection tests |
 | Benchmarks | `R/benchmark-*.R`, `R/select-margin-*.R` | benchmark/adoption tests |
 | Coverage | `R/coverage-*.R` | coverage tests |
-| Paper | `paper/_targets.R`, `paper/R/*.R`, `paper/manifest.csv` | JSS skeleton test |
+| Paper | Companion repository: `paper/_targets.R`, `paper/R/*.R`, `paper/manifest.csv` | Pinned paper tests, profile receipts and output checks; see route 6 |
 | Standards | `R/srr-stats-standards.R`, `inst/standards/*` | p2 standards tests |
 
 ## Reviewer Checklist
@@ -294,7 +295,8 @@ unavailability when absent.
 - Use `inst/standards/method-traceability.csv` for complete file coverage.
 - Use `inst/standards/ropensci-srr-compliance.md` for standards claims and
   remaining TODOs.
-- Use `paper/manifest.csv` for JSS claim-to-artifact mapping.
+- Use the paired paper repository's `paper/manifest.csv` for JSS
+  claim-to-artifact mapping; follow route 6 for release and rehearsal gates.
 - Use `cran-comments.md` for final submission check results.
 
 ## Known Limitations
@@ -306,7 +308,7 @@ Current known limitations are tracked in
 Expected remaining review tasks:
 
 - freeze final JSS manuscript tables and figures;
-- replace paper-module stubs with final analyses;
+- verify the assembled paper workflow end to end for all three profiles;
 - record final platform-specific CRAN/GitHub check results in
   `cran-comments.md`;
 - decide whether legacy helpers can be removed after historical scripts are
@@ -322,5 +324,7 @@ routine tests, extended tests, source build, CRAN-style check, URL check,
 spelling check, new-user smoke test, and default JSS smoke replication. The
 CRAN-style check had 0 ERRORs, 0 WARNINGs, and 3 NOTEs.
 
-Since then, the codebase has continued to be reorganized for reviewability.
+That checkpoint is historical; it does not verify the current split repositories
+or the current paper profiles. Since then, the codebase has continued to change.
+
 Use `cran-comments.md` as the authoritative record for final submission checks.

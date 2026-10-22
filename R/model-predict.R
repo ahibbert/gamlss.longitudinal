@@ -52,6 +52,12 @@
 
 #' @param vcov_method Variance-covariance method passed to [vcov.gamlss.longitudinal()].
 
+#' @param coefficients Covariance coefficient scope for prediction uncertainty.
+#'   The default `"fixed"` preserves the fixed-mu approximation described above.
+#'   `"joint"` is unavailable for prediction standard errors or intervals and
+#'   raises an inference-unavailable error. This argument does not change point
+#'   predictions. Joint covariance remains available through [vcov.gamlss.longitudinal()].
+
 #' @param ... Additional arguments reserved for future methods.
 
 #'
@@ -118,7 +124,9 @@ predict.gamlss.longitudinal <- function(
     interval = c("none", "confidence"),
     level = 0.95,
     vcov_method = "analytical",
+    coefficients = c("fixed", "joint"),
     ...) {
+  coefficients_supplied <- !missing(coefficients)
   type <- match.arg(type)
 
   interval <- match.arg(interval)
@@ -130,6 +138,17 @@ predict.gamlss.longitudinal <- function(
   }
 
   if (isTRUE(se.fit) || !identical(interval, "none")) {
+    coefficients <- match.arg(coefficients)
+    if (identical(coefficients, "joint")) {
+      stop(.gl_inference_unavailable(list(
+        status = "unavailable",
+        failure_codes = "prediction_joint_uncertainty_unsupported",
+        message = paste0(
+          "Joint fixed/smooth prediction uncertainty is not implemented. ",
+          "The fixed-mu prediction gradient cannot represent joint uncertainty."
+        )
+      )))
+    }
     .gl_require_converged_fit(object, "prediction uncertainty intervals")
   } else {
     .gl_warn_nonconverged_prediction(object)
@@ -145,6 +164,20 @@ predict.gamlss.longitudinal <- function(
     fit_values <- .gl_prediction_values(type, params, diag_data$family)
 
     if (isTRUE(se.fit) || !identical(interval, "none")) {
+      if (coefficients_supplied) {
+        return(.gl_prediction_interval_frame(
+          object = object,
+          newdata = newdata,
+          fit_values = fit_values,
+          interval = interval,
+          level = level,
+          vcov_method = vcov_method,
+          require_response = FALSE,
+          coefficients = coefficients,
+          ...
+        ))
+      }
+      # Preserve omission: explicit fixed scope intentionally bypasses caches.
       return(.gl_prediction_interval_frame(
         object = object,
         newdata = newdata,

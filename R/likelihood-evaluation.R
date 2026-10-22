@@ -9,7 +9,7 @@ calc_likelihood_minimal <- function(eta_inv, mm, margin_dist, copula_dist, calc_
   if (is.null(pair_cache)) {
     pair_cache <- build_copula_pair_cache(response, response_margin, response_subject)
   }
-  response_inclusion <- !is.na(response)
+  response_inclusion <- is.finite(response)
   if (!is.null(pair_cache$observed_margin_base) &&
       !identical(as.logical(pair_cache$observed_margin_base), response_inclusion)) {
     stop(

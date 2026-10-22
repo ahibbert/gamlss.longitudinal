@@ -53,7 +53,7 @@
   out <- stats::setNames(rep(0, length(cluster_levels)), cluster_levels)
 
   margin_log <- rep(0, length(response))
-  margin_included <- !is.na(response)
+  margin_included <- is.finite(response)
   margin_ok <- margin_included & is.finite(calc_lik$margin_d) & calc_lik$margin_d > 0
   margin_bad <- margin_included & !margin_ok
   if (any(margin_bad)) {

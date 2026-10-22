@@ -27,6 +27,9 @@
   empirical = c("bins", "points"),
   n_bins = 10,
   ncol = 2,
+  randomized_residuals = TRUE,
+  randomized_seed = 1L,
+  randomized_draws = 5L,
   ...
 )
 
@@ -51,6 +54,9 @@ plot_copula_diagnostics(
   empirical = c("bins", "points"),
   n_bins = 10,
   ncol = 2,
+  randomized_residuals = TRUE,
+  randomized_seed = 1L,
+  randomized_draws = 5L,
   ...
 )
 }
@@ -107,6 +113,19 @@ complementary checks; use \code{"calibration"}, \code{"residuals"}, \code{"tails
 calibration panel.}
 
 \item{ncol}{Number of dashboard columns.}
+
+\item{randomized_residuals}{Logical; for discrete margins, use seeded
+copula-conditional latent completions and exact randomized conditional PIT
+residuals. The default is \code{TRUE}; set to \code{FALSE} to withhold diagnostics
+that require latent continuous values.}
+
+\item{randomized_seed}{Finite numeric seed used for the discrete randomization.
+The caller's random-number state is preserved.}
+
+\item{randomized_draws}{Positive integer number of copula-conditional latent
+completions per observed adjacent pair for discrete copula, Kendall, and tail
+panels. Multiple completions reduce Monte Carlo sensitivity while retaining
+the observed probability rectangles.}
 
 \item{...}{Deprecated aliases \code{plot1_style}, \code{plot2_cuts}, and
 \code{dashboard_ncol} are accepted temporarily.}

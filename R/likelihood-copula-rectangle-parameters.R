@@ -24,6 +24,9 @@
   rect_p <- .copula_rectangle_prob(u[, 1], u[, 2], l[, 1], l[, 2], copula_dist, par1_p, par2_p)
   rect_m <- .copula_rectangle_prob(u[, 1], u[, 2], l[, 1], l[, 2], copula_dist, par1_m, par2_m)
   deriv <- (rect_p - rect_m) / (2 * hp)
-  deriv[!is.finite(deriv)] <- 0
-  deriv
+  .gl_score_zero_unobserved_or_stop(
+    deriv,
+    calc_lik$pair_complete,
+    paste0("Discrete rectangle derivative for copula parameter '", par_name, "'")
+  )
 }

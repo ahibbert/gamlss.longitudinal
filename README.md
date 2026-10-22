@@ -18,7 +18,9 @@ library(gamlss.longitudinal)
 
 For a full overview of available support articles / vignettes: [Article guide](https://gamlsslongitudinal.aydins-workbench.com/articles/site-guide.html)
 
-After installation, you can run a fast end-to-end smoke test to ensure key components have been loaded correctly with:
+After installation, run the package new-user smoke test to check its basic
+workflow. This is separate from the paper workflow's `smoke`, `paper` and `full`
+profiles:
 
 ```r
 source(system.file("smoke-tests", "new-user-smoke.R", package = "gamlss.longitudinal"))
@@ -37,15 +39,23 @@ Reference guides for specific parts of the workflow:
 
 ## Review and reproducibility
 
-Reviewer-facing package, statistical-software, and paper-replication guidance is
-collected in [REVIEW.md](REVIEW.md). The rOpenSci statistical standards
-crosswalk is available at `inst/standards/ropensci-srr-compliance.md`, and the
-paper replication entry point is documented in `paper/README.md`.
+Package and statistical-software review starts in [REVIEW.md](REVIEW.md).
+The [standards crosswalk](inst/standards/ropensci-srr-compliance.md) records
+standards evidence and remaining work; [method traceability](inst/standards/method-traceability.csv)
+maps package source files to tests.
 
-For JSS preparation specifically, start with
-`vignettes/jss-start-here.Rmd`, `paper/jss-submission-checklist.md`,
-`paper/jss-submission-audit.csv`, and
-`paper/jss-manuscript-blueprint.md`.
+Paper replication lives in the separate
+[paper repository](https://github.com/ahibbert/working-paper-gamlss-long).
+Its [reviewer guide](https://github.com/ahibbert/working-paper-gamlss-long/blob/main/paper/REVIEWER.md)
+is a release-preparation draft. The link identifies the intended publication
+location; the prepared guide and source pair are not yet a verified public
+release. Use the exact software and paper revisions named in the eventual
+release record, for either clones or archives; do not mix branch heads.
+
+That guide defines workspace assembly, the `smoke`, `paper` and `full` paper
+profiles, outputs and release checks. Package tests and the new-user smoke test
+do not establish that those paper profiles reproduce the manuscript. See also
+[vignettes/jss-start-here.Rmd](vignettes/jss-start-here.Rmd) for the package tour.
 
 ## References
 

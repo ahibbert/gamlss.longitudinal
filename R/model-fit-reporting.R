@@ -22,7 +22,10 @@
     precomputed = FALSE,
     numderiv = isTRUE(vcov_numderiv),
     method = vcov_method,
-    cache_version = .gl_vcov_cache_version()
+    cache_version = .gl_vcov_cache_version(),
+    stationarity_status = "not_checked",
+    stationarity_scaled_gradient_max = NA_real_,
+    stationarity_tolerance = NA_real_
   )
 
   if (isTRUE(compute_vcov)) {
@@ -83,9 +86,22 @@
       }
       return_list$vcov_meta$inference_contract <- vcov_cached$inference_contract
       return_list$vcov_meta$smooth_inference_contract <- vcov_cached$smooth_inference_contract
+      return_list$vcov_meta$hessian_diagnostics <- vcov_cached$hessian_diagnostics
+      return_list$vcov_meta$stationarity_status <-
+        vcov_cached$hessian_diagnostics$stationarity_status %||% "not_checked"
+      return_list$vcov_meta$stationarity_scaled_gradient_max <-
+        vcov_cached$hessian_diagnostics$stationarity_scaled_gradient_max %||% NA_real_
+      return_list$vcov_meta$stationarity_tolerance <-
+        vcov_cached$hessian_diagnostics$stationarity_tolerance %||% NA_real_
     } else if (!is.null(inference_failure)) {
       return_list$vcov_meta$inference_status <- "unavailable"
       return_list$vcov_meta$hessian_diagnostics <- inference_failure
+      return_list$vcov_meta$stationarity_status <-
+        inference_failure$stationarity_status %||% "not_checked"
+      return_list$vcov_meta$stationarity_scaled_gradient_max <-
+        inference_failure$stationarity_scaled_gradient_max %||% NA_real_
+      return_list$vcov_meta$stationarity_tolerance <-
+        inference_failure$stationarity_tolerance %||% NA_real_
     }
   }
 

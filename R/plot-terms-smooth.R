@@ -131,7 +131,10 @@ plot_smooth_terms <- function(
 
     ci_upper <- fitted_smooth + z * smooth_fit_se
 
-    main_title <- paste(par_name, s_name, sep = ": ")
+    # Basis controls such as `bs` and `k` are useful in the formula but make
+    # dashboard titles too long to read.  The axis already identifies the
+    # covariate, so use a compact, stable term label here.
+    main_title <- paste0(par_name, ": s(", x_info$x_var, ")")
 
     ylab_text <- paste("smooth(", x_info$x_var, ")", sep = "")
 

@@ -32,10 +32,14 @@ test_that("summary helpers build model metadata and criteria", {
   object <- make_summary_helper_object()
 
   model_info <- gamlss.longitudinal:::.gl_summary_model_info(object)
-  fit_criteria <- gamlss.longitudinal:::.gl_summary_fit_criteria(object, n_obs = model_info$n_obs)
+  fit_criteria <- gamlss.longitudinal:::.gl_summary_fit_criteria(
+    object,
+    n_subjects = model_info$bic_n_subjects
+  )
 
   expect_equal(model_info$n_obs, 2L)
   expect_equal(model_info$n_subjects, 2L)
+  expect_equal(model_info$bic_n_subjects, 1L)
   expect_equal(model_info$n_timepoints, 2L)
   expect_equal(model_info$n_fixed, 3L)
   expect_equal(model_info$n_smooth_terms, 1L)
@@ -73,7 +77,10 @@ test_that("summary helpers build coefficient and smooth-term tables", {
 test_that("summary object builder preserves summary return contract", {
   object <- make_summary_helper_object()
   model_info <- gamlss.longitudinal:::.gl_summary_model_info(object)
-  fit_criteria <- gamlss.longitudinal:::.gl_summary_fit_criteria(object, n_obs = model_info$n_obs)
+  fit_criteria <- gamlss.longitudinal:::.gl_summary_fit_criteria(
+    object,
+    n_subjects = model_info$bic_n_subjects
+  )
   coef_tbl <- gamlss.longitudinal:::.gl_summary_coefficient_table(object, vcov_out = NULL)
   smooth_tbl <- gamlss.longitudinal:::.gl_summary_smooth_terms(object)
   vcov_out <- list(

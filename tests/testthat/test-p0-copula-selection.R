@@ -59,6 +59,10 @@ test_that("select_copula accepts direct pseudo-observation pairs", {
   )
 
   expect_equal(attr(selected, "selected"), "C")
+  expect_identical(attr(selected, "BIC_unit"), "pair")
+  expect_identical(attr(selected, "BIC_n"), nrow(pair_data))
+  k <- ifelse(selected$family == "t", 2, 1)
+  expect_equal(selected$BIC, -2 * selected$logLik + log(nrow(pair_data)) * k)
 })
 
 test_that("select_copula retains every default copula for a DEL margin", {
@@ -143,6 +147,10 @@ test_that("select_copula reports tail cooccurrence and conditional tail diagnost
     families = "C",
     tail_thresholds = c(0.1, 0.2)
   )
+
+  expect_identical(attr(selected, "BIC_unit"), "subject")
+  expect_identical(attr(selected, "BIC_n"), 80L)
+  expect_equal(selected$BIC, -2 * selected$logLik + log(80))
 
   tail <- attr(selected, "tail_cooccurrence")
   conditional <- attr(selected, "conditional_tail_exceedance")

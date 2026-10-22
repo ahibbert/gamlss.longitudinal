@@ -1,4 +1,6 @@
-.gl_residual_dependence_summary <- function(object, residual_lags = 1L) {
+.gl_residual_dependence_summary <- function(object, residual_lags = 1L,
+                                            randomized_residuals = FALSE,
+                                            seed = 1L) {
   out <- data.frame(lag = as.integer(residual_lags), normal_score_cor = NA_real_, n_pairs = 0L)
 
   if (length(residual_lags) == 0L) {
@@ -15,7 +17,14 @@
     {
       fit_data <- .copula_v2_fit_data(object)
 
-      rosenblatt_df <- .copula_v2_rosenblatt_series(fit_data, family_num)
+      rosenblatt_df <- if (.is_discrete_margin(object$margin_dist)) {
+        if (!isTRUE(randomized_residuals)) return(out)
+        .copula_v2_randomized_discrete_residuals(
+          fit_data, family_num, seed = seed
+        )$rosenblatt
+      } else {
+        .copula_v2_rosenblatt_series(fit_data, family_num)
+      }
 
       .copula_v2_rosenblatt_lag_summary(rosenblatt_df, lag_values = residual_lags)
     },

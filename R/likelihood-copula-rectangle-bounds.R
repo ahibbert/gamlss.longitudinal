@@ -37,11 +37,21 @@
     Fl_minus <- calc_F_x(eta_minus, mm, margin_dist, response - 1)
 
     out[[pn]] <- list(
-      upper = as.numeric((Fu_plus - Fu_minus) / denom),
-      lower = as.numeric((Fl_plus - Fl_minus) / denom)
+      upper = .gl_validate_margin_cdf_derivative(
+        (Fu_plus - Fu_minus) / denom,
+        response = response,
+        margin_dist = margin_dist,
+        context = "Upper discrete rectangle-bound derivative",
+        parameter = pn
+      ),
+      lower = .gl_validate_margin_cdf_derivative(
+        (Fl_plus - Fl_minus) / denom,
+        response = response,
+        margin_dist = margin_dist,
+        context = "Lower discrete rectangle-bound derivative",
+        parameter = pn
+      )
     )
-    out[[pn]]$upper[!is.finite(out[[pn]]$upper)] <- 0
-    out[[pn]]$lower[!is.finite(out[[pn]]$lower)] <- 0
   }
   out
 }

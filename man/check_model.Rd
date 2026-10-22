@@ -11,6 +11,7 @@ check_model(
   dependence_cor_cutoff = NULL,
   pit_seed = 1L,
   residual_lags = 1:3,
+  randomized_residuals = FALSE,
   ...
 )
 }
@@ -32,6 +33,11 @@ caller's random-number state is preserved.}
 
 \item{residual_lags}{Positive integer lags to summarize. Lags with no usable
 pairs are retained and marked unavailable.}
+
+\item{randomized_residuals}{Logical; for discrete margins, compute exact
+randomized conditional PIT residuals for copula dependence checks. This is
+opt-in while the interface is being validated. \code{pit_seed} supplies the
+randomization seed.}
 
 \item{...}{Passed to \code{\link[=summary.gamlss.longitudinal]{summary.gamlss.longitudinal()}} when \code{include_vcov} is
 \code{TRUE}.}

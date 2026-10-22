@@ -79,10 +79,10 @@
   subject_summary <- segments$subject_summary
   gap_affected <- subject_summary$n_gap_runs > 0L
   delayed_entry_affected <- subject_summary$n_leading_missing > 0L
-  affected <- gap_affected | delayed_entry_affected
+  affected <- gap_affected
   has_gaps <- any(gap_affected)
   has_delayed_entry <- any(delayed_entry_affected)
-  requires_segment <- any(affected)
+  requires_segment <- has_gaps
 
   out <- list(
     requested = missingness,
@@ -112,10 +112,14 @@
         "segments separated by intermittent gaps are treated as independent."
       )
     } else {
-      "The ordinary first-order likelihood is evaluated over the observed response sequence."
+      paste0(
+        "The ordinary first-order likelihood is evaluated over each subject's ",
+        "observed response sequence; delayed entry begins that sequence at the ",
+        "first observed visit."
+      )
     },
     future_support = if (requires_segment) {
-      "Numerical integration of dependence across intermittent gaps and a distinct delayed-entry likelihood are not implemented."
+      "Numerical integration of dependence across intermittent gaps is not implemented."
     } else {
       NA_character_
     }
@@ -127,12 +131,11 @@
       c(
         list(
           message = paste0(
-            "Intermittent observation gaps or leading unobserved scheduled visits were detected for ",
+            "Intermittent observation gaps were detected for ",
             length(out$affected_subjects),
-            " subject(s). The default likelihood is restricted to complete observed panels ",
-            "and observed prefixes followed only by dropout. ",
+            " subject(s). ",
             "Refit with missingness = \"segment\" to treat contiguous observed segments ",
-            "as independent and explicitly admit the first observed visit after leading missing visits."
+            "as independent."
           ),
           call = NULL
         ),
@@ -165,7 +168,7 @@
     c(
       list(
         message = paste0(
-          "Intermittent observation gaps or leading unobserved scheduled visits were detected for ",
+          "Intermittent observation gaps were detected for ",
           length(contract$affected_subjects),
           " subject(s). ",
           selection_message,
@@ -174,7 +177,7 @@
           "Subject-clustered sandwich covariance is used for primary inference; ",
           "model-based standard errors are retained for comparison, and ",
           "bootstrap sensitivity analyses remain advisable. ",
-          "Numerical integration of dependence across gaps and a distinct delayed-entry likelihood are not implemented; ",
+          "Numerical integration of dependence across gaps is not implemented; ",
           "a future integration engine may add this support."
         ),
         call = NULL

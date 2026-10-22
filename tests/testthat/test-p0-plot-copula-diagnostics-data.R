@@ -16,6 +16,8 @@ test_that("copula diagnostics pair data builds ordered lag pairs and left-row pa
   expect_equal(lag1$time_pair, c("T1 vs T2", "T2 vs T3"))
   expect_equal(lag1$theta_pair, c(2, 3))
   expect_equal(lag1$tau_fit, c(0.2, 0.3))
+  expect_true(all(is.na(lag1$u1_lower)))
+  expect_true(all(is.na(lag1$u2_upper)))
   expect_equal(nrow(lag2), 1L)
   expect_equal(lag2$time_pair, "T1 vs T3")
 })

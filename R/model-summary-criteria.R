@@ -1,7 +1,7 @@
 #' Build summary log-likelihood, information criteria, and EDF tables
 #'
 #' @noRd
-.gl_summary_fit_criteria <- function(object, n_obs) {
+.gl_summary_fit_criteria <- function(object, n_subjects) {
   loglik_vec <- c(marginal = NA_real_, copula = NA_real_, joint = NA_real_)
   if (!is.null(object$calc_lik_out_end) && !is.null(object$calc_lik_out_end$log_lik)) {
     ll_in <- object$calc_lik_out_end$log_lik
@@ -40,7 +40,7 @@
   )
 
   aic_vec <- -2 * loglik_vec + 2 * edf_vec
-  bic_vec <- -2 * loglik_vec + log(max(1, n_obs)) * edf_vec
+  bic_vec <- -2 * loglik_vec + log(max(1, n_subjects)) * edf_vec
   model_selection <- rbind(LogLik = loglik_vec, AIC = aic_vec, BIC = bic_vec, EDF = edf_vec)
 
   list(

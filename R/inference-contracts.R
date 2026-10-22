@@ -11,7 +11,7 @@ inference_contracts <- function() {
   .gl_inference_contract_registry()
 }
 
-.gl_inference_contract_version <- function() "2026.1"
+.gl_inference_contract_version <- function() "2026.2"
 
 .gl_inference_contract_registry <- function() {
   row <- function(id, producer, method, estimand, coefficient_blocks,
@@ -64,6 +64,18 @@ inference_contracts <- function() {
       "independent clusters, enough clusters, stable cluster scores, and valid JSS-002 bread",
       "cross-cluster copula pairs, invalid bread, nonfinite scores/covariance, or nonpositive covariance diagonal",
       "JSS-002 bread validation plus runtime cluster checks", "cluster-robust large-sample conditional approximation"
+    ),
+    row(
+      "joint_penalized_inverse", "vcov(coefficients='joint')",
+      "inverse full penalized observed information",
+      "joint fixed and constrained smooth coefficients",
+      "all fixed, smooth, fixed-smooth and between-smooth blocks",
+      "conditional on fitted smoothing parameters, fitted constrained basis and model specification",
+      "smoothing-parameter, basis/model-selection uncertainty; robust score variability; uniform smoothing-bias correction",
+      "local empirical-Bayes quadratic approximation; identified positive definite penalized precision",
+      "unsupported smooth metadata or likelihood, invalid penalty, nonpositive/rank-deficient/ill-conditioned precision, or invalid likelihood/derivatives",
+      "per-fit joint checks; a warning-qualified result is not a clean validation pass",
+      "conditional-lambda empirical-Bayes covariance, not frequentist penalized sampling covariance"
     ),
     row(
       "smooth_penalized_conditional", "vcov smooth_vcov/plot_smooth_terms",

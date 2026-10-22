@@ -184,29 +184,21 @@ vignette("inference-uncertainty", package = "gamlss.longitudinal")
 
 ## Paper replication
 
-The repository version of the paper uses `paper/replicate.R` as the
-authoritative replication entry point. From the repository root:
+Paper replication lives in the separate
+[paper repository](https://github.com/ahibbert/working-paper-gamlss-long). Follow its
+[reviewer guide](https://github.com/ahibbert/working-paper-gamlss-long/blob/main/paper/REVIEWER.md), currently a
+release-preparation draft at its intended publication location. Use the exact
+software/paper source pair named in the release record and assemble a fresh
+workspace from those clones or archives before running the paper commands.
+The prepared guide and source pair are not yet a verified public release.
 
-```{r paper-smoke}
-system2("Rscript", c("paper/replicate.R", "--profile", "smoke"))
-```
+The paper `smoke` profile checks a small synthetic workflow. The `paper`
+profile rebuilds assets from versioned analysis-ready inputs and refits the
+declared ACTG analyses; `full` recomputes the declared studies and application
+analyses. Both retain the historical ACTG selection ledgers. They are separate
+from package tests and the installed new-user smoke test.
 
-The smoke profile is intended as a fast reviewer check. The paper profile
-regenerates every public manuscript artifact from versioned analysis-ready
-inputs. The optional full profile reruns the public Monte Carlo studies before
-rebuilding the paper outputs:
-
-```{r paper-profiles}
-system2("Rscript", c("paper/replicate.R", "--profile", "paper"))
-system2(
-  "Rscript",
-  c("paper/replicate.R", "--profile", "full", "--workers", "4")
-)
-```
-
-Generated outputs are written under `results/jss-replication/<profile>/`.
-The manifest maps paper result IDs to files, and the logs include session
-information and output hashes.
-
-paper should therefore use a public, package-shipped, or simulated primary
-example unless accepted external data access instructions are provided.
+Use the companion guide for exact commands, external output directories,
+resource requirements and current run records. Run paper commands from the
+assembled workspace, not this package checkout. A passing package test does
+not establish end-to-end reproduction of the paper.

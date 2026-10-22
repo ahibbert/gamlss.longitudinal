@@ -41,10 +41,7 @@ test_that("fit data preparation expands panels and preserves formula time covari
   )
 
   prepared <- do.call(prepare_fit_data, common)
-  expect_error(
-    do.call(prepare_fit_data, c(common, list(missingness = "error"))),
-    class = "gamlss.longitudinal_gap_error"
-  )
+  strict <- do.call(prepare_fit_data, c(common, list(missingness = "error")))
 
   expect_equal(prepared$response_var, "y")
   expect_equal(prepared$var_map[["visit"]], "time")
@@ -63,10 +60,12 @@ test_that("fit data preparation expands panels and preserves formula time covari
   expect_false("visit" %in% all.vars(prepared$formulas_int$mu))
   expect_equal(prepared$miss_by_time$n_observed_response, c(1, 2))
   expect_equal(prepared$pair_summary$complete_pairs, 1)
-  expect_identical(prepared$missingness_contract$objective, "segmented")
+  expect_identical(prepared$missingness_contract$objective, "ordinary")
   expect_identical(prepared$missingness_contract$requested, "auto")
-  expect_true(prepared$missingness_contract$auto_selected)
+  expect_false(prepared$missingness_contract$auto_selected)
   expect_true(prepared$missingness_contract$has_delayed_entry)
+  expect_identical(strict$missingness_contract$objective, "ordinary")
+  expect_identical(strict$missingness_contract$requested, "error")
 })
 
 test_that("fit data preparation keeps duplicate subject/time error contract", {

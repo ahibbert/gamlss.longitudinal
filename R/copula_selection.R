@@ -39,6 +39,9 @@
 #'   supported homogeneous marginal family.
 #' @param lags Positive integer lag(s) used when forming adjacent pairs.
 #' @param criterion Ranking criterion, one of `"AIC"`, `"BIC"`, or `"logLik"`.
+#'   For pairs constructed from longitudinal data or a fitted object, BIC uses
+#'   the number of subjects represented in the retained pairs. Directly supplied
+#'   `u1`/`u2` pairs are treated as independent and BIC uses the number of pairs.
 #' @param t_df_grid Degrees-of-freedom grid used for the t-copula screen.
 #' @param min_pairs Minimum number of complete pairs required.
 #' @param time_intercepts Logical; when `select_copula()` creates
@@ -194,6 +197,12 @@ select_copula <- function(
       call. = FALSE
     )
   }
+  bic_unit <- if ("subject" %in% names(pairs)) "subject" else "pair"
+  bic_n <- if (identical(bic_unit, "subject")) {
+    length(unique(pairs$subject))
+  } else {
+    nrow(pairs)
+  }
 
   .gl_progress(
     verbose,
@@ -223,7 +232,8 @@ select_copula <- function(
       log_mass1 = if (exact_discrete && "log_mass1" %in% names(pairs)) pairs$log_mass1 else NULL,
       log_mass2 = if (exact_discrete && "log_mass2" %in% names(pairs)) pairs$log_mass2 else NULL,
       log_survival1 = if (exact_discrete && "log_survival1" %in% names(pairs)) pairs$log_survival1 else NULL,
-      log_survival2 = if (exact_discrete && "log_survival2" %in% names(pairs)) pairs$log_survival2 else NULL
+      log_survival2 = if (exact_discrete && "log_survival2" %in% names(pairs)) pairs$log_survival2 else NULL,
+      bic_n = bic_n
     )
   })
   tail_diagnostics <- .select_copula_tail_diagnostics(
@@ -254,6 +264,8 @@ select_copula <- function(
   attr(out, "screen_version") <- "2026.1"
   attr(out, "randomized_pit") <- randomized_pit
   attr(out, "pit_seed") <- if (randomized_pit) as.integer(used_pit_seed) else NA_integer_
+  attr(out, "BIC_n") <- bic_n
+  attr(out, "BIC_unit") <- bic_unit
   attr(out, "tail_cooccurrence") <- tail_diagnostics$cooccurrence
   attr(out, "conditional_tail_exceedance") <- tail_diagnostics$conditional
   class(out) <- c("copula_selection", "data.frame")

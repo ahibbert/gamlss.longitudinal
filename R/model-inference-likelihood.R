@@ -41,6 +41,8 @@
 #' log-likelihood, effective degrees of freedom, AIC, BIC, likelihood-ratio
 
 #' increments, and chi-square reference p-values.
+#' BIC uses the number of observed subjects in each model as the independent
+#' sample size; `n_obs` and `n_subjects` are both reported in the result.
 
 #'
 

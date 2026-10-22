@@ -67,7 +67,7 @@ test_that("new markers reject affected caches and preserve unrelated inference",
   expect_true(.can_use_cached_vcov(fit, method = "sandwich"))
   fit$vcov$hessian_diagnostics$status <- "unavailable"
   expect_false(.can_use_cached_vcov(fit, method = "sandwich"))
-  expect_identical(.gl_vcov_cache_version(), 2L)
+  expect_identical(.gl_vcov_cache_version(), 3L)
 })
 
 test_that("new covariance results carry only the applicable curvature marker", {

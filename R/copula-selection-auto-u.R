@@ -165,17 +165,22 @@
     }
   }
   cdf_args <- c(cdf_args, .gl_margin_fixed_family_args(margin_dist, nrow(data_fit)))
-  cdf_args <- cdf_args[names(cdf_args) %in% formalArgs(pfun)]
+  route <- .gl_capability_likelihood_route(margin_dist)
+  discrete <- identical(route, "exact_discrete_rectangle")
   upper <- tryCatch(
-    do.call(pfun, cdf_args),
+    .gl_evaluate_margin_cdf(
+      input = cdf_args,
+      margin_dist = margin_dist,
+      response = data_fit[[response_var]],
+      FUN = pfun,
+      FUN_args = formalArgs(pfun),
+      cacheable = discrete
+    ),
     error = function(e) {
       stop("Could not compute pseudo-observations from the temporary marginal model: ", conditionMessage(e), call. = FALSE)
     }
   )
-  upper <- pmin(pmax(as.numeric(upper), 0), 1)
 
-  route <- .gl_capability_likelihood_route(margin_dist)
-  discrete <- identical(route, "exact_discrete_rectangle")
   lower <- upper
   pit <- upper
   log_mass <- NULL
@@ -187,12 +192,18 @@
       lower_args[[response_name]] <- lower_response
     }
     lower <- tryCatch(
-      do.call(pfun, lower_args),
+      .gl_evaluate_margin_cdf(
+        input = lower_args,
+        margin_dist = margin_dist,
+        response = lower_response,
+        FUN = pfun,
+        FUN_args = formalArgs(pfun),
+        cacheable = TRUE
+      ),
       error = function(e) {
         stop("Could not compute lower CDF bounds for discrete copula selection: ", conditionMessage(e), call. = FALSE)
       }
     )
-    lower <- pmin(pmax(as.numeric(lower), 0), 1)
     density_args <- cdf_args
     names(density_args)[names(density_args) %in% c("q", "y", "x")] <- "x"
     density_args <- density_args[!duplicated(names(density_args))]

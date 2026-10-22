@@ -24,4 +24,6 @@ failure states of the chi-square reference approximation.
 nested \code{gamlss.longitudinal} models. It reports joint
 log-likelihood, effective degrees of freedom, AIC, BIC, likelihood-ratio
 increments, and chi-square reference p-values.
+BIC uses the number of observed subjects in each model as the independent
+sample size; \code{n_obs} and \code{n_subjects} are both reported in the result.
 }

@@ -13,7 +13,8 @@ bootstrap_inference(
   fit_args = list(),
   keep_fits = FALSE,
   type = c("parametric", "cluster"),
-  ...
+  ...,
+  attempt_callback = NULL
 )
 }
 \arguments{
@@ -38,6 +39,21 @@ as \code{max_outer_iter}, \code{max_inner_iter}, or convergence tolerances.}
 while \code{"cluster"} resamples subjects with replacement.}
 
 \item{...}{Additional arguments passed to \code{\link[=simulate.gamlss.longitudinal]{simulate.gamlss.longitudinal()}}.}
+
+\item{attempt_callback}{Optional function of one record, called synchronously
+after every native refit return or error, before convergence/coefficient
+filtering. The record contains \code{attempt}, \code{R}, \code{type}, exact refit
+\code{data}, \code{seed}, \code{rng_kind}, \code{rng_before_refit},
+\code{rng_after_refit}, \code{fit_args}, \code{coefficient_names}, complete
+\code{fit} (including failed eligibility), original \code{error} or \code{NULL},
+and ordered \code{conditions} (original condition objects, types, classes,
+messages and calls). Conditions cover the refit only, not initial simulation
+or subsequent filtering. Callback return values are ignored; a callback error
+aborts before any later attempt. The default \code{NULL} retains existing
+behavior. This does not change \code{keep_fits}, retry failed fits, or certify
+inference. Callback RNG changes are restored; other external side effects are
+the callback author's responsibility. Use a callback that writes and verifies
+each record for durable attempt retention.}
 }
 \value{
 An object of class \code{gamlss_longitudinal_bootstrap} with an exact

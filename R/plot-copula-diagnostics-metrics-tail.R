@@ -3,9 +3,7 @@
     return(data.frame())
   }
 
-  emp_copula <- vapply(seq_len(nrow(pair_data)), function(i) {
-    mean(pair_data$u1 <= pair_data$u1[i] & pair_data$u2 <= pair_data$u2[i], na.rm = TRUE)
-  }, numeric(1))
+  emp_copula <- .copula_v2_empirical_cdf_2d(pair_data$u1, pair_data$u2)
 
   fit_copula <- .copula_v2_bicop_cdf(
 
@@ -23,6 +21,48 @@
     fitted = sort(fit_copula[ok]),
     stringsAsFactors = FALSE
   )
+}
+
+.copula_v2_empirical_cdf_2d <- function(x, y) {
+  ok <- is.finite(x) & is.finite(y)
+  out <- rep(NA_real_, length(x))
+  if (!any(ok)) return(out)
+
+  x_ok <- as.numeric(x[ok])
+  y_ok <- as.numeric(y[ok])
+  n <- length(x_ok)
+  y_rank <- match(y_ok, sort(unique(y_ok)))
+  tree <- integer(max(y_rank))
+
+  update_tree <- function(index) {
+    while (index <= length(tree)) {
+      tree[index] <<- tree[index] + 1L
+      index <- index + bitwAnd(index, -index)
+    }
+  }
+  query_tree <- function(index) {
+    total <- 0L
+    while (index > 0L) {
+      total <- total + tree[index]
+      index <- index - bitwAnd(index, -index)
+    }
+    total
+  }
+
+  order_x <- order(x_ok, y_ok)
+  sorted_x <- x_ok[order_x]
+  values <- numeric(n)
+  start <- 1L
+  while (start <= n) {
+    end <- start
+    while (end < n && sorted_x[end + 1L] == sorted_x[start]) end <- end + 1L
+    group <- order_x[start:end]
+    for (row in group) update_tree(y_rank[row])
+    for (row in group) values[row] <- query_tree(y_rank[row]) / n
+    start <- end + 1L
+  }
+  out[ok] <- values
+  out
 }
 
 .copula_v2_tail_diagnostics <- function(pair_data, family_num, thresholds = c(0.05, 0.10, 0.20)) {

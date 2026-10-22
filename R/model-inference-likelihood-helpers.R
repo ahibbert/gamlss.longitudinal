@@ -88,13 +88,19 @@
 
   n_obs <- vapply(models, function(x) sum(is.finite(x$response)), integer(1))
 
+  n_subjects <- vapply(
+    models,
+    function(x) .gl_bic_subject_count(x$response, x$response_subject),
+    integer(1)
+  )
+
   df <- vapply(models, .gl_model_edf, numeric(1))
 
   loglik <- vapply(models, .gl_joint_loglik, numeric(1))
 
   aic <- -2 * loglik + 2 * df
 
-  bic <- -2 * loglik + log(pmax(1, n_obs)) * df
+  bic <- -2 * loglik + log(pmax(1, n_subjects)) * df
 
   delta_df <- c(NA_real_, diff(df))
 
@@ -147,6 +153,7 @@
   out <- data.frame(
     model = labels,
     n_obs = as.integer(n_obs),
+    n_subjects = as.integer(n_subjects),
     df = as.numeric(df),
     logLik = as.numeric(loglik),
     AIC = as.numeric(aic),

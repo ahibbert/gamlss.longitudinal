@@ -1,4 +1,10 @@
 .copula_v2_pair_data <- function(fit_data, lags = 1) {
+  for (bound in c("u_lower", "u_upper")) {
+    if (!bound %in% names(fit_data)) {
+      fit_data[[bound]] <- rep(NA_real_, nrow(fit_data))
+    }
+  }
+
   time_vec <- fit_data$time
 
   time_levels <- if (is.factor(time_vec)) {
@@ -84,6 +90,10 @@
           lag = lag_value,
           u1 = row1$u,
           u2 = row2$u,
+          u1_lower = row1$u_lower,
+          u1_upper = row1$u_upper,
+          u2_lower = row2$u_lower,
+          u2_upper = row2$u_upper,
           theta_pair = theta_pair,
           zeta_pair = zeta_pair,
           tau_fit = tau_pair,

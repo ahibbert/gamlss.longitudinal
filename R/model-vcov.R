@@ -30,6 +30,11 @@
 #' @param details Logical; return the package's detailed covariance bundle
 #'   instead of the standard coefficient covariance matrix. Intended for
 #'   advanced diagnostics and package internals.
+#' @param coefficients Coefficient scope. The default `"fixed"` preserves
+#'   fixed-coefficient inference conditional on fitted smooths. `"joint"`
+#'   includes fixed and smooth coefficients using inverse penalized information,
+#'   conditional on fitted smoothing parameters and the fitted constrained basis.
+#'   Joint sandwich, segmented likelihoods and `par` overrides are unsupported.
 #' @param ... Additional arguments, currently unused.
 #'
 #' @return By default, a named covariance matrix aligned with `coef(object)`.
@@ -39,7 +44,16 @@
 #'   `vcov$model_based` contains the inverse-Hessian covariance used as the
 #'   sandwich bread. The corresponding standard errors are stored under `se`.
 #'   `vcov$smooth_vcov` is a separate penalized approximation. Fixed-smooth
-#'   covariance and smoothing-parameter uncertainty are excluded. See
+#'   covariance and smoothing-parameter uncertainty are excluded in this default mode.
+#'   With `coefficients = "joint"`, the matrix instead covers every named fixed
+#'   and smooth coordinate. Details include the coefficient map, estimates, raw
+#'   likelihood Hessian, fitted penalty, penalized information and cross-blocks.
+#'   This is a local empirical-Bayes covariance, not the frequentist penalized
+#'   estimator covariance or a robust sandwich. Smoothing-parameter uncertainty
+#'   remains excluded. Joint analytical failures are reported without an automatic
+#'   numerical rescue; `method = "numderiv"` is an explicit reference route.
+#'   Positive definite, full-rank usable penalized information is required;
+#'   penalized stationarity uses the existing warning policy. See
 #'   [inference_contracts()].
 #' @export
 vcov.gamlss.longitudinal <- function(object, par = NA, sep_d2 = TRUE, numderiv = FALSE,
@@ -51,12 +65,21 @@ vcov.gamlss.longitudinal <- function(object, par = NA, sep_d2 = TRUE, numderiv =
                                      sandwich_bread_method = c("analytical", "numderiv", "analytical_only"),
                                      inference = inference_control("standard"),
                                      details = FALSE,
+                                     coefficients = c("fixed", "joint"),
                                      ...) {
   # object=fit; par=NA; numderiv=TRUE; sep_d2=TRUE
   .gl_require_converged_fit(object, "variance-covariance inference")
 
   method <- match.arg(method)
+  coefficients <- match.arg(coefficients)
+  if (identical(coefficients, "joint") && identical(method, "sandwich")) {
+    .gl_joint_stop("joint_sandwich_unsupported", "Joint cluster-sandwich inference is not implemented.")
+  }
   if (isTRUE(numderiv)) method <- "numderiv"
+  if (identical(coefficients, "joint")) {
+    return(.gl_vcov_joint(object, par, method, isTRUE(progress), h,
+                          inference, details, cluster = cluster))
+  }
   method_requested_for_missingness <- method
   method <- .gl_require_supported_missingness_inference(object, method)
   if (identical(method, "sandwich")) numderiv <- FALSE
@@ -156,7 +179,15 @@ vcov.gamlss.longitudinal <- function(object, par = NA, sep_d2 = TRUE, numderiv =
 
   margin_derivatives <- calc_lik_out$margin_deriv
 
-  copula_derivatives <- calc_copula_derivatives(eta_inv, Fx_1_2, copula_dist, calc_d2 = TRUE)
+  copula_derivatives <- calc_copula_derivatives(
+    eta_inv,
+    Fx_1_2,
+    copula_dist,
+    calc_d2 = TRUE,
+    par1 = calc_lik_out$copula_par1,
+    par2 = calc_lik_out$copula_par2,
+    pair_complete = calc_lik_out$pair_complete
+  )
 
   # Calculate numerical derivatives for F(x) - also used as a reference for overall likelihood derivative
 
@@ -226,6 +257,7 @@ vcov.gamlss.longitudinal <- function(object, par = NA, sep_d2 = TRUE, numderiv =
     se_final = vcov_solved$se_final,
     method_used = method_used,
     method_requested = method_requested,
-    hessian_diagnostics = vcov_solved$hessian_diagnostics
+    hessian_diagnostics = vcov_solved$hessian_diagnostics,
+    hessian_fallback = vcov_path$hessian_fallback
   ), return_details = details))
 }

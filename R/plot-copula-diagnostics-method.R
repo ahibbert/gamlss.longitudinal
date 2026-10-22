@@ -25,6 +25,9 @@ plot.copula <- function(
     empirical = c("bins", "points"),
     n_bins = 10,
     ncol = 2,
+    randomized_residuals = TRUE,
+    randomized_seed = 1L,
+    randomized_draws = 5L,
     ...) {
   if (!inherits(x, "gamlss.longitudinal")) {
     stop("'x' must be a fitted 'gamlss.longitudinal' object.")
@@ -67,6 +70,11 @@ plot.copula <- function(
   plot1_style <- if (identical(empirical, "points")) "scatter" else "bins"
   plot2_cuts <- n_bins
   dashboard_ncol <- ncol
+  randomized_controls <- .copula_v2_validate_randomized_controls(
+    randomized_residuals,
+    randomized_seed,
+    randomized_draws
+  )
 
   controls <- .copula_v2_normalize_plot_controls(
     transform = transform,
@@ -109,6 +117,19 @@ plot.copula <- function(
     pair_data_plot <- .copula_v2_transform_data(pair_data_plot, transform = "normal")
   }
 
+  discrete_margin <- .is_discrete_margin(object$margin_dist)
+  if (discrete_margin && !isTRUE(randomized_controls$randomized_residuals)) {
+    return(.copula_v2_discrete_unavailable(
+      fit_data = fit_data,
+      pair_data_plot = pair_data_plot,
+      pair_data_uniform = pair_data_uniform,
+      type = type,
+      dashboard_ncol = dashboard_ncol,
+      plot = plot,
+      randomized_seed = randomized_controls$randomized_seed
+    ))
+  }
+
   copula_spec <- get_copula_dist(object$copula_dist)
 
   copula_family_name <- .copula_family_code(copula_spec$copula_dist)
@@ -119,6 +140,34 @@ plot.copula <- function(
     },
     error = function(e) NA_character_
   )
+
+  randomized_diagnostics <- NULL
+  if (discrete_margin) {
+    randomized_diagnostics <- .copula_v2_randomized_discrete_residuals(
+      fit_data,
+      family_num,
+      seed = randomized_controls$randomized_seed
+    )
+    fit_data <- randomized_diagnostics$fit_data
+    pair_data_uniform <- .copula_v2_pair_data(fit_data, lags = lags)
+    pair_data_uniform <- .copula_v2_attach_group(
+      pair_data_uniform, object = object, by = by, data = data
+    )
+    pair_data_uniform <- .copula_v2_latent_rectangle_draws(
+      pair_data_uniform,
+      family_num = family_num,
+      draws = randomized_controls$randomized_draws,
+      seed = randomized_controls$randomized_seed
+    )
+    randomized_diagnostics$settings$latent_pair_method <-
+      "copula_conditional_rectangle_completion"
+    randomized_diagnostics$settings$latent_draws <-
+      randomized_controls$randomized_draws
+    pair_data_plot <- pair_data_uniform
+    if (transform == "normal") {
+      pair_data_plot <- .copula_v2_transform_data(pair_data_plot, transform = "normal")
+    }
+  }
 
   is_grouped <- !is.null(by) || isTRUE(time_stratified)
 
@@ -145,6 +194,15 @@ plot.copula <- function(
     x_label = x_label,
     y_label = y_label
   )
+  if (discrete_margin) {
+    p1 <- p1 + ggplot2::labs(
+      subtitle = paste0(
+        "Fitted ", .gl_copula_display_label(copula_family_name),
+        " contours; ", randomized_controls$randomized_draws,
+        " latent completions"
+      )
+    )
+  }
 
   quartile_df <- .copula_v2_cut_summary_by_group(
     pair_data_plot = pair_data_plot,
@@ -158,18 +216,29 @@ plot.copula <- function(
     is_grouped = is_grouped,
     tau_ylim = tau_ylim
   )
+  if (discrete_margin) {
+    p2 <- p2 + ggplot2::labs(
+      title = "Latent Kendall's tau by fitted bin",
+      subtitle = paste0(
+        randomized_controls$randomized_draws,
+        " copula-conditional completions per observed pair"
+      )
+    )
+  }
 
-  rosenblatt_df <- tryCatch(
-
-    .copula_v2_rosenblatt_series(fit_data, family_num),
-    error = function(e) data.frame()
-  )
-
-  rosenblatt_pair_df <- tryCatch(
-
-    .copula_v2_rosenblatt_pair_data(pair_data_uniform, family_num),
-    error = function(e) data.frame()
-  )
+  if (discrete_margin) {
+    rosenblatt_df <- randomized_diagnostics$rosenblatt
+    rosenblatt_pair_df <- randomized_diagnostics$rosenblatt_pairs
+  } else {
+    rosenblatt_df <- tryCatch(
+      .copula_v2_rosenblatt_series(fit_data, family_num),
+      error = function(e) data.frame()
+    )
+    rosenblatt_pair_df <- tryCatch(
+      .copula_v2_rosenblatt_pair_data(pair_data_uniform, family_num),
+      error = function(e) data.frame()
+    )
+  }
 
   p_ros_time <- .copula_v2_rosenblatt_time_panel(rosenblatt_df)
 
@@ -186,6 +255,13 @@ plot.copula <- function(
   )
 
   p_kendall <- .copula_v2_kendall_panel(kendall_df)
+  if (discrete_margin) {
+    p_kendall <- p_kendall + ggplot2::labs(
+      title = "Latent Kendall calibration",
+      subtitle = "Randomized completions vs fitted copula probabilities",
+      y = "Latent-completion copula probability"
+    )
+  }
 
   tail_df <- tryCatch(
 
@@ -196,22 +272,41 @@ plot.copula <- function(
   cond_tail_df <- .copula_v2_conditional_tail_diagnostics(tail_df)
 
   tail_long <- .copula_v2_tail_long_data(tail_df)
+  if (discrete_margin && nrow(tail_long)) {
+    tail_long$source[tail_long$source == "Empirical"] <- "Latent completion"
+  }
 
   p_tail <- .copula_v2_tail_panel(
     tail_long = tail_long,
-    title = "Tail Co-occurrence",
-    message_subtitle = "Observed vs fitted joint tails",
+    title = if (discrete_margin) "Latent tail co-occurrence" else "Tail Co-occurrence",
+    message_subtitle = if (discrete_margin) {
+      "Latent completions vs fitted joint tails"
+    } else {
+      "Observed vs fitted joint tails"
+    },
     empty_message = "No finite tail diagnostics",
     plot_subtitle = "Lower and upper joint-tail probabilities",
     y_label = "Joint probability"
   )
 
   cond_tail_long <- .copula_v2_tail_long_data(cond_tail_df)
+  if (discrete_margin && nrow(cond_tail_long)) {
+    cond_tail_long$source[cond_tail_long$source == "Empirical"] <-
+      "Latent completion"
+  }
 
   p_cond_tail <- .copula_v2_tail_panel(
     tail_long = cond_tail_long,
-    title = "Conditional Tail Exceedance",
-    message_subtitle = "Observed vs fitted conditional tails",
+    title = if (discrete_margin) {
+      "Latent conditional tail exceedance"
+    } else {
+      "Conditional Tail Exceedance"
+    },
+    message_subtitle = if (discrete_margin) {
+      "Latent completions vs fitted conditional tails"
+    } else {
+      "Observed vs fitted conditional tails"
+    },
     empty_message = "No finite conditional tail diagnostics",
     plot_subtitle = "Lower and upper conditional-tail probabilities",
     y_label = "Conditional probability",
@@ -259,6 +354,7 @@ plot.copula <- function(
     kendall_summary = kendall_df,
     tail_summary = tail_df,
     conditional_tail_summary = cond_tail_df,
-    residual_lag_summary = lag_summary_df
+    residual_lag_summary = lag_summary_df,
+    randomized_settings = if (discrete_margin) randomized_diagnostics$settings else NULL
   ))
 }

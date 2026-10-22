@@ -166,9 +166,15 @@
     family_name <- object$margin_dist$family[1]$family
   }
 
-  u <- .gl_call_family_fun("p", family_name, response, margin_params)
-
-  u <- .copula_v2_clamp01(u)
+  u_upper <- .gl_call_family_fun("p", family_name, response, margin_params)
+  u_upper <- pmin(pmax(as.numeric(u_upper), 0), 1)
+  u_lower <- if (.is_discrete_margin(object$margin_dist)) {
+    lower <- .gl_call_family_fun("p", family_name, response - 1, margin_params)
+    pmin(pmax(as.numeric(lower), 0), 1)
+  } else {
+    rep(NA_real_, length(u_upper))
+  }
+  u <- .copula_v2_clamp01(u_upper)
 
   family_num <- tryCatch(
     {
@@ -190,6 +196,8 @@
     time = time,
     response = response,
     u = u,
+    u_lower = u_lower,
+    u_upper = u_upper,
     theta_fit = theta_fit,
     zeta_fit = zeta_fit,
     tau_fit = tau_fit,

@@ -33,9 +33,9 @@
   if (nrow(input_data) >= 3) {
     pearson_r <- suppressWarnings(cor(input_data$X1, input_data$X2, method = "pearson", use = "complete.obs"))
     kendall_tau <- suppressWarnings(cor(input_data$X1, input_data$X2, method = "kendall", use = "complete.obs"))
-    stats_lab <- sprintf("Pearson r = %.3f | Kendall tau = %.3f", pearson_r, kendall_tau)
+    stats_lab <- sprintf("r = %.3f | tau = %.3f", pearson_r, kendall_tau)
   } else {
-    stats_lab <- "Pearson r = NA | Kendall tau = NA"
+    stats_lab <- "r = NA | tau = NA"
   }
 
   p + ggplot2::labs(subtitle = stats_lab)

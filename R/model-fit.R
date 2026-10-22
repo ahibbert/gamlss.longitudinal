@@ -40,23 +40,21 @@
 #'   [longitudinal_capabilities()].
 #' @param time_var Name of the time variable in `dataset`.
 #' @param subject_var Name of the subject identifier in `dataset`.
-#' @param missingness Handling of response patterns outside complete panels and
-#'   observed prefixes ending in terminal dropout. The default, `"auto"`, uses
-#'   the ordinary likelihood where possible and automatically switches to the
-#'   segmented likelihood when leading unobserved visits or intermittent gaps
-#'   are detected. Use `"error"` to stop instead, or `"segment"` to explicitly
-#'   permit segmentation. With a segmented objective, the likelihood is
-#'   evaluated within contiguous observed
-#'   segments and different segments are treated as independent. The first
-#'   observed visit after leading missing visits explicitly starts a segment.
-#'   Terminal dropout does not require segmentation. AIC and
+#' @param missingness Handling of response patterns with intermittent internal
+#'   gaps. The default, `"auto"`, uses the ordinary likelihood unless an
+#'   intermittent gap is detected, in which case it automatically switches to
+#'   the segmented likelihood. Use `"error"` to stop instead, or `"segment"` to
+#'   explicitly permit segmentation. With a segmented objective, the likelihood
+#'   is evaluated within contiguous observed segments and different segments are
+#'   treated as independent. Delayed entry begins a single observed sequence at
+#'   the first observed visit and does not require segmentation; neither do
+#'   observed prefixes ending in terminal dropout. AIC and
 #'   BIC remain available for segmented fits under the stated independence
 #'   assumption. Standard inference methods automatically use subject-clustered
 #'   sandwich covariance instead of ordinary model-Hessian inference for this
 #'   composite objective; model-based standard errors remain available for
 #'   comparison, and bootstrap sensitivity analysis remains advisable.
-#'   Numerical integration across gaps and a distinct delayed-entry
-#'   likelihood are not yet implemented.
+#'   Numerical integration across gaps is not yet implemented.
 #' @param mu.formula Formula for the mu parameter of the marginal distribution
 #' @param sigma.formula Formula for the sigma parameter of the marginal distribution
 #' @param nu.formula Formula for the nu parameter of the marginal distribution

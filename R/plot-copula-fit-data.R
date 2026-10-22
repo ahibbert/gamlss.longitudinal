@@ -214,7 +214,8 @@
       x = x_label,
       y = y_label
     ) +
-    theme_gamlss_longitudinal(base_size = 12)
+    theme_gamlss_longitudinal(base_size = 12) +
+    ggplot2::theme(plot.margin = ggplot2::margin(8, 8, 8, 14))
 
   if (isTRUE(by_time)) {
     p <- p + ggplot2::facet_wrap(~split_group, scales = "fixed")

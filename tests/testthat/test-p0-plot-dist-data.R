@@ -157,7 +157,7 @@ test_that("plot_dist off-diagonal panel helper returns scatter density panel wit
   expect_s3_class(p, "ggplot")
   expect_true("GeomPoint" %in% layer_classes)
   expect_true("GeomDensity2d" %in% layer_classes)
-  expect_match(p$labels$subtitle, "Pearson r = -1.000")
+  expect_match(p$labels$subtitle, "r = -1.000")
 })
 
 test_that("plot_dist overlay helper adds selected copula contours", {

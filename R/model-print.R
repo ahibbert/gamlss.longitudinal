@@ -56,6 +56,30 @@ print.gamlss.longitudinal <- function(x, digits = max(3L, getOption("digits") - 
     x$vcov_meta$inference_status %||% "not computed"
   }
   cat("Inference: ", inference, "\n", sep = "")
+  hd <- x$vcov$hessian_diagnostics %||% x$vcov_meta$hessian_diagnostics %||% list()
+  stationarity <- hd$stationarity_status %||% x$vcov_meta$stationarity_status %||% "not_checked"
+  stationarity_gradient <- hd$stationarity_scaled_gradient_max %||%
+    x$vcov_meta$stationarity_scaled_gradient_max %||% NA_real_
+  stationarity_tolerance <- hd$stationarity_tolerance %||%
+    x$vcov_meta$stationarity_tolerance %||% NA_real_
+  if (identical(stationarity, "failed")) {
+    cat(
+      "Stationarity: FAILED (scaled gradient ",
+      .gl_format_console_number(stationarity_gradient, digits), " > ",
+      .gl_format_console_number(stationarity_tolerance, digits),
+      "); inference remains available with a warning.\n",
+      sep = ""
+    )
+  } else if (identical(stationarity, "passed")) {
+    cat(
+      "Stationarity: passed (scaled gradient ",
+      .gl_format_console_number(stationarity_gradient, digits), " <= ",
+      .gl_format_console_number(stationarity_tolerance, digits), ")\n",
+      sep = ""
+    )
+  } else {
+    cat("Stationarity: not checked\n")
+  }
   if (identical(x$likelihood_contract$objective, "segmented")) {
     cat("Missingness: segmented likelihood; observed segments are treated as independent.\n")
   }

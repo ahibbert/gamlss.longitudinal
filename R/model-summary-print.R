@@ -95,6 +95,28 @@ print.summary.gamlss.longitudinal <- function(x, digits = max(3, getOption("digi
       "\n"
     )
     hd <- x$fit$hessian_diagnostics
+    stationarity <- hd$stationarity_status %||% "not_checked"
+    if (identical(stationarity, "failed")) {
+      cat(
+        "Stationarity: FAILED (scaled gradient ",
+        formatC(hd$stationarity_scaled_gradient_max, digits = digits, format = "fg"),
+        " > ",
+        formatC(hd$stationarity_tolerance, digits = digits, format = "fg"),
+        "); inference is reported with a warning.\n",
+        sep = ""
+      )
+    } else if (identical(stationarity, "passed")) {
+      cat(
+        "Stationarity: passed (scaled gradient ",
+        formatC(hd$stationarity_scaled_gradient_max, digits = digits, format = "fg"),
+        " <= ",
+        formatC(hd$stationarity_tolerance, digits = digits, format = "fg"),
+        ")\n",
+        sep = ""
+      )
+    } else {
+      cat("Stationarity: not checked\n")
+    }
     if (!is.null(hd) && is.finite(hd$scaled_condition_number %||% NA_real_)) {
       cat(
         "Scaled information condition number:",

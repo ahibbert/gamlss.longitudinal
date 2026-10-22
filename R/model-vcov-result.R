@@ -27,7 +27,7 @@
       .gl_vcov_uses_analytical_curvature(method_used, hessian_diagnostics)) {
     out$continuous_curvature <- .gl_vcov_continuous_curvature_marker(object)
   }
-  .gl_enrich_vcov_contract(out, object)
+  .gl_enrich_vcov_contract(.gl_vcov_stamp_epoch(out), object)
 }
 
 #' Format detailed covariance output for the standard `vcov()` interface

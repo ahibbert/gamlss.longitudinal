@@ -35,7 +35,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
   all_copulas <- .gl_capability_all_copulas()
   count_note <- paste(
     "One homogeneous count family per fit; exact discrete-discrete rectangle",
-    "likelihood; diagnostics use seeded randomized PIT values and descriptive pair summaries."
+    "likelihood; diagnostics support seeded randomized PIT values and exact randomized conditional residuals."
   )
   list(
     NO = list(
@@ -83,7 +83,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
       response_requirement = "finite non-negative integers", parameters = "mu",
       likelihood_route = "exact_discrete_rectangle", compatible_copulas = all_copulas,
       hessian_path = "analytical_and_numerical_implemented", randomized_pit = TRUE,
-      diagnostics = "seeded_randomized_pit_and_descriptive_pair_diagnostics",
+      diagnostics = "seeded_randomized_pit_and_conditional_residual_diagnostics",
       limitations = count_note, paper_route = FALSE
     ),
     NBI = list(
@@ -91,7 +91,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
       response_requirement = "finite non-negative integers", parameters = c("mu", "sigma"),
       likelihood_route = "exact_discrete_rectangle", compatible_copulas = all_copulas,
       hessian_path = "analytical_and_numerical_implemented", randomized_pit = TRUE,
-      diagnostics = "seeded_randomized_pit_and_descriptive_pair_diagnostics",
+      diagnostics = "seeded_randomized_pit_and_conditional_residual_diagnostics",
       limitations = paste(count_note, "NBI/Clayton is the validated public paper route."), paper_route = TRUE
     ),
     DEL = list(
@@ -99,7 +99,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
       response_requirement = "finite non-negative integers", parameters = c("mu", "sigma", "nu"),
       likelihood_route = "exact_discrete_rectangle", compatible_copulas = all_copulas,
       hessian_path = "analytical_and_numerical_implemented", randomized_pit = TRUE,
-      diagnostics = "seeded_randomized_pit_and_descriptive_pair_diagnostics",
+      diagnostics = "seeded_randomized_pit_and_conditional_residual_diagnostics",
       limitations = count_note, paper_route = FALSE
     ),
     ZIP = list(
@@ -107,7 +107,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
       response_requirement = "finite non-negative integers", parameters = c("mu", "sigma"),
       likelihood_route = "exact_discrete_rectangle", compatible_copulas = all_copulas,
       hessian_path = "analytical_and_numerical_implemented", randomized_pit = TRUE,
-      diagnostics = "seeded_randomized_pit_and_descriptive_pair_diagnostics",
+      diagnostics = "seeded_randomized_pit_and_conditional_residual_diagnostics",
       limitations = count_note, paper_route = FALSE
     ),
     ZAP = list(
@@ -115,7 +115,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
       response_requirement = "finite non-negative integers", parameters = c("mu", "sigma"),
       likelihood_route = "exact_discrete_rectangle", compatible_copulas = all_copulas,
       hessian_path = "analytical_and_numerical_implemented", randomized_pit = TRUE,
-      diagnostics = "seeded_randomized_pit_and_descriptive_pair_diagnostics",
+      diagnostics = "seeded_randomized_pit_and_conditional_residual_diagnostics",
       limitations = count_note, paper_route = FALSE
     ),
     ZINBI = list(
@@ -123,7 +123,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
       response_requirement = "finite non-negative integers", parameters = c("mu", "sigma", "nu"),
       likelihood_route = "exact_discrete_rectangle", compatible_copulas = all_copulas,
       hessian_path = "analytical_and_numerical_implemented", randomized_pit = TRUE,
-      diagnostics = "seeded_randomized_pit_and_descriptive_pair_diagnostics",
+      diagnostics = "seeded_randomized_pit_and_conditional_residual_diagnostics",
       limitations = count_note, paper_route = FALSE
     )
   )
@@ -278,7 +278,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
       compatible_copulas = .gl_capability_all_copulas(),
       hessian_path = "analytical_and_numerical_implemented",
       randomized_pit = TRUE,
-      diagnostics = "seeded_randomized_pit_and_descriptive_pair_diagnostics",
+      diagnostics = "seeded_randomized_pit_and_conditional_residual_diagnostics",
       limitations = paste(
         "Requires margin_args = list(bd = positive_integer_or_column_name);",
         "all copula families use the shared exact discrete rectangle route."
@@ -336,7 +336,7 @@ longitudinal_capabilities <- function(component = c("routes", "margins", "copula
     hessian_path = "analytical_and_numerical_implemented",
     randomized_pit = identical(family_type, "discrete"),
     diagnostics = if (identical(family_type, "discrete")) {
-      "seeded_randomized_pit_and_descriptive_pair_diagnostics"
+      "seeded_randomized_pit_and_conditional_residual_diagnostics"
     } else {
       "continuous_pit_and_pair_diagnostics"
     },

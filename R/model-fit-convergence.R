@@ -136,6 +136,7 @@
   if (n_observed < 1L) {
     stop("Information criteria require at least one finite observed response.", call. = FALSE)
   }
+  n_subjects <- .gl_bic_subject_count(dataset$response, dataset$subject)
 
   aics <- rbind(
     t(calc_lik_out_end$log_lik),
@@ -148,7 +149,7 @@
       length(p_mar) + df_s_margin_total,
       length(p_cop) + df_s_cop_total,
       length(par_cov) + df_s_total
-    ) * log(n_observed),
+    ) * log(n_subjects),
     t(c(
       length(p_mar) + df_s_margin_total,
       length(p_cop) + df_s_cop_total,
@@ -157,5 +158,8 @@
   )
 
   rownames(aics) <- c("LogLik", "AIC", "BIC", "EDF")
+  attr(aics, "BIC_n") <- n_subjects
+  attr(aics, "BIC_unit") <- "subject"
+  attr(aics, "n_responses") <- n_observed
   aics
 }

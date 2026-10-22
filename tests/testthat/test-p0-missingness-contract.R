@@ -48,27 +48,26 @@ test_that("complete data and monotone dropout use the ordinary objective", {
   expect_identical(dropout_contract$n_segments, 2L)
 })
 
-test_that("leading unobserved visits use the requested missingness contract", {
+test_that("leading unobserved visits use the ordinary likelihood", {
   delayed <- data.frame(
     response = c(NA, 2, 3, 4, 5, 6),
     time = rep(1:3, 2),
     subject = rep(c("a", "b"), each = 3)
   )
 
-  err <- tryCatch(
-    gamlss.longitudinal:::.gl_missingness_contract(delayed, "error"),
-    error = identity
-  )
-  expect_s3_class(err, "gamlss.longitudinal_gap_error")
-  expect_match(conditionMessage(err), "leading unobserved scheduled visits", fixed = TRUE)
-
-  contract <- gamlss.longitudinal:::.gl_missingness_contract(delayed, "segment")
+  strict <- gamlss.longitudinal:::.gl_missingness_contract(delayed, "error")
+  contract <- gamlss.longitudinal:::.gl_missingness_contract(delayed, "auto")
   expect_true(contract$has_delayed_entry)
   expect_false(contract$has_intermittent_gaps)
   expect_false(contract$auto_selected)
   expect_identical(contract$n_subjects_with_delayed_entry, 1L)
   expect_identical(contract$n_leading_missing, 1L)
-  expect_identical(contract$objective, "segmented")
+  expect_identical(contract$affected_subjects, character())
+  expect_identical(contract$objective, "ordinary")
+  expect_identical(contract$between_segment_assumption, "not_applicable")
+  expect_identical(strict$requested, "error")
+  expect_identical(strict$objective, "ordinary")
+  expect_match(contract$statement, "delayed entry", fixed = TRUE)
 })
 
 test_that("gap detection follows scheduled-time order and records contiguous segments", {

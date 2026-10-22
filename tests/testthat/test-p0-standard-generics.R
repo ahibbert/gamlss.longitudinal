@@ -3,6 +3,7 @@ make_standard_generic_object <- function(objective = "ordinary", converged = TRU
     par = c(`mu.(Intercept)` = 1, `theta.(Intercept)` = 0.2),
     df_s = list(mu = list(smooth = 0.5)),
     response = c(1, 2, NA, 4),
+    response_subject = c(1L, 1L, 2L, 2L),
     calc_lik_out_end = list(log_lik = c(marginal = -8, copula = -2, joint = -10)),
     convergence = list(converged = converged, stop_reason = if (converged) "tolerance" else "iteration_limit"),
     likelihood_contract = list(
@@ -21,10 +22,11 @@ test_that("standard likelihood and information-criterion generics are scalar", {
   expect_length(ll, 1L)
   expect_equal(as.numeric(ll), -10)
   expect_equal(attr(ll, "df"), 2.5)
-  expect_identical(attr(ll, "nobs"), 3L)
+  expect_identical(attr(ll, "nobs"), 2L)
+  expect_identical(attr(ll, "nresponses"), 3L)
   expect_length(stats::AIC(fit), 1L)
   expect_equal(stats::AIC(fit), 25)
-  expect_equal(stats::BIC(fit), 20 + log(3) * 2.5)
+  expect_equal(stats::BIC(fit), 20 + log(2) * 2.5)
 })
 
 test_that("information criteria reject nonconverged fits", {
@@ -166,7 +168,8 @@ test_that("stored, summary, and standard criteria agree on a fitted object", {
   expect_equal(BIC(fit), fit$model_selection["BIC", "joint"])
   expect_equal(summary_out$fit$AIC, AIC(fit))
   expect_equal(summary_out$fit$BIC, BIC(fit))
-  expect_identical(attr(logLik(fit), "nobs"), nobs(fit))
+  expect_identical(attr(logLik(fit), "nobs"), length(unique(fit$response_subject)))
+  expect_identical(attr(logLik(fit), "nresponses"), nobs(fit))
 
   fit2 <- fit
   comparison <- stats::AIC(fit, fit2)

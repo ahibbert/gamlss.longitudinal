@@ -5,7 +5,9 @@
 #'
 #' @return A scalar object of class `logLik` for the fitted joint likelihood.
 #'   Its `df` attribute is the joint effective degrees of freedom and its
-#'   `nobs` attribute is the total number of observed responses.
+#'   `nobs` attribute is the number of observed subjects, the independent
+#'   sampling units used by [stats::BIC()]. The total number of observed
+#'   responses is retained in the `nresponses` attribute.
 #' @export
 logLik.gamlss.longitudinal <- function(object, ...) {
   value <- .gl_joint_loglik(object)
@@ -16,7 +18,8 @@ logLik.gamlss.longitudinal <- function(object, ...) {
     value,
     class = "logLik",
     df = .gl_model_edf(object),
-    nobs = stats::nobs(object),
+    nobs = .gl_bic_subject_count(object$response, object$response_subject),
+    nresponses = stats::nobs(object),
     likelihood_contract = object$likelihood_contract %||% list(objective = "ordinary")
   )
 }
@@ -24,12 +27,15 @@ logLik.gamlss.longitudinal <- function(object, ...) {
 #' Information criteria for fitted longitudinal GAMLSS-copula models
 #'
 #' AIC and BIC use the fitted joint likelihood, joint effective degrees of
-#' freedom, and the total number of observed responses. For
+#' freedom. BIC uses the number of observed subjects as its sample size because
+#' subjects, rather than their repeated responses, are the independent sampling
+#' units. For
 #' `missingness = "segment"`, they describe the explicit segmented likelihood
 #' in which observations separated by gaps are independent.
 #'
 #' @param object A fitted `gamlss.longitudinal` object.
-#' @param ... Additional fitted models for `AIC()`; passed to [stats::AIC()].
+#' @param ... Additional fitted models for `AIC()` or `BIC()`; passed to the
+#'   corresponding stats generic.
 #' @param k Penalty multiplier.
 #' @return A numeric criterion, or the standard comparison table when multiple
 #'   models are supplied to `AIC()`.

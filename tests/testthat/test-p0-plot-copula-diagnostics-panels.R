@@ -19,7 +19,7 @@ test_that("copula diagnostics empirical overlay panel renders finite density gri
   )
 
   expect_s3_class(p, "ggplot")
-  expect_equal(p$labels$title, "Empirical and fitted copula")
+  expect_equal(p$labels$title, "Copula fit")
   expect_true(is.expression(p$labels$x))
 })
 
@@ -63,7 +63,7 @@ test_that("copula diagnostics empirical overlay panel handles grouped and empty 
   expect_false(grouped$facet$params$free$x)
   expect_false(grouped$facet$params$free$y)
   expect_s3_class(empty, "ggplot")
-  expect_equal(empty$labels$title, "Empirical and fitted copula")
+  expect_equal(empty$labels$title, "Copula fit")
 })
 
 test_that("copula diagnostics cut summary panel renders finite and empty summaries", {
@@ -88,10 +88,10 @@ test_that("copula diagnostics cut summary panel renders finite and empty summari
   )
 
   expect_s3_class(p, "ggplot")
-  expect_equal(p$labels$title, "Observed vs Fitted Correlation by Quantile Bin")
+  expect_equal(p$labels$title, "Kendall's tau by fitted bin")
   expect_equal(p$labels$y, "Kendall's tau")
   expect_s3_class(empty, "ggplot")
-  expect_equal(empty$labels$title, "Observed vs Fitted Correlation by Quantile Bin")
+  expect_equal(empty$labels$title, "Kendall's tau by fitted bin")
 })
 
 test_that("copula diagnostics cut summary panel supports grouped fixed-scale panels", {
@@ -140,24 +140,24 @@ test_that("copula diagnostics Rosenblatt time panel handles finite and empty dat
   p <- .copula_v2_rosenblatt_time_panel(finite)
 
   expect_s3_class(p, "ggplot")
-  expect_equal(p$labels$title, "Rosenblatt Normal Scores by Time")
+  expect_equal(p$labels$title, "Rosenblatt scores by time")
   expect_equal(p$labels$y, "Normal score")
 
   empty <- .copula_v2_rosenblatt_time_panel(data.frame(z = c(NA_real_, Inf)))
   expect_s3_class(empty, "ggplot")
-  expect_equal(empty$labels$title, "Rosenblatt Normal Scores by Time")
+  expect_equal(empty$labels$title, "Rosenblatt scores by time")
 })
 
 test_that("copula diagnostics Rosenblatt QQ panel handles finite and empty data", {
   p <- .copula_v2_rosenblatt_qq_panel(data.frame(theoretical = c(-1, 1), observed = c(-0.8, 0.9)))
 
   expect_s3_class(p, "ggplot")
-  expect_equal(p$labels$title, "Rosenblatt normal Q-Q")
+  expect_equal(p$labels$title, "Rosenblatt Q-Q")
   expect_equal(p$labels$x, "Theoretical normal quantile")
 
   empty <- .copula_v2_rosenblatt_qq_panel(data.frame())
   expect_s3_class(empty, "ggplot")
-  expect_equal(empty$labels$title, "Rosenblatt normal Q-Q")
+  expect_equal(empty$labels$title, "Rosenblatt Q-Q")
 })
 
 test_that("copula diagnostics Rosenblatt lag panel handles finite and empty data", {
@@ -176,12 +176,12 @@ test_that("copula diagnostics Kendall panel handles finite and empty data", {
   p <- .copula_v2_kendall_panel(data.frame(fitted = c(0.1, 0.5, 0.9), empirical = c(0.2, 0.4, 0.8)))
 
   expect_s3_class(p, "ggplot")
-  expect_equal(p$labels$title, "Kendall-function calibration")
+  expect_equal(p$labels$title, "Kendall calibration")
   expect_equal(p$labels$x, "Fitted copula probability")
 
   empty <- .copula_v2_kendall_panel(data.frame())
   expect_s3_class(empty, "ggplot")
-  expect_equal(empty$labels$title, "Kendall-function calibration")
+  expect_equal(empty$labels$title, "Kendall calibration")
 })
 
 test_that("copula diagnostics tail panel renders finite tail data", {
@@ -225,10 +225,10 @@ test_that("copula diagnostics residual lag panel handles finite and empty data",
   p <- .copula_v2_residual_lag_panel(data.frame(lag = c(1L, 2L), cor_z = c(0.1, -0.2), n_pairs = c(12L, 10L)))
 
   expect_s3_class(p, "ggplot")
-  expect_equal(p$labels$title, "Residual dependence by lag")
+  expect_equal(p$labels$title, "Residual correlation by lag")
   expect_equal(p$labels$y, "Correlation")
 
   empty <- .copula_v2_residual_lag_panel(data.frame(lag = 1L, cor_z = NA_real_, n_pairs = 0L))
   expect_s3_class(empty, "ggplot")
-  expect_equal(empty$labels$title, "Residual dependence by lag")
+  expect_equal(empty$labels$title, "Residual correlation by lag")
 })

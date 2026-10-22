@@ -52,6 +52,19 @@
   }
 
   cols <- .gl_plot_colours()
+  conditional_pairs <- isTRUE(attr(
+    rosenblatt_pair_df, "conditional_residual_pairs"
+  ))
+  x_label <- if (conditional_pairs) {
+    expression(Phi^-1 * (R[t]))
+  } else {
+    expression(Phi^-1 * (U[t]))
+  }
+  y_label <- if (conditional_pairs) {
+    expression(Phi^-1 * (R[t + 1]))
+  } else {
+    expression(Phi^-1 * (R[t + 1] ~ "|" ~ U[t]))
+  }
   ggplot2::ggplot(rosenblatt_pair_df, ggplot2::aes(x = z_prev, y = z_curr)) +
     ggplot2::geom_hline(yintercept = 0, color = cols[["light"]]) +
     ggplot2::geom_vline(xintercept = 0, color = cols[["light"]]) +
@@ -60,8 +73,8 @@
     ggplot2::labs(
       title = "Rosenblatt Lag Plot",
       subtitle = "Target: smooth is flat at 0",
-      x = expression(Phi^-1 * (U[t])),
-      y = expression(Phi^-1 * (R[t + 1] ~ "|" ~ U[t]))
+      x = x_label,
+      y = y_label
     ) +
     theme_gamlss_longitudinal()
 }

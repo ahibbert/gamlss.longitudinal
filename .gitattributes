@@ -28,3 +28,7 @@
 paper/data/public-derived/copula-misspecification/*.csv -text
 paper/approvals/*.attestation -text
 paper/approvals/*.sig -text
+
+# Retained ACTG screening evidence is checksummed by raw bytes.
+paper/data/public-derived/actg/retained-screening/*.csv -text
+paper/data/public-derived/actg/retained-screening/manifest.json -text

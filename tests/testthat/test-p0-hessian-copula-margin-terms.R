@@ -91,5 +91,8 @@ test_that("copula Hessian margin pair helpers expose derivative formulas", {
   expect_equal(zeta$i1, derivs$zeta$d2cdzu1[k] * 0.2 / cv - (derivs$dcdu1[k] * 0.2 / cv) * (derivs$zeta$dcdz[k] / cv))
   expect_equal(zeta$i2, derivs$zeta$d2cdzu2[k] * 0.3 / cv - (derivs$dcdu2[k] * 0.3 / cv) * (derivs$zeta$dcdz[k] / cv))
 
-  expect_equal(.copula_hessian_finite_or_zero(c(1, NaN, Inf, -Inf)), c(1, 0, 0, 0))
+  expect_error(
+    .copula_hessian_finite_or_zero(c(1, NaN, Inf, -Inf)),
+    class = "gamlss_longitudinal_score_evaluation_error"
+  )
 })

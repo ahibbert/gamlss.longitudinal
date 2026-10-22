@@ -47,7 +47,7 @@ summary.gamlss.longitudinal <- function(
   }
 
   model_info <- .gl_summary_model_info(object)
-  fit_criteria <- .gl_summary_fit_criteria(object, n_obs = model_info$n_obs)
+  fit_criteria <- .gl_summary_fit_criteria(object, n_subjects = model_info$bic_n_subjects)
 
   vcov_out <- NULL
   if (isTRUE(include_vcov)) {

@@ -63,6 +63,8 @@ test_that("duplicate joint Wald contrasts fail with a classed unavailable condit
 test_that("likelihood references remain unverified without nesting evidence", {
   model <- function(ll, p) structure(list(
     response = 1:4,
+    response_subject = rep(1:2, each = 2),
+    response_margin = rep(1:2, times = 2),
     par = stats::setNames(seq_len(p), paste0("b", seq_len(p))),
     df_s = list(),
     calc_lik_out_end = list(log_lik = c(joint = ll))
@@ -134,6 +136,11 @@ test_that("prediction metadata propagates analytical-to-numerical fallback", {
     method = "analytical",
     cache_version = gamlss.longitudinal:::.gl_vcov_cache_version()
   )
+  # This fixture tests missing covariance columns, so it must reach the cache
+  # hit route rather than recomputing a deliberately incomplete synthetic fit.
+  unmatched$vcov$continuous_curvature <-
+    gamlss.longitudinal:::.gl_vcov_continuous_curvature_marker(unmatched)
+  expect_true(gamlss.longitudinal:::.can_use_cached_vcov(unmatched, method = "analytical"))
   expect_error(
     gamlss.longitudinal:::.gl_predict_response_se(unmatched),
     class = "gamlss_longitudinal_inference_unavailable"

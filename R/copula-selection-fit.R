@@ -11,13 +11,15 @@
     log_mass1 = NULL,
     log_mass2 = NULL,
     log_survival1 = NULL,
-    log_survival2 = NULL) {
+    log_survival2 = NULL,
+    bic_n = length(u1)) {
   if (!is.null(copula_time)) {
     return(.select_copula_fit_family_by_time(
       u1, u2, family, t_df_grid, copula_time,
       upper1 = upper1, upper2 = upper2, lower1 = lower1, lower2 = lower2,
       log_mass1 = log_mass1, log_mass2 = log_mass2,
-      log_survival1 = log_survival1, log_survival2 = log_survival2
+      log_survival1 = log_survival1, log_survival2 = log_survival2,
+      bic_n = bic_n
     ))
   }
   tau_start <- suppressWarnings(stats::cor(u1, u2, method = "kendall", use = "complete.obs"))
@@ -41,7 +43,7 @@
     tau = .copula_par_to_tau(family, fit$par, fit$par2),
     logLik = fit$logLik,
     AIC = -2 * fit$logLik + 2 * k,
-    BIC = -2 * fit$logLik + log(length(u1)) * k,
+    BIC = -2 * fit$logLik + log(bic_n) * k,
     stringsAsFactors = FALSE
   )
 }
@@ -59,7 +61,8 @@
     log_mass1 = NULL,
     log_mass2 = NULL,
     log_survival1 = NULL,
-    log_survival2 = NULL) {
+    log_survival2 = NULL,
+    bic_n = length(u1)) {
   copula_time <- factor(copula_time, levels = unique(copula_time))
   if (length(copula_time) != length(u1)) {
     stop("'copula_time' must have one value per pseudo-observation pair.", call. = FALSE)
@@ -90,7 +93,7 @@
     tau = stats::weighted.mean(tau, w = as.numeric(table(copula_time)), na.rm = TRUE),
     logLik = log_lik,
     AIC = -2 * log_lik + 2 * k_total,
-    BIC = -2 * log_lik + log(length(u1)) * k_total,
+    BIC = -2 * log_lik + log(bic_n) * k_total,
     n_copula_time_levels = length(levels_time),
     stringsAsFactors = FALSE
   )

@@ -1,7 +1,20 @@
 #' Check whether a fitted object can reuse its stored vcov output
 #'
 #' @noRd
-.gl_vcov_cache_version <- function() 2L
+# Epoch 3 accompanies the same-margin inverse-link chain-rule correction.
+# Reject every older cache, including discrete fixed-only caches. Numerical
+# caches are conservatively regenerated too; their Hessian formula is unchanged.
+.gl_vcov_cache_version <- function() 3L
+
+# Record the code epoch separately from the curvature actually used. A numerical
+# result must not claim that it used the corrected analytical chain rule.
+#' @noRd
+.gl_vcov_stamp_epoch <- function(result) {
+  result$inference_epoch <- .gl_vcov_cache_version()
+  result$analytical_margin_chain_rule_version <-
+    if (.gl_vcov_uses_analytical_curvature(result$method, result$hessian_diagnostics)) 1L else NULL
+  result
+}
 
 #' Continuous-curvature source version, separate from discrete caches
 #' @noRd
@@ -50,6 +63,9 @@
     return(FALSE)
   }
 
+  # Joint scope is evaluated afresh and cannot leak into a fixed-only cache hit.
+  if (identical(extra_args$coefficients, "joint")) return(FALSE)
+
   extra_args_cache <- extra_args
 
   extra_args_cache$method <- NULL
@@ -61,6 +77,21 @@
   if (is.null(object$vcov) || !is.list(object$vcov)) {
     return(FALSE)
   }
+  if (identical(object$vcov$coefficients, "joint")) return(FALSE)
+
+  # Version is mandatory for every margin and method. Missing metadata must
+  # never fall through to a cache hit or bypass method/numderiv matching.
+  meta <- object$vcov_meta
+  valid_method <- function(x) is.character(x) && length(x) == 1L &&
+    !is.na(x) && nzchar(x)
+  if (!is.list(meta) ||
+      !identical(meta$cache_version, .gl_vcov_cache_version()) ||
+      !is.logical(meta$numderiv) || length(meta$numderiv) != 1L ||
+      is.na(meta$numderiv) || !valid_method(meta$method)) return(FALSE)
+  if ((!is.null(meta$method_used) && !valid_method(meta$method_used)) ||
+      (!is.null(object$vcov$method) && !valid_method(object$vcov$method))) return(FALSE)
+  if (!is.null(object$vcov$hessian_diagnostics) &&
+      !is.list(object$vcov$hessian_diagnostics)) return(FALSE)
 
   stored_method <- object$vcov$method %||% object$vcov_meta$method_used %||%
     object$vcov_meta$method
@@ -71,15 +102,11 @@
     return(FALSE)
   }
 
-  if (!identical(object$vcov_meta$cache_version, .gl_vcov_cache_version())) {
-    return(FALSE)
-  }
-
   if (identical(object$vcov$hessian_diagnostics$status, "unavailable")) {
     return(FALSE)
   }
 
-  if (is.null(object$vcov$vcov) || is.null(object$vcov$vcov$overall)) {
+  if (!is.list(object$vcov$vcov) || is.null(object$vcov$vcov$overall)) {
     return(FALSE)
   }
 
@@ -97,13 +124,12 @@
       character(1)
     ))
     method_ok <- is.null(method) ||
-      is.null(object$vcov_meta$method) ||
       .gl_vcov_method_key(method) %in% cached_method_keys
 
     return(numderiv_ok && method_ok)
   }
 
-  TRUE
+  FALSE
 }
 
 #' Resolve cached or recomputed vcov output for downstream summaries
@@ -118,7 +144,8 @@
   stored_is_advisory <- length(stored_codes) > 0L &&
     length(.gl_hessian_blocking_failure_codes(stored_codes)) == 0L
   stored_method <- object$vcov_meta$method %||% "analytical"
-  explicit_revalidation <- !is.null(extra_args$inference) ||
+  explicit_revalidation <- identical(extra_args$coefficients, "joint") ||
+    !is.null(extra_args$inference) ||
     !identical(as.character(vcov_method)[1], as.character(stored_method)[1])
   if (stored_unavailable && !stored_is_advisory && !explicit_revalidation) {
     stop(.gl_inference_unavailable(stored_diagnostics))

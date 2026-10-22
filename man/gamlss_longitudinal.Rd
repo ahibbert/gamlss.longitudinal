@@ -42,23 +42,21 @@ homogeneous margin family; see \code{\link[=longitudinal_capabilities]{longitudi
 
 \item{subject_var}{Name of the subject identifier in \code{dataset}.}
 
-\item{missingness}{Handling of response patterns outside complete panels and
-observed prefixes ending in terminal dropout. The default, \code{"auto"}, uses
-the ordinary likelihood where possible and automatically switches to the
-segmented likelihood when leading unobserved visits or intermittent gaps
-are detected. Use \code{"error"} to stop instead, or \code{"segment"} to explicitly
-permit segmentation. With a segmented objective, the likelihood is
-evaluated within contiguous observed
-segments and different segments are treated as independent. The first
-observed visit after leading missing visits explicitly starts a segment.
-Terminal dropout does not require segmentation. AIC and
+\item{missingness}{Handling of response patterns with intermittent internal
+gaps. The default, \code{"auto"}, uses the ordinary likelihood unless an
+intermittent gap is detected, in which case it automatically switches to
+the segmented likelihood. Use \code{"error"} to stop instead, or \code{"segment"} to
+explicitly permit segmentation. With a segmented objective, the likelihood
+is evaluated within contiguous observed segments and different segments are
+treated as independent. Delayed entry begins a single observed sequence at
+the first observed visit and does not require segmentation; neither do
+observed prefixes ending in terminal dropout. AIC and
 BIC remain available for segmented fits under the stated independence
 assumption. Standard inference methods automatically use subject-clustered
 sandwich covariance instead of ordinary model-Hessian inference for this
 composite objective; model-based standard errors remain available for
 comparison, and bootstrap sensitivity analysis remains advisable.
-Numerical integration across gaps and a distinct delayed-entry
-likelihood are not yet implemented.}
+Numerical integration across gaps is not yet implemented.}
 
 \item{mu.formula}{Formula for the mu parameter of the marginal distribution}
 

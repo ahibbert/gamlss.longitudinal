@@ -12,7 +12,8 @@
 \arguments{
 \item{object}{A fitted \code{gamlss.longitudinal} object.}
 
-\item{...}{Additional fitted models for \code{AIC()}; passed to \code{\link[stats:AIC]{stats::AIC()}}.}
+\item{...}{Additional fitted models for \code{AIC()} or \code{BIC()}; passed to the
+corresponding stats generic.}
 
 \item{k}{Penalty multiplier.}
 }
@@ -22,7 +23,9 @@ models are supplied to \code{AIC()}.
 }
 \description{
 AIC and BIC use the fitted joint likelihood, joint effective degrees of
-freedom, and the total number of observed responses. For
+freedom. BIC uses the number of observed subjects as its sample size because
+subjects, rather than their repeated responses, are the independent sampling
+units. For
 \code{missingness = "segment"}, they describe the explicit segmented likelihood
 in which observations separated by gaps are independent.
 }

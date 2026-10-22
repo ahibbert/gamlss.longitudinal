@@ -68,7 +68,10 @@ supported homogeneous marginal family.}
 
 \item{lags}{Positive integer lag(s) used when forming adjacent pairs.}
 
-\item{criterion}{Ranking criterion, one of \code{"AIC"}, \code{"BIC"}, or \code{"logLik"}.}
+\item{criterion}{Ranking criterion, one of \code{"AIC"}, \code{"BIC"}, or \code{"logLik"}.
+For pairs constructed from longitudinal data or a fitted object, BIC uses
+the number of subjects represented in the retained pairs. Directly supplied
+\code{u1}/\code{u2} pairs are treated as independent and BIC uses the number of pairs.}
 
 \item{t_df_grid}{Degrees-of-freedom grid used for the t-copula screen.}
 

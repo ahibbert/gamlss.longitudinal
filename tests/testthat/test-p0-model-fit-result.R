@@ -79,8 +79,11 @@ test_that("information criteria partition marginal and copula effective degrees 
   expect_identical(rownames(aics), c("LogLik", "AIC", "BIC", "EDF"))
   expect_equal(unname(aics["LogLik", ]), c(-10, -5, -15))
   expect_equal(unname(aics["AIC", ]), c(25, 15, 40))
-  expect_equal(unname(aics["BIC", ]), c(20, 10, 30) + log(3) * c(2.5, 2.5, 5))
+  expect_equal(unname(aics["BIC", ]), c(20, 10, 30) + log(2) * c(2.5, 2.5, 5))
   expect_equal(unname(aics["EDF", ]), c(2.5, 2.5, 5))
+  expect_identical(attr(aics, "BIC_n"), 2L)
+  expect_identical(attr(aics, "BIC_unit"), "subject")
+  expect_identical(attr(aics, "n_responses"), 3L)
 })
 
 test_that("core fit object fields are assembled with stable names", {

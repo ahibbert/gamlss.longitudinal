@@ -4,6 +4,7 @@
 .gl_summary_model_info <- function(object) {
   n_obs <- sum(is.finite(object$response))
   n_subjects <- length(unique(object$response_subject))
+  bic_n_subjects <- .gl_bic_subject_count(object$response, object$response_subject)
   n_timepoints <- length(unique(object$response_margin))
 
   n_fixed <- length(object$par)
@@ -30,6 +31,7 @@
       if (isTRUE(object$include_dlcopdpar)) "joint" else "separate",
     n_obs = n_obs,
     n_subjects = n_subjects,
+    bic_n_subjects = bic_n_subjects,
     n_timepoints = n_timepoints,
     n_fixed = n_fixed,
     n_smooth_terms = n_smooth_terms,

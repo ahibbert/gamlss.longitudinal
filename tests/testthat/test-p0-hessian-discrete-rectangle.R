@@ -48,6 +48,24 @@ test_that("discrete endpoint evaluation supports count, zero-inflated, and binar
   }
 })
 
+test_that("discrete Hessian stencils remain interior near a logit boundary", {
+  margin <- gamlss.dist::ZISICHEL()
+  value <- 2e-10
+  pm <- gamlss.longitudinal:::.discrete_hessian_margin_pm(
+    value, "tau", margin, h = 1e-4
+  )
+
+  expect_true(all(is.finite(pm)))
+  expect_gt(pm[["minus"]], 0)
+  expect_lt(pm[["plus"]], 1)
+  expect_lt(pm[["minus"]], value)
+  expect_gt(pm[["plus"]], value)
+  expect_equal(
+    mean(unname(pm)), value,
+    tolerance = 10 * .Machine$double.eps
+  )
+})
+
 test_that("bounded-binomial families use the discrete likelihood route", {
   skip_if_not_installed("gamlss.dist")
 

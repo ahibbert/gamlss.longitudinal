@@ -58,8 +58,9 @@
                                    kendall_summary,
                                    tail_summary,
                                    conditional_tail_summary,
-                                   residual_lag_summary) {
-  .gl_new_plot_result(list(
+                                   residual_lag_summary,
+                                   randomized_settings = NULL) {
+  out <- list(
     plots = plots,
     displayed_plots = displayed_plots,
     type = type,
@@ -74,5 +75,8 @@
     tail_summary = tail_summary,
     conditional_tail_summary = conditional_tail_summary,
     residual_lag_summary = residual_lag_summary
-  ))
+  )
+  optional <- list(randomized_settings = randomized_settings)
+  out <- c(out, optional[!vapply(optional, is.null, logical(1))])
+  .gl_new_plot_result(out)
 }

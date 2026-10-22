@@ -9,6 +9,20 @@ is isolated on `codex/experimental-missingness-higher-vine`.
   Gumbel and Joe copulas, bounded simulation batches, and vectorized CDF
   inversion for discrete marginal distributions.
 
+## Information criteria
+
+- BIC now uses the number of observed subjects, rather than the number of
+  repeated responses, as the independent sample size. Longitudinal copula
+  screens use the number of subjects represented in retained pairs; directly
+  supplied pseudo-observation pairs retain pair-count BIC.
+
+## Missingness contract
+
+- Delayed entry represented by leading unobserved scheduled visits followed by
+  one contiguous observed sequence now uses the ordinary likelihood. Only
+  intermittent internal gaps trigger `missingness = "auto"` segmentation or a
+  `missingness = "error"` failure; delayed-entry diagnostics remain recorded.
+
 ## Count-margin and Student-t stability
 
 - Student-t starting-value screening now evaluates complex GAMLSS margin
@@ -44,6 +58,29 @@ is isolated on `codex/experimental-missingness-higher-vine`.
   successfully calculated. The covariance, standard errors, and downstream
   inference are returned with a classed warning and recorded diagnostic codes;
   errors are reserved for cases where usable inference cannot be calculated.
+- Marginal CDF evaluation now excludes missing responses before calling a
+  GAMLSS family, consistently subsets varying distribution parameters, and
+  retries observed rows individually when a family rejects vector evaluation.
+  Missing rows remain explicit at the CDF layer and contribute zero only after
+  the observation/pair inclusion decision. Invalid CDFs or score derivatives
+  on observed rows now raise classed computational errors instead of being
+  silently replaced by zero.
+- Inference diagnostics now expose a machine-readable stationarity status
+  (`passed`, `failed`, or `not_checked`) with the scaled fitted gradient,
+  tolerance, and warning code. Stationarity failures remain nonblocking when
+  the covariance is otherwise usable and are shown prominently by `print()`,
+  `summary()`, and detailed `vcov()` output.
+
+## Discrete dependence diagnostics
+
+- `plot_copula_diagnostics()` and `check_model()` now withhold continuous-only
+  Rosenblatt, latent-Kendall, and continuous-tail calibration summaries for
+  discrete margins when `randomized_residuals = FALSE`. Discrete copula plots
+  now default to seeded copula-conditional latent completions inside each
+  observed probability rectangle for copula, Kendall, and tail panels, plus
+  exact discrete conditional PIT residuals for Rosenblatt panels. Returned
+  results record both methods, the seed, and the number of completions while
+  preserving the caller's random-number state.
 
 ## Copula compatibility
 

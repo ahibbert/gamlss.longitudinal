@@ -20,6 +20,14 @@
 
     if (length(s_con) > 0 && !is.null(s_con[[1]]$X)) {
       B_s <- s_con[[1]]$X
+      # Preserve the exact constrained construction for joint inference and
+      # PredictMat; constructing a fresh basis on newdata changes coordinates.
+      # Existing fitting behavior is unchanged; joint inference refuses omitted
+      # expansion components or additional penalties recorded by these counts.
+      attr(B_s, "gl_smooth_spec") <- s_con[[1]]
+      attr(B_s, "gl_smooth_spec_version") <- 1L
+      attr(B_s, "gl_smooth_construction_count") <- as.integer(length(s_con))
+      attr(B_s, "gl_smooth_penalty_count") <- as.integer(length(s_con[[1]]$S))
 
       if (!is.null(s_con[[1]]$S) && length(s_con[[1]]$S) > 0) {
         attr(B_s, "penalty") <- s_con[[1]]$S[[1]]
