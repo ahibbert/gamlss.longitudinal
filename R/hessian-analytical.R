@@ -89,6 +89,9 @@ calc_analytical_hessian <- function(object, progress = interactive(), h = 1e-4) 
   # Attach margin_p to eta_inv for use inside copula hessian function
 
   eta_inv[["margin_p_cache"]] <- calc_lik$margin_p
+  if (identical(copula_dist, "G")) {
+    eta_inv[["theta_link_cache"]] <- eta_out$eta$theta
+  }
 
   if (progress) cat("Analytical Hessian: computing CDF derivatives...\n")
 

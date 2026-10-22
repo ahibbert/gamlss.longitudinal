@@ -44,7 +44,11 @@
     par1_e = pair_inputs$par1_e,
     par2_e = pair_inputs$par2_e,
     pair_ok = pair_inputs$pair_ok,
-    has_zeta = has_zeta
+    has_zeta = has_zeta,
+    u1_active = pair_inputs$u1_active,
+    u2_active = pair_inputs$u2_active,
+    theta_active = pair_inputs$theta_active,
+    zeta_active = pair_inputs$zeta_active
   )
 
   parameter_curvature <- .copula_hessian_parameter_curvature(
@@ -52,7 +56,8 @@
     par1_e = pair_inputs$par1_e,
     par2_e = pair_inputs$par2_e,
     pair_ok = pair_inputs$pair_ok,
-    has_zeta = has_zeta
+    has_zeta = has_zeta,
+    copula_dist = copula_dist
   )
 
   margin_terms <- .copula_hessian_margin_terms(

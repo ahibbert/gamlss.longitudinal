@@ -1,8 +1,17 @@
-#' Replace non-finite Hessian contribution values with zero
+#' Require finite complete-pair Hessian contribution values
 #'
 #' @noRd
 .copula_hessian_finite_or_zero <- function(x) {
-  x[!is.finite(x)] <- 0
+  if (any(!is.finite(x))) {
+    stop(structure(
+      list(
+        message = "Nonfinite copula Hessian contribution for an included pair.",
+        call = NULL,
+        context = "Copula Hessian pair contribution"
+      ),
+      class = c("gamlss_longitudinal_score_evaluation_error", "error", "condition")
+    ))
+  }
   x
 }
 

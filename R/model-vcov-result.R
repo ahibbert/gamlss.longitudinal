@@ -3,7 +3,7 @@
 #' @noRd
 .gl_vcov_build_result <- function(object, eta_inv, response, vcov_final, se_final,
                                   method_used, method_requested,
-                                  hessian_diagnostics) {
+                                  hessian_diagnostics, hessian_fallback = NULL) {
   smooth_vcov_out <- .gl_compute_smooth_vcov(object, eta_inv, response)
   smooth_vcov_list <- smooth_vcov_out$smooth_vcov
   smooth_se_list <- smooth_vcov_out$smooth_se
@@ -20,8 +20,13 @@
     ),
     method = method_used,
     method_requested = method_requested,
-    hessian_diagnostics = hessian_diagnostics %||% NULL
+    hessian_diagnostics = hessian_diagnostics %||% NULL,
+    hessian_fallback = hessian_fallback %||% NULL
   )
+  if (.gl_vcov_continuous_curvature_applies(object) &&
+      .gl_vcov_uses_analytical_curvature(method_used, hessian_diagnostics)) {
+    out$continuous_curvature <- .gl_vcov_continuous_curvature_marker(object)
+  }
   .gl_enrich_vcov_contract(out, object)
 }
 

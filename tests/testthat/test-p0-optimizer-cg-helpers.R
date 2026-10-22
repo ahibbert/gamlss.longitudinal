@@ -854,11 +854,27 @@ test_that("CG Hessian source paths use the expected package files", {
   expect_equal(
     basename(paths),
     c(
+      "copula-backend-mixed-arguments.R",
+      "copula-backend-parameter-stencil.R",
+      "copula-backend-parameter-curvature.R",
       "hessian-linkinv-derivatives.R",
       "hessian-fd-step.R",
       "hessian-warnings.R",
       "hessian-margin-cdf.R",
+      "hessian-copula-pair-result.R",
+      "hessian-copula-pair-inputs.R",
+      "hessian-copula-pair-eval.R",
+      "hessian-copula-parameter-curvature.R",
+      "hessian-copula-margin-accumulators.R",
+      "hessian-copula-margin-pair-terms.R",
+      "hessian-copula-margin-terms.R",
       "hessian-copula.R",
+      "hessian-discrete-rectangle.R",
+      "hessian-margin-derivatives.R",
+      "hessian-assembly-helpers.R",
+      "hessian-assembly-copula-blocks.R",
+      "hessian-assembly-margin-copula-blocks.R",
+      "hessian-assembly-margin-blocks.R",
       "hessian-assembly.R",
       "hessian-analytical.R"
     )
@@ -907,7 +923,7 @@ test_that("CG Hessian availability helper preserves missing-helper error", {
       source_fn = function(file, local) stop("should not source"),
       file_exists_fn = function(paths) rep(FALSE, length(paths))
     ),
-    "CG requires calc_analytical_hessian\\(\\); source the R/hessian-\\*.R files first\\."
+    "CG requires the complete analytical Hessian helpers"
   )
 })
 

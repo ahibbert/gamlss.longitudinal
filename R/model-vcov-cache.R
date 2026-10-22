@@ -1,7 +1,40 @@
 #' Check whether a fitted object can reuse its stored vcov output
 #'
 #' @noRd
-.gl_vcov_cache_version <- function() 1L
+.gl_vcov_cache_version <- function() 2L
+
+#' Continuous-curvature source version, separate from discrete caches
+#' @noRd
+.gl_vcov_continuous_curvature_version <- function() 2L
+
+#' @noRd
+.gl_vcov_continuous_curvature_applies <- function(object) {
+  family <- object$copula_dist
+  if (!is.character(family) || length(family) != 1L || is.na(family) ||
+      !family %in% c("N", "C", "F", "G", "J", "t")) return(FALSE)
+  discrete <- tryCatch(.is_discrete_margin(object$margin_dist), error = function(e) FALSE)
+  !isTRUE(discrete)
+}
+
+#' @noRd
+.gl_vcov_uses_analytical_curvature <- function(method, diagnostics = NULL) {
+  key <- .gl_vcov_method_key(method)
+  if (identical(key, "numderiv")) return(FALSE)
+  if (identical(key, "sandwich") &&
+      identical(.gl_vcov_method_key(diagnostics$bread_method), "numderiv")) return(FALSE)
+  TRUE
+}
+
+#' @noRd
+.gl_vcov_continuous_curvature_marker <- function(object) {
+  marker <- list(version = .gl_vcov_continuous_curvature_version(),
+    backend = .copula_backend(), copula = object$copula_dist,
+    boundary_version = 2L)
+  if (identical(object$copula_dist, "t") && identical(marker$backend, "native")) {
+    marker$df_branch_version <- 1L
+  }
+  marker
+}
 
 #' @noRd
 .gl_vcov_method_key <- function(method) {
@@ -26,6 +59,15 @@
   }
 
   if (is.null(object$vcov) || !is.list(object$vcov)) {
+    return(FALSE)
+  }
+
+  stored_method <- object$vcov$method %||% object$vcov_meta$method_used %||%
+    object$vcov_meta$method
+  if (.gl_vcov_continuous_curvature_applies(object) &&
+      .gl_vcov_uses_analytical_curvature(stored_method, object$vcov$hessian_diagnostics) &&
+      !identical(object$vcov$continuous_curvature,
+        .gl_vcov_continuous_curvature_marker(object))) {
     return(FALSE)
   }
 

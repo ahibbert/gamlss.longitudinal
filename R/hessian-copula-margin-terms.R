@@ -99,8 +99,7 @@
       cross_vals <- derivs$d2cdu1u2 * dF_pn_at_id1 * dF_pn2_at_id2 / derivs$c_val -
         (derivs$dcdu1 * dF_pn_at_id1 / derivs$c_val) *
           (derivs$dcdu2 * dF_pn2_at_id2 / derivs$c_val)
-      cross_vals[!pair_ok] <- 0
-      cross_vals[!is.finite(cross_vals)] <- 0
+      cross_vals <- .copula_hessian_zero_invalid(cross_vals, pair_ok)
       cross_pair_contributions[[pn]][[pn2]] <- cross_vals
     }
   }

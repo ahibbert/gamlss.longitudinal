@@ -34,6 +34,12 @@
 #' @noRd
 .copula_hessian_zero_invalid <- function(x, pair_ok) {
   x[!pair_ok] <- 0
-  x[!is.finite(x)] <- 0
+  if (any(!is.finite(x))) {
+    stop(structure(
+      list(message = "Nonfinite copula Hessian value for an included pair.",
+        call = NULL, context = "Continuous copula Hessian contribution"),
+      class = c("gamlss_longitudinal_score_evaluation_error", "error", "condition")
+    ))
+  }
   x
 }
