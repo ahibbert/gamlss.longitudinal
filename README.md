@@ -47,9 +47,10 @@ maps package source files to tests.
 Paper replication lives in the separate
 [paper repository](https://github.com/ahibbert/working-paper-gamlss-long).
 Its [reviewer guide](https://github.com/ahibbert/working-paper-gamlss-long/blob/main/paper/REVIEWER.md)
-is a release-preparation draft. The link identifies the intended publication
-location; the prepared guide and source pair are not yet a verified public
-release. Use the exact software and paper revisions named in the eventual
+and [current results guide](https://github.com/ahibbert/working-paper-gamlss-long/blob/main/paper/CURRENT-RESULTS.md)
+are published in that private repository and require granted access. They describe
+the consolidated author results, exact source pairing and known GEE limitation.
+The complete reviewer release remains in preparation. Use the exact software and paper revisions named in the eventual
 release record, for either clones or archives; do not mix branch heads.
 
 That guide defines workspace assembly, the `smoke`, `paper` and `full` paper
