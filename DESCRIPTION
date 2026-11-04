@@ -1,0 +1,60 @@
+Package: gamlss.longitudinal
+Type: Package
+Title: Fit Longitudinal Data Using GAMLSS Margins and Copula Dependence Structures
+Version: 0.2.0
+Author: Aydin Sareff-Hibbert
+Maintainer: Aydin Sareff-Hibbert <aydin.hibbert@sydney.edu.au>
+Description: Fits longitudinal generalized additive models for location, scale
+    and shape (GAMLSS) with flexible copula dependence structures across time.
+    Provides workflow helpers for marginal-family screening,
+    longitudinal fitting, inference, prediction, simulation, diagnostics, and
+    opt-in benchmarks against common GEE, GLMM, and GAM baselines.
+Depends:
+    R (>= 4.1.0),
+    gamlss.dist
+Imports:
+    generics,
+    gamlss,
+    rlang,
+    latex2exp,
+    ggplot2,
+    ggpubr,
+    MASS,
+    mgcv,
+    pbivnorm,
+    scales,
+    methods,
+    utils,
+    stats,
+    callr,
+    graphics
+License: GPL-3
+Encoding: UTF-8
+Language: en-US
+LazyData: true
+URL: https://gamlsslongitudinal.aydins-workbench.com/,
+    https://github.com/ahibbert/gamlss.longitudinal
+BugReports: https://github.com/ahibbert/gamlss.longitudinal/issues
+Suggests:
+    digest,
+    flextable,
+    gt,
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0),
+    withr,
+    VineCopula,
+    gamCopula,
+    geepack,
+    lme4,
+    mvtnorm,
+    pkgload,
+    sodium,
+    tinytex
+Enhances:
+    gamlss2
+Additional_repositories: https://gamlss-dev.R-universe.dev
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+Roxygen: list(markdown = TRUE, roclets = c("namespace", "rd", "srr::srr_stats_roclet"))
+RoxygenNote: 7.3.3

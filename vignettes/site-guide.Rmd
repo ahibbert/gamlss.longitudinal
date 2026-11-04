@@ -1,0 +1,62 @@
+---
+title: "Overview of support articles"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Overview of support articles}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+Welcome to the support page for **gamlss.longitudinal**.
+
+This package fits longitudinal regression models with GAMLSS marginal
+distributions and copulas for within-subject dependence.
+
+Use this page as the landing point for the main workflows and support articles.
+
+Please report bugs or issues at https://github.com/ahibbert/gamlss.longitudinal/issues.
+
+For details on the mathematical framework, optimiser, or model performance,
+see:
+
+- https://arxiv.org/abs/2410.11892
+
+## Start here
+
+Installation:
+```
+remotes::install_github("ahibbert/gamlss.longitudinal")
+```
+
+Worked examples for end-to-end model fits using gamlss.longitudinal.
+
+| Article title | Access from R | Purpose |
+|---|---|---|
+| [JSS reviewer start here](jss-start-here.html) | `vignette("jss-start-here", package = "gamlss.longitudinal")` | The reviewer-facing map from paper claims to package workflow, diagnostics, and replication. |
+| [Minimal workflow](standard-workflow.html) | `vignette("standard-workflow", package = "gamlss.longitudinal")` | The recommended screen, fit, check, infer, predict, and simulate workflow. |
+| [Detailed worked example](native-simulation-workflow.html) | `vignette("native-simulation-workflow", package = "gamlss.longitudinal")` | A full simulated example with known truth, copula screening, fitting, and diagnostics. |
+
+## Reference guides
+
+Use these articles when you want more detail on a specific part of the
+workflow:
+
+| Article title | Access from R | Purpose |
+|---|---|---|
+| [Inference](inference-uncertainty.html) | `vignette("inference-uncertainty", package = "gamlss.longitudinal")` | Confidence intervals, Wald tests, likelihood comparisons, bootstrap inference, and uncertainty language. |
+| [Diagnostics](diagnostics-decisions.html) | `vignette("diagnostics-decisions", package = "gamlss.longitudinal")` | Fit-time status, optional `check_model()` summaries, marginal diagnostics, and compact or complete copula dashboards. |
+| [Simulator usage](simulator-usage.html) | `vignette("simulator-usage", package = "gamlss.longitudinal")` | How to generate longitudinal datasets with GAMLSS margins, copula dependence, covariates, known truth, and missing responses. |
+| [Test working install](test-working-install.html) | `vignette("test-working-install", package = "gamlss.longitudinal")` | A short runnable check for installation and the end-to-end workflow. |
+
+## Reference pages
+
+Use the [package function index](../reference/index.html) for function-level
+details, including simulation helper functions.

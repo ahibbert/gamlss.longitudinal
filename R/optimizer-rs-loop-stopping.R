@@ -1,0 +1,120 @@
+.gl_update_outer_negative_streak <- function(
+    outer_log_lik_change,
+    outer_negative_streak,
+    max_negative_outer_streak,
+    objective_kind = "raw_loglik") {
+  if (is.finite(outer_log_lik_change) && outer_log_lik_change < 0) {
+    outer_negative_streak <- outer_negative_streak + 1
+  } else {
+    outer_negative_streak <- 0
+  }
+
+  if (outer_negative_streak >= max_negative_outer_streak) {
+    msg <- paste0(
+      "Optimization stopped after ", max_negative_outer_streak,
+      " consecutive negative comparable outer objective changes (", objective_kind, "). ",
+      "Inspect the objective and coefficient-step diagnostics."
+    )
+
+    stop(structure(
+      list(
+        message = msg,
+        call = NULL,
+        stop_reason = "objective_deterioration",
+        outer_negative_streak = outer_negative_streak,
+        max_negative_outer_streak = max_negative_outer_streak
+      ),
+      class = c(
+        "gamlss.longitudinal_objective_deterioration_error",
+        "error",
+        "condition"
+      )
+    ))
+  }
+
+  outer_negative_streak
+}
+
+#' Determine whether the RS inner loop should continue
+#' (stopping criteria not met and max iterations not exceeded)
+#'
+#' @noRd
+.gl_should_continue_rs_inner_loop <- function(
+    first_inner_run,
+    change_log_lik,
+    inner_stop_crit,
+    inner_run_counter,
+    max_inner_iter) {
+  # Legacy argument name: the registered RS caller supplies accepted Q change.
+  (isTRUE(first_inner_run) || isTRUE(abs(change_log_lik) > inner_stop_crit)) &&
+    inner_run_counter <= max_inner_iter
+}
+
+#' Determine whether the RS outer loop should continue
+#' (stopping criteria not met and max iterations not exceeded)
+#'
+#' @noRd
+.gl_should_continue_rs_outer_loop <- function(
+    first_outer_run,
+    outer_log_lik_change,
+    outer_stop_crit,
+    outer_only_run_counter,
+    max_outer_iter,
+    stop_on_convergence = TRUE) {
+  (!isTRUE(stop_on_convergence) || isTRUE(first_outer_run) || abs(outer_log_lik_change) > outer_stop_crit) &&
+    outer_only_run_counter <= max_outer_iter
+}
+
+.gl_update_rs_outer_iteration_state <- function(
+    calc_lik_out_end,
+    outer_start_log_lik,
+    outer_only_run_counter,
+    outer_negative_streak,
+    step_adjustment,
+    max_steps,
+    start_step_size,
+    max_negative_outer_streak,
+    outer_stop_crit,
+    verbose,
+    summary_fn = .gl_print_outer_iteration_summary,
+    streak_fn = .gl_update_outer_negative_streak,
+    convergence_fn = .gl_print_outer_convergence,
+    objective_change = NULL,
+    objective_kind = "raw_loglik",
+    comparable = TRUE,
+    report_convergence = TRUE) {
+
+  step_size <- (step_adjustment^min(outer_only_run_counter, max_steps)) * start_step_size
+  outer_only_run_counter <- outer_only_run_counter + 1
+  outer_end_log_lik <- calc_lik_out_end$log_lik["joint"]
+  outer_log_lik_change <- outer_end_log_lik - outer_start_log_lik
+
+  summary_fn(
+    outer_start_log_lik = outer_start_log_lik,
+    outer_end_log_lik = outer_end_log_lik,
+    outer_log_lik_change = outer_log_lik_change,
+    verbose = verbose
+  )
+
+  guard_change <- objective_change %||% outer_log_lik_change
+  outer_negative_streak <- if (isTRUE(comparable)) streak_fn(
+    outer_log_lik_change = guard_change,
+    outer_negative_streak = outer_negative_streak,
+    max_negative_outer_streak = max_negative_outer_streak,
+    objective_kind = objective_kind
+  ) else 0L
+
+  if (isTRUE(report_convergence)) convergence_fn(
+    outer_log_lik_change = outer_log_lik_change,
+    outer_stop_crit = outer_stop_crit,
+    verbose = verbose
+  )
+
+  list(
+    step_size = step_size,
+    outer_only_run_counter = outer_only_run_counter,
+    outer_end_log_lik = outer_end_log_lik,
+    outer_log_lik_change = outer_log_lik_change,
+    outer_negative_streak = outer_negative_streak
+  )
+}

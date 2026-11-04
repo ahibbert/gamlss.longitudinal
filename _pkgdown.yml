@@ -1,0 +1,105 @@
+url: https://gamlsslongitudinal.aydins-workbench.com/
+
+template:
+  bootstrap: 5
+
+navbar:
+  structure:
+    left: [intro, reference, articles]
+    right: [home, blog, playground, longitudinal, github]
+  components:
+    home:
+      text: Home
+      href: https://aydins-workbench.com
+    blog:
+      text: Blog
+      href: https://blog.aydins-workbench.com
+    playground:
+      text: GAMLSS Playground
+      href: https://gamlss.aydins-workbench.com
+    longitudinal:
+      text: gamlss.longitudinal
+      href: http://gamlsslongitudinal.aydins-workbench.com
+
+articles:
+  - title: Start here
+    navbar: Start here
+    contents:
+      - site-guide
+      - jss-start-here
+  - title: Worked examples
+    navbar: Worked examples
+    contents:
+      - standard-workflow
+      - native-simulation-workflow
+  - title: Reference guides
+    navbar: Reference guides
+    contents:
+      - inference-uncertainty
+      - diagnostics-decisions
+      - simulator-usage
+      - test-working-install
+
+reference:
+  - title: Standard workflow
+    desc: Adoption-facing helpers for the recommended screen, fit, check, predict workflow.
+    contents:
+      - select_margin
+      - best_fit
+      - select_copula
+      - select_joint_distribution
+      - gamlss_longitudinal
+      - summary.gamlss.longitudinal
+      - coef.gamlss.longitudinal
+      - vcov.gamlss.longitudinal
+      - logLik.gamlss.longitudinal
+      - gamlss_longitudinal_accessors
+  - title: Inference and interpretation
+    desc: Reportable intervals, hypothesis tests, likelihood comparisons, and effects.
+    contents:
+      - confint.gamlss.longitudinal
+      - wald_test
+      - likelihood_compare
+      - bootstrap_inference
+      - predict.gamlss.longitudinal
+      - marginal_effects
+      - gamlss_longitudinal_table_methods
+      - reporting_table
+      - publication_table
+      - model_spec
+      - simulate.gamlss.longitudinal
+  - title: Diagnostics
+    desc: Decision-oriented checks and visual diagnostics for fitted models.
+    contents:
+      - check_model
+      - diagnostics
+      - check_missingness
+      - copula_time_summary
+      - plot_dist
+      - plot_margin_fit
+      - plot_copula_fit
+      - plot.gamlss.longitudinal
+      - plot.copula_time_summary
+      - plot.copula_contour_compare
+      - plot_copula_diagnostics
+      - plot_terms
+      - plot_fixed_terms
+      - plot_smooth_terms
+  - title: Simulation and benchmarks
+    desc: Data generators and opt-in comparator benchmarks.
+    contents:
+      - simulate_longitudinal_covariates
+      - simulate_longitudinal_dataset
+      - adoption_benchmark_scenarios
+      - run_adoption_benchmarks
+      - run_coverage_simulations
+      - benchmark_comparator_status
+      - benchmark_standard_models
+      - summarise_benchmark_results
+      - format_benchmark_report
+      - write_benchmark_report
+      - write_coverage_summary_report
+  - title: Simulation helper functions
+    desc: Small helper functions used in simulation examples.
+    contents:
+      - starts_with("sim_")

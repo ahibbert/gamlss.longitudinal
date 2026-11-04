@@ -1,0 +1,274 @@
+---
+title: "Simulator usage"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Simulator usage}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  message = FALSE
+)
+```
+
+This article covers three simulation use cases:
+
+1. Simulation of a new dataset with gamlss margins and copula dependence
+2. Simulation from a fitted `gamlss.longitudinal` model for the fitted dataset
+3. Simulation from a fitted `gamlss.longitudinal` model for new data (e.g. new timepoints, subjects, or different covariates)
+
+The following packages are required for the code in this vignette:
+```{r packages}
+library(gamlss.longitudinal)
+library(gamlss.dist)
+```
+
+## Simulating a new dataset
+
+`simulate_longitudinal_dataset()` is a flexible framework for generating new datasets with gamlss marginal distribution and first-order copula dependence. It includes functionality for reasonably simply specifying formulas for every available parameter of the margin and copula, and includes helper functions for simply inserting smooth terms which can be used in testing.
+
+### Creating a minimal longitudinal dataset
+
+`simulate_longitudinal_dataset()` returns one row per subject and time combination. We specify the number of subjects with `n=100` and the number of observations per timepoint with an ordered time variable, here `times = 0:4` which will result in a dataset with 500 observations total. 
+
+The order of `times` defines which observations are neighbours. Numeric
+distances do not by themselves weaken or strengthen the first-order copula:
+`c(1, 2, 30)` creates the adjacent pairs 1--2 and 2--30. If elapsed distance
+should affect dependence, encode it explicitly in the copula parameter
+function. For fitted models, numeric order or factor-level order defines the
+same sequence, and pair-level copula covariates are evaluated at the earlier
+row.
+
+Pure continuous and discrete marginal distributions from **gamlss.dist** are
+supported with every registered copula through the shared likelihood backend
+(for example, `NO()`, `GA()`, `GG()`, and `SICHEL()`). Available combinations
+are returned by `longitudinal_capabilities("routes")`. Multinomial,
+logarithmic-series, and mixed discrete-continuous families are excluded.
+Binomial simulation supplies its denominator as `bd` in `margin_params`, and
+fitting supplies the same values through `margin_args`. The registered copula
+codes are:
+
+- `"N"` Normal
+- `"C"` Clayton
+- `"F"` Frank
+- `"G"` Gumbel
+- `"J"` Joe
+- `"t"` Student t
+
+For a simple model we can just specify intercepts for `mu` and `sigma` for a standard normal margin with an intercept for the `theta` parameter of a normal copula as below.
+
+```{r minimal-data}
+dataset <- simulate_longitudinal_dataset(
+  n = 100,
+  times = 0:4,
+  margin_dist = NO(),
+  margin_params = list(mu = 0, sigma = 1),
+  copula_dist = "N",
+  copula_params = list(theta = 0.35),
+  seed = 1
+)
+
+head(dataset)
+table(dataset$time)
+```
+
+The output includes the subject, time and response variable alongside a column for the transformed copula input `u` based on the simulated margin. The simulated dataset by default also includes the true values for each parameter for every row for ease of comparison. Note that `true_theta` will have an `NA` for the first timepoint as for a given dataset with `T` timepoints, there will only be `T-1` copulas fit and we assign the copula for time pair 0,1 to time 1.
+
+### Time-varying parameters
+
+Formulas for parameters based only on time have a simpler interpretation than other covariates since it's such a common feature, and can be incorporated as:
+
+- an intercept for all time, `margin_params = list(mu = 0, sigma = 1)`,
+- a time-based vector with length for margin equal to `T` or for copula `T-1`, `margin_params = list(mu = 0, sigma = c(0.35, 0.45, 0.55, 0.65))`, or
+- a function of the design matrix time variable `d$.sim_time_index`, `mu = function(d) exp(1 + 0.15 * d$.sim_time_index)`
+- a matrix with the same time/subject index as the dataset specifying the value for the parameter
+
+```{r time-varying-parameters}
+dataset <- simulate_longitudinal_dataset(
+  n = 80,
+  times = 1:4,
+  margin_dist = GA(mu.link = "log", sigma.link = "log"),
+  margin_params = list(
+    mu = function(d) exp(1 + 0.15 * d$.sim_time_index),
+    sigma = c(0.35, 0.45, 0.55, 0.65)
+  ),
+  copula_dist = "C",
+  copula_params = list(tau = c(0.15, 0.25, 0.35)),
+  seed = 2
+)
+
+head(dataset)
+aggregate(true_sigma ~ time, dataset, unique)
+aggregate(true_theta ~ time, dataset, unique, na.rm = TRUE)
+```
+
+### Covariates
+
+Covariates can either be subject-level (so don't change over time) or observation-level which can change over time. 
+
+We pass in covariates to the simulation via `covariates = ` and pass the relationship between parameters and the covariates with `margin_params = ` and `copula_params = `. Inside the helpers, `d` refers to the subject/time matrix generated for the margins and `e` is the relevant edge subject/time for the copula. We also provide internal helper in he edge matrix for `time_left` and `time_right` when these are needed since the copula can refer to either timepoints variables if required.
+
+We can either specify our own covariates or use the function `simulate_longitudinal_covariates()` which requires the subject/time matrix to create lists of subject level covariates, here a treatment group and a normally distributed age, and observation level covariates, here just a scaled version of the time covariate.
+
+```{r covariates}
+treatment_effect <- c(control = 0, active = 0.4)
+
+dataset <- simulate_longitudinal_dataset(
+  n = 120,
+  times = seq(0, 1, length.out = 5),
+  margin_dist = GA(mu.link = "log", sigma.link = "log"),
+  covariates = function(base) {
+    simulate_longitudinal_covariates(
+      base,
+      subject = list(
+        treatment = function(s) {
+          factor(
+            sample(c("control", "active"), nrow(s), replace = TRUE),
+            levels = c("control", "active")
+          )
+        },
+        age = function(s) rnorm(nrow(s), mean = 55, sd = 10)
+      ),
+      observation = list(
+        time_scaled = function(d) sim_rescale01(d$time)
+      )
+    )
+  },
+  margin_params = list(
+    mu = function(d) {
+      age_scaled <- sim_rescale01(d$age)
+      eta <- 1.2 +
+        sim_factor_effect(d$treatment, treatment_effect) +
+        0.35 * d$time_scaled +
+        sim_smooth_bump(age_scaled, amplitude = 0.25)
+      exp(eta)
+    },
+    sigma = function(d) {
+      exp(-0.8 + 0.25 * d$time_scaled)
+    }
+  ),
+  copula_dist = "N",
+  copula_params = list(
+    theta = function(e) {
+      0.2 + 0.25 * sim_rescale01(e$time_left)
+    }
+  ),
+  seed = 3
+)
+
+head(dataset)
+```
+
+## Simulation from a fitted model
+
+The alternative simulation use case generates unconditional model-implied
+trajectories from a fitted `gamlss.longitudinal` object. This can support
+parametric simulation, scenario analysis, or model checking. It does not
+condition later responses on a subject's earlier observed outcomes and is not a
+subject-specific forecasting method.
+
+We first fit a compact model to the `dataset` created above. The fitted formulas
+capture its main treatment, time, age, scale, and dependence terms.
+
+```{r fit-simulated-data}
+fit <- gamlss_longitudinal(
+  data = dataset,
+  margin_dist = GA(),
+  copula_dist = "N",
+  time_var = "time",
+  subject_var = "subject",
+  optimization = "joint",
+  mu.formula = response ~ treatment + time_scaled + age,
+  sigma.formula = ~ time_scaled,
+  theta.formula = ~ time_scaled,
+  compute_vcov = FALSE
+)
+```
+
+### Simulation from a fitted model (on the fitted dataset)
+
+The simplest simulation option is to directly simulate new replicates of a fitted model, essentially a parametric bootstrap simulation against the fitted data covariates.
+
+```{r simulate-fitted-model}
+sim_fit <- simulate(fit, nsim = 5, seed = 10)
+
+head(sim_fit)
+dim(sim_fit)
+```
+
+The output is a dataframe with one column for each simulation replicate with rows which match the original dataset supplied for the model fit.
+
+### Simulation from a fitted model (for new subjects)
+
+We can pass `simulate()` a new dataset with the same timepoints but different subjects through `newdata = `. This will generate simulations which respect the dependence structure in the fitted model and apply it to the new simulated cohort.
+
+```{r simulate-new-cohort}
+new_cohort <- dataset[dataset$subject %in% unique(dataset$subject)[1:20], ]
+new_cohort$subject <- paste0("new_", new_cohort$subject)
+new_cohort$response <- NA_real_
+
+sim_new <- simulate(
+  fit,
+  nsim = 10,
+  seed = 11,
+  newdata = new_cohort
+)
+
+head(cbind(new_cohort[c("subject", "time")], sim_new))
+```
+
+### Unconditional scenarios for new scheduled timepoints
+
+Alternatively, we can supply rows at new scheduled timepoints when the fitted
+covariate functions have a defensible extrapolation beyond the observed range.
+This example remains an unconditional scenario simulation: it does not update a
+subject-specific distribution using that subject's observed history. A
+factor-coded time effect generally cannot extrapolate to a new level.
+
+```{r simulate-more-timepoints}
+subject_covariates <- dataset[
+  !duplicated(dataset$subject),
+  c("subject", "treatment", "age")
+]
+future_grid <- expand.grid(
+  subject = subject_covariates$subject[1:8],
+  time = c(sort(unique(dataset$time)), 1.25),
+  KEEP.OUT.ATTRS = FALSE,
+  stringsAsFactors = FALSE
+)
+
+future_panel <- merge(future_grid, subject_covariates, by = "subject", sort = FALSE)
+future_panel <- future_panel[order(future_panel$subject, future_panel$time), ]
+future_panel$time_scaled <- future_panel$time
+future_panel$response <- NA_real_
+
+sim_future <- simulate(
+  fit,
+  nsim = 20,
+  seed = 12,
+  newdata = future_panel
+)
+
+head(cbind(future_panel[c("subject", "time")], sim_future))
+```
+
+### Missing data / observations handling
+
+The fitted model uses first-order copula dependence between consecutive
+observed responses. Complete panels, delayed entry followed by one contiguous
+observed sequence, and observed prefixes followed by dropout use the ordinary
+likelihood. Intermittent internal gaps are rejected by `missingness = "error"`;
+the default `missingness = "auto"` switches to the segmented likelihood with a
+warning. With the explicit `missingness = "segment"` contract, separate
+contiguous observed segments are treated as independent during estimation.
+
+These rules govern estimation rather than missingness generation. `simulate()`
+returns model-implied complete response trajectories for the fitted or supplied
+panel; it does not reproduce the original missingness process unless the user
+reapplies one. Parameters from a segmented fit still inherit that estimation
+assumption. Numerical integration of dependence across gaps is not currently
+implemented.

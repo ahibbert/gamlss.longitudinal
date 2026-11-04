@@ -1,0 +1,263 @@
+#' Variance-covariance matrix for a fitted longitudinal GAMLSS-copula model
+#'
+#' @param object A fitted `gamlss.longitudinal` object.
+#' @param par Optional parameter list for evaluating uncertainty away from the
+#'   fitted coefficients.
+#' @param sep_d2 Logical legacy argument retained for compatibility.
+#' @param numderiv Logical; use the numerical Hessian path.
+#' @param method Character; variance-covariance method to use. `"analytical"` (default)
+#'   uses the semi-analytical Hessian from `R/hessian-analytical.R`.
+#'   `"numderiv"` uses full finite-difference numerical second derivatives as a
+#'   slower reference path. `"sandwich"` uses a cluster-robust sandwich estimator
+#'   for fixed coefficients, with clusters defaulting to subjects. The legacy
+#'   `numderiv` logical argument is still accepted and maps to `method = "numderiv"`
+#'   when `TRUE`. For a segmented likelihood, requests for model-Hessian
+#'   inference are replaced by `"sandwich"` with a warning because different
+#'   observed segments are treated as independent.
+#' @param progress Logical; show progress bars for slow Hessian calculations.
+#' @param h Numeric finite-difference step used by the analytical Hessian
+#'   helper.
+#' @param cluster Optional cluster labels for `method = "sandwich"`. Defaults to
+#'   the fitted subject identifiers.
+#' @param sandwich_h Numeric finite-difference step used for sandwich cluster
+#'   score contributions.
+#' @param sandwich_adjust Logical; apply a finite-sample cluster correction to
+#'   sandwich covariance estimates.
+#' @param sandwich_bread_method Character; Hessian method used for the sandwich
+#'   bread.
+#' @param inference Inference validation policy created by
+#'   [inference_control()]. This is separate from model optimizer controls.
+#' @param details Logical; return the package's detailed covariance bundle
+#'   instead of the standard coefficient covariance matrix. Intended for
+#'   advanced diagnostics and package internals.
+#' @param coefficients Coefficient scope. The default `"fixed"` preserves
+#'   fixed-coefficient inference conditional on fitted smooths. `"joint"`
+#'   includes fixed and smooth coefficients using inverse penalized information,
+#'   conditional on fitted smoothing parameters and the fitted constrained basis.
+#'   Joint sandwich, segmented likelihoods and `par` overrides are unsupported.
+#' @param ... Additional arguments, currently unused.
+#'
+#' @return By default, a named covariance matrix aligned with `coef(object)`.
+#'   With `details = TRUE`, a list containing variance-covariance matrices and
+#'   standard errors is returned. `vcov$overall` covers fixed coefficients conditional on fitted smooths;
+#'   for sandwich inference it is also available as `vcov$cluster_robust`, while
+#'   `vcov$model_based` contains the inverse-Hessian covariance used as the
+#'   sandwich bread. The corresponding standard errors are stored under `se`.
+#'   `vcov$smooth_vcov` is a separate penalized approximation. Fixed-smooth
+#'   covariance and smoothing-parameter uncertainty are excluded in this default mode.
+#'   With `coefficients = "joint"`, the matrix instead covers every named fixed
+#'   and smooth coordinate. Details include the coefficient map, estimates, raw
+#'   likelihood Hessian, fitted penalty, penalized information and cross-blocks.
+#'   This is a local empirical-Bayes covariance, not the frequentist penalized
+#'   estimator covariance or a robust sandwich. Smoothing-parameter uncertainty
+#'   remains excluded. Joint analytical failures are reported without an automatic
+#'   numerical rescue; `method = "numderiv"` is an explicit reference route.
+#'   Positive definite, full-rank usable penalized information is required;
+#'   penalized stationarity uses the existing warning policy. See
+#'   [inference_contracts()].
+#' @export
+vcov.gamlss.longitudinal <- function(object, par = NA, sep_d2 = TRUE, numderiv = FALSE,
+                                     method = c("analytical", "numderiv", "analytical_only", "sandwich"),
+                                     progress = interactive(), h = 1e-4,
+                                     cluster = NULL,
+                                     sandwich_h = 1e-5,
+                                     sandwich_adjust = TRUE,
+                                     sandwich_bread_method = c("analytical", "numderiv", "analytical_only"),
+                                     inference = inference_control("standard"),
+                                     details = FALSE,
+                                     coefficients = c("fixed", "joint"),
+                                     ...) {
+  # object=fit; par=NA; numderiv=TRUE; sep_d2=TRUE
+  .gl_require_converged_fit(object, "variance-covariance inference")
+
+  method <- match.arg(method)
+  coefficients <- match.arg(coefficients)
+  if (identical(coefficients, "joint") && identical(method, "sandwich")) {
+    .gl_joint_stop("joint_sandwich_unsupported", "Joint cluster-sandwich inference is not implemented.")
+  }
+  if (isTRUE(numderiv)) method <- "numderiv"
+  if (identical(coefficients, "joint")) {
+    return(.gl_vcov_joint(object, par, method, isTRUE(progress), h,
+                          inference, details, cluster = cluster))
+  }
+  method_requested_for_missingness <- method
+  method <- .gl_require_supported_missingness_inference(object, method)
+  if (identical(method, "sandwich")) numderiv <- FALSE
+
+  inference <- .gl_normalize_inference_control(inference)
+  vcov_setup <- .gl_prepare_vcov_evaluation(
+    object = object,
+    par = par,
+    numderiv = numderiv,
+    method = method,
+    progress = progress
+  )
+  method <- vcov_setup$method
+  method_requested <- vcov_setup$method_requested
+  method_used <- vcov_setup$method_used
+  progress <- vcov_setup$progress
+  include_dlcopdpar <- vcov_setup$include_dlcopdpar
+  response <- vcov_setup$response
+  response_margin <- vcov_setup$response_margin
+  response_subject <- vcov_setup$response_subject
+  margin_names <- vcov_setup$margin_names
+  num_margins <- vcov_setup$num_margins
+  margin_dist <- vcov_setup$margin_dist
+  copula_dist <- vcov_setup$copula_dist
+  copula_link <- vcov_setup$copula_link
+  mm <- vcov_setup$mm
+  par_cov <- vcov_setup$par_cov
+  par_s <- vcov_setup$par_s
+  eta_out <- vcov_setup$eta_out
+  eta_inv <- vcov_setup$eta_inv
+  eta_dr <- vcov_setup$eta_dr
+  eta <- vcov_setup$eta
+
+  if (identical(method, "sandwich")) {
+    sandwich_path <- .gl_vcov_compute_sandwich(
+      object = object,
+      par_cov = par_cov,
+      par_s = par_s,
+      mm = mm,
+      margin_dist = margin_dist,
+      response = response,
+      response_margin = response_margin,
+      response_subject = response_subject,
+      cluster = cluster,
+      score_h = sandwich_h,
+      bread_h = h,
+      adjust = sandwich_adjust,
+      bread_method = sandwich_bread_method,
+      inference = inference,
+      progress = progress
+    )
+
+    sandwich_result <- .gl_vcov_build_result(
+      object = object,
+      eta_inv = eta_inv,
+      response = response,
+      vcov_final = sandwich_path$vcov_final,
+      se_final = sandwich_path$se_final,
+      method_used = sandwich_path$method_used,
+      method_requested = method_requested_for_missingness,
+      hessian_diagnostics = sandwich_path$hessian_diagnostics
+    )
+    # Retain the inverse-Hessian bread for comparison while keeping the
+    # cluster-robust covariance as the primary `overall` result.
+    sandwich_result$vcov$model_based <- sandwich_path$model_based_vcov
+    sandwich_result$vcov$cluster_robust <- sandwich_result$vcov$overall
+    sandwich_result$se$model_based <- sandwich_path$model_based_se
+    sandwich_result$se$cluster_robust <- sandwich_result$se$overall
+    sandwich_result$hessian_diagnostics$missingness_inference_fallback <-
+      !identical(method_requested_for_missingness, "sandwich")
+    sandwich_result$hessian_diagnostics$method_requested_before_missingness_fallback <-
+      method_requested_for_missingness
+    return(.gl_vcov_format_result(sandwich_result, return_details = details))
+  }
+
+  method_info <- .gl_vcov_apply_margin_preflight(method, method_used, margin_dist, eta_inv)
+  method <- method_info$method
+  method_used <- method_info$method_used
+
+  # if(!all(is.na(par))) {response=eta_inv[["mu"]]}
+
+  calc_lik_out <- calc_likelihood_minimal(eta_inv,
+    mm = mm$x, margin_dist, copula_dist, calc_d2 = TRUE,
+    response = response, response_margin = response_margin, response_subject = response_subject
+  )
+
+  Fx_1_2 <- calc_lik_out$Fx_1_2
+  margin_p <- calc_lik_out$margin_p
+  margin_d <- calc_lik_out$margin_d
+  copula_d <- calc_lik_out$copula_d
+
+  method_info <- .gl_vcov_apply_likelihood_preflight(method, method_used, calc_lik_out, response)
+  method <- method_info$method
+  method_used <- method_info$method_used
+
+  ### Calculate derivaties: margin and copula d1 and d2
+
+  margin_derivatives <- calc_lik_out$margin_deriv
+
+  copula_derivatives <- calc_copula_derivatives(
+    eta_inv,
+    Fx_1_2,
+    copula_dist,
+    calc_d2 = TRUE,
+    par1 = calc_lik_out$copula_par1,
+    par2 = calc_lik_out$copula_par2,
+    pair_complete = calc_lik_out$pair_complete
+  )
+
+  # Calculate numerical derivatives for F(x) - also used as a reference for overall likelihood derivative
+
+  nd_impact_F <- calc_Fx_derivatives(eta_inv, mm$x, margin_dist, response)
+
+  nd_impact_F2 <- calc_Fx2_derivatives(eta_inv, mm$x, margin_dist, response)
+
+  vcov_path <- .gl_vcov_compute_primary(
+    object = object,
+    par_cov = par_cov,
+    mm = mm,
+    margin_dist = margin_dist,
+    response = response,
+    response_margin = response_margin,
+    response_subject = response_subject,
+    method = method,
+    progress = progress,
+    h = h,
+    inference = inference
+  )
+  method_used <- vcov_path$method_used
+
+  d2_mat <- NULL
+  if (!(method %in% c("numderiv", "analytical", "analytical_only"))) {
+    d2_mat <- .gl_vcov_legacy_derivative_matrix(
+      object = object,
+      eta_inv = eta_inv,
+      mm = mm,
+      margin_dist = margin_dist,
+      response = response,
+      response_margin = response_margin,
+      response_subject = response_subject,
+      margin_names = margin_names,
+      num_margins = num_margins,
+      margin_p = margin_p,
+      margin_d = margin_d,
+      copula_d = copula_d,
+      copula_derivatives = copula_derivatives,
+      margin_derivatives = margin_derivatives,
+      nd_impact_F = nd_impact_F,
+      nd_impact_F2 = nd_impact_F2,
+      eta = eta,
+      include_dlcopdpar = include_dlcopdpar,
+      sep_d2 = sep_d2
+    )
+  }
+
+  gradient <- NULL
+  H_for_gradient <- vcov_path$hessian_nd %||% d2_mat
+  if (is.matrix(H_for_gradient)) {
+    gradient <- .gl_vcov_fitted_gradient(
+      object, par_cov, H_for_gradient, inference$gradient_step
+    )
+  }
+  vcov_solved <- .gl_vcov_solve_if_needed(
+    vcov_path, method, d2_mat, response,
+    parameter_names = names(par_cov),
+    inference = inference,
+    gradient = gradient
+  )
+
+  return(.gl_vcov_format_result(.gl_vcov_build_result(
+    object = object,
+    eta_inv = eta_inv,
+    response = response,
+    vcov_final = vcov_solved$vcov_final,
+    se_final = vcov_solved$se_final,
+    method_used = method_used,
+    method_requested = method_requested,
+    hessian_diagnostics = vcov_solved$hessian_diagnostics,
+    hessian_fallback = vcov_path$hessian_fallback
+  ), return_details = details))
+}

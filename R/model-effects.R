@@ -1,0 +1,126 @@
+#' Marginal effects from fitted distributional parameters
+
+#'
+
+#' @param object A fitted `gamlss.longitudinal` object.
+
+#' @param newdata Data used as the counterfactual baseline.
+
+#' @param variable Single variable to vary.
+
+#' @param values Values to assign to `variable`. Defaults to observed factor
+
+#'   levels for factors/characters or the 25th, 50th, and 75th percentiles for
+
+#'   numeric variables.
+
+#' @param parameter Distributional parameter to summarize, usually `"mu"`.
+
+#' @param reference Optional reference value. Defaults to the first value.
+
+#' @param se.fit Logical; when `TRUE` and `parameter = "mu"`, attach
+
+#'   exploratory delta-method standard errors for response-scale averages.
+
+#'   They use only the fixed `mu` coefficient block and omit cross-row,
+
+#'   smooth, fixed-smooth, and smoothing-parameter uncertainty.
+
+#' @param level Confidence level used when `se.fit = TRUE`.
+
+#' @param vcov_method Variance-covariance method passed to [vcov.gamlss.longitudinal()].
+
+#' @param ... Additional arguments passed to [predict.gamlss.longitudinal()].
+
+#'
+
+#' @return A data frame with average fitted parameter values and contrasts.
+
+#'   When `se.fit = TRUE`, an `inference_contract` attribute records the exact
+
+#'   conditional approximation and omitted uncertainty.
+
+#' @importFrom stats predict
+
+#' @export
+
+marginal_effects <- function(
+    object,
+    newdata,
+    variable,
+    values = NULL,
+    parameter = "mu",
+    reference = NULL,
+    se.fit = FALSE,
+    level = 0.95,
+    vcov_method = "analytical",
+    ...) {
+  if (!inherits(object, "gamlss.longitudinal")) {
+    stop("'object' must be a fitted 'gamlss.longitudinal' object.", call. = FALSE)
+  }
+
+  if (missing(newdata) || is.null(newdata)) {
+    stop("'newdata' is required for counterfactual marginal effects.", call. = FALSE)
+  }
+
+  newdata <- as.data.frame(newdata, stringsAsFactors = FALSE)
+
+  if (!is.character(variable) || length(variable) != 1L || !variable %in% names(newdata)) {
+    stop("'variable' must be a single column name in 'newdata'.", call. = FALSE)
+  }
+
+  x <- newdata[[variable]]
+
+  if (is.null(values)) {
+    values <- .gl_effect_counterfactual_values(x)
+  }
+
+  if (length(values) == 0L) {
+    stop("'values' must contain at least one counterfactual value.", call. = FALSE)
+  }
+
+  if (is.null(reference)) {
+    reference <- values[[1L]]
+  }
+
+  rows <- lapply(values, function(value) {
+    .gl_effect_counterfactual_row(
+      object = object,
+      newdata = newdata,
+      variable = variable,
+      value = value,
+      parameter = parameter,
+      se.fit = se.fit,
+      vcov_method = vcov_method,
+      ...
+    )
+  })
+
+  out <- .gl_finalize_marginal_effects(
+    rows = rows,
+    reference = reference,
+    se.fit = se.fit,
+    level = level
+  )
+  if (isTRUE(se.fit)) {
+    prediction_contracts <- attr(out, "prediction_inference_contracts")
+    available_contracts <- Filter(Negate(is.null), prediction_contracts)
+    prediction_contract <- if (length(available_contracts)) available_contracts[[1L]] else NULL
+    covariance_contract <- prediction_contract$covariance_contract %||% NULL
+    contract <- .gl_inference_contract(
+      "marginal_effect_mu_delta",
+      coefficient_names = names(object$par)[startsWith(names(object$par), "mu.")],
+      method = prediction_contract$method_used %||% vcov_method,
+      validity_status = prediction_contract$validity_status %||% "unverified_prediction_covariance",
+      failure_states = prediction_contract$observed_failures %||% character()
+    )
+    contract$prediction_contract <- prediction_contract
+    contract$covariance_contract <- covariance_contract
+    contract$method_requested <- prediction_contract$method_requested %||% vcov_method
+    contract$method_used <- prediction_contract$method_used %||% vcov_method
+    contract$fallback_used <- prediction_contract$fallback_used %||% FALSE
+    contract$diagnostics <- prediction_contract$diagnostics %||% NULL
+    out <- .gl_attach_inference_contract(out, contract)
+  }
+  out
+}

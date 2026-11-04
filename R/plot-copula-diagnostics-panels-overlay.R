@@ -1,0 +1,92 @@
+.copula_v2_empirical_overlay_panel <- function(pair_data_plot,
+                                               density_grid,
+                                               plot1_style,
+                                               contour_bins,
+                                               is_grouped,
+                                               copula_family_name,
+                                               x_label,
+                                               y_label) {
+  title <- "Copula fit"
+  cols <- .gl_plot_colours()
+  subtitle <- paste0("Fitted ", .gl_copula_display_label(copula_family_name), " contours")
+
+  if (all(!is.finite(density_grid$density))) {
+    return(.copula_v2_message_plot(
+      title = title,
+      subtitle = subtitle,
+      message = "No finite fitted copula density"
+    ))
+  }
+
+  p <- ggplot2::ggplot(pair_data_plot, ggplot2::aes(x = .data$u1, y = .data$u2))
+
+  if (plot1_style == "scatter") {
+    p <- p +
+      ggplot2::geom_point(color = cols[["observed"]], alpha = 0.45, size = 1.2)
+  } else {
+    p <- p +
+      ggplot2::geom_bin2d(bins = 25, alpha = 0.8) +
+      ggplot2::scale_fill_gradient(low = "#F7F9FB", high = cols[["observed"]], name = "Count") +
+      ggplot2::guides(fill = "none")
+  }
+
+  p <- p +
+    ggplot2::geom_contour(
+      data = density_grid,
+      ggplot2::aes(x = u1, y = u2, z = density),
+      inherit.aes = FALSE,
+      color = cols[["fitted"]],
+      linewidth = 1.2,
+      bins = contour_bins
+    ) +
+    ggplot2::labs(
+      title = title,
+      subtitle = subtitle,
+      x = x_label,
+      y = y_label
+    ) +
+    theme_gamlss_longitudinal()
+
+  if (is_grouped) {
+    p <- p + ggplot2::facet_wrap(~split_group, scales = "fixed")
+  }
+
+  p
+}
+
+.copula_v2_cut_summary_panel <- function(quartile_df, plot2_cuts, is_grouped, tau_ylim) {
+  if (nrow(quartile_df) == 0 || all(!is.finite(quartile_df$tau_emp)) || all(!is.finite(quartile_df$tau_fit))) {
+    return(.copula_v2_message_plot(
+      title = "Kendall's tau by fitted bin",
+      subtitle = "Bins use fitted copula strength",
+      message = "No finite cut summaries"
+    ))
+  }
+
+  cut_levels <- paste0("C", sort(unique(as.integer(sub("^C", "", quartile_df$cut_group)))))
+  quartile_df$cut_group <- factor(quartile_df$cut_group, levels = cut_levels)
+
+  cols <- .gl_plot_colours()
+  p <- ggplot2::ggplot(quartile_df, ggplot2::aes(x = cut_group)) +
+    ggplot2::geom_point(ggplot2::aes(y = tau_emp), color = cols[["observed"]], size = 2.8) +
+    ggplot2::geom_line(ggplot2::aes(y = tau_emp, group = 1), color = cols[["observed"]], linewidth = 0.8) +
+    ggplot2::geom_point(ggplot2::aes(y = tau_fit), color = cols[["fitted"]], size = 2.8, shape = 4, stroke = 1.1) +
+    ggplot2::geom_line(ggplot2::aes(y = tau_fit, group = 1), color = cols[["fitted"]], linewidth = 0.8, linetype = "dashed") +
+    ggplot2::labs(
+      title = "Kendall's tau by fitted bin",
+      subtitle = paste0(plot2_cuts, " fitted-strength bins"),
+      x = "Cut",
+      y = "Kendall's tau"
+    ) +
+    theme_gamlss_longitudinal()
+
+  if (is_grouped) {
+    p <- p + ggplot2::facet_wrap(~split_group, scales = "fixed")
+  }
+
+  if (!is.null(tau_ylim)) {
+    p <- p + ggplot2::coord_cartesian(ylim = tau_ylim)
+  }
+
+  p
+}

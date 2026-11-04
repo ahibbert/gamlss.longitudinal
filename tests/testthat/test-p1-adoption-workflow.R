@@ -1,0 +1,671 @@
+test_that("T201 predict method returns standard fitted outputs", {
+  fixture <- get_valid_inference_fixture()
+  dat <- fixture$data
+  fit <- fixture$fit
+
+  p_response <- predict(fit, type = "response")
+  expect_type(p_response, "double")
+  expect_length(p_response, length(fit$response))
+  expect_true(all(is.finite(p_response)))
+
+  p_response_se <- predict(
+    fit,
+    type = "response",
+    se.fit = TRUE,
+    interval = "confidence",
+    vcov_method = "numderiv",
+    progress = FALSE
+  )
+  expect_s3_class(p_response_se, "data.frame")
+  expect_true(all(c("fit", "se.fit", "conf.low", "conf.high") %in% names(p_response_se)))
+  expect_equal(nrow(p_response_se), length(fit$response))
+
+  p_params <- predict(fit, type = "parameters")
+  expect_true(all(c("subject", "time", "response", "mu", "sigma") %in% names(p_params)))
+  expect_equal(nrow(p_params), length(fit$response))
+
+  p_quantile <- predict(fit, type = "quantile", probs = c(0.1, 0.5, 0.9))
+  expect_true(all(c("q01", "q05", "q09") %in% names(p_quantile)))
+
+  p_cdf <- predict(fit, type = "cdf")
+  expect_true(all(c("subject", "time", "response", "q", "cdf") %in% names(p_cdf)))
+  expect_true(all(p_cdf$cdf >= 0 & p_cdf$cdf <= 1))
+
+  p_cdf_q <- predict(fit, type = "cdf", q = 2)
+  expect_true(all(p_cdf_q$q == 2))
+  expect_true(all(p_cdf_q$cdf >= 0 & p_cdf_q$cdf <= 1))
+
+  p_prob <- predict(fit, type = "probability", q = 2, direction = "above")
+  expect_true(all(c("q", "direction", "probability") %in% names(p_prob)))
+  expect_true(all(p_prob$direction == "above"))
+  expect_true(all(p_prob$probability >= 0 & p_prob$probability <= 1))
+
+  p_density_y <- predict(fit, type = "density", y = 2)
+  expect_true(all(c("y", "density") %in% names(p_density_y)))
+  expect_true(all(p_density_y$y == 2))
+  expect_true(all(is.finite(p_density_y$density)))
+})
+
+test_that("T202 simulate method returns fitted-length simulation columns", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 12L)
+  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+
+  sim_model <- simulate(fit, nsim = 2, seed = 123)
+  expect_s3_class(sim_model, "data.frame")
+  expect_equal(dim(sim_model), c(length(fit$response), 2L))
+  expect_true(all(is.finite(as.matrix(sim_model))))
+
+  sim_copula_compat <- simulate(fit, nsim = 1, seed = 123, type = "copula")
+  expect_equal(nrow(sim_copula_compat), length(fit$response))
+  expect_true(all(is.finite(sim_copula_compat$sim_1)))
+  expect_error(
+    simulate(fit, nsim = 1, seed = 123, type = "marginal"),
+    "fitted copula model"
+  )
+})
+
+test_that("T202a simulate supports newdata panels", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 12L)
+  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+
+  nd_new <- dat[seq_len(6), , drop = FALSE]
+  nd_new$id <- nd_new$id + 1000L
+  nd_new$y <- NA_real_
+  nd_new <- nd_new[c(4, 1, 6, 2, 5, 3), , drop = FALSE]
+
+  sim_new <- simulate(fit, nsim = 2, seed = 321, newdata = nd_new)
+  expect_s3_class(sim_new, "data.frame")
+  expect_equal(dim(sim_new), c(nrow(nd_new), 2L))
+  expect_true(all(is.finite(as.matrix(sim_new))))
+  expect_equal(
+    simulate(fit, nsim = 2, seed = 321, newdata = nd_new),
+    sim_new
+  )
+
+  nd_bad <- nd_new
+  nd_bad$gender <- factor("X", levels = c(levels(dat$gender), "X"))
+  expect_error(
+    simulate(fit, nsim = 1, seed = 321, newdata = nd_bad),
+    "contains level(s) not seen during fitting",
+    fixed = TRUE
+  )
+})
+
+test_that("T202b simulate newdata supports numeric-time extensions", {
+  dat <- make_fixture_numeric_time(n_subject = 10L)
+  fit <- fit_fixture_model(
+    dat,
+    include_dlcopdpar = TRUE,
+    theta_formula = "~ time_raw",
+    max_outer_iter = 2,
+    max_inner_iter = 2
+  )
+
+  subject_data <- dat[!duplicated(dat$id), c("id", "gender", "age"), drop = FALSE]
+  nd_more <- merge(
+    expand.grid(
+      id = subject_data$id[seq_len(3L)],
+      time_raw = 1:4,
+      KEEP.OUT.ATTRS = FALSE,
+      stringsAsFactors = FALSE
+    ),
+    subject_data,
+    by = "id",
+    sort = FALSE
+  )
+  nd_more <- nd_more[order(nd_more$id, nd_more$time_raw), , drop = FALSE]
+  nd_more$y <- NA_real_
+
+  sim_more <- simulate(fit, nsim = 1, seed = 654, newdata = nd_more)
+  expect_equal(dim(sim_more), c(nrow(nd_more), 1L))
+  expect_true(all(is.finite(sim_more$sim_1)))
+})
+
+test_that("T202c simulate newdata covers linear, factor, and smooth time structures", {
+  make_numeric_panel <- function(dat, ids, times, id_offset = 0L) {
+    subject_data <- dat[!duplicated(dat$id), c("id", "gender", "age"), drop = FALSE]
+    subject_data <- subject_data[subject_data$id %in% ids, , drop = FALSE]
+    panel <- merge(
+      expand.grid(
+        id = ids,
+        time_raw = times,
+        KEEP.OUT.ATTRS = FALSE,
+        stringsAsFactors = FALSE
+      ),
+      subject_data,
+      by = "id",
+      sort = FALSE
+    )
+    panel <- panel[order(panel$id, panel$time_raw), , drop = FALSE]
+    panel$id <- panel$id + id_offset
+    panel$y <- NA_real_
+    rownames(panel) <- NULL
+    panel
+  }
+
+  dat_num <- make_fixture_numeric_time(n_subject = 10L)
+  nd_both <- make_numeric_panel(dat_num, ids = 1:3, times = 1:4, id_offset = 1000L)
+
+  fit_linear <- fit_fixture_model(
+    dat_num,
+    include_dlcopdpar = FALSE,
+    mu_formula = "y ~ time_raw + gender + age",
+    sigma_formula = "~ 1",
+    theta_formula = "~ time_raw",
+    max_outer_iter = 2,
+    max_inner_iter = 2
+  )
+  sim_linear <- simulate(fit_linear, nsim = 2, seed = 701, newdata = nd_both)
+  expect_equal(dim(sim_linear), c(nrow(nd_both), 2L))
+  expect_true(all(is.finite(as.matrix(sim_linear))))
+
+  fit_smooth <- fit_fixture_model(
+    dat_num,
+    include_dlcopdpar = FALSE,
+    mu_formula = "y ~ s(time_raw, bs='ps', k=4) + gender + age",
+    sigma_formula = "~ 1",
+    theta_formula = "~ time_raw",
+    max_outer_iter = 2,
+    max_inner_iter = 2
+  )
+  sim_smooth <- simulate(fit_smooth, nsim = 2, seed = 702, newdata = nd_both)
+  expect_equal(dim(sim_smooth), c(nrow(nd_both), 2L))
+  expect_true(all(is.finite(as.matrix(sim_smooth))))
+
+  dat_factor <- make_fixture_factor_time_interaction(n_subject = 10L)
+  fit_factor <- fit_fixture_model(
+    dat_factor,
+    include_dlcopdpar = FALSE,
+    mu_formula = "y ~ time_raw + gender + age",
+    sigma_formula = "~ 1",
+    theta_formula = "~ time_raw",
+    max_outer_iter = 2,
+    max_inner_iter = 2
+  )
+  nd_factor <- dat_factor[dat_factor$id %in% 1:3, , drop = FALSE]
+  nd_factor$id <- nd_factor$id + 2000L
+  nd_factor$y <- NA_real_
+  nd_factor <- nd_factor[c(3, 1, 7, 2, 5, 9, 4, 6, 8), , drop = FALSE]
+
+  sim_factor <- simulate(fit_factor, nsim = 2, seed = 703, newdata = nd_factor)
+  expect_equal(dim(sim_factor), c(nrow(nd_factor), 2L))
+  expect_true(all(is.finite(as.matrix(sim_factor))))
+
+  nd_factor_bad_time <- nd_factor[1, , drop = FALSE]
+  nd_factor_bad_time$time_raw <- factor("t4", levels = c(levels(dat_factor$time_raw), "t4"), ordered = TRUE)
+  expect_error(
+    simulate(fit_factor, nsim = 1, seed = 704, newdata = nd_factor_bad_time),
+    "contains level(s) not seen during fitting",
+    fixed = TRUE
+  )
+})
+
+test_that("T202d simulate newdata breaks dependence across time-grid gaps", {
+  diag_data <- list(
+    family = "NO",
+    params = list(mu = c(0, 0), sigma = c(1, 1))
+  )
+  fit_data <- data.frame(
+    subject = c(1, 1),
+    time = c(1, 3),
+    theta_fit = c(0.95, NA_real_),
+    zeta_fit = c(0, NA_real_)
+  )
+  object <- list(copula_dist = "N")
+
+  set.seed(202)
+  expected <- gamlss.dist::qNO(c(stats::runif(1L), stats::runif(1L)), mu = c(0, 0), sigma = c(1, 1))
+  set.seed(202)
+  actual <- gamlss.longitudinal:::.gl_simulate_copula_matrix(
+    object,
+    diag_data,
+    nsim = 1,
+    fit_data = fit_data,
+    time_levels = 1:3
+  )
+
+  expect_equal(as.numeric(actual[, 1]), expected)
+})
+
+test_that("T202e simulate newdata preserves adjacent fitted dependence", {
+  diag_data <- list(
+    family = "NO",
+    params = list(mu = rep(0, 3), sigma = rep(1, 3))
+  )
+  fit_data <- data.frame(
+    subject = rep(seq_len(80L), each = 3L),
+    time = rep(1:3, times = 80L),
+    theta_fit = rep(c(0.85, 0.85, NA_real_), times = 80L),
+    zeta_fit = rep(c(0, 0, NA_real_), times = 80L)
+  )
+  diag_data$params$mu <- rep(0, nrow(fit_data))
+  diag_data$params$sigma <- rep(1, nrow(fit_data))
+  object <- list(copula_dist = "N")
+
+  sim <- gamlss.longitudinal:::.gl_simulate_copula_matrix(
+    object,
+    diag_data,
+    nsim = 1,
+    fit_data = fit_data,
+    time_levels = 1:3
+  )
+  sim_df <- data.frame(
+    subject = fit_data$subject,
+    time = fit_data$time,
+    y = as.numeric(sim[, 1])
+  )
+  wide <- reshape(sim_df, idvar = "subject", timevar = "time", direction = "wide")
+
+  expect_gt(stats::cor(wide$y.1, wide$y.2), 0.55)
+  expect_gt(stats::cor(wide$y.2, wide$y.3), 0.55)
+})
+
+test_that("T203 check_model returns basic-check diagnostic object", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 14L)
+  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+
+  check_out <- capture_warnings(check_model(fit, include_plots = FALSE, dependence_cor_cutoff = 0.3))
+  chk <- check_out$value
+
+  expect_s3_class(chk, "gamlss_longitudinal_check")
+  expect_true(all(c(
+    "model", "fit", "convergence", "scores", "pit", "pit_method", "tail",
+    "basic_checks", "diagnostic_summary", "checks", "flags"
+  ) %in% names(chk)))
+  expect_false(any(c("basic_checks_passed", "basic_checks_result", "warnings") %in% names(chk)))
+  expect_false(any(c("recommendation", "decisions") %in% names(chk)))
+  expect_true(is.data.frame(chk$scores))
+  expect_true(is.data.frame(chk$basic_checks))
+  expect_true(is.data.frame(chk$checks))
+  expect_true(is.data.frame(chk$flags))
+  expect_equal(nrow(chk$basic_checks), 5L)
+  expect_equal(
+    chk$basic_checks$area,
+    c("Convergence", "Marginal fit", "Tail fit", "Copula fit", "Variance calculation")
+  )
+  expect_false(any(chk$basic_checks$status %in% c("PASS", "FAIL")))
+  expect_true(chk$diagnostic_summary %in% c("descriptive", "review", "not_converged"))
+  expect_true(all(chk$residual_dependence$cutoff == 0.3))
+  expect_true("n_pairs" %in% names(chk$residual_dependence))
+
+  copula_diag <- suppressWarnings(plot_copula_diagnostics(fit, plot = FALSE, residual_lags = 1))
+  expect_equal(
+    chk$residual_dependence$normal_score_cor[chk$residual_dependence$lag == 1L],
+    copula_diag$residual_lag_summary$cor_z,
+    tolerance = 1e-12
+  )
+  expect_equal(chk$residual_dependence$n_pairs[chk$residual_dependence$lag == 1L], copula_diag$residual_lag_summary$n_pairs)
+  expect_true(all(c("scope_status", "threshold_source") %in% names(chk$residual_dependence)))
+
+  printed <- capture.output(print(chk))
+  expect_lt(grep("Basic checks", printed, fixed = TRUE), grep("Scores", printed, fixed = TRUE))
+  expect_true(any(grepl("Summary:", printed, fixed = TRUE)))
+  expect_true(any(grepl("not package pass/fail verdicts", printed, fixed = TRUE)))
+  expect_false(any(grepl("Detailed checks", printed, fixed = TRUE)))
+  expect_false(any(grepl("Failed checks", printed, fixed = TRUE)))
+})
+
+test_that("T203a check_model reports review flags without automatic warnings", {
+  fixture <- get_valid_inference_fixture()
+  dat <- fixture$data
+  fit <- fixture$fit
+
+  fit_failed <- fit
+  fit_failed$convergence$converged <- FALSE
+  failed_out <- capture_warnings(check_model(fit_failed, include_plots = FALSE, dependence_cor_cutoff = 0.99))
+  chk_failed <- failed_out$value
+  expect_length(failed_out$warnings, 0L)
+  expect_equal(chk_failed$diagnostic_summary, "not_converged")
+  expect_true(any(chk_failed$flags$area == "Convergence"))
+
+  fit_review <- fit
+  fit_review$convergence$converged <- TRUE
+  chk_review <- expect_no_warning(
+    check_model(fit_review, include_vcov = TRUE, numderiv = TRUE, include_plots = FALSE, dependence_cor_cutoff = 0.99)
+  )
+  expect_equal(chk_review$diagnostic_summary, "review")
+  expect_true(any(chk_review$basic_checks$status == "review"))
+
+  tail_checks <- gamlss.longitudinal:::.gl_check_table(
+    summary_obj = list(
+      fit = list(),
+      convergence = list(converged = TRUE)
+    ),
+    scores = data.frame(),
+    pit_stats = data.frame(ks_p_value = 0.5),
+    tail_stats = data.frame(tail_ratio_max = 2.1),
+    lag1_cor = 0,
+    dependence_cor_cutoff = 0.25,
+    vcov_method = NA_character_
+  )
+  expect_equal(tail_checks$status[tail_checks$area == "Tail fit"], "descriptive")
+  expect_equal(gamlss.longitudinal:::.gl_basic_checks_result(tail_checks), "descriptive")
+})
+
+test_that("T203b check_missingness screens response missingness against observed predictors", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 40L)
+  set.seed(203)
+  miss_prob <- stats::plogis(
+    -1.4 +
+      0.025 * (dat$age - mean(dat$age)) +
+      0.35 * (dat$time_raw == levels(dat$time_raw)[3])
+  )
+  dat$y[stats::runif(nrow(dat)) < miss_prob] <- NA_real_
+
+  chk <- check_missingness(
+    dat,
+    response_var = "y",
+    time_var = "time_raw",
+    subject_var = "id",
+    predictors = c("time_raw", "gender", "age")
+  )
+
+  expect_s3_class(chk, "gamlss_longitudinal_missingness_check")
+  expect_equal(chk$response$n_missing, sum(is.na(dat$y)))
+  expect_true(chk$assessment %in% c("covariate_related_missingness", "no_detected_covariate_association"))
+  expect_true(all(c("term", "p_value") %in% names(chk$terms)))
+  expect_output(print(chk), "<Response missingness check>", fixed = TRUE)
+
+  no_missing <- check_missingness(dat[!is.na(dat$y), ], response_var = "y")
+  expect_equal(no_missing$assessment, "no_missing_responses")
+})
+
+test_that("T204 marginal_effects summarizes counterfactual parameter contrasts", {
+  fixture <- get_valid_inference_fixture()
+  dat <- fixture$data
+  fit <- fixture$fit
+
+  eff <- marginal_effects(
+    fit,
+    newdata = dat,
+    variable = "gender",
+    values = levels(dat$gender),
+    parameter = "mu",
+    se.fit = TRUE,
+    vcov_method = "numderiv",
+    progress = FALSE
+  )
+
+  expect_s3_class(eff, "data.frame")
+  expect_true(all(c("variable", "value", "parameter", "estimate", "std_error", "reference", "contrast", "conf.low", "conf.high") %in% names(eff)))
+  expect_equal(nrow(eff), length(levels(dat$gender)))
+  expect_equal(eff$contrast[1], 0)
+})
+
+test_that("T204b copula_time_summary prints dependence summaries", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 10L)
+  fit <- fit_fixture_model(dat, include_dlcopdpar = TRUE)
+
+  dep <- copula_time_summary(fit)
+
+  expect_s3_class(dep, "copula_time_summary")
+  expect_true(all(c("time_summary", "pair_summary", "fit_data", "pair_data") %in% names(dep)))
+  expect_output(print(dep), "<Copula dependence summary>", fixed = TRUE)
+  expect_true(all(c("theta_fit", "tau_fit") %in% names(dep$time_summary)))
+})
+
+test_that("T205 select_margin and screen_margin return ordered candidate tables with best-fit accessors", {
+  skip_if_not_installed("gamlss")
+
+  y <- rnorm(30)
+  expect_silent(
+    screen <- select_margin(y, type = "realAll", try.gamlss = FALSE, trace = FALSE, verbose = 0)
+  )
+
+  expect_s3_class(screen, "margin_selection")
+  expect_s3_class(screen, "margin_screen")
+  expect_true(all(c("family", "AIC", "type") %in% names(screen)))
+  expect_true(nrow(screen) >= 1L)
+  expect_equal(attr(screen, "selected"), screen$family[[1L]])
+  expect_true(all(c("rank", "delta_AIC", "supported_by_longitudinal") %in% names(screen)))
+  expect_false(any(grepl("supported_by_longitudinal", capture.output(print(screen)))))
+  expect_equal(screen$best_fit$family_name, screen$family[[1L]])
+  expect_equal(best_fit(screen)$family_name, screen$family[[1L]])
+  expect_equal(best_fit_family(screen)$family[1], screen$family[[1L]])
+
+  dat <- data.frame(response = y)
+  expect_warning(
+    from_data <- screen_margin(dat, response_var = "response", type = "realAll", try.gamlss = FALSE, trace = FALSE),
+    "'screen_margin' is deprecated",
+    fixed = TRUE
+  )
+  expect_s3_class(from_data, "margin_selection")
+  expect_s3_class(from_data, "margin_screen")
+  expect_equal(attr(from_data, "selected"), from_data$family[[1L]])
+  expect_equal(best_fit_family(from_data)$family[1], from_data$family[[1L]])
+
+  dat_time <- data.frame(
+    response = y + rep(c(-0.4, 0.2, 0.7), length.out = length(y)),
+    time = rep(1:3, length.out = length(y))
+  )
+  expect_silent(
+    time_screen <- select_margin(
+      dat_time,
+      response_var = "response",
+      time_var = "time",
+      time_intercepts = TRUE,
+      type = "realAll",
+      families = c("NO", "TF"),
+      try.gamlss = FALSE,
+      trace = FALSE,
+      verbose = 0
+    )
+  )
+  expect_s3_class(time_screen, "margin_selection")
+  expect_true(isTRUE(attr(time_screen, "time_intercepts")))
+  expect_equal(attr(time_screen, "time_var"), "time")
+  expect_true(all(time_screen$screen_model == "time_intercepts"))
+  expect_true(all(c("AIC", "pooled_AIC") %in% names(time_screen)))
+  expect_true(all(is.finite(time_screen$AIC)))
+  expect_equal(attr(time_screen, "selected"), time_screen$family[[1L]])
+
+  expect_error(
+    select_margin(dat_time, response_var = "response", time_intercepts = TRUE, type = "realAll"),
+    "time_var"
+  )
+  expect_error(
+    select_margin(y, type = "realAll", time_n_cycles = 0),
+    "positive integer"
+  )
+})
+
+test_that("T206 gamlss_longitudinal is the single public fitter", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 10L)
+
+  fit <- suppressWarnings(gamlss_longitudinal(
+    dataset = dat,
+    margin_dist = NO(),
+    time_var = "time_raw",
+    subject_var = "id",
+    mu.formula = y ~ time_raw + gender + age,
+    sigma.formula = ~time_raw,
+    theta.formula = ~1,
+    copula_dist = "N",
+    max_outer_iter = 2,
+    max_inner_iter = 2,
+    outer_stop_crit = 1,
+    inner_stop_crit = 1,
+    verbose = 0
+  ))
+
+  expect_s3_class(fit, "gamlss.longitudinal")
+  expect_null(fit$workflow)
+  check_out <- capture_warnings(check_model(fit, include_plots = FALSE))
+  expect_s3_class(check_out$value, "gamlss_longitudinal_check")
+})
+
+test_that("T207 confint returns coefficient intervals users can cite", {
+  fixture <- get_valid_inference_fixture()
+  fit <- fixture$fit
+
+  ci <- confint(fit, parm = names(fit$par)[seq_len(2L)], method = "numderiv", progress = FALSE)
+
+  expect_true(is.matrix(ci))
+  expect_equal(ncol(ci), 2L)
+  expect_equal(nrow(ci), 2L)
+})
+
+test_that("T208 wald_test returns individual and joint hypothesis tests", {
+  fixture <- get_valid_inference_fixture()
+  fit <- fixture$fit
+  terms <- names(fit$par)[seq_len(2L)]
+
+  wt <- wald_test(fit, terms = terms, method = "numderiv", progress = FALSE)
+
+  expect_s3_class(wt, "gamlss_longitudinal_wald_test")
+  expect_false(isTRUE(attr(wt, "joint")))
+  expect_true(all(c("term", "estimate", "std_error", "statistic", "p_value", "method") %in% names(wt)))
+  expect_equal(wt$term, terms)
+  expect_true(all(is.finite(wt$p_value)))
+
+  joint <- wald_test(fit, terms = terms, joint = TRUE, method = "numderiv", progress = FALSE)
+  expect_s3_class(joint, "gamlss_longitudinal_wald_test")
+  expect_true(isTRUE(attr(joint, "joint")))
+  expect_equal(joint$df, length(terms))
+  expect_true(is.finite(joint$p_value))
+
+  L <- matrix(c(1, -1), nrow = 1)
+  colnames(L) <- terms
+  contrast <- wald_test(fit, L = L, method = "numderiv", progress = FALSE)
+  expect_true(isTRUE(attr(contrast, "joint")))
+  expect_equal(contrast$df, 1)
+})
+
+test_that("T208b wald_test accepts coefficient-name prefixes", {
+  fixture <- get_valid_inference_fixture()
+  fit <- fixture$fit
+  prefixed_terms <- names(fit$par)[startsWith(names(fit$par), "mu.gender")]
+
+  expect_gt(length(prefixed_terms), 0L)
+
+  wt <- wald_test(fit, terms = "mu.gender", method = "numderiv", progress = FALSE)
+  expect_equal(wt$term, prefixed_terms)
+
+  time_terms <- names(fit$par)[startsWith(names(fit$par), "mu.time_covariate") & !grepl(":", names(fit$par), fixed = TRUE)]
+  wt_time <- wald_test(fit, terms = "mu.time_covariate", method = "numderiv", progress = FALSE)
+  expect_equal(wt_time$term, time_terms)
+
+  joint <- wald_test(fit, terms = "mu.gender", joint = TRUE, method = "numderiv", progress = FALSE)
+  expect_true(isTRUE(attr(joint, "joint")))
+  expect_equal(joint$df, length(prefixed_terms))
+})
+
+test_that("T208c wald_test resolves factor formula terms to all level coefficients", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 60L)
+  treatments <- c("active", "control", "placebo")
+  dat$treatment <- factor(treatments[(dat$id %% length(treatments)) + 1L], levels = treatments)
+  dat$treatmentcontrol_score <- as.numeric(dat$id) / max(dat$id)
+  fit <- fit_fixture_model(
+    dat,
+    include_dlcopdpar = FALSE,
+    mu_formula = "y ~ time_raw + treatment + treatmentcontrol_score",
+    sigma_formula = "~ 1",
+    theta_formula = "~ 1",
+    max_outer_iter = 50L,
+    max_inner_iter = 25L,
+    outer_stop_crit = 1e-5,
+    inner_stop_crit = 1e-5
+  )
+
+  expected_terms <- paste(
+    "mu",
+    colnames(fit$model_matrix$x$mu)[attr(fit$model_matrix$x$mu, "assign") == 2L],
+    sep = "."
+  )
+  expect_equal(expected_terms, c("mu.treatmentcontrol", "mu.treatmentplacebo"))
+
+  wt <- wald_test(fit, terms = "mu.treatment", method = "numderiv", progress = FALSE)
+  expect_equal(wt$term, expected_terms)
+  expect_false("mu.treatmentcontrol_score" %in% wt$term)
+
+  joint <- wald_test(fit, terms = "mu.treatment", joint = TRUE, method = "numderiv", progress = FALSE)
+  expect_equal(joint$df, length(expected_terms))
+})
+
+test_that("T209 likelihood_compare returns sequential LR summaries", {
+  dat <- make_fixture_factor_time_interaction(n_subject = 50L)
+  fit_args <- list(
+    dataset = dat,
+    include_dlcopdpar = FALSE,
+    sigma_formula = "~ 1",
+    theta_formula = "~ 1",
+    max_outer_iter = 25L,
+    max_inner_iter = 25L,
+    outer_stop_crit = 1e-5,
+    inner_stop_crit = 1e-5
+  )
+  reduced <- do.call(
+    fit_fixture_model,
+    c(fit_args, list(mu_formula = "y ~ time_raw + age"))
+  )
+  full <- do.call(
+    fit_fixture_model,
+    c(fit_args, list(mu_formula = "y ~ time_raw + gender + age"))
+  )
+
+  cmp <- likelihood_compare(reduced = reduced, full = full)
+
+  expect_s3_class(cmp, "gamlss_longitudinal_likelihood_compare")
+  expect_equal(nrow(cmp), 2L)
+  expect_true(all(c("model", "n_obs", "df", "logLik", "AIC", "BIC", "delta_df", "LR_statistic", "p_value") %in% names(cmp)))
+  expect_true(all(is.finite(cmp$logLik)))
+  expect_true(is.na(cmp$p_value[[1L]]))
+})
+
+test_that("T210 bootstrap_inference refits simulated responses", {
+  fixture <- get_valid_inference_fixture()
+  fit <- fixture$fit
+  terms <- names(fit$par)[seq_len(2L)]
+
+  boot <- bootstrap_inference(
+    fit,
+    R = 2,
+    terms = terms,
+    seed = 123,
+    fit_args = list(
+      max_outer_iter = 25L,
+      max_inner_iter = 25L,
+      outer_stop_crit = 1e-5,
+      inner_stop_crit = 1e-5
+    )
+  )
+
+  expect_s3_class(boot, "gamlss_longitudinal_bootstrap")
+  expect_s3_class(boot$summary, "data.frame")
+  expect_equal(boot$R, 2L)
+  expect_equal(boot$summary$term, terms)
+  expect_true(all(c("estimate", "bootstrap_mean", "bootstrap_se", "conf.low", "conf.high", "reps") %in% names(boot$summary)))
+  expect_equal(nrow(boot$replicates), 2L)
+
+  prefix_terms <- names(fit$par)[startsWith(names(fit$par), "mu.gender")]
+  boot_prefix <- bootstrap_inference(
+    fit,
+    R = 1,
+    terms = "mu.gender",
+    seed = 124,
+    fit_args = list(
+      max_outer_iter = 25L,
+      max_inner_iter = 25L,
+      outer_stop_crit = 1e-5,
+      inner_stop_crit = 1e-5
+    )
+  )
+  expect_equal(boot_prefix$summary$term, prefix_terms)
+
+  boot_cluster <- bootstrap_inference(
+    fit,
+    R = 1,
+    terms = terms,
+    seed = 125,
+    type = "cluster",
+    fit_args = list(
+      max_outer_iter = 25L,
+      max_inner_iter = 25L,
+      outer_stop_crit = 1e-5,
+      inner_stop_crit = 1e-5
+    )
+  )
+  expect_s3_class(boot_cluster, "gamlss_longitudinal_bootstrap")
+  expect_equal(boot_cluster$simulation_type, "cluster")
+  expect_equal(boot_cluster$summary$term, terms)
+})
