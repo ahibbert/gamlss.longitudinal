@@ -244,8 +244,11 @@ attr(vc_sandwich, "inference_contract")$validity_status
 ```
 
 The sandwich route is especially important for the explicit segmented
-missingness objective. The ordinary likelihood accepts complete panels and
-observed prefixes followed by dropout. An intermittent gap errors by default:
+missingness objective. The ordinary likelihood accepts complete panels,
+delayed entry and observed prefixes followed by dropout. The package default,
+`missingness = "auto"`, switches to segmentation with a warning for intermittent
+gaps. The example helper below explicitly defaults to `missingness = "error"`
+to demonstrate refusing those gaps:
 
 ```{r segmented-missingness}
 gap_dat <- dat
