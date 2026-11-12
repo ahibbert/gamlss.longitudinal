@@ -53,3 +53,9 @@
 ^analyze_results\.R$
 ^vignettes/.*\.html$
 ^pkgdown($|/)
+^output($|/)
+^\$null$
+^PACKAGE-NEXT-STEPS\.md$
+^SPLIT-PROVENANCE\.json$
+^vignettes/native-simulation-workflow\.Rmd$
+^vignettes/jss-start-here\.Rmd$

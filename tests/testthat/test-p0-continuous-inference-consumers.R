@@ -1,10 +1,13 @@
 test_that("public inference consumers use corrected fresh and cached uncertainty", {
+  validation_output_dir <- tempfile("inference-consumers-")
+  dir.create(validation_output_dir)
+  on.exit(unlink(validation_output_dir, recursive = TRUE), add = TRUE)
   old <- options(gamlss.longitudinal.copula_backend = "native")
   on.exit(options(old), add = TRUE)
   base <- curvature_model_fixture()
   reference <- curvature_reference_covariance(base)
   z <- stats::qnorm(0.975)
-  for (backend in c("native", "vinecopula")) {
+  for (backend in curvature_available_backends()) {
     options(gamlss.longitudinal.copula_backend = backend)
     for (method in c("analytical_only", "sandwich")) {
       expected <- if (method == "sandwich") reference$sandwich else reference$model

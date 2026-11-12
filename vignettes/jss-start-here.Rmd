@@ -15,6 +15,10 @@ knitr::opts_chunk$set(
 )
 ```
 
+This repository and website article is not installed as a CRAN vignette.
+Version 0.3.1 is being prepared as a maintenance update; the frozen 0.3.0 review reference and
+each historical paper result retain their separately recorded source identities.
+
 This article is the reviewer-facing entry point for the JSS submission version
 of **gamlss.longitudinal**. It connects the paper, package interface,
 diagnostics, examples, and replication workflow.
@@ -55,22 +59,23 @@ The main user workflow is:
 
 The minimal workflow article demonstrates this path:
 
-```{r minimal-workflow}
+```{r minimal-workflow, purl=FALSE}
 vignette("standard-workflow", package = "gamlss.longitudinal")
 ```
 
 For a longer known-truth example, use:
 
-```{r detailed-workflow}
-vignette("native-simulation-workflow", package = "gamlss.longitudinal")
-```
+[Detailed worked example](https://gamlsslongitudinal.aydins-workbench.com/articles/native-simulation-workflow.html)
+(online article).
 
 ## Main interface
 
-A typical model fit has separate formulas for marginal and dependence
-parameters:
+The following templates illustrate the interface and are excluded from code
+extraction. Supply your own `dat` and `newdat` with the named variables before
+running them. A typical model fit has separate formulas for marginal and
+dependence parameters:
 
-```{r fit-template}
+```{r fit-template, purl=FALSE}
 fit <- gamlss_longitudinal(
   mu.formula = response ~ time + group + s(baseline),
   sigma.formula = ~ time + group,
@@ -97,7 +102,7 @@ values at the separate estimates; do not use them for a standard likelihood-
 ratio comparison with a joint fit. Use joint optimization for final
 likelihood-based comparisons.
 
-```{r optimizer-controls, eval=FALSE}
+```{r optimizer-controls, eval=FALSE, purl=FALSE}
 control <- gamlss_longitudinal_control(
   outer_tol = 1e-4,
   max_outer_iter = 100,
@@ -125,7 +130,7 @@ earlier scheduled row. Model elapsed-time effects explicitly when required.
 
 Reviewers should be able to inspect fitted objects through standard R methods:
 
-```{r standard-methods}
+```{r standard-methods, purl=FALSE}
 coef(fit)
 vcov(fit)
 confint(fit)
@@ -140,7 +145,7 @@ model.frame(fit)
 
 Prediction and simulation use standard generics:
 
-```{r predict-simulate}
+```{r predict-simulate, purl=FALSE}
 predict(fit, newdata = newdat, type = "mean")
 simulate(fit, nsim = 10)
 ```
@@ -152,7 +157,7 @@ class. Fit-time warnings report objective conditions such as non-convergence or
 unavailable covariance; `check_model()` is an optional descriptive numerical
 report rather than a prerequisite:
 
-```{r diagnostics}
+```{r diagnostics, purl=FALSE}
 plot(fit)
 plot_terms(fit)
 plot_margin_fit(fit)
@@ -169,7 +174,7 @@ check_missingness(
 
 See the diagnostics guide for interpretation:
 
-```{r diagnostics-vignette}
+```{r diagnostics-vignette, purl=FALSE}
 vignette("diagnostics-decisions", package = "gamlss.longitudinal")
 ```
 
@@ -178,17 +183,16 @@ vignette("diagnostics-decisions", package = "gamlss.longitudinal")
 The inference guide covers Wald intervals, likelihood comparisons, bootstrap
 helpers, and uncertainty language:
 
-```{r inference-vignette}
+```{r inference-vignette, purl=FALSE}
 vignette("inference-uncertainty", package = "gamlss.longitudinal")
 ```
 
 ## Paper replication
 
-Paper replication lives in the separate
-[paper repository](https://github.com/ahibbert/working-paper-gamlss-long). Follow its
-[reviewer guide](https://github.com/ahibbert/working-paper-gamlss-long/blob/main/paper/REVIEWER.md), currently a
-release-preparation draft at its intended publication location. Use the exact
-software/paper source pair named in the release record and assemble a fresh
+Paper replication and its reviewer guide are maintained separately and are
+being prepared for public release. A public download link will be added when
+available. If you have a supplied source bundle, follow its reviewer guide.
+Use the exact software/paper source pair named in its release record and assemble a fresh
 workspace from those clones or archives before running the paper commands.
 The prepared guide and source pair are not yet a verified public release.
 

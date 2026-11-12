@@ -18,7 +18,7 @@ chain_epoch_cache_fixture <- function(discrete = FALSE, method = "analytical",
 test_that("epoch 2 analytical caches are rejected for all margins and copulas", {
   old <- options(gamlss.longitudinal.copula_backend = "native")
   on.exit(options(old), add = TRUE)
-  for (backend in c("native", "vinecopula")) {
+  for (backend in curvature_available_backends()) {
     options(gamlss.longitudinal.copula_backend = backend)
     for (discrete in c(FALSE, TRUE)) for (family in c("N", "C", "F", "G", "J", "t")) {
       for (method in c("analytical", "analytical_only", "sandwich_cluster")) {

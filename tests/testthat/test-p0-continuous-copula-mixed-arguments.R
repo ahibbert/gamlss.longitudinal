@@ -7,7 +7,7 @@ test_that("all six mixed density derivatives match defining symbolic densities",
     t = c(-0.8, 0, 0.6, 0.95))
   pairs <- rbind(cbind(c(1e-10, 1e-6, 0.2, 0.7, 1 - 1e-8), 0.37),
     c(1e-8, 2e-8), c(1 - 1e-8, 1 - 2e-8))
-  for (backend in c("native", "vinecopula")) {
+  for (backend in curvature_available_backends()) {
   options(gamlss.longitudinal.copula_backend = backend)
   for (family in names(parameters)) for (theta in parameters[[family]]) {
     if (backend == "vinecopula" && family == "J" && theta == 1) {
@@ -101,7 +101,7 @@ test_that("mixed argument derivatives preserve recycling, symmetry and masking",
 })
 
 test_that("VineCopula and native mixed derivatives agree on their common domain", {
-  expect_true(requireNamespace("VineCopula", quietly = TRUE))
+  skip_if_not_installed("VineCopula")
   old <- options(gamlss.longitudinal.copula_backend = "native")
   on.exit(options(old), add = TRUE)
   for (family in c("N", "C", "F", "G", "J", "t")) {

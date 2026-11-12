@@ -20,7 +20,7 @@ knitr::opts_chunk$set(
 We provide a range of diagnostics for reviewing `gamlss.longitudinal` fits,
 grouped into marginal diagnostics and diagnostics for the joint dependence fit.
 
-We provide an example review of key diagnostics for an example dataset as a part of the detailed workflow here: [Detailed worked example](native-simulation-workflow.html). The goal of this page is as a reference to outline the available methods and provide brief details on how they operate.
+We provide an example review of key diagnostics for an example dataset in the online [Detailed worked example](https://gamlsslongitudinal.aydins-workbench.com/articles/native-simulation-workflow.html). The goal of this page is as a reference to outline the available methods and provide brief details on how they operate.
 
 The examples below use this small reproducible fit:
 

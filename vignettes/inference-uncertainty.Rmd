@@ -275,6 +275,7 @@ gap_error <- tryCatch(
   fit_with_missingness(gap_dat),
   error = identity
 )
+stopifnot(inherits(gap_error, "error"))
 conditionMessage(gap_error)
 
 segment_warning <- NULL
@@ -287,6 +288,7 @@ segmented_fit <- withCallingHandlers(
     }
   }
 )
+stopifnot(!is.null(segment_warning))
 segment_warning
 segmented_fit$missingness[c(
   "objective", "n_segments", "n_between_segment_transitions_omitted",
@@ -320,8 +322,15 @@ segmented_vcov <- withCallingHandlers(
     invokeRestart("muffleWarning")
   }
 )
+stopifnot(
+  !is.null(segment_inference_warning),
+  identical(segmented_vcov$method_requested, "analytical"),
+  identical(segmented_vcov$method, "sandwich_cluster"),
+  identical(segment_inference_warning$method_used, "sandwich")
+)
 segment_inference_warning
 segmented_vcov[c("method_requested", "method")]
+segmented_vcov$inference_contract
 ```
 
 Other warnings and errors remain visible. Requesting `method = "sandwich"`

@@ -11,7 +11,7 @@ test_that("inference registry is complete, unique, and explicit about scope", {
   expect_true(all(nzchar(unlist(contracts, use.names = FALSE))))
   expect_setequal(contracts$contract_id, c(
     "fixed_hessian_analytical", "fixed_hessian_numerical",
-    "fixed_sandwich_cluster", "smooth_penalized_conditional",
+    "fixed_sandwich_cluster", "smooth_penalized_conditional", "joint_penalized_inverse",
     "bootstrap_parametric_fixed", "bootstrap_cluster_fixed", "wald_fixed",
     "likelihood_ratio_nested", "confint_fixed", "prediction_mu_delta",
     "fitted_distribution_plugin", "marginal_effect_mu_delta",

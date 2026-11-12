@@ -1,3 +1,7 @@
+curvature_available_backends <- function() {
+  c("native", if (requireNamespace("VineCopula", quietly = TRUE)) "vinecopula")
+}
+
 # Fixed synthetic objects, not optimizer fits or saved-model replays.
 curvature_model_fixture <- function(family = "N", tail = FALSE) {
   n <- 32L
@@ -120,11 +124,13 @@ curvature_reference_clusters <- function(beta, object) {
 }
 
 curvature_reference_hessian <- function(object) {
+  testthat::skip_if_not_installed("numDeriv")
   numDeriv::hessian(function(beta) sum(curvature_reference_clusters(beta, object)),
     object$par, method = "Richardson", method.args = list(d = 1e-3, r = 4))
 }
 
 curvature_reference_covariance <- function(object) {
+  testthat::skip_if_not_installed("numDeriv")
   hessian <- curvature_reference_hessian(object)
   bread <- solve(-hessian)
   dimnames(bread) <- list(names(object$par), names(object$par))

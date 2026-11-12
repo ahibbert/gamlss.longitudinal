@@ -1,7 +1,7 @@
 test_that("all families and backends use actual likelihood probability clamps", {
   old <- options(gamlss.longitudinal.copula_backend = "native")
   on.exit(options(old), add = TRUE)
-  for (backend in c("native","vinecopula"))
+  for (backend in curvature_available_backends())
   for (family in c("N","C","F","G","J","t"))
   for (residual in c(-6.6, -7.5)) {
     options(gamlss.longitudinal.copula_backend=backend)

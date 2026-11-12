@@ -2,10 +2,18 @@
 
 `gamlss.longitudinal` fits longitudinal GAMLSS models with flexible marginal distributions and first-order copula dependence across repeated measurements. Any parameter of the marginal distribution or copula can depend on covariates, so strong time or covariate effects on distributional shape or correlation can be accurately captured. The model provides a great alternative to standard models such as the GEE when a longitudinal analysis needs more than a marginal mean and exponential family distributions, and more control over the dependence structure: changing scale, skewness, tails, quantiles, probabilities, or within-subject dependence.
 
-The package is in an early CRAN/JSS hardening stage. The exported modelling,
-prediction, simulation, diagnostics, and benchmark helper APIs are intended to
-be reviewable, but remaining review TODOs are tracked explicitly in the
-standards crosswalk.
+Version 0.3.1 is a maintenance update for packaging,
+documentation, and checks. This work does not change statistical methods,
+defaults, data, or fitted-model recipes from the frozen 0.3.0 review reference.
+That version-only reference is commit
+`2092e1b`, based on package source `bfb6557a45f4230f306e82a6de7a07375537f6f3`.
+This maintenance label does not identify the source of every historical paper
+result, certify statistical equivalence, or establish a successful end-to-end
+`full` paper run.
+
+The installed guides describe modelling, prediction, simulation, diagnostics
+and inference limitations. The standards crosswalk records review evidence and
+remaining work separately from paper replication.
 
 ## Install
 
@@ -26,6 +34,10 @@ profiles:
 source(system.file("smoke-tests", "new-user-smoke.R", package = "gamlss.longitudinal"))
 ```
 
+Version 0.3.1 includes six compact installed vignettes. The detailed worked
+example and JSS reviewer tour remain repository and website articles, outside
+the CRAN source tarball.
+
 Two workflow examples to get started:
 
 - [Minimal workflow](https://gamlsslongitudinal.aydins-workbench.com/articles/standard-workflow.html)
@@ -44,25 +56,23 @@ The [standards crosswalk](inst/standards/ropensci-srr-compliance.md) records
 standards evidence and remaining work; [method traceability](inst/standards/method-traceability.csv)
 maps package source files to tests.
 
-Paper replication lives in the separate
-[paper repository](https://github.com/ahibbert/working-paper-gamlss-long).
-Its [reviewer guide](https://github.com/ahibbert/working-paper-gamlss-long/blob/main/paper/REVIEWER.md)
-is a release-preparation draft. The link identifies the intended publication
-location; the prepared guide and source pair are not yet a verified public
-release. Use the exact software and paper revisions named in the eventual
-release record, for either clones or archives; do not mix branch heads.
+Paper replication is maintained separately. Its repository and reviewer guide
+are being prepared for public release; a public download link will be added
+when available. Reviewers with a supplied source bundle should use its exact
+software and paper revisions, for either clones or archives; do not mix branch
+heads.
 
 That guide defines workspace assembly, the `smoke`, `paper` and `full` paper
 profiles, outputs and release checks. Package tests and the new-user smoke test
 do not establish that those paper profiles reproduce the manuscript. See also
-[vignettes/jss-start-here.Rmd](vignettes/jss-start-here.Rmd) for the package tour.
+[online JSS reviewer tour](https://gamlsslongitudinal.aydins-workbench.com/articles/jss-start-here.html) for the package tour.
 
 ## References
 
 The marginal modelling framework follows GAMLSS, as described by Stasinopoulos and colleagues (2024). The dependence layer uses bivariate copulas, following standard copula references, e.g. Nelsen (2006).
 
 The motivating bivariate-methods comparison is:
-Sareff-Hibbert, A. *A comparison between copula-based, mixed model, and
+Sareff-Hibbert, A. and Heller, G. Z. *A comparison between copula-based, mixed model, and
 estimating equation methods for regression of bivariate correlated data*.
 <https://arxiv.org/abs/2410.11892>
 

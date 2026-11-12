@@ -85,15 +85,13 @@ test_that("joint inverse information matches independent Gaussian block algebra"
 })
 
 test_that("public joint covariance matches a full Gaussian likelihood reference", {
-  if (!requireNamespace("mgcv", quietly = TRUE) ||
-      !requireNamespace("VineCopula", quietly = TRUE)) {
-    stop("Joint inference verification requires both mgcv and VineCopula; backend coverage cannot be skipped.")
-  }
+  skip_if_not_installed("mgcv")
+  skip_if_not_installed("numDeriv")
   fixture <- joint_gaussian_reference_fixture()
   original <- fixture$object
   old <- options(gamlss.longitudinal.copula_backend = "native")
   on.exit(options(old), add = TRUE)
-  for (backend in c("native", "vinecopula")) {
+  for (backend in curvature_available_backends()) {
     options(gamlss.longitudinal.copula_backend = backend)
     for (method in c("analytical_only", "numderiv")) {
       result <- vcov.gamlss.longitudinal(fixture$object, coefficients = "joint",

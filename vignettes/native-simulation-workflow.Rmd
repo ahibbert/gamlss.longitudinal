@@ -655,8 +655,38 @@ fit_thetalineartime_notrt_noage <- gamlss_longitudinal(
 ```
 </details>
 
-```{r fit-mu-compare} 
-likelihood_compare(fit_munotime, fit_mulineartime, fit_fullyspecified)
+These tables describe the attained joint log likelihood, AIC, and BIC for the
+unchanged fits. They are not likelihood-ratio tests. Even nominally nested
+formulas can produce lower attained likelihoods for richer models because of
+optimization or fitted smoothing choices. Such a result needs investigation
+before likelihood-based inference; neither nesting nor a chi-square reference
+is established by this illustrative search.
+
+```{r fit-mu-compare}
+joint_criterion <- function(object, criterion) {
+  value <- criterion(object)
+  if (length(value) == 0L) return(NA_real_)
+  if (length(value) == 1L) return(as.numeric(value))
+  if (!is.null(names(value)) && "joint" %in% names(value)) {
+    return(as.numeric(value[["joint"]]))
+  }
+  # Multi-component package results are ordered marginal, copula, joint.
+  as.numeric(value[[length(value)]])
+}
+describe_candidates <- function(candidates) {
+  data.frame(
+    model = names(candidates),
+    logLik = vapply(candidates, joint_criterion, numeric(1), criterion = logLik),
+    AIC = vapply(candidates, joint_criterion, numeric(1), criterion = AIC),
+    BIC = vapply(candidates, joint_criterion, numeric(1), criterion = BIC),
+    row.names = NULL
+  )
+}
+describe_candidates(list(
+  no_time = fit_munotime,
+  linear_time = fit_mulineartime,
+  factor_time = fit_fullyspecified
+))
 ```
 
 For this simulated realization, the linear, factor-coded, and omitted time
@@ -669,7 +699,10 @@ effect for `sigma`, retaining treatment because it is part of the simulated
 data-generating structure.
 
 ```{r fit-sigma-compare}
-likelihood_compare(fit_sigmalineartime, fit_munotime)
+describe_candidates(list(
+  linear_time = fit_sigmalineartime,
+  factor_time = fit_munotime
+))
 ```
 
 In this realization, linear time for `sigma` uses fewer degrees of freedom and
@@ -689,27 +722,7 @@ nu_candidates <- list(
   age_smooth = fit_nuageonly,
   all_terms = fit_sigmalineartime
 )
-joint_criterion <- function(object, criterion) {
-  value <- criterion(object)
-  if (length(value) == 0L) {
-    return(NA_real_)
-  }
-  if (length(value) == 1L) {
-    return(as.numeric(value))
-  }
-  if (!is.null(names(value)) && "joint" %in% names(value)) {
-    return(as.numeric(value[["joint"]]))
-  }
-  # Multi-component package results are ordered marginal, copula, joint.
-  as.numeric(value[[length(value)]])
-}
-data.frame(
-  model = names(nu_candidates),
-  logLik = vapply(nu_candidates, joint_criterion, numeric(1), criterion = logLik),
-  AIC = vapply(nu_candidates, joint_criterion, numeric(1), criterion = AIC),
-  BIC = vapply(nu_candidates, joint_criterion, numeric(1), criterion = BIC),
-  row.names = NULL
-)
+describe_candidates(nu_candidates)
 ```
 
 The likelihood values are similar in this realization and AIC favors the
@@ -717,15 +730,16 @@ intercept-only `nu` model, which we use as the working specification. Plausible
 covariate-dependent alternatives should be retained for sensitivity analysis
 when `nu` has substantive importance.
 
-We now review `theta`, and test removing treatment effect and collapse the time factor to linear as well. We should also test the removal of the age smooth to check if it's needed.
+We now review descriptive criteria for `theta` after removing treatment,
+replacing factor-coded time with linear time, and removing the age smooth.
 
 ```{r fit-thetacompare}
-likelihood_compare(
-  fit_thetalineartime_notrt_noage,
-  fit_thetalineartime_notrt,
-  fit_thetalineartime,
-  fit_nuinterceptonly
-)
+describe_candidates(list(
+  linear_time = fit_thetalineartime_notrt_noage,
+  linear_time_age = fit_thetalineartime_notrt,
+  linear_time_treatment_age = fit_thetalineartime,
+  factor_time_treatment_age = fit_nuinterceptonly
+))
 ```
 
 For this candidate set, AIC and BIC favor a linear time effect for `theta` while
@@ -779,9 +793,9 @@ fit_inference_warnings <- character()
 fit_summary <- withCallingHandlers(
   tryCatch(
     summary(fit, vcov_method = "sandwich"),
-    error = function(e) e
+    gamlss_longitudinal_inference_unavailable = function(e) e
   ),
-  warning = function(w) {
+  gamlss_longitudinal_inference_warning = function(w) {
     fit_inference_warnings <<- c(
       fit_inference_warnings,
       conditionMessage(w)

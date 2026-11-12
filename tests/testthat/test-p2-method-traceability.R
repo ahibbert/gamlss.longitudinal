@@ -49,7 +49,8 @@ test_that("method traceability table references existing source and test files",
   expect_true(all(nzchar(traceability$implementation_entry_point)))
   expect_true(all(nzchar(traceability$primary_tests)))
 
-  source_entries <- unlist(lapply(traceability$implementation_entry_point, traceability_split), use.names = FALSE)
+  package_traceability <- traceability[traceability$area != "paper replication", , drop = FALSE]
+  source_entries <- unlist(lapply(package_traceability$implementation_entry_point, traceability_split), use.names = FALSE)
   source_entries <- source_entries[nzchar(source_entries)]
 
   source_files <- character()
@@ -74,7 +75,7 @@ test_that("method traceability table references existing source and test files",
     source_files <- c(source_files, matches)
   }
 
-  test_entries <- unlist(lapply(traceability$primary_tests, traceability_split), use.names = FALSE)
+  test_entries <- unlist(lapply(package_traceability$primary_tests, traceability_split), use.names = FALSE)
   test_entries <- test_entries[nzchar(test_entries)]
   for (entry in test_entries) {
     expect_true(file.exists(file.path(root, entry)), info = entry)
@@ -113,7 +114,8 @@ test_that("method traceability table references defined R entry point functions"
     "method traceability source-tree audit requires package source files"
   )
   traceability <- utils::read.csv(traceability_path, stringsAsFactors = FALSE)
-  source_entries <- unlist(lapply(traceability$implementation_entry_point, traceability_split), use.names = FALSE)
+  package_traceability <- traceability[traceability$area != "paper replication", , drop = FALSE]
+  source_entries <- unlist(lapply(package_traceability$implementation_entry_point, traceability_split), use.names = FALSE)
   exact_entries <- source_entries[grepl("::", source_entries, fixed = TRUE)]
 
   for (entry in exact_entries) {
@@ -122,5 +124,22 @@ test_that("method traceability table references defined R entry point functions"
     fn <- sub("\\(\\)$", "", parts[2])
     expect_true(file.exists(file), info = entry)
     expect_true(fn %in% traceability_function_defs(file), info = entry)
+  }
+})
+
+
+test_that("paper traceability entries exist when the separate paper source is present", {
+  root <- traceability_package_root()
+  skip_if_not(dir.exists(file.path(root, "paper")),
+    "Paper replication source is outside the CRAN package; paper acceptance is not audited here.")
+  table <- utils::read.csv(file.path(root, "inst", "standards", "method-traceability.csv"),
+    stringsAsFactors = FALSE)
+  paper <- table[table$area == "paper replication", , drop = FALSE]
+  expect_equal(nrow(paper), 1L)
+  for (entry in traceability_split(paper$implementation_entry_point)) {
+    expect_gt(length(Sys.glob(file.path(root, entry))), 0L, info = entry)
+  }
+  for (entry in traceability_split(paper$primary_tests)) {
+    expect_true(file.exists(file.path(root, entry)), info = entry)
   }
 })

@@ -5,7 +5,7 @@ test_that("complete Hessians match an independent likelihood for all six copulas
     object <- curvature_model_fixture(family, tail)
     original <- object
     ref <- curvature_reference_hessian(object)
-    for (backend in c("native", "vinecopula")) {
+    for (backend in curvature_available_backends()) {
       options(gamlss.longitudinal.copula_backend = backend)
       actual <- calc_analytical_hessian(object, progress = FALSE)
       error <- sqrt(sum((actual - ref)^2)) / sqrt(sum(ref^2))
@@ -28,7 +28,7 @@ test_that("stationary Gaussian model and sandwich covariance match independent a
   before <- object
   ref <- curvature_reference_covariance(object)
   expect_lt(max(abs(colSums(ref$scores))), 1e-5)
-  for (backend in c("native", "vinecopula")) {
+  for (backend in curvature_available_backends()) {
     options(gamlss.longitudinal.copula_backend = backend)
     for (method in c("analytical_only", "sandwich")) {
       actual <- stats::vcov(object, method = method, details = TRUE,

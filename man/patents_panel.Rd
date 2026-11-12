@@ -19,7 +19,7 @@ A data frame with 3,460 rows and 7 variables:
 \source{
 Derived from \code{pglm::PatentsRDUS}, pglm 0.2-4, distributed under
 GPL (>= 2). Hall, Griliches, and Hausman (1986), "Patents and R&D: Is
-There a Lag?" See \url{https://stat.ethz.ch/CRAN/web/packages/pglm/refman/pglm.html}.
+There a Lag?" See \url{https://cran.r-project.org/package=pglm}.
 }
 \usage{
 patents_panel

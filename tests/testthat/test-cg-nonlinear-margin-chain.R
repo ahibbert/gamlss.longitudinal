@@ -52,7 +52,7 @@ test_that("named same-margin chain terms preserve all coefficient blocks", {
 })
 
 test_that("CG nonlinear-margin Hessian and one bounded search match the defining likelihood", {
-  stopifnot(requireNamespace("numDeriv", quietly = TRUE), requireNamespace("VineCopula", quietly = TRUE))
+  skip_if_not_installed("numDeriv")
   old <- options(gamlss.longitudinal.copula_backend = "native")
   on.exit(options(old), add = TRUE)
   object <- cg_nbi_chain_fixture(); untouched <- object
@@ -92,7 +92,7 @@ test_that("CG nonlinear-margin Hessian and one bounded search match the defining
   }
   penalty <- matrix(0, length(beta0), length(beta0), dimnames = dimnames(Href))
   hessian_count <- 0L
-  for (backend in c("native", "vinecopula")) {
+  for (backend in curvature_available_backends()) {
     options(gamlss.longitudinal.copula_backend = backend)
     runtime <- .gl_build_cg_runtime_helpers(par_cov = object$par, par_s = object$par_s,
       mm = object$model_matrix, margin_dist = object$margin_dist,

@@ -70,12 +70,15 @@ test_that("coverage harness fits every registered route", {
     max_elapsed_sec = 15
   )
 
+  route_details <- paste(capture.output(print(
+    results[, c("family", "copula", "method", "success", "elapsed_sec", "error"), drop = FALSE]
+  )), collapse = "\n")
   expect_equal(nrow(results), nrow(grid))
-  expect_true(all(results$success))
-  expect_true(all(is.finite(results$marginal_loglik)))
-  expect_true(all(is.finite(results$joint_loglik)))
-  expect_true(all(is.finite(results$elapsed_sec)))
-  expect_true(all(is.na(results$true_copula_tau) | abs(results$fitted_copula_tau - results$true_copula_tau) < 0.95))
+  expect_true(all(results$success), info = route_details)
+  expect_true(all(is.finite(results$marginal_loglik)), info = route_details)
+  expect_true(all(is.finite(results$joint_loglik)), info = route_details)
+  expect_true(all(is.finite(results$elapsed_sec)), info = route_details)
+  expect_true(all(is.na(results$true_copula_tau) | abs(results$fitted_copula_tau - results$true_copula_tau) < 0.95), info = route_details)
 })
 
 test_that("coverage harness records all fit methods on a small intercept case", {

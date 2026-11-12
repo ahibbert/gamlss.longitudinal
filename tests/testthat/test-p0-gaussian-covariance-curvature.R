@@ -3,7 +3,7 @@
 test_that("the Gaussian compatibility path retains independent tail curvature", {
   old <- options(gamlss.longitudinal.copula_backend = "native")
   on.exit(options(old), add = TRUE)
-  for (backend in c("native", "vinecopula")) {
+  for (backend in curvature_available_backends()) {
     options(gamlss.longitudinal.copula_backend = backend)
     for (u in c(1e-8, 4.46758e-6, 0.2)) {
       ref <- copula_curvature_reference(u, 0.0068, "N", 0.749)[["density_uv"]]

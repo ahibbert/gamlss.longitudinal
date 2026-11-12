@@ -1,3 +1,26 @@
+# gamlss.longitudinal 0.3.1
+
+- Prepare CRAN packaging and compact installed guides from the frozen 0.3.0
+  review source. The detailed worked example and paper reviewer guide remain
+  available as online/repository articles.
+- Declare the numerical-reference test dependency explicitly and make source
+  checks and test fixtures independent of the author's validation driver.
+- Update release metadata and documentation. Statistical executable code,
+  data, fitting controls and computational APIs remain unchanged.
+- Known issue retained for later triage: the optional DSS diagnostic uses the
+  marginal location/scale parameters as response moments, which is not correct
+  for every family. Its behaviour is unchanged from the frozen review source;
+  no scoring correction is part of this maintenance release. Tracked in
+  [issue #14](https://github.com/ahibbert/gamlss.longitudinal/issues/14).
+
+# gamlss.longitudinal 0.3.0 (frozen review reference)
+
+- Version-only reissue of review package source
+  `bfb6557a45f4230f306e82a6de7a07375537f6f3`, originally labelled 0.2.0.
+  Original archives, audit records and historical result-producer identities
+  are retained. The original 0.3.0 source archive changes only the version field;
+  this explanatory NEWS entry belongs to the subsequent maintenance candidate.
+
 # gamlss.longitudinal 0.2.0
 
 This release is the stable package baseline before the experimental joint

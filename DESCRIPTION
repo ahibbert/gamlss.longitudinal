@@ -1,14 +1,16 @@
 Package: gamlss.longitudinal
 Type: Package
 Title: Fit Longitudinal Data Using GAMLSS Margins and Copula Dependence Structures
-Version: 0.3.0
-Author: Aydin Sareff-Hibbert
-Maintainer: Aydin Sareff-Hibbert <aydin.hibbert@sydney.edu.au>
+Version: 0.3.1
+Authors@R: person("Aydin", "Sareff-Hibbert",
+    email = "aydin.hibbert@sydney.edu.au", role = c("aut", "cre"))
 Description: Fits longitudinal generalized additive models for location, scale
     and shape (GAMLSS) with flexible copula dependence structures across time.
     Provides workflow helpers for marginal-family screening,
     longitudinal fitting, inference, prediction, simulation, diagnostics, and
     opt-in benchmarks against common GEE, GLMM, and GAM baselines.
+    Builds on generalized additive distributional regression and the copula
+    constructions described by Nelsen (2006) <doi:10.1007/0-387-28678-0>.
 Depends:
     R (>= 4.1.0),
     gamlss.dist
@@ -48,6 +50,7 @@ Suggests:
     geepack,
     lme4,
     mvtnorm,
+    numDeriv,
     pkgload,
     sodium,
     tinytex

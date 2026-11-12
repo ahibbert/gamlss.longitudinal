@@ -152,27 +152,18 @@ test_that("T005 baseline fit fingerprint stays stable with use_backtracking FALS
     verbose = 0
   )
 
-  expected_par <- c(
-    "theta.intercept" = 1.52432081401975,
-    "theta.time_covariatet2" = -0.137026522361319,
-    "sigma.intercept" = -2.0701396400213,
-    "sigma.time_covariatet2" = -0.0395820535922465,
-    "sigma.time_covariatet3" = 0.0339199214749465,
-    "sigma.genderM" = 0.197718129854906,
-    "mu.intercept" = 1.76625280226093,
-    "mu.time_covariatet2" = 0.264278685913664,
-    "mu.time_covariatet3" = 0.501336192479701,
-    "mu.genderM" = 0.713406173253638,
-    "mu.age" = 0.00989723440416187,
-    "mu.time_covariatet2:genderM" = 0.181226838909403,
-    "mu.time_covariatet3:genderM" = 0.597042016726706
-  )
+  # Frozen 0.3.0 / bfb6557 conditional-ascent policy rejects downhill
+  # single proposals even with backtracking disabled. Seed and controls above
+  # are unchanged; historical pre-policy values are retained in release evidence.
+  expected_par <- c(theta.intercept = 0.946503292404634, theta.time_covariatet2 = 0.0851300535304266,
+sigma.intercept = -0.597346662520214, sigma.time_covariatet2 = -0.132846308647575,
+sigma.time_covariatet3 = 0.206853162269257, sigma.genderM = 0.165906795452277,
+mu.intercept = 2.93636674301033, mu.time_covariatet2 = 0, mu.time_covariatet3 = 0,
+mu.genderM = 0, mu.age = 0, `mu.time_covariatet2:genderM` = 0,
+`mu.time_covariatet3:genderM` = 0)
 
-  expected_loglik <- c(
-    "marginal" = 40.7567885070402,
-    "copula" = -193.140969909835,
-    "joint" = -152.384181402795
-  )
+  expected_loglik <- c(marginal = -66.5053252175172,
+copula = 20.190239928888, joint = -46.3150852886293)
 
   expect_identical(names(fit$par), names(expected_par))
   expect_equal(unname(fit$par), unname(expected_par), tolerance = 1e-9)

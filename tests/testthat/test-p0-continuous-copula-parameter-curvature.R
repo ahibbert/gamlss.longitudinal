@@ -4,7 +4,7 @@ test_that("parameter-only Hessian curvature matches independent densities", {
   settings <- list(N = c(-0.8, 0, 0.6, 0.95), C = c(0.01, 0.5, 2),
     F = c(-5, -0.01, 0.01, 5), G = c(1, 1.000001, 1.5, 5),
     J = c(1, 1.000001, 1.5, 5), t = c(-0.8, 0, 0.6, 0.95))
-  for (backend in c("native", "vinecopula")) {
+  for (backend in curvature_available_backends()) {
     options(gamlss.longitudinal.copula_backend = backend)
     for (family in names(settings)) for (theta in settings[[family]]) {
       if (backend == "vinecopula" && family == "J" && theta == 1) next
@@ -27,7 +27,7 @@ test_that("parameter-only Hessian curvature matches independent densities", {
 test_that("Student-t df curvature has an independent reference at its floor", {
   old <- options(gamlss.longitudinal.copula_backend = "native")
   on.exit(options(old), add = TRUE)
-  for (backend in c("native", "vinecopula")) {
+  for (backend in curvature_available_backends()) {
     options(gamlss.longitudinal.copula_backend = backend)
     for (nu in c(2.000001, 2.00001, 5, 40)) for (u in c(1e-8, 0.2, 0.7)) {
       ref <- function(df) {
@@ -56,7 +56,7 @@ test_that("Student-t df curvature has an independent reference at its floor", {
 test_that("unrepresentable density and the native t approximation join are explicit", {
   old <- options(gamlss.longitudinal.copula_backend = "native")
   on.exit(options(old), add = TRUE)
-  for (backend in c("native", "vinecopula")) {
+  for (backend in curvature_available_backends()) {
     options(gamlss.longitudinal.copula_backend = backend)
     expect_error(.copula_hessian_pair_derivatives(1e-12, 0.9, "N", 0.999999,
       0, TRUE, FALSE), "underflowed")

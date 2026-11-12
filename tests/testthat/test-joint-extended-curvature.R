@@ -16,8 +16,7 @@ joint_extended_fixture <- function(family = "N", tail = FALSE) {
 }
 
 test_that("joint augmented smooth curvature matches six defining copula likelihoods", {
-  stopifnot(requireNamespace("numDeriv", quietly = TRUE),
-            requireNamespace("VineCopula", quietly = TRUE))
+  skip_if_not_installed("numDeriv")
   old <- options(gamlss.longitudinal.copula_backend = "native")
   on.exit(options(old), add = TRUE)
   for (family in c("N", "C", "F", "G", "J", "t")) for (tail in c(FALSE, TRUE)) {
@@ -34,7 +33,7 @@ test_that("joint augmented smooth curvature matches six defining copula likeliho
     smooth_ids <- names(object$par_s$mu[[1L]])
     expect_equal(as.numeric(joint$penalty[smooth_ids, smooth_ids]),
       as.numeric(0.7 * attr(B, "penalty")), tolerance = 1e-12)
-    for (backend in c("native", "vinecopula")) {
+    for (backend in curvature_available_backends()) {
       options(gamlss.longitudinal.copula_backend = backend)
       actual <- calc_analytical_hessian(joint$object, progress = FALSE)
       error <- sqrt(sum((actual - expected)^2)) / sqrt(sum(expected^2))
@@ -72,6 +71,7 @@ joint_nbi_reference <- function(q, object, B) {
 }
 
 test_that("joint NBI smooth curvature matches independent Clayton rectangle likelihood", {
+  skip_if_not_installed("numDeriv")
   object <- joint_extended_fixture("C")
   object$margin_dist <- gamlss.dist::NBI()
   object$par[c("mu.intercept", "mu.x", "sigma.intercept", "theta.intercept")] <-
@@ -118,7 +118,7 @@ test_that("joint NBI smooth curvature matches independent Clayton rectangle like
   }
   old <- options(gamlss.longitudinal.copula_backend = "native")
   on.exit(options(old), add = TRUE)
-  for (backend in c("native", "vinecopula")) {
+  for (backend in curvature_available_backends()) {
     options(gamlss.longitudinal.copula_backend = backend)
     evaluate <- .gl_joint_likelihood_evaluator(joint$object)
     expect_equal(evaluate(joint$q)$loglik, objective(joint$q), tolerance = 1e-9)

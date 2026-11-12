@@ -9,6 +9,7 @@ curvature_cg_runtime <- function(object) {
 }
 
 test_that("CG curvature, candidate steps and line search agree with an independent likelihood", {
+  skip_if_not_installed("numDeriv")
   old <- options(gamlss.longitudinal.copula_backend = "native")
   on.exit(options(old), add = TRUE)
   for (family in c("N", "C", "F", "G", "J", "t")) {
@@ -20,7 +21,7 @@ test_that("CG curvature, candidate steps and line search agree with an independe
       sum(curvature_reference_clusters(beta, object)), object$par)
     p <- length(object$par)
     penalty <- matrix(0, p, p, dimnames = list(names(object$par), names(object$par)))
-    for (backend in c("native", "vinecopula")) {
+    for (backend in curvature_available_backends()) {
       options(gamlss.longitudinal.copula_backend = backend)
       runtime <- curvature_cg_runtime(object)
       model <- runtime$build_model(object$model_matrix, object$par, object$par_s)
@@ -130,6 +131,10 @@ test_that("CG reloads a partial standalone Hessian dependency set", {
 })
 
 test_that("standalone CG source loading produces the independently checked Hessian", {
+  source_root <- test_path("..", "..")
+  required <- gamlss.longitudinal:::.gl_cg_hessian_source_paths(source_root)
+  skip_if_not(all(file.exists(required)),
+    "Standalone CG source loading requires the complete R source dependency set.")
   old <- options(gamlss.longitudinal.copula_backend = "native")
   on.exit(options(old), add = TRUE)
   loaded <- new.env(parent = environment(.gl_ensure_cg_hessian_available))

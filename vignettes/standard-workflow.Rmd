@@ -19,7 +19,7 @@ This vignette gives the minimal workflow for applied longitudinal analyses with 
 
 We include a suggested set of steps and functions including short descriptions of each, while excluding outputs inline to minimise the complexity of reviewing the file. The idea is to allow the user to quickly pickup the relevant code and apply to either their own dataset or the included simulated dataset.
 
-For a worked through example with more detailed review of data, outputs and diagnostics, including their interpretation, please review the detailed worked example: [Detailed worked example](native-simulation-workflow.html).
+For a worked through example with more detailed review of data, outputs and diagnostics, including their interpretation, please review the online [Detailed worked example](https://gamlsslongitudinal.aydins-workbench.com/articles/native-simulation-workflow.html).
 
 The key parts are:
 
@@ -35,7 +35,7 @@ The key parts are:
 
 For now installation is available directly from the project's github repository. You may need to install the package 'remotes' through `install.packages("remotes")`.
 
-```{r installation, eval=FALSE}
+```{r installation, eval=FALSE, purl=FALSE}
 remotes::install_github("ahibbert/gamlss.longitudinal")
 ```
 
@@ -179,7 +179,7 @@ For binomial families, provide the number of trials explicitly and use the
 same contract throughout selection and fitting. The value may be a constant or
 a column name:
 
-```{r binomial-contract, eval = FALSE}
+```{r binomial-contract, eval = FALSE, purl = FALSE}
 margin_selection <- select_margin(
   trial_data,
   response_var = "successes",
@@ -475,4 +475,4 @@ do not. Fitted quantiles are plug-in descriptions of response variation, not
 future-observation prediction intervals or confidence intervals for the
 quantiles themselves.
 
-For a more detailed walk-through example, including interpretation of model fit and diagnostics, please review the [Detailed worked example](native-simulation-workflow.html).
+For a more detailed walk-through example, including interpretation of model fit and diagnostics, please review the online [Detailed worked example](https://gamlsslongitudinal.aydins-workbench.com/articles/native-simulation-workflow.html).

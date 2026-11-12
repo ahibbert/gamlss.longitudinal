@@ -1,48 +1,66 @@
-## R CMD check results
+## Submission status
 
-Initial CRAN/JSS hardening baseline for `gamlss.longitudinal` 0.1.0.
+Maintenance candidate 0.3.1 is not ready for submission. No package has been
+uploaded. The exact qualified tarball requires the maintainer's separate approval.
 
-Current readiness targets:
+## Scope and provenance
 
-* no hard dependency on non-CRAN `gamlss2`;
-* curated public API with low-level numerical internals unexported;
-* no generated pkgdown, check, result, or manuscript artefacts in the source
-  tarball;
-* fast CRAN examples/tests, with long JSS simulations moved to opt-in
-  replication scripts;
-* user-facing diagnostic wrappers (`plot_terms()` and
-  `plot_copula_diagnostics()`) with compatibility shims for older plotting
-  entry points;
-* CRAN-only smoke replication in `inst/jss-replication/` and a full,
-  CRAN-excluded JSS workflow in `paper/`.
+The locked review package was originally labelled 0.2.0 at commit bfb6557.
+It was subsequently frozen as version-only 0.3.0 (2092e1b). This maintenance
+descendant preserves executable statistical R expressions, data, defaults and
+public computational interfaces. Historical paper results and audit records
+remain separate and unchanged.
 
-This file should be updated again with platform-specific win-builder, r-hub,
-macOS, Linux, and R-devel results before submission. GitHub Actions contains a
-Linux/macOS/Windows/R-devel matrix, but remote CI status should be recorded here
-from the submission commit.
+## Actual check evidence
 
-Current local baseline, run on 2026-06-14 on Windows 11 x64 with R 4.4.1:
+Windows 11 x64, R 4.6.2 (2026-10-29 ucrt), current CRAN dependencies including
+gamlss.dist 6.1-11: full R CMD check --as-cran of build 03 completed with
+1 ERROR, 0 WARNINGs and 3 NOTEs. Seven test failures comprise four NBI/ZINBI
+CDF-oracle comparisons and three ZISICHEL score, Hessian and fitting contexts.
+The test summary is 8,815 passes, 7 failures, 612 warnings and 15 skips.
+The test warnings are distinct from the top-level check warning count and
+remain to be fully classified.
 
-* `devtools::document()`: pass. Local roxygen2 7.3.2 reports that the package
-  was previously documented with roxygen2 7.3.3; no documentation generation
-  failure.
-* `devtools::test(reporter = "summary")`: pass, with 2 opt-in extended-test
-  skips and expected max-iteration warnings in coverage-simulation stress
-  fixtures.
-* `GAMLSS_LONGITUDINAL_EXTENDED_TESTS=true testthat::test_dir("tests/testthat")`:
-  pass, 0 failures, 1 expected max-iteration warning, and 4 CRAN skips.
-* `R CMD build .`: pass with vignettes built. The resulting source tarball
-  excludes local state, check outputs, generated sites/results, paper sources,
-  root benchmark artifacts, generated plot files, and reviewer-only repository
-  documents.
-* `R CMD check --as-cran --no-manual gamlss.longitudinal_0.1.0.tar.gz`: 0
-  ERRORs, 0 WARNINGs, 3 NOTEs. Remaining NOTEs are new submission plus optional
-  `gamlss2` availability via `Additional_repositories`, local time
-  verification, and unavailable local pandoc for checking `README.md`/`NEWS.md`.
-* `urlchecker::url_check()`: pass.
-* `spelling::spell_check_package()`: pass.
-* New-user smoke test,
-  `source(system.file("smoke-tests", "new-user-smoke.R", package = "gamlss.longitudinal"))`:
-  pass.
-* JSS smoke replication, `Rscript -e "source('paper/replicate.R')"`: pass;
-  default smoke profile selected and existing smoke targets reported up to date.
+Fit-free independent probability identities confirm defects in the installed
+current dependency: pNBI at zero is zero despite positive mass at zero, and
+two positive ZISICHEL masses each equal one. The retained dependency 6.1.1
+satisfies both identities. Published CRAN source contains the corresponding
+statements. No dependency pin, patch, workaround, weakened test or tolerance
+change has been adopted. The owner impact decision is pending.
+
+Other stages passed installation, package loading/unloading, code analysis,
+S3 consistency, Rd/code consistency, examples, data checks, vignette rebuilding,
+PDF manual compilation and filesystem checks. HTML manual validation was
+skipped because Tidy was absent; a verified private Tidy installation is now
+prepared for the next affected check.
+
+The three notes were new submission/optional gamlss2 availability, a redundant
+Author field differing from Authors@R, and missing HTML Tidy. The source metadata
+now derives author and maintainer from Authors@R; that change awaits a rebuilt
+candidate and affected verification.
+
+## Preservation and focused checks
+
+* All 400 R files preserve parsed executable expressions; all seven data files,
+  NAMESPACE and runtime dependency declarations are unchanged.
+* The six compact installed guides build; long worked/reviewer articles stay
+  outside CRAN. Protected fit, control, simulation and seed calls are unchanged.
+* Focused harness fixes passed 1,412 expectations in the retained environment.
+* Separate current-R processes produced exact results in 34 successful selected
+  cases. Four added segmented NBI optimizer cases failed identically; the
+  original 38-case comparison therefore failed overall and is not claimed as
+  complete equivalence. Supplemental discrete cases are prepared, not run.
+* With numDeriv and VineCopula absent, 286 native expectations pass and four
+  numerical-reference cases skip before dependency use.
+* URL checks pass. Spelling findings were reviewed as valid names/technical
+  terms. Archive inspection retains dataset notices and finds no local path
+  leaks, executable binaries or generated paper/output trees.
+
+## Remaining qualification
+
+Resolve the dependency impact decision, classify warnings, complete the focused
+comparison, rebuild the final candidate, and complete full current Linux,
+Windows and R-devel qualification. Validate the website-only articles separately.
+Repeat affected checks after changes. Replace these working notes with the
+actual exact-candidate evidence before submission; no historical pass for a
+different source or dependency environment substitutes for those checks.

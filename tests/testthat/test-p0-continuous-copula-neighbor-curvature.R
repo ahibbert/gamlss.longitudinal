@@ -37,7 +37,7 @@ test_that("argument-parameter curvature stays at dependence boundaries", {
     C = c(0, 1e-6, 0.5, 2), F = c(-5, -0.001, 0, 0.001, 5),
     G = c(1, 1 + 1e-6, 1.5, 5), J = c(1, 1 + 1e-6, 1.5, 5),
     t = c(-0.999999, -0.8, 0.6, 0.999999))
-  for (backend in c("native", "vinecopula")) {
+  for (backend in curvature_available_backends()) {
   options(gamlss.longitudinal.copula_backend = backend)
   for (family in names(settings)) for (theta in settings[[family]]) {
     if (backend == "vinecopula" &&
@@ -64,7 +64,7 @@ test_that("argument-parameter curvature stays at dependence boundaries", {
 test_that("df-argument curvature uses the actual df near the lower boundary", {
   old <- options(gamlss.longitudinal.copula_backend = "native")
   on.exit(options(old), add = TRUE)
-  for (backend in c("native", "vinecopula")) {
+  for (backend in curvature_available_backends()) {
     options(gamlss.longitudinal.copula_backend = backend)
     for (nu in c(2.000001, 2.00001, 5, 40)) for (u in c(1e-8, 0.2, 0.7)) {
       score_density <- function(df, arg) {
@@ -91,7 +91,7 @@ test_that("df-argument curvature uses the actual df near the lower boundary", {
 test_that("backend clamp and excluded pair semantics remain explicit", {
   old <- options(gamlss.longitudinal.copula_backend = "native")
   on.exit(options(old), add = TRUE)
-  for (backend in c("native", "vinecopula")) {
+  for (backend in curvature_available_backends()) {
     options(gamlss.longitudinal.copula_backend = backend)
     for (family in c("N", "C", "F", "G", "J", "t")) {
       theta <- if (family %in% c("N", "t")) 0.6 else 2

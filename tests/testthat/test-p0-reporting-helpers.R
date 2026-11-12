@@ -134,6 +134,10 @@ make_publication_helper_object <- function() {
     method = "analytical",
     method_requested = "analytical"
   )
+  # A synthetic cache must carry the same current-source metadata as a real cache.
+  object$vcov$continuous_curvature <-
+    gamlss.longitudinal:::.gl_vcov_continuous_curvature_marker(object)
+  object$vcov <- gamlss.longitudinal:::.gl_vcov_stamp_epoch(object$vcov)
   object$vcov_meta <- list(
     numderiv = FALSE,
     method = "analytical",
