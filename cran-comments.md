@@ -57,9 +57,9 @@ original inputs and comparison tolerances. No warning suppression is introduced.
 The authenticated locked-review package was originally labelled 0.2.0 at bfb6557
 and was subsequently frozen, with only the version changed, as research reference
 0.3.0 at 2092e1b. This 0.3.1 maintenance descendant changes packaging, metadata,
-documentation and test harnesses. All 400 executable statistical R-source
-expressions, seven datasets, defaults, runtime dependency declarations, namespace
-and public computational APIs are preserved. The only R-source byte edit is a
+documentation and test harnesses. Parsed executable expressions in all 400 statistical
+R-source files, seven datasets, defaults, runtime dependency declarations,
+namespace and public computational APIs are preserved. The only R-source byte edit is a
 separately verified roxygen URL correction.
 
 Six compact guides ship with the package. Detailed articles remain online or in
