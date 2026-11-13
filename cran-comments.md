@@ -1,82 +1,83 @@
-## Working submission status
+## Submission candidate
 
-Maintenance candidate 0.3.1 is not yet ready for submission. A new exact source
-archive and full Windows/Linux R-release and R-devel checks are being prepared.
-No package approval, upload, confirmation or publication has occurred.
+gamlss.longitudinal 0.3.1, first CRAN submission. The checked source archive is
+1,164,323 bytes, SHA-256:
+70135fb11fd8181e4a470d5d3477048e425fa8ae82a65e7cf15192f4829778b1.
+It was built from commit f347e19b2c0a5056d3804e3904fee084834bb9be.
 
-## Scope and lineage
+## Test environments and results
 
-Original locked-review package source bfb6557 was labelled 0.2.0 and subsequently
-frozen as version-only 0.3.0 at 2092e1b. Original archives, audits, installation
-records and paper producer identities remain preserved. This maintenance release
-keeps all 400 statistical R expressions, seven data files, defaults, runtime
-dependency declarations and computational APIs unchanged. The only R-source byte
-edit is the recorded roxygen URL correction. Paper FULL, scientific acceptance
-and manuscript approval remain separate and incomplete.
+Full R CMD check --as-cran completed on 13 November 2026, with tests, examples,
+vignette rebuilding, and PDF/HTML manuals enabled:
 
-The owner accepts the reported gamlss.dist defects as an outstanding known issue;
-preparation does not wait for an upstream release. The dependency is unmodified.
-Known affected distribution outputs are not scientifically qualified by a passing
-package check. README, NEWS and the installed article guide explain that limit.
-Report: https://github.com/gamlss-dev/gamlss.dist/issues/14.
+* Windows 11 x64, R 4.6.2: 0 errors, 0 check warnings, 1 note.
+* Ubuntu 24.04.5 x86_64 under WSL2, R 4.6.2: 0 errors, 0 check warnings, 1 note.
+* Windows 11 x64, current CRAN R-devel build, R 4.7.0 development revision
+  r90881 (runtime source date 2026-11-12; distribution build 2026-11-13):
+  0 errors, 0 check warnings, 1 note.
 
-## Narrow test-reference and dependency-contract handling
+The R-devel check uses the recorded R-release-built dependency binaries; all 32
+stated dependency namespaces loaded without warnings/errors before the full
+check. Linux verified all 28 recorded non-base dependency versions. No statistical
+dependency was patched or pinned to avoid a failure.
 
-Four NBI/ZINBI CDF/log-survival comparisons use independent finite PMF sums and
-the defining zero-inflation identity, preserving the existing Poisson-limit
-branch, input grid and 1e-12/1e-10 tolerances. Scalar density/log-density checks
-are retained. ZAP CDF references use scalar rows to avoid the upstream vector
-assignment warning; their parameters and comparison tolerances are unchanged.
-No warning suppression was introduced.
+Each incoming note combines "New submission" with optional gamlss2 availability
+via the declared Additional_repositories entry. gamlss2 is in Enhances and was
+not installed for these checks; its use remains conditional.
 
-Three original ZISICHEL score/Hessian/fit contexts remain intact behind a
-precondition that detects only the exact documented density defect. The probe
-uses the unmodified dependency at fixed scalar inputs and checks SICHEL mixture,
-CDF, zero-mass/log-mass and positive-count density identities. Unexpected
-contracts or probe warnings fail normally. A corrected provider automatically
-reenables the original assertions. The three unavailable integrations are
-reported as skips, not passes. NBI/Delaporte/NO/BCPE controls run separately;
-supplemental NBI/Gumbel controls retain coverage of that copula route without
-claiming ZISICHEL validity. Tests cover recognized, fixed and unexpected-invalid
-provider signatures without patching a namespace.
+## Recorded test conditions
 
-Focused run 12: 452 passed, zero failures, three exact known-defect skips and two
-upstream ZAP reference warnings. After the scalar-reference correction, affected
-run 13 passed 223 assertions with zero failures, warnings or skips. These are
-focused source-test results against the unchanged B6 statistical namespace;
-full rebuilt-archive qualification remains required. Original failed full-check
-logs are retained. The new test driver saves complete warning/skip/failure
-conditions without weakening assertions or changing failure status.
+Windows release and R-devel each reported 8,888 successful expectations; Linux
+reported 8,887. All three reported zero failures, 24 test warning conditions and
+18 skips. Actual warning/skip messages, tests, source locations and warning
+namespace sequences match across platforms; their full records are retained.
 
-## Existing evidence and unfinished qualification
+All 24 warning conditions originate in upstream gamlss.dist vector subassignment
+in the coverage benchmark's probability/density calls. Static attribution supports
+six pZAP, six dZAP and twelve dZINBI conditions; the recorded traces abbreviate
+numeric inputs, so this family-level attribution is explicitly source-supported.
+These warnings do not validate the affected benchmark values. Upstream report:
+https://github.com/gamlss-dev/gamlss.dist/issues/14.
 
-The previous B6 archive, SHA256
-4dad1dd89f5f1febe8f6caac838f6c0d4abd731a46313a4408f64c4b7334d56d,
-is preserved as historical evidence, not the new candidate. Its Linux R 4.6.2
-and Windows R-devel packaging-only checks each passed with zero errors, zero
-warnings and one incoming note. They skipped tests/examples/vignette execution.
-Earlier full Windows B3 had seven failures and 612 unretained warning conditions;
-those historical warnings cannot be retrospectively classified from counts.
-The next full run will retain actual conditions.
+The 18 skips comprise seven existing slow-test CRAN guards, five installed-source
+or documentation guards, one separate-paper-source guard, two explicit extended
+opt-ins, and three ZISICHEL integration contexts. Source-tree checks retain a
+separate verification route; paper and opt-in studies are outside CRAN checking.
 
-Original-environment preservation checks have 39 successful exactly equal cases
-and one matching backend refusal retained as a nonpass. A retained fitted object
-has ten successful equal consumers and one legacy-newdata refusal. Preservation
-is not independent correctness certification. Six compact installed guides and
-examples have scoped execution proof; the new archive will build all six normally.
+The three ZISICHEL contexts retain their original assertions and tolerances. They
+skip only after a scalar probability-contract probe recognizes the exact reported
+upstream positive-density defect; unexpected contracts or probe warnings fail.
+A valid provider automatically reenables the integrations. This unavailable
+coverage is not reported as a pass. Independent NBI/ZINBI probability references
+replace invalid upstream test oracles; scalar ZAP reference calls preserve the
+original inputs and comparison tolerances. No warning suppression is introduced.
 
-The excluded website example explicitly requests existing CG for its working
-model and bootstrap refits. Other formulas, data, seeds and controls are retained.
-Windows/ragg and ordinary Ubuntu/pkgdown runs passed in 675.3 and 372.5 seconds.
-Three of five bootstrap smoke refits failed and remain reported. Exploratory
-mu-only GG response-mean uncertainty is explicitly distinguished from validated
-response-mean inference. Final prose/comments preserve all executed expressions.
-No website deployment or whole-paper rerun occurred.
+## Maintenance scope and limitations
 
-DSS remains unchanged as the owner's separate accepted known issue:
+The authenticated locked-review package was originally labelled 0.2.0 at bfb6557
+and was subsequently frozen, with only the version changed, as research reference
+0.3.0 at 2092e1b. This 0.3.1 maintenance descendant changes packaging, metadata,
+documentation and test harnesses. All 400 executable statistical R-source
+expressions, seven datasets, defaults, runtime dependency declarations, namespace
+and public computational APIs are preserved. The only R-source byte edit is a
+separately verified roxygen URL correction.
+
+Six compact guides ship with the package. Detailed articles remain online or in
+the repository. The separately revised website example explicitly requests the
+existing CG method for its working fit/bootstrap; package defaults and paper
+computations are unchanged. Website execution retains its convergence, bootstrap
+failure and exploratory uncertainty limitations.
+
+Known gamlss.dist probability/density limitations are described in README, NEWS
+and the installed article guide. Native fast paths protect some NBI/ZINBI uses;
+this is not a general workaround or qualification of every affected consumer.
+The existing Gamma DSS scoring limitation is tracked separately:
 https://github.com/ahibbert/gamlss.longitudinal/issues/14.
 
-Before submission, replace these working notes with exact final archive identity,
-full platform results, actual warning/skip explanations and any incoming notes.
-Obtain separate approval of that exact qualified package; manuscript approval is
-separate. No checks or release gates are waived by accepting the upstream issue.
+Original review archives, audits and historical paper-result producer identities
+remain unchanged. Same-environment preservation checks have 39 exactly equal
+successful cases plus one matching backend refusal retained as a nonpass; retained
+fit consumers have ten exactly equal successful cases plus one legacy-newdata
+refusal. Preservation and successful package checks do not establish an overall
+scientific pass. Paper FULL replication and manuscript/scientific acceptance
+remain separate.
