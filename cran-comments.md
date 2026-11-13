@@ -92,14 +92,15 @@ these two optimizer requests differ. Package statistical code remains frozen.
 Unavailable/nonconverged comparisons remain visible and no complete-set winner
 is claimed.
 
-The revised article completed all 75 chunks in 675.3 seconds within a local
+The revised article completed 75/75 knitting steps in 675.3 seconds within a local
 900-second validation budget on Windows R 4.6.2, using process-local ragg output
 and null devices. This is not an established website-service timeout or an Ubuntu
 pkgdown validation. CG converged and the inference guard passed; diagnostics,
 prediction and simulation executed. Of five bootstrap smoke attempts, three
 failed convergence and are reported. This is not adequate bootstrap inference.
 Final prose was checked against the new diagnostic figures and clarified without
-changing executable chunks after the run. No website deployment was performed.
+changing executable chunks after the run. Illustrative eval=FALSE templates
+remain unexecuted. No website deployment was performed.
 
 Complete full exact-candidate Windows/Linux R-release and R-devel checks after
 the dependency assessment, classify retained warning conditions, validate the
