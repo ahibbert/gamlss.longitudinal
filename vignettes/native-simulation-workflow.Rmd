@@ -674,11 +674,29 @@ joint_criterion <- function(object, criterion) {
   as.numeric(value[[length(value)]])
 }
 describe_candidates <- function(candidates) {
+  converged <- vapply(candidates, function(object) {
+    value <- object$convergence$converged
+    if (identical(value, TRUE)) TRUE else if (identical(value, FALSE)) FALSE else NA
+  }, logical(1))
+  stop_reason <- vapply(candidates, function(object) {
+    value <- object$convergence$stop_reason
+    if (is.null(value) || length(value) != 1L) NA_character_ else as.character(value)
+  }, character(1))
+  available <- !is.na(converged) & converged
+  comparison_value <- function(object, criterion) {
+    if (!isTRUE(object$convergence$converged)) return(NA_real_)
+    # Use the real public method. Unexpected errors still stop the article.
+    joint_criterion(object, criterion)
+  }
   data.frame(
     model = names(candidates),
-    logLik = vapply(candidates, joint_criterion, numeric(1), criterion = logLik),
-    AIC = vapply(candidates, joint_criterion, numeric(1), criterion = AIC),
-    BIC = vapply(candidates, joint_criterion, numeric(1), criterion = BIC),
+    converged = converged,
+    stop_reason = stop_reason,
+    criteria_status = ifelse(available, "available",
+      ifelse(is.na(converged), "unavailable_unknown_convergence", "unavailable_nonconverged")),
+    logLik = vapply(candidates, comparison_value, numeric(1), criterion = logLik),
+    AIC = vapply(candidates, comparison_value, numeric(1), criterion = AIC),
+    BIC = vapply(candidates, comparison_value, numeric(1), criterion = BIC),
     row.names = NULL
   )
 }
@@ -689,10 +707,12 @@ describe_candidates(list(
 ))
 ```
 
-For this simulated realization, the linear, factor-coded, and omitted time
-terms on `mu` give similar likelihood values. We choose the simpler model for
-the remainder of the illustration and retain time-in-`mu` as a sensitivity fit;
-this is not a universal significance-based selection rule.
+The table reports comparison criteria only for candidates whose fitted-object
+convergence contract passed. Unavailable rows cannot support a ranking of the
+complete candidate set. The remaining recipe retains its original no-time
+`mu` specification for illustration; this does not establish that choice when
+any candidate is unavailable. Substantive selection requires successful fits
+and sensitivity analysis.
 
 We next compare a prespecified linear time effect with the factor-coded visit
 effect for `sigma`, retaining treatment because it is part of the simulated
@@ -705,9 +725,11 @@ describe_candidates(list(
 ))
 ```
 
-In this realization, linear time for `sigma` uses fewer degrees of freedom and
-has lower AIC and BIC, so we use it in the working model. This comparison does
-not account for the preceding selection steps.
+A nonconverged candidate has unavailable comparison criteria, regardless of
+its apparent complexity or attained likelihood. Do not conclude that linear
+or factor-coded time is preferred from an incomplete comparison. Following
+fits retain the original illustrative linear-time `sigma` recipe; scientific
+selection requires investigating convergence and preceding choices.
 
 For `nu`, we compare the working covariate forms with an intercept-only model.
 The comparison is exploratory because the candidates were informed by earlier
@@ -725,10 +747,10 @@ nu_candidates <- list(
 describe_candidates(nu_candidates)
 ```
 
-The likelihood values are similar in this realization and AIC favors the
-intercept-only `nu` model, which we use as the working specification. Plausible
-covariate-dependent alternatives should be retained for sensitivity analysis
-when `nu` has substantive importance.
+Available rows describe only successfully converged candidates. They do not
+establish a complete-set winner when any row is unavailable. The remaining
+illustration retains its original intercept-only `nu` recipe; covariate-dependent
+alternatives remain relevant for sensitivity analysis.
 
 We now review descriptive criteria for `theta` after removing treatment,
 replacing factor-coded time with linear time, and removing the age smooth.
@@ -742,15 +764,16 @@ describe_candidates(list(
 ))
 ```
 
-For this candidate set, AIC and BIC favor a linear time effect for `theta` while
-retaining the age smooth, so that becomes the working dependence specification.
-The result is conditional on the candidate set and preceding marginal choices.
+Inspect criteria only for available, converged candidates; do not infer a
+complete-set winner if any candidate is unavailable. The recipe below retains
+its original linear-time `theta` effect and age smooth for illustration, rather
+than automatically substituting a different fit.
 
-The resulting illustrative working model has smooth effects for age on `mu`,
-`sigma`, and `theta`, linear time effects on `sigma` and `theta`, and an
-intercept-only `nu`. Final reporting should describe the candidate set and
-include sensitivity to scientifically plausible alternatives rather than
-treating this path as selection-certainty-free.
+The retained illustrative working model has smooth age effects on `mu`,
+`sigma` and `theta`, linear time effects on `sigma` and `theta`, and intercept-only
+`nu`. This fixed recipe is not a selection conclusion from an incomplete table.
+Its own convergence contract must pass before the following substantive use.
+Report the candidate set and sensitivity to scientifically plausible alternatives.
 
 ## Review the fit
 
@@ -778,6 +801,15 @@ For discrete margins the PIT is randomized reproducibly using the recorded `pit_
 
 ```{r fit-review-check}
 fit <- fit_thetalineartime_notrt
+if (!isTRUE(fit$convergence$converged)) {
+  reason <- fit$convergence$stop_reason
+  if (is.null(reason) || length(reason) != 1L) reason <- "unknown"
+  stop(paste0(
+    "The retained illustrative working model is not confirmed converged (stop reason: ",
+    reason, "). Record its status and investigate separately before inference, ",
+    "bootstrap or substantive use; the article does not substitute another fit."
+  ))
+}
 check <- check_model(fit, include_vcov = FALSE)
 print(check)
 ```

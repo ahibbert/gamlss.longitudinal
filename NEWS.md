@@ -5,6 +5,10 @@
   available as online/repository articles.
 - Declare the numerical-reference test dependency explicitly and make source
   checks and test fixtures independent of the author's validation driver.
+- Retain raw test conditions when the CRAN reporter omits warning details,
+  preserving test assertions and failure status.
+- Report unavailable comparisons for nonconverged worked-example candidates
+  and require convergence before later inference, without changing any fits.
 - Update release metadata and documentation. Statistical executable code,
   data, fitting controls and computational APIs remain unchanged.
 - Known issue retained for later triage: the optional DSS diagnostic uses the

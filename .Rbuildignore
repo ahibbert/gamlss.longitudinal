@@ -36,6 +36,7 @@
 ^benchmark_standard_models_metrics\.(pdf|tex)$
 ^tests/REGRESSION_TEST_PLAN\.md$
 ^tests/testthat/Rplots\.pdf$
+^tests/testthat-conditions\.rds$
 ^tests/testthat/test-p0-phase1-documentation\.R$
 ^tests/testthat/test-p2-copula-misspecification-evidence\.R$
 ^tests/testthat/test-p2-evidence-contracts\.R$
