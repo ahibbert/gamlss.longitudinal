@@ -638,6 +638,7 @@ fit_thetalineartime_notrt <- gamlss_longitudinal(
   sigma.formula = ~ treatment + (time) + s(age),
   nu.formula = ~ 1,
   theta.formula = ~ (time) + s(age),
+  method = "CG",
   compute_vcov = FALSE
 )
 fit_thetalineartime_notrt_noage <- gamlss_longitudinal(
@@ -756,18 +757,31 @@ We now review descriptive criteria for `theta` after removing treatment,
 replacing factor-coded time with linear time, and removing the age smooth.
 
 ```{r fit-thetacompare}
-describe_candidates(list(
+theta_candidates <- list(
   linear_time = fit_thetalineartime_notrt_noage,
   linear_time_age = fit_thetalineartime_notrt,
   linear_time_treatment_age = fit_thetalineartime,
   factor_time_treatment_age = fit_nuinterceptonly
-))
+)
+theta_comparison <- describe_candidates(theta_candidates)
+theta_comparison$optimizer <- vapply(
+  theta_candidates, function(object) object$optim_method, character(1)
+)
+theta_comparison
 ```
 
 Inspect criteria only for available, converged candidates; do not infer a
 complete-set winner if any candidate is unavailable. The recipe below retains
 its original linear-time `theta` effect and age smooth for illustration, rather
 than automatically substituting a different fit.
+
+The retained `linear_time_age` specification explicitly uses `method = "CG"`.
+For this simulated dataset, its default RS fit cycled between smoothing-search
+states and reached the iteration limit. CG fits the same data and formulas with
+the package's existing alternative optimizer; convergence criteria are unchanged.
+The table records the optimizer used for each candidate. This example-specific
+choice does not change the package's default optimizer or establish a model
+selection conclusion from the incomplete comparisons.
 
 The retained illustrative working model has smooth age effects on `mu`,
 `sigma` and `theta`, linear time effects on `sigma` and `theta`, and intercept-only
@@ -969,12 +983,15 @@ intensive. The `R = 5` call below is deliberately a smoke test of the code path,
 not an inferentially adequate reporting run. For reporting, increase `R` until
 the estimates and interval limits are stable at the required precision, assess
 Monte Carlo error, and report failed as well as successful replicates.
+The bootstrap refits receive `method = "CG"` explicitly through `fit_args`,
+because the refit helper does not inherit the fitted object's optimizer.
 
 ```{r bootstrap-run, results='hide', eval=TRUE}
 boot <- bootstrap_inference(
   fit,
   R = 5, # smoke run only; not for reporting
-  seed = 20260521
+  seed = 20260521,
+  fit_args = list(method = "CG")
 )
 ```
 
