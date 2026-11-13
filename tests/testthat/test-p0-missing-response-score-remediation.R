@@ -146,13 +146,39 @@ missing_score_discrete_oracle <- function(family, copula, missing = integer()) {
   list(analytical = analytical, finite = finite, response = response)
 }
 
-test_that("discrete missing-data analytical scores agree with numerical oracles", {
+test_that("NBI and Delaporte discrete missing-data scores match numerical oracles", {
   skip_if_not_installed("gamlss.dist")
   fixtures <- list(
-    zisichel_intermittent = list("ZISICHEL", "G", c(2L, 8L)),
-    zisichel_terminal = list("ZISICHEL", "G", c(3L, 6L, 9L, 12L)),
     nbi_complete = list("NBI", "C", integer()),
+    nbi_g_intermittent = list("NBI", "G", c(2L, 8L)),
+    nbi_g_terminal = list("NBI", "G", c(3L, 6L, 9L, 12L)),
     del_missing = list("DEL", "C", c(5L, 11L))
+  )
+  for (fixture in names(fixtures)) {
+    args <- fixtures[[fixture]]
+    oracle <- missing_score_discrete_oracle(args[[1]], args[[2]], args[[3]])
+    for (parameter in names(oracle$finite)) {
+      expect_equal(
+        oracle$analytical[[parameter]], oracle$finite[[parameter]],
+        tolerance = 1e-2, info = paste(fixture, parameter)
+      )
+    }
+    for (parameter in intersect(names(oracle$analytical), c("mu", "sigma", "nu", "tau"))) {
+      expect_identical(
+        oracle$analytical[[parameter]][!is.finite(oracle$response)],
+        rep(0, sum(!is.finite(oracle$response))),
+        info = paste(fixture, parameter, "missing rows")
+      )
+    }
+  }
+})
+
+test_that("ZISICHEL discrete missing-data scores match numerical oracles", {
+  skip_if_not_installed("gamlss.dist")
+  skip_if_known_zisichel_density_defect()
+  fixtures <- list(
+    zisichel_intermittent = list("ZISICHEL", "G", c(2L, 8L)),
+    zisichel_terminal = list("ZISICHEL", "G", c(3L, 6L, 9L, 12L))
   )
   for (fixture in names(fixtures)) {
     args <- fixtures[[fixture]]
@@ -302,12 +328,12 @@ missing_score_hessian_fixture <- function(family, copula, missing) {
   list(object = object, evaluate = evaluate, beta = beta)
 }
 
-test_that("analytical Hessians match numerical missing-data controls", {
+test_that("NO and NBI Gumbel analytical Hessians match numerical missing-data controls", {
   skip_if_not_installed("gamlss.dist")
   skip_if_not_installed("numDeriv")
   fixtures <- list(
     continuous = missing_score_hessian_fixture("NO", "N", c(2L, 8L)),
-    discrete = missing_score_hessian_fixture("ZISICHEL", "G", c(2L, 8L))
+    nbi_gumbel = missing_score_hessian_fixture("NBI", "G", c(2L, 8L))
   )
   for (fixture in names(fixtures)) {
     x <- fixtures[[fixture]]
@@ -320,6 +346,21 @@ test_that("analytical Hessians match numerical missing-data controls", {
       max(sqrt(sum(numerical^2)), .Machine$double.eps)
     expect_true(disagreement <= 0.05, info = paste(fixture, disagreement))
   }
+})
+
+test_that("ZISICHEL analytical Hessian matches its numerical missing-data control", {
+  skip_if_not_installed("gamlss.dist")
+  skip_if_not_installed("numDeriv")
+  skip_if_known_zisichel_density_defect()
+  x <- missing_score_hessian_fixture("ZISICHEL", "G", c(2L, 8L))
+  analytical <- gamlss.longitudinal:::calc_analytical_hessian(
+    x$object, progress = FALSE, h = 1e-4
+  )
+  numerical <- numDeriv::hessian(x$evaluate, x$beta, method.args = list(eps = 1e-4))
+  dimnames(numerical) <- dimnames(analytical)
+  disagreement <- sqrt(sum((analytical - numerical)^2)) /
+    max(sqrt(sum(numerical^2)), .Machine$double.eps)
+  expect_true(disagreement <= 0.05, info = paste("ZISICHEL", disagreement))
 })
 
 missing_score_tiny_fit <- function(family, copula, response, missing = integer()) {
@@ -353,33 +394,7 @@ missing_score_tiny_fit <- function(family, copula, response, missing = integer()
   ))
 }
 
-test_that("tiny end-to-end missing and complete fits retain valid metadata", {
-  skip_if_not_installed("gamlss")
-  skip_if_not_installed("gamlss.dist")
-  fits <- list(
-    zisichel_g = missing_score_tiny_fit(
-      "ZISICHEL", "G", rep(c(0, 1, 2, 3, 1, 0), 3L), c(2L, 8L)
-    ),
-    bcpe_t_complete = missing_score_tiny_fit(
-      "BCPE", "t", exp(seq(-0.4, 0.8, length.out = 18L))
-    ),
-    bcpe_t_terminal_dropout = missing_score_tiny_fit(
-      "BCPE", "t", exp(seq(-0.4, 0.8, length.out = 18L)),
-      c(3L, 6L, 9L)
-    ),
-    bcpe_t_intermittent = missing_score_tiny_fit(
-      "BCPE", "t", exp(seq(-0.4, 0.8, length.out = 18L)), c(2L, 8L)
-    ),
-    bcpe_t_delayed_entry = missing_score_tiny_fit(
-      "BCPE", "t", exp(seq(-0.4, 0.8, length.out = 18L)),
-      c(1L, 4L, 7L)
-    ),
-    nbi_c = missing_score_tiny_fit(
-      "NBI", "C", rep(c(0, 1, 2, 3, 1, 0), 3L)
-    )
-  )
-  for (fixture in names(fits)) {
-    fit <- fits[[fixture]]
+expect_missing_score_tiny_fit_metadata <- function(fit, fixture) {
     expect_true(inherits(fit, "gamlss.longitudinal"), info = fixture)
     expect_true(is.finite(as.numeric(fit$model_selection["LogLik", "joint"])), info = fixture)
     expect_true(is.logical(fit$convergence$converged) && length(fit$convergence$converged) == 1L,
@@ -434,7 +449,34 @@ test_that("tiny end-to-end missing and complete fits retain valid metadata", {
       }
     }, numeric(1L))
     expect_true(all(is.finite(direct_gradient)), info = paste(fixture, "direct gradient"))
+}
+
+test_that("tiny end-to-end missing and complete fits retain valid metadata", {
+  skip_if_not_installed("gamlss")
+  skip_if_not_installed("gamlss.dist")
+  fixtures <- list(
+    bcpe_t_complete = list("BCPE", "t", exp(seq(-0.4, 0.8, length.out = 18L)), integer()),
+    bcpe_t_terminal_dropout = list("BCPE", "t", exp(seq(-0.4, 0.8, length.out = 18L)), c(3L, 6L, 9L)),
+    bcpe_t_intermittent = list("BCPE", "t", exp(seq(-0.4, 0.8, length.out = 18L)), c(2L, 8L)),
+    bcpe_t_delayed_entry = list("BCPE", "t", exp(seq(-0.4, 0.8, length.out = 18L)), c(1L, 4L, 7L)),
+    nbi_c = list("NBI", "C", rep(c(0, 1, 2, 3, 1, 0), 3L), integer()),
+    nbi_gumbel = list("NBI", "G", rep(c(0, 1, 2, 3, 1, 0), 3L), c(2L, 8L))
+  )
+  for (fixture in names(fixtures)) {
+    args <- fixtures[[fixture]]
+    fit <- missing_score_tiny_fit(args[[1L]], args[[2L]], args[[3L]], args[[4L]])
+    expect_missing_score_tiny_fit_metadata(fit, fixture)
   }
+})
+
+test_that("ZISICHEL tiny end-to-end fit retains valid metadata", {
+  skip_if_not_installed("gamlss")
+  skip_if_not_installed("gamlss.dist")
+  skip_if_known_zisichel_density_defect()
+  fit <- missing_score_tiny_fit(
+    "ZISICHEL", "G", rep(c(0, 1, 2, 3, 1, 0), 3L), c(2L, 8L)
+  )
+  expect_missing_score_tiny_fit_metadata(fit, "zisichel_g")
 })
 
 test_that("stationarity failures remain visible and nonblocking", {

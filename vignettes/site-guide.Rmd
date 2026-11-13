@@ -31,6 +31,15 @@ version label alone.
 
 Please report bugs or issues at https://github.com/ahibbert/gamlss.longitudinal/issues.
 
+The reported `gamlss.dist` 6.1-11 NBI/ZINBI probability-function and ZISICHEL
+density defects remain known dependency limitations; see the
+[upstream issue](https://github.com/gamlss-dev/gamlss.dist/issues/14).
+They can affect calculations reached through that dependency, including fitting
+and inference. Native fast NBI/ZINBI helpers protect some paths, rather than all
+consumers. Results using the defective ZISICHEL density remain unqualified.
+This maintenance version leaves statistical calculations and the dependency
+unchanged; convergence or finite output alone does not validate those results.
+
 The motivating comparison of methods for bivariate correlated data is available
 at the link below. The paper describing this package is being prepared and has
 no public identifier yet.

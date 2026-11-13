@@ -3,8 +3,10 @@
 `gamlss.longitudinal` fits longitudinal GAMLSS models with flexible marginal distributions and first-order copula dependence across repeated measurements. Any parameter of the marginal distribution or copula can depend on covariates, so strong time or covariate effects on distributional shape or correlation can be accurately captured. The model provides a great alternative to standard models such as the GEE when a longitudinal analysis needs more than a marginal mean and exponential family distributions, and more control over the dependence structure: changing scale, skewness, tails, quantiles, probabilities, or within-subject dependence.
 
 Version 0.3.1 is a maintenance update for packaging,
-documentation, and checks. This work does not change statistical methods,
-defaults, data, or fitted-model recipes from the frozen 0.3.0 review reference.
+documentation, and checks. Package statistical methods, numerical defaults,
+data and computational APIs are unchanged from the frozen 0.3.0 review reference.
+The website-only worked example explicitly requests the existing CG optimizer
+for its working fit and bootstrap refits.
 That version-only reference is commit
 `2092e1b`, based on package source `bfb6557a45f4230f306e82a6de7a07375537f6f3`.
 This maintenance label does not identify the source of every historical paper
@@ -21,6 +23,19 @@ remaining work separately from paper replication.
 remotes::install_github("ahibbert/gamlss.longitudinal")
 library(gamlss.longitudinal)
 ```
+
+## Known dependency limitations
+
+`gamlss.dist` 6.1-11 has reported NBI/ZINBI probability-function defects and a
+ZISICHEL density defect, documented in the
+[upstream issue](https://github.com/gamlss-dev/gamlss.dist/issues/14).
+These can affect fitting, inference, prediction, simulation and diagnostics
+through calls to that dependency. Native fast NBI/ZINBI helpers avoid some
+affected calculations, but do not cover every consumer. ZISICHEL results using
+the defective density cannot be treated as valid probability-model results.
+This maintenance release retains these known limitations and leaves the
+dependency unchanged. Finite output or a passed convergence/covariance guard
+alone does not establish correctness of an affected distribution calculation.
 
 ## Start here
 

@@ -8,7 +8,16 @@
 - Retain raw test conditions when the CRAN reporter omits warning details,
   preserving test assertions and failure status.
 - Report unavailable comparisons for nonconverged worked-example candidates
-  and require convergence before later inference, without changing any fits.
+  and require convergence before later inference. The website-only example
+  explicitly requests the existing CG optimizer for its working fit and
+  bootstrap refits; package optimizer defaults remain unchanged.
+- Check NBI/ZINBI fast CDF paths against independent probability identities.
+  Retain ZISICHEL integration assertions behind a narrow test precondition for
+  the confirmed upstream density defect, with other cases run separately.
+- Retain the reported `gamlss.dist` 6.1-11 probability/density defects as known
+  dependency limitations, without patching the dependency or statistical code.
+  Affected distribution outputs remain unqualified; see the
+  [upstream report](https://github.com/gamlss-dev/gamlss.dist/issues/14).
 - Update release metadata and documentation. Statistical executable code,
   data, fitting controls and computational APIs remain unchanged.
 - Known issue retained for later triage: the optional DSS diagnostic uses the

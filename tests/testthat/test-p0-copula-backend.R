@@ -181,7 +181,7 @@ test_that("fast Delaporte CDF matches gamlss.dist across its parameter space", {
   expect_true(all(is.finite(log_survival)))
 })
 
-test_that("fast count-family paths cover every supported standard count margin", {
+test_that("fast count-family paths match probability identities and supported dependency calls", {
   skip_if_not_installed("gamlss.dist")
 
   cases <- list(
@@ -208,6 +208,14 @@ test_that("fast count-family paths cover every supported standard count margin",
         do.call(density_fun, c(row_args, log = log))
       }, numeric(1))
     }
+    scalar_cdf <- function(lower.tail = TRUE, log.p = FALSE) {
+      vapply(seq_along(args$q), function(ii) {
+        row_args <- lapply(cdf_args, function(value) {
+          if (length(value) == 1L) value else value[[ii]]
+        })
+        do.call(cdf_fun, c(row_args, lower.tail = lower.tail, log.p = log.p))
+      }, numeric(1))
+    }
 
     expect_equal(
       .call_fast_count_family("d", family, args),
@@ -221,20 +229,65 @@ test_that("fast count-family paths cover every supported standard count margin",
       tolerance = 1e-12,
       info = paste(family, "log density")
     )
-    expect_equal(
-      .call_fast_count_family("p", family, args),
-      do.call(cdf_fun, cdf_args),
-      tolerance = 1e-12,
-      info = paste(family, "CDF")
-    )
-    expect_equal(
-      .call_fast_count_family(
-        "p", family, c(args, lower.tail = FALSE, log.p = TRUE)
-      ),
-      do.call(cdf_fun, c(cdf_args, lower.tail = FALSE, log.p = TRUE)),
-      tolerance = 1e-10,
-      info = paste(family, "log survival")
-    )
+    if (family %in% c("NBI", "ZINBI")) {
+      # Independent finite PMF sum: do not use the fast CDF dispatch or its
+      # upstream NBI CDF, which is defective for the tested small-sigma case.
+      pmf_cdf <- vapply(seq_along(args$q), function(ii) {
+        mu <- args$mu[[ii]]
+        sigma <- args$sigma[[ii]]
+        k <- 0:args$q[[ii]]
+        pmf <- if (sigma <= 1e-4) {
+          stats::dpois(k, lambda = mu)
+        } else {
+          stats::dnbinom(k, size = 1 / sigma, mu = mu)
+        }
+        sum(pmf)
+      }, numeric(1))
+      expected_cdf <- if (family == "ZINBI") {
+        args$nu + (1 - args$nu) * pmf_cdf
+      } else {
+        pmf_cdf
+      }
+      expect_true(all(is.finite(expected_cdf) & expected_cdf > 0 & expected_cdf < 1),
+                  info = paste(family, "finite PMF-sum CDF reference"))
+      expected_log_survival <- if (family == "ZINBI") {
+        log1p(-args$nu) + log1p(-pmf_cdf)
+      } else {
+        log1p(-pmf_cdf)
+      }
+      expect_true(all(is.finite(expected_log_survival)),
+                  info = paste(family, "finite PMF-sum log-survival reference"))
+      expect_equal(.call_fast_count_family("p", family, args), expected_cdf,
+                   tolerance = 1e-12, info = paste(family, "CDF"))
+      expect_equal(
+        .call_fast_count_family("p", family, c(args, lower.tail = FALSE, log.p = TRUE)),
+        expected_log_survival, tolerance = 1e-10,
+        info = paste(family, "log survival")
+      )
+    } else {
+      # Upstream pZAP assigns a vector RHS to q == 0 rows. Scalar row
+      # references avoid that indexing warning without hiding any condition.
+      expected_cdf <- if (family == "ZAP") scalar_cdf() else do.call(cdf_fun, cdf_args)
+      expected_log_survival <- if (family == "ZAP") {
+        scalar_cdf(lower.tail = FALSE, log.p = TRUE)
+      } else {
+        do.call(cdf_fun, c(cdf_args, lower.tail = FALSE, log.p = TRUE))
+      }
+      expect_equal(
+        .call_fast_count_family("p", family, args),
+        expected_cdf,
+        tolerance = 1e-12,
+        info = paste(family, "CDF")
+      )
+      expect_equal(
+        .call_fast_count_family(
+          "p", family, c(args, lower.tail = FALSE, log.p = TRUE)
+        ),
+        expected_log_survival,
+        tolerance = 1e-10,
+        info = paste(family, "log survival")
+      )
+    }
   }
 })
 
