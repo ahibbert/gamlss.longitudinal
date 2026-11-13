@@ -96,18 +96,37 @@ is claimed.
 
 The revised article completed 75/75 knitting steps in 675.3 seconds within a local
 900-second validation budget on Windows R 4.6.2, using process-local ragg output
-and null devices. This is not an established website-service timeout or an Ubuntu
-pkgdown validation. CG converged and the inference guard passed; diagnostics,
+and null devices. This is a local validation budget, not an established
+website-service timeout. CG converged and the inference guard passed; diagnostics,
 prediction and simulation executed. Of five bootstrap smoke attempts, three
 failed convergence and are reported. This is not adequate bootstrap inference.
 Final prose was checked against the new diagnostic figures and clarified without
 changing executable chunks after the run. Illustrative eval=FALSE templates
 remain unexecuted. No website deployment was performed.
 
+The subsequently approved single-article run also passed under ordinary Ubuntu
+pkgdown 2.2.1/R 4.6.2 defaults, in 372.5 seconds within its 900-second limit.
+There were no graphics/null-device overrides. All 28 statistical dependency
+versions and the system package inventory stayed identical. The final CG fit
+reported convergence and passed stationarity; conditional Wald output, prediction
+and simulation executed. Four visible candidate nonconvergence warnings and three
+of five failed bootstrap refits remain reported. There were no outer renderer
+warnings; all 23 local image/CSS/script references resolved. An apt acquisition
+notice concerned root downloading the pinned documentation binary into its owned
+directory; its SHA256/load checks passed, and no system install or upgrade ran.
+WSL was restored and the compute slot released.
+
+A source review explained the pre-existing exploratory mu-only prediction
+uncertainty contract. The article now explicitly distinguishes those GG
+response-mean uncertainty columns from validated response-mean inference. This
+last edit changes prose/comments only; every R expression and chunk header is
+identical to the executed Ubuntu source. The original rendered HTML is retained
+alongside a labelled prose-update review copy. No statistical calculation changed.
+
 Complete full exact-candidate Windows/Linux R-release and R-devel checks after
-the dependency assessment, classify retained warning conditions, validate the
-actual website build when appropriate, assemble final notes and obtain
-exact-package approval.
+the dependency assessment, classify retained warning conditions, assemble final
+notes and obtain exact-package approval. The single-article proof does not claim
+a full-site build, deployment, paper replication or scientific acceptance.
 DSS remains the owner's unchanged, accepted nonblocking issue:
 https://github.com/ahibbert/gamlss.longitudinal/issues/14.
 Paper review and manuscript approval remain separate and open.

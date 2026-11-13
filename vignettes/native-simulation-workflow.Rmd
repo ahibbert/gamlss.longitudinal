@@ -1019,8 +1019,8 @@ copies of the supplied data.
 Any `NA` response rows shown here are carried through from the original data.
 
 ```{r prediction-example}
-# Predict the fitted response mean. Add validated confidence intervals when
-# covariance inference is available for this fitted realization.
+# Predict a fitted response-mean summary. The GG uncertainty columns below
+# are exploratory mu-only surrogates; see the interpretation limit below.
 pred <- predict(
   fit,
   newdata = dat,
@@ -1042,6 +1042,15 @@ meff <- marginal_effects(
 )
 head(meff, 10)
 ```
+
+For this GG example, `predict(type = "mean")` uses a finite quantile grid to
+summarize the fitted response mean. Its displayed standard errors and confidence
+limits use the package's exploratory `mu`-only approximation, rather than the
+derivative of that response-mean summary. Passing the covariance guard does not
+validate these columns as GG response-mean uncertainty; do not use them for that
+purpose in reporting. For point predictions, request `se.fit = FALSE` and
+`interval = "none"`. The conditional fixed-coefficient Wald results above have
+their own stated scope.
 
 Because `parameter = "mu"`, `meff` summarizes fitted `mu`, which is not
 necessarily the response mean and should not be interpreted automatically as a
