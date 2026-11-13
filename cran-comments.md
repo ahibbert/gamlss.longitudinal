@@ -18,8 +18,10 @@ separate and unchanged. FULL and overall scientific acceptance remain incomplete
 
 The only R-source byte edit is a documented roxygen URL correction. Test harness,
 metadata and documentation changes are listed separately. The latest additions
-retain raw test warnings and report unavailable worked-example comparisons;
-they change no statistical methods, fitting recipes, seeds or controls.
+retain raw test warnings and report unavailable worked-example comparisons.
+The CRAN tarball changes no statistical methods, fitting recipes, seeds or
+controls. The excluded website article has the separately authorised CG recipe
+exception described below.
 
 ## Observed checks
 
