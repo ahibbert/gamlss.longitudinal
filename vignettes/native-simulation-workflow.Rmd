@@ -778,7 +778,8 @@ than automatically substituting a different fit.
 The retained `linear_time_age` specification explicitly uses `method = "CG"`.
 For this simulated dataset, its default RS fit cycled between smoothing-search
 states and reached the iteration limit. CG fits the same data and formulas with
-the package's existing alternative optimizer; convergence criteria are unchanged.
+the package's existing alternative optimizer. CG uses its existing convergence
+contract with the default controls; no convergence tolerance is relaxed.
 The table records the optimizer used for each candidate. This example-specific
 choice does not change the package's default optimizer or establish a model
 selection conclusion from the incomplete comparisons.
@@ -888,11 +889,13 @@ variation.
 
 Marginal diagnostics:
 
-- The PIT appears reasonably close to uniform, with a small lower-tail
-  departure; its KS value is treated as a descriptive summary.
-- The QQ plot is close to the diagonal except in the lowest tail.
-- The worm plot makes the same lower-tail pattern more visible.
-- The rootogram is broadly centered around zero without a persistent trend.
+- The PIT is spread across the unit interval, with uneven bin counts; its KS
+  value is treated as a descriptive summary.
+- The QQ plot follows the diagonal through much of its range, with departures
+  at both extremes.
+- The worm plot highlights these tail departures and smaller central deviations.
+- The rootogram fluctuates around zero; several adjacent negative bars merit
+  checking alongside the other marginal diagnostics.
 
 The default copula diagnostic is a compact four-panel overview containing the
 empirical copula overlay, Kendall-function calibration, Rosenblatt normal QQ
@@ -941,7 +944,7 @@ plot_copula_diagnostics(
 ```
 
 Fitted and observed dependence summaries are broadly similar in this
-realization. A small lower-tail departure appears in the Rosenblatt QQ and tail
+realization. Departures appear at both extremes of the Rosenblatt QQ and in the tail
 panels and may warrant sensitivity to alternative marginal or copula tails.
 
 We will briefly comment on each diagnostic for illustration purposes from left to right, then top to bottom:
@@ -953,12 +956,14 @@ We will briefly comment on each diagnostic for illustration purposes from left t
   supports, but does not prove, adequate dependence calibration.
 - Rosenblatt diagnostics condition on the fitted first-order dependence and may
   reveal joint margin or copula misspecification. Here the time-specific and
-  overall QQ patterns are broadly compatible with Normal scores, with small
-  tail deviations. The lag plot shows little residual association.
+  overall QQ patterns follow Normal scores through much of the range, with
+  tail deviations. The lag plot shows little central residual association,
+  with a downturn in its sparsely populated upper range.
 - The Kendall-function diagnostic has a small central departure that may merit
   sensitivity analysis.
-- Tail co-occurrence and exceedance are broadly aligned, with a lower-tail
-  difference that could arise from either the margin or copula specification.
+- Tail co-occurrence is broadly aligned, while conditional exceedance shows
+  differences in both tails, especially at the lowest displayed threshold.
+  These differences could arise from either the margin or copula specification.
 - Residual dependence near zero is a necessary check for the fitted first-order
   structure, not proof that the selected copula is correct.
 
@@ -985,6 +990,9 @@ the estimates and interval limits are stable at the required precision, assess
 Monte Carlo error, and report failed as well as successful replicates.
 The bootstrap refits receive `method = "CG"` explicitly through `fit_args`,
 because the refit helper does not inherit the fitted object's optimizer.
+Some refits can still fail the convergence contract. The printed summary reports
+their count; completion of this smoke test does not establish reliable bootstrap
+intervals.
 
 ```{r bootstrap-run, results='hide', eval=TRUE}
 boot <- bootstrap_inference(

@@ -83,22 +83,28 @@ not recover or classify the original warnings.
 
 ## Website example and remaining steps
 
-The unchanged JSS start guide rendered successfully. The detailed native example
-now exposes convergence/status and unavailable criteria rather than ranking an
-incomplete candidate set. All 50 protected fitting/simulation/control/seed calls
-across the guides remain identical to frozen 0.3.0. Fit-free checks verify the
-actual display helper and guard while preserving real public criterion errors.
+The unchanged JSS start guide rendered successfully. Aydin authorised an
+example-only revision to the excluded detailed native article. Its working model
+now requests the existing CG optimizer, and bootstrap refits receive CG explicitly.
+The data, formulas, seeds, replicate count and public default controls remain
+unchanged. Of 50 protected calls across the guides, 48 remain identical and only
+these two optimizer requests differ. Package statistical code remains frozen.
+Unavailable/nonconverged comparisons remain visible and no complete-set winner
+is claimed.
 
-The detailed article still stops: its retained illustrative working model reaches
-max_iterations. Inference/bootstrap therefore did not run. Fits and statuses were
-saved, no different model was substituted, and no relationship to the discrete
-dependency defects was established. Aydin's website-scope decision is pending:
-retain this as a nonblocking website gap, or separately revise only the example
-recipe. No exception has been assumed.
+The revised article completed all 75 chunks in 675.3 seconds within a local
+900-second validation budget on Windows R 4.6.2, using process-local ragg output
+and null devices. This is not an established website-service timeout or an Ubuntu
+pkgdown validation. CG converged and the inference guard passed; diagnostics,
+prediction and simulation executed. Of five bootstrap smoke attempts, three
+failed convergence and are reported. This is not adequate bootstrap inference.
+Final prose was checked against the new diagnostic figures and clarified without
+changing executable chunks after the run. No website deployment was performed.
 
 Complete full exact-candidate Windows/Linux R-release and R-devel checks after
-the dependency assessment, classify retained warning conditions, resolve/record
-the website decision, assemble final notes and obtain exact-package approval.
+the dependency assessment, classify retained warning conditions, validate the
+actual website build when appropriate, assemble final notes and obtain
+exact-package approval.
 DSS remains the owner's unchanged, accepted nonblocking issue:
 https://github.com/ahibbert/gamlss.longitudinal/issues/14.
 Paper review and manuscript approval remain separate and open.
