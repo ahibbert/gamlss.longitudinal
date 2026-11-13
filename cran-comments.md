@@ -1,88 +1,104 @@
 ## Working submission status
 
-Maintenance candidate 0.3.1 is not ready for submission. No package has been
-uploaded. These are actual preparation results, not final submission evidence.
-The exact qualified tarball requires Aydin's separate approval.
+Maintenance candidate 0.3.1 is not ready for submission. No upload or release
+approval has occurred. These are actual preparation results, not final notes.
 
-Build 05 was built from commit 1303a5c44db78a8139bf615747951138d9c1f9f1.
-Its SHA256 is
-6922a7ad5ed0da5609a2ce1674c246bd52e3b7dfb2f82a639b6bbc2100ab0648.
-This working notes file is excluded from that tarball by .Rbuildignore.
+Exact build 06: commit b97580bf000a5fa118496f4b9415bced2e9c5424.
+Tarball SHA256:
+4dad1dd89f5f1febe8f6caac838f6c0d4abd731a46313a4408f64c4b7334d56d
+(1,160,839 bytes). This notes file is excluded by .Rbuildignore.
 
-## Scope and provenance
+## Scope and lineage
 
-The locked review package was originally labelled 0.2.0 at commit bfb6557.
-It was subsequently frozen as version-only 0.3.0 (2092e1b). This maintenance
-descendant preserves executable statistical R expressions, data, defaults and
-public computational interfaces. Historical paper results and audit records
-remain separate and unchanged. This does not certify paper replication or
-scientific acceptance; FULL remains incomplete and producer revisions differ.
+The locked review package was originally 0.2.0 at bfb6557. It was subsequently
+frozen as version-only 0.3.0 (2092e1b). This maintenance descendant preserves
+executable statistical R expressions, data, numerical defaults and public
+computational interfaces. Historical paper results, producers and audits remain
+separate and unchanged. FULL and overall scientific acceptance remain incomplete.
 
-## Current CRAN qualification
+The only R-source byte edit is a documented roxygen URL correction. Test harness,
+metadata and documentation changes are listed separately. The latest additions
+retain raw test warnings and report unavailable worked-example comparisons;
+they change no statistical methods, fitting recipes, seeds or controls.
 
-Windows 11 x64, R 4.6.2 (2026-10-29 ucrt), current CRAN dependencies including
-gamlss.dist 6.1-11: the full R CMD check --as-cran of build 03 completed with
-1 ERROR, 0 top-level WARNINGs and 3 NOTEs. Tests reported 8,815 passes,
-7 failures, 612 warnings and 15 skips. Test warnings are separate from
-the top-level warning count and require classification and review.
+## Observed checks
 
-Four failures involve NBI/ZINBI CDF-oracle comparisons; three involve ZISICHEL
-score, Hessian and fitting contexts. Independent fixed-parameter probability
-identities confirm defects in the current dependency's NBI CDF and ZISICHEL
-density. The separate investigation opened upstream issue
-https://github.com/gamlss-dev/gamlss.dist/issues/14.
-Aydin chose to keep statistical code frozen. No dependency pin, patch,
-workaround, weakened test or tolerance change has been adopted. Await a
-verified upstream correction and compatibility/impact assessment before
-resuming affected qualification. The older dependency is not universally
-certified correct, and two corrected statements alone need not restore all
-previous behavior.
+| Source and environment | Actual scope and outcome |
+| --- | --- |
+| B6, Ubuntu 24.04.5, R 4.6.2 | Packaging-only --as-cran: 0 errors, 0 warnings, 1 incoming note; indexed PDF and HTML manuals passed. |
+| B6, Windows, R-devel 2026-11-11 r90876 (4.7.0) | Packaging-only --as-cran: 0 errors, 0 warnings, 1 incoming note; PDF and HTML manuals passed. All 32 declared dependencies loaded; dependency binaries were reused from the recorded R-release library. |
+| B5, Windows, R 4.6.2 | Earlier packaging-only --as-cran: 0 errors, 0 warnings, 1 incoming note. |
+| B3, Windows, R 4.6.2/current gamlss.dist 6.1-11 | Full --as-cran: 1 error, 0 top-level warnings, 3 notes. Tests: 8,815 passes, 7 failures, 612 warnings, 15 skips. |
 
-Build 05 passed a packaging-only R CMD check --as-cran on Windows R 4.6.2
-with 0 ERRORs, 0 WARNINGs and one incoming NOTE for a new submission and
-optional gamlss2 availability. This check explicitly skipped tests, examples
-and vignette execution. PDF and HTML manuals passed; private HTML Tidy was
-available, and duplicate Author/Maintainer fields were removed. This scoped
-pass does not replace a full check. Full current Linux and R-devel checks
-remain unperformed.
+Packaging-only checks explicitly skipped tests, examples and vignette execution
+and rebuilding. They do not replace full exact-candidate qualification. The
+single incoming note concerns a new submission and optional gamlss2 availability
+through the additional repository. The earlier redundant-author and missing-Tidy
+notes were resolved. Linux initially lacked Inconsolata and its deferred upquote
+dependency; existing local TeX resources repaired that isolated environment.
+The original warning/failing font proofs are preserved. A GNU cp portability
+notice came from the external evidence-copy wrapper, outside the package/check
+warning count; exports and archive hashes were verified.
 
-## Preservation and documentation evidence
+## Numerical qualification remains open
 
-* All 400 R files preserve parsed executable expressions; all seven data files,
-  NAMESPACE and runtime dependency declarations are unchanged. The only R-file
-  byte edit is a documented roxygen URL correction.
-* In separate R 4.4.1 processes with retained gamlss.dist 6.1-1 dependencies,
-  39 successful numerical cases are exactly equal. One matching VineCopula
-  Gumbel domain refusal remains a nonpass. Original failed/partial comparisons
-  remain retained. This is preservation evidence, not current-CRAN qualification.
-* One actual retained BCPE/t fit has 10 successful consumers exactly equal and
-  one matching legacy newdata refusal. Its sole cross-version serialization
-  byte difference is namespace version 0.3.0 to 0.3.1; input/in-process integrity
-  checks pass. No refit, historical-SE certification or whole-paper rerun occurred.
-* Focused repaired harness checks passed 1,412 expectations. Build 05 source-tree
-  checks passed 1,291 expectations with one separate-paper-source skip. With
-  numDeriv and VineCopula absent, 286 native expectations passed and four
-  numerical-reference cases skipped before dependency use.
-* A normal build rendered all six installed guides. Build 05 installed examples
-  passed separately. All six exact delivered inst/doc/*.R scripts passed in
-  fresh sequential R 4.6.2 processes; the wrapper observed no unhandled warnings.
-  Commented templates and illustrative nonexecuted chunks remain unperformed.
-* The repository-only JSS start guide rendered successfully. The detailed native
-  simulation article remains unvalidated: an explicit process-local ragg device
-  passed the earlier plotting failure, then AIC correctly rejected a model with
-  numerical_failure at fit-sigma-compare. Fits, seeds and controls were unchanged.
-  This failure is not being attributed to the discrete dependency defects.
-* URL and spelling reviews passed after documented valid-name exceptions.
-  The exact archive retains dataset notices, with no local paths, executable
-  binaries or paper/output trees found in the targeted inspection.
+Four full-check failures concern NBI/ZINBI CDF-oracle comparisons; three involve
+ZISICHEL score, Hessian and fitting contexts. Independent probability identities
+confirm defects in current gamlss.dist. The separate investigation reported these
+at https://github.com/gamlss-dev/gamlss.dist/issues/14. CRAN still lists 6.1-11
+at the latest review. Aydin chose frozen statistical code; no dependency patch,
+pin, workaround, weakened assertion or tolerance change was adopted.
 
-## Remaining work before final submission notes
+Await an identifiable upstream correction and compatibility/impact assessment
+before affected full checks. Some older dependency defects and approximation
+differences are separate; two typo corrections do not guarantee every test passes.
 
-Review the warning classification, obtain the upstream correction and assess
-compatibility/impact, resolve the detailed website example without changing its
-protected fitting recipe, and complete exact-candidate full checks on current
-Windows and Linux R-release plus R-devel. Refresh affected checks after changes.
-Then assemble final notes, complete the evidence pack and obtain exact-package
-approval. DSS stays unchanged as the owner's accepted nonblocking known issue
-(https://github.com/ahibbert/gamlss.longitudinal/issues/14); it is not a release
-hold. Paper review and manuscript approval remain separate open tasks.
+The original 612 warning conditions were not retained by testthat's CRAN
+reporter. They remain unclassified. B6 now saves that reporter's raw conditions,
+test/source references and session information even on failure. Synthetic
+CRAN-mode probes preserve the original printed output and nonzero failure exit,
+including repeated warnings. This prepares the next justified full run; it does
+not recover or classify the original warnings.
+
+## Preservation and focused evidence
+
+* All 400 statistical R files retain identical parsed expressions; all seven
+  data files, NAMESPACE and runtime dependency declarations are unchanged.
+* Separate original-environment R 4.4.1/gamlss.dist 6.1-1 processes produced
+  39 successful exactly equal numerical cases, plus one matching backend refusal
+  retained as a nonpass. This is preservation evidence, not current qualification.
+* One actual retained BCPE/t fit produced ten successful equal consumers and
+  one matching legacy-newdata refusal. The sole cross-version serialization byte
+  is namespace version 0.3.0 to 0.3.1. No historical-SE certification or refit.
+* Focused repaired harness checks passed 1,412 expectations. B5 source-tree
+  checks passed 1,291 with one separate-paper-source skip. Optional-absence
+  checks passed 286 native expectations with four numerical-reference skips.
+* B6 built all six guides normally. Its six delivered extracted scripts are
+  byte-identical to B5's six successfully executed fresh-process scripts. All
+  407 statistical source/data files and NAMESPACE are byte-identical between
+  B5 and B6. The only generated guide differences are three elapsed-time values.
+  Earlier installed examples and source-tree results retain their actual scope.
+* B6 URL and spelling checks passed. Archive boundaries, attribution and targeted
+  privacy checks are retained; the new raw-condition output is excluded.
+
+## Website example and remaining steps
+
+The unchanged JSS start guide rendered successfully. The detailed native example
+now exposes convergence/status and unavailable criteria rather than ranking an
+incomplete candidate set. All 50 protected fitting/simulation/control/seed calls
+across the guides remain identical to frozen 0.3.0. Fit-free checks verify the
+actual display helper and guard while preserving real public criterion errors.
+
+The detailed article still stops: its retained illustrative working model reaches
+max_iterations. Inference/bootstrap therefore did not run. Fits and statuses were
+saved, no different model was substituted, and no relationship to the discrete
+dependency defects was established. Aydin's website-scope decision is pending:
+retain this as a nonblocking website gap, or separately revise only the example
+recipe. No exception has been assumed.
+
+Complete full exact-candidate Windows/Linux R-release and R-devel checks after
+the dependency assessment, classify retained warning conditions, resolve/record
+the website decision, assemble final notes and obtain exact-package approval.
+DSS remains the owner's unchanged, accepted nonblocking issue:
+https://github.com/ahibbert/gamlss.longitudinal/issues/14.
+Paper review and manuscript approval remain separate and open.
