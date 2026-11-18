@@ -150,18 +150,24 @@ test_that("CG nonlinear-margin Hessian and one bounded search match the defining
     # EXACT supplied actual directions, then on independent Newton directions.
     oracle <- function(steps, gradient_value) {
       best <- NULL; calls <- 0L
-      for (direction in steps) for (halves in 0:8) {
-        calls <- calls + 1L
-        if (calls > 60L) stop("Independent CG search budget exceeded")
-        delta <- independent_limit(direction / 2^halves)
-        beta <- beta0 + delta
-        ll <- objective(beta)
-        improvement <- ll - reference_start
-        slope <- sum(gradient_value * delta)
-        threshold <- if (is.finite(slope) && slope > 0) 1e-4 * slope else 0
-        if (is.finite(improvement) && improvement > max(1e-8, threshold) &&
-            (is.null(best) || improvement > best$improvement))
-          best <- list(beta = beta, improvement = improvement, loglik = ll)
+      for (halves in 0:8) {
+        proposals <- lapply(steps, function(direction) {
+          calls <<- calls + 1L
+          if (calls > 60L) stop("Independent CG search budget exceeded")
+          delta <- independent_limit(direction / 2^halves)
+          beta <- beta0 + delta
+          ll <- objective(beta)
+          improvement <- ll - reference_start
+          slope <- sum(gradient_value * delta)
+          threshold <- if (is.finite(slope) && slope > 0) 1e-4 * slope else 0
+          if (is.finite(improvement) && improvement > max(1e-8, threshold))
+            list(beta = beta, improvement = improvement, loglik = ll)
+        })
+        accepted <- Filter(Negate(is.null), proposals)
+        if (length(accepted)) {
+          best <- accepted[[which.max(vapply(accepted, function(x) x$improvement, numeric(1)))]]
+          break
+        }
       }
       list(best = best, line_eval_count = calls)
     }

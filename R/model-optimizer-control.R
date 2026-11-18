@@ -92,6 +92,12 @@
 #' `max_line_search_evals = 60` (`NA` is unlimited), `gradient_method = "forward"`,
 #' `zeta_hessian = "analytical"`, `hessian_method = "analytical"`,
 #' `use_backtracking = TRUE`, and `backtracking_max_halves = 50`.
+#' CG tries the initial candidate directions before any halvings. When none
+#' passes the penalized improvement test, backtracking, if enabled, tries all
+#' directions at each halving level in turn. Within the evaluation budget,
+#' `"best"` selects the largest qualifying improvement at the first successful
+#' level and `"first"` stops at the first qualifying trial. The raw log-likelihood
+#' safeguard can still veto the selected step after a smoothing update.
 #' Positive counts and tolerances are validated where required; update counts,
 #' backtracking halves, and line-search evaluations may be zero, and `NA` means
 #' unlimited only where stated above. Enumerated values are validated exactly.

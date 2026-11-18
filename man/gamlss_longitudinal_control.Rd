@@ -117,6 +117,12 @@ CG defaults are \code{max_stall = 5}, \code{max_delta = 0.5}, \code{armijo_c1 = 
 \code{max_line_search_evals = 60} (\code{NA} is unlimited), \code{gradient_method = "forward"},
 \code{zeta_hessian = "analytical"}, \code{hessian_method = "analytical"},
 \code{use_backtracking = TRUE}, and \code{backtracking_max_halves = 50}.
+CG tries the initial candidate directions before any halvings. When none
+passes the penalized improvement test, backtracking, if enabled, tries all
+directions at each halving level in turn. Within the evaluation budget,
+\code{"best"} selects the largest qualifying improvement at the first successful
+level and \code{"first"} stops at the first qualifying trial. The raw log-likelihood
+safeguard can still veto the selected step after a smoothing update.
 Positive counts and tolerances are validated where required; update counts,
 backtracking halves, and line-search evaluations may be zero, and \code{NA} means
 unlimited only where stated above. Enumerated values are validated exactly.

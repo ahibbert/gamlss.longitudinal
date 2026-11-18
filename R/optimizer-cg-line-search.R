@@ -19,15 +19,13 @@
     candidate_eval_fn = .gl_evaluate_cg_line_search_candidate) {
   best <- NULL
   line_eval_count <- 0L
-  stop_line_search <- FALSE
 
-  for (delta0 in candidate_steps) {
-    if (stop_line_search) break
-    for (bt in seq_len(max_backtrack + 1L)) {
-      if (line_eval_count >= max_line_search_evals) {
-        stop_line_search <- TRUE
-        break
-      }
+  if (!length(candidate_steps)) {
+    return(list(best = best, line_eval_count = line_eval_count))
+  }
+  for (bt in seq_len(max_backtrack + 1)) {
+    for (delta0 in candidate_steps) {
+      if (line_eval_count >= max_line_search_evals) break
       line_eval_count <- line_eval_count + 1L
       candidate <- candidate_eval_fn(
         delta0 = delta0,
@@ -61,11 +59,11 @@
           best <- candidate
         }
         if (identical(line_search, "first")) {
-          stop_line_search <- TRUE
           break
         }
       }
     }
+    if (!is.null(best) || line_eval_count >= max_line_search_evals) break
   }
 
   list(best = best, line_eval_count = line_eval_count)

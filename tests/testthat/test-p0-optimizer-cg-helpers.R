@@ -1474,10 +1474,9 @@ test_that("CG line-search evaluator delegates candidate evaluation", {
     }
   )
 
-  expect_equal(out$line_eval_count, 2L)
-  expect_equal(length(calls), 2L)
+  expect_equal(out$line_eval_count, 1L)
+  expect_equal(length(calls), 1L)
   expect_equal(calls[[1]]$backtrack_index, 1L)
-  expect_equal(calls[[2]]$backtrack_index, 2L)
   expect_equal(calls[[1]]$mm_cg, list(mm = TRUE))
   expect_equal(out$best$beta, c(x = 1))
 })
@@ -1523,7 +1522,7 @@ test_that("CG line-search evaluator respects backtracking and evaluation limit",
     beta_vec = beta,
     mm_cg = NULL,
     penalty_current = penalty,
-    obj_start = -10,
+    obj_start = -5,
     trust_radius = Inf,
     max_delta = Inf,
     armijo_c1 = 0,
@@ -1536,6 +1535,96 @@ test_that("CG line-search evaluator respects backtracking and evaluation limit",
 
   expect_equal(out$line_eval_count, 2L)
   expect_equal(out$best$beta, c(x = 2))
+})
+
+test_that("CG best tries all initial directions before any shorter step", {
+  seen <- integer()
+
+  out <- gamlss.longitudinal:::.gl_evaluate_cg_line_search(
+    candidate_steps = as.list(seq_len(17L)),
+    beta_vec = 0, mm_cg = NULL, penalty_current = NULL, obj_start = 0,
+    trust_radius = Inf, max_delta = Inf, armijo_c1 = 0,
+    line_search = "best", max_line_search_evals = 60L, max_backtrack = 50L,
+    eval_fn = NULL, objective_fn = NULL,
+    candidate_eval_fn = function(delta0, backtrack_index, ...) {
+      seen <<- c(seen, backtrack_index)
+      list(beta = delta0, improvement = delta0 * backtrack_index)
+    }
+  )
+
+  expect_equal(seen, rep(1L, 17L))
+  expect_equal(out$line_eval_count, 17L)
+  expect_equal(out$best$beta, 17)
+})
+
+test_that("CG applies backtracking levels fairly within the evaluation budget", {
+  run_search <- function(line_search, budget, accept_at) {
+    seen <- character()
+    out <- gamlss.longitudinal:::.gl_evaluate_cg_line_search(
+      candidate_steps = as.list(seq_len(3L)),
+      beta_vec = 0, mm_cg = NULL, penalty_current = NULL, obj_start = 0,
+      trust_radius = Inf, max_delta = Inf, armijo_c1 = 0,
+      line_search = line_search, max_line_search_evals = budget, max_backtrack = 3L,
+      eval_fn = NULL, objective_fn = NULL,
+      candidate_eval_fn = function(delta0, backtrack_index, ...) {
+        seen <<- c(seen, paste(delta0, backtrack_index, sep = "/"))
+        if (backtrack_index == 1L && delta0 == 1L) return(NULL)
+        list(beta = delta0, improvement = if (backtrack_index >= accept_at) delta0 else -1)
+      }
+    )
+    list(seen = seen, count = out$line_eval_count, best = out$best$beta)
+  }
+
+  initial <- c("1/1", "2/1", "3/1")
+  expect_equal(run_search("first", Inf, 1L), list(
+    seen = initial[1:2], count = 2L, best = 2L
+  ))
+  expect_equal(run_search("best", Inf, 2L), list(
+    seen = c(initial, "1/2", "2/2", "3/2"), count = 6L, best = 3L
+  ))
+  expect_equal(run_search("first", Inf, 2L), list(
+    seen = c(initial, "1/2"), count = 4L, best = 1L
+  ))
+  expect_equal(run_search("best", 5L, 2L), list(
+    seen = c(initial, "1/2", "2/2"), count = 5L, best = 2L
+  ))
+  expect_equal(run_search("best", 5L, 3L), list(
+    seen = c(initial, "1/2", "2/2"), count = 5L, best = NULL
+  ))
+  expect_equal(run_search("best", 2L, 1L), list(
+    seen = initial[1:2], count = 2L, best = 2L
+  ))
+  expect_equal(run_search("best", 0L, 1L), list(
+    seen = character(), count = 0L, best = NULL
+  ))
+})
+
+test_that("CG raw likelihood safeguard can veto the best initial candidate", {
+  out <- gamlss.longitudinal:::.gl_evaluate_cg_line_search(
+    candidate_steps = list(c(x = -1), c(x = -0.5)),
+    beta_vec = c(x = 2),
+    mm_cg = NULL,
+    penalty_current = matrix(10, nrow = 1),
+    obj_start = -20,
+    trust_radius = Inf,
+    max_delta = Inf,
+    armijo_c1 = 0,
+    line_search = "best",
+    max_line_search_evals = 60L,
+    max_backtrack = 50L,
+    eval_fn = function(beta_try, mm_cg) list(loglik = -4 * (beta_try[[1]] - 2)^2),
+    objective_fn = gamlss.longitudinal:::.gl_cg_objective
+  )
+  expect_equal(out$line_eval_count, 2L)
+  expect_equal(out$best$beta, c(x = 1))
+
+  safeguard <- gamlss.longitudinal:::.gl_assess_cg_step_acceptance(
+    best = out$best, best_raw_loglik = 0, outer_start_loglik = 0,
+    raw_loglik_drop_tol = 4, lambda_update_count = 1L
+  )
+  expect_false(safeguard$accept)
+  expect_true(safeguard$prevented_deterioration)
+  expect_equal(safeguard$prevented_raw_loglik_drop, 4)
 })
 
 test_that("CG line-search evaluator returns NULL best for invalid candidates", {
