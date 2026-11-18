@@ -28,9 +28,16 @@ test_that("stationary Gaussian model and sandwich covariance match independent a
   before <- object
   ref <- curvature_reference_covariance(object)
   expect_lt(max(abs(colSums(ref$scores))), 1e-5)
+
+  unused_cdf_step <- function(...) stop("unused marginal CDF derivatives were requested")
+  testthat::local_mocked_bindings(
+    calc_Fx_derivatives = unused_cdf_step,
+    calc_Fx2_derivatives = unused_cdf_step,
+    .package = "gamlss.longitudinal"
+  )
   for (backend in curvature_available_backends()) {
     options(gamlss.longitudinal.copula_backend = backend)
-    for (method in c("analytical_only", "sandwich")) {
+    for (method in c("analytical", "analytical_only", "numderiv", "sandwich")) {
       actual <- stats::vcov(object, method = method, details = TRUE,
         sandwich_bread_method = "analytical_only", progress = FALSE)
       expected <- if (method == "sandwich") ref$sandwich else ref$model
@@ -43,8 +50,8 @@ test_that("stationary Gaussian model and sandwich covariance match independent a
       expect_identical(rownames(actual$vcov$overall), names(object$par))
       expect_equal(as.numeric(actual$vcov$overall), as.numeric(expected), tolerance = 2e-5)
       expect_equal(unname(actual$se$overall), unname(sqrt(diag(expected))), tolerance = 2e-5)
-      expect_identical(actual$continuous_curvature,
-        .gl_vcov_continuous_curvature_marker(object))
+      marker <- if (method == "numderiv") NULL else .gl_vcov_continuous_curvature_marker(object)
+      expect_identical(actual$continuous_curvature, marker)
       expect_identical(object, before)
     }
   }

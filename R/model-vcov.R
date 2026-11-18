@@ -189,12 +189,6 @@ vcov.gamlss.longitudinal <- function(object, par = NA, sep_d2 = TRUE, numderiv =
     pair_complete = calc_lik_out$pair_complete
   )
 
-  # Calculate numerical derivatives for F(x) - also used as a reference for overall likelihood derivative
-
-  nd_impact_F <- calc_Fx_derivatives(eta_inv, mm$x, margin_dist, response)
-
-  nd_impact_F2 <- calc_Fx2_derivatives(eta_inv, mm$x, margin_dist, response)
-
   vcov_path <- .gl_vcov_compute_primary(
     object = object,
     par_cov = par_cov,
@@ -212,6 +206,8 @@ vcov.gamlss.longitudinal <- function(object, par = NA, sep_d2 = TRUE, numderiv =
 
   d2_mat <- NULL
   if (!(method %in% c("numderiv", "analytical", "analytical_only"))) {
+    nd_impact_F <- calc_Fx_derivatives(eta_inv, mm$x, margin_dist, response)
+    nd_impact_F2 <- calc_Fx2_derivatives(eta_inv, mm$x, margin_dist, response)
     d2_mat <- .gl_vcov_legacy_derivative_matrix(
       object = object,
       eta_inv = eta_inv,
