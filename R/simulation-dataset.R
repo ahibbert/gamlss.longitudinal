@@ -13,7 +13,9 @@
 #'   `"F"`, `"G"`, `"J"`, and `"t"`.
 #' @param margin_params Named list of marginal distribution parameter
 #'   specifications. Names should match the quantile function arguments, such
-#'   as `mu`, `sigma`, `nu`, and `tau`.
+#'   as `mu`, `sigma`, `nu`, and `tau`, including `bd` for binomial trials.
+#'   For a discrete margin, callbacks are evaluated once on the design before
+#'   any responses are drawn.
 #' @param copula_params Named list of copula parameter specifications. Use
 #'   `theta` or `par` for the primary copula parameter, `tau` to specify
 #'   Kendall's tau instead, and `zeta` or `par2` for the t-copula degrees of
@@ -32,6 +34,14 @@
 #' @param u_bounds Optional length-two numeric vector giving lower and upper
 #'   bounds used to clamp simulated uniforms before applying the marginal
 #'   quantile function. The default `NULL` leaves uniforms unchanged.
+#'
+#' @details With a discrete margin, each next count is drawn from the
+#'   adjacent copula rectangle probabilities divided by the current count's
+#'   marginal mass. Each transition uses a fresh uniform draw within the
+#'   current count's CDF interval. With `u_bounds`, the clamp is applied to
+#'   the reported probability and count after generating the underlying path.
+#'   When `include_truth` is true, `u` is the probability supplied to the
+#'   marginal quantile for the reported response.
 #'
 #' @return A long-format data frame with one row per subject-time observation.
 #' @export
@@ -69,6 +79,19 @@ simulate_longitudinal_dataset <- function(
   long <- .sim_base_long_data(n, times, subject_var, time_var)
   long <- .sim_add_covariates(long, covariates, n, length(times), subject_var)
 
+  discrete <- .is_discrete_margin(margin_dist)
+  family <- margin_dist$family[1L]
+  evaluate_margin_args <- function(data) {
+    params <- lapply(names(margin_params), function(parameter) {
+      .sim_eval_long_param(
+        margin_params[[parameter]], data, n, length(times),
+        paste0("margin_params$", parameter)
+      )
+    })
+    stats::setNames(params, names(margin_params))
+  }
+  qargs <- if (discrete) evaluate_margin_args(long) else list()
+
   u_mat <- .sim_copula_uniform_matrix(
     n = n,
     n_time = length(times),
@@ -76,20 +99,13 @@ simulate_longitudinal_dataset <- function(
     copula_params = copula_params,
     long_data = long,
     subject_var = subject_var,
-    time_var = time_var
+    time_var = time_var,
+    discrete_margin = if (discrete) family else NULL,
+    margin_args = qargs
   )
 
   long$.sim_u <- .sim_apply_u_bounds(as.vector(t(u_mat)), u_bounds)
-  qargs <- list()
-  for (param_name in names(margin_params)) {
-    qargs[[param_name]] <- .sim_eval_long_param(
-      margin_params[[param_name]],
-      long,
-      n = n,
-      n_time = length(times),
-      label = paste0("margin_params$", param_name)
-    )
-  }
+  if (!discrete) qargs <- evaluate_margin_args(long)
   long[[response_var]] <- .gl_simulation_quantiles(
     family = margin_dist$family[1L],
     p = long$.sim_u,
@@ -99,7 +115,7 @@ simulate_longitudinal_dataset <- function(
   if (include_truth) {
     long$u <- long$.sim_u
     for (param_name in names(margin_params)) {
-      long[[paste0("true_", param_name)]] <- .sim_eval_long_param(
+      long[[paste0("true_", param_name)]] <- if (discrete) qargs[[param_name]] else .sim_eval_long_param(
         margin_params[[param_name]],
         long,
         n = n,

@@ -1,4 +1,5 @@
-.sim_copula_uniform_matrix <- function(n, n_time, family, copula_params, long_data, subject_var, time_var) {
+.sim_copula_uniform_matrix <- function(n, n_time, family, copula_params, long_data, subject_var, time_var,
+                                       discrete_margin = NULL, margin_args = list()) {
   u <- matrix(stats::runif(n * n_time), nrow = n, ncol = n_time)
   if (n_time == 1L) {
     return(u)
@@ -14,12 +15,20 @@
   for (time_index in 2:n_time) {
     target <- stats::runif(n)
     edge_index <- time_index - 1L
+    previous_u <- u[, edge_index]
+    if (!is.null(discrete_margin)) {
+      left <- which(long_data$.sim_time_index == edge_index)
+      previous_u <- .gl_simulation_discrete_previous_u(
+        previous_u, discrete_margin, lapply(margin_args, `[`, left), left
+      )
+    }
     u[, time_index] <- .sim_invert_hfunc1(
-      u1 = u[, time_index - 1L],
+      u1 = previous_u,
       target = target,
       family = family,
       par = theta_mat[, edge_index],
-      par2 = zeta_mat[, edge_index]
+      par2 = zeta_mat[, edge_index],
+      discrete = !is.null(discrete_margin)
     )
   }
 
@@ -61,9 +70,11 @@
   .sim_eval_edge_param(zeta_spec, edge_data, n, n_edge, "copula_params$zeta")
 }
 
-.sim_invert_hfunc1 <- function(u1, target, family, par, par2 = 0) {
+.sim_invert_hfunc1 <- function(u1, target, family, par, par2 = 0, discrete = FALSE) {
   eps <- sqrt(.Machine$double.eps)
   family <- .copula_family_code(family)
+  if (discrete) return(.gl_simulation_discrete_inverse(u1, target, family, par, par2))
+
   values <- .copula_recycle(
     .copula_clamp01(u1),
     pmin(pmax(as.numeric(target), eps), 1 - eps),

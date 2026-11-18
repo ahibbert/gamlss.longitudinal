@@ -33,7 +33,9 @@ simulate_longitudinal_dataset(
 
 \item{margin_params}{Named list of marginal distribution parameter
 specifications. Names should match the quantile function arguments, such
-as \code{mu}, \code{sigma}, \code{nu}, and \code{tau}.}
+as \code{mu}, \code{sigma}, \code{nu}, and \code{tau}, including \code{bd} for binomial trials.
+For a discrete margin, callbacks are evaluated once on the design before
+any responses are drawn.}
 
 \item{copula_params}{Named list of copula parameter specifications. Use
 \code{theta} or \code{par} for the primary copula parameter, \code{tau} to specify
@@ -67,4 +69,13 @@ Simulates a balanced longitudinal dataset from a GAMLSS marginal distribution
 and a first-order copula dependence model between consecutive time points.
 Parameter specifications may be constants, time-indexed vectors,
 subject-by-time matrices, or functions of the generated design data.
+}
+\details{
+With a discrete margin, each next count is drawn from the
+adjacent copula rectangle probabilities divided by the current count's
+marginal mass. Each transition uses a fresh uniform draw within the
+current count's CDF interval. With \code{u_bounds}, the clamp is applied to
+the reported probability and count after generating the underlying path.
+When \code{include_truth} is true, \code{u} is the probability supplied to the
+marginal quantile for the reported response.
 }

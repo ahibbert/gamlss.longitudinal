@@ -20,6 +20,8 @@
   fit_data_ordered <- fit_data[order(fit_data$subject, fit_data$.time_idx), , drop = FALSE]
   edge_groups <- .gl_simulation_edge_groups(fit_data, fit_data_ordered)
   family_args <- attr(diag_data$params, "family_args", exact = TRUE) %||% list()
+  row_args <- c(family_args, diag_data$params)
+  discrete <- .is_discrete_margin(diag_data$family)
   batch_size <- .gl_simulation_batch_size(n, nsim)
 
   for (batch_start in seq.int(1L, nsim, by = batch_size)) {
@@ -42,12 +44,20 @@
       zeta <- fit_data$zeta_fit[left_rows]
       zeta[!is.finite(zeta)] <- 0
 
+      previous_u <- as.vector(u[left_rows, , drop = FALSE])
+      if (discrete) {
+        left <- rep(left_rows, times = batch_n)
+        previous_u <- .gl_simulation_discrete_previous_u(
+          previous_u, diag_data$family, lapply(row_args, `[`, left), left
+        )
+      }
       inverted <- .sim_invert_hfunc1(
-        u1 = as.vector(u[left_rows, , drop = FALSE]),
+        u1 = previous_u,
         target = as.vector(u[current_rows, , drop = FALSE]),
         family = object$copula_dist,
         par = rep(theta, times = batch_n),
-        par2 = rep(zeta, times = batch_n)
+        par2 = rep(zeta, times = batch_n),
+        discrete = discrete
       )
       u[current_rows, ] <- matrix(inverted, nrow = length(current_rows), ncol = batch_n)
     }

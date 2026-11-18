@@ -6,6 +6,12 @@
   successful halving level
   ([#8](https://github.com/ahibbert/gamlss.longitudinal/issues/8)).
 
+- Generate discrete trajectories from the fitted observed-count Markov
+  transitions in dataset simulation, fitted simulation, and conditional
+  forecasting ([#21](https://github.com/ahibbert/gamlss.longitudinal/issues/21)).
+  Seeds remain reproducible within a package version. Use the original
+  package version to reproduce historical discrete draws exactly.
+
 # gamlss.longitudinal 0.3.1
 
 - Prepare CRAN packaging and compact installed guides from the frozen 0.3.0

@@ -254,15 +254,17 @@
   }
   params <- .gl_subset_family_params(evaluated$diag_data$params, rows)
   response <- history$response
-  upper <- .gl_call_family_fun("p", evaluated$diag_data$family, response, params)
+  family <- evaluated$diag_data$family
   if (.is_discrete_margin(object$margin_dist)) {
-    lower <- .gl_call_family_fun("p", evaluated$diag_data$family, response - 1, params)
+    args <- c(attr(params, "family_args", exact = TRUE), params)
+    upper <- .gl_simulation_discrete_cdf(family, response, args)
+    lower <- .gl_simulation_discrete_cdf(family, response - 1, args)
   } else {
+    upper <- .gl_call_family_fun("p", family, response, params)
+    eps <- sqrt(.Machine$double.eps)
+    upper <- pmin(pmax(as.numeric(upper), eps), 1 - eps)
     lower <- upper
   }
-  eps <- sqrt(.Machine$double.eps)
-  lower <- pmin(pmax(as.numeric(lower), eps), 1 - eps)
-  upper <- pmin(pmax(as.numeric(upper), eps), 1 - eps)
   if (any(!is.finite(lower) | !is.finite(upper) | upper < lower)) {
     stop("Could not obtain valid fitted CDF values for the conditioning history.", call. = FALSE)
   }
@@ -348,6 +350,10 @@
   n <- nrow(future_fit)
   out <- matrix(NA_real_, nrow = n, ncol = nsim)
   eps <- sqrt(.Machine$double.eps)
+  family <- setup$future_diag$family
+  discrete <- .is_discrete_margin(family)
+  family_args <- attr(setup$future_diag$params, "family_args", exact = TRUE) %||% list()
+  row_args <- c(family_args, setup$future_diag$params)
 
   for (j in seq_len(nsim)) {
     u <- rep(NA_real_, n)
@@ -367,7 +373,11 @@
         if (k == 1L && length(hrow) && !is.na(hrow)) {
           adjacent <- future_fit$.time_idx[row] == history$time_idx[hrow] + 1L
           if (adjacent) {
-            previous_u <- if (history$cdf_upper[hrow] > history$cdf_lower[hrow]) {
+            previous_u <- if (discrete && is.finite(history$theta_fit[hrow])) {
+              .gl_simulation_redraw_discrete(
+                history$cdf_lower[hrow], history$cdf_upper[hrow], family, hrow
+              )
+            } else if (history$cdf_upper[hrow] > history$cdf_lower[hrow]) {
               stats::runif(1L, history$cdf_lower[hrow], history$cdf_upper[hrow])
             } else {
               history$cdf_upper[hrow]
@@ -382,6 +392,11 @@
             previous_u <- u[previous]
             theta <- future_fit$theta_fit[previous]
             zeta <- future_fit$zeta_fit[previous]
+            if (discrete && is.finite(theta)) {
+              previous_u <- .gl_simulation_discrete_previous_u(
+                previous_u, family, lapply(row_args, `[`, previous), previous
+              )
+            }
           }
         }
 
@@ -390,22 +405,18 @@
           u[row] <- target
         } else {
           u[row] <- .sim_invert_hfunc1(
-            u1 = min(max(previous_u, eps), 1 - eps),
+            u1 = if (discrete) previous_u else min(max(previous_u, eps), 1 - eps),
             target = target,
             family = object$copula_dist,
             par = theta,
-            par2 = if (is.finite(zeta)) zeta else 0
+            par2 = if (is.finite(zeta)) zeta else 0,
+            discrete = discrete
           )
         }
       }
     }
 
-    family_args <- attr(setup$future_diag$params, "family_args", exact = TRUE) %||% list()
-    out[, j] <- .gl_simulation_quantiles(
-      family = setup$future_diag$family,
-      p = u,
-      args = c(family_args, setup$future_diag$params)
-    )
+    out[, j] <- .gl_simulation_quantiles(family, u, row_args)
   }
 
   metadata <- .gl_conditional_simulation_metadata(setup, nsim)

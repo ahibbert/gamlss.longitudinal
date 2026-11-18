@@ -47,10 +47,11 @@ Simulate responses from a longitudinal GAMLSS-copula model
 Conditional simulation uses the package's global scheduled-visit
 ordering rather than numeric time distance. It conditions only on the most
 recent usable response under the fitted first-order adjacent-pair model; it
-is not a latent-state filter over an incomplete history. Continuous history
-responses are transformed by their fitted marginal CDF. For a discrete
-response, a latent uniform is randomized over its fitted CDF interval and
-retained while future values are generated. Marginal predictions remain the
-responsibility of \code{\link[=predict.gamlss.longitudinal]{predict.gamlss.longitudinal()}}; analytic conditional
-prediction is not performed here.
+starts from its fitted marginal CDF for a continuous response. For
+discrete responses, both unconditional and conditional trajectories
+use the fitted observed-count transition. Before each transition a
+fresh uniform is drawn within the current observed or simulated count's
+marginal CDF interval. This yields the adjacent copula rectangle mass
+divided by the current count's marginal mass. Use
+\code{\link[=predict.gamlss.longitudinal]{predict.gamlss.longitudinal()}} for marginal predictions.
 }

@@ -49,20 +49,9 @@
     envir = asNamespace("gamlss.dist"),
     inherits = FALSE
   )
-  cdf_below_zero <- .gl_simulation_discrete_cdf(pfun, rep(-1L, n), args)
-  if (any(cdf_below_zero > 0)) {
-    qfun <- get(
-      paste0("q", family),
-      envir = asNamespace("gamlss.dist"),
-      inherits = FALSE
-    )
-    qargs <- c(list(p = p), args)
-    qargs <- qargs[names(qargs) %in% formalArgs(qfun)]
-    return(do.call(qfun, qargs))
-  }
   lower <- rep(-1L, n)
   upper <- rep(0L, n)
-  upper_cdf <- .gl_simulation_discrete_cdf(pfun, upper, args)
+  upper_cdf <- .gl_simulation_discrete_cdf(family, upper, args, pfun)
   unresolved <- upper_cdf < p
 
   while (any(unresolved)) {
@@ -73,9 +62,7 @@
     )
     index <- which(unresolved)
     upper_cdf[index] <- .gl_simulation_discrete_cdf(
-      pfun,
-      upper[index],
-      lapply(args, `[`, index)
+      family, upper[index], lapply(args, `[`, index), pfun
     )
     unresolved <- upper_cdf < p
     if (any(unresolved & upper >= support_max)) {
@@ -92,9 +79,7 @@
     index <- which(active)
     middle <- lower[index] + (upper[index] - lower[index]) %/% 2L
     middle_cdf <- .gl_simulation_discrete_cdf(
-      pfun,
-      middle,
-      lapply(args, `[`, index)
+      family, middle, lapply(args, `[`, index), pfun
     )
     move_upper <- middle_cdf >= p[index]
     upper[index[move_upper]] <- middle[move_upper]
@@ -105,12 +90,12 @@
   as.numeric(upper)
 }
 
-.gl_simulation_discrete_cdf <- function(pfun, q, args) {
-  pargs <- c(list(q = q), args)
-  pargs <- pargs[names(pargs) %in% formalArgs(pfun)]
-  value <- do.call(pfun, pargs)
-  if (any(!is.finite(value))) {
-    stop("Non-finite marginal CDF encountered during simulation.", call. = FALSE)
-  }
-  as.numeric(value)
+.gl_simulation_discrete_cdf <- function(family, q, args, pfun = NULL) {
+  # Registered count margins have nonnegative support. Use the same CDF
+  # evaluation (including count fast paths) as the rectangle likelihood.
+  input <- c(list(q = q, x = q, y = q), args)
+  .gl_evaluate_margin_cdf(
+    input = input, margin_dist = list(family = family), response = q,
+    FUN = pfun, use_fast = TRUE
+  )
 }
