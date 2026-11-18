@@ -1,3 +1,11 @@
+# gamlss.longitudinal 0.3.1.9000 (development)
+
+- Stabilize tiny RS weights and their corresponding scores together
+  ([#7](https://github.com/ahibbert/gamlss.longitudinal/issues/7)).
+- Try initial CG directions before backtracking and stop at the first
+  successful halving level
+  ([#8](https://github.com/ahibbert/gamlss.longitudinal/issues/8)).
+
 # gamlss.longitudinal 0.3.1
 
 - Prepare CRAN packaging and compact installed guides from the frozen 0.3.0
