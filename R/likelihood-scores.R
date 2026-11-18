@@ -5,12 +5,10 @@ score_function_v2 <- function(eta, dldpar, d2ldpar, dpardeta, response = NA, phi
   f_k <- d2ldpar
   w_k <- -f_k * (dpardeta * dpardeta)
 
-  # Stop if weights are too small
-  w_k[abs(w_k) < crit_wk] <- 1
-  u_k[abs(w_k) < crit_wk] <- 0
-
-  w_k[abs(u_k) < crit_wk] <- 1
-  u_k[abs(u_k) < crit_wk] <- 0
+  # Identify rows to stabilize before replacing their weights and scores.
+  stabilize <- abs(w_k) < crit_wk | abs(u_k) < crit_wk
+  w_k[stabilize] <- 1
+  u_k[stabilize] <- 0
 
   z_k <- (1 - phi) * eta + phi * (eta + step_size * (u_k / w_k))
 

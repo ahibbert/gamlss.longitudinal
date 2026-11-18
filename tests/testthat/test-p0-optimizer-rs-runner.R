@@ -1,3 +1,33 @@
+test_that("RS stabilizes small weights and scores before forming working responses", {
+  eta <- c(1, 2, 3, 4, 5)
+  out <- gamlss.longitudinal:::score_function_v2(
+    eta = eta,
+    dldpar = c(1e-4, -1e-4, 1e-8, 0.5, 1e-7),
+    d2ldpar = c(-1e-8, 1e-8, -2, -2, -1e-7),
+    dpardeta = 1
+  )
+
+  expect_identical(as.vector(out$w_k), c(1, 1, 1, 2, 1e-7))
+  expect_identical(as.vector(out$u_k), c(0, 0, 0, 0.5, 1e-7))
+  expect_equal(as.vector(out$z_k), c(eta[1:3], 4.25, 6))
+})
+
+test_that("RS backfitting uses unchanged predictors for stabilized rows", {
+  eta <- c(2, 4)
+  out <- gamlss.longitudinal:::.gl_rs_backfitting_inputs(
+    eta = list(mu = eta),
+    eta_dr = list(mu = rep(1, 2)),
+    d1 = c(1e-4, 0.5),
+    par_name = "mu",
+    rs_design_cache = list(mu = list(fixed_names = "mu.(Intercept)")),
+    par_cov = c(`mu.(Intercept)` = 0),
+    par_s = list(mu = list())
+  )
+
+  expect_equal(out$w_k_vec, c(1, 0.25))
+  expect_equal(as.vector(out$z_k), c(2, 6))
+})
+
 test_that("RS optimizer runner wires loop helpers and returns updated state", {
   calls <- character()
   outer_calls <- 0L
